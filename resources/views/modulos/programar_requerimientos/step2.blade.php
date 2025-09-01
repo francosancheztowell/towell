@@ -436,6 +436,58 @@
                     console.log('FOLIO:', folio);
                     console.log('URDIDO_ENGOMADO:', data.engo || {});
                     console.log('CONSTRUCCION_URDIDO (filas):', data.construccion || []);
+                    // 6) HIDRATAR las tablas inferiores con lo recuperado
+                    hydrateConstruccion(data.construccion || []);
+                    hydrateEngomado(data.engo || {});
+
+                    // =============================== HIDRATAMOS LAS 2DAS TABLAS ==================================
+                    function hydrateConstruccion(filas) {
+                        // Recorre las 4 filas de #tbl-urdido y coloca no_julios / hilos
+                        const trs = document.querySelectorAll('#tbl-urdido tbody tr');
+                        for (let i = 0; i < trs.length; i++) {
+                            const tr = trs[i];
+                            const nj = tr.querySelector('input[name="no_julios[]"]');
+                            const hi = tr.querySelector('input[name="hilos[]"]');
+
+                            nj && (nj.value = (filas[i]?.no_julios ?? ''));
+                            hi && (hi.value = (filas[i]?.hilos ?? ''));
+                        }
+                    }
+
+                    function hydrateEngomado(engo) {
+                        // Campos simples
+                        const $nucleo = document.querySelector('select[name="nucleo"]');
+                        const $no_telas = document.querySelector('input[name="no_telas"]');
+                        const $balonas = document.querySelector('input[name="balonas"]');
+                        const $metros_tela = document.querySelector('input[name="metros_tela"]');
+                        const $cuend_min = document.querySelector('input[name="cuendados_mini"]');
+                        const $obs = document.querySelector('textarea[name="observaciones"]');
+
+                        if ($nucleo) $nucleo.value = (engo.nucleo ?? '');
+                        if ($no_telas) $no_telas.value = (engo.no_telas ?? '');
+                        if ($balonas) $balonas.value = (engo.balonas ?? '');
+                        if ($metros_tela) $metros_tela.value = (engo.metros_tela ?? '');
+                        if ($cuend_min) $cuend_min.value = (engo.cuendados_mini ?? '');
+                        if ($obs) $obs.value = (engo.observaciones ?? '');
+
+                        // Select2: L Mat Engomado (#bomSelect2)
+                        const lme = (engo.lmatengomado ?? '');
+                        if (window.$ && $('#bomSelect2').length) {
+                            if (lme) {
+                                // si no existe esa opción en el dropdown, la inyectamos y seleccionamos
+                                if (!$('#bomSelect2').find(`option[value="${lme}"]`).length) {
+                                    $('#bomSelect2').append(new Option(lme, lme, true, true));
+                                }
+                                $('#bomSelect2').val(lme).trigger('change');
+                            } else {
+                                $('#bomSelect2').val(null).trigger('change');
+                            }
+                        } else {
+                            // fallback sin jQuery
+                            const el = document.getElementById('bomSelect2');
+                            if (el) el.value = lme || '';
+                        }
+                    }
                 } catch (err) {
                     console.error(err);
                 }
