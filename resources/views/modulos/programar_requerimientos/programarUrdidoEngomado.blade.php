@@ -62,16 +62,16 @@
 
                     {{-- Título / banda superior --}}
                     <div class="px-3 py-1 text-white font-extrabold tracking-wide"
-                        style="background:linear-gradient(90deg,#a5b4fc,#93c5fd,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
-                        Planeación de Requerimientos
+                        style="background:linear-gradient(90deg,#6683f7,#104f97,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
+                        PLANEACIÓN DE REQUERIMIENTOS
                     </div>
 
                     {{-- Tabla --}}
                     <div class="  overflow-auto">
-                        <table id="tabla-requerimientos" class="modern-table w-full text-xs">
+                        <table id="tabla-requerimientos" class=" w-full text-xs">
                             <thead>
                                 <tr class="text-white uppercase text-[11px] tracking-wider"
-                                    style="background:linear-gradient(90deg,#c7d2fe,#93c5fd,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
+                                    style="background:linear-gradient(90deg,#6683f7,#104f97,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
                                     <th class="th w-12">Telar</th>
                                     <th class="th w-24">Fecha Req</th>
                                     <th class="th w-16">Cuenta</th>

@@ -2,16 +2,16 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="min-h-screen bg-gradient-to-br from-sky-100 via-blue-100 to-indigo-100 py-8 px-4">
+    <div class="min-h-screen p1">
         <div class="max-w-[1400px] mx-auto">
 
             {{-- Card contenedora --}}
             <div class="rounded-[28px] shadow-2xl border border-blue-200/60 overflow-hidden bg-white/80 backdrop-blur">
 
                 {{-- Título con degradado (look 2da imagen) --}}
-                <div class="px-6 py-4 text-white font-black tracking-wide text-lg md:text-xl
+                <div class="px-2 py-2.5 text-white font-black tracking-wide text-lg md:text-xl
                   rounded-t-[28px]"
-                    style="background:linear-gradient(90deg,#a78bfa,#7c8cf9,#60a5fa,#3b82f6,#2563eb);">
+                    style="background:linear-gradient(90deg,#6683f7,#104f97,#60a5fa,#3b82f6,#2563eb);">
                     INVENTARIO DISPONIBLE DE MATERIA PRIMA
                 </div>
 
@@ -28,14 +28,14 @@
                     ];
                 @endphp
 
-                <div class="px-6 pt-4 pb-2 bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50">
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+                <div class="px-6 pt-1 pb-2 bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50">
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
                         @foreach ($meta as [$label, $value])
-                            <div class="rounded-2xl border border-indigo-200/70 bg-white/90 shadow-sm p-2">
+                            <div class="rounded-2xl border border-indigo-200/70 bg-white/90 shadow-sm p-1">
                                 <div class="text-[11px] uppercase tracking-wide font-semibold text-blue-900/70">
                                     {{ $label }}</div>
                                 <div
-                                    class="mt-1 h-9 rounded-lg px-2 flex items-center font-extrabold text-slate-800
+                                    class="mt-1 h-6 rounded-lg px-2 flex items-center font-extrabold text-slate-800
                           bg-gradient-to-b from-blue-50 via-sky-50 to-indigo-50">
                                     {{ $value }}
                                 </div>
@@ -49,7 +49,7 @@
                     <table class="w-full text-sm table-rounded" id="tabla-inventario">
                         <thead>
                             <tr class="text-white uppercase text-xs tracking-wider"
-                                style="background:linear-gradient(90deg,#c7d2fe,#93c5fd,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
+                                style="background:linear-gradient(90deg,#6683f7,#4e97ba,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
                                 <th class="th">Artículo</th>
                                 <th class="th">Config</th>
                                 <th class="th">Tamaño</th>
@@ -117,7 +117,7 @@
         }
 
         .th {
-            padding: .85rem 1rem;
+            padding: .20rem .5rem;
             white-space: nowrap;
         }
 

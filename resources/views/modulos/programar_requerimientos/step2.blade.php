@@ -157,11 +157,11 @@
                             class="modern-table w-full text-xs border-collapse border border-gray-300 mb-4">
                             <thead class="h-10">
                                 <tr class="text-center text-white"
-                                    style="background:linear-gradient(90deg,#c7d2fe,#93c5fd,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
+                                    style="background:linear-gradient(90deg,#6683f7,#104f97,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
                                     <th colspan="2" class="th">CONTRUCCIÓN URDIDO</th>
                                 </tr>
                                 <tr class="text-center text-white"
-                                    style="background:linear-gradient(90deg,#c7d2fe,#93c5fd,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
+                                    style="background:linear-gradient(90deg,#6683f7,#104f97,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
                                     <th class="th border px-1 py-0.5">No. Julios</th>
                                     <th class="th border px-1 py-0.5">Hilos</th>
                                 </tr>
@@ -192,11 +192,11 @@
                     <table id="tbl-engomado" class="modern-table w-full text-xs border-collapse border border-gray-300">
                         <thead class="h-4">
                             <tr class="text-center text-white"
-                                style="background:linear-gradient(90deg,#c7d2fe,#93c5fd,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
+                                style="background:linear-gradient(90deg,#6683f7,#104f97,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
                                 <th class="th" colspan="7">DATOS DE ENGOMADO</th>
                             </tr>
                             <tr class="text-left text-white"
-                                style="background:linear-gradient(90deg,#c7d2fe,#93c5fd,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
+                                style="background:linear-gradient(90deg,#6683f7,#104f97,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
                                 <th class="th border px-1">Núcleo</th>
                                 <th class="th border px-1">No. de Telas</th>
                                 <th class="th border px-1">Ancho Balonas</th>
@@ -208,8 +208,8 @@
                         </thead>
                         <tbody class="h-24">
                             <tr>
-                                <td class="td border px-1 py-0.5">
-                                    <select name="nucleo" class="inpt form-select w-full px-1 py-1 text-xs rounded">
+                                <td class="td border px-3 py-1">
+                                    <select name="nucleo" class="inpt w-[150px]] py-1 text-xs rounded">
                                         <option value="" disabled {{ old('nucleo') ? '' : 'selected' }}></option>
                                         <option value="Itema" {{ old('nucleo') == 'Itema' ? 'selected' : '' }}>Itema
                                         </option>
@@ -239,14 +239,14 @@
                                         class="inpt form-input w-full px-1 py-1 text-xs rounded"
                                         value="{{ old('cuendados_mini') }}">
                                 </td>
-                                <td class="td px-1 py-0.5">
+                                <td class="td px-4 py-0.5">
                                     <select id="bomSelect2" name="lmatengomado"
-                                        class="inpt form-select px-3 py-1 text-xs rounded" required>
+                                        class="inpt py-1 text-xs w-[200px] rounded" required>
                                         <option value="" disabled selected>Selecciona una lista</option>
                                     </select>
                                 </td>
-                                <td class="td border px-3 py-1">
-                                    <textarea name="observaciones" class="inpt form-textarea w-full px-1 py-1 text-xs rounded h-16">{{ old('observaciones') }}</textarea>
+                                <td class="td border px-4 py-1">
+                                    <textarea name="observaciones" class="inpt form-textarea w-[220px] py-1 text-xs rounded h-16">{{ old('observaciones') }}</textarea>
                                 </td>
                             </tr>
                         </tbody>
@@ -468,7 +468,7 @@
 
             /* blue-200 */
             #agrupados-table thead tr {
-                background: linear-gradient(90deg, #c7d2fe, #93c5fd, #60a5fa, #3b82f6, #2563eb, #1d4ed8);
+                background: linear-gradient(90deg, #6683f7, #104f97, #60a5fa, #3b82f6, #2563eb, #1d4ed8);
             }
 
             #agrupados-table thead th {
