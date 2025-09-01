@@ -25,11 +25,12 @@ class RequerimientoController extends Controller
 
     public function store(Request $request)
     {
-
+        $folioBase = $this->generarFolioUnico2(); // ahora generaremos el folio desde que el usuario marca un checkbox en la info del telar
         DB::beginTransaction();
 
         try {
             $fechaHoy = now()->toDateString();
+
 
             // Bloquear los registros activos del telar (para evitar condición de carrera)
             $bloqueo = Requerimiento::where('telar', $request->telar)
@@ -71,7 +72,7 @@ class RequerimientoController extends Controller
                 'calibre_pie' =>  $request->calibre_pie,
                 'hilo' => $request->hilo,
                 'tipo_atado' => 'Normal',
-                'fecha_requerida' => $request->fecha,
+                'folio' => $folioBase,
             ]);
 
             DB::commit();
@@ -473,6 +474,7 @@ class RequerimientoController extends Controller
                     'destino'         => $destino,
                     'metros'          => $metros,
                     'urdido'          => $urdido,
+                    'folio'           => $req->folio,
                 ];
             });
 
@@ -514,6 +516,7 @@ class RequerimientoController extends Controller
                         'tipo'            => $first->tipo,
                         'destino'         => $first->destino,
                         'metros'          => $group->sum('metros'),
+                        'folio'           => $first->folio,
                     ];
                 });
 
@@ -569,8 +572,8 @@ class RequerimientoController extends Controller
     {
         // Obtener el último folio base (A001, A002, ..., B001, etc.), ignorando el sufijo -N
         $ultimoFolioBase = DB::table('requerimiento')
-            ->selectRaw("LEFT(orden_prod, CHARINDEX('-', orden_prod + '-') - 1) as folio_base")
-            ->whereRaw("orden_prod LIKE '[A-Z][0-9][0-9][0-9]-%'")
+            ->select('orden_prod as folio_base')
+            ->whereRaw("orden_prod LIKE '[A-Z][0-9][0-9][0-9]'") // exactamente A###, sin guión
             ->orderByDesc('folio_base')
             ->value('folio_base');
 
@@ -590,6 +593,246 @@ class RequerimientoController extends Controller
         }
 
         return $letra . str_pad($numero, 3, '0', STR_PAD_LEFT); // Devuelve "A001", "A002", etc.
+    }
+
+    private function generarFolioUnico2()
+    {
+        // Obtener el último folio base (A001, A002, ..., B001, etc.), ignorando el sufijo -N
+        $ultimoFolioBase = DB::table('requerimiento')
+            ->select('folio as folio_base')
+            ->whereRaw("folio LIKE '[A-Z][0-9][0-9][0-9]'") // exactamente A###, sin guión
+            ->orderByDesc('folio_base')
+            ->value('folio_base');
+
+        if ($ultimoFolioBase) {
+            $letra = substr($ultimoFolioBase, 0, 1);           // "A"
+            $numero = (int) substr($ultimoFolioBase, 1);       // 1, 2, ..., 999
+
+            if ($numero >= 999) {
+                $letra = chr(ord($letra) + 1); // Avanza a la siguiente letra
+                $numero = 1;
+            } else {
+                $numero += 1;
+            }
+        } else {
+            $letra = 'A';
+            $numero = 1;
+        }
+
+        return $letra . str_pad($numero, 3, '0', STR_PAD_LEFT); // Devuelve "A001", "A002", etc.
+    }
+
+    public function resolveFolio(Request $request)
+    {
+        $ids   = collect($request->query('ids', []))->filter()->unique()->values();
+        $folio = trim((string)$request->query('folio', ''));
+
+        if ($folio !== '') return response()->json(['folio' => $folio]);
+        if ($ids->isEmpty()) return response()->json(['message' => 'Faltan ids o folio'], 422);
+
+        // ¿ya hay folio/orden_prod?
+        $existing = DB::table('requerimiento')
+            ->whereIn('id', $ids)
+            ->selectRaw("MAX(COALESCE(NULLIF(LTRIM(RTRIM(folio)),''), NULLIF(LTRIM(RTRIM(orden_prod)),''))) as fol")
+            ->value('fol');
+
+        if ($existing) return response()->json(['folio' => $existing]);
+
+        // Crear nuevo y asignarlo a esos requerimientos
+        DB::beginTransaction();
+        try {
+            $newFolio = $this->generarFolioUnico();
+            DB::table('requerimiento')
+                ->whereIn('id', $ids)
+                ->update([
+                    'folio'      => $newFolio,
+                    'orden_prod' => $newFolio,
+                    'updated_at' => now(),
+                ]);
+            DB::commit();
+            return response()->json(['folio' => $newFolio]);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel() > 0) DB::rollBack();
+            Log::error('resolveFolio error: ' . $e->getMessage());
+            return response()->json(['message' => 'No se pudo crear folio'], 500);
+        }
+    }
+
+    public function initAndFetchByFolio(Request $request)
+    {
+        $folio = trim((string)$request->query('folio', ''));
+        if ($folio === '') return response()->json(['message' => 'Folio requerido'], 422);
+
+        DB::beginTransaction();
+        try {
+            // 1) urdido_engomado: si no existe, insertar placeholder
+            $engo = DB::table('urdido_engomado')->where('folio', $folio)->first();
+            if (!$engo) {
+                DB::table('urdido_engomado')->insert([
+                    'folio'            => $folio,
+                    'estatus_urdido'   => 'en_proceso',
+                    'estatus_engomado' => 'en_proceso',
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]);
+                $engo = DB::table('urdido_engomado')->where('folio', $folio)->first();
+            }
+
+            // 2) construccion_urdido: si no existe, insertar 4 filas placeholder
+            $conRows = DB::table('construccion_urdido')->where('folio', $folio)->orderBy('id')->get(['no_julios', 'hilos']);
+            if ($conRows->isEmpty()) {
+                $rows = [];
+                for ($i = 0; $i < 4; $i++) {
+                    $rows[] = [
+                        'folio'      => $folio,
+                        'no_julios'  => null,
+                        'hilos'      => null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+                DB::table('construccion_urdido')->insert($rows);
+                $conRows = DB::table('construccion_urdido')->where('folio', $folio)->orderBy('id')->get(['no_julios', 'hilos']);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'engo'         => $engo,
+                'construccion' => $conRows,
+            ]);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel() > 0) DB::rollBack();
+            Log::error('initAndFetchByFolio error: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al inicializar/consultar'], 500);
+        }
+    }
+
+    public function upsertAndFetchByFolio(Request $request)
+    {
+        $request->validate([
+            'folio'       => 'required|string',
+            'cuenta'      => 'nullable|string',
+            'tipo'        => 'nullable|string',
+            'destino'     => 'nullable|string',
+            'metros'      => 'nullable|numeric',
+            'urdido'      => 'nullable|string',
+            'lmaturdido'  => 'nullable|string',
+        ]);
+
+        $folio       = trim($request->input('folio'));
+        $cuenta      = trim((string)($request->input('cuenta') ?? ''));
+        $tipo        = trim((string)($request->input('tipo') ?? ''));
+        $destino     = trim((string)($request->input('destino') ?? ''));
+        $metros      = $request->filled('metros') ? (float)$request->input('metros') : null;
+        $urdido      = trim((string)($request->input('urdido') ?? ''));
+        $lmaturdido  = trim((string)($request->input('lmaturdido') ?? ''));
+
+        DB::beginTransaction();
+        try {
+            // === 1) URDIDO_ENGOMADO: insert si no existe, si existe sólo rellena vacíos ===
+            $engo = DB::table('urdido_engomado')->where('folio', $folio)->first();
+
+            $defaults = [
+                'cuenta'            => $cuenta !== '' ? $cuenta : '0',
+                'tipo'              => $tipo   !== '' ? $tipo   : '',
+                'destino'           => $destino !== '' ? $destino : '',
+                'metros'            => $metros ?? 0,
+                'urdido'            => $urdido,
+                'lmaturdido'        => $lmaturdido,
+                'lmatengomado'      => '',               // evita NOT NULL si aplica
+                'maquinaEngomado'   => '',               // evita NOT NULL si aplica
+                'proveedor'         => '',               // evita NOT NULL si aplica
+                'estatus_urdido'    => 'en_proceso',
+                'estatus_engomado'  => 'en_proceso',
+                'engomado'          => '',
+                'color'             => '',
+                'solidos'           => '',
+                'nucleo'            => '',
+                'no_telas'          => 0,
+                'balonas'           => 0,
+                'metros_tela'       => 0,
+                'cuendados_mini'    => 0,
+                'observaciones'     => null,
+            ];
+
+            if (!$engo) {
+                DB::table('urdido_engomado')->insert(array_merge($defaults, [
+                    'folio'      => $folio,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]));
+            } else {
+                // Actualiza sólo campos que estén NULL/'' en BD y vengan con valor
+                $updates = [];
+                $fillable = [
+                    'cuenta' => $cuenta,
+                    'tipo' => $tipo,
+                    'destino' => $destino,
+                    'metros' => $metros,
+                    'urdido' => $urdido,
+                    'lmaturdido' => $lmaturdido
+                ];
+                foreach ($fillable as $col => $val) {
+                    if ($val === null || $val === '') continue;
+                    // si la BD trae null/'' en ese col, lo rellenamos
+                    if (empty($engo->{$col}) && $engo->{$col} !== 0) {
+                        $updates[$col] = $val;
+                    }
+                }
+                // Campos que pudieran ser NOT NULL en tu esquema y valen '' en BD
+                foreach (['lmatengomado', 'maquinaEngomado', 'proveedor', 'engomado', 'color', 'solidos', 'nucleo'] as $col) {
+                    if (!isset($engo->{$col}) || $engo->{$col} === null) {
+                        $updates[$col] = $defaults[$col];
+                    }
+                }
+                foreach (['no_telas', 'balonas', 'metros_tela', 'cuendados_mini'] as $col) {
+                    if (!isset($engo->{$col}) || $engo->{$col} === null) {
+                        $updates[$col] = $defaults[$col];
+                    }
+                }
+
+                if (!empty($updates)) {
+                    $updates['updated_at'] = now();
+                    DB::table('urdido_engomado')->where('folio', $folio)->update($updates);
+                }
+            }
+
+            // Relee el registro actualizado
+            $engo = DB::table('urdido_engomado')->where('folio', $folio)->first();
+
+            // === 2) CONSTRUCCION_URDIDO: si no hay filas, crean 4 placeholders ===
+            $conRows = DB::table('construccion_urdido')
+                ->where('folio', $folio)
+                ->orderBy('id')
+                ->get(['no_julios', 'hilos']);
+
+            if ($conRows->isEmpty()) {
+                $rows = [];
+                for ($i = 0; $i < 4; $i++) {
+                    $rows[] = [
+                        'folio'      => $folio,
+                        'no_julios'  => null,
+                        'hilos'      => null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+                DB::table('construccion_urdido')->insert($rows);
+                $conRows = DB::table('construccion_urdido')->where('folio', $folio)->orderBy('id')->get(['no_julios', 'hilos']);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'engo'         => $engo,
+                'construccion' => $conRows,
+            ]);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel() > 0) DB::rollBack();
+            \Log::error('upsertAndFetchByFolio error: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al inicializar/consultar'], 500);
+        }
     }
 
     public function step3()

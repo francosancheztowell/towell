@@ -43,7 +43,11 @@
                         <tbody>
                             @foreach ($agrupados as $i => $g)
                                 @php $rowClass = $rowPalette[$i % count($rowPalette)]; @endphp
-                                <tr class="{{ $rowClass }}">
+                                <tr class="{{ $rowClass }} agr-row cursor-pointer hover:bg-yellow-100"
+                                    data-ids="{{ implode(',', $g->ids ?? []) }}" data-folio="{{ $g->folio ?? '' }}"
+                                    data-cuenta="{{ $g->cuenta ?? '' }}" data-tipo="{{ $g->tipo ?? '' }}"
+                                    data-destino="{{ $g->destino ?? '' }}" data-metros="{{ $g->metros ?? '' }}"
+                                    data-urdido="{{ $g->urdido ?? '' }}">
                                     <td class="border px-0.5">{{ $g->telar_str }}</td>
                                     <td class="border px-0.5">
                                         {{ $g->fecha_requerida ? \Carbon\Carbon::parse($g->fecha_requerida)->format('d/m/Y') : '' }}
@@ -62,7 +66,6 @@
                                                 old("agrupados.$i.lmaturdido_text", $g->lmaturdido_text ?? null) ??
                                                 $preId;
                                         @endphp
-
                                         <select name="agrupados[{{ $i }}][lmaturdido]" class="js-bom-select"
                                             data-selected-id="{{ $preId ?? '' }}"
                                             data-selected-text="{{ $preText ?? '' }}">
@@ -170,7 +173,8 @@
                                 @for ($i = 0; $i < 4; $i++)
                                     <tr>
                                         <td class="td border px-1 py-0.5">
-                                            <input type="text" inputmode="numeric" pattern="[0-9]*" name="no_julios[]"
+                                            <input type="text" inputmode="numeric" pattern="[0-9]*"
+                                                name="no_julios[]"
                                                 class="inpt form-input px-1 py-0.5 text-[10px] rounded w-full"
                                                 value="{{ old('no_julios.' . $i) }}">
                                         </td>
@@ -334,6 +338,97 @@
             });
         });
     </script>
+
+    {{--  --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const tbody = document.querySelector('#agrupados-table tbody');
+            if (!tbody) return;
+
+            // Parseo numérico seguro: "12,345.00" -> 12345
+            const toNumber = (txt) => {
+                if (txt == null) return null;
+                const s = String(txt).replace(/\s+/g, '').replace(/,/g, '');
+                const n = Number(s);
+                return Number.isFinite(n) ? n : null;
+            };
+
+            tbody.addEventListener('click', async (e) => {
+                // Evita capturar clicks en inputs/selects/links
+                if (e.target.closest(
+                    'select, .select2, .select2-container, input, textarea, button, a')) return;
+
+                const tr = e.target.closest('tr.agr-row');
+                if (!tr) return;
+
+                // 1) Datos crudos del TR
+                const ids = (tr.dataset.ids || '').split(',').map(s => s.trim()).filter(Boolean);
+                const folioAttr = (tr.dataset.folio || '').trim();
+                const filaData = {
+                    cuenta: tr.dataset.cuenta || '', // varchar
+                    tipo: tr.dataset.tipo || '', // varchar
+                    destino: tr.dataset.destino || '', // varchar
+                    metros: toNumber(tr.dataset.metros), // number
+                    urdido: tr.dataset.urdido || '', // varchar
+                    lmaturdido: (function() {
+                        const sel = tr.querySelector('select.js-bom-select');
+                        return sel ? (sel.value || '') : '';
+                    })(),
+                };
+
+                try {
+                    // 2) Resuelve/crea folio
+                    const folio = await resolveOrCreateFolio(folioAttr, ids);
+                    if (!folio) {
+                        console.warn('No se pudo resolver folio');
+                        return;
+                    }
+
+                    // 3) Upsert + fetch en backend con TODOS los datos de la fila
+                    const r = await fetch(`{{ route('prog.init.upsertFetch') }}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': CSRF,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            folio,
+                            ...filaData
+                        })
+                    });
+                    if (!r.ok) throw new Error('upsertFetch failed');
+                    const data = await r.json();
+
+                    // 4) Imprime en consola como pediste
+                    console.log('FOLIO:', folio);
+                    console.log('URDIDO_ENGOMADO:', data.engo || {});
+                    console.log('CONSTRUCCION_URDIDO (filas):', data.construccion || []);
+                } catch (err) {
+                    console.error(err);
+                }
+            }, {
+                passive: true
+            });
+
+            async function resolveOrCreateFolio(existingFolio, ids) {
+                const url = new URL(`{{ route('prog.init.resolveFolio') }}`);
+                if (existingFolio) url.searchParams.set('folio', existingFolio);
+                ids.forEach(id => url.searchParams.append('ids[]', id));
+                const r = await fetch(url, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                if (!r.ok) return null;
+                const j = await r.json();
+                return j.folio || null;
+            }
+        });
+    </script>
+
+
 
     @push('styles')
         <style>

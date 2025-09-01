@@ -32,7 +32,7 @@ class Requerimiento extends Model
         'calibre_pie',
         'hilo',
         'tipo_atado',
-        'fecha_requerida',
+        'folio',
     ];
 
     // Definimos cómo se deben convertir los campos de fecha
