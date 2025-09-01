@@ -339,53 +339,84 @@
         });
     </script>
 
-    {{--  --}}
+    {{-- ASIGNAR EL FOLIO DEL REGISTRO DE REQUERIMIENTO --}}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const tbody = document.querySelector('#agrupados-table tbody');
+            let CURRENT_FOLIO = null;
+            let CURRENT_TR = null;
+
             if (!tbody) return;
 
-            // Parseo numérico seguro: "12,345.00" -> 12345
+            // Utilidades
             const toNumber = (txt) => {
                 if (txt == null) return null;
                 const s = String(txt).replace(/\s+/g, '').replace(/,/g, '');
                 const n = Number(s);
                 return Number.isFinite(n) ? n : null;
             };
+            const debounce = (fn, ms = 450) => {
+                let t;
+                return (...a) => {
+                    clearTimeout(t);
+                    t = setTimeout(() => fn(...a), ms);
+                };
+            };
+            const warnSelectRow = () => {
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Atención',
+                        text: 'Por favor selecciona una fila',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    alert('Por favor seleccione una fila');
+                }
+            };
 
+            // =============== CLICK EN FILA: marcar + resolver/crear folio + upsert inicial y fetch ==========
             tbody.addEventListener('click', async (e) => {
-                // Evita capturar clicks en inputs/selects/links
                 if (e.target.closest(
-                    'select, .select2, .select2-container, input, textarea, button, a')) return;
+                        'select, .select2, .select2-container, input, textarea, button, a')) return;
 
-                const tr = e.target.closest('tr.agr-row');
+                const tr = e.target.closest('tr.agr-row') || e.target.closest('tr');
                 if (!tr) return;
 
-                // 1) Datos crudos del TR
+                // 1) Marcar visualmente la fila seleccionada
+                if (CURRENT_TR) CURRENT_TR.classList.remove('row-selected');
+                tr.classList.add('row-selected');
+                CURRENT_TR = tr;
+
+                // 2) Datos de la fila
                 const ids = (tr.dataset.ids || '').split(',').map(s => s.trim()).filter(Boolean);
                 const folioAttr = (tr.dataset.folio || '').trim();
                 const filaData = {
-                    cuenta: tr.dataset.cuenta || '', // varchar
-                    tipo: tr.dataset.tipo || '', // varchar
-                    destino: tr.dataset.destino || '', // varchar
-                    metros: toNumber(tr.dataset.metros), // number
-                    urdido: tr.dataset.urdido || '', // varchar
-                    lmaturdido: (function() {
+                    cuenta: tr.dataset.cuenta || '',
+                    tipo: tr.dataset.tipo || '',
+                    destino: tr.dataset.destino || '',
+                    metros: toNumber(tr.dataset.metros),
+                    urdido: tr.dataset.urdido || '',
+                    lmaturdido: (() => {
                         const sel = tr.querySelector('select.js-bom-select');
                         return sel ? (sel.value || '') : '';
                     })(),
                 };
 
                 try {
-                    // 2) Resuelve/crea folio
+                    // 3) Resolver/crear folio
                     const folio = await resolveOrCreateFolio(folioAttr, ids);
                     if (!folio) {
                         console.warn('No se pudo resolver folio');
                         return;
                     }
+                    CURRENT_FOLIO = folio;
 
-                    // 3) Upsert + fetch en backend con TODOS los datos de la fila
+                    // Guárdalo en el data-* del TR por si vuelves a hacer click
+                    tr.dataset.folio = folio;
+
+                    // 4) Upsert + fetch inicial (garantiza registros base en urdido_engomado y construccion_urdido)
                     const r = await fetch(`{{ route('prog.init.upsertFetch') }}`, {
                         method: 'POST',
                         headers: {
@@ -401,7 +432,7 @@
                     if (!r.ok) throw new Error('upsertFetch failed');
                     const data = await r.json();
 
-                    // 4) Imprime en consola como pediste
+                    // 5) Log como pediste
                     console.log('FOLIO:', folio);
                     console.log('URDIDO_ENGOMADO:', data.engo || {});
                     console.log('CONSTRUCCION_URDIDO (filas):', data.construccion || []);
@@ -425,10 +456,115 @@
                 const j = await r.json();
                 return j.folio || null;
             }
+
+            // =============================== AUTOSAVE: CONSTRUCCIÓN URDIDO ==================================
+            const saveConstruccion = debounce(async () => {
+                if (!CURRENT_FOLIO) {
+                    warnSelectRow();
+                    return;
+                }
+
+                const rows = [];
+                document.querySelectorAll('#tbl-urdido tbody tr').forEach(tr => {
+                    rows.push({
+                        no_julios: tr.querySelector('input[name="no_julios[]"]')
+                            ?.value || '',
+                        hilos: tr.querySelector('input[name="hilos[]"]')?.value || '',
+                    });
+                });
+
+                try {
+                    const res = await fetch(`{{ route('urdido.autosave.construccion') }}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': CSRF,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            folio: CURRENT_FOLIO,
+                            filas: rows
+                        })
+                    });
+                    if (!res.ok) throw new Error('autosaveConstruccion failed');
+                    // Opcional: toast o console
+                    console.log('Construcción guardada (autosave)');
+                } catch (e) {
+                    console.error(e);
+                }
+            }, 450);
+
+            document.querySelectorAll('#tbl-urdido input[name="no_julios[]"], #tbl-urdido input[name="hilos[]"]')
+                .forEach(inp => {
+                    inp.addEventListener('input', saveConstruccion);
+                    inp.addEventListener('change', saveConstruccion);
+                });
+
+            // =============================== AUTOSAVE: DATOS DE ENGOMADO ====================================
+            const collectEngomadoForm = () => ({
+                nucleo: document.querySelector('select[name="nucleo"]')?.value || null,
+                no_telas: document.querySelector('input[name="no_telas"]')?.value || null,
+                balonas: document.querySelector('input[name="balonas"]')?.value || null,
+                metros_tela: document.querySelector('input[name="metros_tela"]')?.value || null,
+                cuendados_mini: document.querySelector('input[name="cuendados_mini"]')?.value || null,
+                lmatengomado: (window.$ ? $('#bomSelect2').val() : document.querySelector('#bomSelect2')
+                    ?.value) || null,
+                observaciones: document.querySelector('textarea[name="observaciones"]')?.value || null,
+            });
+
+            const saveEngomado = debounce(async () => {
+                if (!CURRENT_FOLIO) {
+                    warnSelectRow();
+                    return;
+                }
+
+                const engo = collectEngomadoForm();
+
+                try {
+                    const res = await fetch(`{{ route('urdido.autosave.engomado') }}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': CSRF,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            folio: CURRENT_FOLIO,
+                            ...engo
+                        })
+                    });
+                    if (!res.ok) throw new Error('autosaveEngomado failed');
+                    console.log('Engomado guardado (autosave)');
+                } catch (e) {
+                    console.error(e);
+                }
+            }, 450);
+
+            // Bind a inputs/textarea/select
+            const engSelectors = [
+                'select[name="nucleo"]',
+                'input[name="no_telas"]',
+                'input[name="balonas"]',
+                'input[name="metros_tela"]',
+                'input[name="cuendados_mini"]',
+                'textarea[name="observaciones"]'
+            ];
+            engSelectors.forEach(sel => {
+                const el = document.querySelector(sel);
+                if (!el) return;
+                el.addEventListener('input', saveEngomado);
+                el.addEventListener('change', saveEngomado);
+            });
+
+            // select2 de L Mat Engomado
+            if (window.$ && $('#bomSelect2').length) {
+                $('#bomSelect2').on('select2:select select2:clear change', saveEngomado);
+            } else {
+                const el = document.getElementById('bomSelect2');
+                if (el) el.addEventListener('change', saveEngomado);
+            }
         });
     </script>
-
-
 
     @push('styles')
         <style>
@@ -606,6 +742,18 @@
             }
 
             /* ya usas text-xs, reforzamos proporción */
+            /* Amarillo fuertecito + borde */
+            .row-selected>td {
+                background: linear-gradient(90deg, #fde047, #facc15) !important;
+                /* amber-300 → amber-400 */
+                transition: background-color .15s ease;
+            }
+
+            .row-selected {
+                outline: 2px solid #f59e0b;
+                /* amber-500 */
+                outline-offset: -2px;
+            }
         </style>
     @endpush
 @endsection

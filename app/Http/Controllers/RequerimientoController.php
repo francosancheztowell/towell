@@ -830,8 +830,108 @@ class RequerimientoController extends Controller
             ]);
         } catch (\Throwable $e) {
             if (DB::transactionLevel() > 0) DB::rollBack();
-            \Log::error('upsertAndFetchByFolio error: ' . $e->getMessage());
+            Log::error('upsertAndFetchByFolio error: ' . $e->getMessage());
             return response()->json(['message' => 'Error al inicializar/consultar'], 500);
+        }
+    }
+
+    public function autosaveConstruccion(Request $request)
+    {
+        $request->validate([
+            'folio' => 'required|string',
+            'filas' => 'array',
+            'filas.*.no_julios' => 'nullable',
+            'filas.*.hilos'     => 'nullable',
+        ]);
+
+        $folio = $request->input('folio');
+        $filas = collect($request->input('filas', []));
+
+        DB::beginTransaction();
+        try {
+            // Reemplazo atómico por folio
+            DB::table('construccion_urdido')->where('folio', $folio)->delete();
+
+            $now = now();
+            $toInsert = [];
+            foreach ($filas as $f) {
+                $nj = trim((string)($f['no_julios'] ?? ''));
+                $hi = trim((string)($f['hilos'] ?? ''));
+                if ($nj !== '' || $hi !== '') {
+                    $toInsert[] = [
+                        'folio'      => $folio,
+                        'no_julios'  => $nj,
+                        'hilos'      => $hi,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+            }
+            if ($toInsert) DB::table('construccion_urdido')->insert($toInsert);
+
+            DB::commit();
+            return response()->json(['ok' => true]);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel() > 0) DB::rollBack();
+            Log::error('autosaveConstruccion error: ' . $e->getMessage());
+            return response()->json(['ok' => false], 500);
+        }
+    }
+
+    public function autosaveUrdidoEngomado(Request $request)
+    {
+        $request->validate([
+            'folio'         => 'required|string',
+            'nucleo'        => 'nullable|string',
+            'no_telas'      => 'nullable|numeric',
+            'balonas'       => 'nullable|numeric',
+            'metros_tela'   => 'nullable|numeric',
+            'cuendados_mini' => 'nullable|numeric',
+            'lmatengomado'  => 'nullable|string',
+            'observaciones' => 'nullable|string',
+        ]);
+
+        $folio = $request->input('folio');
+
+        // Solo campos permitidos
+        $fields = collect($request->only([
+            'nucleo',
+            'no_telas',
+            'balonas',
+            'metros_tela',
+            'cuendados_mini',
+            'lmatengomado',
+            'observaciones'
+        ]))->filter(function ($v) {
+            return !is_null($v);
+        })->all();
+
+        try {
+            $exists = DB::table('urdido_engomado')->where('folio', $folio)->exists();
+            $now = now();
+
+            if ($exists) {
+                $fields['updated_at'] = $now;
+                DB::table('urdido_engomado')->where('folio', $folio)->update($fields);
+            } else {
+                // Si por alguna razón no existe, lo creamos minimal para no fallar
+                DB::table('urdido_engomado')->insert(array_merge([
+                    'folio'            => $folio,
+                    'cuenta'           => '0',
+                    'tipo'             => '',
+                    'destino'          => '',
+                    'metros'           => 0,
+                    'estatus_urdido'   => 'en_proceso',
+                    'estatus_engomado' => 'en_proceso',
+                    'created_at'       => $now,
+                    'updated_at'       => $now,
+                ], $fields));
+            }
+
+            return response()->json(['ok' => true]);
+        } catch (\Throwable $e) {
+            Log::error('autosaveUrdidoEngomado error: ' . $e->getMessage());
+            return response()->json(['ok' => false], 500);
         }
     }
 

@@ -157,11 +157,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/tejido/programarReq', [RequerimientoController::class, 'requerimientosAProgramar'])->name('formulario.programarRequerimientos');
     Route::post('/tejido/guardarUrdidoEngomado', [RequerimientoController::class, 'requerimientosAGuardar'])->name('orden.produccion.store');
 
-
     Route::get('/prog-req/init/resolve-folio', [RequerimientoController::class, 'resolveFolio'])->name('prog.init.resolveFolio'); // Resolver/crear folio a partir de ids[] o folio existente
     Route::get('/prog-req/init/fetch-by-folio', [RequerimientoController::class, 'initAndFetchByFolio'])->name('prog.init.fetchByFolio'); // Inicializa si falta (inserta “folio” en tablas destino) y devuelve datos
-    Route::post('/prog-req/init/upsert-and-fetch', [RequerimientoController::class, 'upsertAndFetchByFolio'])
-        ->name('prog.init.upsertFetch');
+    Route::post('/prog-req/init/upsert-and-fetch', [RequerimientoController::class, 'upsertAndFetchByFolio'])->name('prog.init.upsertFetch');
+    Route::post('/prog-req/autosave/construccion', [RequerimientoController::class, 'autosaveConstruccion'])->name('urdido.autosave.construccion');
+    Route::post('/prog-req/autosave/urdido-engomado', [RequerimientoController::class, 'autosaveUrdidoEngomado'])->name('urdido.autosave.engomado');
 
     Route::post('/prog-req/step2', [RequerimientoController::class, 'step2'])->name('urdido.step2');
     Route::post('/prog-req/step3', [RequerimientoController::class, 'step3'])->name('urdido.step3');
