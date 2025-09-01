@@ -935,9 +935,17 @@ class RequerimientoController extends Controller
         }
     }
 
-    public function step3()
+    public function step3(Request $request)
     {
-        return view('modulos.programar_requerimientos.step3');
+        $lmaturdido = $request->input('lmaturdido');   // <= aquí llega
+        $ids        = $request->input('ids', []);
+
+        Log::info('step3 lmaturdido', ['lmaturdido' => $lmaturdido, 'ids' => $ids]); // opcional para confirmar en logs
+
+        // si quieres validar que venga:
+        // $request->validate(['lmaturdido' => 'required|string']);
+
+        return view('modulos.programar_requerimientos.step3', compact('lmaturdido', 'ids'));
     }
 
 

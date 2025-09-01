@@ -100,7 +100,7 @@
                     </a>
 
                     <!-- Reservar inventario -->
-                    <form method="POST" action="{{ route('urdido.step3') }}">{{-- reservar.inventario - RUTA ANTERIOR --}}
+                    <form id="formReservar" method="POST" action="{{ route('urdido.step3') }}">{{-- reservar.inventario - RUTA ANTERIOR --}}
                         @csrf
                         @foreach ($requerimientos as $req)
                             <input type="hidden" name="ids[]" value="{{ $req->id }}">
@@ -108,7 +108,6 @@
                         <button type="submit" class="btn-candy btn-teal">
                             <span class="btn-text">RESERVAR INVENTARIO</span>
                             <span class="btn-bubble" aria-hidden="true">
-                                <!-- Flecha -->
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
                                     stroke-width="2">
                                     <path d="M9 6l6 6-6 6" />
@@ -366,10 +365,10 @@
             const warnSelectRow = () => {
                 if (window.Swal) {
                     Swal.fire({
-                        icon: 'warning',
-                        title: 'Atención',
-                        text: 'Por favor selecciona una fila',
-                        confirmButtonText: 'OK'
+                        icon: 'info',
+                        title: 'ATENCIÓN',
+                        text: 'Por favor selecciona una lista de materiales de Urdido.',
+                        confirmButtonText: 'ENTENDIDO'
                     });
                 } else {
                     alert('Por favor seleccione una fila');
@@ -614,6 +613,50 @@
             } else {
                 const el = document.getElementById('bomSelect2');
                 if (el) el.addEventListener('change', saveEngomado);
+            }
+
+            const formReservar = document.getElementById('formReservar');
+            if (formReservar) {
+                formReservar.addEventListener('submit', (e) => {
+                    // Debe existir una fila seleccionada
+                    if (!window.CURRENT_TR && typeof CURRENT_TR === 'undefined') {
+                        // por si el scope cambia, intenta usar global; si no, bloquea
+                        e.preventDefault();
+                        alert('Por favor seleccione una fila');
+                        return;
+                    }
+                    const trSel = (typeof CURRENT_TR !== 'undefined' && CURRENT_TR) ? CURRENT_TR : window
+                        .CURRENT_TR;
+                    if (!trSel) {
+                        e.preventDefault();
+                        if (typeof warnSelectRow === 'function') warnSelectRow();
+                        else alert('Por favor seleccione una fila');
+                        return;
+                    }
+
+                    // Ubicar el select de L.Mat Urdido dentro de la fila
+                    const sel = trSel.querySelector('select.js-bom-select');
+                    let lmaturdidoVal = '';
+                    if (sel) {
+                        // Soporta Select2 o nativo
+                        if (window.$ && $(sel).hasClass('select2-hidden-accessible')) {
+                            lmaturdidoVal = $(sel).val() || '';
+                        } else {
+                            lmaturdidoVal = sel.value || '';
+                        }
+                    }
+
+                    // Insertar/actualizar el hidden en el form
+                    let hidden = formReservar.querySelector('input[name="lmaturdido"]');
+                    if (!hidden) {
+                        hidden = document.createElement('input');
+                        hidden.type = 'hidden';
+                        hidden.name = 'lmaturdido';
+                        formReservar.appendChild(hidden);
+                    }
+                    hidden.value = lmaturdidoVal;
+                    // Listo: continúa el submit
+                });
             }
         });
     </script>
