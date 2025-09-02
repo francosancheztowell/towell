@@ -879,44 +879,151 @@ class RequerimientoController extends Controller
 
     public function autosaveUrdidoEngomado(Request $request)
     {
-
-        $request->validate([
-            'folio'         => 'required|string',
-            'nucleo'        => 'nullable|string',
-            'no_telas'      => 'nullable|numeric',
-            'balonas'       => 'nullable|numeric',
-            'metros_tela'   => 'nullable|numeric',
-            'cuendados_mini' => 'nullable|numeric',
-            'maquinaEngomado' => 'nullable|string',
-            'lmatengomado'  => 'nullable|string',
-            'observaciones' => 'nullable|string',
+        $data = $request->validate([
+            'folio'             => 'required|string',
+            'urdido'            => 'nullable|string',
+            'nucleo'            => 'nullable|string',
+            'no_telas'          => 'nullable|numeric',
+            'balonas'           => 'nullable|numeric',
+            'metros_tela'       => 'nullable|numeric',
+            'cuendados_mini'    => 'nullable|numeric',
+            'maquinaEngomado'   => 'nullable|string',
+            'lmatengomado'      => 'nullable|string',
+            'observaciones'     => 'nullable|string',
         ]);
 
-        $folio = $request->input('folio');
+        $folio = $data['folio'];
 
-        // Solo campos permitidos
-        $fields = collect($request->only([
-            'nucleo',
-            'no_telas',
-            'balonas',
-            'metros_tela',
-            'cuendados_mini',
-            'maquinaEngomado',
-            'lmatengomado',
-            'observaciones'
-        ]))->filter(function ($v) {
-            return !is_null($v);
-        })->all();
+        // Solo campos que sí actualizaremos (no metas nulls)
+        $campos = array_filter([
+            'urdido'            => $data['urdido']          ?? null,
+            'nucleo'            => $data['nucleo']          ?? null,
+            'no_telas'          => $data['no_telas']        ?? null,
+            'balonas'           => $data['balonas']         ?? null,
+            'metros_tela'       => $data['metros_tela']     ?? null,
+            'cuendados_mini'    => $data['cuendados_mini']  ?? null,
+            'maquinaEngomado'   => $data['maquinaEngomado'] ?? null,
+            'lmatengomado'      => $data['lmatengomado']    ?? null,
+            'observaciones'     => $data['observaciones']   ?? null,
+        ], fn($v) => !is_null($v));
 
         try {
-            $exists = DB::table('urdido_engomado')->where('folio', $folio)->exists();
-            $now = now();
+            $resultado = DB::transaction(function () use ($folio, $campos, $data) {
 
-            if ($exists) {
-                $fields['updated_at'] = $now;
-                DB::table('urdido_engomado')->where('folio', $folio)->update($fields);
-            } else {
-                // Si por alguna razón no existe, lo creamos minimal para no fallar
+                // Cargar/lockear fila si existe
+                $row = DB::table('urdido_engomado')
+                    ->where('folio', $folio)
+                    ->lockForUpdate()
+                    ->first();
+
+                $now = now();
+
+                // Valores efectivos de grupo:
+                $urdidoEfectivo    = $data['urdido']          ?? ($row->urdido           ?? null);
+                $maquinaEfectiva   = $data['maquinaEngomado'] ?? ($row->maquinaEngomado  ?? null);
+
+                // Helper: mueve el folio al FINAL del grupo indicado (si hace falta)
+                $moveToEnd = function (string $colGrupo, string $colPrio, ?string $valGrupo) use ($folio, $row) {
+                    if (empty($valGrupo)) {
+                        return $row->{$colPrio} ?? null; // sin grupo -> sin prioridad
+                    }
+
+                    $oldGrupo = $row->{$colGrupo} ?? null;
+                    $oldPrio  = $row->{$colPrio}  ?? null;
+
+                    // Max del grupo EXCLUYÉNDOME para evitar que "me cuente"
+                    $targetMax = DB::table('urdido_engomado')
+                        ->where($colGrupo, $valGrupo)
+                        ->where('folio', '<>', $folio)
+                        ->lockForUpdate()
+                        ->max($colPrio);
+
+                    $newPrio = (is_null($targetMax) ? 1 : ((int)$targetMax + 1));
+
+                    if ($row) {
+                        // Si ya estoy en ese grupo
+                        if ($oldGrupo === $valGrupo) {
+                            // Idempotente: si ya estoy al final, no hagas nada
+                            if (!empty($oldPrio) && (int)$oldPrio === (int)$newPrio) {
+                                return $oldPrio;
+                            }
+
+                            // Cerrar hueco si tenía prioridad previa
+                            if (!empty($oldPrio)) {
+                                DB::table('urdido_engomado')
+                                    ->where($colGrupo, $valGrupo)
+                                    ->where($colPrio, '>', $oldPrio)
+                                    ->decrement($colPrio);
+                            }
+
+                            // Ponerme al final
+                            DB::table('urdido_engomado')
+                                ->where('folio', $folio)
+                                ->update([$colPrio => $newPrio]);
+                            return $newPrio;
+                        }
+
+                        // Si estoy cambiando de grupo (oldGrupo puede ser null)
+                        if (!empty($oldGrupo) && !empty($oldPrio)) {
+                            DB::table('urdido_engomado')
+                                ->where($oldGrupo ? $colGrupo : $colGrupo, $oldGrupo)
+                                ->where($colPrio, '>', $oldPrio)
+                                ->decrement($colPrio);
+                        }
+
+                        DB::table('urdido_engomado')
+                            ->where('folio', $folio)
+                            ->update([
+                                $colGrupo => $valGrupo,
+                                $colPrio  => $newPrio,
+                            ]);
+
+                        return $newPrio;
+                    }
+
+                    // Si no existe la fila, en la inserción usaremos $newPrio
+                    return $newPrio;
+                };
+
+                if ($row) {
+                    // Actualiza campos no-nulos enviados
+                    if (!empty($campos)) {
+                        DB::table('urdido_engomado')->where('folio', $folio)->update($campos + ['updated_at' => $now]);
+                    }
+
+                    // SIEMPRE recalcular/reubicar prioridad al final del grupo efectivo
+                    $prioridadUrdNueva  = $moveToEnd('urdido', 'prioridadUrd', $urdidoEfectivo);
+                    $prioridadEngoNueva = $moveToEnd('maquinaEngomado', 'prioridadEngo', $maquinaEfectiva);
+
+                    // Marcar updated_at (si los helpers no tocaron updated_at)
+                    DB::table('urdido_engomado')->where('folio', $folio)->update(['updated_at' => $now]);
+
+                    return [
+                        'prioridadUrd'  => $prioridadUrdNueva,
+                        'prioridadEngo' => $prioridadEngoNueva,
+                    ];
+                }
+
+                // === Si NO existe el registro: crear con prioridades al final de sus grupos efectivos ===
+                $prioridadUrdNueva = null;
+                $prioridadEngoNueva = null;
+
+                if (!empty($urdidoEfectivo)) {
+                    $max = DB::table('urdido_engomado')
+                        ->where('urdido', $urdidoEfectivo)
+                        ->lockForUpdate()
+                        ->max('prioridadUrd');
+                    $prioridadUrdNueva = is_null($max) ? 1 : ((int)$max + 1);
+                }
+
+                if (!empty($maquinaEfectiva)) {
+                    $max = DB::table('urdido_engomado')
+                        ->where('maquinaEngomado', $maquinaEfectiva)
+                        ->lockForUpdate()
+                        ->max('prioridadEngo');
+                    $prioridadEngoNueva = is_null($max) ? 1 : ((int)$max + 1);
+                }
+
                 DB::table('urdido_engomado')->insert(array_merge([
                     'folio'            => $folio,
                     'cuenta'           => '0',
@@ -925,15 +1032,24 @@ class RequerimientoController extends Controller
                     'metros'           => 0,
                     'estatus_urdido'   => 'en_proceso',
                     'estatus_engomado' => 'en_proceso',
+                    'urdido'           => $urdidoEfectivo,
+                    'prioridadUrd'     => $prioridadUrdNueva,
+                    'maquinaEngomado'  => $maquinaEfectiva,
+                    'prioridadEngo'    => $prioridadEngoNueva,
                     'created_at'       => $now,
                     'updated_at'       => $now,
-                ], $fields));
-            }
+                ], $campos));
 
-            return response()->json(['ok' => true]);
+                return [
+                    'prioridadUrd'  => $prioridadUrdNueva,
+                    'prioridadEngo' => $prioridadEngoNueva,
+                ];
+            });
+
+            return response()->json(['ok' => true] + $resultado, 200);
         } catch (\Throwable $e) {
-            Log::error('autosaveUrdidoEngomado error: ' . $e->getMessage());
-            return response()->json(['ok' => false], 500);
+            Log::error('autosaveUrdidoEngomado error', ['msg' => $e->getMessage()]);
+            return response()->json(['ok' => false, 'message' => 'Error al guardar'], 500);
         }
     }
 
