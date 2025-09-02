@@ -462,11 +462,28 @@
                         const $cuend_min = document.querySelector('input[name="cuendados_mini"]');
                         const $obs = document.querySelector('textarea[name="observaciones"]');
 
+                        function valueOrEmptyIfZero(val) {
+                            if (val == null) return '';
+                            const str = String(val).trim();
+                            // Si no es numérico, déjalo tal cual
+                            const asNum = Number(str.replace(',', '.'));
+                            if (!Number.isFinite(asNum)) return str;
+
+                            // ¿Es numéricamente 0 y además está formado solo por ceros y/o decimales de ceros?
+                            const zeroLike = /^-?\s*0+(?:[.,]0+)?\s*$/;
+                            return (asNum === 0 && zeroLike.test(str)) ? '' : str;
+                        }
+
+                        function setInput(el, val) {
+                            if (!el) return;
+                            el.value = valueOrEmptyIfZero(val);
+                        }
+
                         if ($nucleo) $nucleo.value = (engo.nucleo ?? '');
-                        if ($no_telas) $no_telas.value = (engo.no_telas ?? '');
-                        if ($balonas) $balonas.value = (engo.balonas ?? '');
-                        if ($metros_tela) $metros_tela.value = (engo.metros_tela ?? '');
-                        if ($cuend_min) $cuend_min.value = (engo.cuendados_mini ?? '');
+                        setInput($no_telas, engo.no_telas);
+                        setInput($balonas, engo.balonas);
+                        setInput($metros_tela, engo.metros_tela);
+                        setInput($cuend_min, engo.cuendados_mini);
                         if ($obs) $obs.value = (engo.observaciones ?? '');
 
                         // Select2: L Mat Engomado (#bomSelect2)

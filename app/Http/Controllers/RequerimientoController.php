@@ -264,11 +264,10 @@ class RequerimientoController extends Controller
     /* metodo que realiza funciones de vista PROGRAMARURDIDOENGOMADO**********************************************************************************
     *************************************************************************************************************************************************************************
     *************************************************************************************************************************************************************************
-    aqui GUARDAMOS lo de PROGRAMAR URDIDO ENGOMADO */
+    aqui GUARDAMOS  las ORDENES de BOTON CREAR ÓRDENES */
     public function requerimientosAGuardar(Request $request)
     {
-        $folioBase = $this->generarFolioUnico(); // base para distinguirlos si lo deseas
-        //dd($request);
+        dd($request);
         try {
             // Validación básica: puedes hacerlo con reglas o de forma manual
             $request->validate([
@@ -595,7 +594,7 @@ class RequerimientoController extends Controller
         return $letra . str_pad($numero, 3, '0', STR_PAD_LEFT); // Devuelve "A001", "A002", etc.
     }
 
-    private function generarFolioUnico2()
+    private function generarFolioUnico2() // este ya no lee orden_prod, lee folio
     {
         // Obtener el último folio base (A001, A002, ..., B001, etc.), ignorando el sufijo -N
         $ultimoFolioBase = DB::table('requerimiento')
