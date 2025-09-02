@@ -162,6 +162,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/prog-req/init/upsert-and-fetch', [RequerimientoController::class, 'upsertAndFetchByFolio'])->name('prog.init.upsertFetch');
     Route::post('/prog-req/autosave/construccion', [RequerimientoController::class, 'autosaveConstruccion'])->name('urdido.autosave.construccion');
     Route::post('/prog-req/autosave/urdido-engomado', [RequerimientoController::class, 'autosaveUrdidoEngomado'])->name('urdido.autosave.engomado');
+    Route::post('/prog/validar-folios', [RequerimientoController::class, 'validarFolios'])
+        ->name('prog.validar.folios');
+
 
     Route::post('/prog-req/step2', [RequerimientoController::class, 'step2'])->name('urdido.step2');
     Route::post('/prog-req/step3', [RequerimientoController::class, 'step3'])->name('urdido.step3');

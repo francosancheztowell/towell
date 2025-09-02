@@ -84,6 +84,76 @@ class RequerimientoController extends Controller
         }
     }
 
+    public function validarFolios(Request $request)
+    {
+        $data = $request->validate([
+            'folios' => 'required|array|min:1',
+            'folios.*' => 'string'
+        ]);
+
+        $folios = array_values(array_unique($data['folios']));
+
+        $result = [
+            'ok'     => true,
+            'errors' => [], // folio => [lista de faltantes]
+        ];
+
+        foreach ($folios as $folio) {
+            $faltantes = [];
+
+            // ===== urdido_engomado =====
+            $eng = DB::table('urdido_engomado')->where('folio', $folio)->first();
+            if (!$eng) {
+                $faltantes[] = 'urdido_engomado: (registro inexistente)';
+            } else {
+                // helper: trata null/''/0/0.0 como vacío
+                $zeroLike = function ($v) {
+                    if ($v === null) return true;
+                    $s = trim((string)$v);
+                    if ($s === '') return true;
+                    $s = str_replace(',', '.', $s);
+                    return is_numeric($s) ? (float)$s == 0.0 : false;
+                };
+
+                if ($zeroLike($eng->metros))        $faltantes[] = 'engomado.metros';
+                if ($zeroLike($eng->no_telas))      $faltantes[] = 'engomado.no_telas';
+                if ($zeroLike($eng->balonas))       $faltantes[] = 'engomado.balonas';
+                if ($zeroLike($eng->metros_tela))   $faltantes[] = 'engomado.metros_tela';
+                if (empty($eng->maquinaEngomado))   $faltantes[] = 'engomado.maquinaEngomado';
+                if (empty($eng->lmatengomado))      $faltantes[] = 'engomado.lmatengomado';
+            }
+
+            // ===== construccion_urdido =====
+            // Requisito por defecto: al menos UNA fila con ambos campos llenos
+            $cuRows = DB::table('construccion_urdido')
+                ->where('folio', $folio)
+                ->get(['no_julios', 'hilos']);
+
+            $hayFilaCompleta = false;
+            foreach ($cuRows as $r) {
+                $njVacio = ($r->no_julios === null) || (is_numeric($r->no_julios) ? ((float)$r->no_julios == 0.0) : trim((string)$r->no_julios) === '');
+                $hiVacio = ($r->hilos === null)     || (trim((string)$r->hilos) === '') || ((string)$r->hilos === '0');
+                if (!$njVacio && !$hiVacio) {
+                    $hayFilaCompleta = true;
+                    break;
+                }
+            }
+            if (!$hayFilaCompleta) {
+                $faltantes[] = 'construccion_urdido.no_julios/hilos';
+            }
+
+            if (!empty($faltantes)) {
+                $result['ok'] = false;
+                $result['errors'][$folio] = $faltantes;
+            }
+        }
+
+        if (!$result['ok']) {
+            return response()->json($result, 422);
+        }
+        return response()->json($result, 200);
+    }
+
 
     //este metodo FUNCIONA PARA MOSTRAR los datos de TELAR INDIVIDUAL en 2DA TABLA
     public function obtenerRequerimientosActivos()
@@ -267,33 +337,8 @@ class RequerimientoController extends Controller
     aqui GUARDAMOS  las ORDENES de BOTON CREAR ÓRDENES */
     public function requerimientosAGuardar(Request $request)
     {
-        dd($request);
+        dd($request); // ya tenemos los FOIOS WIIIIIII
         try {
-            // Validación básica: puedes hacerlo con reglas o de forma manual
-            $request->validate([
-                'urdido' => 'required',
-                'proveedor' => 'required',
-                'destino' => 'required',
-                'nucleo' => 'required',
-                'no_telas' => 'required|integer',
-                'lmaturdido' => 'required',
-                'maquinaEngomado' => 'required',
-                'lmatengomado' => 'required',
-                // puedes agregar más campos si necesitas
-            ], [
-                'urdido.required' => 'El campo urdido es obligatorio.',
-                'proveedor.required' => 'El campo proveedor es obligatorio.',
-                'destino.required' => 'El campo destino es obligatorio.',
-                'metros.required' => 'El campo metros es obligatorio.',
-                'metros.numeric' => 'El campo metros debe ser un número.',
-                'nucleo.required' => 'El campo núcleo es obligatorio.',
-                'no_telas.required' => 'El campo número de telas es obligatorio.',
-                'no_telas.integer' => 'El campo número de telas debe ser un número entero.',
-                'lmaturdido.required' => 'El campo L. Mat. Urdido es obligatorio.',
-                'maquinaEngomado.required' => 'El campo maquinaEngomado es obligatorio.',
-                'lmatengomado.required' => 'El campo L. Mat. Engomado es obligatorio.',
-            ]);
-
 
             // Validar que los arrays existan y tengan la misma longitud
             if (!is_array($request->no_julios) || !is_array($request->hilos)) {
@@ -877,6 +922,7 @@ class RequerimientoController extends Controller
         }
     }
 
+    //metodo actual para ACTUALIZAR y calcular prioridades en PROGRAMACION DE REQUERIMIENTOS
     public function autosaveUrdidoEngomado(Request $request)
     {
         $data = $request->validate([

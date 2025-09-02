@@ -117,7 +117,7 @@
                     </form>
 
                     <!-- Crear órdenes -->
-                    <form method="POST" action="{{ route('orden.produccion.store') }}">
+                    <form id="formOrdenes" method="POST" action="{{ route('orden.produccion.store') }}">
                         @csrf
                         @foreach ($requerimientos as $req)
                             <input type="hidden" name="ids[]" value="{{ $req->id }}">
@@ -655,7 +655,9 @@
 
             const formReservar = document.getElementById('formReservar');
             if (formReservar) {
-                formReservar.addEventListener('submit', (e) => {
+                formReservar.addEventListener('submit', async (e) => {
+                    const okFolios = await ensureFoliosAndValidateBeforeSubmit(formReservar);
+                    if (!okFolios) return;
                     // Debe existir una fila seleccionada
                     if (!window.CURRENT_TR && typeof CURRENT_TR === 'undefined') {
                         // por si el scope cambia, intenta usar global; si no, bloquea
@@ -663,7 +665,8 @@
                         alert('Por favor seleccione una fila');
                         return;
                     }
-                    const trSel = (typeof CURRENT_TR !== 'undefined' && CURRENT_TR) ? CURRENT_TR : window
+                    const trSel = (typeof CURRENT_TR !== 'undefined' && CURRENT_TR) ? CURRENT_TR :
+                        window
                         .CURRENT_TR;
                     if (!trSel) {
                         e.preventDefault();
@@ -694,6 +697,119 @@
                     }
                     hidden.value = lmaturdidoVal;
                     // Listo: continúa el submit
+                    formReservar.submit();
+                });
+            }
+            //CREAR ÓRDENES
+            // 1) Recolecta TODOS los folios de #agrupados-table, resolviendo los que falten
+            async function collectAllFoliosEnsured() {
+                const trs = Array.from(document.querySelectorAll('#agrupados-table tbody tr'));
+                const folios = [];
+
+                for (const tr of trs) {
+                    let folio = (tr.dataset.folio || '').trim();
+                    if (!folio) {
+                        // resuelve/crea con sus ids
+                        const ids = (tr.dataset.ids || '').split(',').map(s => s.trim()).filter(Boolean);
+                        folio = await resolveOrCreateFolio('', ids);
+                        if (folio) {
+                            tr.dataset.folio = folio;
+                        }
+                    }
+                    if (folio) folios.push(folio);
+                }
+                // únicos
+                return [...new Set(folios)];
+            }
+
+            // 2) Llama al backend para validar campos por folio
+            async function validateFoliosOnServer(folios) {
+                const r = await fetch(`{{ route('prog.validar.folios') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]')?.content ||
+                            ''),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        folios
+                    })
+                });
+                const j = await r.json();
+                return {
+                    ok: r.ok,
+                    data: j
+                };
+            }
+
+            // 3) Inyecta inputs hidden folios[] en el form destino
+            function injectFoliosIntoForm(form, folios) {
+                // limpia previos
+                form.querySelectorAll('input[name="folios[]"]').forEach(e => e.remove());
+                folios.forEach(f => {
+                    const h = document.createElement('input');
+                    h.type = 'hidden';
+                    h.name = 'folios[]';
+                    h.value = f;
+                    form.appendChild(h);
+                });
+            }
+
+            // 4) Flujo completo: asegurar/validar/inyectar, y continuar submit
+            async function ensureFoliosAndValidateBeforeSubmit(form) {
+                // recolecta/asegura folios
+                const folios = await collectAllFoliosEnsured();
+                if (!folios.length) {
+                    if (window.Swal) Swal.fire('Sin folios', 'No hay registros con folio en la tabla.',
+                        'warning');
+                    else alert('No hay registros con folio en la tabla.');
+                    return false;
+                }
+
+                // valida en el back
+                const {
+                    ok,
+                    data
+                } = await validateFoliosOnServer(folios);
+                if (!ok) {
+                    // arma mensaje bonito
+                    let html = '<ul style="text-align:left">';
+                    Object.entries(data.errors || {}).forEach(([folio, arr]) => {
+                        html += `<li><b>Folio ${folio}</b><ul>`;
+                        arr.forEach(m => {
+                            html += `<li>• ${m}</li>`;
+                        });
+                        html += '</ul></li>';
+                    });
+                    html += '</ul>';
+
+                    if (window.Swal) {
+                        await Swal.fire({
+                            icon: 'error',
+                            title: 'Faltan datos obligatorios',
+                            html,
+                            confirmButtonText: 'Entendido'
+                        });
+                    } else {
+                        console.error('Validación de folios falló:', data);
+                        alert('Faltan datos en algunos folios. Revisa consola para detalle.');
+                    }
+                    return false;
+                }
+
+                // ok: inyecta y sigue
+                injectFoliosIntoForm(form, folios);
+                return true;
+            }
+
+            const formOrdenes = document.getElementById('formOrdenes');
+            if (formOrdenes) {
+                formOrdenes.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const okFolios = await ensureFoliosAndValidateBeforeSubmit(formOrdenes);
+                    if (!okFolios) return;
+                    formOrdenes.submit();
                 });
             }
         });
