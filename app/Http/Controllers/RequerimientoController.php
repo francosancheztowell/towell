@@ -879,6 +879,7 @@ class RequerimientoController extends Controller
 
     public function autosaveUrdidoEngomado(Request $request)
     {
+
         $request->validate([
             'folio'         => 'required|string',
             'nucleo'        => 'nullable|string',
@@ -886,6 +887,7 @@ class RequerimientoController extends Controller
             'balonas'       => 'nullable|numeric',
             'metros_tela'   => 'nullable|numeric',
             'cuendados_mini' => 'nullable|numeric',
+            'maquinaEngomado' => 'nullable|string',
             'lmatengomado'  => 'nullable|string',
             'observaciones' => 'nullable|string',
         ]);
@@ -899,6 +901,7 @@ class RequerimientoController extends Controller
             'balonas',
             'metros_tela',
             'cuendados_mini',
+            'maquinaEngomado',
             'lmatengomado',
             'observaciones'
         ]))->filter(function ($v) {

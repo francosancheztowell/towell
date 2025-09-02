@@ -35,6 +35,7 @@ class UrdidoEngomado extends Model
         'balonas',
         'metros_tela',
         'cuendados_mini',
+        'maquinaEngomado',
         'observaciones',
         'estatus_urdido',
         'estatus_engomado',

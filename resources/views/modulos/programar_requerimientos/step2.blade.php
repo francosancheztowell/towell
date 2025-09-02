@@ -196,7 +196,7 @@
                         <thead class="h-4">
                             <tr class="text-center text-white"
                                 style="background:linear-gradient(90deg,#6683f7,#104f97,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
-                                <th class="th" colspan="7">DATOS DE ENGOMADO</th>
+                                <th class="th" colspan="8">DATOS DE ENGOMADO</th>
                             </tr>
                             <tr class="text-left text-white"
                                 style="background:linear-gradient(90deg,#6683f7,#104f97,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
@@ -205,6 +205,7 @@
                                 <th class="th border px-1">Ancho Balonas</th>
                                 <th class="th border px-1">Metraje de Telas</th>
                                 <th class="th border px-1">Cuendeados Mín. por Tela</th>
+                                <th class="th border px-1">Máquina Engomado</th>
                                 <th class="th border px-1">L Mat Engomado</th>
                                 <th class="th border px-1 w-1/4">Observaciones</th>
                             </tr>
@@ -242,6 +243,21 @@
                                         class="inpt form-input w-full px-1 py-1 text-xs rounded"
                                         value="{{ old('cuendados_mini') }}">
                                 </td>
+                                @php
+                                    // Ajusta $registro por la variable que uses en tu vista (ej. $ordenCompleta, $engo, etc.)
+                                    $sel = old('maquinaEngomado', $registro->maquinaEngomado ?? '');
+                                @endphp
+
+                                <td class="td border px-1 py-0.5">
+                                    <select name="maquinaEngomado"
+                                        class="form-select w-full px-1 py-1 text-xs border border-gray-300 rounded"
+                                        required>
+                                        <option value="" disabled @selected($sel === '')>Selecciona</option>
+                                        <option value="West Point 2" @selected($sel === 'West Point 2')>West Point 2</option>
+                                        <option value="West Point 3" @selected($sel === 'West Point 3')>West Point 3</option>
+                                    </select>
+                                </td>
+
                                 <td class="td px-4 py-0.5">
                                     <select id="bomSelect2" name="lmatengomado"
                                         class="inpt py-1 text-xs w-[200px] rounded" required>
@@ -460,6 +476,8 @@
                         const $balonas = document.querySelector('input[name="balonas"]');
                         const $metros_tela = document.querySelector('input[name="metros_tela"]');
                         const $cuend_min = document.querySelector('input[name="cuendados_mini"]');
+                        const $maquinaEngomado = document.querySelector(
+                            'select[name="maquinaEngomado"]');
                         const $obs = document.querySelector('textarea[name="observaciones"]');
 
                         function valueOrEmptyIfZero(val) {
@@ -484,6 +502,7 @@
                         setInput($balonas, engo.balonas);
                         setInput($metros_tela, engo.metros_tela);
                         setInput($cuend_min, engo.cuendados_mini);
+                        if ($maquinaEngomado) $maquinaEngomado.value = (engo.maquinaEngomado ?? '');
                         if ($obs) $obs.value = (engo.observaciones ?? '');
 
                         // Select2: L Mat Engomado (#bomSelect2)
@@ -575,6 +594,7 @@
                 balonas: document.querySelector('input[name="balonas"]')?.value || null,
                 metros_tela: document.querySelector('input[name="metros_tela"]')?.value || null,
                 cuendados_mini: document.querySelector('input[name="cuendados_mini"]')?.value || null,
+                maquinaEngomado: document.querySelector('select[name="maquinaEngomado"]')?.value || null,
                 lmatengomado: (window.$ ? $('#bomSelect2').val() : document.querySelector('#bomSelect2')
                     ?.value) || null,
                 observaciones: document.querySelector('textarea[name="observaciones"]')?.value || null,
@@ -615,6 +635,7 @@
                 'input[name="balonas"]',
                 'input[name="metros_tela"]',
                 'input[name="cuendados_mini"]',
+                'select[name="maquinaEngomado"]',
                 'textarea[name="observaciones"]'
             ];
             engSelectors.forEach(sel => {
