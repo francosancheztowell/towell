@@ -12,7 +12,6 @@
         const folio = @json($folio);
         const urlNuevaPestana = "{{ route('folio.pantalla', ':folio') }}".replace(':folio', folio);
 
-
         const mainApp = "{{ url('/produccionProceso') }}";
 
         // Abrir en nueva pestaña

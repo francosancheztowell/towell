@@ -383,130 +383,13 @@ class RequerimientoController extends Controller
     *************************************************************************************************************************************************************************
     *************************************************************************************************************************************************************************
     aqui GUARDAMOS  las ORDENES de BOTON CREAR ÓRDENES */
-    public function requerimientosAGuardar(Request $request)
+    public function requerimientosAGuardar(Request $request) // THIS METHOD ya sobraaaaaa
     {
-        dd($request); // ya tenemos los FOIOS WIIIIIII
-        try {
-
-            // Validar que los arrays existan y tengan la misma longitud
-            if (!is_array($request->no_julios) || !is_array($request->hilos)) {
-                return redirect()->back()->withInput()->with('error', 'Datos de construcción inválidos.');
-            }
-
-            // ====== Iniciar Transacción para asegurar consecutivos de prioridad ======
-            DB::beginTransaction();
-
-            $registros = $request->input('registros');
-            $telares = array_column($registros, 'telar');
-            //dd($telares);
-
-            foreach ($telares as $i => $telar) {
-                $folio = $folioBase . '-' . ($i + 1); // Ejemplo: FOLIO-1, FOLIO-2...
-
-                // Actualizar requerimiento por telar específico
-                DB::table('requerimiento')
-                    ->where('status', 'activo')
-                    ->where('telar', $telar)
-                    ->where(function ($query) use ($request) {
-                        if ($request->input('tipo') === 'Rizo') {
-                            $query->where('rizo', 1);
-                        } elseif ($request->input('tipo') === 'Pie') {
-                            $query->where('pie', 1);
-                        }
-                    })
-                    ->update(['orden_prod' => $folio]);
-            }
-
-            $metros = (float) $request->input('metros'); // Para decimales
-
-            // ====== Cálculo de prioridades por grupo ======
-            $urdidoValor = $request->input('urdido'); // Mc Coy 1, 2 o 3
-            $maquinaEngoValor = $request->input('maquinaEngomado'); // West Point 2 o 3
-
-            // Obtener el máximo actual dentro del grupo de Urdido
-            // lockForUpdate() para evitar que dos inserciones tomen el mismo consecutivo
-            $maxPrioridadUrd = DB::table('urdido_engomado')
-                ->where('urdido', $urdidoValor)
-                ->lockForUpdate()
-                ->max('prioridadUrd');
-
-            $prioridadUrd = is_null($maxPrioridadUrd) ? 1 : ((int)$maxPrioridadUrd + 1);
-
-            // Obtener el máximo actual dentro del grupo de Engomado
-            $maxPrioridadEngo = DB::table('urdido_engomado')
-                ->where('maquinaEngomado', $maquinaEngoValor)
-                ->lockForUpdate()
-                ->max('prioridadEngo');
-
-            $prioridadEngo = is_null($maxPrioridadEngo) ? 1 : ((int)$maxPrioridadEngo + 1);
-
-            // Insertar en urdido_engomado
-            DB::table('urdido_engomado')->insert([
-                'folio' => $folioBase,
-                'cuenta' => $request->input('cuenta'),
-                'urdido' => $urdidoValor,
-                'proveedor' => $request->input('proveedor'),
-                'tipo' => $request->input('tipo'),
-                'destino' => $request->input('destino'),
-                'metros' => $metros,
-                'nucleo' => $request->input('nucleo'),
-                'no_telas' => $request->input('no_telas'),
-                'balonas' => $request->input('balonas'),
-                'metros_tela' => $request->input('metros_tela'),
-                'cuendados_mini' => $request->input('cuendados_mini'),
-                'observaciones' => $request->input('observaciones'),
-                'created_at' => now(),
-                'updated_at' => now(),
-                'estatus_urdido' => 'en_proceso',
-                'estatus_engomado' => 'en_proceso',
-                'engomado' => '',
-                'color' => '',
-                'solidos' => '',
-                'lmaturdido' => $request->input('lmaturdido'),
-                'maquinaEngomado' => $maquinaEngoValor,
-                'lmatengomado' => $request->input('lmatengomado'),
-                // ====== NUEVOS CAMPOS DE PRIORIDAD ======
-                'prioridadUrd' => $prioridadUrd,
-                'prioridadEngo' => $prioridadEngo,
-            ]);
-
-            // Insertar detalles de construcción
-            $no_julios = $request->input('no_julios');
-            $hilos = $request->input('hilos');
-
-            for ($j = 0; $j < count($no_julios); $j++) {
-                if (!empty($no_julios[$j]) && !empty($hilos[$j])) {
-                    DB::table('construccion_urdido')->insert([
-                        'folio' => $folioBase,
-                        'no_julios' => $no_julios[$j],
-                        'hilos' => $hilos[$j],
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
-            }
-
-            // Confirmar transacción
-            DB::commit();
-
-            return view('modulos.programar_requerimientos.lanzador')->with('folio', $folioBase);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            // Validación fallida
-            // Si hubiera transacción abierta, revertir
-            if (DB::transactionLevel() > 0) {
-                DB::rollBack();
-            }
-            return redirect()->back()->withErrors($e->validator)->withInput();
-        } catch (\Exception $e) {
-            // Otro tipo de error: DB, lógica, etc.
-            if (DB::transactionLevel() > 0) {
-                DB::rollBack();
-            }
-            Log::error('Error al guardar requerimientos: ' . $e->getMessage()); // opcional: log para debug
-            return redirect()->back()->with('error', 'Ocurrió un error inesperado al guardar los datos. Intenta nuevamente.');
-        }
+        $folioBase = $request->folios;
+        return view('modulos.programar_requerimientos.lanzador')->with('folio', $folioBase);
     }
 
+    // STEP 2
     public function step2(Request $request) // STEP 2
     {
         try {
