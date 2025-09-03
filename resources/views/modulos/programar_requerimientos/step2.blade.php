@@ -420,7 +420,7 @@
                 };
 
                 try {
-                    // 3) Resolver/crear folio
+                    // 3) Resolver/crear FOLIO
                     const folio = await resolveOrCreateFolio(folioAttr, ids);
                     if (!folio) {
                         console.warn('No se pudo resolver folio');
@@ -480,6 +480,7 @@
                             'select[name="maquinaEngomado"]');
                         const $obs = document.querySelector('textarea[name="observaciones"]');
 
+                        //con esta FUNCIO, evitamos colocar CEROS 0 ó 0.0
                         function valueOrEmptyIfZero(val) {
                             if (val == null) return '';
                             const str = String(val).trim();

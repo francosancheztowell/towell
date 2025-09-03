@@ -192,8 +192,6 @@
                     </div>
                 </div>
             </section>
-
-
             <script>
                 document.addEventListener("DOMContentLoaded", function() {
                     const form = document.querySelector('form[action="{{ route('orden.produccion.store') }}"]');
@@ -208,7 +206,6 @@
                         for (let [key, value] of formData.entries()) {
                             data[key] = value;
                         }
-
                         console.log("Datos enviados:", data);
                     });
                 });

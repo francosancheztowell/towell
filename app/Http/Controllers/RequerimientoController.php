@@ -25,6 +25,7 @@ class RequerimientoController extends Controller
 
     public function store(Request $request)
     {
+        dd($request);
         $folioBase = $this->generarFolioUnico2(); // ahora generaremos el folio desde que el usuario marca un checkbox en la info del telar
         DB::beginTransaction();
 
@@ -86,6 +87,7 @@ class RequerimientoController extends Controller
 
     public function validarFolios(Request $request)
     {
+
         $data = $request->validate([
             'folios' => 'required|array|min:1',
             'folios.*' => 'string'
@@ -106,21 +108,37 @@ class RequerimientoController extends Controller
             if (!$eng) {
                 $faltantes[] = 'urdido_engomado: (registro inexistente)';
             } else {
-                // helper: trata null/''/0/0.0 como vacío
-                $zeroLike = function ($v) {
-                    if ($v === null) return true;
-                    $s = trim((string)$v);
-                    if ($s === '') return true;
-                    $s = str_replace(',', '.', $s);
-                    return is_numeric($s) ? (float)$s == 0.0 : false;
+                // Helpers
+                $isBlank = static function ($v) {
+                    // Solo null o '' son "vacíos". 0 / "0" / 0.0 NO son vacíos.
+                    return $v === null || (is_string($v) && trim($v) === '');
                 };
 
-                if ($zeroLike($eng->metros))        $faltantes[] = 'engomado.metros';
-                if ($zeroLike($eng->no_telas))      $faltantes[] = 'engomado.no_telas';
-                if ($zeroLike($eng->balonas))       $faltantes[] = 'engomado.balonas';
-                if ($zeroLike($eng->metros_tela))   $faltantes[] = 'engomado.metros_tela';
-                if (empty($eng->maquinaEngomado))   $faltantes[] = 'engomado.maquinaEngomado';
-                if (empty($eng->lmatengomado))      $faltantes[] = 'engomado.lmatengomado';
+                $normalizeNumber = static function ($v) {
+                    if ($v === null) return null;
+                    // Normaliza: recorta, quita NBSP, cambia coma por punto
+                    $s = is_string($v) ? str_replace(["\xC2\xA0", ' '], '', trim($v)) : $v;
+                    if (is_string($s)) $s = str_replace(',', '.', $s);
+                    return is_numeric($s) ? (float)$s : null;
+                };
+
+                // Úsalo si solo quieres "existe un número válido" (0 permitido)
+                $isMissingNumber = static function ($v) use ($normalizeNumber) {
+                    return $normalizeNumber($v) === null;
+                };
+
+                // Úsalo si NECESITAS > 0 (0 NO permitido)
+                $isNonPositive = static function ($v) use ($normalizeNumber) {
+                    $n = $normalizeNumber($v);
+                    return $n === null || $n <= 0;
+                };
+
+                if ($isNonPositive($eng->metros))  $faltantes[] = 'engomado.metros (<= 0)';       // 0 YA NO cuenta como vacío
+                if ($isBlank($eng->no_telas))      $faltantes[] = 'engomado.no_telas';
+                if ($isBlank($eng->balonas))       $faltantes[] = 'engomado.balonas';
+                if ($isBlank($eng->metros_tela))   $faltantes[] = 'engomado.metros_tela';
+                if ($isBlank($eng->maquinaEngomado)) $faltantes[] = 'engomado.maquinaEngomado';
+                if ($isBlank($eng->lmatengomado))    $faltantes[] = 'engomado.lmatengomado';
             }
 
             // ===== construccion_urdido =====
@@ -461,7 +479,6 @@ class RequerimientoController extends Controller
 
     public function step2(Request $request) // STEP 2
     {
-        //dd($request);
         try {
             // 1) Filas del paso 1 - Leer lo seleccionado en el Paso 1
             $rows = collect($request->input('registros', []));
@@ -519,8 +536,78 @@ class RequerimientoController extends Controller
                     'metros'          => $metros,
                     'urdido'          => $urdido,
                     'folio'           => $req->folio,
+                    'tipo_atado'      => $req->tipo_atado,
                 ];
             });
+
+            /* =========================================================
+         *  EXTRA: Actualizar urdido_engomado (metros, urdido, tipo_atado)
+         * ========================================================= */
+            // Mini dataset por folio (si hubiera duplicados, nos quedamos con el último no nulo)
+            $byFolio = $full
+                ->filter(fn($r) => filled($r->folio))
+                ->groupBy('folio')
+                ->map(function ($g) {
+                    // Elegimos el último registro con valores no nulos / no vacíos
+                    $last = $g->last();
+
+                    // Construimos payload para update:
+                    // - metros: siempre presente (0 permitido)
+                    // - urdido / tipo_atado: solo si vienen no vacíos
+                    $toUpdate = [
+                        'metros' => $last->metros, // 0 es válido
+                    ];
+                    if (($last->urdido ?? '') !== '') {
+                        $toUpdate['urdido'] = $last->urdido;
+                    }
+                    if (($last->tipo_atado ?? '') !== '') {
+                        $toUpdate['tipo_atado'] = $last->tipo_atado;
+                    }
+
+                    return [
+                        'folio'    => $last->folio,
+                        'toUpdate' => $toUpdate,
+                    ];
+                })
+                ->values();
+
+            DB::transaction(function () use ($byFolio) {
+                $folios = $byFolio->pluck('folio')->all();
+
+                // Filtrar a los que existen en urdido_engomado
+                $existentes = DB::table('urdido_engomado')
+                    ->whereIn('folio', $folios)
+                    ->pluck('folio')
+                    ->all();
+
+                $noEncontrados = array_diff($folios, $existentes);
+                if (!empty($noEncontrados)) {
+                    Log::warning('Folios no encontrados en urdido_engomado', ['folios' => array_values($noEncontrados)]);
+                }
+
+                foreach ($byFolio as $row) {
+                    if (!in_array($row['folio'], $existentes, true)) {
+                        continue; // no insertamos; solo actualizamos
+                    }
+
+                    $payload = $row['toUpdate'];
+
+                    // Evitar updates vacíos (p.ej. si no llegó urdido/tipo_atado y solo traíamos metros)
+                    if (!array_key_exists('metros', $payload) && !array_key_exists('urdido', $payload) && !array_key_exists('tipo_atado', $payload)) {
+                        continue;
+                    }
+
+                    DB::table('urdido_engomado')
+                        ->where('folio', $row['folio'])
+                        ->update($payload);
+
+                    Log::info('urdido_engomado actualizado', [
+                        'folio'   => $row['folio'],
+                        'updates' => $payload,
+                    ]);
+                }
+            });
+            /* ====== FIN EXTRA ====== */
 
             // 5) AGRUPAR por (cuenta, calibre, tipo, destino) y sumar metros
             $agrupados = $full
