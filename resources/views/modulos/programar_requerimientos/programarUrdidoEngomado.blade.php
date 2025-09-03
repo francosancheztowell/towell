@@ -91,8 +91,8 @@
                                     <tr class="tr-row">
                                         {{-- Telar --}}
                                         <td class="td text-center">
-                                            <input type="hidden" name="registros[{{ $index }}][id]"
-                                                value="{{ $req->id }}">
+                                            <input type="hidden" name="registros[{{ $index }}][folio]"
+                                                value="{{ $req->folio }}">
                                             <input type="text" name="registros[{{ $index }}][telar]"
                                                 value="{{ $req->telar ?? '' }}" class="inpt w-full">
                                         </td>
@@ -124,18 +124,19 @@
                                         {{-- Urdido (select) --}}
                                         <td class="td">
                                             @php
-                                                $sel = old("registros.$index.destino", $datos->salon ?? '');
+                                                // primero lo que venga de old(), si no, lo del back
+                                                $selUrdido = old("registros.$index.urdido", $req->urdido ?? '');
                                             @endphp
                                             <select name="registros[{{ $index }}][urdido]" class="inpt w-full"
                                                 required>
-                                                <option value="" disabled {{ $sel === '' ? 'selected' : '' }}>
+                                                <option value="" disabled {{ $selUrdido === '' ? 'selected' : '' }}>
                                                 </option>
-                                                <option value="Mc Coy 1" {{ $sel === 'Mc Coy 1' ? 'selected' : '' }}>Mc Coy
-                                                    1</option>
-                                                <option value="Mc Coy 2" {{ $sel === 'Mc Coy 2' ? 'selected' : '' }}>Mc Coy
-                                                    2</option>
-                                                <option value="Mc Coy 3" {{ $sel === 'Mc Coy 3' ? 'selected' : '' }}>Mc Coy
-                                                    3</option>
+                                                <option value="Mc Coy 1" {{ $selUrdido === 'Mc Coy 1' ? 'selected' : '' }}>
+                                                    Mc Coy 1</option>
+                                                <option value="Mc Coy 2" {{ $selUrdido === 'Mc Coy 2' ? 'selected' : '' }}>
+                                                    Mc Coy 2</option>
+                                                <option value="Mc Coy 3" {{ $selUrdido === 'Mc Coy 3' ? 'selected' : '' }}>
+                                                    Mc Coy 3</option>
                                             </select>
                                         </td>
 
@@ -152,13 +153,16 @@
 
                                         {{-- Tipo Atado --}}
                                         <td class="td text-center">
+                                            @php
+                                                $selAtado = old("registros.$index.tipo_atado", $req->tipo_atado ?? '');
+                                            @endphp
                                             <select name="registros[{{ $index }}][tipo_atado]" class="inpt w-full"
                                                 required>
-                                                <option value="Normal"
-                                                    {{ old('registros.' . $index . '.tipo_atado') == 'Normal' ? 'selected' : '' }}>
+                                                <option value="" disabled {{ $selAtado === '' ? 'selected' : '' }}>
+                                                </option>
+                                                <option value="Normal" {{ $selAtado === 'Normal' ? 'selected' : '' }}>
                                                     Normal</option>
-                                                <option value="Especial"
-                                                    {{ old('registros.' . $index . '.tipo_atado') == 'Especial' ? 'selected' : '' }}>
+                                                <option value="Especial" {{ $selAtado === 'Especial' ? 'selected' : '' }}>
                                                     Especial</option>
                                             </select>
                                         </td>
@@ -166,7 +170,7 @@
                                         {{-- Metros --}}
                                         <td class="td text-right">
                                             <input type="number" name="registros[{{ $index }}][metros]"
-                                                value="{{ $req->metros ?? '' }}" class="inpt w-full text-right"
+                                                value="{{ decimales($req->metros) ?? '' }}" class="inpt w-full text-right"
                                                 min="0" step="1" placeholder="0">
                                         </td>
                                     </tr>
@@ -199,10 +203,8 @@
                     form.addEventListener('submit', function(e) {
                         // Opcional: evitar envío para probar
                         e.preventDefault();
-
                         const formData = new FormData(form);
                         const data = {};
-
                         for (let [key, value] of formData.entries()) {
                             data[key] = value;
                         }

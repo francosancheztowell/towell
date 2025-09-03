@@ -312,9 +312,33 @@ class RequerimientoController extends Controller
 
         // Buscar los registros en Produccion.dbo.requerimiento SQLSERVER
         //AQUI BUSCAMOS los registros de acuerdo a los IDs SELECCIONADOS
-        $requerimientos = DB::connection('sqlsrv') // si estás usando SQL Server
-            ->table('Produccion.dbo.requerimiento')
-            ->whereIn('id', $idsSeleccionados)
+        //Telar	Fecha Req	Cuenta	Calibre   	Hilo	                          Urdido	Tipo	Destino	Tipo Atado	Metros
+        $requerimientos = DB::connection('sqlsrv')
+            ->table(DB::raw('[Produccion].[dbo].[requerimiento] as r'))
+            ->leftJoin(
+                DB::raw('[Produccion].[dbo].[urdido_engomado] as ue'),
+                DB::raw('RTRIM(LTRIM(ue.folio))'),
+                '=',
+                DB::raw('RTRIM(LTRIM(r.folio))')
+            )
+            ->whereIn('r.id', $idsSeleccionados)
+            ->select([
+                DB::raw('r.telar       as telar'),
+                DB::raw('r.fecha       as fecha'),
+                DB::raw('r.cuenta_rizo       as cuenta_rizo'),
+                DB::raw('r.cuenta_pie       as cuenta_pie'),
+                DB::raw('r.calibre_rizo       as calibre_rizo'),
+                DB::raw('r.calibre_pie       as calibre_pie'),
+                DB::raw('r.rizo       as rizo'),
+                DB::raw('r.pie       as pie'),
+                DB::raw('r.valor       as valor'),
+                DB::raw('r.hilo       as hilo'),
+                DB::raw('ue.folio       as folio'),
+                DB::raw('ue.metros      as metros'),
+                DB::raw('ue.urdido      as urdido'),
+                DB::raw('ue.tipo_atado  as tipo_atado'),
+                DB::raw('ue.destino  as destino'),
+            ])
             ->get();
 
         // Buscar el requerimiento activo con coincidencia de telar y tipo (rizo o pie)
@@ -342,8 +366,8 @@ class RequerimientoController extends Controller
             ->first();
 
         //MANDAMOS los datos provenientes de TI_PRO para LMAT de URDIDO y ENGOMADO
-
         // Retornar vista con requerimiento y salón
+        //dd($requerimientos);
         return view('modulos.programar_requerimientos.programarUrdidoEngomado', compact('requerimiento', 'datos', 'requerimientos'));
     }
 
@@ -482,18 +506,18 @@ class RequerimientoController extends Controller
         try {
             // 1) Filas del paso 1 - Leer lo seleccionado en el Paso 1
             $rows = collect($request->input('registros', []));
-            $ids  = $rows->pluck('id')->filter()->unique()->values();
+            $folios  = $rows->pluck('folio')->filter()->unique()->values();
 
-            if ($ids->isEmpty()) {
+            if ($folios->isEmpty()) {
                 return back()->with('error', 'Selecciona al menos un registro.');
             }
 
             // 2) Guardamos todo lo del paso 1 en sesión
-            $step1Map = $rows->keyBy('id'); // [id => {...}]
+            $step1Map = $rows->keyBy('folio'); // [id => {...}]
             session(['urdido.step1' => $step1Map->toArray()]); // Convierte la lista en map y lo guarda
 
             // 3) Traemos requerimientos base
-            $requerimientos = Requerimiento::whereIn('id', $ids)->get();
+            $requerimientos = Requerimiento::whereIn('folio', $folios)->get();
 
             // 4) Normalizamos (BD + overrides del paso 1)
             $full = $requerimientos->map(function ($req) use ($step1Map) {
@@ -509,7 +533,7 @@ class RequerimientoController extends Controller
                     : ($req->calibre_pie  ?? $req->calibre ?? null);
 
                 // Overrides del paso 1
-                $s1 = $step1Map->get($req->id, []);
+                $s1 = $step1Map->get($req->folio, []);
 
                 // FECHA: prioriza la del paso 1 si viene
                 $fecha_requerida = $s1['fecha_requerida'] ?? $req->fecha_requerida;
