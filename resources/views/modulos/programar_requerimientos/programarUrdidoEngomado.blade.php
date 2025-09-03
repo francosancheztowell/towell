@@ -1,5 +1,5 @@
 @extends('layouts.app', ['ocultarBotones' => true])
-
+{{-- STEP 1 - Este es el blade del STEP 1 --}}
 @section('content')
     <!-- Vista del formulario para registrar datos de URDIDO y ENGOMADO, además Construcción JULIOS -->
     <div class="mt-3 mb-20 p-1 overflow-y-auto max-h-[550px] ">
@@ -180,16 +180,9 @@
 
                         {{-- Botón SIGUIENTE (píldora degradada) --}}
                         <div class="mt-5 flex justify-end">
-                            <button type="submit"
-                                onclick="this.disabled=true; this.innerText='Enviando...'; this.form.submit();"
-                                class="btn-candy btn-indigo">
+                            <button type="button" class="btn-candy btn-indigo" onclick="validarYEnviar(this)">
                                 <span class="btn-text">SIGUIENTE</span>
-                                <span class="btn-bubble" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
-                                        stroke="currentColor" stroke-width="2">
-                                        <path d="M9 6l6 6-6 6" />
-                                    </svg>
-                                </span>
+                                <span class="btn-bubble" aria-hidden="true">…</span>
                             </button>
                         </div>
 
@@ -290,6 +283,59 @@
                 });
             </script>
 
+            {{-- SCRIPT para BOTON SIGUIENTE --}}
+            <script>
+                function validarYEnviar(btn) {
+                    const form = document.getElementById('formStep1');
+                    const rows = form.querySelectorAll('#tabla-requerimientos tbody tr');
+                    const errores = [];
+                    let firstEl = null;
+
+                    rows.forEach((tr, i) => {
+                        const urdidoEl = tr.querySelector('select[name$="[urdido]"]');
+                        const atadoEl = tr.querySelector('select[name$="[tipo_atado]"]');
+                        const metrosEl = tr.querySelector('input[name$="[metros]"]');
+                        const urdido = (urdidoEl?.value || '').trim();
+                        const tipoAtado = (atadoEl?.value || '').trim();
+                        const metrosRaw = (metrosEl?.value ?? '').trim();
+                        const metrosVacio = (metrosRaw === '' || Number.isNaN(Number(metrosRaw)));
+
+                        if (!urdido) {
+                            errores.push(`Fila ${i+1}: selecciona <b>URDIDO</b>.`);
+                            if (!firstEl) firstEl = urdidoEl;
+                        }
+                        if (!tipoAtado) {
+                            errores.push(`Fila ${i+1}: selecciona <b>TIPO ATADO</b>.`);
+                            if (!firstEl) firstEl = atadoEl;
+                        }
+                        if (metrosVacio) {
+                            errores.push(`Fila ${i+1}: captura <b>METROS</b>.`);
+                            if (!firstEl) firstEl = metrosEl;
+                        }
+                    });
+
+                    if (errores.length) {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Faltan datos',
+                                html: `<div style="text-align:left"><ul>${errores.map(e=>`<li>• ${e}</li>`).join('')}</ul></div>`,
+                                confirmButtonColor: '#1d4ed8',
+                                confirmButtonText: 'Entendido'
+                            }).then(() => firstEl?.focus());
+                        } else {
+                            alert('Faltan datos:\n- ' + errores.map(e => e.replace(/<[^>]*>/g, '')).join('\n- '));
+                            firstEl?.focus();
+                        }
+                        return false; // NO enviar
+                    }
+
+                    // OK: deshabilita y envía
+                    btn.disabled = true;
+                    btn.querySelector('.btn-text').textContent = 'Enviando...';
+                    form.submit();
+                }
+            </script>
             {{-- ======= ESTILOS (mismo look que la otra vista) ======= --}}
             <style>
                 /* Header redondeado */
