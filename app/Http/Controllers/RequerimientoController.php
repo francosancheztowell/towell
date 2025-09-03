@@ -25,7 +25,6 @@ class RequerimientoController extends Controller
 
     public function store(Request $request)
     {
-        dd($request);
         $folioBase = $this->generarFolioUnico2(); // ahora generaremos el folio desde que el usuario marca un checkbox en la info del telar
         DB::beginTransaction();
 
@@ -301,7 +300,6 @@ class RequerimientoController extends Controller
     /********************VISTA DOBLE - PROGRAMAR - URDIDO ENGOMADO*****************************************************************************************************************************************************/
     public function requerimientosAProgramar(Request $request)
     {
-        //dd($request);
         // Recuperar los valores enviados desde la vista
         $telar = $request->input('telar');
         $tipo = $request->input('tipo');
@@ -323,23 +321,31 @@ class RequerimientoController extends Controller
             )
             ->whereIn('r.id', $idsSeleccionados)
             ->select([
-                DB::raw('r.telar       as telar'),
-                DB::raw('r.fecha       as fecha'),
-                DB::raw('r.cuenta_rizo       as cuenta_rizo'),
-                DB::raw('r.cuenta_pie       as cuenta_pie'),
-                DB::raw('r.calibre_rizo       as calibre_rizo'),
-                DB::raw('r.calibre_pie       as calibre_pie'),
-                DB::raw('r.rizo       as rizo'),
-                DB::raw('r.pie       as pie'),
-                DB::raw('r.valor       as valor'),
-                DB::raw('r.hilo       as hilo'),
-                DB::raw('ue.folio       as folio'),
-                DB::raw('ue.metros      as metros'),
-                DB::raw('ue.urdido      as urdido'),
-                DB::raw('ue.tipo_atado  as tipo_atado'),
-                DB::raw('ue.destino  as destino'),
+                DB::raw('r.id            as id'),
+                DB::raw('r.telar         as telar'),
+                DB::raw('r.fecha         as fecha'),
+                DB::raw('r.cuenta_rizo   as cuenta_rizo'),
+                DB::raw('r.cuenta_pie    as cuenta_pie'),
+                DB::raw('r.calibre_rizo  as calibre_rizo'),
+                DB::raw('r.calibre_pie   as calibre_pie'),
+                DB::raw('r.rizo          as rizo'),
+                DB::raw('r.pie           as pie'),
+                DB::raw('r.valor         as valor'),
+                DB::raw('r.hilo          as hilo'),
+
+                // 👇 Folio canónico: usa ue.folio si viene (y no está vacío), si no r.folio
+                DB::raw("COALESCE(NULLIF(RTRIM(LTRIM(ue.folio)), ''), RTRIM(LTRIM(r.folio))) as folio"),
+
+                // Campos de UE (estos solo existen si hay fila en ue)
+                DB::raw('ue.metros       as metros'),
+                DB::raw('ue.urdido       as urdido'),
+                DB::raw('ue.tipo_atado   as tipo_atado'),
+
+                // 👇 Destino canónico: primero UE, si no, lo de requerimiento (ajusta si en r el campo no es valor)
+                DB::raw('COALESCE(ue.destino, r.valor) as destino'),
             ])
             ->get();
+
 
         // Buscar el requerimiento activo con coincidencia de telar y tipo (rizo o pie)
         $requerimiento = DB::table('requerimiento')

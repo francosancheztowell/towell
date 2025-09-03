@@ -198,7 +198,8 @@
             </section>
             <script>
                 document.addEventListener("DOMContentLoaded", function() {
-                    const form = document.querySelector('form[action="{{ route('orden.produccion.store') }}"]');
+                    const form = document.querySelector(
+                        'form[action="{{ route('orden.produccion.store') }}"]'); // BOTON VOLVEEEEEEEER
 
                     form.addEventListener('submit', function(e) {
                         // Opcional: evitar envío para probar
