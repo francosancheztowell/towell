@@ -164,6 +164,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/prog-req/autosave/urdido-engomado', [RequerimientoController::class, 'autosaveUrdidoEngomado'])->name('urdido.autosave.engomado');
     Route::post('/prog/validar-folios', [RequerimientoController::class, 'validarFolios'])
         ->name('prog.validar.folios');
+    Route::post('/urdido/autosave/lmaturdido', [RequerimientoController::class, 'autosaveLmaturdido'])->name('urdido.autosave.lmaturdido');
+
 
 
     Route::post('/prog-req/step2', [RequerimientoController::class, 'step2'])->name('urdido.step2');

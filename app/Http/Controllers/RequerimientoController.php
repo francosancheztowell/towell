@@ -1099,6 +1099,30 @@ class RequerimientoController extends Controller
         }
     }
 
+    public function autosaveLmaturdido(Request $request)
+    {
+        $data = $request->validate([
+            'folio'       => ['required', 'string'],
+            'lmaturdido'  => ['nullable', 'string', 'max:500'], // ajusta el max si lo necesitas
+        ]);
+
+        $now = now();
+
+        // Asumo que la tabla se llama 'urdido_engomado' y la columna es 'lmaturdido'
+        // y que 'folio' identifica el registro (tiene índice único o equivalente).
+        DB::table('urdido_engomado')->updateOrInsert(
+            ['folio' => $data['folio']],
+            [
+                'lmaturdido' => $data['lmaturdido'],
+                'updated_at' => $now,
+                // si el registro no existía, setea created_at:
+                'created_at' => $now,
+            ]
+        );
+
+        return response()->json(['ok' => true]);
+    }
+
     public function step3(Request $request)
     {
         $lmaturdido = $request->input('lmaturdido');   // <= aquí llega

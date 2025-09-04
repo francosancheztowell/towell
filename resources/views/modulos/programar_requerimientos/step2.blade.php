@@ -321,6 +321,92 @@
                 });
             });
         });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+            async function persistLmaturdido(folio, valor) {
+                const r = await fetch(`{{ route('urdido.autosave.lmaturdido') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        folio,
+                        lmaturdido: valor || null
+                    })
+                });
+                if (!r.ok) throw new Error('autosave lmaturdido failed');
+                return r.json();
+            }
+
+            // Helper: asegura folio para una fila <tr>
+            async function ensureFolioForTr(tr) {
+                let folio = (tr.dataset.folio || '').trim();
+                if (!folio) {
+                    const ids = (tr.dataset.ids || '').split(',').map(s => s.trim()).filter(Boolean);
+                    const url = new URL(`{{ route('prog.init.resolveFolio') }}`);
+                    ids.forEach(id => url.searchParams.append('ids[]', id));
+                    const r = await fetch(url, {
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    if (!r.ok) return null;
+                    const j = await r.json();
+                    folio = j.folio || '';
+                    if (folio) tr.dataset.folio = folio;
+                }
+                return folio || null;
+            }
+
+            // Engancha eventos a CADA select de L.Mat Urdido (columna de la tabla de agrupados)
+            $('.js-bom-select').each(function() {
+                const $sel = $(this);
+
+                // Dispara en select/clear/change
+                $sel.on('select2:select select2:clear change', async function() {
+                    try {
+                        const tr = this.closest('tr');
+                        if (!tr) return;
+
+                        // Marca visualmente (opcional)
+                        document.querySelectorAll('#agrupados-table tbody tr.row-selected')
+                            .forEach(r => r.classList.remove('row-selected'));
+                        tr.classList.add('row-selected');
+
+                        // Asegura folio para esa fila
+                        const folio = await ensureFolioForTr(tr);
+                        if (!folio) {
+                            console.warn('No se pudo resolver folio para la fila');
+                            if (window.Swal) Swal.fire('Sin folio',
+                                'No se pudo resolver el folio.', 'warning');
+                            return;
+                        }
+
+                        // Valor seleccionado (compatible con select2 o nativo)
+                        let val = '';
+                        if ($sel.hasClass('select2-hidden-accessible')) {
+                            val = $sel.val() || '';
+                        } else {
+                            val = this.value || '';
+                        }
+
+                        // Persistir
+                        await persistLmaturdido(folio, val);
+
+                        // Opcional: toast rápido
+                        console.log(`L.Mat Urdido guardado. Folio=${folio}, LMA=${val}`);
+                    } catch (err) {
+                        console.error(err);
+                        if (window.Swal) Swal.fire('Error', 'No se pudo guardar L.Mat Urdido.',
+                            'error');
+                    }
+                });
+            });
+        });
     </script>
 
     <!--busca BOMIDs para select2 de ENGOMADO-->
