@@ -17,26 +17,29 @@
 
                 @foreach ($componentes as $comp)
                     @php
+                        // metros base por BOMID (lmaturdido)
+                        $metrosBase = (float) ($metrosPorBom[$comp->BOMID] ?? 0);
+                        $bomQty = (float) ($comp->BOMQTY ?? 0);
+                        $reqCalc = $metrosBase * $bomQty; // 🌟 Requerimiento calculado
+
                         $meta = [
                             ['Artículo', $comp->ITEMID ?? ''],
                             ['Configuración', $comp->CONFIGID ?? ''],
                             ['Tamaño', $comp->INVENTSIZEID ?? ''],
                             ['Color', $comp->INVENTCOLORID ?? ''],
                             ['Nombre Color', $comp->CONFIGID ?? ''],
-                            ['Requerimiento', $comp->PENDING ?? ''],
+                            ['Requerimiento', decimales($reqCalc)], // 👈 aquí el cálculo
                         ];
                     @endphp
 
-                    <div class=" bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50">
+                    <div class="bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50">
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
                             @foreach ($meta as [$label, $value])
                                 <div class="rounded-2xl border border-indigo-200/70 bg-white/90 shadow-sm p-1">
                                     <div class="text-[10px] uppercase tracking-wide font-semibold text-blue-900/70">
-                                        {{ $label }}
-                                    </div>
+                                        {{ $label }}</div>
                                     <div
-                                        class="mt-1 h-6 rounded-lg px-2 flex items-center font-bold text-slate-800
-                        bg-gradient-to-b from-blue-50 via-sky-50 to-indigo-50">
+                                        class="mt-1 h-6 rounded-lg px-2 flex items-center font-bold text-slate-800 bg-gradient-to-b from-blue-50 via-sky-50 to-indigo-50">
                                         {{ $value }}
                                     </div>
                                 </div>
@@ -44,6 +47,7 @@
                         </div>
                     </div>
                 @endforeach
+
 
 
                 {{-- Tabla estilo “glass/gradient header” --}}

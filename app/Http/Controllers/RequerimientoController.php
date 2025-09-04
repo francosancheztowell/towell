@@ -1126,61 +1126,113 @@ class RequerimientoController extends Controller
 
     public function step3(Request $request)
     {
-        // 1) Folios desde el form (inyectados previamente)
+        // 1) Folios desde el form
         $folios = collect($request->input('folios', []))
             ->map(fn($f) => trim((string)$f))
-            ->filter()           // quita vacíos/null
+            ->filter()
             ->unique()
             ->values();
 
-        // 2) Recuperar lmaturdido desde urdido_engomado por folio
+        // 2) urdido_engomado: lmaturdido + metros por folio
+        $registros = collect();
         $lmaturdidos = collect();
 
         if ($folios->isNotEmpty()) {
-            $lmaturdidos = DB::connection('sqlsrv') // ← ajusta si tu conn principal se llama diferente
+            $registros = DB::connection('sqlsrv')
                 ->table('urdido_engomado')
                 ->whereIn('folio', $folios)
-                ->pluck('lmaturdido')
+                ->whereNotNull('lmaturdido')
+                ->select('folio', 'lmaturdido', 'metros')
+                ->get();
+
+            $lmaturdidos = $registros->pluck('lmaturdido')
                 ->map(fn($v) => trim((string)$v))
-                ->filter()
+                ->filter(fn($v) => $v !== '')
                 ->unique()
                 ->values();
         }
 
-        // 4) Consultar TI_PRO con el JOIN BOM ↔ INVENTDIM para TODAS las LMA
-        //    SELECT b.ITEMID, b.BOMQTY, i.CONFIGID, i.INVENTSIZEID, i.INVENTCOLORID
-        //    FROM BOM b
-        //    JOIN INVENTDIM i ON i.INVENTDIMID = b.INVENTDIMID
-        //    WHERE b.BOMID IN (...) AND b.DATAAREAID='pro' AND i.DATAAREAID='pro'
-        $componentes = DB::connection('sqlsrv_ti') // ← conexión a TI_PRO
+        // 3) BOM ↔ INVENTDIM (TI_PRO)
+        $componentes = DB::connection('sqlsrv_ti')
             ->table('BOM as b')
             ->join('INVENTDIM as i', 'i.INVENTDIMID', '=', 'b.INVENTDIMID')
             ->whereIn('b.BOMID', $lmaturdidos->all())
             ->where('b.DATAAREAID', 'pro')
             ->where('i.DATAAREAID', 'pro')
             ->select([
-                'b.BOMID',          // útil para agrupar por LMA
+                'b.BOMID',          // LMA
                 'b.ITEMID',
-                'b.BOMQTY',
+                'b.BOMQTY',         // a multiplicar por metros
                 'i.CONFIGID',
                 'i.INVENTSIZEID',
                 'i.INVENTCOLORID',
+                'b.INVENTDIMID',    // para el siguiente join de inventario
             ])
             ->get();
 
+        // metros sumados por BOM (LMA)
+        $metrosPorBom = $registros
+            ->groupBy('lmaturdido')
+            ->map(fn($g) => (float) $g->sum('metros'));
+
+        // 4) Inventario: InventSum ↔ InventDim ↔ InventSerial (TI_PRO)
+        //    filtrar por INVENTDIMID presentes en los componentes
+        $invDimIds = $componentes->pluck('INVENTDIMID')
+            ->map(fn($v) => trim((string)$v))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $inventario = collect();
+
+        if ($invDimIds->isNotEmpty()) {
+            $inventario = DB::connection('sqlsrv_ti')
+                ->table('InventSum as s')
+                ->join('InventDim as d', 'd.INVENTDIMID', '=', 's.INVENTDIMID')
+                ->join('InventSerial as ser', 'ser.INVENTSERIALID', '=', 'd.INVENTSERIALID')
+                // filtros InventSum
+                ->where('s.DATAAREAID', 'pro')
+                ->where('s.PHYSICALINVENT', '<>', 0)
+                // filtros InventDim
+                ->where('d.DATAAREAID', 'pro')
+                ->whereIn('d.INVENTLOCATIONID', ['A-MP', 'A-MPBB'])
+                // filtros InventSerial
+                ->where('ser.DATAAREAID', 'pro')
+                // relacionamos contra los INVENTDIMID que vinieron desde BOM
+                ->whereIn('s.INVENTDIMID', $invDimIds->all())
+                ->select([
+                    // InventSum
+                    's.ITEMID as S_ITEMID',
+                    's.PHYSICALINVENT as S_PHYSICALINVENT',
+                    's.INVENTDIMID as S_INVENTDIMID',
+                    // InventDim
+                    'd.CONFIGID as D_CONFIGID',
+                    'd.INVENTSIZEID as D_INVENTSIZEID',
+                    'd.INVENTCOLORID as D_INVENTCOLORID',
+                    'd.INVENTLOCATIONID as D_INVENTLOCATIONID',
+                    'd.INVENTBATCHID as D_INVENTBATCHID',
+                    'd.WMSLOCATIONID as D_WMSLOCATIONID',
+                    'd.INVENTSERIALID as D_INVENTSERIALID',
+                    // InventSerial
+                    'ser.PRODDATE as SER_PRODDATE',
+                    'ser.TwTiras as SER_TwTiras',
+                    'ser.TwCalidadFlog as SER_TwCalidadFlog',
+                    'ser.TwClienteFlog as SER_TwClienteFlog',
+                ])
+                ->get();
+        }
+
         // 5) Dump de avance
-        //dd([
-        //    'folios_recibidos' => $folios,
-        //    'lmaturdidos'      => $lmaturdidos,
-        //    'rows_encontradas' => $componentes->count(),
-        //    'componentes'      => $componentes,
-        //]);
-
-
-        return view('modulos.programar_requerimientos.step3', [
-            'lmaturdidos'  => $lmaturdidos,
-            'componentes'  => $componentes,
+        dd([
+            'folios_recibidos'      => $folios,
+            'lmaturdidos'           => $lmaturdidos,
+            'metrosPorBom'          => $metrosPorBom,      // suma metros por LMA
+            'componentes'           => $componentes,
+            'inventario'     => $inventario,
         ]);
+
+        // Si luego quieres ver vista:
+        // return view('modulos.programar_requerimientos.step3', compact('componentes', 'registros', 'metrosPorBom', 'inventario'));
     }
 
 
