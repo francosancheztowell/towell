@@ -1125,6 +1125,7 @@ class RequerimientoController extends Controller
 
     public function step3(Request $request)
     {
+        dd($request);
         $lmaturdido = $request->input('lmaturdido');   // <= aquí llega
         $ids        = $request->input('ids', []);
 

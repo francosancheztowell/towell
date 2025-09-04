@@ -742,51 +742,128 @@
 
             const formReservar = document.getElementById('formReservar');
             if (formReservar) {
-                formReservar.addEventListener('submit', async (e) => {
-                    const okFolios = await ensureFoliosAndValidateBeforeSubmit(formReservar);
-                    if (!okFolios) return;
-                    // Debe existir una fila seleccionada
-                    if (!window.CURRENT_TR && typeof CURRENT_TR === 'undefined') {
-                        // por si el scope cambia, intenta usar global; si no, bloquea
-                        e.preventDefault();
-                        alert('Por favor seleccione una fila');
-                        return;
-                    }
-                    const trSel = (typeof CURRENT_TR !== 'undefined' && CURRENT_TR) ? CURRENT_TR :
-                        window
-                        .CURRENT_TR;
-                    if (!trSel) {
-                        e.preventDefault();
-                        if (typeof warnSelectRow === 'function') warnSelectRow();
-                        else alert('Por favor seleccione una fila');
-                        return;
-                    }
+                // Evita doble submit
+                let reservando = false;
 
-                    // Ubicar el select de L.Mat Urdido dentro de la fila
-                    const sel = trSel.querySelector('select.js-bom-select');
-                    let lmaturdidoVal = '';
-                    if (sel) {
-                        // Soporta Select2 o nativo
-                        if (window.$ && $(sel).hasClass('select2-hidden-accessible')) {
-                            lmaturdidoVal = $(sel).val() || '';
-                        } else {
-                            lmaturdidoVal = sel.value || '';
+                const formReservar = document.getElementById('formReservar');
+                if (formReservar) {
+                    let reservando = false;
+
+                    formReservar.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        if (reservando) return;
+                        reservando = true;
+
+                        // helper para marcar/desmarcar la celda con error
+                        const markCellError = (selEl, on = true) => {
+                            const td = selEl?.closest('td');
+                            if (!td) return;
+                            if (on) {
+                                td.classList.add('cell-error');
+                                // parpadeo breve opcional
+                                setTimeout(() => td.classList.remove('cell-error'), 1400);
+                            } else {
+                                td.classList.remove('cell-error');
+                            }
+                        };
+
+                        // helper para mostrar alerta
+                        const showWarn = async (title, text) => {
+                            if (window.Swal) {
+                                await Swal.fire({
+                                    icon: 'info',
+                                    title,
+                                    text,
+                                    confirmButtonText: 'Entendido'
+                                });
+                            } else {
+                                alert(`${title}\n${text}`);
+                            }
+                        };
+
+                        try {
+                            // 1) Asegura/valida folios
+                            const okFolios = await ensureFoliosAndValidateBeforeSubmit(formReservar);
+                            if (!okFolios) {
+                                reservando = false;
+                                return;
+                            }
+
+                            // 2) Debe existir una fila seleccionada
+                            const trSel =
+                                (typeof CURRENT_TR !== 'undefined' && CURRENT_TR) ||
+                                window.CURRENT_TR ||
+                                document.querySelector('#agrupados-table tbody tr.row-selected');
+
+                            if (!trSel) {
+                                await showWarn('Atención', 'Por favor selecciona una fila.');
+                                reservando = false;
+                                return;
+                            }
+
+                            // 3) Tomar L.Mat Urdido de la fila seleccionada y VALIDAR que no venga vacío
+                            const sel = trSel.querySelector('select.js-bom-select');
+                            let lmaturdidoVal = '';
+                            if (sel) {
+                                if (window.$ && $(sel).hasClass('select2-hidden-accessible')) {
+                                    lmaturdidoVal = ($(sel).val() || '').trim();
+                                } else {
+                                    lmaturdidoVal = (sel.value || '').trim();
+                                }
+                            }
+
+                            if (!lmaturdidoVal || lmaturdidoVal.length < 1) {
+                                // marca la celda, muestra alerta y enfoca el select
+                                markCellError(sel, true);
+                                await showWarn('Dato requerido',
+                                    'Selecciona una Lista de Materiales de Urdido antes de continuar.'
+                                );
+                                // focus amigable según sea select2 o nativo
+                                if (window.$ && $(sel).hasClass('select2-hidden-accessible')) {
+                                    $(sel).select2('open');
+                                } else {
+                                    sel?.focus();
+                                }
+                                reservando = false;
+                                return;
+                            } else {
+                                markCellError(sel, false);
+                            }
+
+                            // 4) Inyectar/actualizar hidden en el form
+                            let hidden = formReservar.querySelector('input[name="lmaturdido"]');
+                            if (!hidden) {
+                                hidden = document.createElement('input');
+                                hidden.type = 'hidden';
+                                hidden.name = 'lmaturdido';
+                                formReservar.appendChild(hidden);
+                            }
+                            hidden.value = lmaturdidoVal;
+
+                            // 5) Deshabilitar botón y enviar nativo
+                            const btn = formReservar.querySelector('button[type="submit"]');
+                            if (btn) {
+                                btn.disabled = true;
+                                btn.dataset.originalText = btn.innerHTML;
+                                btn.innerHTML = 'Procesando...';
+                            }
+
+                            HTMLFormElement.prototype.submit.call(formReservar);
+
+                        } catch (err) {
+                            console.error(err);
+                            if (window.Swal) {
+                                await Swal.fire('Error', 'Ocurrió un problema al preparar el envío.',
+                                    'error');
+                            } else {
+                                alert('Ocurrió un problema al preparar el envío.');
+                            }
+                            reservando = false;
                         }
-                    }
-
-                    // Insertar/actualizar el hidden en el form
-                    let hidden = formReservar.querySelector('input[name="lmaturdido"]');
-                    if (!hidden) {
-                        hidden = document.createElement('input');
-                        hidden.type = 'hidden';
-                        hidden.name = 'lmaturdido';
-                        formReservar.appendChild(hidden);
-                    }
-                    hidden.value = lmaturdidoVal;
-                    // Listo: continúa el submit
-                    formReservar.submit();
-                });
+                    });
+                }
             }
+
             //CREAR ÓRDENES
             // 1) Recolecta TODOS los folios de #agrupados-table, resolviendo los que falten
             async function collectAllFoliosEnsured() {
@@ -815,7 +892,8 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]')?.content ||
+                        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]')
+                            ?.content ||
                             ''),
                         'Accept': 'application/json'
                     },
@@ -1089,6 +1167,14 @@
                 outline: 2px solid #f59e0b;
                 /* amber-500 */
                 outline-offset: -2px;
+            }
+
+            .cell-error {
+                outline: 2px solid #ef4444;
+                /* rojo-500 */
+                outline-offset: -2px;
+                box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+                transition: box-shadow .15s ease, outline-color .15s ease;
             }
         </style>
     @endpush
