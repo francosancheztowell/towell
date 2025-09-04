@@ -340,6 +340,7 @@ class RequerimientoController extends Controller
                 DB::raw('ue.metros       as metros'),
                 DB::raw('ue.urdido       as urdido'),
                 DB::raw('ue.tipo_atado   as tipo_atado'),
+                DB::raw('ue.lmaturdido   as lmaturdido'),
 
                 // 👇 Destino canónico: primero UE, si no, lo de requerimiento (ajusta si en r el campo no es valor)
                 DB::raw('COALESCE(ue.destino, r.valor) as destino'),
@@ -1125,16 +1126,61 @@ class RequerimientoController extends Controller
 
     public function step3(Request $request)
     {
-        dd($request);
-        $lmaturdido = $request->input('lmaturdido');   // <= aquí llega
-        $ids        = $request->input('ids', []);
+        // 1) Folios desde el form (inyectados previamente)
+        $folios = collect($request->input('folios', []))
+            ->map(fn($f) => trim((string)$f))
+            ->filter()           // quita vacíos/null
+            ->unique()
+            ->values();
 
-        Log::info('step3 lmaturdido', ['lmaturdido' => $lmaturdido, 'ids' => $ids]); // opcional para confirmar en logs
+        // 2) Recuperar lmaturdido desde urdido_engomado por folio
+        $lmaturdidos = collect();
 
-        // si quieres validar que venga:
-        // $request->validate(['lmaturdido' => 'required|string']);
+        if ($folios->isNotEmpty()) {
+            $lmaturdidos = DB::connection('sqlsrv') // ← ajusta si tu conn principal se llama diferente
+                ->table('urdido_engomado')
+                ->whereIn('folio', $folios)
+                ->pluck('lmaturdido')
+                ->map(fn($v) => trim((string)$v))
+                ->filter()
+                ->unique()
+                ->values();
+        }
 
-        return view('modulos.programar_requerimientos.step3', compact('lmaturdido', 'ids'));
+        // 4) Consultar TI_PRO con el JOIN BOM ↔ INVENTDIM para TODAS las LMA
+        //    SELECT b.ITEMID, b.BOMQTY, i.CONFIGID, i.INVENTSIZEID, i.INVENTCOLORID
+        //    FROM BOM b
+        //    JOIN INVENTDIM i ON i.INVENTDIMID = b.INVENTDIMID
+        //    WHERE b.BOMID IN (...) AND b.DATAAREAID='pro' AND i.DATAAREAID='pro'
+        $componentes = DB::connection('sqlsrv_ti') // ← conexión a TI_PRO
+            ->table('BOM as b')
+            ->join('INVENTDIM as i', 'i.INVENTDIMID', '=', 'b.INVENTDIMID')
+            ->whereIn('b.BOMID', $lmaturdidos->all())
+            ->where('b.DATAAREAID', 'pro')
+            ->where('i.DATAAREAID', 'pro')
+            ->select([
+                'b.BOMID',          // útil para agrupar por LMA
+                'b.ITEMID',
+                'b.BOMQTY',
+                'i.CONFIGID',
+                'i.INVENTSIZEID',
+                'i.INVENTCOLORID',
+            ])
+            ->get();
+
+        // 5) Dump de avance
+        //dd([
+        //    'folios_recibidos' => $folios,
+        //    'lmaturdidos'      => $lmaturdidos,
+        //    'rows_encontradas' => $componentes->count(),
+        //    'componentes'      => $componentes,
+        //]);
+
+
+        return view('modulos.programar_requerimientos.step3', [
+            'lmaturdidos'  => $lmaturdidos,
+            'componentes'  => $componentes,
+        ]);
     }
 
 

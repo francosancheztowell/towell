@@ -15,34 +15,36 @@
                     INVENTARIO DISPONIBLE DE MATERIA PRIMA
                 </div>
 
-                {{-- Tira de metadatos (info de la 1ra imagen) --}}
-                @php
-                    $meta = [
-                        ['Lmat', $lmat ?? 'URD 10/1 PIE-C'],
-                        ['Artículo', $articulo ?? '10/1'],
-                        ['Configuración', $configuracion ?? 'Alg-Open'],
-                        ['Tamaño', $tamano ?? 'ENTERO'],
-                        ['Color', $color ?? '1000'],
-                        ['Nom Color', $nomColor ?? 'Crudo'],
-                        ['Requerimiento', $requerimiento ?? '800'],
-                    ];
-                @endphp
+                @foreach ($componentes as $comp)
+                    @php
+                        $meta = [
+                            ['Artículo', $comp->ITEMID ?? ''],
+                            ['Configuración', $comp->CONFIGID ?? ''],
+                            ['Tamaño', $comp->INVENTSIZEID ?? ''],
+                            ['Color', $comp->INVENTCOLORID ?? ''],
+                            ['Nombre Color', $comp->CONFIGID ?? ''],
+                            ['Requerimiento', $comp->PENDING ?? ''],
+                        ];
+                    @endphp
 
-                <div class="px-6 pt-1 pb-2 bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50">
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
-                        @foreach ($meta as [$label, $value])
-                            <div class="rounded-2xl border border-indigo-200/70 bg-white/90 shadow-sm p-1">
-                                <div class="text-[11px] uppercase tracking-wide font-semibold text-blue-900/70">
-                                    {{ $label }}</div>
-                                <div
-                                    class="mt-1 h-6 rounded-lg px-2 flex items-center font-extrabold text-slate-800
-                          bg-gradient-to-b from-blue-50 via-sky-50 to-indigo-50">
-                                    {{ $value }}
+                    <div class=" bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50">
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
+                            @foreach ($meta as [$label, $value])
+                                <div class="rounded-2xl border border-indigo-200/70 bg-white/90 shadow-sm p-1">
+                                    <div class="text-[10px] uppercase tracking-wide font-semibold text-blue-900/70">
+                                        {{ $label }}
+                                    </div>
+                                    <div
+                                        class="mt-1 h-6 rounded-lg px-2 flex items-center font-bold text-slate-800
+                        bg-gradient-to-b from-blue-50 via-sky-50 to-indigo-50">
+                                        {{ $value }}
+                                    </div>
                                 </div>
-                            </div>
-                        @endforeach
+                            @endforeach
+                        </div>
                     </div>
-                </div>
+                @endforeach
+
 
                 {{-- Tabla estilo “glass/gradient header” --}}
                 <div class="overflow-auto">

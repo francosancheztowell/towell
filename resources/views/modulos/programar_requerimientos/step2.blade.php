@@ -102,9 +102,6 @@
                     <!-- Reservar inventario -->
                     <form id="formReservar" method="POST" action="{{ route('urdido.step3') }}">{{-- reservar.inventario - RUTA ANTERIOR --}}
                         @csrf
-                        @foreach ($requerimientos as $req)
-                            <input type="hidden" name="ids[]" value="{{ $req->id }}">
-                        @endforeach
                         <button type="submit" class="btn-candy btn-teal">
                             <span class="btn-text">RESERVAR INVENTARIO</span>
                             <span class="btn-bubble" aria-hidden="true">
@@ -815,8 +812,8 @@
                             if (!lmaturdidoVal || lmaturdidoVal.length < 1) {
                                 // marca la celda, muestra alerta y enfoca el select
                                 markCellError(sel, true);
-                                await showWarn('Dato requerido',
-                                    'Selecciona una Lista de Materiales de Urdido antes de continuar.'
+                                await showWarn('DATO REQUERIDO',
+                                    'Porfavor selecciona una Lista de Materiales de Urdido antes de continuar.'
                                 );
                                 // focus amigable según sea select2 o nativo
                                 if (window.$ && $(sel).hasClass('select2-hidden-accessible')) {
