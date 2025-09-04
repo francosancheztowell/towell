@@ -117,7 +117,7 @@
                     </form>
 
                     <!-- Crear órdenes -->
-                    <form id="formOrdenes" method="POST" action="{{ route('orden.produccion.store') }}">
+                    <form id="formOrdenes" method="POST" action="{{ route('crear.ordenes.lanzador') }}">
                         @csrf
                         @foreach ($requerimientos as $req)
                             <input type="hidden" name="ids[]" value="{{ $req->id }}">

@@ -154,8 +154,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/guardar-requerimiento', [RequerimientoController::class, 'store']);
     Route::get('/ultimos-requerimientos', [RequerimientoController::class, 'obtenerRequerimientosActivos']);
     Route::get('/modulo-UrdidoEngomado', [RequerimientoController::class, 'requerimientosActivos'])->name('index.requerimientosActivos');
-    Route::get('/tejido/programarReq', [RequerimientoController::class, 'requerimientosAProgramar'])->name('formulario.programarRequerimientos');
-    Route::post('/tejido/guardarUrdidoEngomado', [RequerimientoController::class, 'requerimientosAGuardar'])->name('orden.produccion.store');
+    Route::get('/tejido/programarReq-step1', [RequerimientoController::class, 'requerimientosAProgramar'])->name('formulario.programarRequerimientos');
+    Route::post('/tejido/guardarUrdidoEngomado', [RequerimientoController::class, 'requerimientosAGuardar'])->name('crear.ordenes.lanzador');
 
     Route::get('/prog-req/init/resolve-folio', [RequerimientoController::class, 'resolveFolio'])->name('prog.init.resolveFolio'); // Resolver/crear folio a partir de ids[] o folio existente
     Route::get('/prog-req/init/fetch-by-folio', [RequerimientoController::class, 'initAndFetchByFolio'])->name('prog.init.fetchByFolio'); // Inicializa si falta (inserta “folio” en tablas destino) y devuelve datos

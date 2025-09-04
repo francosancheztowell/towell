@@ -374,7 +374,7 @@ class RequerimientoController extends Controller
         //MANDAMOS los datos provenientes de TI_PRO para LMAT de URDIDO y ENGOMADO
         // Retornar vista con requerimiento y salón
         //dd($requerimientos);
-        return view('modulos.programar_requerimientos.programarUrdidoEngomado', compact('requerimiento', 'datos', 'requerimientos'));
+        return view('modulos.programar_requerimientos.step1', compact('requerimiento', 'datos', 'requerimientos'));
     }
 
     /*************************************************************************************************************************************************************************/

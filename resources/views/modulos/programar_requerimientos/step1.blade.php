@@ -94,21 +94,21 @@
                                             <input type="hidden" name="registros[{{ $index }}][folio]"
                                                 value="{{ $req->folio }}">
                                             <input type="text" name="registros[{{ $index }}][telar]"
-                                                value="{{ $req->telar ?? '' }}" class="inpt w-full">
+                                                value="{{ $req->telar ?? '' }}" class="inpt w-full" readonly>
                                         </td>
 
                                         {{-- Fecha requerida --}}
                                         <td class="td text-center">
                                             <input type="date" name="registros[{{ $index }}][fecha_requerida]"
                                                 value="{{ $req->fecha ? \Carbon\Carbon::parse($req->fecha)->format('Y-m-d') : '' }}"
-                                                class="inpt w-full">
+                                                class="inpt w-full" readonly>
                                         </td>
 
                                         {{-- Cuenta --}}
                                         <td class="td text-center">
                                             <input type="text" name="registros[{{ $index }}][cuenta]"
                                                 value="{{ $req->rizo == 1 ? decimales($req->cuenta_rizo) : decimales($req->cuenta_pie) }}"
-                                                class="inpt w-full">
+                                                class="inpt w-full" readonly>
                                         </td>
 
                                         {{-- Calibre --}}
@@ -148,7 +148,7 @@
                                         {{-- Destino --}}
                                         <td class="td text-center">
                                             <input type="text" name="registros[{{ $index }}][destino]"
-                                                value="{{ $datos->salon ?? '' }}" class="inpt w-full">
+                                                value="{{ $datos->salon ?? '' }}" class="inpt w-full" readonly>
                                         </td>
 
                                         {{-- Tipo Atado --}}
@@ -192,7 +192,7 @@
             <script>
                 document.addEventListener("DOMContentLoaded", function() {
                     const form = document.querySelector(
-                        'form[action="{{ route('orden.produccion.store') }}"]'); // BOTON VOLVEEEEEEEER
+                        'form[action="{{ route('crear.ordenes.lanzador') }}"]'); // BOTON VOLVEEEEEEEER
 
                     form.addEventListener('submit', function(e) {
                         // Opcional: evitar envío para probar
@@ -331,7 +331,7 @@
                     }
 
                     // OK: deshabilita y envía
-                    btn.disabled = true;
+                    btn.disabled = false;
                     btn.querySelector('.btn-text').textContent = 'Enviando...';
                     form.submit();
                 }
