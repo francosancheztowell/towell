@@ -73,7 +73,8 @@
                                 <th class="th text-center">Seleccionar</th>
                             </tr>
                         </thead>
-
+                        {{-- Articulo	Config	Tamaño	Color	Nom Color	Almacen	Lote	Localidad	Serie	Conos	Lote Prove	Provee	Entrada	Kg	Seleccionar
+ --}}
                         <tbody class="divide-y divide-blue-100/70">
                             @forelse(($inventario ?? []) as $inv)
                                 <tr class="tr">
@@ -81,16 +82,16 @@
                                     <td class="td">{{ $inv->CONFIGID }}</td>
                                     <td class="td">{{ $inv->INVENTSIZEID }}</td>
                                     <td class="td">{{ $inv->INVENTCOLORID }}</td>
-                                    <td class="td">COLOR</td>
+                                    <td class="td">Nom Color</td>
                                     <td class="td">{{ $inv->INVENTLOCATIONID }}</td>
                                     <td class="td">{{ $inv->INVENTBATCHID }}</td>
                                     <td class="td">{{ $inv->WMSLOCATIONID }}</td>
                                     <td class="td">{{ $inv->INVENTSERIALID }}</td>
-                                    <td class="td td-num"></td>
-                                    <td class="td"></td>
-                                    <td class="td td-num"></td>
-                                    <td class="td"> </td>
-                                    <td class="td td-num"></td>
+                                    <td class="td td-num">{{ $inv->TIRAS }}</td>
+                                    <td class="td">{{ $inv->CALIDAD }}</td>
+                                    <td class="td td-num">{{ $inv->CLIENTE }}</td>
+                                    <td class="td">{{ $inv->FECHA }}</td>
+                                    <td class="td td-num">{{ $inv->PHYSICALINVENT }}</td>
                                     <td class="td text-center">
                                         <input type="checkbox" name="seleccionados[]" class="chk">
                                     </td>

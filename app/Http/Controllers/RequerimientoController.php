@@ -1177,42 +1177,43 @@ class RequerimientoController extends Controller
 
         // 4) Inventario: InventSum ↔ InventDim ↔ InventSerial (TI_PRO)
         //    filtrar por INVENTDIMID presentes en los componentes
-        $invDimIds = $componentes->pluck('INVENTDIMID')
-            ->map(fn($v) => trim((string)$v))
-            ->filter()
-            ->unique()
-            ->values();
 
         $inventario = collect();
-
-        if ($invDimIds->isNotEmpty()) {
-            $inventario = DB::connection('sqlsrv_ti')
-                ->table('InventSum as s')
-                ->join('InventDim as d', 'd.INVENTDIMID', '=', 's.INVENTDIMID')
+        $inventario = DB::connection('sqlsrv_ti')
+            ->table('InventSum as sum')
+            ->join('InventDim as dim', 'dim.INVENTDIMID', '=', 'sum.INVENTDIMID')
+            ->join('InventSerial as ser', function ($join) {
+                $join->on('sum.ITEMID', '=', 'ser.ITEMID')           // condición 1
+                    ->on('ser.INVENTSERIALID', '=', 'dim.INVENTSERIALID'); // condición 2
+            })
+            // InventSum
+            ->where('sum.DATAAREAID', 'pro')
+            ->where('sum.PHYSICALINVENT', '<>', 0)
+            // InventDim
+            ->where('dim.DATAAREAID', 'pro')
+            ->whereIn('dim.INVENTLOCATIONID', ['A-MP', 'A-MPBB'])
+            ->where('ser.DATAAREAID', 'pro')
+            // Sólo las dimensiones involucradas
+            ->select([
                 // InventSum
-                ->where('s.DATAAREAID', 'pro')
-                ->where('s.PHYSICALINVENT', '<>', 0)
+                'sum.ITEMID as ITEMID',
+                'sum.PHYSICALINVENT as PHYSICALINVENT',
+                'sum.INVENTDIMID as INVENTDIMID',
                 // InventDim
-                ->where('d.DATAAREAID', 'pro')
-                ->whereIn('d.INVENTLOCATIONID', ['A-MP', 'A-MPBB'])
-                // Sólo las dimensiones involucradas
-                //->whereIn('s.INVENTDIMID', $invDimIds->all())
-                ->select([
-                    // InventSum
-                    's.ITEMID as ITEMID',
-                    's.PHYSICALINVENT as PHYSICALINVENT',
-                    's.INVENTDIMID as INVENTDIMID',
-                    // InventDim
-                    'd.CONFIGID as CONFIGID',
-                    'd.INVENTSIZEID as INVENTSIZEID',
-                    'd.INVENTCOLORID as INVENTCOLORID',
-                    'd.INVENTLOCATIONID as INVENTLOCATIONID',
-                    'd.INVENTBATCHID as INVENTBATCHID',
-                    'd.WMSLOCATIONID as WMSLOCATIONID',
-                    'd.INVENTSERIALID as INVENTSERIALID',
-                ])
-                ->get();
-        }
+                'dim.CONFIGID as CONFIGID',
+                'dim.INVENTSIZEID as INVENTSIZEID',
+                'dim.INVENTCOLORID as INVENTCOLORID',
+                'dim.INVENTLOCATIONID as INVENTLOCATIONID',
+                'dim.INVENTBATCHID as INVENTBATCHID',
+                'dim.WMSLOCATIONID as WMSLOCATIONID',
+                'dim.INVENTSERIALID as INVENTSERIALID',
+                //inventserial
+                'ser.PRODDATE as FECHA',
+                'ser.TWTIRAS as TIRAS',
+                'ser.TWCALIDADFLOG as CALIDAD',
+                'ser.TWCLIENTEFLOG as CLIENTE',
+            ])
+            ->get();
 
         // 5) Dump de avance
         //dd([
@@ -1222,6 +1223,8 @@ class RequerimientoController extends Controller
         //    'componentes'           => $componentes,
         //    'inventario'     => $inventario,
         //]);
+
+        //dd($inventario);
 
         // Si luego quieres ver vista:
         return view('modulos.programar_requerimientos.step3', compact('componentes', 'registros', 'metrosPorBom', 'inventario'));
