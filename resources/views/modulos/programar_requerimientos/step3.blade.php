@@ -2,8 +2,8 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="min-h-screen p1">
-        <div class="max-w-[1400px] mx-auto">
+    <div class="table-scroll max-h-[550px] overflow-y-auto overflow-x-auto bigScroll">
+        <div class="max-w-[1250px]  mx-auto">
 
             {{-- Card contenedora --}}
             <div class="rounded-[28px] shadow-2xl border border-blue-200/60 overflow-hidden bg-white/80 backdrop-blur">
@@ -75,35 +75,33 @@
                         </thead>
 
                         <tbody class="divide-y divide-blue-100/70">
-                            {{-- Cuando tengas datos:
-            @forelse(($inventario ?? []) as $row)
-              <tr class="tr">
-                <td class="td">{{ $row->articulo }}</td>
-                <td class="td">{{ $row->config }}</td>
-                <td class="td">{{ $row->tamano }}</td>
-                <td class="td">{{ $row->color }}</td>
-                <td class="td">{{ $row->nom_color }}</td>
-                <td class="td">{{ $row->almacen }}</td>
-                <td class="td">{{ $row->lote }}</td>
-                <td class="td">{{ $row->localidad }}</td>
-                <td class="td">{{ $row->serie }}</td>
-                <td class="td td-num">{{ $row->conos }}</td>
-                <td class="td">{{ $row->lote_prove }}</td>
-                <td class="td td-num">{{ $row->provee }}</td>
-                <td class="td">{{ \Carbon\Carbon::parse($row->entrada)->format('d/m/Y') }}</td>
-                <td class="td td-num">{{ number_format($row->kg, 2) }}</td>
-                <td class="td text-center">
-                  <input type="checkbox" name="seleccionados[]" value="{{ $row->id }}" class="chk">
-                </td>
-              </tr>
-            @empty
-            --}}
-                            <tr>
-                                <td colspan="15" class="px-6 py-10 text-center text-blue-700">
-                                    No hay registros por ahora.
-                                </td>
-                            </tr>
-                            {{-- @endforelse --}}
+                            @forelse(($inventario ?? []) as $inv)
+                                <tr class="tr">
+                                    <td class="td">{{ $inv->ITEMID }}</td>
+                                    <td class="td">{{ $inv->CONFIGID }}</td>
+                                    <td class="td">{{ $inv->INVENTSIZEID }}</td>
+                                    <td class="td">{{ $inv->INVENTCOLORID }}</td>
+                                    <td class="td">COLOR</td>
+                                    <td class="td">{{ $inv->INVENTLOCATIONID }}</td>
+                                    <td class="td">{{ $inv->INVENTBATCHID }}</td>
+                                    <td class="td">{{ $inv->WMSLOCATIONID }}</td>
+                                    <td class="td">{{ $inv->INVENTSERIALID }}</td>
+                                    <td class="td td-num"></td>
+                                    <td class="td"></td>
+                                    <td class="td td-num"></td>
+                                    <td class="td"> </td>
+                                    <td class="td td-num"></td>
+                                    <td class="td text-center">
+                                        <input type="checkbox" name="seleccionados[]" class="chk">
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="15" class="px-6 py-10 text-center text-blue-700">
+                                        No hay registros por ahora.
+                                    </td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -128,7 +126,8 @@
         }
 
         .td {
-            padding: .9rem 1rem;
+            padding-top: 3px;
+            padding-right: 3px;
             background: rgba(255, 255, 255, .96);
             color: #0f172a;
         }
@@ -161,8 +160,8 @@
         }
 
         .chk {
-            width: 1rem;
-            height: 1rem;
+            width: 1.2rem;
+            height: 1.2rem;
             accent-color: #2563eb;
         }
     </style>

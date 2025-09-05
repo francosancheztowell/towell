@@ -1189,50 +1189,42 @@ class RequerimientoController extends Controller
             $inventario = DB::connection('sqlsrv_ti')
                 ->table('InventSum as s')
                 ->join('InventDim as d', 'd.INVENTDIMID', '=', 's.INVENTDIMID')
-                ->join('InventSerial as ser', 'ser.INVENTSERIALID', '=', 'd.INVENTSERIALID')
-                // filtros InventSum
+                // InventSum
                 ->where('s.DATAAREAID', 'pro')
                 ->where('s.PHYSICALINVENT', '<>', 0)
-                // filtros InventDim
+                // InventDim
                 ->where('d.DATAAREAID', 'pro')
                 ->whereIn('d.INVENTLOCATIONID', ['A-MP', 'A-MPBB'])
-                // filtros InventSerial
-                ->where('ser.DATAAREAID', 'pro')
-                // relacionamos contra los INVENTDIMID que vinieron desde BOM
-                ->whereIn('s.INVENTDIMID', $invDimIds->all())
+                // Sólo las dimensiones involucradas
+                //->whereIn('s.INVENTDIMID', $invDimIds->all())
                 ->select([
                     // InventSum
-                    's.ITEMID as S_ITEMID',
-                    's.PHYSICALINVENT as S_PHYSICALINVENT',
-                    's.INVENTDIMID as S_INVENTDIMID',
+                    's.ITEMID as ITEMID',
+                    's.PHYSICALINVENT as PHYSICALINVENT',
+                    's.INVENTDIMID as INVENTDIMID',
                     // InventDim
-                    'd.CONFIGID as D_CONFIGID',
-                    'd.INVENTSIZEID as D_INVENTSIZEID',
-                    'd.INVENTCOLORID as D_INVENTCOLORID',
-                    'd.INVENTLOCATIONID as D_INVENTLOCATIONID',
-                    'd.INVENTBATCHID as D_INVENTBATCHID',
-                    'd.WMSLOCATIONID as D_WMSLOCATIONID',
-                    'd.INVENTSERIALID as D_INVENTSERIALID',
-                    // InventSerial
-                    'ser.PRODDATE as SER_PRODDATE',
-                    'ser.TwTiras as SER_TwTiras',
-                    'ser.TwCalidadFlog as SER_TwCalidadFlog',
-                    'ser.TwClienteFlog as SER_TwClienteFlog',
+                    'd.CONFIGID as CONFIGID',
+                    'd.INVENTSIZEID as INVENTSIZEID',
+                    'd.INVENTCOLORID as INVENTCOLORID',
+                    'd.INVENTLOCATIONID as INVENTLOCATIONID',
+                    'd.INVENTBATCHID as INVENTBATCHID',
+                    'd.WMSLOCATIONID as WMSLOCATIONID',
+                    'd.INVENTSERIALID as INVENTSERIALID',
                 ])
                 ->get();
         }
 
         // 5) Dump de avance
-        dd([
-            'folios_recibidos'      => $folios,
-            'lmaturdidos'           => $lmaturdidos,
-            'metrosPorBom'          => $metrosPorBom,      // suma metros por LMA
-            'componentes'           => $componentes,
-            'inventario'     => $inventario,
-        ]);
+        //dd([
+        //    'folios_recibidos'      => $folios,
+        //    'lmaturdidos'           => $lmaturdidos,
+        //    'metrosPorBom'          => $metrosPorBom,      // suma metros por LMA
+        //    'componentes'           => $componentes,
+        //    'inventario'     => $inventario,
+        //]);
 
         // Si luego quieres ver vista:
-        // return view('modulos.programar_requerimientos.step3', compact('componentes', 'registros', 'metrosPorBom', 'inventario'));
+        return view('modulos.programar_requerimientos.step3', compact('componentes', 'registros', 'metrosPorBom', 'inventario'));
     }
 
 

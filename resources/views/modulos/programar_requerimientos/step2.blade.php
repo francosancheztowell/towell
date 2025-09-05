@@ -129,20 +129,6 @@
                             </span>
                         </button>
                     </form>
-
-                    <!-- (Opcional) Más botones con colores de muestra similares a la imagen -->
-                    {{-- 
-                    <button class="btn-candy btn-red"><span class="btn-text">ACCION ROJA</span><span class="btn-bubble"
-                            aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none"
-                                stroke="currentColor" stroke-width="2">
-                                <path d="M9 6l6 6-6 6" />
-                            </svg></span></button>
-                    <button class="btn-candy btn-yellow"><span class="btn-text">ACCION AMARILLA</span><span
-                            class="btn-bubble" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"
-                                fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M9 6l6 6-6 6" />
-                            </svg></span></button>
-                    --}}
                 </div>
             </div>
         </section>
@@ -241,7 +227,6 @@
                                         value="{{ old('cuendados_mini') }}">
                                 </td>
                                 @php
-                                    // Ajusta $registro por la variable que uses en tu vista (ej. $ordenCompleta, $engo, etc.)
                                     $sel = old('maquinaEngomado', $registro->maquinaEngomado ?? '');
                                 @endphp
 
@@ -279,8 +264,6 @@
             $('.js-bom-select').each(function() {
                 const $el = $(this);
 
-                // Si trae data-selected-id pero no existe un <option selected> con texto,
-                // podríamos cargarlo por AJAX (opcional). Si no tienes endpoint por id, omite este bloque.
                 const selId = $el.data('selected-id');
                 const selText = $el.data('selected-text');
 
@@ -303,14 +286,13 @@
                             results: data.map(item => ({
                                 id: item.BOMID,
                                 text: item.BOMID
-                            })) // usa item.DESCRIPCION si la tienes
+                            }))
                         }),
                         cache: true
                     },
                     minimumInputLength: 1,
-                    dropdownParent: $el.parent(), // estable dentro de celdas/scroll
-                    width: '100%', // para este SELECT estamos modificando el ancho desde JS (ATENCIÓN)
-                    // Si por cualquier motivo viene sin "text", mostramos el id
+                    dropdownParent: $el.parent(),
+                    width: '100%',
                     templateSelection: function(data, container) {
                         if (!data.id) return 'Buscar BOM...';
                         return data.text || data.id;
@@ -339,7 +321,6 @@
                 return r.json();
             }
 
-            // Helper: asegura folio para una fila <tr>
             async function ensureFolioForTr(tr) {
                 let folio = (tr.dataset.folio || '').trim();
                 if (!folio) {
@@ -359,22 +340,18 @@
                 return folio || null;
             }
 
-            // Engancha eventos a CADA select de L.Mat Urdido (columna de la tabla de agrupados)
             $('.js-bom-select').each(function() {
                 const $sel = $(this);
 
-                // Dispara en select/clear/change
                 $sel.on('select2:select select2:clear change', async function() {
                     try {
                         const tr = this.closest('tr');
                         if (!tr) return;
 
-                        // Marca visualmente (opcional)
                         document.querySelectorAll('#agrupados-table tbody tr.row-selected')
                             .forEach(r => r.classList.remove('row-selected'));
                         tr.classList.add('row-selected');
 
-                        // Asegura folio para esa fila
                         const folio = await ensureFolioForTr(tr);
                         if (!folio) {
                             console.warn('No se pudo resolver folio para la fila');
@@ -383,7 +360,6 @@
                             return;
                         }
 
-                        // Valor seleccionado (compatible con select2 o nativo)
                         let val = '';
                         if ($sel.hasClass('select2-hidden-accessible')) {
                             val = $sel.val() || '';
@@ -391,10 +367,7 @@
                             val = this.value || '';
                         }
 
-                        // Persistir
                         await persistLmaturdido(folio, val);
-
-                        // Opcional: toast rápido
                         console.log(`L.Mat Urdido guardado. Folio=${folio}, LMA=${val}`);
                     } catch (err) {
                         console.error(err);
@@ -417,8 +390,8 @@
                     delay: 250,
                     data: function(params) {
                         return {
-                            q: params.term, // texto del buscador
-                            tipo: '{{ $g->tipo }}' // aquí se envía "Pie" o "Rizo" desde Blade
+                            q: params.term,
+                            tipo: '{{ $g->tipo ?? '' }}'
                         };
                     },
                     processResults: function(data) {
@@ -437,13 +410,32 @@
         });
     </script>
 
-    {{-- ASIGNAR EL FOLIO DEL REGISTRO DE REQUERIMIENTO --}}
+    {{-- ASIGNAR EL FOLIO DEL REGISTRO DE REQUERIMIENTO (con LOADER integrado) --}}
+    <script>
+        // Helpers loader global
+        (function() {
+            window.showLoader = function(msg = 'Cargando…') {
+                const o = document.getElementById('pageLoader');
+                if (!o) return;
+                o.classList.add('show');
+                const t = o.querySelector('#loaderText');
+                if (t) t.textContent = msg;
+            };
+            window.hideLoader = function() {
+                const o = document.getElementById('pageLoader');
+                if (!o) return;
+                o.classList.remove('show');
+            };
+        })();
+    </script>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const tbody = document.querySelector('#agrupados-table tbody');
             let CURRENT_FOLIO = null;
             let CURRENT_TR = null;
+            let ROW_LOADING = false; // 👈 candado para evitar doble click mientras carga
 
             if (!tbody) return;
 
@@ -474,13 +466,17 @@
                 }
             };
 
-            // =============== CLICK EN FILA: marcar + resolver/crear folio + upsert inicial y fetch ==========
+            // =============== CLICK EN FILA: marcar + resolver/crear folio + upsert/fetch + LOADER ==========
             tbody.addEventListener('click', async (e) => {
                 if (e.target.closest(
-                        'select, .select2, .select2-container, input, textarea, button, a')) return;
+                    'select, .select2, .select2-container, input, textarea, button, a')) return;
+                if (ROW_LOADING) return;
 
                 const tr = e.target.closest('tr.agr-row') || e.target.closest('tr');
                 if (!tr) return;
+
+                ROW_LOADING = true;
+                showLoader('Cargando datos del folio…');
 
                 // 1) Marcar visualmente la fila seleccionada
                 if (CURRENT_TR) CURRENT_TR.classList.remove('row-selected');
@@ -507,14 +503,14 @@
                     const folio = await resolveOrCreateFolio(folioAttr, ids);
                     if (!folio) {
                         console.warn('No se pudo resolver folio');
+                        if (window.Swal) await Swal.fire('Sin folio', 'No se pudo resolver el folio.',
+                            'warning');
                         return;
                     }
                     CURRENT_FOLIO = folio;
-
-                    // Guárdalo en el data-* del TR por si vuelves a hacer click
                     tr.dataset.folio = folio;
 
-                    // 4) Upsert + fetch inicial (garantiza registros base en urdido_engomado y construccion_urdido)
+                    // 4) Upsert + fetch inicial (garantiza registros base)
                     const r = await fetch(`{{ route('prog.init.upsertFetch') }}`, {
                         method: 'POST',
                         headers: {
@@ -530,17 +526,17 @@
                     if (!r.ok) throw new Error('upsertFetch failed');
                     const data = await r.json();
 
-                    // 5) Log como pediste
+                    // 5) Log
                     console.log('FOLIO:', folio);
                     console.log('URDIDO_ENGOMADO:', data.engo || {});
                     console.log('CONSTRUCCION_URDIDO (filas):', data.construccion || []);
-                    // 6) HIDRATAR las tablas inferiores con lo recuperado
+
+                    // 6) HIDRATAR las tablas inferiores
                     hydrateConstruccion(data.construccion || []);
                     hydrateEngomado(data.engo || {});
 
-                    // =============================== HIDRATAMOS LAS 2DAS TABLAS ==================================
+                    // --- Helpers de hidratación ---
                     function hydrateConstruccion(filas) {
-                        // Recorre las 4 filas de #tbl-urdido y coloca no_julios / hilos
                         const trs = document.querySelectorAll('#tbl-urdido tbody tr');
                         for (let i = 0; i < trs.length; i++) {
                             const tr = trs[i];
@@ -553,7 +549,6 @@
                     }
 
                     function hydrateEngomado(engo) {
-                        // Campos simples
                         const $nucleo = document.querySelector('select[name="nucleo"]');
                         const $no_telas = document.querySelector('input[name="no_telas"]');
                         const $balonas = document.querySelector('input[name="balonas"]');
@@ -563,15 +558,11 @@
                             'select[name="maquinaEngomado"]');
                         const $obs = document.querySelector('textarea[name="observaciones"]');
 
-                        //con esta FUNCIO, evitamos colocar CEROS 0 ó 0.0
                         function valueOrEmptyIfZero(val) {
                             if (val == null) return '';
                             const str = String(val).trim();
-                            // Si no es numérico, déjalo tal cual
                             const asNum = Number(str.replace(',', '.'));
                             if (!Number.isFinite(asNum)) return str;
-
-                            // ¿Es numéricamente 0 y además está formado solo por ceros y/o decimales de ceros?
                             const zeroLike = /^-?\s*0+(?:[.,]0+)?\s*$/;
                             return (asNum === 0 && zeroLike.test(str)) ? '' : str;
                         }
@@ -589,11 +580,9 @@
                         if ($maquinaEngomado) $maquinaEngomado.value = (engo.maquinaEngomado ?? '');
                         if ($obs) $obs.value = (engo.observaciones ?? '');
 
-                        // Select2: L Mat Engomado (#bomSelect2)
                         const lme = (engo.lmatengomado ?? '');
                         if (window.$ && $('#bomSelect2').length) {
                             if (lme) {
-                                // si no existe esa opción en el dropdown, la inyectamos y seleccionamos
                                 if (!$('#bomSelect2').find(`option[value="${lme}"]`).length) {
                                     $('#bomSelect2').append(new Option(lme, lme, true, true));
                                 }
@@ -602,13 +591,18 @@
                                 $('#bomSelect2').val(null).trigger('change');
                             }
                         } else {
-                            // fallback sin jQuery
                             const el = document.getElementById('bomSelect2');
                             if (el) el.value = lme || '';
                         }
                     }
+
                 } catch (err) {
                     console.error(err);
+                    if (window.Swal) await Swal.fire('Error', 'Ocurrió un problema al cargar la fila.',
+                        'error');
+                } finally {
+                    hideLoader();
+                    ROW_LOADING = false;
                 }
             }, {
                 passive: true
@@ -658,7 +652,6 @@
                         })
                     });
                     if (!res.ok) throw new Error('autosaveConstruccion failed');
-                    // Opcional: toast o console
                     console.log('Construcción guardada (autosave)');
                 } catch (e) {
                     console.error(e);
@@ -712,7 +705,6 @@
                 }
             }, 450);
 
-            // Bind a inputs/textarea/select
             const engSelectors = [
                 'select[name="nucleo"]',
                 'input[name="no_telas"]',
@@ -729,7 +721,6 @@
                 el.addEventListener('change', saveEngomado);
             });
 
-            // select2 de L Mat Engomado
             if (window.$ && $('#bomSelect2').length) {
                 $('#bomSelect2').on('select2:select select2:clear change', saveEngomado);
             } else {
@@ -737,10 +728,7 @@
                 if (el) el.addEventListener('change', saveEngomado);
             }
 
-
-
-            //CREAR ÓRDENES
-            // 1) Recolecta TODOS los folios de #agrupados-table, resolviendo los que falten
+            // ====== Validación/inyectar folios para botones ======
             async function collectAllFoliosEnsured() {
                 const trs = Array.from(document.querySelectorAll('#agrupados-table tbody tr'));
                 const folios = [];
@@ -748,27 +736,21 @@
                 for (const tr of trs) {
                     let folio = (tr.dataset.folio || '').trim();
                     if (!folio) {
-                        // resuelve/crea con sus ids
                         const ids = (tr.dataset.ids || '').split(',').map(s => s.trim()).filter(Boolean);
                         folio = await resolveOrCreateFolio('', ids);
-                        if (folio) {
-                            tr.dataset.folio = folio;
-                        }
+                        if (folio) tr.dataset.folio = folio;
                     }
                     if (folio) folios.push(folio);
                 }
-                // únicos
                 return [...new Set(folios)];
             }
 
-            // 2) Llama al backend para validar campos por folio
             async function validateFoliosOnServer(folios) {
                 const r = await fetch(`{{ route('prog.validar.folios') }}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]')
-                            ?.content ||
+                        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]')?.content ||
                             ''),
                         'Accept': 'application/json'
                     },
@@ -783,9 +765,7 @@
                 };
             }
 
-            // 3) Inyecta inputs hidden folios[] en el form destino
             function injectFoliosIntoForm(form, folios) {
-                // limpia previos
                 form.querySelectorAll('input[name="folios[]"]').forEach(e => e.remove());
                 folios.forEach(f => {
                     const h = document.createElement('input');
@@ -796,9 +776,7 @@
                 });
             }
 
-            // 4) Flujo completo: asegurar/validar/inyectar, y continuar submit
             async function ensureFoliosAndValidateBeforeSubmit(form) {
-                // recolecta/asegura folios
                 const folios = await collectAllFoliosEnsured();
                 if (!folios.length) {
                     if (window.Swal) Swal.fire('Sin folios', 'No hay registros con folio en la tabla.',
@@ -807,13 +785,11 @@
                     return false;
                 }
 
-                // valida en el back
                 const {
                     ok,
                     data
                 } = await validateFoliosOnServer(folios);
                 if (!ok) {
-                    // arma mensaje bonito
                     let html = '<ul style="text-align:left">';
                     Object.entries(data.errors || {}).forEach(([folio, arr]) => {
                         html += `<li><b>Folio ${folio}</b><ul>`;
@@ -838,7 +814,6 @@
                     return false;
                 }
 
-                // ok: inyecta y sigue
                 injectFoliosIntoForm(form, folios);
                 return true;
             }
@@ -852,17 +827,20 @@
                     formOrdenes.submit();
                 });
             }
+
+            // Exponemos ensureFolios... para el script de Reservar
+            window.ensureFoliosAndValidateBeforeSubmit = ensureFoliosAndValidateBeforeSubmit;
         });
     </script>
 
     <script>
+        // Validación: TODAS las celdas L.Mat Urdido deben tener valor antes de RESERVAR
         document.addEventListener('DOMContentLoaded', () => {
             const formReservar = document.getElementById('formReservar');
             if (!formReservar) return;
 
             let reservando = false;
 
-            // Helpers
             const getAllLmaSelects = () =>
                 Array.from(document.querySelectorAll('#agrupados-table tbody select.js-bom-select'));
 
@@ -878,6 +856,7 @@
                 const td = selEl?.closest('td');
                 if (!td) return;
                 td.classList.toggle('cell-error', !!on);
+                if (on) setTimeout(() => td.classList.remove('cell-error'), 1400);
             };
 
             const clearAllMarks = (selects) => selects.forEach(s => markCellError(s, false));
@@ -912,7 +891,6 @@
                 if (vacios.length > 0) {
                     vacios.forEach(s => markCellError(s, true));
 
-                    // Enfocar la primera vacía y mostrar alerta
                     const first = vacios[0];
                     first.closest('td')?.scrollIntoView({
                         behavior: 'smooth',
@@ -928,11 +906,10 @@
                         'Dato requerido',
                         `Faltan ${vacios.length} de ${selects.length} “L.Mat Urdido”. Completa todas las filas para continuar.`
                     );
-                    return; // 👈 bloquea el envío
+                    return;
                 }
 
-                // 2) (Opcional) Si quieres mandar lo elegido también al backend en este submit:
-                //    Genera un arreglo de lmaturdidos[]; quítalo si no lo necesitas.
+                // 2) (opcional) enviar los lmaturdidos en el submit
                 formReservar.querySelectorAll('input[name="lmaturdidos[]"]').forEach(e => e.remove());
                 selects.forEach((sel) => {
                     const h = document.createElement('input');
@@ -942,15 +919,15 @@
                     formReservar.appendChild(h);
                 });
 
-                // 3) Asegura/valida folios (usa tu función existente)
+                // 3) Asegura/valida folios en servidor
                 reservando = true;
-                const okFolios = await ensureFoliosAndValidateBeforeSubmit(formReservar);
+                const okFolios = await window.ensureFoliosAndValidateBeforeSubmit(formReservar);
                 if (!okFolios) {
                     reservando = false;
-                    return; // 👈 bloquea el envío si falta algo de servidor
+                    return;
                 }
 
-                // 4) Deshabilitar botón y enviar nativo
+                // 4) Deshabilitar botón y enviar
                 const btn = formReservar.querySelector('button[type="submit"]');
                 if (btn) {
                     btn.disabled = true;
@@ -963,21 +940,28 @@
         });
     </script>
 
+    {{-- ====== LOADER OVERLAY (HTML) ====== --}}
+    <div id="pageLoader" class="loader-overlay" aria-hidden="true">
+        <div class="loader-card">
+            <div class="spinner" aria-hidden="true"></div>
+            <div class="loader-copy">
+                <div class="loader-title">Cargando…</div>
+                <div id="loaderText" class="loader-sub">Preparando datos de la fila seleccionada</div>
+            </div>
+        </div>
+    </div>
 
     @push('styles')
         <style>
             /* Botón “píldora” con burbuja blanca a la derecha */
             .btn-candy {
                 --from: #60a5fa;
-                /* fallback */
                 --to: #2563eb;
-                /* fallback */
                 position: relative;
                 display: inline-flex;
                 align-items: center;
                 gap: .75rem;
                 padding: .1rem 1.7rem .1rem 1rem;
-                /* margen para la burbuja derecha */
                 border-radius: 9999px;
                 color: #fff;
                 font-weight: 600;
@@ -1002,9 +986,7 @@
                 height: 1.5rem;
                 border-radius: 9999px;
                 background: #fff;
-
                 color: #ff3d7b;
-                /* tono como en ejemplo rosa/fucsia */
                 display: grid;
                 place-items: center;
                 box-shadow: 0 8px 16px rgba(0, 0, 0, .22);
@@ -1031,38 +1013,30 @@
                 transform: translateX(2px);
             }
 
-            /* Paletas tipo “candy” (muy similares a las de tus imágenes) */
             .btn-teal {
                 --from: #2fd5d3;
                 --to: #0ea5a6;
             }
 
-            /* verde/agua */
             .btn-blue {
                 --from: #4facfe;
                 --to: #2563eb;
             }
 
-            /* azul */
             .btn-red {
                 --from: #ff5e62;
                 --to: #d00000;
             }
 
-            /* rojo */
             .btn-yellow {
                 --from: #f6d365;
                 --to: #f7b733;
             }
 
-            /* Variante gris + burbuja a la izquierda para VOLVER */
             .btn-gray {
                 --from: #e5e7eb;
-                /* gris claro */
                 --to: #9ca3af;
-                /* gris medio */
                 color: #111827;
-                /* texto oscuro para mejor contraste */
             }
 
             .btn-gray .btn-text {
@@ -1073,29 +1047,23 @@
                 color: #6b7280;
             }
 
-            /* flecha gris */
-
             .btn-left {
                 padding: .1rem 1.2rem .1rem 3.4rem;
-                /* espacio a la izquierda para la burbuja */
             }
 
             .btn-left .btn-bubble {
                 left: .35rem;
                 right: auto;
-                /* mueve la burbuja a la izquierda */
             }
 
             .btn-left:hover .btn-bubble svg {
                 transform: translateX(-2px);
             }
 
-            /* === Skin azul como la tabla anterior (sin tocar tu estructura) === */
             #agrupados-table {
                 border-color: #bfdbfe;
             }
 
-            /* blue-200 */
             #agrupados-table thead tr {
                 background: linear-gradient(90deg, #6683f7, #104f97, #60a5fa, #3b82f6, #2563eb, #1d4ed8);
             }
@@ -1108,10 +1076,8 @@
                 border-color: rgba(255, 255, 255, .25);
                 padding-top: .45rem;
                 padding-bottom: .45rem;
-                /* respeta tu px-0.5 de lados */
             }
 
-            /* esquinas redondeadas arriba */
             #agrupados-table thead th:first-child {
                 border-top-left-radius: 16px;
             }
@@ -1120,45 +1086,91 @@
                 border-top-right-radius: 16px;
             }
 
-            /* Celdas cuerpo */
             #agrupados-table tbody td {
                 background: rgba(255, 255, 255, .98);
                 border-color: #bfdbfe;
                 color: #0f172a;
-                /* slate-900 */
             }
 
-            /* Hover suave como la otra tabla */
             #agrupados-table tbody tr:hover td {
                 background: #eef6ff;
                 transition: background-color .15s ease;
             }
 
-            /* Limitar tamaño general (que no se vea gigantesca) */
             .max-w-\[980px] table {
                 font-size: 0.75rem;
             }
 
-            /* ya usas text-xs, reforzamos proporción */
-            /* Amarillo fuertecito + borde */
             .row-selected>td {
                 background: linear-gradient(90deg, #fde047, #facc15) !important;
-                /* amber-300 → amber-400 */
                 transition: background-color .15s ease;
             }
 
             .row-selected {
                 outline: 2px solid #f59e0b;
-                /* amber-500 */
                 outline-offset: -2px;
             }
 
             .cell-error {
                 outline: 2px solid #ef4444;
-                /* rojo-500 */
                 outline-offset: -2px;
                 box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
                 transition: box-shadow .15s ease, outline-color .15s ease;
+            }
+
+            /* === Loader overlay === */
+            .loader-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 9999;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                background: rgba(255, 255, 255, .6);
+                backdrop-filter: blur(2px);
+            }
+
+            .loader-overlay.show {
+                display: flex;
+            }
+
+            .loader-card {
+                display: flex;
+                align-items: center;
+                gap: .75rem;
+                padding: .85rem 1rem;
+                background: #fff;
+                border-radius: 16px;
+                box-shadow: 0 10px 20px rgba(0, 0, 0, .15);
+                border: 1px solid rgba(99, 102, 241, .15);
+            }
+
+            .spinner {
+                width: 26px;
+                height: 26px;
+                border-radius: 50%;
+                border: 3px solid #93c5fd;
+                border-top-color: transparent;
+                animation: spin 1s linear infinite;
+            }
+
+            .loader-title {
+                font-weight: 800;
+                font-size: 12px;
+                color: #1e293b;
+                line-height: 1.1;
+            }
+
+            .loader-sub {
+                font-size: 11px;
+                color: #475569;
+                margin-top: 2px;
+            }
+
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
             }
         </style>
     @endpush
