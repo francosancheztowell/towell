@@ -41,7 +41,7 @@
                                         return function_exists('decimales') ? decimales($n) : number_format($n, 6);
                                     };
                                 @endphp
-                                <tr class="tr cursor-pointer" data-key="{{ $key }}">
+                                <tr class="tr cursor-pointer text-center" data-key="{{ $key }}">
                                     <td class="td">{{ $c->ITEMID }}</td>
                                     <td class="td">{{ $c->CONFIGID }}</td>
                                     <td class="td">{{ $c->INVENTSIZEID }}</td>
@@ -102,7 +102,7 @@
                             </tr>
                         </thead>
 
-                        <tbody class="divide-y divide-blue-100/70">
+                        <tbody class="divide-y divide-blue-100/70 ">
                             @forelse(($inventario ?? []) as $inv)
                                 <tr class="odd:bg-white even:bg-blue-50/40 hover:bg-blue-50/70">
                                     <td class="px-2 py-1 text-slate-800 whitespace-nowrap">{{ $inv->ITEMID }}</td>
