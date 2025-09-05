@@ -1152,28 +1152,77 @@ class RequerimientoController extends Controller
                 ->values();
         }
 
-        // 3) BOM ↔ INVENTDIM (TI_PRO)
+
+        // 3 metros sumados por BOM (LMA)
+        $metrosPorBom = $registros
+            ->groupBy('lmaturdido')
+            ->map(fn($g) => (float) $g->sum('metros'));
+
+        // 3.1) BOM + INVENTDIM agrupado por LMA (BOMID) y firma de componente
         $componentes = DB::connection('sqlsrv_ti')
             ->table('BOM as b')
             ->join('INVENTDIM as i', 'i.INVENTDIMID', '=', 'b.INVENTDIMID')
             ->whereIn('b.BOMID', $lmaturdidos->all())
             ->where('b.DATAAREAID', 'pro')
             ->where('i.DATAAREAID', 'pro')
-            ->select([
-                'b.BOMID',          // LMA
+            ->groupBy(
+                'b.BOMID',           // LMA
                 'b.ITEMID',
-                'b.BOMQTY',         // a multiplicar por metros
+                'b.INVENTDIMID',
+                'i.CONFIGID',
+                'i.INVENTSIZEID',
+                'i.INVENTCOLORID'
+            )
+            ->select([
+                'b.BOMID',
+                'b.ITEMID',
+                'b.INVENTDIMID',
                 'i.CONFIGID',
                 'i.INVENTSIZEID',
                 'i.INVENTCOLORID',
-                'b.INVENTDIMID',    // para el siguiente join de inventario
+                DB::raw('SUM(CAST(b.BOMQTY AS DECIMAL(18,6))) AS BOMQTY_SUM') // suma duplicados dentro del mismo LMA
             ])
             ->get();
 
-        // metros sumados por BOM (LMA)
-        $metrosPorBom = $registros
-            ->groupBy('lmaturdido')
-            ->map(fn($g) => (float) $g->sum('metros'));
+        // 3.2) Calcula requerido por renglón (por cada LMA)
+        $reqDetallado = $componentes->map(function ($c) use ($metrosPorBom) {
+            $metros = (float) ($metrosPorBom[$c->BOMID] ?? 0);     // metros ya sumados por BOMID
+            $req    = (float) $c->BOMQTY_SUM * $metros;            // requerido para ese LMA
+
+            return (object) [
+                'BOMID'          => $c->BOMID,
+                'ITEMID'         => $c->ITEMID,
+                'INVENTDIMID'    => $c->INVENTDIMID,
+                'CONFIGID'       => $c->CONFIGID,
+                'INVENTSIZEID'   => $c->INVENTSIZEID,
+                'INVENTCOLORID'  => $c->INVENTCOLORID,
+                'BOMQTY_SUM'     => (float) $c->BOMQTY_SUM,
+                'metros'         => $metros,
+                'requerido'      => $req,
+            ];
+        });
+
+        // 3.3) Colapsa “componentes idénticos” (mismo ITEM/DIM) aunque vengan de varios LMA
+        //    Clave sugerida: ITEMID + INVENTDIMID (ya encapsula config/size/color)
+        $componentesUnicos = $reqDetallado
+            ->groupBy(fn($r) => $r->ITEMID . '|' . $r->INVENTDIMID)
+            ->map(function ($g) {
+                $first = $g->first();
+                return (object) [
+                    'ITEMID'         => $first->ITEMID,
+                    'INVENTDIMID'    => $first->INVENTDIMID,
+                    'CONFIGID'       => $first->CONFIGID,
+                    'INVENTSIZEID'   => $first->INVENTSIZEID,
+                    'INVENTCOLORID'  => $first->INVENTCOLORID,
+                    // suma de requeridos de todos los LMA que comparten el mismo componente
+                    'requerido_total' => round($g->sum('requerido'), 6),
+                    // (opcionales para auditoría/debug)
+                    'BOMIDs'         => $g->pluck('BOMID')->unique()->values(),
+                    'BOMQTY_SUM_sum' => round($g->sum('BOMQTY_SUM'), 6),
+                    'metros_sum'     => round($g->sum('metros'), 6),
+                ];
+            })
+            ->values();
 
         // 4) Inventario: InventSum ↔ InventDim ↔ InventSerial (TI_PRO)
         //    filtrar por INVENTDIMID presentes en los componentes
@@ -1227,7 +1276,7 @@ class RequerimientoController extends Controller
         //dd($inventario);
 
         // Si luego quieres ver vista:
-        return view('modulos.programar_requerimientos.step3', compact('componentes', 'registros', 'metrosPorBom', 'inventario'));
+        return view('modulos.programar_requerimientos.step3', compact('componentes', 'registros', 'metrosPorBom', 'inventario', 'componentesUnicos'));
     }
 
 

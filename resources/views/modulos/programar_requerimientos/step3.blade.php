@@ -15,39 +15,44 @@
                     INVENTARIO DISPONIBLE DE MATERIA PRIMA
                 </div>
 
-                @foreach ($componentes as $comp)
+                {{-- Tarjetitas: DETALLE por LMA (BOMID) --}}
+                @foreach ($componentesUnicos ?? [] as $comp)
                     @php
-                        // metros base por BOMID (lmaturdido)
-                        $metrosBase = (float) ($metrosPorBom[$comp->BOMID] ?? 0);
-                        $bomQty = (float) ($comp->BOMQTY ?? 0);
-                        $reqCalc = $metrosBase * $bomQty; // 🌟 Requerimiento calculado
-
+                        $key = ($comp->ITEMID ?? '') . '|' . ($comp->INVENTDIMID ?? '');
                         $meta = [
                             ['Artículo', $comp->ITEMID ?? ''],
                             ['Configuración', $comp->CONFIGID ?? ''],
                             ['Tamaño', $comp->INVENTSIZEID ?? ''],
                             ['Color', $comp->INVENTCOLORID ?? ''],
-                            ['Nombre Color', $comp->CONFIGID ?? ''],
-                            ['Requerimiento', decimales($reqCalc)], // 👈 aquí el cálculo
+                            ['Nombre Color', $comp->INVENTCOLORID ?? ''],
+                            [
+                                'Req Total',
+                                function_exists('decimales')
+                                    ? decimales($comp->requerido_total ?? 0)
+                                    : number_format($comp->requerido_total ?? 0, 6),
+                            ],
                         ];
                     @endphp
 
-                    <div class="bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50">
+                    <div class="comp-card bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50 p-1 mb-1"
+                        data-key="{{ $key }}">
+                        <input type="checkbox" name="seleccionados_componentes[]" class="chk" value="{{ $key }}"
+                            hidden>
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
                             @foreach ($meta as [$label, $value])
-                                <div class="rounded-2xl border border-indigo-200/70 bg-white/90 shadow-sm p-1">
+                                <div class="card-cell rounded-2xl border border-indigo-200/70 bg-white/90 shadow-sm p-1">
                                     <div class="text-[10px] uppercase tracking-wide font-semibold text-blue-900/70">
                                         {{ $label }}</div>
                                     <div
-                                        class="mt-1 h-6 rounded-lg px-2 flex items-center font-bold text-slate-800 bg-gradient-to-b from-blue-50 via-sky-50 to-indigo-50">
-                                        {{ $value }}
+                                        class="mt-1 h-6 rounded-lg px-2 flex items-center font-bold text-slate-800 chip
+                      bg-gradient-to-b from-blue-50 via-sky-50 to-indigo-50">
+                                        {{ is_callable($value) ? $value() : $value }}
                                     </div>
                                 </div>
                             @endforeach
                         </div>
                     </div>
                 @endforeach
-
 
 
                 {{-- Tabla estilo “glass/gradient header” --}}
@@ -166,4 +171,20 @@
             accent-color: #2563eb;
         }
     </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.comp-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    // Evita interferir si en el futuro hay botones/links internos
+                    if (e.target.closest('a, button, input, label')) return;
+
+                    const chk = card.querySelector('input.chk');
+                    const newState = !card.classList.contains('is-selected');
+                    card.classList.toggle('is-selected', newState);
+                    if (chk) chk.checked = newState;
+                });
+            });
+        });
+    </script>
 @endsection
