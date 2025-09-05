@@ -16,94 +16,121 @@
                 </div>
 
                 {{-- Tarjetitas: DETALLE por LMA (BOMID) --}}
-                @foreach ($componentesUnicos ?? [] as $comp)
-                    @php
-                        $key = ($comp->ITEMID ?? '') . '|' . ($comp->INVENTDIMID ?? '');
-                        $meta = [
-                            ['Artículo', $comp->ITEMID ?? ''],
-                            ['Configuración', $comp->CONFIGID ?? ''],
-                            ['Tamaño', $comp->INVENTSIZEID ?? ''],
-                            ['Color', $comp->INVENTCOLORID ?? ''],
-                            ['Nombre Color', $comp->INVENTCOLORID ?? ''],
-                            [
-                                'Req Total',
-                                function_exists('decimales')
-                                    ? decimales($comp->requerido_total ?? 0)
-                                    : number_format($comp->requerido_total ?? 0, 6),
-                            ],
-                        ];
-                    @endphp
-
-                    <div class="comp-card bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50 p-1 mb-1"
-                        data-key="{{ $key }}">
-                        <input type="checkbox" name="seleccionados_componentes[]" class="chk" value="{{ $key }}"
-                            hidden>
-                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
-                            @foreach ($meta as [$label, $value])
-                                <div class="card-cell rounded-2xl border border-indigo-200/70 bg-white/90 shadow-sm p-1">
-                                    <div class="text-[10px] uppercase tracking-wide font-semibold text-blue-900/70">
-                                        {{ $label }}</div>
-                                    <div
-                                        class="mt-1 h-6 rounded-lg px-2 flex items-center font-bold text-slate-800 chip
-                      bg-gradient-to-b from-blue-50 via-sky-50 to-indigo-50">
-                                        {{ is_callable($value) ? $value() : $value }}
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endforeach
-
-
-                {{-- Tabla estilo “glass/gradient header” --}}
-                <div class="overflow-auto">
-                    <table class="w-full text-sm table-rounded" id="tabla-inventario">
+                {{-- Tabla: Componentes colapsados (componentesUnicos) --}}
+                <div
+                    class="table-scroll max-h-[60vh] overflow-y-auto overflow-x-auto rounded-xl border border-blue-200/60 mb-2">
+                    <table class="w-full text-sm table-rounded" id="tabla-componentes">
                         <thead>
-                            <tr class="text-white uppercase text-xs tracking-wider"
+                            <tr class="text-white uppercase text-xs tracking-wider text-center"
                                 style="background:linear-gradient(90deg,#6683f7,#4e97ba,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
                                 <th class="th">Artículo</th>
                                 <th class="th">Config</th>
                                 <th class="th">Tamaño</th>
                                 <th class="th">Color</th>
-                                <th class="th">Nom Color</th>
-                                <th class="th">Almacén</th>
-                                <th class="th">Lote</th>
-                                <th class="th">Localidad</th>
-                                <th class="th">Serie</th>
-                                <th class="th text-right">Conos</th>
-                                <th class="th">Lote Prove</th>
-                                <th class="th text-right">Provee</th>
-                                <th class="th">Entrada</th>
-                                <th class="th text-right">Kg</th>
-                                <th class="th text-center">Seleccionar</th>
+                                <th class="th">NOMBRE COLOR</th>
+                                <th class="th text-right">Req Total</th>
                             </tr>
                         </thead>
-                        {{-- Articulo	Config	Tamaño	Color	Nom Color	Almacen	Lote	Localidad	Serie	Conos	Lote Prove	Provee	Entrada	Kg	Seleccionar
- --}}
+
+                        <tbody id="tbody-componentes" class="divide-y divide-blue-100/70">
+                            @forelse (($componentesUnicos ?? []) as $c)
+                                @php
+                                    $key = ($c->ITEMID ?? '') . '|' . ($c->INVENTDIMID ?? '');
+                                    $reqTotal = (float) ($c->requerido_total ?? 0);
+                                    $fmt = function ($n) {
+                                        return function_exists('decimales') ? decimales($n) : number_format($n, 6);
+                                    };
+                                @endphp
+                                <tr class="tr cursor-pointer" data-key="{{ $key }}">
+                                    <td class="td">{{ $c->ITEMID }}</td>
+                                    <td class="td">{{ $c->CONFIGID }}</td>
+                                    <td class="td">{{ $c->INVENTSIZEID }}</td>
+                                    <td class="td">{{ $c->INVENTCOLORID }}</td>
+                                    <td class="td">{{ $c->INVENTDIMID }}</td>
+                                    <td class="td td-num">{{ $fmt($reqTotal) }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="px-6 py-10 text-center text-blue-700">No hay registros por
+                                        ahora.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Tabla estilo “glass/gradient header” --}}
+                <div class="overflow-auto rounded-xl border border-blue-200/60">
+                    <table id="tabla-inventario" class="min-w-[1200px] w-full table-auto text-xs border-collapse">
+                        {{-- Controla anchos por columna --}}
+                        <colgroup>
+                            <col class="w-[120px]"> {{-- Artículo --}}
+                            <col class="w-[90px]"> {{-- Config --}}
+                            <col class="w-[90px]"> {{-- Tamaño --}}
+                            <col class="w-[90px]"> {{-- Color --}}
+                            <col class="w-[120px]"> {{-- Nom Color --}}
+                            <col class="w-[110px]"> {{-- Almacén --}}
+                            <col class="w-[140px]"> {{-- Lote (largo) --}}
+                            <col class="w-[110px]"> {{-- Localidad --}}
+                            <col class="w-[140px]"> {{-- Serie (largo) --}}
+                            <col class="w-[80px]"> {{-- Conos --}}
+                            <col class="w-[120px]"> {{-- Lote Prove --}}
+                            <col class="w-[100px]"> {{-- Provee --}}
+                            <col class="w-[110px]"> {{-- Entrada --}}
+                            <col class="w-[100px]"> {{-- Kg --}}
+                            <col class="w-[110px]"> {{-- Seleccionar --}}
+                        </colgroup>
+
+                        <thead>
+                            <tr class="text-white uppercase text-[11px] tracking-wide sticky top-0 z-10"
+                                style="background:linear-gradient(90deg,#6683f7,#4e97ba,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
+                                <th class="px-2 py-1 text-center">Artículo</th>
+                                <th class="px-2 py-1 text-center">Config</th>
+                                <th class="px-2 py-1 text-center">Tamaño</th>
+                                <th class="px-2 py-1 text-center">Color</th>
+                                <th class="px-2 py-1 text-center">Nom Color</th>
+                                <th class="px-2 py-1 text-center">Almacén</th>
+                                <th class="px-2 py-1 text-center">Lote</th>
+                                <th class="px-2 py-1 text-center">Localidad</th>
+                                <th class="px-2 py-1 text-center">Serie</th>
+                                <th class="px-2 py-1 text-center">Conos</th>
+                                <th class="px-2 py-1 text-center">Lote Prove</th>
+                                <th class="px-2 py-1 text-center">Provee</th>
+                                <th class="px-2 py-1 text-center">Entrada</th>
+                                <th class="px-2 py-1 text-center">Kg</th>
+                                <th class="px-2 py-1 text-center">Seleccionar</th>
+                            </tr>
+                        </thead>
+
                         <tbody class="divide-y divide-blue-100/70">
                             @forelse(($inventario ?? []) as $inv)
-                                <tr class="tr">
-                                    <td class="td">{{ $inv->ITEMID }}</td>
-                                    <td class="td">{{ $inv->CONFIGID }}</td>
-                                    <td class="td">{{ $inv->INVENTSIZEID }}</td>
-                                    <td class="td">{{ $inv->INVENTCOLORID }}</td>
-                                    <td class="td">Nom Color</td>
-                                    <td class="td">{{ $inv->INVENTLOCATIONID }}</td>
-                                    <td class="td">{{ $inv->INVENTBATCHID }}</td>
-                                    <td class="td">{{ $inv->WMSLOCATIONID }}</td>
-                                    <td class="td">{{ $inv->INVENTSERIALID }}</td>
-                                    <td class="td td-num">{{ $inv->TIRAS }}</td>
-                                    <td class="td">{{ $inv->CALIDAD }}</td>
-                                    <td class="td td-num">{{ $inv->CLIENTE }}</td>
-                                    <td class="td">{{ $inv->FECHA }}</td>
-                                    <td class="td td-num">{{ $inv->PHYSICALINVENT }}</td>
-                                    <td class="td text-center">
-                                        <input type="checkbox" name="seleccionados[]" class="chk">
+                                <tr class="odd:bg-white even:bg-blue-50/40 hover:bg-blue-50/70">
+                                    <td class="px-2 py-1 text-slate-800 whitespace-nowrap">{{ $inv->ITEMID }}</td>
+                                    <td class="px-2 py-1 text-slate-800 whitespace-nowrap">{{ $inv->CONFIGID }}</td>
+                                    <td class="px-2 py-1 text-slate-800 whitespace-nowrap">{{ $inv->INVENTSIZEID }}</td>
+                                    <td class="px-2 py-1 text-slate-800 whitespace-nowrap">{{ $inv->INVENTCOLORID }}</td>
+                                    <td class="px-2 py-1 text-slate-800 truncate max-w-[10rem]"
+                                        title="{{ $inv->INVENTCOLORID }}">Nom Color</td>
+                                    <td class="px-2 py-1 text-slate-800 whitespace-nowrap">{{ $inv->INVENTLOCATIONID }}
+                                    </td>
+                                    <td class="px-2 py-1 text-slate-800 truncate max-w-[12rem]"
+                                        title="{{ $inv->INVENTBATCHID }}">{{ $inv->INVENTBATCHID }}</td>
+                                    <td class="px-2 py-1 text-slate-800 whitespace-nowrap">{{ $inv->WMSLOCATIONID }}</td>
+                                    <td class="px-2 py-1 text-slate-800 truncate max-w-[12rem]"
+                                        title="{{ $inv->INVENTSERIALID }}">{{ $inv->INVENTSERIALID }}</td>
+                                    <td class="px-2 py-1 text-right font-mono">{{ $inv->TIRAS }}</td>
+                                    <td class="px-2 py-1 text-slate-800 truncate max-w-[10rem]"
+                                        title="{{ $inv->CALIDAD }}">{{ $inv->CALIDAD }}</td>
+                                    <td class="px-2 py-1 text-right font-mono">{{ $inv->CLIENTE }}</td>
+                                    <td class="px-2 py-1 text-slate-800 whitespace-nowrap">{{ $inv->FECHA }}</td>
+                                    <td class="px-2 py-1 text-right font-mono">{{ decimales($inv->PHYSICALINVENT) }}</td>
+                                    <td class="px-2 py-1 text-center">
+                                        <input type="checkbox" name="seleccionados[]" class="w-4 h-4 accent-blue-600">
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="15" class="px-6 py-10 text-center text-blue-700">
+                                    <td colspan="15" class="px-4 py-6 text-center text-blue-700">
                                         No hay registros por ahora.
                                     </td>
                                 </tr>
@@ -118,37 +145,11 @@
 
     {{-- CSS fino para el look de la 2da imagen --}}
     <style>
-        .table-rounded thead th:first-child {
-            border-top-left-radius: 22px;
-        }
-
-        .table-rounded thead th:last-child {
-            border-top-right-radius: 22px;
-        }
-
-        .th {
-            padding: .20rem .5rem;
-            white-space: nowrap;
-        }
-
-        .td {
-            padding-top: 3px;
-            padding-right: 3px;
-            background: rgba(255, 255, 255, .96);
-            color: #0f172a;
-        }
-
-        .td-num {
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-        }
-
         tbody tr:hover .td {
             background: #f0f7ff;
             transition: background-color .15s ease;
         }
 
-        /* sutil “divider” como en la tarjeta de ejemplo */
         tbody tr .td {
             border-left: 1px solid rgba(191, 219, 254, .6);
         }
@@ -157,33 +158,48 @@
             border-right: 1px solid rgba(191, 219, 254, .6);
         }
 
-        thead th {
-            border-right: 1px solid rgba(255, 255, 255, .25);
+        /* 🔶 Resaltado de fila seleccionada */
+        tbody tr.is-selected .td {
+            background: #FEF08A !important;
         }
 
-        thead th:last-child {
-            border-right: none;
+        /* amber-200 */
+        tbody tr.is-selected {
+            outline: 2px solid #F59E0B;
+            outline-offset: -2px;
         }
 
-        .chk {
-            width: 1.2rem;
-            height: 1.2rem;
-            accent-color: #2563eb;
-        }
+        /* amber-500 */
     </style>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.comp-card').forEach(card => {
-                card.addEventListener('click', (e) => {
-                    // Evita interferir si en el futuro hay botones/links internos
-                    if (e.target.closest('a, button, input, label')) return;
+            const tbody = document.getElementById('tbody-componentes');
+            if (!tbody) return;
 
-                    const chk = card.querySelector('input.chk');
-                    const newState = !card.classList.contains('is-selected');
-                    card.classList.toggle('is-selected', newState);
-                    if (chk) chk.checked = newState;
-                });
+            // Delegación: funciona aunque se re-renderice el tbody
+            tbody.addEventListener('click', (e) => {
+                const tr = e.target.closest('tr.tr');
+                if (!tr) return;
+
+                const chk = tr.querySelector('input.chk');
+
+                // Click directo en el checkbox: solo pinta según su estado
+                if (e.target === chk) {
+                    tr.classList.toggle('is-selected', chk.checked);
+                    return;
+                }
+
+                // Click en la fila: alterna selección y sincroniza checkbox
+                const newState = !tr.classList.contains('is-selected');
+                tr.classList.toggle('is-selected', newState);
+                if (chk) chk.checked = newState;
+            });
+
+            // Si al render ya venían seleccionados, píntalos
+            tbody.querySelectorAll('tr.tr').forEach(tr => {
+                const chk = tr.querySelector('input.chk');
+                if (chk && chk.checked) tr.classList.add('is-selected');
             });
         });
     </script>
