@@ -520,7 +520,16 @@
                 value = clamp(n, min, max);
                 updateActive();
                 centerTo(value);
-                if (activeInput) activeInput.value = value;
+                if (activeInput) {
+                    activeInput.value = value;
+                    // 👇 dispara eventos para que tu autosave se ejecute
+                    activeInput.dispatchEvent(new Event('input', {
+                        bubbles: true
+                    }));
+                    activeInput.dispatchEvent(new Event('change', {
+                        bubbles: true
+                    }));
+                }
                 close();
             }
 
