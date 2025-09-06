@@ -170,7 +170,7 @@
                             </td>
                             <td class="border "><input type="text" inputmode="numeric" pattern="[0-9]*"
                                     name="datos[{{ $registroIndex }}][turno]"
-                                    class="w-5 font-bold border rounded p-1 text-xs text-center"
+                                    class="w-5 font-bold border rounded p-1 text-xs text-center js-num-pick-inline"
                                     value="{{ $turnoActual ?? '' }}">
                             </td>
                             {{-- HORAS INICIAL Y FINAL --}}
@@ -246,29 +246,29 @@
                             <td class="border p-1">
                                 <input type="text" inputmode="numeric" pattern="[0-9]*"
                                     name="datos[{{ $registroIndex }}][hilatura]"
-                                    class="w-10 border rounded p-1 text-xs js-num-pick" data-min="1" data-max="100"
-                                    data-step="1" value="{{ $orden->hilatura ?? '' }}">
+                                    class="w-10 border rounded p-1 text-xs js-num-pick-inline" data-min="1"
+                                    data-max="100" data-step="1" value="{{ $orden->hilatura ?? '' }}">
                             </td>
 
                             <td class="border p-1">
                                 <input type="text" inputmode="numeric" pattern="[0-9]*"
                                     name="datos[{{ $registroIndex }}][maquina]"
-                                    class="w-10 border rounded p-1 text-xs js-num-pick" data-min="1" data-max="100"
-                                    data-step="1" value="{{ $orden->maquina ?? '' }}">
+                                    class="w-10 border rounded p-1 text-xs js-num-pick-inline" data-min="1"
+                                    data-max="100" data-step="1" value="{{ $orden->maquina ?? '' }}">
                             </td>
 
                             <td class="border p-1">
                                 <input type="text" inputmode="numeric" pattern="[0-9]*"
                                     name="datos[{{ $registroIndex }}][operacion]"
-                                    class="w-10 border rounded p-1 text-xs js-num-pick" data-min="1" data-max="100"
-                                    data-step="1" value="{{ $orden->operacion ?? '' }}">
+                                    class="w-10 border rounded p-1 text-xs js-num-pick-inline" data-min="1"
+                                    data-max="100" data-step="1" value="{{ $orden->operacion ?? '' }}">
                             </td>
 
                             <td class="border p-1">
                                 <input type="text" inputmode="numeric" pattern="[0-9]*"
                                     name="datos[{{ $registroIndex }}][transferencia]"
-                                    class="w-10 border rounded p-1 text-xs js-num-pick" data-min="1" data-max="100"
-                                    data-step="1" value="{{ $orden->transferencia ?? '' }}">
+                                    class="w-10 border rounded p-1 text-xs js-num-pick-inline" data-min="1"
+                                    data-max="100" data-step="1" value="{{ $orden->transferencia ?? '' }}">
                             </td>
 
                         </tr>
@@ -331,186 +331,269 @@
     </div>
 
     <style>
-        /* scroll snap para centrar cada pastilla */
-        #np-list {
+        /* Popover anclado al input (se agrega al body) */
+        #np-pop {
+            position: fixed;
+            z-index: 9999;
+            background: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+            overflow: hidden;
+            width: 180px;
+            height: 64px;
+            /* se ajusta por JS según el input */
+        }
+
+        /* Pista horizontal */
+        #np-track {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            height: 100%;
+            padding: 6px 36px;
+            /* deja espacio para flechas */
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
-            touch-action: pan-x;
         }
 
-        #np-list .np-item {
-            scroll-snap-align: center;
+        #np-track::-webkit-scrollbar {
+            height: 6px;
         }
 
-        /* estilos de la pastilla */
-        .np-item {
-            min-width: 64px;
-            height: 64px;
+        #np-track::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+
+        #np-track .np-item {
+            min-width: 56px;
+            height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 16px;
-            font-size: 24px;
-            font-weight: 800;
-            border: 1px solid #d1d5db;
+            font: 800 22px/1 ui-sans-serif, system-ui;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
             background: #fff;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+            scroll-snap-align: center;
+            user-select: none;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
         }
 
-        .np-item.active {
+        #np-track .np-item.active {
             border-color: #10b981;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, .2);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, .22);
+        }
+
+        /* Flechas laterales */
+        #np-pop .np-arrow {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: #334155;
+            background: linear-gradient(to right, rgba(255, 255, 255, .92), rgba(255, 255, 255, 0));
+            cursor: pointer;
+            user-select: none;
+        }
+
+        #np-prev {
+            left: 0;
+        }
+
+        #np-next {
+            right: 0;
+            transform: scaleX(-1);
+            background: linear-gradient(to left, rgba(255, 255, 255, .92), rgba(255, 255, 255, 0));
+        }
+
+        /* Oculto por defecto */
+        #np-pop.hidden {
+            display: none;
         }
     </style>
     <script>
         (() => {
-            const qs = (s, r = document) => r.querySelector(s);
-            const qsa = (s, r = document) => Array.from(r.querySelectorAll(s));
+            // ---------- helpers ----------
+            const norm = v => (v ?? '').toString().trim();
+            const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
-            // Nodos
-            const sheet = qs('#np-sheet');
-            const backdrop = qs('#np-backdrop');
-            const list = qs('#np-list');
-            const display = qs('#np-display');
-            const btnPrev = qs('#np-prev');
-            const btnNext = qs('#np-next');
-            const btnOk = qs('#np-accept');
-            const btnCancel = qs('#np-cancel');
+            // ---------- crea popover único ----------
+            const pop = document.createElement('div');
+            pop.id = 'np-pop';
+            pop.className = 'hidden';
+            pop.innerHTML = `
+    <div id="np-prev" class="np-arrow">◀</div>
+    <div id="np-track"></div>
+    <div id="np-next" class="np-arrow">◀</div>
+  `;
+            document.body.appendChild(pop);
+            const track = pop.querySelector('#np-track');
+            const btnPrev = pop.querySelector('#np-prev');
+            const btnNext = pop.querySelector('#np-next');
 
-            let currentInput = null;
+            let activeInput = null;
             let min = 1,
                 max = 100,
                 step = 1,
                 value = min;
+            let pressTimer = null,
+                pressInterval = null;
 
-            // Construye items [min..max] con step
             function buildItems() {
-                list.innerHTML = '';
+                track.innerHTML = '';
                 for (let n = min; n <= max; n += step) {
-                    const el = document.createElement('button');
-                    el.type = 'button';
-                    el.className = 'np-item';
-                    el.textContent = n;
-                    el.dataset.value = n;
-                    el.addEventListener('click', () => selectValue(n, true));
-                    list.appendChild(el);
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.className = 'np-item';
+                    b.dataset.value = n;
+                    b.textContent = n;
+                    b.addEventListener('click', () => {
+                        pick(n);
+                    });
+                    track.appendChild(b);
                 }
             }
 
-            function openPicker(input) {
-                currentInput = input;
+            function updateActive() {
+                [...track.querySelectorAll('.np-item')].forEach(el => {
+                    el.classList.toggle('active', parseInt(el.dataset.value, 10) === value);
+                });
+            }
 
-                // Leer rango del input
+            function centerTo(n, smooth = true) {
+                const el = track.querySelector(`.np-item[data-value="${n}"]`);
+                if (!el) return;
+                const left = el.offsetLeft + el.offsetWidth / 2 - track.clientWidth / 2;
+                track.scrollTo({
+                    left,
+                    behavior: smooth ? 'smooth' : 'auto'
+                });
+            }
+
+            function openAtInput(input) {
+                activeInput = input;
+
+                // Evitar que salga el teclado móvil
+                input.blur();
+
+                // Lee rango
                 min = parseInt(input.dataset.min || '1', 10);
                 max = parseInt(input.dataset.max || '100', 10);
                 step = parseInt(input.dataset.step || '1', 10);
 
-                // Valor actual dentro del rango
-                const raw = (input.value || '').toString().replace(/,/g, '.');
-                const num = parseInt(raw || `${min}`, 10);
-                value = (isFinite(num) ? Math.min(max, Math.max(min, num)) : min);
+                // Valor inicial
+                const cur = parseInt(norm(input.value) || min, 10);
+                value = clamp(isFinite(cur) ? cur : min, min, max);
+
+                // Tamaño relativo al input (encima)
+                const r = input.getBoundingClientRect();
+                const w = Math.max(Math.round(r.width * 3), 160); // si quieres EXACTO como el input: usa r.width
+                const h = 64;
+
+                pop.style.width = w + 'px';
+                pop.style.height = h + 'px';
+                pop.style.left = (window.scrollX + r.left + (r.width / 2) - (w / 2)) + 'px';
+                pop.style.top = (window.scrollY + r.top - h - 8) + 'px'; // 8px por encima
 
                 buildItems();
                 updateActive();
-                centerToValue(value);
+                centerTo(value, false);
 
-                backdrop.classList.remove('hidden');
-                sheet.classList.remove('hidden');
-                // Evitar teclado móvil
-                if (document.activeElement) document.activeElement.blur();
+                pop.classList.remove('hidden');
             }
 
-            function closePicker() {
-                currentInput = null;
-                backdrop.classList.add('hidden');
-                sheet.classList.add('hidden');
+            function close() {
+                pop.classList.add('hidden');
+                activeInput = null;
+                stopHold();
             }
 
-            function updateActive() {
-                display.textContent = value;
-                qsa('.np-item', list).forEach(btn => {
-                    btn.classList.toggle('active', parseInt(btn.dataset.value, 10) === value);
-                });
-            }
-
-            function centerToValue(n) {
-                const target = qs(`.np-item[data-value="${n}"]`, list);
-                if (!target) return;
-                const c = list.getBoundingClientRect().width / 2;
-                const x = target.offsetLeft + target.offsetWidth / 2 - c;
-                list.scrollTo({
-                    left: x,
-                    behavior: 'smooth'
-                });
-            }
-
-            function selectValue(n, autoClose = false) {
-                value = Math.min(max, Math.max(min, n));
+            function pick(n) {
+                value = clamp(n, min, max);
                 updateActive();
-                centerToValue(value);
-                if (autoClose) {
-                    /* clic directo en la pastilla = aceptar rápido */
-                    applyValueAndClose();
-                }
+                centerTo(value);
+                if (activeInput) activeInput.value = value;
+                close();
             }
 
-            function stepValue(dir) {
-                const next = value + dir * step;
-                selectValue(next);
+            function stepBy(dir) {
+                pick(value + dir * step);
             }
 
-            function applyValueAndClose() {
-                if (!currentInput) return;
-                currentInput.value = value;
-                closePicker();
+            function startHold(dir) {
+                stepBy(dir);
+                pressTimer = setTimeout(() => {
+                    pressInterval = setInterval(() => stepBy(dir), 65);
+                }, 250);
             }
 
-            // Eventos globales
-            btnPrev.addEventListener('click', () => stepValue(-1));
-            btnNext.addEventListener('click', () => stepValue(1));
-            btnCancel.addEventListener('click', closePicker);
-            btnOk.addEventListener('click', applyValueAndClose);
-            backdrop.addEventListener('click', closePicker);
+            function stopHold() {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+                clearInterval(pressInterval);
+                pressInterval = null;
+            }
 
-            // Flechas presionadas mantienen incremento (press-and-hold)
-            const pressHold = (btn, dir) => {
-                let t = null,
-                    r = null;
-                const start = () => {
-                    stepValue(dir);
-                    t = setTimeout(() => r = setInterval(() => stepValue(dir), 60), 260);
-                };
-                const stop = () => {
-                    clearTimeout(t);
-                    clearInterval(r);
-                };
+            // Flechas
+            const bindHold = (btn, dir) => {
                 btn.addEventListener('pointerdown', (e) => {
                     e.preventDefault();
-                    start();
+                    startHold(dir);
                 });
-                btn.addEventListener('pointerup', stop);
-                btn.addEventListener('pointerleave', stop);
-                btn.addEventListener('pointercancel', stop);
+                ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, stopHold));
             };
-            pressHold(btnPrev, -1);
-            pressHold(btnNext, 1);
+            bindHold(btnPrev, -1);
+            bindHold(btnNext, 1);
 
-            // Abrir picker al enfocar/tocar cualquier input .js-num-pick (delegación)
+            // Abre carrusel sobre el input
             document.addEventListener('click', (e) => {
-                const input = e.target.closest('input.js-num-pick');
-                if (!input) return;
-                e.preventDefault(); // evita teclado
-                openPicker(input);
-            });
-
-            // Cerrar con Escape
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !sheet.classList.contains('hidden')) closePicker();
-                if (!sheet.classList.contains('hidden') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-                    stepValue(e.key === 'ArrowLeft' ? -1 : 1);
+                const input = e.target.closest('input.js-num-pick-inline');
+                if (input) {
+                    e.preventDefault(); // evita teclado
+                    openAtInput(input);
+                    return;
+                }
+                // Clic fuera -> cerrar
+                if (!pop.classList.contains('hidden') && !pop.contains(e.target)) {
+                    close();
                 }
             });
 
+            // Reposiciona si la ventana se mueve/redimensiona
+            window.addEventListener('resize', () => {
+                if (!activeInput || pop.classList.contains('hidden')) return;
+                openAtInput(activeInput); // recalcula posición
+            }, {
+                passive: true
+            });
+            window.addEventListener('scroll', () => {
+                if (!activeInput || pop.classList.contains('hidden')) return;
+                openAtInput(activeInput);
+            }, {
+                passive: true
+            });
+
+            // Teclado: ESC cierra, flechas navegan si abierto
+            document.addEventListener('keydown', (e) => {
+                if (pop.classList.contains('hidden')) return;
+                if (e.key === 'Escape') return close();
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    stepBy(-1);
+                }
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    stepBy(1);
+                }
+            });
         })();
     </script>
 
