@@ -98,6 +98,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/urdido/autoguardar', [UrdidoController::class, 'autoguardar'])->name('urdido.autoguardar');
     Route::post('/urdido/finalizar', [UrdidoController::class, 'finalizarUrdido'])->name('urdido.finalizar');
 
+    Route::post('/engomado/autoguardar', [EngomadoController::class, 'autoguardar'])->name('engomado.autoguardar');
+    Route::post('/engomado/finalizar', [EngomadoController::class, 'finalizarEngomado'])->name('engomado.finalizar');
+
     Route::get('/imprimir-orden-llena-urd/{folio}', [UrdidoController::class, 'imprimirOrdenUrdido'])->name('imprimir.orden.urdido');
     Route::get('/imprimir-papeletas-pequenias/{folio}', [UrdidoController::class, 'imprimirPapeletas'])->name('imprimir.orden.papeletas');
 

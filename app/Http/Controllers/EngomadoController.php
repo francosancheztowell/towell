@@ -42,6 +42,39 @@ class EngomadoController extends Controller
         return view('modulos/engomado', compact('engomadoUrd', 'julios', 'engomado', 'requerimiento', 'oficiales'));
     }
 
+    public function autoguardar(Request $request)
+    {
+        $folio = $request->input('folio');
+        $id2 = $request->input('id2');
+
+        // Busca el registro
+        $orden = OrdenEngomado::where('folio', $folio)->where('id2', $id2)->first();
+
+        // Si ya está finalizado, no permite editar
+        if ($orden && $orden->estatus_engomado === 'finalizado') {
+            return response()->json(['message' => 'Ya no se puede editar'], 403);
+        }
+
+        // Actualiza o crea con todos los campos
+        if ($orden) {
+            $orden->fill($request->all());
+            $orden->save();
+            return response()->json(['message' => 'Actualizado']);
+        } else {
+            OrdenEngomado::create($request->all());
+            return response()->json(['message' => 'Creado']);
+        }
+    }
+
+    public function finalizarEngomado(Request $request)
+    {
+        $folio = $request->input('folio');
+        // Actualiza todos los registros del folio a 'finalizado'
+        UrdidoEngomado::where('folio', $folio)
+            ->update(['estatus_engomado' => 'finalizado']);
+        return response()->json(['message' => 'Finalizado']);
+    }
+
     //mewtodo para insertar o actualizar registro de ORDEN
 
     public function guardarYFinalizar(Request $request)

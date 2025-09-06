@@ -56,7 +56,7 @@ class UrdidoController extends Controller
         // Pasar los datos a la vista
         return view('modulos/urdido', compact('urdido', 'construccion', 'requerimiento', 'ordenUrdido', 'julios', 'oficiales', 'turnoActual'));
     }
-
+    //URDIDO UPDATE AUTOMATIC
     //metodo para insertar o ACTUALIZAR ORDEN URDIDO registro de ORDEN-URDIDO y antes de FINALIZARLO - se habia unificado dado que solicitaron borrar uno de los 2 botones.
     public function autoguardar(Request $request)
     {
@@ -125,7 +125,6 @@ class UrdidoController extends Controller
         return view('modulos/edicion_urdido_engomado/programarUrdidoEngomado', compact('folio', 'ordenCompleta', 'requerimiento', 'julios'));
     }
 
-    //URDIDO UPDATE AUTOMATIC
     public function ordenToActualizar(Request $request)
     {
         $folio = $request->folio;

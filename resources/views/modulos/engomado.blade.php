@@ -236,96 +236,173 @@
         </table>
         <div class="mt-4 text-right">
             @if ($engomadoUrd->estatus_engomado == 'en_proceso')
-                <button class="btn bg-blue-600 text-white w-40 h-9 hover:bg-blue-400" id="guardarYFinalizar">Guardar y
-                    Finalizar</button>
+                <button id="Finalizar"
+                    class="ml-10 btn bg-blue-600 text-white w-40 h-12 hover:bg-blue-400">Finalizar</button>
+            @endif
+            @if ($engomadoUrd->estatus_engomado == 'finalizado')
+                <button onclick="reimprimir()" class="w-1/5 px-4 py-2 bg-green-600 text-white rounded">
+                    🔁 Reimprimir
+                </button>
             @endif
         </div>
     </div>
 
     <script>
-        document.getElementById("guardarYFinalizar").addEventListener("click", function() {
-            // Validar folio
-            const folio = document.querySelector('input[name="folio"]').value;
-            if (!folio) {
-                alert("No se encontró el folio.");
-                return;
-            }
+        function reimprimir() {
+            const folio = document.getElementById('folio').value;
+            const url = "{{ url('/imprimir-orden/') }}/" + folio;
+            const papeletas = "{{ url('/imprimir-papeletas-llenas/') }}/" + folio;
+            window.open(url, '_blank');
+            window.open(papeletas, '_blank');
+        }
+    </script>
 
-            if (!confirm("¿Está seguro de guardar y finalizar este urdido?")) return;
+    {{-- AUTOGUARDADO y FINALIZAR (como en URDIDO)  --}}
+    <script>
+        document.querySelectorAll('input[name^="datos"], select[name^="datos"]').forEach(el => {
+            el.addEventListener('change', function() {
+                const match = this.name.match(/datos\[(\d+)\]\[(\w+)\]/);
+                if (!match) return;
+                const index = match[1];
 
-            // Obtener todos los datos de los inputs
-            const inputs = document.querySelectorAll('input[name^="datos"], select[name^="datos"]');
-            let formData = {};
-            let camposGenerales = {
-                color: document.querySelector('input[name="color"]').value,
-                solidos: document.querySelector('input[name="solidos"]').value,
-                observaciones: document.querySelector('textarea[name="observaciones"]').value,
-                folio: folio,
-                engomado: document.querySelector('input[name="engomado"]').value
-            };
+                // Encuentra la fila de la tabla
+                const row = this.closest('tr');
+                // Recolecta TODOS los campos de la fila con el mismo índice
+                const inputs = row.querySelectorAll('input[name^="datos[' + index +
+                    ']"], select[name^="datos[' + index + ']"]');
 
-            inputs.forEach(input => {
-                const match = input.name.match(/datos\[(\d+)\]\[(\w+)\]/);
-                if (match) {
-                    const index = match[1];
-                    const key = match[2];
-
-                    if (!formData[index]) {
-                        formData[index] = {};
+                let registro = {};
+                inputs.forEach(input => {
+                    const matchInput = input.name.match(/datos\[\d+\]\[(\w+)\]/);
+                    if (matchInput) {
+                        let key = matchInput[1];
+                        let value = input.value;
+                        if (input.tagName.toLowerCase() === "select") {
+                            value = input.options[input.selectedIndex].value;
+                        }
+                        registro[key] = value;
                     }
-
-                    formData[index][key] = input.tagName.toLowerCase() === "select" ?
-                        input.options[input.selectedIndex].value :
-                        input.value;
-                }
-            });
-
-            // Enviar al backend combinado
-            fetch("{{ route('ordenEngomado.guardarYFinalizar') }}", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute(
-                            "content")
-                    },
-                    body: JSON.stringify({
-                        registros: Object.values(formData),
-                        generales: camposGenerales
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        // Si llega un 422 o cualquier otro error HTTP
-                        return response.json().then(data => {
-                            throw data; // Lanza el JSON como error para capturarlo en el catch
-                        });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // ✅ Solo llega aquí si todo salió bien
-                    alert(data.message || "Registros guardados y engomado finalizado.");
-                    document.getElementById('guardarYFinalizar').disabled = true;
-                    document.getElementById('guardarYFinalizar').innerText = 'Finalizado';
-
-                    const overlay = document.getElementById('finalizadoOverlay');
-                    overlay.classList.add('active');
-
-                    // 👉 ABRIR la nueva pestaña con la impresión después de 3 segundos
-                    setTimeout(() => {
-                        const papeletas = "{{ url('/imprimir-papeletas-llenas') }}/" + folio;
-                        window.open(papeletas, '_blank');
-
-                        // 👉 Redirigir a /ingresar-folio-engomado después de abrir la impresión
-                        window.location.href = '/ingresar-folio-engomado';
-                    }, 3000); // 3000 ms = 3 segundos
-                })
-                .catch(error => {
-                    // Aquí entran los errores con status 422 o si se lanzó `throw`
-                    alert(error.message || "Ocurrió un error al guardar.");
-                    // Opcional: mostrar los errores específicos
-                    console.error("Errores de validación:", error.errors);
                 });
+
+                // Asegúrate que folio y id2 estén incluidos (puede ser redundante)
+                registro['folio'] = document.getElementById("folio").value;
+                if (!registro['id2']) {
+                    registro['id2'] = row.querySelector('input[name$="[id2]"]').value;
+                }
+
+                // AJAX call por registro completo
+                fetch("{{ route('engomado.autoguardar') }}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
+                        },
+                        body: JSON.stringify(registro)
+                    })
+                    .then(resp => resp.json())
+                    .then(data => {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'Guardado',
+                            showConfirmButton: false,
+                            timer: 1000,
+                            timerProgressBar: true,
+                            background: '#ecfdf5',
+                            customClass: {
+                                title: 'text-green-800 text-xs font-semibold'
+                            }
+                        });
+                    })
+                    .catch(e => {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'error',
+                            title: 'No se pudo guardar',
+                            showConfirmButton: false,
+                            timer: 1500,
+                            timerProgressBar: true,
+                            background: '#fee2e2',
+                            customClass: {
+                                title: 'text-red-800 text-xs font-semibold'
+                            }
+                        });
+                    });
+            });
+        });
+    </script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const finalizarBtn = document.getElementById("Finalizar");
+            if (finalizarBtn) {
+                finalizarBtn.addEventListener("click", function(e) {
+                    e.preventDefault();
+                    // Confirma con SweetAlert2
+                    Swal.fire({
+                        title: '¿Seguro que deseas finalizar?',
+                        text: "Ya no podrás editar los datos después.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, finalizar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Obtén el folio (ajusta el selector según tu HTML)
+                            const folio = document.getElementById("folio").value;
+                            fetch("{{ route('engomado.finalizar') }}", {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        "X-CSRF-TOKEN": document.querySelector(
+                                            'meta[name="csrf-token"]').content,
+                                    },
+                                    body: JSON.stringify({
+                                        folio: folio
+                                    })
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    // Muestra mensaje de éxito
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: '¡Finalizado!',
+                                        text: 'Los datos han sido finalizados y bloqueados.',
+                                        timer: 1800,
+                                        showConfirmButton: false
+                                    });
+
+                                    // Deshabilita todos los inputs y selects de la tabla
+                                    document.querySelectorAll(
+                                        'table input, table select, table button').forEach(
+                                        el => {
+                                            el.disabled = true;
+                                            el.classList.add('bg-gray-100',
+                                                'text-gray-400');
+                                        });
+
+                                    // Opcional: deshabilita el botón "Finalizar"
+                                    finalizarBtn.disabled = true;
+                                    finalizarBtn.innerText = "Finalizado";
+                                    finalizarBtn.classList.add('bg-gray-400',
+                                        'hover:bg-gray-400');
+
+                                })
+                                .catch(error => {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error',
+                                        text: 'No se pudo finalizar. Intenta nuevamente.',
+                                        timer: 2000,
+                                        showConfirmButton: false
+                                    });
+                                });
+                        }
+                    });
+                });
+            }
         });
     </script>
 
