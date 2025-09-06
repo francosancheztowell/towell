@@ -26,7 +26,7 @@ class EngomadoController extends Controller
         $engomadoUrd = UrdidoEngomado::where('folio', $folio)->first();
         $julios = Julio::where('tipo', 'engomado')->get();
         $engomado = OrdenEngomado::where('folio', $folio)->get();
-        $requerimiento = Requerimiento::where('orden_prod', 'like', $folio . '-%')->first();
+        $requerimiento = Requerimiento::where('folio', $folio)->first();
         $oficiales = Oficial::all();
         //Log::info('Data:', $request->all());
         //Log::info('Data:', $engomadoUrd->toArray());
