@@ -242,21 +242,35 @@
                                 <input type="hidden" name="datos[{{ $registroIndex }}][metros]"
                                     value="{{ rtrim(rtrim($urdido->metros ?? '', '0'), '.') }}">
                             </td>
-                            <td class="border p-1"><input type="text" inputmode="numeric" pattern="[0-9]*"
-                                    name="datos[{{ $registroIndex }}][hilatura]" class="w-10 border rounded p-1 text-xs"
-                                    value="{{ $orden->hilatura ?? '' }}"></td>
-                            <td class="border p-1"><input type="text" inputmode="numeric" pattern="[0-9]*"
-                                    name="datos[{{ $registroIndex }}][maquina]" class="w-10 border rounded p-1 text-xs"
-                                    value="{{ $orden->maquina ?? '' }}"></td>
+                            {{-- HILATURAS MAQUINA OPERACIONES Y TRANSF --}}
                             <td class="border p-1">
                                 <input type="text" inputmode="numeric" pattern="[0-9]*"
-                                    name="datos[{{ $registroIndex }}][operacion]" class="w-10 border rounded p-1 text-xs"
-                                    value="{{ $orden->operacion ?? '' }}">
+                                    name="datos[{{ $registroIndex }}][hilatura]"
+                                    class="w-10 border rounded p-1 text-xs js-num-pick" data-min="1" data-max="100"
+                                    data-step="1" value="{{ $orden->hilatura ?? '' }}">
                             </td>
-                            <td class="border p-1"><input type="text" inputmode="numeric" pattern="[0-9]*"
+
+                            <td class="border p-1">
+                                <input type="text" inputmode="numeric" pattern="[0-9]*"
+                                    name="datos[{{ $registroIndex }}][maquina]"
+                                    class="w-10 border rounded p-1 text-xs js-num-pick" data-min="1" data-max="100"
+                                    data-step="1" value="{{ $orden->maquina ?? '' }}">
+                            </td>
+
+                            <td class="border p-1">
+                                <input type="text" inputmode="numeric" pattern="[0-9]*"
+                                    name="datos[{{ $registroIndex }}][operacion]"
+                                    class="w-10 border rounded p-1 text-xs js-num-pick" data-min="1" data-max="100"
+                                    data-step="1" value="{{ $orden->operacion ?? '' }}">
+                            </td>
+
+                            <td class="border p-1">
+                                <input type="text" inputmode="numeric" pattern="[0-9]*"
                                     name="datos[{{ $registroIndex }}][transferencia]"
-                                    class="w-10 border rounded p-1 text-xs" value="{{ $orden->transferencia ?? '' }}">
+                                    class="w-10 border rounded p-1 text-xs js-num-pick" data-min="1" data-max="100"
+                                    data-step="1" value="{{ $orden->transferencia ?? '' }}">
                             </td>
+
                         </tr>
                     @endfor
                 @endforeach
@@ -287,6 +301,220 @@
             </div>
         </div>
     </div>
+
+    <!-- Picker overlay -->
+    <div id="np-backdrop" class="fixed inset-0 hidden bg-black/40 z-[9998]"></div>
+
+    <div id="np-sheet"
+        class="fixed left-1/2 -translate-x-1/2 bottom-4 hidden z-[9999]
+            w-[min(680px,95vw)] rounded-2xl shadow-2xl bg-white">
+        <div class="px-4 pt-3 pb-1 flex items-center justify-between border-b">
+            <button id="np-prev" type="button" class="p-2 text-xl">◀</button>
+            <div id="np-display" class="text-5xl font-black select-none tracking-wide">00</div>
+            <button id="np-next" type="button" class="p-2 text-xl">▶</button>
+        </div>
+
+        <div id="np-list"
+            class="flex gap-3 overflow-x-auto px-3 py-3 select-none
+              snap-x snap-mandatory scrollbar-thin">
+            <!-- Los items se crean por JS -->
+        </div>
+
+        <div class="px-3 pb-3 pt-1 flex justify-between">
+            <button id="np-cancel" type="button"
+                class="px-3 py-1.5 rounded-lg border hover:bg-gray-50">Cancelar</button>
+            <button id="np-accept" type="button"
+                class="px-4 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700">
+                Aceptar
+            </button>
+        </div>
+    </div>
+
+    <style>
+        /* scroll snap para centrar cada pastilla */
+        #np-list {
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x;
+        }
+
+        #np-list .np-item {
+            scroll-snap-align: center;
+        }
+
+        /* estilos de la pastilla */
+        .np-item {
+            min-width: 64px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            font-size: 24px;
+            font-weight: 800;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+        }
+
+        .np-item.active {
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, .2);
+        }
+    </style>
+    <script>
+        (() => {
+            const qs = (s, r = document) => r.querySelector(s);
+            const qsa = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+            // Nodos
+            const sheet = qs('#np-sheet');
+            const backdrop = qs('#np-backdrop');
+            const list = qs('#np-list');
+            const display = qs('#np-display');
+            const btnPrev = qs('#np-prev');
+            const btnNext = qs('#np-next');
+            const btnOk = qs('#np-accept');
+            const btnCancel = qs('#np-cancel');
+
+            let currentInput = null;
+            let min = 1,
+                max = 100,
+                step = 1,
+                value = min;
+
+            // Construye items [min..max] con step
+            function buildItems() {
+                list.innerHTML = '';
+                for (let n = min; n <= max; n += step) {
+                    const el = document.createElement('button');
+                    el.type = 'button';
+                    el.className = 'np-item';
+                    el.textContent = n;
+                    el.dataset.value = n;
+                    el.addEventListener('click', () => selectValue(n, true));
+                    list.appendChild(el);
+                }
+            }
+
+            function openPicker(input) {
+                currentInput = input;
+
+                // Leer rango del input
+                min = parseInt(input.dataset.min || '1', 10);
+                max = parseInt(input.dataset.max || '100', 10);
+                step = parseInt(input.dataset.step || '1', 10);
+
+                // Valor actual dentro del rango
+                const raw = (input.value || '').toString().replace(/,/g, '.');
+                const num = parseInt(raw || `${min}`, 10);
+                value = (isFinite(num) ? Math.min(max, Math.max(min, num)) : min);
+
+                buildItems();
+                updateActive();
+                centerToValue(value);
+
+                backdrop.classList.remove('hidden');
+                sheet.classList.remove('hidden');
+                // Evitar teclado móvil
+                if (document.activeElement) document.activeElement.blur();
+            }
+
+            function closePicker() {
+                currentInput = null;
+                backdrop.classList.add('hidden');
+                sheet.classList.add('hidden');
+            }
+
+            function updateActive() {
+                display.textContent = value;
+                qsa('.np-item', list).forEach(btn => {
+                    btn.classList.toggle('active', parseInt(btn.dataset.value, 10) === value);
+                });
+            }
+
+            function centerToValue(n) {
+                const target = qs(`.np-item[data-value="${n}"]`, list);
+                if (!target) return;
+                const c = list.getBoundingClientRect().width / 2;
+                const x = target.offsetLeft + target.offsetWidth / 2 - c;
+                list.scrollTo({
+                    left: x,
+                    behavior: 'smooth'
+                });
+            }
+
+            function selectValue(n, autoClose = false) {
+                value = Math.min(max, Math.max(min, n));
+                updateActive();
+                centerToValue(value);
+                if (autoClose) {
+                    /* clic directo en la pastilla = aceptar rápido */
+                    applyValueAndClose();
+                }
+            }
+
+            function stepValue(dir) {
+                const next = value + dir * step;
+                selectValue(next);
+            }
+
+            function applyValueAndClose() {
+                if (!currentInput) return;
+                currentInput.value = value;
+                closePicker();
+            }
+
+            // Eventos globales
+            btnPrev.addEventListener('click', () => stepValue(-1));
+            btnNext.addEventListener('click', () => stepValue(1));
+            btnCancel.addEventListener('click', closePicker);
+            btnOk.addEventListener('click', applyValueAndClose);
+            backdrop.addEventListener('click', closePicker);
+
+            // Flechas presionadas mantienen incremento (press-and-hold)
+            const pressHold = (btn, dir) => {
+                let t = null,
+                    r = null;
+                const start = () => {
+                    stepValue(dir);
+                    t = setTimeout(() => r = setInterval(() => stepValue(dir), 60), 260);
+                };
+                const stop = () => {
+                    clearTimeout(t);
+                    clearInterval(r);
+                };
+                btn.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    start();
+                });
+                btn.addEventListener('pointerup', stop);
+                btn.addEventListener('pointerleave', stop);
+                btn.addEventListener('pointercancel', stop);
+            };
+            pressHold(btnPrev, -1);
+            pressHold(btnNext, 1);
+
+            // Abrir picker al enfocar/tocar cualquier input .js-num-pick (delegación)
+            document.addEventListener('click', (e) => {
+                const input = e.target.closest('input.js-num-pick');
+                if (!input) return;
+                e.preventDefault(); // evita teclado
+                openPicker(input);
+            });
+
+            // Cerrar con Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !sheet.classList.contains('hidden')) closePicker();
+                if (!sheet.classList.contains('hidden') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                    stepValue(e.key === 'ArrowLeft' ? -1 : 1);
+                }
+            });
+
+        })();
+    </script>
+
+
 
 
     <script>
