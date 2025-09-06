@@ -41,10 +41,11 @@ class UrdidoController extends Controller
         // Obtener los datos de las tres tablas basadas en el folio
         $urdido = UrdidoEngomado::where('folio', $folio)->first();
         $construccion = ConstruccionUrdido::where('folio', $folio)->get(); // Usamos get() también para la construcción
-        $requerimiento = Requerimiento::where('orden_prod', 'like', $folio . '-%')->first();
+        $requerimiento = Requerimiento::where('folio',  $folio)->first();
         $ordenUrdido = OrdenUrdido::where('folio', $folio)->get(); //obtenemos los registros que van en la tabla de Registro de Produccion
         $julios = Julio::where('tipo', 'urdido')->get();
         $oficiales = Oficial::all();
+
 
         if (!$urdido || !$construccion || !$requerimiento || !$ordenUrdido || !$julios || !$oficiales) {
             return redirect()->route('ingresarFolio')->withErrors('La orden ingresada (' . $request->folio . ') no se ha encontrado. Por favor, valide el número e intente de nuevo.');
@@ -56,10 +57,9 @@ class UrdidoController extends Controller
         return view('modulos/urdido', compact('urdido', 'construccion', 'requerimiento', 'ordenUrdido', 'julios', 'oficiales', 'turnoActual'));
     }
 
-    //metodo para insertar o actualizar registro de ORDEN-URDIDO y antes de FINALIZARLO - se habia unificado dado que solicitaron borrar uno de los 2 botones.
+    //metodo para insertar o ACTUALIZAR ORDEN URDIDO registro de ORDEN-URDIDO y antes de FINALIZARLO - se habia unificado dado que solicitaron borrar uno de los 2 botones.
     public function autoguardar(Request $request)
     {
-
         $folio = $request->input('folio');
         $id2 = $request->input('id2');
 
@@ -109,7 +109,7 @@ class UrdidoController extends Controller
     public function cargarDatosOrdenUrdEng(Request $request)
     {
         $folio = $request->folio;
-        $requerimiento = Requerimiento::where('orden_prod', 'like', $folio . '-%')->first();
+        $requerimiento = Requerimiento::where('folio',  $folio)->first();
         // Obtener los datos de la tabla urdido_engomado
         $ordenCompleta = UrdidoEngomado::where('folio', $folio)->first(); //obtenemos los registros que van en la tabla de Registro de Produccion
         $julios = ConstruccionJulios::where('folio', $folio)->get(); //julios dados de alta en programacion-requerimientos
@@ -125,6 +125,7 @@ class UrdidoController extends Controller
         return view('modulos/edicion_urdido_engomado/programarUrdidoEngomado', compact('folio', 'ordenCompleta', 'requerimiento', 'julios'));
     }
 
+    //URDIDO UPDATE AUTOMATIC
     public function ordenToActualizar(Request $request)
     {
         $folio = $request->folio;

@@ -386,6 +386,7 @@ class RequerimientoController extends Controller
     aqui GUARDAMOS  las ORDENES de BOTON CREAR ÓRDENES */
     public function requerimientosAGuardar(Request $request) // THIS METHOD ya sobraaaaaa
     {
+
         $folioBase = $request->folios;
         return view('modulos.programar_requerimientos.lanzador')->with('folio', $folioBase);
     }

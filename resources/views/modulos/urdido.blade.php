@@ -11,7 +11,7 @@
                 <div class="flex items-center mb-1">
                     <label class="w-1/4 text-sm">FOLIO:</label>
                     <input id="folio" type="text" class="w-2/4 border rounded p-1 text-xs font-bold"
-                        value="{{ explode('-', $requerimiento->orden_prod)[0] ?? '' }}" readonly>
+                        value="{{ explode('-', $requerimiento->folio)[0] ?? '' }}" readonly>
                 </div>
                 <div class="flex items-center mb-1">
                     <label class="w-1/4 text-sm">CUENTA:</label>
