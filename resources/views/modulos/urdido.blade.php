@@ -5,35 +5,35 @@
         <div id="finalizadoOverlay">FINALIZADO CORRECTAMENTE</div>
 
         <!-- Formulario -->
-        <form class="grid grid-cols-1 md:grid-cols-4 ">
+        <form class="grid grid-cols-1 md:grid-cols-4 gap-2">
             <!-- Primera columna -->
             <div class="text-sm ">
                 <div class="flex items-center mb-1">
                     <label class="w-1/4 text-sm">FOLIO:</label>
-                    <input id="folio" type="text" class="w-2/4 border rounded p-1 text-xs font-bold"
+                    <input id="folio" type="text" class="w-2/4 border rounded p-0.5 text-xs font-bold"
                         value="{{ explode('-', $requerimiento->folio)[0] ?? '' }}" readonly>
                 </div>
                 <div class="flex items-center mb-1">
                     <label class="w-1/4 text-sm">CUENTA:</label>
-                    <input type="text" class="w-2/4 border rounded p-1 text-xs font-bold"
+                    <input type="text" class="w-2/4 border rounded p-0.5 text-xs font-bold"
                         value="{{ isset($urdido->cuenta) ? (intval($urdido->cuenta) == $urdido->cuenta ? intval($urdido->cuenta) : $urdido->cuenta) : '' }}"
                         readonly>
                 </div>
                 <div class="flex items-center mb-1">
                     <label class="w-1/4 text-sm">URDIDO:</label>
-                    <input type="text" class="w-2/4 border rounded p-1 text-xs font-bold"
+                    <input type="text" class="w-2/4 border rounded p-0.5 text-xs font-bold"
                         value="{{ $urdido->urdido ?? '' }}" readonly>
+                </div>
+                <div class="flex items-center mb-1">
+                    <label class="w-1/4 text-sm ">METROS:</label>
+                    <input type="text" class="w-3/6 border rounded p-0.5 text-xs font-bold"
+                        value="{{ rtrim(rtrim($urdido->metros, '0'), '.') }}" readonly>
                 </div>
             </div>
 
             <!-- Segunda columna -->
             <div class="text-sm">
-                <div class="flex items-center mb-1">
-                    <label class="w-1/3 text-sm">PROVEEDOR:</label>
-                    <input type="text" class="w-3/6 border rounded p-1 text-xs font-bold"
-                        value="{{ $urdido->proveedor ?? '' }}" readonly>
-                </div>
-                <div class="flex items-center mb-1">
+                <div class="flex items-center">
                     <label class="w-1/3 text-sm">TIPO:</label>
                     <div class="flex items-center">
                         <label class="text-sm text-black font-semibold">
@@ -46,38 +46,39 @@
                         </label>
                     </div>
                 </div>
-                <div class="flex items-center mb-1">
-                    <label class="w-1/3 text-sm ">METROS:</label>
-                    <input type="text" class="w-3/6 border rounded p-1 text-xs font-bold"
-                        value="{{ rtrim(rtrim($urdido->metros, '0'), '.') }}" readonly>
-                </div>
-            </div>
-
-            <!-- tercera columna -->
-            <div class="text-sm">
-                <div class="flex items-center mb-1">
+                <div class="flex items-center">
                     <label class="w-1/3 text-sm ">DESTINO:</label>
-                    <input type="text" class="w-3/6 border rounded p-1 text-xs font-bold"
+                    <input type="text" class="w-3/6 border rounded text-xs font-bold p-0.5"
                         value="{{ $urdido->destino . ' ' . $requerimiento->telar ?? '' }}" readonly>
                 </div>
-                <div class="flex items-center mb-1">
+                <div class="flex items-center">
                     <label class="w-1/3 text-sm">ORDENADO POR:</label>
-                    <input type="text" class="w-3/6 border rounded p-1 text-xs font-bold" value="pending">
+                    <input type="text" class="w-3/6 border rounded p-0.5 text-xs font-bold" value="pending">
                 </div>
+
+                {{-- NUEVOS LABELS --}}
+                <div class="flex items-center">
+                    <label class="w-1/3 text-sm">HILO:</label>
+                    <input type="text" class="w-3/6 border rounded text-xs font-bold p-0.5" value="pending">
+                </div>
+                <div class="flex items-center">
+                    <label class="w-1/3 text-sm">TIPO ATADO:</label>
+                    <input type="text" class="w-3/6 border rounded text-xs font-bold p-0.5" value="pending">
+                </div>
+
             </div>
 
-            <!-- cuarta columna -->
+            <!-- (Tercera / Cuarta según tu layout) -->
             <div>
                 <!-- Tabla de Construcción -->
-                <table class="w-full border-collapse border border-gray-300  font-bold mb-[2px]">
+                <table class="w-full border-collapse border border-gray-300 font-bold">
                     <thead>
                         <tr class="bg-gray-200 text-xs">
-                            <th class="border p-1  text-center font-bold">No. JULIO</th>
-                            <th class="border p-1  text-center font-bold">HILOS</th>
+                            <th class="border p-1 text-center font-bold">No. JULIO</th>
+                            <th class="border p-1 text-center font-bold">HILOS</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Mostrar datos de 'construccion' -->
                         @foreach ($construccion as $registroConstruccion)
                             <tr class="text-xs">
                                 <td class="border p-0.5 text-center">{{ $registroConstruccion->no_julios ?? '' }}</td>
@@ -86,12 +87,24 @@
                         @endforeach
                     </tbody>
                 </table>
-                <div class="flex items-center">
-                    <label class="w-1/3 fs-9 font-bold">OBSERVACIONES: &nbsp;</label>
-                    <textarea class="text-sm w-full border rounded resize-none font-bold" rows="3" readonly maxlength="300">
-{{ $urdido->observaciones }}
-</textarea>
-                </div>
+            </div>
+
+            <!-- OBSERVACIONES A TODO ANCHO -->
+            <div>
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-gray-200 text-xs">
+                            <th class="border p-1 text-center">OBSERVACIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="1" class="border p-0.5">
+                                <textarea class="text-xs w-full border rounded resize-y font-bold min-h-[95px]" readonly maxlength="300">{{ trim($urdido->observaciones ?? '') }}</textarea>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </form>
 
