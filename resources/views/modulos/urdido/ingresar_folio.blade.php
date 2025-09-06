@@ -103,7 +103,7 @@
         <!-- Panel derecho: Lista de órdenes -->
         <div class="w-full max-w-[600px] flex flex-col p-2 h-[420px]">
             <div class="flex flex-col bg-white bg-opacity-90 rounded-2xl shadow-lg p-2 h-full">
-                <h2 class="text-xl font-bold text-gray-800 text-center">ÓRDENES PENDIENTES</h2>
+                <h2 class="text-xl font-bold text-gray-800 text-center">ÓRDENES PENDIENTES URDIDO</h2>
                 <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-lg p-1 min-h-0">
                     <div class="overflow-x-auto flex-1 flex flex-col min-h-0">
                         <div class="min-w-full flex-1 flex flex-col min-h-0">
