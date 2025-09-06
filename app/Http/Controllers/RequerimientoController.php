@@ -1279,6 +1279,128 @@ class RequerimientoController extends Controller
         return view('modulos.programar_requerimientos.step3', compact('componentes', 'registros', 'metrosPorBom', 'inventario', 'componentesUnicos'));
     }
 
+    public function step3Store(Request $request)
+    {
+        // Validación básica del payload
+        $request->validate([
+            'componentes' => ['required', 'string'], // JSON
+            'inventario'  => ['required', 'string'], // JSON
+        ]);
+
+        $componentes = json_decode($request->input('componentes'), true);
+        $inventario  = json_decode($request->input('inventario'), true);
+
+        if (!is_array($componentes) || !is_array($inventario)) {
+            throw ValidationException::withMessages([
+                'payload' => 'El payload recibido no es válido.',
+            ]);
+        }
+
+        // Mapa clave -> id insertado en componentes_seleccionados
+        $idPorClave = [];
+
+        DB::beginTransaction();
+        try {
+            // 1) Insertar componentes (tabla A)
+            foreach ($componentes as $c) {
+                // Normaliza claves
+                $itemid  = $c['itemid']  ?? '';
+                $config  = $c['configid'] ?? null;
+                $size    = $c['sizeid']   ?? null;
+                $color   = $c['colorid']  ?? null;
+                $dimid   = $c['dimid']    ?? null;
+
+                $id = DB::table('componentes_seleccionados')->insertGetId([
+                    'articulo'          => $itemid,
+                    'config'        => $config,
+                    'tamanio'          => $size,
+                    'color'         => $color,
+                    'nom_color'           => $dimid,
+                    'requerido_total' => isset($c['requerido_total']) ? (float)$c['requerido_total'] : null,
+                    // 'created_by'    => auth()->id(), // si lo ocupas
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+
+                $clave = $this->clave($itemid, $config, $size, $color, $dimid);
+                // Si se repite la misma clave, nos quedamos con el primero
+                if (!isset($idPorClave[$clave])) {
+                    $idPorClave[$clave] = $id;
+                }
+            }
+
+            // 2) Insertar inventarios (tabla B), ligando por clave
+            foreach ($inventario as $inv) {
+                $itemid = $inv['articulo'] ?? '';
+                $config = $inv['config'] ?? null;
+                $size   = $inv['tamanio']  ?? null;
+                $color  = $inv['color'] ?? null;
+                $dimid  = $inv['nom_color']   ?? null;
+
+                $clave = $this->clave($itemid, $config, $size, $color, $dimid);
+
+                if (!isset($idPorClave[$clave])) {
+                    // Si por alguna razón no encuentra match, abortamos para no perder integridad
+                    throw ValidationException::withMessages([
+                        'inventario' => "No se encontró componente seleccionado para la clave: {$clave}",
+                    ]);
+                }
+
+                // Parseo de fecha (si viene string tipo '2025-09-06 12:34:00' o '2025-09-06')
+                $fecha = null;
+                if (!empty($inv['fecha'])) {
+                    try {
+                        $fecha = Carbon::parse($inv['fecha']);
+                    } catch (\Throwable $e) {
+                        $fecha = null; // o lanza validación si quieres obligar formato
+                    }
+                }
+
+                DB::table('inventarios_seleccionados')->insert([
+                    'componente_id'   => $idPorClave[$clave],
+
+                    'articulo'          => $itemid,
+                    'config'        => $config,
+                    'tamanio'          => $size,
+                    'color'         => $color,
+                    'nom_color'           => $dimid,
+
+                    'almacen' => $inv['inventlocationid'] ?? null,
+                    'lote'   => $inv['inventbatchid'] ?? null,
+                    'localidad'   => $inv['wmslocationid'] ?? null,
+                    'serie'  => $inv['inventserialid'] ?? null,
+
+                    'conos'           => isset($inv['tiras']) ? (float)$inv['tiras'] : null,
+                    'lote_provee'         => $inv['calidad'] ?? null,
+                    'provee'         => $inv['cliente'] ?? null,
+                    'entrada'           => $fecha,
+                    'kilos'  => isset($inv['physicalinvent']) ? (float)$inv['physicalinvent'] : null,
+
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect('/produccionProceso')->with('ok', 'Selección guardada correctamente.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            report($e);
+            return back()->withErrors('Ocurrió un error al guardar la selección: ' . $e->getMessage());
+        }
+    }
+
+    // En App\Http\Controllers\InventarioSeleccionController.php
+    private function clave($itemid, $config, $size, $color, $dimid = null): string
+    {
+        $norm = fn($v) => mb_strtoupper(trim((string)($v ?? '')));
+        // SIN dimid:
+        return implode('|', [$norm($itemid), $norm($config), $norm($size), $norm($color)]);
+    }
+
+
+
 
     /*
 
