@@ -168,7 +168,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/prog/validar-folios', [RequerimientoController::class, 'validarFolios'])
         ->name('prog.validar.folios');
     Route::post('/urdido/autosave/lmaturdido', [RequerimientoController::class, 'autosaveLmaturdido'])->name('urdido.autosave.lmaturdido');
-    Route::post('/inventario/seleccion', [RequerimientoController::class, 'step3Store'])->name('inventario.step3.store'); // guardado de step 3 prog-requerimientos
+    Route::post('/inventario/seleccion', [RequerimientoController::class, 'step3Store'])->name('inventario.step3.store'); // guardado de step 3 prog-requerimientos en BD BD BD BD
 
 
 

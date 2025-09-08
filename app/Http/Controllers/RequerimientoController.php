@@ -1282,100 +1282,108 @@ class RequerimientoController extends Controller
 
     public function step3Store(Request $request)
     {
-        // Validación básica del payload
+        // OJO: quita el dd($request) porque detiene la ejecución
+        // dd($request);
+
+        // Acepta JSON como string (form-data) o array (application/json)
         $request->validate([
-            'componentes' => ['required', 'string'], // JSON
-            'inventario'  => ['required', 'string'], // JSON
+            'componentes' => ['required'],
+            'inventario'  => ['required'],
         ]);
 
-        $componentes = json_decode($request->input('componentes'), true);
-        $inventario  = json_decode($request->input('inventario'), true);
+        $componentes = is_string($request->componentes) ? json_decode($request->componentes, true) : $request->componentes;
+        $inventario  = is_string($request->inventario)  ? json_decode($request->inventario,  true) : $request->inventario;
 
         if (!is_array($componentes) || !is_array($inventario)) {
             throw ValidationException::withMessages([
-                'payload' => 'El payload recibido no es válido.',
+                'payload' => 'El JSON recibido no es válido.',
             ]);
         }
 
-        // Mapa clave -> id insertado en componentes_seleccionados
-        $idPorClave = [];
-
         DB::beginTransaction();
         try {
-            // 1) Insertar componentes (tabla A)
-            foreach ($componentes as $c) {
-                // Normaliza claves
-                $itemid  = $c['itemid']  ?? '';
-                $config  = $c['configid'] ?? null;
-                $size    = $c['sizeid']   ?? null;
-                $color   = $c['colorid']  ?? null;
-                $dimid   = $c['dimid']    ?? null;
+            // Mapa por (itemid|sizeid|colorid) => id del componente insertado
+            $mapK3toId = [];
+            $primerComponenteId = null;
 
-                $id = DB::table('componentes_seleccionados')->insertGetId([
-                    'articulo'          => $itemid,
-                    'config'        => $config,
-                    'tamanio'          => $size,
-                    'color'         => $color,
-                    'nom_color'           => $dimid,
+            foreach ($componentes as $c) {
+                $itemid = $c['itemid']   ?? '';
+                $size   = $c['sizeid']   ?? null;
+                $color  = $c['colorid']  ?? null;
+
+                $config = $c['configid'] ?? null;
+                $dimid  = $c['dimid']    ?? null;
+
+                // 1) Inserta componente y guarda su ID
+                $componenteId = DB::table('componentes_seleccionados')->insertGetId([
+                    'articulo'        => $itemid,
+                    'config'          => $config,
+                    'tamanio'         => $size,
+                    'color'           => $color,
+                    'nom_color'       => $dimid,
                     'requerido_total' => isset($c['requerido_total']) ? (float)$c['requerido_total'] : null,
-                    // 'created_by'    => auth()->id(), // si lo ocupas
                     'created_at'      => now(),
                     'updated_at'      => now(),
                 ]);
 
-                $clave = $this->clave($itemid, $config, $size, $color, $dimid);
-                // Si se repite la misma clave, nos quedamos con el primero
-                if (!isset($idPorClave[$clave])) {
-                    $idPorClave[$clave] = $id;
+                if ($primerComponenteId === null) {
+                    $primerComponenteId = $componenteId;
+                }
+
+                // Clave reducida por atributos estables entre ambos payloads
+                $k3 = $this->k3($itemid, $size, $color); // ITEM|SIZE|COLOR
+                // Si se repite, conservamos el primero para esa k3
+                if (!isset($mapK3toId[$k3])) {
+                    $mapK3toId[$k3] = $componenteId;
                 }
             }
 
-            // 2) Insertar inventarios (tabla B), ligando por clave
+            // 2) Inserta inventarios y enlaza por k3; si no hay match y solo hay 1 componente, usa ese
             foreach ($inventario as $inv) {
-                $itemid = $inv['articulo'] ?? '';
-                $config = $inv['config'] ?? null;
-                $size   = $inv['tamanio']  ?? null;
-                $color  = $inv['color'] ?? null;
-                $dimid  = $inv['nom_color']   ?? null;
+                $iItem  = $inv['itemid']  ?? '';
+                $iSize  = $inv['sizeid']  ?? null;
+                $iColor = $inv['colorid'] ?? null;
 
-                $clave = $this->clave($itemid, $config, $size, $color, $dimid);
+                $k3 = $this->k3($iItem, $iSize, $iColor);
+                $componenteId = $mapK3toId[$k3]
+                    ?? (count($mapK3toId) === 1 ? $primerComponenteId : null);
 
-                if (!isset($idPorClave[$clave])) {
-                    // Si por alguna razón no encuentra match, abortamos para no perder integridad
+                if (!$componenteId) {
                     throw ValidationException::withMessages([
-                        'inventario' => "No se encontró componente seleccionado para la clave: {$clave}",
+                        'inventario' => "No se encontró componente para ITEM={$iItem}, SIZE={$iSize}, COLOR={$iColor}.",
                     ]);
                 }
 
-                // Parseo de fecha (si viene string tipo '2025-09-06 12:34:00' o '2025-09-06')
+                // Fecha tolerante (ej. '2025-06-30 00:00:00.000')
                 $fecha = null;
                 if (!empty($inv['fecha'])) {
                     try {
                         $fecha = Carbon::parse($inv['fecha']);
                     } catch (\Throwable $e) {
-                        $fecha = null; // o lanza validación si quieres obligar formato
+                        $fecha = null;
                     }
                 }
 
                 DB::table('inventarios_seleccionados')->insert([
-                    'componente_id'   => $idPorClave[$clave],
+                    'componente_id'   => $componenteId,
 
-                    'articulo'          => $itemid,
-                    'config'        => $config,
-                    'tamanio'          => $size,
-                    'color'         => $color,
-                    'nom_color'           => $dimid,
+                    // Guarda los datos del inventario (o default al componente si falta)
+                    'articulo'        => $iItem,
+                    'config'          => $inv['configid'] ?? null,
+                    'tamanio'         => $iSize,
+                    'color'           => $iColor,
+                    'nom_color'       => $inv['dimid'] ?? null,
 
-                    'almacen' => $inv['inventlocationid'] ?? null,
-                    'lote'   => $inv['inventbatchid'] ?? null,
-                    'localidad'   => $inv['wmslocationid'] ?? null,
-                    'serie'  => $inv['inventserialid'] ?? null,
+                    'almacen'         => $inv['inventlocationid'] ?? null,
+                    'lote'            => $inv['inventbatchid']    ?? null,
+                    'localidad'       => $inv['wmslocationid']    ?? null,
+                    'serie'           => $inv['inventserialid']   ?? null,
 
                     'conos'           => isset($inv['tiras']) ? (float)$inv['tiras'] : null,
-                    'lote_provee'         => $inv['calidad'] ?? null,
-                    'provee'         => $inv['cliente'] ?? null,
-                    'entrada'           => $fecha,
-                    'kilos'  => isset($inv['physicalinvent']) ? (float)$inv['physicalinvent'] : null,
+                    'lote_provee'     => $inv['calidad'] ?? null,
+                    'provee'          => $inv['cliente'] ?? null,
+                    'entrada'         => $fecha,
+                    'kilos'           => isset($inv['physicalinvent']) ? (float)$inv['physicalinvent'] : null,
 
                     'created_at'      => now(),
                     'updated_at'      => now(),
@@ -1383,7 +1391,6 @@ class RequerimientoController extends Controller
             }
 
             DB::commit();
-
             return redirect('/produccionProceso')->with('ok', 'Selección guardada correctamente.');
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -1392,15 +1399,21 @@ class RequerimientoController extends Controller
         }
     }
 
-    // En App\Http\Controllers\InventarioSeleccionController.php
-    private function clave($itemid, $config, $size, $color, $dimid = null): string
+    /** Normaliza en mayúsculas sin espacios extremos */
+    private function norm($v): string
     {
-        $norm = fn($v) => mb_strtoupper(trim((string)($v ?? '')));
-        // SIN dimid:
-        return implode('|', [$norm($itemid), $norm($config), $norm($size), $norm($color)]);
+        return mb_strtoupper(trim((string)($v ?? '')));
     }
 
-
+    /** Clave reducida: ITEM|SIZE|COLOR (ignora CONFIG porque difiere entre arrays) */
+    private function k3($itemid, $sizeid, $colorid): string
+    {
+        return implode('|', [
+            $this->norm($itemid),
+            $this->norm($sizeid),
+            $this->norm($colorid),
+        ]);
+    }
 
 
     /*

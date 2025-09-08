@@ -14,9 +14,10 @@
                     INVENTARIO DISPONIBLE DE MATERIA PRIMA
 
                     <button id="btnLimpiarFiltros" type="button"
-                        class="ml-8 w-1/6 px-2 py-1 rounded-md border text-slate-700 bg-white hover:bg-slate-50 text-sm">
+                        class="ml-[300px] w-1/6 px-2 py-1 rounded-md border text-slate-700 bg-white hover:bg-slate-50 text-sm">
                         LIMPIAR FILTROS
                     </button>
+
                 </div>
 
                 {{-- FORM para guardar la selección --}}
@@ -24,6 +25,16 @@
                     @csrf
                     <input type="hidden" name="componentes" id="inputComponentes">
                     <input type="hidden" name="inventario" id="inputInventario">
+
+
+                    <div class="w-full flex justify-end">
+                        <button type="submit"
+                            class="px-2 py-1 -translate-y-[40px] w-1/6 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700">
+                            SOLICITAR CONSUMO
+                        </button>
+                    </div>
+
+
 
                     {{-- ===================== TABLA 1: Componentes únicos ===================== --}}
                     <div
@@ -175,46 +186,11 @@
                         </table>
                     </div>
 
-                    <div class="px-2 py-2 flex justify-end gap-2">
-                        <button type="submit"
-                            class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700">
-                            Guardar selección
-                        </button>
-                    </div>
                 </form>
 
             </div>
         </div>
     </div>
-
-    {{-- ===================== CSS fino ===================== --}}
-    <style>
-        tbody tr:hover .td {
-            background: #f0f7ff;
-            transition: background-color .15s ease;
-        }
-
-        tbody tr .td {
-            border-left: 1px solid rgba(191, 219, 254, .6);
-        }
-
-        tbody tr .td:last-child {
-            border-right: 1px solid rgba(191, 219, 254, .6);
-        }
-
-        /* 🔶 Resaltado de fila seleccionada (tabla 1) */
-        #tbody-componentes tr.is-selected .td {
-            background: #FEF08A !important;
-        }
-
-        /* amber-200 */
-        #tbody-componentes tr.is-selected {
-            outline: 2px solid #F59E0B;
-            outline-offset: -2px;
-        }
-
-        /* amber-500 */
-    </style>
 
     {{-- ===================== JS: selección + filtrado + envío ===================== --}}
     <script>
@@ -376,4 +352,34 @@
             });
         </script>
     @endif
+
+
+    {{-- ===================== CSS fino ===================== --}}
+    <style>
+        tbody tr:hover .td {
+            background: #f0f7ff;
+            transition: background-color .15s ease;
+        }
+
+        tbody tr .td {
+            border-left: 1px solid rgba(191, 219, 254, .6);
+        }
+
+        tbody tr .td:last-child {
+            border-right: 1px solid rgba(191, 219, 254, .6);
+        }
+
+        /* 🔶 Resaltado de fila seleccionada (tabla 1) */
+        #tbody-componentes tr.is-selected .td {
+            background: #FEF08A !important;
+        }
+
+        /* amber-200 */
+        #tbody-componentes tr.is-selected {
+            outline: 2px solid #F59E0B;
+            outline-offset: -2px;
+        }
+
+        /* amber-500 */
+    </style>
 @endsection
