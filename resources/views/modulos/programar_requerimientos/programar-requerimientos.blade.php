@@ -63,7 +63,8 @@
                                         data-tipo="{{ $req->rizo == 1 ? 'Rizo' : ($req->pie == 1 ? 'Pie' : 'N/A') }}"
                                         data-telar="{{ $req->telar }}" onclick="seleccionarFila(this)"
                                         data-cuenta="{{ $req->rizo == 1 ? $req->cuenta_rizo : ($req->pie == 1 ? $req->cuenta_pie : '-') }}"
-                                        data-calibre="{{ $req->rizo == 1 ? $req->calibre_rizo : ($req->pie == 1 ? $req->calibre_pie : '-') }}">
+                                        data-calibre="{{ $req->rizo == 1 ? $req->calibre_rizo : ($req->pie == 1 ? $req->calibre_pie : '-') }}"
+                                        data-hilo="{{ $req->hilo }}">
                                         <td class="border px-1 py-1">{{ $req->telar }}</td>
 
                                         <td class="border px-1 py-1">
@@ -92,7 +93,7 @@
                                                     : '-') }}
                                         </td>
 
-                                        <td class="border px-1 py-1">{{ $req->calibre_pie }}</td>
+                                        <td class="border px-1 py-1">{{ $req->hilo }}</td>
                                         <!-- HILO nulo -->
 
                                         <td class="border px-1 py-1">
@@ -516,7 +517,7 @@
             });
         </script>
         <!--capturamos los checkbox seleccionados c:-->
-        {{-- VERIFICAMOS QUE, en caso de seleccionar mas de un checkbox, sean del mismo TIPO y CALIBRE --}}
+        {{-- VERIFICAMOS QUE, en caso de seleccionar mas de un checkbox, sean del mismo HILO y CALIBRE --}}
         <script>
             // Selección múltiple
             function toggleTodos(masterCheckbox) {
@@ -548,11 +549,11 @@
                     );
 
                     // Sacamos los valores tipo y cuenta de esas filas
-                    const tipos = filasSeleccionadas.map(fila => fila.getAttribute('data-tipo'));
+                    const hilos = filasSeleccionadas.map(fila => fila.getAttribute('data-hilo'));
                     const calibres = filasSeleccionadas.map(fila => fila.getAttribute('data-calibre'));
 
                     // Validamos que todos los tipos sean iguales
-                    const todosTiposIguales = tipos.every(tipo => tipo === tipos[0]);
+                    const todosTiposIguales = hilos.every(hilo => hilo === hilos[0]);
                     const todasCalibreIguales = calibres.every(calibre => calibre === calibres[0]);
 
                     if (!todosTiposIguales || !todasCalibreIguales) {
@@ -560,7 +561,7 @@
                         Swal.fire({
                             icon: 'error',
                             title: 'Error',
-                            text: 'Los registros seleccionados deben tener el mismo Calibre y Tipo (Rizo o Pie).',
+                            text: 'Los registros seleccionados deben tener el mismo Calibre e Hilo.',
                             confirmButtonColor: '#d33',
                             confirmButtonText: 'Entendido',
                         });

@@ -36,11 +36,10 @@
 
 
 
-                    {{-- ===================== TABLA 1: Componentes únicos ===================== --}}
-                    <div
-                        class="table-scroll max-h-[60vh] overflow-y-auto overflow-x-auto rounded-xl border border-blue-200/60 mb-2">
-                        <table class="w-full text-sm table-rounded" id="tabla-componentes">
-                            <thead>
+                    {{-- ===== Tabla 1: Componentes ===== --}}
+                    <div class="table-scroll max-h-[360px] overflow-auto rounded-md ring-1 ring-gray-200">
+                        <table class="w-full text-sm" id="tabla-componentes">
+                            <thead class="sticky top-0 z-20">
                                 <tr class="text-white uppercase text-xs tracking-wider text-center"
                                     style="background:linear-gradient(90deg,#6683f7,#4e97ba,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
                                     <th class="th">Artículo</th>
@@ -70,7 +69,7 @@
                                         <td class="td">{{ $c->INVENTSIZEID }}</td>
                                         <td class="td">{{ $c->INVENTCOLORID }}</td>
                                         <td class="td">{{ $c->INVENTDIMID }}</td>
-                                        <td class="td td-num">{{ $fmt($reqTotal) }}</td>
+                                        <td class="td td-num">{{ $total_metros }}</td>
                                     </tr>
                                 @empty
                                     <tr>
@@ -104,8 +103,8 @@
                                 <col class="w-[110px]"> {{-- Seleccionar --}}
                             </colgroup>
 
-                            <thead>
-                                <tr class="text-white uppercase text-[11px] tracking-wide sticky top-0 z-10"
+                            <thead class="sticky top-0 z-20">
+                                <tr class="text-white uppercase text-[11px] tracking-wide"
                                     style="background:linear-gradient(90deg,#6683f7,#4e97ba,#60a5fa,#3b82f6,#2563eb,#1d4ed8);">
                                     <th class="px-2 py-1 text-center">Artículo</th>
                                     <th class="px-2 py-1 text-center">Config</th>

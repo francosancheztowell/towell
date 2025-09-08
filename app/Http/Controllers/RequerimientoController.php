@@ -1127,6 +1127,7 @@ class RequerimientoController extends Controller
 
     public function step3(Request $request)
     {
+        $total_metros = $request->input('total_metros');
         // 1) Folios desde el form
         $folios = collect($request->input('folios', []))
             ->map(fn($f) => trim((string)$f))
@@ -1152,7 +1153,6 @@ class RequerimientoController extends Controller
                 ->unique()
                 ->values();
         }
-
 
         // 3 metros sumados por BOM (LMA)
         $metrosPorBom = $registros
@@ -1277,7 +1277,7 @@ class RequerimientoController extends Controller
         //dd($inventario);
 
         // Si luego quieres ver vista:
-        return view('modulos.programar_requerimientos.step3', compact('componentes', 'registros', 'metrosPorBom', 'inventario', 'componentesUnicos'));
+        return view('modulos.programar_requerimientos.step3', compact('total_metros', 'componentes', 'registros', 'metrosPorBom', 'inventario', 'componentesUnicos'));
     }
 
     public function step3Store(Request $request)

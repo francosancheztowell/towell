@@ -469,7 +469,7 @@
             // =============== CLICK EN FILA: marcar + resolver/crear folio + upsert/fetch + LOADER ==========
             tbody.addEventListener('click', async (e) => {
                 if (e.target.closest(
-                    'select, .select2, .select2-container, input, textarea, button, a')) return;
+                        'select, .select2, .select2-container, input, textarea, button, a')) return;
                 if (ROW_LOADING) return;
 
                 const tr = e.target.closest('tr.agr-row') || e.target.closest('tr');
@@ -841,6 +841,8 @@
 
             let reservando = false;
 
+            // ================== HELPERS ==================
+            const normTxt = (s) => String(s || '').trim();
             const getAllLmaSelects = () =>
                 Array.from(document.querySelectorAll('#agrupados-table tbody select.js-bom-select'));
 
@@ -859,7 +861,7 @@
                 if (on) setTimeout(() => td.classList.remove('cell-error'), 1400);
             };
 
-            const clearAllMarks = (selects) => selects.forEach(s => markCellError(s, false));
+            const clearAllMarks = (selects) => selects.forEach((s) => markCellError(s, false));
 
             const showWarn = async (title, text) => {
                 if (window.Swal) {
@@ -867,13 +869,140 @@
                         icon: 'info',
                         title,
                         text,
-                        confirmButtonText: 'Entendido'
+                        confirmButtonText: 'Entendido',
                     });
                 } else {
                     alert(`${title}\n${text}`);
                 }
             };
 
+            // ======== SUMATORIA METROS ========
+            // Busca el índice de la columna "Metros"
+            const findMetrosColIndex = () => {
+                const ths = Array.from(document.querySelectorAll('#agrupados-table thead th'));
+                for (let i = 0; i < ths.length; i++) {
+                    const t = normTxt(ths[i].textContent).toLowerCase();
+                    if (t.includes('metro')) return i; // "Metros", "Metro"
+                    if (t === 'mts' || t === 'mt') return i;
+                }
+                return -1;
+            };
+
+            // Convierte texto a número robustamente (quita separadores de miles, soporta , o . como decimal)
+            const toNumber = (raw) => {
+                if (raw == null) return NaN;
+                let s = String(raw).trim();
+
+                // Si viene algo como "1,234.56" o "1.234,56"
+                // 1) quita espacios
+                s = s.replace(/\s+/g, '');
+
+                // 2) si tiene coma y punto, asumimos el que está más a la derecha es el decimal
+                const lastComma = s.lastIndexOf(',');
+                const lastDot = s.lastIndexOf('.');
+                if (lastComma !== -1 && lastDot !== -1) {
+                    if (lastComma > lastDot) {
+                        // decimal = coma -> quita puntos (miles), cambia coma por punto
+                        s = s.replace(/\./g, '').replace(',', '.');
+                    } else {
+                        // decimal = punto -> quita comas (miles)
+                        s = s.replace(/,/g, '');
+                    }
+                } else if (lastComma !== -1) {
+                    // solo coma -> tratar como decimal
+                    s = s.replace(/\./g, '').replace(',', '.');
+                } else {
+                    // solo punto -> quitar separadores de miles tipo 1.234.567 si no es decimal
+                    // (si hay más de un punto y el último no está seguido de 1-2 decimales, asumimos miles)
+                    const parts = s.split('.');
+                    if (parts.length > 2) {
+                        // demasiados puntos -> quita todos menos el último
+                        const dec = parts.pop();
+                        s = parts.join('') + '.' + dec;
+                    }
+                }
+
+                const n = parseFloat(s);
+                return Number.isFinite(n) ? n : NaN;
+            };
+
+            // Suma todos los "Metros" (usa data-metros del <tr> si existe; si no, lee el TD de la columna Metros)
+            const sumAllMetros = () => {
+                const tbody = document.querySelector('#agrupados-table tbody');
+                if (!tbody) return 0;
+
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const metrosIdx = findMetrosColIndex();
+                let total = 0;
+
+                rows.forEach((tr) => {
+                    // 1) Preferir data-metros del <tr> si lo tienes
+                    let val = tr.dataset?.metros ?? '';
+
+                    if (val === '' || val == null) {
+                        // 2) Si no hay data-metros, intenta leer el TD de la columna Metros
+                        if (metrosIdx >= 0) {
+                            const td = tr.children[metrosIdx];
+                            if (td) {
+                                // Caso con inputs
+                                const inputs = td.querySelectorAll('input, select, textarea');
+                                if (inputs.length) {
+                                    inputs.forEach((el) => {
+                                        const v = toNumber(el.value);
+                                        if (Number.isFinite(v)) total += v;
+                                    });
+                                    return; // ya sumamos los inputs de esta fila
+                                }
+
+                                // Caso con texto plano
+                                const txt = normTxt(td.textContent);
+                                const v = toNumber(txt);
+                                if (Number.isFinite(v)) total += v;
+                                return;
+                            }
+                        }
+
+                        // 3) Último intento: busca números en todo el tr (texto)
+                        const txt = normTxt(tr.textContent);
+                        const m = txt.match(/-?\d+(?:[.,]\d+)?/g);
+                        if (m) {
+                            m.forEach((frag) => {
+                                const v = toNumber(frag);
+                                if (Number.isFinite(v)) total += v;
+                            });
+                        }
+                    } else {
+                        // Hay data-metros directo
+                        const v = toNumber(val);
+                        if (Number.isFinite(v)) total += v;
+                    }
+                });
+
+                return total;
+            };
+
+            // Inyecta el hidden con el total de metros
+            const appendTotalMetrosHidden = (form) => {
+                // Limpia previos
+                form.querySelectorAll('input[name="total_metros"]').forEach((e) => e.remove());
+
+                const total = sumAllMetros();
+
+                const h = document.createElement('input');
+                h.type = 'hidden';
+                h.name = 'total_metros';
+                // Si quieres 2 decimales fijos:
+                // h.value = total.toFixed(2);
+                h.value = String(total);
+                form.appendChild(h);
+
+                // (Opcional) mostrar en consola
+                console.log('Total Metros =', h.value);
+                // (Opcional) notificación rápida:
+                // if (window.Swal) Swal.fire({ icon: 'success', title: 'Total metros', text: h.value, timer: 1200, showConfirmButton: false });
+            };
+
+            // ================== SUBMIT ==================
             formReservar.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 if (reservando) return;
@@ -886,15 +1015,15 @@
 
                 // 1) Validar que TODAS las celdas L.Mat Urdido tengan valor
                 clearAllMarks(selects);
-                const vacios = selects.filter(s => getSelVal(s) === '');
+                const vacios = selects.filter((s) => getSelVal(s) === '');
 
                 if (vacios.length > 0) {
-                    vacios.forEach(s => markCellError(s, true));
+                    vacios.forEach((s) => markCellError(s, true));
 
                     const first = vacios[0];
                     first.closest('td')?.scrollIntoView({
                         behavior: 'smooth',
-                        block: 'center'
+                        block: 'center',
                     });
                     if (window.$ && $(first).hasClass('select2-hidden-accessible')) {
                         $(first).select2('open');
@@ -909,8 +1038,8 @@
                     return;
                 }
 
-                // 2) (opcional) enviar los lmaturdidos en el submit
-                formReservar.querySelectorAll('input[name="lmaturdidos[]"]').forEach(e => e.remove());
+                // 2) Enviar los lmaturdidos en el submit
+                formReservar.querySelectorAll('input[name="lmaturdidos[]"]').forEach((e) => e.remove());
                 selects.forEach((sel) => {
                     const h = document.createElement('input');
                     h.type = 'hidden';
@@ -918,6 +1047,9 @@
                     h.value = getSelVal(sel);
                     formReservar.appendChild(h);
                 });
+
+                // 2.5) >>> NUEVO: adjuntar total de METROS
+                appendTotalMetrosHidden(formReservar);
 
                 // 3) Asegura/valida folios en servidor
                 reservando = true;
@@ -939,6 +1071,7 @@
             });
         });
     </script>
+
 
     {{-- ====== LOADER OVERLAY (HTML) ====== --}}
     <div id="pageLoader" class="loader-overlay" aria-hidden="true">
