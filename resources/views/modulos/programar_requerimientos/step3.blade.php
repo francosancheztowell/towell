@@ -28,6 +28,18 @@
 
 
                     <div class="w-full flex justify-end">
+                        <button type="button"
+                            class="px-2 py-1 -translate-y-[40px] w-1/6 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                            onclick="(function(){ 
+                                if (history.length >= 3) {
+                                sessionStorage.setItem('forceReload','1'); 
+                                history.go(-2);
+                                } else {
+                                location.href='{{ url('/produccionProceso') }}?r='+Date.now();
+                                }
+                            })()">
+                            CANCELAR
+                        </button>
                         <button type="submit"
                             class="px-2 py-1 -translate-y-[40px] w-1/6 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700">
                             SOLICITAR CONSUMO
@@ -68,7 +80,7 @@
                                         <td class="td">{{ $c->CONFIGID }}</td>
                                         <td class="td">{{ $c->INVENTSIZEID }}</td>
                                         <td class="td">{{ $c->INVENTCOLORID }}</td>
-                                        <td class="td">{{ $c->INVENTDIMID }}</td>
+                                        <td class="td"> - </td>
                                         <td class="td td-num">{{ $fmt(($metros[$loop->index] ?? 0) * 0.2) }}</td>
                                     </tr>
                                 @empty

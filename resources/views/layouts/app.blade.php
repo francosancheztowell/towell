@@ -250,6 +250,17 @@
             });
         </script>
 
+        {{-- FORZAMOS A RECARGAR la página --}}
+        <script>
+            window.addEventListener('pageshow', function() {
+                if (sessionStorage.getItem('forceReload')) {
+                    sessionStorage.removeItem('forceReload');
+                    location.reload();
+                }
+            });
+        </script>
+
+
     </body>
 
     </html>
