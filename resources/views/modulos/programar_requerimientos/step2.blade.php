@@ -371,7 +371,8 @@
                         console.log(`L.Mat Urdido guardado. Folio=${folio}, LMA=${val}`);
                     } catch (err) {
                         console.error(err);
-                        if (window.Swal) Swal.fire('Error', 'No se pudo guardar L.Mat Urdido.',
+                        if (window.Swal) Swal.fire('Error',
+                            'No se pudo guardar L.Mat Urdido. Por favor de un clic en el registro para generar un Folio válido',
                             'error');
                     }
                 });
@@ -834,240 +835,74 @@
     </script>
 
     <script>
-        // Validación: TODAS las celdas L.Mat Urdido deben tener valor antes de RESERVAR
         document.addEventListener('DOMContentLoaded', () => {
-            const formReservar = document.getElementById('formReservar');
-            if (!formReservar) return;
+            const form = document.getElementById('formReservar');
+            if (!form) return;
 
-            let reservando = false;
-
-            // ================== HELPERS ==================
-            const normTxt = (s) => String(s || '').trim();
-            const getAllLmaSelects = () =>
-                Array.from(document.querySelectorAll('#agrupados-table tbody select.js-bom-select'));
-
-            const getSelVal = (el) => {
-                if (!el) return '';
-                if (window.$ && $(el).hasClass('select2-hidden-accessible')) {
-                    return String($(el).val() || '').trim();
-                }
-                return String(el.value || '').trim();
-            };
-
-            const markCellError = (selEl, on = true) => {
-                const td = selEl?.closest('td');
-                if (!td) return;
-                td.classList.toggle('cell-error', !!on);
-                if (on) setTimeout(() => td.classList.remove('cell-error'), 1400);
-            };
-
-            const clearAllMarks = (selects) => selects.forEach((s) => markCellError(s, false));
-
-            const showWarn = async (title, text) => {
-                if (window.Swal) {
-                    await Swal.fire({
+            form.addEventListener('submit', e => {
+                const $ = window.$;
+                const selects = [...document.querySelectorAll(
+                    '#agrupados-table tbody select.js-bom-select')];
+                const val = el => ($ && $(el).hasClass('select2-hidden-accessible') ? String($(el).val() ||
+                    '') : String(el?.value || '')).trim();
+                const vacios = selects.filter(s => val(s) === '');
+                if (vacios.length) {
+                    e.preventDefault();
+                    if (window.Swal) Swal.fire({
                         icon: 'info',
-                        title,
-                        text,
-                        confirmButtonText: 'Entendido',
+                        title: 'Dato requerido',
+                        text: `Faltan ${vacios.length} “L.Mat Urdido”.`
                     });
-                } else {
-                    alert(`${title}\n${text}`);
-                }
-            };
-
-            // ======== SUMATORIA METROS ========
-            // Busca el índice de la columna "Metros"
-            const findMetrosColIndex = () => {
-                const ths = Array.from(document.querySelectorAll('#agrupados-table thead th'));
-                for (let i = 0; i < ths.length; i++) {
-                    const t = normTxt(ths[i].textContent).toLowerCase();
-                    if (t.includes('metro')) return i; // "Metros", "Metro"
-                    if (t === 'mts' || t === 'mt') return i;
-                }
-                return -1;
-            };
-
-            // Convierte texto a número robustamente (quita separadores de miles, soporta , o . como decimal)
-            const toNumber = (raw) => {
-                if (raw == null) return NaN;
-                let s = String(raw).trim();
-
-                // Si viene algo como "1,234.56" o "1.234,56"
-                // 1) quita espacios
-                s = s.replace(/\s+/g, '');
-
-                // 2) si tiene coma y punto, asumimos el que está más a la derecha es el decimal
-                const lastComma = s.lastIndexOf(',');
-                const lastDot = s.lastIndexOf('.');
-                if (lastComma !== -1 && lastDot !== -1) {
-                    if (lastComma > lastDot) {
-                        // decimal = coma -> quita puntos (miles), cambia coma por punto
-                        s = s.replace(/\./g, '').replace(',', '.');
-                    } else {
-                        // decimal = punto -> quita comas (miles)
-                        s = s.replace(/,/g, '');
-                    }
-                } else if (lastComma !== -1) {
-                    // solo coma -> tratar como decimal
-                    s = s.replace(/\./g, '').replace(',', '.');
-                } else {
-                    // solo punto -> quitar separadores de miles tipo 1.234.567 si no es decimal
-                    // (si hay más de un punto y el último no está seguido de 1-2 decimales, asumimos miles)
-                    const parts = s.split('.');
-                    if (parts.length > 2) {
-                        // demasiados puntos -> quita todos menos el último
-                        const dec = parts.pop();
-                        s = parts.join('') + '.' + dec;
-                    }
+                    else alert(`Faltan ${vacios.length} “L.Mat Urdido”.`);
+                    const f = vacios[0];
+                    f?.closest('td')?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                    if ($ && $(f).hasClass('select2-hidden-accessible')) $(f).select2('open');
+                    else f?.focus();
+                    return;
                 }
 
-                const n = parseFloat(s);
-                return Number.isFinite(n) ? n : NaN;
-            };
-
-            // Suma todos los "Metros" (usa data-metros del <tr> si existe; si no, lee el TD de la columna Metros)
-            const sumAllMetros = () => {
-                const tbody = document.querySelector('#agrupados-table tbody');
-                if (!tbody) return 0;
-
-                const rows = Array.from(tbody.querySelectorAll('tr'));
-                const metrosIdx = findMetrosColIndex();
-                let total = 0;
-
-                rows.forEach((tr) => {
-                    // 1) Preferir data-metros del <tr> si lo tienes
-                    let val = tr.dataset?.metros ?? '';
-
-                    if (val === '' || val == null) {
-                        // 2) Si no hay data-metros, intenta leer el TD de la columna Metros
-                        if (metrosIdx >= 0) {
-                            const td = tr.children[metrosIdx];
-                            if (td) {
-                                // Caso con inputs
-                                const inputs = td.querySelectorAll('input, select, textarea');
-                                if (inputs.length) {
-                                    inputs.forEach((el) => {
-                                        const v = toNumber(el.value);
-                                        if (Number.isFinite(v)) total += v;
-                                    });
-                                    return; // ya sumamos los inputs de esta fila
-                                }
-
-                                // Caso con texto plano
-                                const txt = normTxt(td.textContent);
-                                const v = toNumber(txt);
-                                if (Number.isFinite(v)) total += v;
-                                return;
-                            }
-                        }
-
-                        // 3) Último intento: busca números en todo el tr (texto)
-                        const txt = normTxt(tr.textContent);
-                        const m = txt.match(/-?\d+(?:[.,]\d+)?/g);
-                        if (m) {
-                            m.forEach((frag) => {
-                                const v = toNumber(frag);
-                                if (Number.isFinite(v)) total += v;
-                            });
-                        }
-                    } else {
-                        // Hay data-metros directo
-                        const v = toNumber(val);
-                        if (Number.isFinite(v)) total += v;
-                    }
+                const rows = [...document.querySelectorAll('#agrupados-table tbody tr')].map((tr, i) => {
+                    const td = [...tr.children].map(c => c.textContent.trim());
+                    const sel = tr.querySelector('select.js-bom-select');
+                    const v = val(sel);
+                    const t = ($ && sel && $(sel).find(':selected').text()) || (sel?.options[sel
+                        .selectedIndex]?.text || '');
+                    return {
+                        i,
+                        // texto columnas
+                        telar: td[0] || '',
+                        fecha: td[1] || '',
+                        cuenta: td[2] || '',
+                        calibre: td[3] || '',
+                        hilo: td[4] || '',
+                        urdido_txt: td[5] || '',
+                        tipo_txt: td[6] || '',
+                        destino_txt: td[7] || '',
+                        metros_txt: td[8] || '',
+                        // select
+                        lmaturdido_id: v,
+                        lmaturdido_text: t,
+                        // data-* crudos
+                        ids: tr.dataset.ids || '',
+                        folio: tr.dataset.folio || '',
+                        cuenta_raw: tr.dataset.cuenta || '',
+                        tipo_raw: tr.dataset.tipo || '',
+                        destino_raw: tr.dataset.destino || '',
+                        metros_raw: tr.dataset.metros || '',
+                        urdido_raw: tr.dataset.urdido || ''
+                    };
                 });
 
-                return total;
-            };
-
-            // Inyecta el hidden con el total de metros
-            const appendTotalMetrosHidden = (form) => {
-                // Limpia previos
-                form.querySelectorAll('input[name="total_metros"]').forEach((e) => e.remove());
-
-                const total = sumAllMetros();
-
+                // inyecta hidden con todo el payload
+                form.querySelectorAll('input[name="agrupados"]').forEach(n => n.remove());
                 const h = document.createElement('input');
                 h.type = 'hidden';
-                h.name = 'total_metros';
-                // Si quieres 2 decimales fijos:
-                // h.value = total.toFixed(2);
-                h.value = String(total);
+                h.name = 'agrupados';
+                h.value = JSON.stringify(rows);
                 form.appendChild(h);
-
-                // (Opcional) mostrar en consola
-                console.log('Total Metros =', h.value);
-                // (Opcional) notificación rápida:
-                // if (window.Swal) Swal.fire({ icon: 'success', title: 'Total metros', text: h.value, timer: 1200, showConfirmButton: false });
-            };
-
-            // ================== SUBMIT ==================
-            formReservar.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (reservando) return;
-
-                const selects = getAllLmaSelects();
-                if (selects.length === 0) {
-                    await showWarn('Sin filas', 'No hay filas para validar.');
-                    return;
-                }
-
-                // 1) Validar que TODAS las celdas L.Mat Urdido tengan valor
-                clearAllMarks(selects);
-                const vacios = selects.filter((s) => getSelVal(s) === '');
-
-                if (vacios.length > 0) {
-                    vacios.forEach((s) => markCellError(s, true));
-
-                    const first = vacios[0];
-                    first.closest('td')?.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'center',
-                    });
-                    if (window.$ && $(first).hasClass('select2-hidden-accessible')) {
-                        $(first).select2('open');
-                    } else {
-                        first.focus();
-                    }
-
-                    await showWarn(
-                        'Dato requerido',
-                        `Faltan ${vacios.length} de ${selects.length} “L.Mat Urdido”. Completa todas las filas para continuar.`
-                    );
-                    return;
-                }
-
-                // 2) Enviar los lmaturdidos en el submit
-                formReservar.querySelectorAll('input[name="lmaturdidos[]"]').forEach((e) => e.remove());
-                selects.forEach((sel) => {
-                    const h = document.createElement('input');
-                    h.type = 'hidden';
-                    h.name = 'lmaturdidos[]';
-                    h.value = getSelVal(sel);
-                    formReservar.appendChild(h);
-                });
-
-                // 2.5) >>> NUEVO: adjuntar total de METROS
-                appendTotalMetrosHidden(formReservar);
-
-                // 3) Asegura/valida folios en servidor
-                reservando = true;
-                const okFolios = await window.ensureFoliosAndValidateBeforeSubmit(formReservar);
-                if (!okFolios) {
-                    reservando = false;
-                    return;
-                }
-
-                // 4) Deshabilitar botón y enviar
-                const btn = formReservar.querySelector('button[type="submit"]');
-                if (btn) {
-                    btn.disabled = true;
-                    btn.dataset.originalText = btn.innerHTML;
-                    btn.innerHTML = 'Procesando...';
-                }
-
-                HTMLFormElement.prototype.submit.call(formReservar);
             });
         });
     </script>

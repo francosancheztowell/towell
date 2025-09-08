@@ -55,11 +55,11 @@
                                 @forelse(($componentesUnicos ?? []) as $c)
                                     @php
                                         $reqTotal = (float) ($c->requerido_total ?? 0);
-                                        $fmt = function ($n) {
-                                            return function_exists('decimales') ? decimales($n) : number_format($n, 6);
-                                        };
+                                        $fmt = fn($n) => function_exists('decimales')
+                                            ? decimales($n)
+                                            : number_format($n, 6);
                                     @endphp
-                                    {{-- Fila clickeable con data-* para filtrar abajo --}}
+
                                     <tr class="tr cursor-pointer text-center" data-itemid="{{ $c->ITEMID ?? '' }}"
                                         data-configid="{{ $c->CONFIGID ?? '' }}" data-sizeid="{{ $c->INVENTSIZEID ?? '' }}"
                                         data-colorid="{{ $c->INVENTCOLORID ?? '' }}"
@@ -69,13 +69,12 @@
                                         <td class="td">{{ $c->INVENTSIZEID }}</td>
                                         <td class="td">{{ $c->INVENTCOLORID }}</td>
                                         <td class="td">{{ $c->INVENTDIMID }}</td>
-                                        <td class="td td-num">{{ $total_metros }}</td>
+                                        <td class="td td-num">{{ $fmt(($metros[$loop->index] ?? 0) * 0.2) }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="px-6 py-10 text-center text-blue-700">
-                                            No hay registros por ahora.
-                                        </td>
+                                        <td colspan="7" class="px-6 py-10 text-center text-blue-700">No hay registros por
+                                            ahora.</td>
                                     </tr>
                                 @endforelse
                             </tbody>

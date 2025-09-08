@@ -1127,13 +1127,22 @@ class RequerimientoController extends Controller
 
     public function step3(Request $request)
     {
-        $total_metros = $request->input('total_metros');
-        // 1) Folios desde el form
-        $folios = collect($request->input('folios', []))
-            ->map(fn($f) => trim((string)$f))
+        $data   = $request->input('agrupados');                          // string JSON o array
+        $items  = collect(is_string($data) ? json_decode($data, true) : $data);
+
+        $metros = $items->pluck('metros_raw')
+            ->map(fn($f) => strtoupper(trim((string)$f)))
             ->filter()
             ->unique()
-            ->values();
+            ->values();   // ->all() si lo quieres como array
+
+        // 1) Folios desde el form
+        $folios = $items->pluck('folio')
+            ->map(fn($f) => strtoupper(trim((string)$f)))
+            ->filter()
+            ->unique()
+            ->values();   // ->all() si lo quieres como array
+
 
         // 2) urdido_engomado: lmaturdido + metros por folio
         $registros = collect();
@@ -1154,12 +1163,8 @@ class RequerimientoController extends Controller
                 ->values();
         }
 
-        // 3 metros sumados por BOM (LMA)
-        $metrosPorBom = $registros
-            ->groupBy('lmaturdido')
-            ->map(fn($g) => (float) $g->sum('metros'));
-
         // 3.1) BOM + INVENTDIM agrupado por LMA (BOMID) y firma de componente
+        // 3.1) Componentes por LMA (suma duplicados dentro del mismo LMA)
         $componentes = DB::connection('sqlsrv_ti')
             ->table('BOM as b')
             ->join('INVENTDIM as i', 'i.INVENTDIMID', '=', 'b.INVENTDIMID')
@@ -1181,15 +1186,12 @@ class RequerimientoController extends Controller
                 'i.CONFIGID',
                 'i.INVENTSIZEID',
                 'i.INVENTCOLORID',
-                DB::raw('SUM(CAST(b.BOMQTY AS DECIMAL(18,6))) AS BOMQTY_SUM') // suma duplicados dentro del mismo LMA
+                DB::raw('SUM(CAST(b.BOMQTY AS DECIMAL(18,6))) AS BOMQTY_SUM') //+"BOMQTY_SUM": "1.000000" ESTO FUE DE UN REGISTRO
             ])
             ->get();
 
-        // 3.2) Calcula requerido por renglón (por cada LMA)
-        $reqDetallado = $componentes->map(function ($c) use ($metrosPorBom) {
-            $metros = (float) ($metrosPorBom[$c->BOMID] ?? 0);     // metros ya sumados por BOMID
-            $req    = (float) $c->BOMQTY_SUM * $metros;            // requerido para ese LMA
-
+        // 3.2) Requerido por renglón (por cada LMA) **sin metros**
+        $reqDetallado = $componentes->map(function ($c) {
             return (object) [
                 'BOMID'          => $c->BOMID,
                 'ITEMID'         => $c->ITEMID,
@@ -1198,29 +1200,25 @@ class RequerimientoController extends Controller
                 'INVENTSIZEID'   => $c->INVENTSIZEID,
                 'INVENTCOLORID'  => $c->INVENTCOLORID,
                 'BOMQTY_SUM'     => (float) $c->BOMQTY_SUM,
-                'metros'         => $metros,
-                'requerido'      => $req,
             ];
         });
 
-        // 3.3) Colapsa “componentes idénticos” (mismo ITEM/DIM) aunque vengan de varios LMA
-        //    Clave sugerida: ITEMID + INVENTDIMID (ya encapsula config/size/color)
+
+        // 3.3) Colapsa “componentes idénticos” (mismo ITEM/DIM) entre varios LMA
         $componentesUnicos = $reqDetallado
             ->groupBy(fn($r) => $r->ITEMID . '|' . $r->INVENTDIMID)
             ->map(function ($g) {
                 $first = $g->first();
                 return (object) [
-                    'ITEMID'         => $first->ITEMID,
-                    'INVENTDIMID'    => $first->INVENTDIMID,
-                    'CONFIGID'       => $first->CONFIGID,
-                    'INVENTSIZEID'   => $first->INVENTSIZEID,
-                    'INVENTCOLORID'  => $first->INVENTCOLORID,
-                    // suma de requeridos de todos los LMA que comparten el mismo componente
-                    'requerido_total' => round($g->sum('requerido'), 6),
+                    'ITEMID'          => $first->ITEMID,
+                    'INVENTDIMID'     => $first->INVENTDIMID,
+                    'CONFIGID'        => $first->CONFIGID,
+                    'INVENTSIZEID'    => $first->INVENTSIZEID,
+                    'INVENTCOLORID'   => $first->INVENTCOLORID,
+                    'requerido_total' => round($g->sum('requerido'), 6),  // suma de BOMQTY_SUM
                     // (opcionales para auditoría/debug)
-                    'BOMIDs'         => $g->pluck('BOMID')->unique()->values(),
-                    'BOMQTY_SUM_sum' => round($g->sum('BOMQTY_SUM'), 6),
-                    'metros_sum'     => round($g->sum('metros'), 6),
+                    'BOMIDs'          => $g->pluck('BOMID')->unique()->values(),
+                    'BOMQTY_SUM_sum'  => round($g->sum('BOMQTY_SUM'), 6),
                 ];
             })
             ->values();
@@ -1277,7 +1275,7 @@ class RequerimientoController extends Controller
         //dd($inventario);
 
         // Si luego quieres ver vista:
-        return view('modulos.programar_requerimientos.step3', compact('total_metros', 'componentes', 'registros', 'metrosPorBom', 'inventario', 'componentesUnicos'));
+        return view('modulos.programar_requerimientos.step3', compact('metros', 'componentes', 'registros', 'inventario', 'componentesUnicos'));
     }
 
     public function step3Store(Request $request)
