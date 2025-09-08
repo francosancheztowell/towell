@@ -14,7 +14,7 @@
                     INVENTARIO DISPONIBLE DE MATERIA PRIMA
 
                     <button id="btnLimpiarFiltros" type="button"
-                        class="ml-[300px] w-1/6 px-2 py-1 rounded-md border text-slate-700 bg-white hover:bg-slate-50 text-sm">
+                        class="ml-[100px] w-1/6 px-0.5 py-1 rounded-md border text-slate-700 bg-white hover:bg-slate-50 text-sm">
                         LIMPIAR FILTROS
                     </button>
 
@@ -41,7 +41,7 @@
                             CANCELAR
                         </button>
                         <button type="submit"
-                            class="px-2 py-1 -translate-y-[40px] w-1/6 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700">
+                            class="px-2 py-1 ml-2 mr-2 -translate-y-[40px] w-1/6 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700">
                             SOLICITAR CONSUMO
                         </button>
                     </div>

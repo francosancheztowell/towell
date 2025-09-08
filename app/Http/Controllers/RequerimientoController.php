@@ -1133,7 +1133,6 @@ class RequerimientoController extends Controller
         $metros = $items->pluck('metros_raw')
             ->map(fn($f) => strtoupper(trim((string)$f)))
             ->filter()
-            ->unique()
             ->values();   // ->all() si lo quieres como array
 
         // 1) Folios desde el form
@@ -1271,8 +1270,6 @@ class RequerimientoController extends Controller
         //    'componentes'           => $componentes,
         //    'inventario'     => $inventario,
         //]);
-
-        //dd($inventario);
 
         // Si luego quieres ver vista:
         return view('modulos.programar_requerimientos.step3', compact('metros', 'componentes', 'registros', 'inventario', 'componentesUnicos'));
