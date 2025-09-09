@@ -1127,6 +1127,63 @@ class RequerimientoController extends Controller
 
     public function step3(Request $request)
     {
+        //primero guardamos y aseguramos los datos de las ordenes
+        // Lee 'agrupados' (string JSON o arreglo)
+        $agrupadosJson = $request->input('agrupados');
+        $agrupados = is_string($agrupadosJson) ? json_decode($agrupadosJson, true) : (array) $agrupadosJson;
+        if (!$agrupados) {
+            $agrupados = [];
+        }
+
+        foreach ($agrupados as $g) {
+            $folio = trim((string)($g['folio'] ?? ''));
+            if ($folio === '') continue;
+
+            // Normalizaciones
+            $cuenta = trim((string)($g['cuenta_raw'] ?? $g['cuenta'] ?? ''));
+            if (substr($cuenta, -2) === '.0') {
+                $cuenta = substr($cuenta, 0, -2);
+            }
+
+            $data = [
+                'cuenta'     => $cuenta !== '' ? $cuenta : null,
+                'urdido'     => $g['urdido_raw']    ?? $g['urdido_txt']    ?? null,
+                'tipo'       => $g['tipo_raw']      ?? $g['tipo_txt']      ?? null,
+                'destino'    => $g['destino_raw']   ?? $g['destino_txt']   ?? null,
+                'metros'     => isset($g['metros_raw']) ? (int)$g['metros_raw'] : (isset($g['metros_txt']) ? (int)$g['metros_txt'] : null),
+                'lmaturdido' => $g['lmaturdido_id'] ?? $g['lmaturdido_text'] ?? null,
+            ];
+
+            // Quita nulls para no pisar con null campos que no vienen
+            $data = array_filter($data, fn($v) => !is_null($v));
+
+            // 1) UPDATE primero (si o si sobre lo mapeado)
+            $affected = DB::table('urdido_engomado')
+                ->where('folio', $folio)
+                ->update(array_merge($data, ['updated_at' => now()]));
+
+            // 2) Si no existía -> INSERT
+            if ($affected === 0) {
+                try {
+                    DB::table('urdido_engomado')->insert(array_merge(
+                        ['folio' => $folio],
+                        $data,
+                        ['created_at' => now(), 'updated_at' => now()]
+                    ));
+                } catch (\Illuminate\Database\QueryException $e) {
+                    // Si hubo carrera y ya existe, hacemos UPDATE definitivo
+                    if ($e->getCode() === '23000') { // Violación PK
+                        DB::table('urdido_engomado')
+                            ->where('folio', $folio)
+                            ->update(array_merge($data, ['updated_at' => now()]));
+                    } else {
+                        throw $e;
+                    }
+                }
+            }
+        }
+        //final de guardado de ordenes
+
         $data   = $request->input('agrupados');                          // string JSON o array
         $items  = collect(is_string($data) ? json_decode($data, true) : $data);
 
@@ -1272,13 +1329,13 @@ class RequerimientoController extends Controller
         //]);
 
         // Si luego quieres ver vista:
-        return view('modulos.programar_requerimientos.step3', compact('metros', 'componentes', 'registros', 'inventario', 'componentesUnicos'));
+        return view('modulos.programar_requerimientos.step3', compact('metros', 'componentes', 'registros', 'inventario', 'componentesUnicos', 'folios'));
     }
 
     public function step3Store(Request $request)
     {
         // OJO: quita el dd($request) porque detiene la ejecución
-        // dd($request);
+        dd($request);
 
         // Acepta JSON como string (form-data) o array (application/json)
         $request->validate([
