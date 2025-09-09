@@ -111,7 +111,7 @@
                         icon: 'warning',
                         title: 'Atención',
                         text: msg,
-                        confirmButtonText: 'Ok'
+                        confirmButtonText: 'Entendido'
                     });
                 })();
             });

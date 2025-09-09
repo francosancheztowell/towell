@@ -472,6 +472,11 @@ class RequerimientoController extends Controller
                 'updated_at' => now(),
             ]);
 
+        //ya solo damos de baja el requerimiento para que ya no aparezca más en programar-requerimientos
+        DB::table('requerimiento')
+            ->whereIn('folio', $folios)
+            ->update(['status' => 'utilizado', 'updated_at' => now()]);
+
         return redirect('/produccionProceso')
             ->with('ok', 'Órdenes listas para lanzar.')
             ->with('folios', $folios);
