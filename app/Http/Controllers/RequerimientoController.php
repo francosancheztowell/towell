@@ -1129,6 +1129,7 @@ class RequerimientoController extends Controller
     {
         //primero guardamos y aseguramos los datos de las ordenes
         // Lee 'agrupados' (string JSON o arreglo)
+        //dd($request);
         $agrupadosJson = $request->input('agrupados');
         $agrupados = is_string($agrupadosJson) ? json_decode($agrupadosJson, true) : (array) $agrupadosJson;
         if (!$agrupados) {
@@ -1145,6 +1146,20 @@ class RequerimientoController extends Controller
                 $cuenta = substr($cuenta, 0, -2);
             }
 
+            $raw = $g['fecha_req'] ?? null;
+
+            $fecha_req = null;
+            if (!empty($raw)) {
+                try {
+                    // limpiar: cambia guiones o puntos a "/"
+                    $clean = str_replace(['-', '.'], '/', trim($raw));
+                    $fecha_req = Carbon::createFromFormat('d/m/Y', $clean)->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    // Si falla, lo dejas en null o lanzas validación
+                    $fecha_req = null;
+                }
+            }
+
             $data = [
                 'cuenta'     => $cuenta !== '' ? $cuenta : null,
                 'urdido'     => $g['urdido_raw']    ?? $g['urdido_txt']    ?? null,
@@ -1152,6 +1167,10 @@ class RequerimientoController extends Controller
                 'destino'    => $g['destino_raw']   ?? $g['destino_txt']   ?? null,
                 'metros'     => isset($g['metros_raw']) ? (int)$g['metros_raw'] : (isset($g['metros_txt']) ? (int)$g['metros_txt'] : null),
                 'lmaturdido' => $g['lmaturdido_id'] ?? $g['lmaturdido_text'] ?? null,
+                'telar'      => $g['telar'] ?? null,
+                'fecha_req'  => $fecha_req,
+                'calibre'    => $g['calibre'] ?? null,
+                'hilo'       => $g['hilo'] ?? null,
             ];
 
             // Quita nulls para no pisar con null campos que no vienen
@@ -1435,25 +1454,17 @@ class RequerimientoController extends Controller
             $ueRows = DB::table('urdido_engomado')
                 ->whereIn('folio', $folios)
                 ->select(
-                    'folio',
+                    'telar',
+                    'fecha_req',
                     'cuenta',
+                    'calibre',
+                    'hilo',
                     'urdido',
                     'tipo',
                     'destino',
+                    'folio',
                     'metros',
                     'lmaturdido',
-                    'estatus_urdido',
-                    'estatus_engomado',
-                    'engomado',
-                    'color',
-                    'solidos',
-                    'registro_urdido',
-                    'registro_engomado',
-                    'maquinaEngomado',
-                    'lmatengomado',
-                    'prioridadUrd',
-                    'prioridadEngo',
-                    'tipo_atado',
                 )
                 ->get();
 

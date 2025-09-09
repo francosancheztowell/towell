@@ -41,42 +41,92 @@
                         </thead>
 
                         <tbody>
-                            @foreach ($agrupados as $i => $g)
-                                @php $rowClass = $rowPalette[$i % count($rowPalette)]; @endphp
-                                <tr class="{{ $rowClass }} agr-row cursor-pointer hover:bg-yellow-100"
-                                    data-ids="{{ implode(',', $g->ids ?? []) }}" data-folio="{{ $g->folio ?? '' }}"
-                                    data-cuenta="{{ $g->cuenta ?? '' }}" data-tipo="{{ $g->tipo ?? '' }}"
-                                    data-destino="{{ $g->destino ?? '' }}" data-metros="{{ $g->metros ?? '' }}"
-                                    data-urdido="{{ $g->urdido ?? '' }}">
-                                    <td class="border px-0.5">{{ $g->telar_str }}</td>
-                                    <td class="border px-0.5">
-                                        {{ $g->fecha_requerida ? \Carbon\Carbon::parse($g->fecha_requerida)->format('d/m/Y') : '' }}
-                                    </td>
-                                    <td class="border px-0.5">{{ decimales($g->cuenta) }}</td>
-                                    <td class="border px-0.5">{{ $g->calibre }}</td>
-                                    <td class="border px-0.5">{{ $g->hilo }}</td>
-                                    <td class="border px-0.5">{{ $g->urdido }}</td>
-                                    <td class="border px-0.5">{{ $g->tipo }}</td>
-                                    <td class="border px-0.5">{{ $g->destino }}</td>
-                                    <td class="border px-0.5 text-right">{{ decimales($g->metros) }}</td>
-                                    <td class="border px-0.5">
-                                        @php
-                                            $preId = old("agrupados.$i.lmaturdido", $g->lmaturdido_id ?? null);
-                                            $preText =
-                                                old("agrupados.$i.lmaturdido_text", $g->lmaturdido_text ?? null) ??
-                                                $preId;
-                                        @endphp
-                                        <select name="agrupados[{{ $i }}][lmaturdido]" class="js-bom-select"
-                                            data-selected-id="{{ $preId ?? '' }}"
-                                            data-selected-text="{{ $preText ?? '' }}">
-                                            <option value=""></option>
-                                            @if ($preId)
-                                                <option value="{{ $preId }}" selected>{{ $preText }}</option>
-                                            @endif
-                                        </select>
-                                    </td>
+                            @php
+                                // 1) Tomar $agrupados si trae datos
+                                $rows = collect($agrupados ?? [])
+                                    ->filter()
+                                    ->values();
+
+                                // 2) Si no hay $agrupados, mapear $uePorFolio -> mismo shape que la tabla
+                                if ($rows->isEmpty()) {
+                                    $rows = collect($ue ?? [])
+                                        ->filter() // quita nulls
+                                        ->map(function ($ue, $folio) {
+                                            // Soporta array u objeto
+                                            $get = function ($obj, $k) {
+                                                if (is_array($obj)) {
+                                                    return $obj[$k] ?? null;
+                                                }
+                                                if (is_object($obj)) {
+                                                    return $obj->{$k} ?? null;
+                                                }
+                                                return null;
+                                            };
+                                            return (object) [
+                                                'ids' => [],
+                                                'folio' => $folio,
+                                                'telar_str' => $get($ue, 'telar') ?? '',
+                                                'fecha_requerida' => $get($ue, 'fecha_req'), // puede venir null
+                                                'cuenta' => $get($ue, 'cuenta'),
+                                                'calibre' => $get($ue, 'calibre'),
+                                                'hilo' => $get($ue, 'hilo'),
+                                                'urdido' => $get($ue, 'urdido'),
+                                                'tipo' => $get($ue, 'tipo'),
+                                                'destino' => $get($ue, 'destino'),
+                                                'metros' => $get($ue, 'metros'),
+                                                // En UE normalmente es "lmaturdido"; lo usamos como id/texto preseleccionado
+                                                'lmaturdido_id' => $get($ue, 'lmaturdido'),
+                                                'lmaturdido_text' => $get($ue, 'lmaturdido'),
+                                            ];
+                                        })
+                                        ->values();
+                                }
+                            @endphp
+
+                            @if ($rows->isEmpty())
+                                <tr>
+                                    <td colspan="10" class="text-center py-2 text-gray-500">Sin datos</td>
                                 </tr>
-                            @endforeach
+                            @else
+                                @foreach ($rows as $i => $g)
+                                    @php $rowClass = $rowPalette[$i % count($rowPalette)]; @endphp
+                                    <tr class="{{ $rowClass }} agr-row cursor-pointer hover:bg-yellow-100"
+                                        data-ids="{{ is_array($g->ids ?? null) ? implode(',', $g->ids) : $g->ids ?? '' }}"
+                                        data-folio="{{ $g->folio ?? '' }}" data-cuenta="{{ $g->cuenta ?? '' }}"
+                                        data-tipo="{{ $g->tipo ?? '' }}" data-destino="{{ $g->destino ?? '' }}"
+                                        data-metros="{{ $g->metros ?? '' }}" data-urdido="{{ $g->urdido ?? '' }}">
+                                        <td class="border px-0.5">{{ $g->telar_str ?? '' }}</td>
+                                        <td class="border px-0.5">
+                                            {{ !empty($g->fecha_requerida) ? \Carbon\Carbon::parse($g->fecha_requerida)->format('d/m/Y') : '' }}
+                                        </td>
+                                        <td class="border px-0.5">{{ isset($g->cuenta) ? decimales($g->cuenta) : '' }}</td>
+                                        <td class="border px-0.5">{{ $g->calibre ?? '' }}</td>
+                                        <td class="border px-0.5">{{ $g->hilo ?? '' }}</td>
+                                        <td class="border px-0.5">{{ $g->urdido ?? '' }}</td>
+                                        <td class="border px-0.5">{{ $g->tipo ?? '' }}</td>
+                                        <td class="border px-0.5">{{ $g->destino ?? '' }}</td>
+                                        <td class="border px-0.5 text-right">
+                                            {{ isset($g->metros) ? decimales($g->metros) : '' }}</td>
+                                        <td class="border px-0.5">
+                                            @php
+                                                $preId = old("agrupados.$i.lmaturdido", $g->lmaturdido_id ?? null);
+                                                $preText =
+                                                    old("agrupados.$i.lmaturdido_text", $g->lmaturdido_text ?? null) ??
+                                                    $preId;
+                                            @endphp
+                                            <select name="agrupados[{{ $i }}][lmaturdido]" class="js-bom-select"
+                                                data-selected-id="{{ $preId ?? '' }}"
+                                                data-selected-text="{{ $preText ?? '' }}">
+                                                <option value=""></option>
+                                                @if ($preId)
+                                                    <option value="{{ $preId }}" selected>{{ $preText }}
+                                                    </option>
+                                                @endif
+                                            </select>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            @endif
                         </tbody>
                     </table>
                 </div>
@@ -116,9 +166,9 @@
                     <!-- Crear órdenes -->
                     <form id="formOrdenes" method="POST" action="{{ route('crear.ordenes.lanzador') }}">
                         @csrf
-                        @foreach ($requerimientos as $req)
+                        {{-- @foreach ($requerimientos as $req)
                             <input type="hidden" name="ids[]" value="{{ $req->id }}">
-                        @endforeach
+                        @endforeach --}}
                         <button type="submit" class="btn-candy btn-blue">
                             <span class="btn-text">CREAR ÓRDENES</span>
                             <span class="btn-bubble" aria-hidden="true">
@@ -874,7 +924,7 @@
                         i,
                         // texto columnas
                         telar: td[0] || '',
-                        fecha: td[1] || '',
+                        fecha_req: td[1] || '',
                         cuenta: td[2] || '',
                         calibre: td[3] || '',
                         hilo: td[4] || '',
