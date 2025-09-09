@@ -1334,122 +1334,147 @@ class RequerimientoController extends Controller
 
     public function step3Store(Request $request)
     {
-        // OJO: quita el dd($request) porque detiene la ejecución
-        dd($request);
-
-        // Acepta JSON como string (form-data) o array (application/json)
+        //dd($request);
+        // Esperamos: folios (array o JSON) e inventario (array o JSON de filas marcadas)
         $request->validate([
-            'componentes' => ['required'],
-            'inventario'  => ['required'],
+            'folios'     => ['required'],
+            'inventario' => ['required'],
         ]);
 
-        $componentes = is_string($request->componentes) ? json_decode($request->componentes, true) : $request->componentes;
-        $inventario  = is_string($request->inventario)  ? json_decode($request->inventario,  true) : $request->inventario;
+        $folios = is_string($request->folios) ? json_decode($request->folios, true) : $request->folios;
+        $inventario = is_string($request->inventario) ? json_decode($request->inventario, true) : $request->inventario;
 
-        if (!is_array($componentes) || !is_array($inventario)) {
+        if (!is_array($folios) || !is_array($inventario)) {
             throw ValidationException::withMessages([
                 'payload' => 'El JSON recibido no es válido.',
             ]);
         }
 
+        // Normaliza folios (quita vacíos, duplica y espacios)
+        $folios = array_values(array_unique(array_filter(array_map(function ($f) {
+            return trim((string)$f);
+        }, $folios))));
+
+        if (empty($folios)) {
+            throw ValidationException::withMessages([
+                'folios' => 'Debes seleccionar al menos un folio.',
+            ]);
+        }
+        if (empty($inventario)) {
+            throw ValidationException::withMessages([
+                'inventario' => 'Debes seleccionar al menos un renglón del inventario.',
+            ]);
+        }
+
+        // Verificación previa: que todos los folios existan en urdido_engomado
+        $existentes = DB::table('urdido_engomado')
+            ->whereIn('folio', $folios)
+            ->pluck('folio')
+            ->all();
+
+        $faltantes = array_values(array_diff($folios, $existentes));
+        if (!empty($faltantes)) {
+            throw ValidationException::withMessages([
+                'folios' => 'Los siguientes folios no existen en urdido_engomado: ' . implode(', ', $faltantes),
+            ]);
+        }
+
         DB::beginTransaction();
         try {
-            // Mapa por (itemid|sizeid|colorid) => id del componente insertado
-            $mapK3toId = [];
-            $primerComponenteId = null;
+            $now = now();
+            $rows = [];
 
-            foreach ($componentes as $c) {
-                $itemid = $c['itemid']   ?? '';
-                $size   = $c['sizeid']   ?? null;
-                $color  = $c['colorid']  ?? null;
+            foreach ($folios as $folio) {
+                foreach ($inventario as $inv) {
+                    // Parseo tolerante de fecha
+                    $fecha = null;
+                    if (!empty($inv['fecha'])) {
+                        try {
+                            $fecha = Carbon::parse($inv['fecha']);
+                        } catch (\Throwable $e) {
+                            $fecha = null;
+                        }
+                    }
 
-                $config = $c['configid'] ?? null;
-                $dimid  = $c['dimid']    ?? null;
+                    $rows[] = [
+                        'folio'       => $folio,
 
-                // 1) Inserta componente y guarda su ID
-                $componenteId = DB::table('componentes_seleccionados')->insertGetId([
-                    'articulo'        => $itemid,
-                    'config'          => $config,
-                    'tamanio'         => $size,
-                    'color'           => $color,
-                    'nom_color'       => $dimid,
-                    'requerido_total' => isset($c['requerido_total']) ? (float)$c['requerido_total'] : null,
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
+                        // Campos del inventario
+                        'articulo'    => $inv['itemid']  ?? '',
+                        'config'      => $inv['configid'] ?? null,
+                        'tamanio'     => $inv['sizeid']   ?? null,
+                        'color'       => $inv['colorid']  ?? null,
+                        'nom_color'   => $inv['dimid']    ?? null,
 
-                if ($primerComponenteId === null) {
-                    $primerComponenteId = $componenteId;
-                }
+                        'almacen'     => $inv['inventlocationid'] ?? null,
+                        'lote'        => $inv['inventbatchid']    ?? null,
+                        'localidad'   => $inv['wmslocationid']    ?? null,
+                        'serie'       => $inv['inventserialid']   ?? null,
 
-                // Clave reducida por atributos estables entre ambos payloads
-                $k3 = $this->k3($itemid, $size, $color); // ITEM|SIZE|COLOR
-                // Si se repite, conservamos el primero para esa k3
-                if (!isset($mapK3toId[$k3])) {
-                    $mapK3toId[$k3] = $componenteId;
+                        'conos'       => isset($inv['tiras']) ? (float)$inv['tiras'] : null,
+                        'lote_provee' => $inv['calidad'] ?? null,
+                        'provee'      => $inv['cliente'] ?? null,
+                        'entrada'     => $fecha,
+                        'kilos'       => isset($inv['physicalinvent']) ? (float)$inv['physicalinvent'] : null,
+
+                        'created_at'  => $now,
+                        'updated_at'  => $now,
+                    ];
                 }
             }
 
-            // 2) Inserta inventarios y enlaza por k3; si no hay match y solo hay 1 componente, usa ese
-            foreach ($inventario as $inv) {
-                $iItem  = $inv['itemid']  ?? '';
-                $iSize  = $inv['sizeid']  ?? null;
-                $iColor = $inv['colorid'] ?? null;
-
-                $k3 = $this->k3($iItem, $iSize, $iColor);
-                $componenteId = $mapK3toId[$k3]
-                    ?? (count($mapK3toId) === 1 ? $primerComponenteId : null);
-
-                if (!$componenteId) {
-                    throw ValidationException::withMessages([
-                        'inventario' => "No se encontró componente para ITEM={$iItem}, SIZE={$iSize}, COLOR={$iColor}.",
-                    ]);
-                }
-
-                // Fecha tolerante (ej. '2025-06-30 00:00:00.000')
-                $fecha = null;
-                if (!empty($inv['fecha'])) {
-                    try {
-                        $fecha = Carbon::parse($inv['fecha']);
-                    } catch (\Throwable $e) {
-                        $fecha = null;
-                    }
-                }
-
-                DB::table('inventarios_seleccionados')->insert([
-                    'componente_id'   => $componenteId,
-
-                    // Guarda los datos del inventario (o default al componente si falta)
-                    'articulo'        => $iItem,
-                    'config'          => $inv['configid'] ?? null,
-                    'tamanio'         => $iSize,
-                    'color'           => $iColor,
-                    'nom_color'       => $inv['dimid'] ?? null,
-
-                    'almacen'         => $inv['inventlocationid'] ?? null,
-                    'lote'            => $inv['inventbatchid']    ?? null,
-                    'localidad'       => $inv['wmslocationid']    ?? null,
-                    'serie'           => $inv['inventserialid']   ?? null,
-
-                    'conos'           => isset($inv['tiras']) ? (float)$inv['tiras'] : null,
-                    'lote_provee'     => $inv['calidad'] ?? null,
-                    'provee'          => $inv['cliente'] ?? null,
-                    'entrada'         => $fecha,
-                    'kilos'           => isset($inv['physicalinvent']) ? (float)$inv['physicalinvent'] : null,
-
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
+            // Inserción en bloques (por si son muchos)
+            foreach (array_chunk($rows, 1000) as $chunk) {
+                DB::table('inventarios_de_ordenes')->insert($chunk);
             }
 
             DB::commit();
-            return redirect('/produccionProceso')->with('ok', 'Selección guardada correctamente.');
+
+
+            // Consultar urdido_engomado por folios
+            $ueRows = DB::table('urdido_engomado')
+                ->whereIn('folio', $folios)
+                ->select(
+                    'folio',
+                    'cuenta',
+                    'urdido',
+                    'tipo',
+                    'destino',
+                    'metros',
+                    'lmaturdido',
+                    'estatus_urdido',
+                    'estatus_engomado',
+                    'engomado',
+                    'color',
+                    'solidos',
+                    'registro_urdido',
+                    'registro_engomado',
+                    'maquinaEngomado',
+                    'lmatengomado',
+                    'prioridadUrd',
+                    'prioridadEngo',
+                    'tipo_atado',
+                )
+                ->get();
+
+            // Indexar por folio y mantener orden de entrada
+            $uePorFolio = collect($folios)->mapWithKeys(function ($f) use ($ueRows) {
+                return [$f => $ueRows->firstWhere('folio', $f)]; // puede ser null si no existiera
+            });
+
+            // Enviar a la vista step2
+            return view('modulos.programar_requerimientos.step2', [
+                'folios' => $folios,      // array de folios
+                'ue'     => $uePorFolio,  // colección/objeto indexado por folio
+                'ok'     => 'Inventarios guardados correctamente.',
+            ]);
         } catch (\Throwable $e) {
             DB::rollBack();
             report($e);
-            return back()->withErrors('Ocurrió un error al guardar la selección: ' . $e->getMessage());
+            return back()->withErrors('Ocurrió un error al guardar: ' . $e->getMessage());
         }
     }
+
 
     /** Normaliza en mayúsculas sin espacios extremos */
     private function norm($v): string

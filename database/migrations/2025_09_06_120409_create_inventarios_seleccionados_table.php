@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('inventarios_seleccionados', function (Blueprint $table) {
+        Schema::create('inventarios_de_ordenes', function (Blueprint $table) {
             $table->bigIncrements('id');
 
-            // Relación con la tabla A
-            $table->unsignedBigInteger('componente_id');
+            // Folio (FK a urdido_engomado.folio)
+            $table->string('folio', 255); // ajusta el 20 al largo real del PK
 
-            // Campos del inventario (tabla 2)
+            // Campos del inventario
             $table->string('articulo', 100);
             $table->string('config', 100)->nullable();
             $table->string('tamanio', 100)->nullable();
@@ -32,21 +32,25 @@ return new class extends Migration
             $table->decimal('conos', 18, 6)->nullable();
             $table->string('lote_provee', 150)->nullable();
             $table->string('provee', 150)->nullable();
-            $table->dateTime('entrada')->nullable(); // si te llega fecha tipo string, la parseamos en el controlador
+            $table->dateTime('entrada')->nullable();
             $table->decimal('kilos', 18, 6)->nullable();
 
             $table->timestamps();
 
-            $table->foreign('componente_id')
-                ->references('id')->on('componentes_seleccionados')
+            // FK al PK string de urdido_engomado
+            $table->foreign('folio')
+                ->references('folio')->on('urdido_engomado')
                 ->onDelete('cascade');
 
-            $table->index(['articulo', 'config', 'tamanio', 'color', 'nom_color'], 'inv_sel_idx');
+            $table->index(['folio']); // rápido para consultas por folio
+
+            // (Opcional) evitar duplicados exactos por folio + “clave” del ítem:
+            // $table->unique(['folio','articulo','lote','serie','localidad'], 'inv_orden_unq');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('inventarios_seleccionados');
+        Schema::dropIfExists('inventarios_de_ordenes');
     }
 };

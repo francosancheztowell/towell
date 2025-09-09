@@ -205,107 +205,39 @@
     {{-- ===================== JS: selección + filtrado + envío ===================== --}}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const tbodyTop = document.getElementById('tbody-componentes');
-            const tbodyBottom = document.getElementById('tbody-inventario');
-            const noMatchRow = document.getElementById('no-match-row');
             const form = document.getElementById('frmSeleccion');
-            const inComp = document.getElementById('inputComponentes');
-            const inInv = document.getElementById('inputInventario');
+            const tbodyBottom = document.getElementById('tbody-inventario');
+            let inFolios = document.getElementById('inputFolios'); // hidden: name="folios"
+            let inInv = document.getElementById('inputInventario'); // hidden: name="inventario"
 
-            // Normaliza agresivo: NFKC, NBSP -> espacio, guiones raros -> '-', espacios alrededor de '-' y múltiples espacios
-            const norm = (v) => (v ?? '')
-                .toString()
-                .normalize('NFKC')
-                .replace(/\u00A0/g, ' ') // NBSP
-                .replace(/[–—−]/g, '-') // en/em dash / minus -> hyphen
-                .replace(/\s*-\s*/g, '-') // "ALQ - ANILLO" -> "ALQ-ANILLO"
-                .replace(/\s+/g, ' ') // reduce espacios
-                .trim()
-                .toUpperCase();
-
-            // Clave SIN dimid
-            const clave = (d) => [d.itemid, d.configid, d.sizeid, d.colorid].map(norm).join('|');
-
-            // Pon STRIC T=true para exigir match en los 4 campos; en false prueba rápido solo por ITEMID
-            const STRICT = false;
-            const FIELDS = STRICT ? ['itemid', 'configid', 'sizeid', 'colorid'] : ['itemid'];
-
-            function rowMatchesCandidate(bottomRow, candRow) {
-                for (const f of FIELDS) {
-                    const want = norm(candRow.dataset[f]);
-                    const got = norm(bottomRow.dataset[f]);
-                    if (want && got !== want) return false;
-                }
-                return true;
+            // Crea los hidden si faltan
+            if (!inFolios) {
+                inFolios = document.createElement('input');
+                inFolios.type = 'hidden';
+                inFolios.name = 'folios';
+                inFolios.id = 'inputFolios';
+                form.appendChild(inFolios);
+            }
+            if (!inInv) {
+                inInv = document.createElement('input');
+                inInv.type = 'hidden';
+                inInv.name = 'inventario';
+                inInv.id = 'inputInventario';
+                form.appendChild(inInv);
             }
 
-            function applyFilter() {
-                // Solo filas de datos (con data-itemid)
-                const selected = Array.from(tbodyTop.querySelectorAll('tr.is-selected[data-itemid]'));
-                const bottomRows = Array.from(tbodyBottom.querySelectorAll('tr[data-itemid]'));
+            // Folios desde el servidor (puede ser array de strings o de objetos con .folio)
+            const foliosRaw = @json($folios ?? []);
+            const foliosFromServer = (Array.isArray(foliosRaw) ? foliosRaw : [])
+                .map(f => typeof f === 'string' ? f : (f?.folio ?? f?.FOLIO ?? ''))
+                .map(s => (s ?? '').toString().trim())
+                .filter(Boolean);
 
-                if (selected.length === 0) {
-                    bottomRows.forEach(tr => tr.classList.remove('hidden'));
-                    if (noMatchRow) noMatchRow.classList.add('hidden');
-                    return;
-                }
-
-                let visibles = 0;
-                bottomRows.forEach(tr => {
-                    const show = selected.some(sel => rowMatchesCandidate(tr, sel));
-                    tr.classList.toggle('hidden', !show);
-                    if (show) visibles++;
-                });
-
-                if (noMatchRow) noMatchRow.classList.toggle('hidden', visibles !== 0);
-            }
-
-            function clearSelectionAndFilters() {
-                tbodyTop.querySelectorAll('tr.is-selected').forEach(tr => tr.classList.remove('is-selected'));
-                applyFilter();
-            }
-
-            // Click en filas de datos de la tabla 1
-            tbodyTop.addEventListener('click', (e) => {
-                const tr = e.target.closest('tr.tr');
-                if (!tr || !tr.matches('tr[data-itemid]')) return;
-                tr.classList.toggle('is-selected');
-                applyFilter();
-            });
-
-            // Limpiar filtros
-            const btnLimpiarFiltros = document.getElementById('btnLimpiarFiltros');
-            if (btnLimpiarFiltros) btnLimpiarFiltros.addEventListener('click', clearSelectionAndFilters);
-
-            // ----- Submit: armado de payload (igual) -----
-            form.addEventListener('submit', (e) => {
-                const compRows = Array.from(tbodyTop.querySelectorAll('tr.is-selected[data-itemid]'));
+            function getSelectedInventario() {
                 const invRows = Array.from(tbodyBottom.querySelectorAll('tr[data-itemid]'))
-                    .filter(tr => !tr.classList.contains('hidden'))
                     .filter(tr => tr.querySelector('input.chk-inv')?.checked);
 
-                if (compRows.length === 0) {
-                    e.preventDefault();
-                    alert('Selecciona al menos un componente.');
-                    return;
-                }
-                if (invRows.length === 0) {
-                    e.preventDefault();
-                    alert('Marca al menos un renglón del inventario.');
-                    return;
-                }
-
-                const componentes = compRows.map(tr => ({
-                    itemid: tr.dataset.itemid ?? '',
-                    configid: tr.dataset.configid ?? '',
-                    sizeid: tr.dataset.sizeid ?? '',
-                    colorid: tr.dataset.colorid ?? '',
-                    dimid: tr.dataset.dimid ?? '',
-                    requerido_total: tr.dataset.reqtotal ? Number(tr.dataset.reqtotal) : null,
-                    _key: clave(tr.dataset)
-                }));
-
-                const inventario = invRows.map(tr => {
+                return invRows.map(tr => {
                     const d = tr.dataset;
                     return {
                         itemid: d.itemid ?? '',
@@ -321,19 +253,31 @@
                         calidad: d.calidad ?? '',
                         cliente: d.cliente ?? '',
                         fecha: d.fecha ?? '',
-                        physicalinvent: d.physicalinvent ? Number(d.physicalinvent) : null,
-                        _key: clave(d)
+                        physicalinvent: d.physicalinvent ? Number(d.physicalinvent) : null
                     };
                 });
+            }
 
-                inComp.value = JSON.stringify(componentes);
+            form.addEventListener('submit', (e) => {
+                const inventario = getSelectedInventario();
+
+                if (foliosFromServer.length === 0) {
+                    e.preventDefault();
+                    alert('No hay folios para enviar.');
+                    return;
+                }
+                if (inventario.length === 0) {
+                    e.preventDefault();
+                    alert('Marca al menos un renglón del inventario.');
+                    return;
+                }
+
+                inFolios.value = JSON.stringify(foliosFromServer);
                 inInv.value = JSON.stringify(inventario);
             });
-
-            // Estado inicial
-            applyFilter();
         });
     </script>
+
 
 
     {{-- SweetAlerts de éxito / error --}}
