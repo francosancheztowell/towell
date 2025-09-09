@@ -384,14 +384,100 @@ class RequerimientoController extends Controller
     *************************************************************************************************************************************************************************
     *************************************************************************************************************************************************************************
     aqui GUARDAMOS  las ORDENES de BOTON CREAR ÓRDENES */
-    public function requerimientosAGuardar(Request $request) // THIS METHOD ya sobraaaaaa
+    public function requerimientosAGuardar(Request $request)
     {
+        // 0) Normaliza folios (acepta array o JSON/string)
+        $raw = $request->input('folios');
+        if (is_string($raw)) {
+            $tmp = json_decode($raw, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $folios = $tmp;
+            } else {
+                // Soporta "A001,A002" o "A001"
+                $folios = array_map('trim', array_filter(preg_split('/[,\s]+/', $raw)));
+            }
+        } else {
+            $folios = (array) $raw;
+        }
 
-        $folioBase = $request->folios;
-        return view('modulos.programar_requerimientos.lanzador')->with('folio', $folioBase);
+        $folios = array_values(array_unique(array_filter(array_map(fn($f) => trim((string)$f), $folios))));
+        if (empty($folios)) {
+            return redirect('/produccionProceso')
+                ->withErrors('No se recibieron folios válidos.')
+                ->with('folios', $folios);
+        }
+
+        // 1) Verificación de campos obligatorios en urdido_engomado
+        $required = [
+            'lmaturdido',
+            'maquinaEngomado',
+            'lmatengomado',
+            'prioridadUrd',
+            'prioridadEngo',
+            'tipo_atado',
+            'telar',
+            'fecha_req',
+            'calibre',
+            'hilo',
+        ];
+
+        $ueRows = DB::table('urdido_engomado')
+            ->whereIn('folio', $folios)
+            ->select(array_merge(['folio'], $required))
+            ->get()
+            ->keyBy('folio');
+
+        // Si algún folio no existe o le falta un campo requerido -> incompleto
+        $incompletos = [];
+        foreach ($folios as $folio) {
+            $row = $ueRows->get($folio);
+            if (!$row) {
+                $incompletos[] = $folio;
+                continue;
+            }
+
+            foreach ($required as $k) {
+                $v = $row->{$k} ?? null;
+                if ($v === null || (is_string($v) && trim($v) === '')) {
+                    $incompletos[] = $folio;
+                    break;
+                }
+            }
+        }
+
+        if (!empty($incompletos)) {
+            return redirect('/produccionProceso')
+                ->withErrors('Error, sus órdenes están incompletas, favor de revisar inventario y datos de Engomado')
+                ->with('folios', $folios);
+        }
+
+        // 2) Verificación de inventarios_de_ordenes: cada folio debe existir ahí
+        $invFolios = DB::table('inventarios_de_ordenes')
+            ->whereIn('folio', $folios)
+            ->distinct()
+            ->pluck('folio')
+            ->all();
+
+        if (count(array_diff($folios, $invFolios)) > 0) {
+            return redirect('/produccionProceso')
+                ->withErrors('Error, aún no ha solicitado inventario para estas órdenes')
+                ->with('folios', $folios);
+        }
+
+        // 3) Si todo OK, marcar creada = 1
+        DB::table('urdido_engomado')
+            ->whereIn('folio', $folios)
+            ->update([
+                'creada'     => 1,
+                'updated_at' => now(),
+            ]);
+
+        return redirect('/produccionProceso')
+            ->with('ok', 'Órdenes listas para lanzar.')
+            ->with('folios', $folios);
     }
 
-    // STEP 2
+    // STEP 2 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - - - - - - - - - - -  - - - - - - - - - - - -  - - - - - - - - - - - - 
     public function step2(Request $request) // STEP 2
     {
         try {
@@ -563,10 +649,15 @@ class RequerimientoController extends Controller
                         'destino'         => $first->destino,
                         'metros'          => $group->sum('metros'),
                         'folio'           => $first->folio,
+
                     ];
                 });
 
-            return view('modulos.programar_requerimientos.step2', compact('requerimientos', 'agrupados'));
+            $lmaturdidos = $lmaturdidos = DB::table('urdido_engomado')
+                ->whereIn('folio', $folios)   // $folios es array de folios
+                ->pluck('lmaturdido');        // trae solo la columna
+
+            return view('modulos.programar_requerimientos.step2', compact('requerimientos', 'agrupados', 'lmaturdidos'));
         } catch (ValidationException $e) {
             // Errores de validación (si agregas Validator arriba)
             Log::warning('step2: Validación fallida', [

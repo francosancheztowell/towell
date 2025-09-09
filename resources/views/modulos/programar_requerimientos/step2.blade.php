@@ -113,15 +113,24 @@
                                                 $preText =
                                                     old("agrupados.$i.lmaturdido_text", $g->lmaturdido_text ?? null) ??
                                                     $preId;
+
+                                                // Opciones disponibles según folio
+                                                $opciones = collect($lmaturdidos[$g->folio] ?? [])
+                                                    ->filter()
+                                                    ->unique()
+                                                    ->values();
                                             @endphp
-                                            <select name="agrupados[{{ $i }}][lmaturdido]" class="js-bom-select"
-                                                data-selected-id="{{ $preId ?? '' }}"
+
+                                            <select name="agrupados[{{ $i }}][lmaturdido]"
+                                                class="js-bom-select w-full" data-selected-id="{{ $preId ?? '' }}"
                                                 data-selected-text="{{ $preText ?? '' }}">
                                                 <option value=""></option>
-                                                @if ($preId)
-                                                    <option value="{{ $preId }}" selected>{{ $preText }}
+                                                @foreach ($opciones as $op)
+                                                    <option value="{{ $op }}"
+                                                        {{ $op == $preId ? 'selected' : '' }}>
+                                                        {{ $op }}
                                                     </option>
-                                                @endif
+                                                @endforeach
                                             </select>
                                         </td>
                                     </tr>
