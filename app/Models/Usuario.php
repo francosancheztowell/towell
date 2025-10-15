@@ -9,64 +9,65 @@ use Illuminate\Support\Facades\Hash;
 
 class Usuario extends Authenticatable
 {
-    protected $table = 'usuarios'; // Asegura que sea el nombre correcto
-    protected $primaryKey = 'numero_empleado'; // Laravel usa 'id' por defecto, cambia esto si es necesario, PRIMARY KEY
-    public $incrementing = false;
-    protected $keyType = 'string';
+    protected $connection = 'sqlsrv'; // Usar la conexión correcta
+    protected $table = 'dbo.SYSUsuario'; // Usar la tabla correcta con esquema
+    protected $primaryKey = 'idusuario'; // Cambiar a la clave primaria correcta
+    public $incrementing = true;
+    protected $keyType = 'int';
     public $timestamps = true; // Si tu tabla no tiene timestamps, pon esto
 
 
     protected $fillable = [
+        'idusuario',
         'numero_empleado',
         'nombre',
         'contrasenia',
         'area',
         'telefono',
         'turno',
-        'enviarMensaje',
         'foto',
-        'almacen',
-        'urdido',
-        'engomado',
-        'tejido',
-        'atadores',
-        'tejedores',
-        'mantenimiento',
-        'planeacion',
-        'configuracion',
-        'UrdidoEngomado',
-        'remember_token', // <-- importante, si se omite este campo/atributo, no se guardará el token hasheado
+        'puesto',
+        'correo',
+        'remember_token',
     ];
 
-    // Mutador para encriptar la contraseña automáticamente
-    public function setContraseniaAttribute($value)
+    protected $hidden = [
+        'contrasenia',
+        'remember_token',
+    ];
+
+    // Método para obtener la contraseña sin procesar
+    public function getAuthPassword()
     {
-        $this->attributes['contrasenia'] = Hash::make($value);
+        return $this->contrasenia;
     }
 
-    public function telares() //recuerda asignar los telares insertando los registros adecuadamente, aun no hay vista automatizada.
+    // Método para obtener el nombre del campo de contraseña
+    public function getAuthPasswordName()
+    {
+        return 'contrasenia';
+    }
+
+    // Mutador para encriptar la contraseña automáticamente cuando se establece
+    public function setContraseniaAttribute($value)
+    {
+        // Solo hashear si no está ya hasheado
+        if (!empty($value) && !str_starts_with($value, '$2y$')) {
+            $this->attributes['contrasenia'] = Hash::make($value);
+        } else {
+            $this->attributes['contrasenia'] = $value;
+        }
+    }
+
+    // Relación con telares (si la necesitas)
+    public function telares()
     {
         return $this->belongsToMany(CatalagoTelar::class, 'telares_usuario', 'usuario_id', 'telar_id');
     }
 
-    // Para que {usuario} en la ruta resuelva por numero_empleado - 20-08-2025
+    // Para que {usuario} en la ruta resuelva por idusuario
     public function getRouteKeyName()
     {
-        return 'numero_empleado';
+        return 'idusuario';
     }
-
-    // Que los módulos se manejen como boolean en PHP
-    protected $casts = [
-        'enviarMensaje'   => 'boolean',
-        'almacen'         => 'boolean',
-        'urdido'          => 'boolean',
-        'engomado'        => 'boolean',
-        'tejido'          => 'boolean',
-        'atadores'        => 'boolean',
-        'tejedores'       => 'boolean',
-        'mantenimiento'   => 'boolean',
-        'planeacion'      => 'boolean',
-        'configuracion'   => 'boolean',
-        'UrdidoEngomado'  => 'boolean',
-    ];
 }

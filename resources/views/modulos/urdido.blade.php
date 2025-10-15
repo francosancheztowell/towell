@@ -1,6 +1,11 @@
 @extends('layouts.app')
 
 @section('content')
+    <div class="container mx-auto px-4 py-6">
+        <!-- Header usando componente reutilizable -->
+        <x-produccion-proceso-header titulo="Urdido" />
+    </div>
+
     <div class="container mx-auto p-2 bg-white shadow-lg rounded-lg mt-[1px] overflow-y-auto md:h-[600px]">
         <div id="finalizadoOverlay">FINALIZADO CORRECTAMENTE</div>
 

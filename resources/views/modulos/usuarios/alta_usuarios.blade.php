@@ -1,7 +1,11 @@
 @extends('layouts.app')
 
+@php
+    $soloAtras = true;
+@endphp
+
 @section('content')
-    <div class="w-full mx-auto pr-2 pl-2">
+    <div class=" py-2 px-2 sm:py-4 sm:px-4 lg:px-8">
         {{-- SweetAlert de éxito --}}
         @if (session('success'))
             <script>
@@ -13,11 +17,7 @@
                         confirmButtonColor: '#2563eb',
                         confirmButtonText: 'Entendido'
                     }).then(() => {
-
-                        // ==== Opción A: Recargar la página ====
-                        location.reload(); // recarga simple
-                        window.location.href =
-                            "{{ route('usuarios.create') }}"; // recarga "limpia" por si hay querystring
+                        window.location.href = "{{ route('usuarios.create') }}";
                     });
                 });
             </script>
@@ -52,255 +52,429 @@
                 });
             </script>
         @endif
-        <!-- Wrapper con scroll vertical si es necesario -->
-        <div class="bg-gradient-to-br from-blue-50 via-blue-50 to-blue-100 rounded-2xl shadow-sm border border-blue-200/60">
-            <!-- Encabezado -->
-            <div class="px-3 py-2 border-b border-blue-200/70 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl">
-                <h1 class="text-white text-xl font-semibold tracking-tight">REGISTRAR NUEVO USUARIO</h1>
-            </div>
 
-            <!-- Contenido scrolleable -->
-            <div class="px-2 py-2 max-h-[calc(100vh-100px)] overflow-y-auto bigScroll">
-                <form action="{{ route('usuarios.store') }}" method="POST" enctype="multipart/form-data" class="space-y-1">
-                    @csrf
+        <!-- Header con componente reutilizable -->
+        <x-page-header
+            title="Registrar Nuevo Usuario"
+            subtitle="Completa los datos del usuario para crear una nueva cuenta"
+            containerClass="max-w-7xl mx-auto"
+        />
 
-                    <!-- Bloque: Datos generales -->
-                    <div class="rounded-xl border border-blue-200/60 bg-white/90 shadow-xs">
-                        <div class="px-1 border-b border-blue-100/80 flex items-center gap-2">
-                            <h2 class="text-[13px] font-semibold text-blue-800 tracking-tight">Datos generales</h2>
-                        </div>
+        <!-- Formulario -->
+        <form action="{{ route('usuarios.store') }}" method="POST" enctype="multipart/form-data" class="bg-white rounded-b-xl shadow-sm">
+                @csrf
 
-                        <div class="p-2">
-                            <!-- 2 columnas: (label + input) | (label + input) -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-0.5 gap-y-1">
-
-                                <!-- Col 1: Área -->
-                                <div class="grid grid-cols-[120px_1fr] items-center gap-x-2 gap-y-0.5">
-                                    <label for="area"
-                                        class="text-[12px] font-semibold text-blue-900 text-right ">Área</label>
-                                    <select id="area" name="area"
-                                        class=" w-full text-[12px] rounded-lg border border-blue-200/80 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                                        required>
-                                        <option value="" disabled {{ old('area') ? '' : 'selected' }}>Selecciona el
-                                            área</option>
-                                        @foreach ([
-            'Almacén' => 'Almacen',
-            'Urdido' => 'Urdido',
-            'Engomado' => 'Engomado',
-            'Tejido' => 'Tejido',
-            'Atadores' => 'Atadores',
-            'Tejedores' => 'Tejedores',
-            'Mantenimiento' => 'Mantenimiento',
-        ] as $label => $val)
-                                            <option value="{{ $val }}"
-                                                {{ old('area') === $val ? 'selected' : '' }}>{{ $label }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                <!-- Col 2: Número de Empleado -->
-                                <div class="grid grid-cols-[120px_1fr] items-center gap-x-2 gap-y-0.5">
-                                    <label for="numero_empleado"
-                                        class="text-[12px] font-semibold text-blue-900 text-right leading-tight">
-                                        Núm. Empleado
-                                    </label>
-                                    <input id="numero_empleado" name="numero_empleado" type="number" inputmode="numeric"
-                                        pattern="[0-9]*" value="{{ old('numero_empleado') }}"
-                                        class="h-7 w-full text-[12px] px-2 rounded-lg border border-blue-200/80 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                                        placeholder="Ej. 01234" required>
-                                </div>
-
-                                <!-- Col 1: Nombre -->
-                                <div class="grid grid-cols-[120px_1fr] items-center gap-x-2 gap-y-0.5">
-                                    <label for="nombre"
-                                        class="text-[12px] font-semibold text-blue-900 text-right leading-tight">Nombre</label>
-                                    <input id="nombre" name="nombre" type="text" value="{{ old('nombre') }}"
-                                        class="h-7 w-full text-[12px] px-2 rounded-lg border border-blue-200/80 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                                        placeholder="Nombre completo" required>
-                                </div>
-
-                                <!-- Col 2: Contraseña -->
-                                <div class="grid grid-cols-[120px_1fr] items-center gap-x-2 gap-y-0.5">
-                                    <label for="password"
-                                        class="text-[12px] font-semibold text-blue-900 text-right leading-tight">Contraseña</label>
-                                    <div class="relative">
-                                        <input id="password" name="contrasenia" type="password" autocomplete="new-password"
-                                            class="h-7 w-1/2 text-[12px] pl-2 pr-16 rounded-lg border border-blue-200/80 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                                            placeholder="Mínimo 8 caracteres" required>
-                                        <button type="button" id="togglePassword"
-                                            class="w-1/3 absolute inset-y-0 right-0 my-auto mr-1 h-5 px-2 text-[10px] rounded-md border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700">
-                                            Mostrar
-                                        </button>
-                                    </div>
-                                </div>
-                                <!-- Col : telefono -->
-                                <div class="grid grid-cols-[120px_1fr] items-center gap-x-2 gap-y-0.5">
-                                    <label for="telefono"
-                                        class="text-[12px] font-semibold text-blue-900 text-right leading-tight">
-                                        Teléfono
-                                    </label>
-                                    <input id="telefono" name="telefono" type="tel" inputmode="numeric"
-                                        autocomplete="tel" value="{{ old('telefono') }}" placeholder="10 dígitos" required
-                                        minlength="10" maxlength="10" pattern="^\d{10}$"
-                                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)"
-                                        class="h-7 w-full text-[12px] px-2 rounded-lg border border-blue-200/80 bg-white
-         focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400
-         invalid:border-red-400 invalid:focus:ring-red-400" />
-
-                                </div>
-                                <!-- Col : turno -->
-                                <div class="grid grid-cols-[120px_1fr] items-center gap-x-2 gap-y-0.5">
-                                    <label for="turno"
-                                        class="text-[12px] font-semibold text-blue-900 text-right leading-tight">
-                                        Turno
-                                    </label>
-                                    <select id="turno" name="turno" required
-                                        class="h-7 w-full text-[12px] pl-2 pr-7 rounded-lg border border-blue-200/80 bg-white
-               focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400">
-                                        <option value="" disabled {{ old('turno') ? '' : 'selected' }}>Selecciona el
-                                            turno
-                                        </option>
-                                        <option value="1" {{ old('turno') == '1' ? 'selected' : '' }}>1</option>
-                                        <option value="2" {{ old('turno') == '2' ? 'selected' : '' }}>2</option>
-                                        <option value="3" {{ old('turno') == '3' ? 'selected' : '' }}>3</option>
-                                    </select>
-                                </div>
-                                <!-- Col : enviar mensaje SI o NO -->
-                                <div class="grid grid-cols-[120px_1fr] items-center gap-x-2 gap-y-0.5">
-                                    <label for="enviarMensaje"
-                                        class="text-[12px] font-semibold text-blue-900 text-right leading-tight">
-                                        ¿Enviar mensaje?
-                                    </label>
-
-                                    <div class="flex items-center ml-2 gap-1.5">
-                                        <input id="enviarMensaje" name="enviarMensaje" type="checkbox" value="1"
-                                            class="h-5 w-5 rounded border-blue-300 text-blue-600 focus:ring-blue-400"
-                                            {{ old('enviarMensaje') ? 'checked' : '' }}>
-                                    </div>
-                                </div>
-
-
+                <!-- Datos Generales -->
+                <div>
+                    <div class="px-4 sm:px-6 py-3 sm:py-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                            <!-- Área -->
+                            <div class="space-y-1">
+                                <label for="area" class="block text-sm font-medium text-gray-700">Área</label>
+                                <select id="area" name="area" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                                    <option value="" disabled {{ old('area') ? '' : 'selected' }}>Selecciona el área</option>
+                                    @foreach ([
+                                        'Almacén' => 'Almacen',
+                                        'Urdido' => 'Urdido',
+                                        'Engomado' => 'Engomado',
+                                        'Tejido' => 'Tejido',
+                                        'Atadores' => 'Atadores',
+                                        'Tejedores' => 'Tejedores',
+                                        'Mantenimiento' => 'Mantenimiento',
+                                    ] as $label => $val)
+                                        <option value="{{ $val }}" {{ old('area') === $val ? 'selected' : '' }}>{{ $label }}</option>
+                                    @endforeach
+                                </select>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- Bloque: Foto -->
-                    <div class="rounded-xl border border-blue-200/60 bg-white/90 shadow-xs">
-                        <div class="px-3 py-2 border-b border-blue-100/80 flex items-center gap-2">
-                            <div class="w-1.5 h-4 bg-blue-600 rounded-full"></div>
-                            <h2 class="text-[13px] font-semibold text-blue-800 tracking-tight">Foto de perfil (opcional)
-                            </h2>
-                        </div>
+                            <!-- Número de Empleado -->
+                            <div class="space-y-1">
+                                <label for="numero_empleado" class="block text-sm font-medium text-gray-700">Número de Empleado</label>
+                                <input id="numero_empleado" name="numero_empleado" type="text" inputmode="numeric"
+                                    pattern="[0-9]*" value="{{ old('numero_empleado') }}"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    placeholder="Ej: 2045" required>
+                            </div>
 
-                        <div class="p-2 space-y-1">
-                            <!-- Archivo -->
-                            <div class="grid grid-cols-[120px_1fr] items-center gap-x-2 gap-y-0.5">
-                                <label for="foto"
-                                    class="text-[12px] font-semibold text-blue-900 text-right">Archivo</label>
-                                <div>
-                                    <input id="foto" name="foto" type="file" accept="image/*"
-                                        class="w-full text-[13px] p-1.5 rounded-lg border border-blue-200/80 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                                        onchange="previewImage(event)">
-                                    <p class="text-[11px] text-blue-600/90 mt-0.5">Formatos: JPG, PNG. Tamaño sugerido
-                                        512×512.</p>
+                            <!-- Nombre -->
+                            <div class="space-y-1">
+                                <label for="nombre" class="block text-sm font-medium text-gray-700">Nombre Completo</label>
+                                <input id="nombre" name="nombre" type="text" value="{{ old('nombre') }}"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    placeholder="Nombre completo" required>
+                            </div>
+
+                            <!-- Puesto -->
+                            <div class="space-y-1">
+                                <label for="puesto" class="block text-sm font-medium text-gray-700">Puesto</label>
+                                <input id="puesto" name="puesto" type="text" value="{{ old('puesto') }}"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    placeholder="Ej: Supervisor">
+                            </div>
+
+                            <!-- Turno -->
+                            <div class="space-y-1">
+                                <label for="turno" class="block text-sm font-medium text-gray-700">Turno</label>
+                                <select id="turno" name="turno" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                                    <option value="" disabled {{ old('turno') ? '' : 'selected' }}>Selecciona el turno</option>
+                                    <option value="1" {{ old('turno') == '1' ? 'selected' : '' }}>Turno 1</option>
+                                    <option value="2" {{ old('turno') == '2' ? 'selected' : '' }}>Turno 2</option>
+                                    <option value="3" {{ old('turno') == '3' ? 'selected' : '' }}>Turno 3</option>
+                                </select>
+                            </div>
+
+                            <!-- Teléfono -->
+                            <div class="space-y-1">
+                                <label for="telefono" class="block text-sm font-medium text-gray-700">Teléfono</label>
+                                <input id="telefono" name="telefono" type="tel" inputmode="numeric"
+                                    autocomplete="tel" value="{{ old('telefono') }}" placeholder="10 dígitos"
+                                    minlength="10" maxlength="10" pattern="^\d{10}$"
+                                    oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" />
+                            </div>
+
+                            <!-- Correo -->
+                            <div class="space-y-1">
+                                <label for="correo" class="block text-sm font-medium text-gray-700">Correo Electrónico</label>
+                                <input id="correo" name="correo" type="email" value="{{ old('correo') }}"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    placeholder="usuario@towell.com">
+                            </div>
+
+                            <!-- Contraseña -->
+                            <div class="space-y-1 sm:col-span-2">
+                                <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                                <div class="relative">
+                                    <input id="password" name="contrasenia" type="password" autocomplete="new-password"
+                                        class="w-full px-3 py-2 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        placeholder="Mínimo 8 caracteres" required>
+                                    <button type="button" id="togglePassword"
+                                        class="absolute inset-y-0 right-0 px-3 py-2 text-blue-600 hover:text-blue-800 focus:outline-none transition-colors">
+                                        <!-- Ícono de ojo cerrado (por defecto) -->
+                                        <svg id="eyeClosed" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                        </svg>
+                                        <!-- Ícono de ojo abierto (oculto por defecto) -->
+                                        <svg id="eyeOpen" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Preview -->
-                            <div class="grid grid-cols-[120px_1fr] items-center gap-x-2 gap-y-0.5">
-                                <span class="text-[12px] font-semibold text-blue-900 text-right">Vista previa</span>
-                                <div id="photo-preview" class="hidden">
-                                    <img id="photo-image"
-                                        class="w-20 h-20 object-cover rounded-full border border-blue-300 shadow-xs"
-                                        alt="Vista previa">
+                            <!-- Enviar mensaje -->
+                            <div class="space-y-1">
+                                <label class="block text-sm font-medium text-gray-700">¿Enviar mensaje?</label>
+                                <div class="flex items-center pt-1">
+                                    <input id="enviarMensaje" name="enviarMensaje" type="checkbox" value="1"
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        {{ old('enviarMensaje') ? 'checked' : '' }}>
+                                    <label for="enviarMensaje" class="ml-2 block text-sm text-gray-700">Sí, enviar mensajes</label>
+                                </div>
+                            </div>
+
+                            <!-- Foto de Perfil -->
+                            <div class="space-y-1 sm:col-span-2">
+                                <label for="foto" class="block text-sm font-medium text-gray-700">Foto de Perfil (Opcional)</label>
+                                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                                    <!-- Upload -->
+                                    <div class="flex-1">
+                                        <input id="foto" name="foto" type="file" accept="image/*"
+                                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            onchange="previewImage(event)">
+                                        <p class="mt-1 text-xs text-gray-500">Formatos: JPG, PNG. Tamaño sugerido 512×512px</p>
+                                    </div>
+
+                                    <!-- Preview -->
+                                    <div class="flex-shrink-0">
+                                        <div id="photo-preview" class="hidden">
+                                            <img id="photo-image" class="w-16 h-16 object-cover rounded-full border-2 border-gray-200 shadow-sm" alt="Vista previa">
+                                        </div>
+                                        <div id="photo-placeholder" class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center border-2 border-dashed border-gray-300">
+                                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                            </svg>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Bloque: Permisos por módulos -->
-                    <div class="rounded-xl border border-blue-200/60 bg-white/90 shadow-xs">
-                        <div class="px-3 py-2 border-b border-blue-100/80 flex items-center gap-2">
-                            <div class="w-1.5 h-4 bg-blue-600 rounded-full"></div>
-                            <h2 class="text-[13px] font-semibold text-blue-800 tracking-tight">Permisos por módulos</h2>
+                <!-- Permisos por Módulos -->
+                <div >
+                    <div class="px-4 sm:px-6 py-3 sm:py-4">
+                        <!-- Header sticky con botones -->
+                        <div class="sticky top-16 z-10 pb-3 mb-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" onclick="seleccionarTodos()"
+                                        class="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 transition-colors">
+                                        Seleccionar Todo
+                                    </button>
+                                    <button type="button" onclick="deseleccionarTodos()"
+                                        class="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+                                        Deseleccionar Todo
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Versión móvil: cards -->
+                        <div class="block sm:hidden space-y-3">
+                            @php
+                                $mods = [
+                                    'almacen' => 'Almacén',
+                                    'urdido' => 'Urdido',
+                                    'engomado' => 'Engomado',
+                                    'tejido' => 'Tejido',
+                                    'atadores' => 'Atadores',
+                                    'tejedores' => 'Tejedores',
+                                    'mantenimiento' => 'Mantenimiento',
+                                    'planeacion' => 'Planeación',
+                                    'configuracion' => 'Configuración',
+                                    'UrdidoEngomado' => 'Urdido y Engomado',
+                                ];
+                            @endphp
+
+                            @foreach ($mods as $name => $label)
+                                <div class="bg-white border border-gray-200 rounded-lg p-3">
+                                    <h3 class="font-medium text-gray-900 mb-2">{{ $label }}</h3>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" name="{{ $name }}_acceso" value="1"
+                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+                                                {{ old($name . '_acceso') ? 'checked' : '' }}>
+                                            <span class="text-sm text-gray-700">Acceso</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" name="{{ $name }}_crear" value="1"
+                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+                                                {{ old($name . '_crear') ? 'checked' : '' }}>
+                                            <span class="text-sm text-gray-700">Crear</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" name="{{ $name }}_modificar" value="1"
+                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+                                                {{ old($name . '_modificar') ? 'checked' : '' }}>
+                                            <span class="text-sm text-gray-700">Modificar</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" name="{{ $name }}_eliminar" value="1"
+                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+                                                {{ old($name . '_eliminar') ? 'checked' : '' }}>
+                                            <span class="text-sm text-gray-700">Eliminar</span>
+                                </label>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
 
-                        <div class="p-2">
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-y-0.5 gap-x-2">
-                                @php
-                                    $mods = [
-                                        'almacen' => 'Almacén',
-                                        'urdido' => 'Urdido',
-                                        'engomado' => 'Engomado',
-                                        'tejido' => 'Tejido',
-                                        'atadores' => 'Atadores',
-                                        'tejedores' => 'Tejedores',
-                                        'mantenimiento' => 'Mantenimiento',
-                                        'planeacion' => 'Planeación',
-                                        'configuracion' => 'Configuracion',
-                                        'UrdidoEngomado' => 'Urdido y Engomado',
-                                    ];
-                                @endphp
+                        <!-- Header de la tabla sticky -->
+                        <div class="hidden sm:block sticky top-32 z-20 mb-2">
+                            <div class="grid grid-cols-5 gap-2 px-4 py-3 bg-blue-600 rounded-t-lg border border-blue-700 border-b-0 shadow-lg">
+                                <div class="text-xs font-semibold text-white uppercase tracking-wider">Módulo</div>
 
+                                <!-- Acceso -->
+                                <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <span>Acceso</span>
+                                        <input type="checkbox" id="selectAllAcceso"
+                                            class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
+                                            onchange="toggleAllAcceso(this)">
+                                    </div>
+                                </div>
+
+                                <!-- Crear -->
+                                <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <span>Crear</span>
+                                        <input type="checkbox" id="selectAllCrear"
+                                            class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
+                                            onchange="toggleAllCrear(this)">
+                                    </div>
+                                </div>
+
+                                <!-- Modificar -->
+                                <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <span>Modificar</span>
+                                        <input type="checkbox" id="selectAllModificar"
+                                            class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
+                                            onchange="toggleAllModificar(this)">
+                                    </div>
+                                </div>
+
+                                <!-- Eliminar -->
+                                <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <span>Eliminar</span>
+                                        <input type="checkbox" id="selectAllEliminar"
+                                            class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
+                                            onchange="toggleAllEliminar(this)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Versión desktop: tabla -->
+                        <div class="hidden sm:block overflow-x-auto">
+                            <div class="min-w-full bg-white border border-gray-200 border-t-0 rounded-b-lg shadow-sm">
                                 @foreach ($mods as $name => $label)
-                                    <label class="flex items-center gap-1.5 text-[13px] text-blue-900">
-                                        <input type="checkbox" name="{{ $name }}" value="1"
-                                            class="h-3.5 w-3.5 rounded border-blue-300 text-blue-600 focus:ring-blue-400"
-                                            {{ old($name) ? 'checked' : '' }}>
-                                        <span>{{ $label }}</span>
-                                    </label>
+                                    <div class="grid grid-cols-5 gap-2 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors {{ $loop->last ? 'rounded-b-lg' : '' }}">
+                                        <!-- Módulo -->
+                                        <div class="flex items-center text-sm font-medium text-gray-900">
+                                            {{ $label }}
+                                        </div>
+
+                                        <!-- Acceso -->
+                                        <div class="flex items-center justify-center">
+                                            <input type="checkbox" name="{{ $name }}_acceso" value="1"
+                                                class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                                                {{ old($name . '_acceso') ? 'checked' : '' }}>
+                                        </div>
+
+                                        <!-- Crear -->
+                                        <div class="flex items-center justify-center">
+                                            <input type="checkbox" name="{{ $name }}_crear" value="1"
+                                                class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                                                {{ old($name . '_crear') ? 'checked' : '' }}>
+                                        </div>
+
+                                        <!-- Modificar -->
+                                        <div class="flex items-center justify-center">
+                                            <input type="checkbox" name="{{ $name }}_modificar" value="1"
+                                                class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                                                {{ old($name . '_modificar') ? 'checked' : '' }}>
+                                        </div>
+
+                                        <!-- Eliminar -->
+                                        <div class="flex items-center justify-center">
+                                            <input type="checkbox" name="{{ $name }}_eliminar" value="1"
+                                                class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                                                {{ old($name . '_eliminar') ? 'checked' : '' }}>
+                                        </div>
+                                    </div>
                                 @endforeach
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Acciones -->
-                    <div class="pt-1">
-                        <button type="submit"
-                            class="w-1/3 text-[14px] font-semibold py-2 rounded-xl
-                                   bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800
-                                   text-white shadow-md hover:from-blue-700 hover:via-blue-800 hover:to-blue-900
-                                   border border-blue-900/10">
-                            Registrar Usuario
-                        </button>
                     </div>
-                </form>
-            </div>
-        </div>
+                </div>
+
+                <!-- Botones sticky fijos en la parte inferior -->
+                <div class="sticky bottom-0 left-0 right-0 z-20">
+                    <div class="px-4 sm:px-6 py-3 sm:py-4">
+                        <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-end max-w-7xl mx-auto">
+                            <a href="{{ route('usuarios.select') }}"
+                               class="px-4 sm:px-6 py-2 sm:py-3 bg-red-500 border border-gray-300 rounded-lg text-sm font-medium text-white focus:outline-none focus:ring-2 transition-colors text-center">
+                                Cancelar
+                            </a>
+                            <button type="submit"
+                                class="px-6 sm:px-8 py-2 sm:py-3 bg-blue-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center justify-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                Registrar Usuario
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+
+        </form>
     </div>
 
     <!-- Scripts -->
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
         // Mostrar / ocultar contraseña
-        (function() {
+            const togglePassword = () => {
             const btn = document.getElementById('togglePassword');
             const input = document.getElementById('password');
-            if (btn && input) {
+            const eyeClosed = document.getElementById('eyeClosed');
+            const eyeOpen = document.getElementById('eyeOpen');
+
+            if (btn && input && eyeClosed && eyeOpen) {
                 btn.addEventListener('click', () => {
                     const isHidden = input.type === 'password';
                     input.type = isHidden ? 'text' : 'password';
-                    btn.textContent = isHidden ? 'Ocultar' : 'Mostrar';
+
+                    if (isHidden) {
+                        eyeClosed.classList.add('hidden');
+                        eyeOpen.classList.remove('hidden');
+                    } else {
+                        eyeOpen.classList.add('hidden');
+                        eyeClosed.classList.remove('hidden');
+                    }
+
                     input.focus();
                 });
             }
-        })();
+            };
+
+            // Ejecutar función de contraseña
+            togglePassword();
+        });
 
         // Previsualización de imagen
         function previewImage(evt) {
-            const file = evt.target.files && evt.target.files[0];
+            const file = evt.target.files?.[0];
             const preview = document.getElementById('photo-preview');
+            const placeholder = document.getElementById('photo-placeholder');
             const img = document.getElementById('photo-image');
 
             if (!file) {
-                if (preview) preview.classList.add('hidden');
+                preview?.classList.add('hidden');
+                placeholder?.classList.remove('hidden');
                 return;
             }
+
             const reader = new FileReader();
             reader.onload = (e) => {
                 if (img) img.src = e.target.result;
-                if (preview) preview.classList.remove('hidden');
+                preview?.classList.remove('hidden');
+                placeholder?.classList.add('hidden');
             };
             reader.readAsDataURL(file);
         }
+
+        // Funciones para selección rápida de permisos
+        function seleccionarTodos() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][name*="_acceso"], input[type="checkbox"][name*="_crear"], input[type="checkbox"][name*="_modificar"], input[type="checkbox"][name*="_eliminar"]');
+            checkboxes.forEach(checkbox => checkbox.checked = true);
+        }
+
+        function deseleccionarTodos() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][name*="_acceso"], input[type="checkbox"][name*="_crear"], input[type="checkbox"][name*="_modificar"], input[type="checkbox"][name*="_eliminar"]');
+            checkboxes.forEach(checkbox => checkbox.checked = false);
+        }
+
+        // Funciones para toggle de todas las columnas
+        function toggleAllAcceso(checkbox) {
+            const accesoCheckboxes = document.querySelectorAll('input[type="checkbox"][name*="_acceso"]');
+            accesoCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        function toggleAllCrear(checkbox) {
+            const crearCheckboxes = document.querySelectorAll('input[type="checkbox"][name*="_crear"]');
+            crearCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        function toggleAllModificar(checkbox) {
+            const modificarCheckboxes = document.querySelectorAll('input[type="checkbox"][name*="_modificar"]');
+            modificarCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        function toggleAllEliminar(checkbox) {
+            const eliminarCheckboxes = document.querySelectorAll('input[type="checkbox"][name*="_eliminar"]');
+            eliminarCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
+
+
     </script>
 @endsection

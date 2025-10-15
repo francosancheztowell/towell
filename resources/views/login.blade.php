@@ -4,403 +4,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Login - Towell</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ asset('css/estilos.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body {
-            background: linear-gradient(135deg, #bfc2c3, #e8f0f2, #262a30);
-            background-size: 300% 300%;
-            animation: gradientAnimation 5s ease infinite;
-            position: relative;
-            /* Para que el pseudo-elemento se posicione respecto al body */
-        }
-
-        @keyframes gradientAnimation {
-            0% {
-                background-position: 0% 50%;
-            }
-
-            50% {
-                background-position: 100% 50%;
-            }
-
-            100% {
-                background-position: 0% 50%;
-            }
-        }
-
-        #qr-video-container {
-            position: fixed;
-            /* Se mantiene fijo en toda la pantalla */
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: rgba(0, 0, 0, 0.8);
-            /* Fondo oscuro semitransparente */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            /* Asegura que esté por encima de todo */
-            display: none;
-            /* Oculto por defecto */
-        }
-
-        #qr-video {
-            width: 80vw;
-            max-width: 400px;
-            height: auto;
-            border: 5px solid white;
-            border-radius: 10px;
-            background: black;
-        }
-
-        .eye-icon {
-            cursor: pointer;
-            display: inline-block;
-            transition: transform 0.3s ease, color 0.3s ease;
-            font-size: 24px;
-            color: #555;
-            user-select: none;
-        }
-
-        /* Efecto al pasar el cursor */
-        .eye-icon:hover {
-            color: #007BFF;
-            /* azul brillante */
-            transform: scale(1.3) rotate(15deg);
-        }
-
-        /* Efecto al hacer clic (cuando está activo) */
-        .eye-icon:active {
-            color: #0056b3;
-            /* azul oscuro */
-            transform: scale(1.1) rotate(-10deg);
-        }
-
-        .input-group input.filled,
-        .input-group select.filled {
-            border: 2px solid #43a047;
-            /* Borde verde */
-            box-shadow: 0 0 8px 0 #43a04780;
-            /* Sombra verde */
-        }
-
-        #name {
-            border: 2px solid #ffffff !important;
-            box-shadow: 0 0 8px 0 #5fcaff !important;
+        .font-inter {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
     </style>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-
+    <meta name="images-base" content="{{ asset('images') }}">
 </head>
 
-<body class="fondoLog">
-    <div class="login-container">
-        <div class="login-box">
-            <h2>INICIAR SESIÓN</h2>
-            <!-- Formulario de login -->
-            <form id="loginForm" method="POST" action="{{ url('/login') }}">
-                @csrf
-
-                <!-- Campo para Foto de perfil -->
-                <div class="input-group -mt-8">
-                    <!-- Cuadro donde se podrá visualizar la foto en el futuro -->
-                    <div id="photo-preview" class="photo-preview">
-                        <img src="images/fotos_usuarios/TOWELLIN.png" alt="Previsualización" width="120"
-                            id="photo-image" />
+<body class="bg-white h-screen overflow-hidden font-inter">
+    <div class="h-screen flex overflow-hidden">
+        <!-- Panel izquierdo - Branding -->
+        <div class="hidden lg:flex lg:w-2/5 relative overflow-hidden bg-blue-600">
+            <div class="relative z-10 p-12 h-full flex flex-col justify-center text-white">
+                <div class="text-center mb-8">
+                    <div class="flex justify-center mb-10">
+                        <img src="images/fotos_usuarios/TOWELLIN.png" alt="Logo" class="w-40 h-40">
+                    </div>
+                    <div class="mt-20">
+                        <h1 class="text-white text-5xl font-bold leading-tight mb-6">Bienvenido</h1>
+                        <p class="text-xl text-white text-opacity-90 leading-relaxed">
+                            Accede a tu cuenta de forma rápida y segura con nuestro sistema de autenticación dual
+                        </p>
                     </div>
                 </div>
-
-                <!-- Campo para Área -->
-                <div class="input-group">
-                    <label for="area">Área</label>
-                    <select name="area" id="area" required>
-                        <option value="" disabled selected>Selecciona tu área</option>
-                        <option value="Almacen">Almacén</option>
-                        <option value="Urdido">Urdido</option>
-                        <option value="Engomado">Engomado</option>
-                        <option value="Tejido">Tejido</option>
-                        <option value="Atadores">Atadores</option>
-                        <option value="Tejedores">Tejedores</option>
-                        <option value="Mantenimiento">Mantenimiento</option>
-                    </select>
-                </div>
-
-                <!-- Campo para Número de Empleado -->
-                <div class="input-group">
-                    <label for="noEmpleado">Número de Empleado</label>
-                    <select name="numero_empleado" id="noEmpleado" required>
-                        <option value="" disabled selected>Selecciona tu número de empleado</option>
-                    </select>
-                </div>
-
-                <!-- Campo para Nombre -->
-                <div class="input-group">
-                    <label for="nombre">Nombre</label>
-                    <input type="text" name="name" id="name" placeholder="Tu nombre" readonly>
-                </div>
-
-                <!-- Campo para Contraseña -->
-                <div class="input-group">
-                    <label for="password">Contraseña</label>
-
-                    <!-- Mensaje de error justo encima del campo de contraseña -->
-                    @if (session('error'))
-                        <div class="alert alert-danger">{{ session('error') }}</div>
-                    @endif
-
-                    <div class="password-container">
-                        <input type="password" name="contrasenia" id="password" placeholder="Tu contraseña" required
-                            inputmode="numeric" pattern="[0-9]*">
-
-                        <span id="togglePassword" class="eye-icon">🔒</span>
-                    </div>
-                </div>
-
-                <!-- Botón para enviar formulario -->
-                <button type="submit" id="btnLogin">Iniciar sesión</button>
-                <!-- Botón de Acceso por QR -->
-                <div class="qr-option">
-                    <button type="button" id="qr-button">Accesar por QR</button>
-                </div>
-
-                <div id="qr-video-container">
-                    <video id="qr-video" autoplay></video>
-                    <div id="qr-overlay"
-                        style="position: absolute; top: 0; left: 0; right:0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 1.5rem; z-index: 10;">
-                        <div id="qr-message">Escanea tu código...</div>
-                        <div
-                            style="margin-top: 20px; border: 3px solid white; width: 200px; height: 200px; border-radius: 10px;">
-                        </div>
-                        <button id="cerrar-qr"
-                            style="position: absolute; top: 10px; right: 10px; z-index: 11; width: auto; max-width: 150px;"
-                            class="bg-green-600 text-white p-1 rounded">
-                            Cerrar QR
-                        </button>
-
-                    </div>
-
-                </div>
-
-
-            </form>
-
-            <!-- Modal de recuperación de contraseña -->
-            <div id="forgot-password-modal" class="modal">
-                <div class="modal-content">
-                    <h2>Recuperar Contraseña</h2>
-                    <form id="forgot-password-form">
-                        <label for="numero_empleado">Número de empleado:</label>
-                        <input type="text" id="numero_empleado" name="numero_empleado" required>
-                        <button type="submit">Enviar solicitud</button>
-                    </form>
-                    <button id="close-modal">Cerrar</button>
+                <div class="mt-auto text-sm text-white text-center text-opacity-70">
+                    <p>© 2025 Towell. Todos los derechos reservados.</p>
                 </div>
             </div>
+        </div>
 
+        <!-- Panel derecho - Formulario -->
+        <div class="w-full lg:w-3/5 flex flex-col items-center justify-center p-8 lg:p-12 overflow-hidden h-screen">
+            <div class="text-center w-full flex-shrink-0 order-first">
+                <img src="{{ asset('images/fondosTowell/logo.png') }}" class="h-20 mx-auto" alt="Logo_Towell">
+            </div>
+
+            <div class="w-full max-w-2xl bg-white rounded-2xl p-10 shadow-sm">
+                <!-- Tabs de autenticación -->
+                <div class="flex bg-slate-100 rounded-lg p-1 mb-8 gap-0">
+                    <button type="button" id="qr-tab" class="flex-1 px-4 py-3 text-sm font-medium border-0 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 m-0 text-slate-600 bg-transparent">
+                        <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4">
+                            <path d="M3 3h7v7H3V3zm9 0h7v7h-7V3zm-9 9h7v7H3v-7zm15 0h3v3h-3v-3zm-3-9h3v3h-3V3zm3 6h3v3h-3V9zm-9 6h3v3h-3v-3zm6 0h3v3h-3v-3zm-3 0h3v3h-3v-3z"/>
+                        </svg>
+                        Código QR
+                    </button>
+                    <button type="button" id="user-tab" class="flex-1 px-4 py-3 text-sm font-medium border-0 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 m-0 text-white bg-blue-600 shadow-sm">
+                        <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                        </svg>
+                        ID Usuario
+                    </button>
+                </div>
+
+                <!-- Formulario de ID Usuario -->
+                <div id="user-form" class="block">
+                    <x-login-form
+                        title="Acceso por ID"
+                        subtitle="Ingresa tu identificador único"
+                        :errors="$errors ?? []"
+                    />
+                </div>
+
+                <!-- Formulario de QR -->
+                <div id="qr-form" class="hidden">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-slate-900 mb-2">Acceso por QR</h2>
+                        <p class="text-slate-600">Escanea tu código QR para acceder</p>
+                    </div>
+
+                    <x-action-button
+                        onclick="openQRModal('qr-video-container')"
+                        variant="primary"
+                        size="lg"
+                        fullWidth="true"
+                    >
+                        Escanear Código QR
+                    </x-action-button>
+                </div>
+
+
+            </div>
         </div>
     </div>
+
+    <!-- Modal de QR usando componente -->
+    <x-qr-modal id="qr-video-container" title="Escanea tu código..." />
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 
     <script>
-        document.getElementById('area').addEventListener('change', function() {
-            const areaSeleccionada = this.value;
-            const noEmpleadoSelect = document.getElementById('noEmpleado');
-
-            // Limpiar opciones previas
-            noEmpleadoSelect.innerHTML =
-                '<option value="" disabled selected>Selecciona tu número de empleado</option>';
-            document.getElementById('name').value = ""; // Limpiar nombre
-            document.getElementById('photo-preview').style.display = 'block'; // Limpiar foto previa
-            if (areaSeleccionada) {
-                fetch(`/obtener-empleados/${areaSeleccionada}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        data.forEach(empleado => {
-                            let option = document.createElement('option');
-                            option.value = empleado.numero_empleado;
-                            option.textContent = empleado.numero_empleado;
-                            noEmpleadoSelect.appendChild(option);
-                        });
-                    })
-                    .catch(error => console.error("Error al obtener empleados:", error));
-            }
-        });
-
-        document.getElementById('noEmpleado').addEventListener('change', function() {
-            const noEmpleado = this.value;
-
-            if (noEmpleado) {
-                fetch(`/obtener-nombre/${noEmpleado}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        document.getElementById('name').value = data.nombre || "";
-                        const fotoUrl = data.foto ? `/images/${data.foto}` :
-                            ''; // Ruta de la foto, asegurándose de que sea válida 
-                        document.getElementById('password').focus(); // Ponemos el foco en la contraseña
-                        const photoPreview = document.getElementById('photo-preview');
-                        const photoImage = document.getElementById('photo-image');
-
-                        // Si hay foto, mostrarla
-                        if (fotoUrl) {
-                            photoPreview.style.display = 'block'; // Hacer visible la imagen
-                            photoImage.src = fotoUrl; // Actualizar la imagen
-                            document.getElementById('password').focus();
-                        }
-
-                    })
-                    .catch(error => console.error("Error al obtener el nombre:", error));
-            }
-        });
-    </script>
-
-    <script>
-        document.getElementById('photo').addEventListener('change', function(event) {
-            var reader = new FileReader();
-
-            // Cuando se carga la imagen
-            reader.onload = function() {
-                var photoPreview = document.getElementById('photo-image');
-                photoPreview.style.display = 'block'; // Hacer visible la imagen
-                photoPreview.src = reader.result; // Establecer la imagen seleccionada como fuente
-            }
-
-            // Leer la imagen seleccionada como una URL
-            reader.readAsDataURL(event.target.files[0]);
-        });
-    </script>
-
-    <script>
-        document.getElementById('togglePassword').addEventListener('click', function() {
-            let passwordField = document.getElementById('password');
-            let fieldType = passwordField.getAttribute('type');
-            passwordField.setAttribute('type', fieldType === 'password' ? 'text' : 'password');
-        });
-    </script>
-    <!-- Este SCRIPT carga la función del botón de QR-->
-    <script>
-        const qrButton = document.getElementById('qr-button');
-        const qrVideoContainer = document.getElementById('qr-video-container');
-        const qrVideo = document.getElementById('qr-video');
-        const cerrarQR = document.getElementById('cerrar-qr');
+        // Variables globales
+        let currentAuthMode = 'user';
         let stream = null;
         let interval = null;
 
-        function iniciarEscaneoQR() {
-            navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment'
-                    }
-                })
-                .then(function(s) {
-                    stream = s;
-                    qrVideo.srcObject = stream;
-                    qrVideoContainer.style.display = 'flex';
-                    document.getElementById('qr-overlay').style.display = 'flex';
-                    qrVideo.play();
-
-                    interval = setInterval(() => {
-                        if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
-                            const canvas = document.createElement('canvas');
-                            canvas.width = qrVideo.videoWidth;
-                            canvas.height = qrVideo.videoHeight;
-                            const context = canvas.getContext('2d');
-                            context.drawImage(qrVideo, 0, 0, canvas.width, canvas.height);
-
-                            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                            const qrCode = jsQR(imageData.data, canvas.width, canvas.height);
-
-                            if (qrCode) {
-                                detenerEscaneoQR();
-                                fetch('/login-qr', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRF-TOKEN': document.querySelector(
-                                                'meta[name="csrf-token"]').content
-                                        },
-                                        body: JSON.stringify({
-                                            numero_empleado: qrCode.data
-                                        })
-                                    })
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        if (data.success) {
-                                            window.location.href = '/produccionProceso';
-                                        } else {
-                                            alert('Error: ' + data.message);
-                                        }
-                                    })
-                                    .catch(error => console.error('Error en la autenticación QR:', error));
-                            }
-                        }
-                    }, 100);
-                })
-                .catch(error => {
-                    console.log('Error al acceder a la cámara: ', error);
-                });
-        }
-
-        function detenerEscaneoQR() {
-            if (interval) {
-                clearInterval(interval);
-                interval = null;
-            }
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-            qrVideoContainer.style.display = 'none';
-            document.getElementById('qr-overlay').style.display = 'none';
-        }
-
-        qrButton.addEventListener('click', iniciarEscaneoQR);
-        cerrarQR.addEventListener('click', detenerEscaneoQR);
-
-        function esDispositivoMovil() {
-            return /Android|iPhone|iPad|iPod|Windows Phone|webOS/i.test(navigator.userAgent);
-        }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            if (esDispositivoMovil()) {
-                iniciarEscaneoQR();
-            }
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTabs();
         });
+
+        // Manejo de tabs
+        function initializeTabs() {
+            const qrTab = document.getElementById('qr-tab');
+            const userTab = document.getElementById('user-tab');
+            const qrForm = document.getElementById('qr-form');
+            const userForm = document.getElementById('user-form');
+
+            qrTab.addEventListener('click', () => switchToTab('qr'));
+            userTab.addEventListener('click', () => switchToTab('user'));
+        }
+
+        function switchToTab(mode) {
+            const qrTab = document.getElementById('qr-tab');
+            const userTab = document.getElementById('user-tab');
+            const qrForm = document.getElementById('qr-form');
+            const userForm = document.getElementById('user-form');
+
+            currentAuthMode = mode;
+
+            if (mode === 'qr') {
+                qrTab.className = 'flex-1 px-4 py-3 text-sm font-medium border-0 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 m-0 text-white bg-blue-600 shadow-sm';
+                userTab.className = 'flex-1 px-4 py-3 text-sm font-medium border-0 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 m-0 text-slate-600 bg-transparent';
+                qrForm.classList.remove('hidden');
+                userForm.classList.add('hidden');
+            } else {
+                userTab.className = 'flex-1 px-4 py-3 text-sm font-medium border-0 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 m-0 text-white bg-blue-600 shadow-sm';
+                qrTab.className = 'flex-1 px-4 py-3 text-sm font-medium border-0 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 m-0 text-slate-600 bg-transparent';
+                userForm.classList.remove('hidden');
+                qrForm.classList.add('hidden');
+            }
+        }
+
+        // Función global para abrir modal QR
+        window.openQRModal = function(modalId) {
+            if (window.qrScanners && window.qrScanners[modalId]) {
+                window.qrScanners[modalId].start();
+            }
+        };
+
+        // Función global para cerrar modal QR
+        window.closeQRModal = function(modalId) {
+            if (window.qrScanners && window.qrScanners[modalId]) {
+                window.qrScanners[modalId].stop();
+            }
+        };
     </script>
-    <!--OJO, parece que no realiza lo esperado, comprobar con el paso del tiempo si realmente recarga la pagina al presionar boton adelante-->
+
+    <!-- Script para recarga de página -->
     <script>
         // Detecta si esta página fue accedida desde el historial (adelante o atrás)
         window.addEventListener('pageshow', function(event) {
             if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
-                // Si se volvió a esta página desde el historial (adelante o atrás)
                 window.location.reload(); // Fuerza recarga completa
             }
         });
     </script>
-    <script>
-        // Selecciona todos los inputs y selects dentro de .input-group
-        document.querySelectorAll('.input-group input, .input-group select').forEach(el => {
-            el.addEventListener('input', function() {
-                // Si tiene valor, pone clase "filled"; si no, la quita
-                if (this.value.trim() !== "") {
-                    this.classList.add('filled');
-                } else {
-                    this.classList.remove('filled');
-                }
-            });
-
-            // Al cargar la página, aplica el color si ya tienen valor
-            if (el.value.trim() !== "") {
-                el.classList.add('filled');
-            }
-        });
-    </script>
-
 
 </body>
 

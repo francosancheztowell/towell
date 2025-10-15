@@ -1,9 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
+    <div class="container mx-auto px-4 py-6">
+        <!-- Header usando componente reutilizable -->
+        <x-produccion-proceso-header titulo="Engomado" />
+    </div>
+
     <div class="container mx-auto p-2 bg-white shadow-lg rounded-lg mt-1 overflow-y-auto md:h-[650px]">
         <div id="finalizadoOverlay">FINALIZADO</div>
-        <h1 class="text-3xl font-bold text-center mb-2">Proceso de Producción de Engomado</h1>
         <!-- Formulario -->
         <form class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
             <!-- Primera columna -->

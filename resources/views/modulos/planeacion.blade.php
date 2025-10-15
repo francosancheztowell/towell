@@ -30,6 +30,11 @@
 @endsection
 
 @section('content')
+    <div class="container mx-auto px-4 py-6">
+        <!-- Header usando componente reutilizable -->
+        <x-produccion-proceso-header titulo="Planeación" />
+    </div>
+
     <div
         class="w-auto text-white text-xs mt-2 mb-1 flex  space-x-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-300 p-1 mt-1 sm:mt-2 sm:p-0">
         <!-- Botón de búsqueda (lupa) -->

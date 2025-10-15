@@ -332,7 +332,7 @@
                 }
 
                 $el.select2({
-                    placeholder: 'Buscar BOM...',
+                    placeholder: 'Buscar Lista...',
                     allowClear: false,
                     ajax: {
                         url: urlBoms,
@@ -406,10 +406,6 @@
                     try {
                         const tr = this.closest('tr');
                         if (!tr) return;
-
-                        document.querySelectorAll('#agrupados-table tbody tr.row-selected')
-                            .forEach(r => r.classList.remove('row-selected'));
-                        tr.classList.add('row-selected');
 
                         const folio = await ensureFolioForTr(tr);
                         if (!folio) {

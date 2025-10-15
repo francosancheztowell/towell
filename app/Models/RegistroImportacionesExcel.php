@@ -14,5 +14,7 @@ class RegistroImportacionesExcel extends Model
     protected $fillable = [
         'usuario',
         'total_registros',
+        'tipo_importacion',
+        'archivo_original',
     ];
 }

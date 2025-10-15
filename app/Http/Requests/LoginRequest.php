@@ -14,7 +14,7 @@ class LoginRequest extends FormRequest
     public function rules()
     {
         return [
-            'numero_empleado' => ['required', 'exists:usuarios,numero_empleado'],  // Aquí usamos la regla 'exists'
+            'numero_empleado' => ['required', 'exists:SYSUsuario,numero_empleado'],  // Aquí usamos la regla 'exists'
             'contrasenia' => ['required', 'string'],  // Puedes agregar más validaciones si es necesario
         ];
     }

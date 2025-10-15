@@ -7,6 +7,31 @@
 
     <title>@yield('title', 'TOWELL S.A DE C.V')</title>
 
+    <!-- Preload de imágenes críticas para mejor rendimiento -->
+    <link rel="preload" as="image" href="{{ asset('images/fondosTowell/logo.png') }}">
+    <link rel="preload" as="image" href="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}">
+
+    <!-- Optimización de imágenes -->
+    <style>
+        /* Placeholder mientras carga la imagen */
+        img[loading="lazy"] {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Optimización para imágenes de módulos */
+        .module-grid img {
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+    </style>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Bootstrap -->
@@ -36,7 +61,6 @@
             background-size: 300% 300%;
             animation: gradientAnimation 5s ease infinite;
             position: relative;
-            overflow: hidden;
             /* Para que los círculos no se salgan del body */
         }
 
@@ -63,127 +87,109 @@
         <!-- Incluir el loader global -->
         @include('layouts.globalLoader')
 
-        <a href="/chatbot" class="text-3xl font-extrabold">
-            <img src="{{ asset('images/fondosTowell/TOWELLIN.png') }} " alt="Towelling"
-                class="absolute top-1 right-2 w-[36px] z-1">
-        </a>
+        <!-- Navbar Blanco Minimalista -->
+        <nav class="bg-white border-gray-200 sticky top-0 z-50">
+            <div class="container mx-auto px-6 py-3">
+                <div class="flex items-center justify-between">
+                    <!-- Logo Towell (Izquierda) -->
+                    <a href="/produccionProceso" class="flex items-center">
+                        <img src="{{ asset('images/fondosTowell/logo.png') }}" alt="Logo Towell" class="h-12">
+                    </a>
 
-        @if (Route::currentRouteName() === 'produccion.index')
-            <a href="#" id="logout-btn" class="absolute top-1 right-[1000px] z-1 btn btn-warning text-xs">
-                CERRAR SESIÓN
-            </a>
+                    <!-- Sección central con botones de navegación -->
+                    <div class="flex items-center gap-4">
+                        @yield('menu-planeacion')
 
-            <div class="relative z-1" style="position: absolute; left: 450px;">
-                <button id="btnUsuarios"
-                    class="mt-[5px] bg-orange-500 text-black font-bold px-4 py-1 rounded-md shadow hover:bg-orange-700 transition-all duration-200 cursor-pointer text-xs">
-                    USUARIOS
-                </button>
-                <div id="menuUsuarios"
-                    class="hidden absolute bg-white border border-gray-300 mt-1 w-40 rounded-md shadow-lg z-[99] transition transform scale-95 opacity-0"
-                    style="left: 0px;">
-                    <a href="{{ route('usuarios.create') }}"
-                        class="block px-3 py-2 text-xs text-gray-800 hover:bg-gray-100 bg-green-200 font-bold">
-                        ALTA 📝</a>
-                    <a href="{{ route('usuarios.select') }}"
-                        class="block px-3 py-2 text-xs text-gray-800 hover:bg-gray-100 bg-blue-300 font-bold">
-                        VER USUARIOS 👥</a>
+                        <!-- Botones de navegación (si están habilitados) -->
+                        @if (!isset($ocultarBotones) || !$ocultarBotones)
+                            <x-navigation-bar
+                                :showBack="true"
+                                :showForward="!isset($soloAtras) || !$soloAtras"
+                                :variant="(!isset($soloAtras) || !$soloAtras) ? 'compact' : 'full'"
+                            />
+                        @endif
+                    </div>
+
+                    <!-- Sección derecha (usuarios, notificaciones, perfil) -->
+                    <div class="flex items-center gap-4">
+
+                        @yield('navbar-right')
+
+                        <!-- Notificar Falla con texto e ícono -->
+                        <button href="{{ route('telares.falla') }}" class="bg-yellow-400 hover:bg-yellow-500 flex items-center gap-2 px-3 py-2 text-sm font-medium  rounded-lg transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 " fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                            Paro
+                        </button>
+
+
+
+                        <!-- Cerrar sesión -->
+                        @if (Route::currentRouteName() === 'produccion.index')
+                            <button id="logout-btn" class="flex items-center gap-1 px-2 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-700 rounded-lg transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                                Salir
+                            </button>
+                        @endif
+
+                        <!-- Icono de configuración (solo si el usuario tiene permisos) -->
+                        @if(isset($tieneConfiguracion) && $tieneConfiguracion)
+                            <a href="{{ route('configuracion.index') }}" class="w-10 h-10 bg-blue-100 hover:bg-blue-200 rounded-full flex items-center justify-center text-blue-800 hover:text-blue-900 transition-all duration-200 shadow-sm hover:shadow-md" title="Configuración">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </a>
+                        @endif
+
+                        <!-- Círculo de usuario -->
+                        <div class="relative">
+                            <button class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+                                {{ strtoupper(substr(Auth::user()->nombre, 0, 1)) }}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-        @endif
+        </nav>
 
-
-
-        <!-- El siguiente if, es para injertar un titulo en la parte de app.balde, esto por solicitud del jefazo, solo funciona en la pagina de informacion del modulo de urdido-->
+        <!-- Título especial para urdido -->
         @if (Route::currentRouteName() === 'produccion.ordenTrabajo')
-            <h2 class="fixed top-[5px] left-[310px] z-50 -translate-x-1/2 px-4 py-2 text-xl md:text-2xl font-extrabold bg-transparent pointer-events-none select-none"
-                style="
-            background: transparent;
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-            -webkit-text-fill-color: transparent;
-            background-image: linear-gradient(90deg, #3b82f6 10%, #60a5fa 50%, #2563eb 90%);
-        ">
-                PRODUCCIÓN DE URDIDO
-            </h2>
+            <div class="bg-gradient-to-r from-blue-500 via-blue-400 to-blue-600 py-2">
+                <h2 class="text-center text-xl md:text-2xl font-bold text-white">
+                    PRODUCCIÓN DE URDIDO
+                </h2>
+            </div>
         @endif
-
 
         <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
             @csrf
         </form>
 
         <script>
-            document.getElementById('logout-btn').addEventListener('click', function(event) {
-                event.preventDefault();
-                Swal.fire({
-                    title: '¿CONFIRMA PARA CERRAR SESIÓN?',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Sí, salir',
-                    cancelButtonText: 'Cancelar'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        document.getElementById('logout-form').submit();
-                    }
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    Swal.fire({
+                        title: '¿Confirma cerrar sesión?',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Sí, salir',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            document.getElementById('logout-form').submit();
+                        }
+                    });
                 });
-            });
+            }
         </script>
-
-
-        <!-- Nombre del usuario -->
-        <p class="hidden md:block nombreApp text-black font-bold uppercase text-xs">
-            {{ Auth::user()->nombre }}
-        </p>
-
-        <a href="{{ route('telares.falla') }}"
-            class="absolute top-1 right-20 z-1 btn btn-danger text-sm  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600"
-            style="font-family: 'Playfair Display', serif;">⚠️
-            Notificar
-            Falla ⚠️</a>
-        <!-- Navbar -->
-        <nav class="bg-blue-350 text-white ">
-            <div class="container mx-auto flex justify-between items-center relative">
-                <!-- Logo Towell -->
-                <a href="/produccionProceso" class="text-3xl font-extrabold">
-                    <img src="{{ asset('images/fondosTowell/logo_towell2.png') }} " alt="Logo_Towell"
-                        class="absolute top-1 left-2 w-[120px] z-1 no-print">
-                </a>
-
-                @yield('menu-planeacion')
-
-                @if (!isset($ocultarBotones) || !$ocultarBotones)
-                    <!-- Botones de navegación -->
-                    <div
-                        class="flex gap-4 justify-center items-center z-5 botonesApp  md:gap-4 md:items-center lg:flex-row lg:gap-6 lg:ml-0">
-                        <!-- Botón Atrás -->
-                        <button onclick="history.back()"
-                            class="bg-white text-blue-500 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition duration-300 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="18" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <polygon points="11 19 2 12 11 5 11 19"></polygon>
-                                <polygon points="22 19 13 12 22 5 22 19"></polygon>
-                            </svg>
-                        </button>
-
-                        <!-- Botón Adelante -->
-                        <button onclick="history.forward()"
-                            class="bg-white text-blue-500 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition duration-300 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <polygon points="13 19 22 12 13 5 13 19"></polygon>
-                                <polygon points="2 19 11 12 2 5 2 19"></polygon>
-                            </svg>
-                        </button>
-                    </div>
-                @endif
-
-            </div>
-        </nav>
 
         <!-- Contenido de la página -->
         <main class="">
@@ -191,12 +197,6 @@
             <!-- JavaScript para mostrar/ocultar el loader -->
         </main>
 
-        <!-- Footer -->
-        <footer class="bg-gray-800 text-white text-center p-3 mt-16">
-            &copy; Towell {{ date('Y') }}. Todos los derechos reservados.
-            <!-- Nombre del usuario -->
-            <p class=" sm:block md:hidden text-white font-bold uppercase text-sm"> {{ Auth::user()->nombre }}</p>
-        </footer>
 
         <script>
             // Muestra el loader cuando la página empieza a cargar
@@ -260,6 +260,8 @@
             });
         </script>
 
+        <!-- Script de sonidos para clicks -->
+        <script src="{{ asset('js/simple-click-sounds.js') }}"></script>
 
     </body>
 

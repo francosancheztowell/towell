@@ -3,33 +3,19 @@
 @section('content')
 <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold text-center mb-10">TEJEDORES</h1>
-    
-    <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
-        @php
-            $modulos = [
-                ['nombre' => 'Tejedor 1', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/tejedores1'],
-                ['nombre' => 'Tejedor 2', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/tejedores2'],
-                ['nombre' => 'Tejedor 3', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/tejedores3'],
-                ['nombre' => 'Tejedor 4', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/tejedores4'],
-                ['nombre' => 'Tejedor 5', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/tejedores5'],
-                ['nombre' => 'Programar Requerimientos', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/programar-requerimientos']
-            ];
-        @endphp
 
-@foreach ($modulos as $modulo)
-    <a href="{{ url($modulo['ruta']) }}" class="block">
-        <div class="bg-white shadow-lg rounded-xl p-2 flex flex-col justify-between items-center transition-transform transform hover:scale-105 h-40 min-h-[150px]">
-            <div class="flex-grow flex items-center justify-center">
-                <img src="{{ asset('images/fotos_modulos/' . $modulo['imagen']) }}" 
-                alt="{{ $modulo['nombre'] }}" 
-                class="h-32 w-32 object-cover rounded-lg">
-            </div>
-            <h2 class="text-sm font-semibold text-center mt-1">{{ $modulo['nombre'] }}</h2>
-        </div>
-    </a>
-@endforeach
+    @php
+        $modulos = [
+            ['nombre' => 'Tejedor 1', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/tejedores1', 'ruta_tipo' => 'url'],
+            ['nombre' => 'Tejedor 2', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/tejedores2', 'ruta_tipo' => 'url'],
+            ['nombre' => 'Tejedor 3', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/tejedores3', 'ruta_tipo' => 'url'],
+            ['nombre' => 'Tejedor 4', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/tejedores4', 'ruta_tipo' => 'url'],
+            ['nombre' => 'Tejedor 5', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/tejedores5', 'ruta_tipo' => 'url'],
+            ['nombre' => 'Programar Requerimientos', 'imagen' => 'tejedores.jpg', 'ruta' => '/tejedores/programar-requerimientos', 'ruta_tipo' => 'url']
+        ];
+    @endphp
 
-    </div>
+    <x-module-grid :modulos="$modulos" columns="md:grid-cols-3" />
 </div>
 @endsection
 

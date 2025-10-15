@@ -105,7 +105,7 @@ class ReporteTemporalController extends Controller
         $turno = $this->obtenerTurnoActual();
 
         // 1) Traer teléfonos del turno y con enviarMensaje = 1
-        $telefonosRaw = DB::table('usuarios')
+        $telefonosRaw = DB::table('SYSUsuario')
             ->where('turno', $turno)
             ->where('enviarMensaje', 1)
             ->pluck('telefono')
