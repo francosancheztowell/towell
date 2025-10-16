@@ -47,6 +47,9 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Toastr para notificaciones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <!-- Animate.css (CDN) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" />
     {{-- Chart.js (CDN) --}}
@@ -79,7 +82,6 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="{{ asset('css/estilos.css') }}">
     @stack('styles') <!-- Aquí se inyectarán los estilos agregados con @push('styles') -->
     </head>
 
@@ -96,17 +98,33 @@
                         <img src="{{ asset('images/fondosTowell/logo.png') }}" alt="Logo Towell" class="h-12">
                     </a>
 
-                    <!-- Sección central con botones de navegación -->
+                    <!-- Sección central -->
                     <div class="flex items-center gap-4">
                         @yield('menu-planeacion')
 
-                        <!-- Botones de navegación (si están habilitados) -->
-                        @if (!isset($ocultarBotones) || !$ocultarBotones)
-                            <x-navigation-bar
-                                :showBack="true"
-                                :showForward="!isset($soloAtras) || !$soloAtras"
-                                :variant="(!isset($soloAtras) || !$soloAtras) ? 'compact' : 'full'"
-                            />
+                        <!-- Botones de acción para catálogo de telares -->
+                        @if(request()->routeIs('telares.index'))
+                            <x-action-buttons route="telar" />
+                        @endif
+
+                        <!-- Botones de acción para catálogo de eficiencia -->
+                        @if(request()->routeIs('eficiencia.index'))
+                            <x-action-buttons route="eficiencia" :showFilters="true" />
+                        @endif
+
+                        <!-- Botones de acción para catálogo de velocidad -->
+                        @if(request()->routeIs('velocidad.index'))
+                            <x-action-buttons route="velocidad" :showFilters="true" />
+                        @endif
+
+                        <!-- Botones de acción para calendarios -->
+                        @if(request()->routeIs('calendarios.index'))
+                            <x-action-buttons route="calendario" :showFilters="true" />
+                        @endif
+
+                        <!-- Botones de acción para aplicaciones -->
+                        @if(request()->routeIs('planeacion.aplicaciones'))
+                            <x-action-buttons route="aplicacion" :showFilters="true" />
                         @endif
                     </div>
 
@@ -262,6 +280,27 @@
 
         <!-- Script de sonidos para clicks -->
         <script src="{{ asset('js/simple-click-sounds.js') }}"></script>
+
+        <!-- Configuración de Toastr -->
+        <script>
+            toastr.options = {
+                "closeButton": true,
+                "debug": false,
+                "newestOnTop": true,
+                "progressBar": true,
+                "positionClass": "toast-top-right",
+                "preventDuplicates": false,
+                "onclick": null,
+                "showDuration": "300",
+                "hideDuration": "1000",
+                "timeOut": "5000",
+                "extendedTimeOut": "1000",
+                "showEasing": "swing",
+                "hideEasing": "linear",
+                "showMethod": "fadeIn",
+                "hideMethod": "fadeOut"
+            };
+        </script>
 
     </body>
 

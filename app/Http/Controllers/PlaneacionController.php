@@ -145,6 +145,27 @@ class PlaneacionController extends Controller
     return view('TEJIDO-SCHEDULING.create-form', compact('telares'));
   }
 
+  public function show($id)
+  {
+    // Método requerido por Route::resource
+    // Redirigir a index por ahora
+    return redirect()->route('planeacion.index');
+  }
+
+  public function edit($id)
+  {
+    // Método requerido por Route::resource
+    // Redirigir a index por ahora
+    return redirect()->route('planeacion.index');
+  }
+
+  public function destroy($id)
+  {
+    // Método requerido por Route::resource
+    // Redirigir a index por ahora
+    return redirect()->route('planeacion.index');
+  }
+
   // STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE STORE
   private function fecha_a_excel_serial($fecha)
   {
@@ -183,7 +204,7 @@ class PlaneacionController extends Controller
 
       // calculo de dias y fracciones de dias para FECHAS INICIO Y FIN
       $inicio = $request->fecha_inicio[$i]; //$request=>input('fecha_inicio');
-      $fin =    $request->fecha_fin[$i]; //$request=->input('fecha_fin'); 
+      $fin =    $request->fecha_fin[$i]; //$request=->input('fecha_fin');
 
       $inicioX = $this->fecha_a_excel_serial($inicio);
       $inicioY = $this->fecha_a_excel_serial($fin);
@@ -522,7 +543,7 @@ class PlaneacionController extends Controller
           'Fecha_Compromiso1' => null, //Carbon::parse($request->input('fecha_cliente'))->format('Y-m-d')
           'Entrega' => null, //Carbon::parse($request->input('fecha_entrega'))->format('Y-m-d')
           'Dif_vs_Compromiso' => null,
-          'cantidad' => (float) $saldos[$i], // campo recién agregado 
+          'cantidad' => (float) $saldos[$i], // campo recién agregado
           'rasurado' => $rasurado,
         ]
 
@@ -573,9 +594,43 @@ class PlaneacionController extends Controller
     return redirect()->route('planeacion.index')->with('success', 'Registro guardado correctamente');
   }
 
-  public function aplicaciones()
+  public function aplicaciones(Request $request)
   {
-    return view('/catalagos/aplicaciones');
+    // Datos de ejemplo estáticos (solo frontend) - Tabla ReqAplicaciones
+    $aplicaciones = collect([
+      (object)['AplicacionId' => 'APP001', 'Nombre' => 'Sistema de Producción Textil', 'SalonTejidold' => 'Salón A', 'NoTelarId' => 'T001'],
+      (object)['AplicacionId' => 'APP002', 'Nombre' => 'Control de Calidad', 'SalonTejidold' => 'Salón B', 'NoTelarId' => 'T002'],
+      (object)['AplicacionId' => 'APP003', 'Nombre' => 'Gestión de Inventarios', 'SalonTejidold' => 'Salón A', 'NoTelarId' => 'T003'],
+      (object)['AplicacionId' => 'APP004', 'Nombre' => 'Planificación de Turnos', 'SalonTejidold' => 'Salón C', 'NoTelarId' => 'T004'],
+      (object)['AplicacionId' => 'APP005', 'Nombre' => 'Mantenimiento Preventivo', 'SalonTejidold' => 'Salón B', 'NoTelarId' => 'T005'],
+      (object)['AplicacionId' => 'APP006', 'Nombre' => 'Reportes de Eficiencia', 'SalonTejidold' => 'Salón A', 'NoTelarId' => 'T006'],
+      (object)['AplicacionId' => 'APP007', 'Nombre' => 'Control de Hilos', 'SalonTejidold' => 'Salón D', 'NoTelarId' => 'T007'],
+      (object)['AplicacionId' => 'APP008', 'Nombre' => 'Gestión de Pedidos', 'SalonTejidold' => 'Salón C', 'NoTelarId' => 'T008'],
+      (object)['AplicacionId' => 'APP009', 'Nombre' => 'Monitoreo en Tiempo Real', 'SalonTejidold' => 'Salón B', 'NoTelarId' => 'T009'],
+      (object)['AplicacionId' => 'APP010', 'Nombre' => 'Análisis de Costos', 'SalonTejidold' => 'Salón A', 'NoTelarId' => 'T010'],
+      (object)['AplicacionId' => 'APP011', 'Nombre' => 'Control de Acceso', 'SalonTejidold' => 'Salón E', 'NoTelarId' => 'T011'],
+      (object)['AplicacionId' => 'APP012', 'Nombre' => 'Gestión de Recursos Humanos', 'SalonTejidold' => 'Salón D', 'NoTelarId' => 'T012'],
+      (object)['AplicacionId' => 'APP013', 'Nombre' => 'Optimización de Procesos', 'SalonTejidold' => 'Salón C', 'NoTelarId' => 'T013'],
+      (object)['AplicacionId' => 'APP014', 'Nombre' => 'Trazabilidad de Productos', 'SalonTejidold' => 'Salón B', 'NoTelarId' => 'T014'],
+      (object)['AplicacionId' => 'APP015', 'Nombre' => 'Integración ERP', 'SalonTejidold' => 'Salón A', 'NoTelarId' => 'T015'],
+    ]);
+
+    // Aplicar filtros de búsqueda (solo frontend)
+    if ($request->aplicacion) {
+      $aplicaciones = $aplicaciones->filter(function ($item) use ($request) {
+        return stripos($item->AplicacionId, $request->aplicacion) !== false ||
+               stripos($item->Nombre, $request->aplicacion) !== false ||
+               stripos($item->SalonTejidold, $request->aplicacion) !== false ||
+               stripos($item->NoTelarId, $request->aplicacion) !== false;
+      });
+    }
+
+    $total = $aplicaciones->count();
+
+    return view('catalagos.aplicaciones', [
+      'aplicaciones' => $aplicaciones,
+      'total' => $total
+    ]);
   }
 
   public function update(Request $request, $id)

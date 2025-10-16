@@ -265,38 +265,38 @@
                         </div>
 
                         <!-- Versión móvil: cards -->
-                        <div class="block sm:hidden space-y-3">
+                        <div class="block sm:hidden space-y-2">
                             @foreach ($modulos as $modulo)
                                 @php
                                     $slugModulo = strtolower(str_replace(' ', '_', $modulo->modulo));
                                     $permisos = isset($permisosUsuario) ? ($permisosUsuario[$modulo->idrol] ?? null) : null;
                                 @endphp
-                                <div class="bg-white border border-gray-200 rounded-lg p-3">
-                                    <h3 class="font-medium text-gray-900 mb-2">{{ $modulo->modulo }}</h3>
-                                    <div class="grid grid-cols-2 gap-2">
+                                <div class="bg-white border border-gray-200 rounded-lg p-2.5">
+                                    <h3 class="font-medium text-gray-900 mb-1.5 text-sm">{{ $modulo->modulo }}</h3>
+                                    <div class="grid grid-cols-2 gap-1.5">
                                         <label class="flex items-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_acceso" value="1"
-                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-1.5"
                                                 {{ old("modulo_{$modulo->idrol}_acceso", $permisos->acceso ?? false) ? 'checked' : '' }}>
-                                            <span class="text-sm text-gray-700">Acceso</span>
+                                            <span class="text-xs text-gray-700">Acceso</span>
                                         </label>
                                         <label class="flex items-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_crear" value="1"
-                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-1.5"
                                                 {{ old("modulo_{$modulo->idrol}_crear", $permisos->crear ?? false) ? 'checked' : '' }}>
-                                            <span class="text-sm text-gray-700">Crear</span>
+                                            <span class="text-xs text-gray-700">Crear</span>
                                         </label>
                                         <label class="flex items-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_modificar" value="1"
-                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-1.5"
                                                 {{ old("modulo_{$modulo->idrol}_modificar", $permisos->modificar ?? false) ? 'checked' : '' }}>
-                                            <span class="text-sm text-gray-700">Modificar</span>
+                                            <span class="text-xs text-gray-700">Modificar</span>
                                         </label>
                                         <label class="flex items-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_eliminar" value="1"
-                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-1.5"
                                                 {{ old("modulo_{$modulo->idrol}_eliminar", $permisos->eliminar ?? false) ? 'checked' : '' }}>
-                                            <span class="text-sm text-gray-700">Eliminar</span>
+                                            <span class="text-xs text-gray-700">Eliminar</span>
                                         </label>
                                     </div>
                                 </div>
@@ -304,13 +304,13 @@
                         </div>
 
                         <!-- Header de la tabla sticky -->
-                        <div class="hidden sm:block sticky top-32 z-20 mb-2">
-                            <div class="grid grid-cols-5 gap-2 px-4 py-3 bg-blue-600 rounded-t-lg border border-blue-700 border-b-0 shadow-lg">
+                        <div class="hidden sm:block sticky top-32 z-20 mb-1">
+                            <div class="grid grid-cols-5 gap-1 px-3 py-2 bg-blue-600 rounded-t-lg border border-blue-700 border-b-0 shadow-lg">
                                 <div class="text-xs font-semibold text-white uppercase tracking-wider">Módulo</div>
 
                                 <!-- Acceso -->
                                 <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
-                                    <div class="flex items-center justify-center gap-2">
+                                    <div class="flex items-center justify-center gap-1">
                                         <span>Acceso</span>
                                         <input type="checkbox" id="selectAllAcceso"
                                             class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
@@ -320,7 +320,7 @@
 
                                 <!-- Crear -->
                                 <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
-                                    <div class="flex items-center justify-center gap-2">
+                                    <div class="flex items-center justify-center gap-1">
                                         <span>Crear</span>
                                         <input type="checkbox" id="selectAllCrear"
                                             class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
@@ -330,7 +330,7 @@
 
                                 <!-- Modificar -->
                                 <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
-                                    <div class="flex items-center justify-center gap-2">
+                                    <div class="flex items-center justify-center gap-1">
                                         <span>Modificar</span>
                                         <input type="checkbox" id="selectAllModificar"
                                             class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
@@ -340,7 +340,7 @@
 
                                 <!-- Eliminar -->
                                 <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
-                                    <div class="flex items-center justify-center gap-2">
+                                    <div class="flex items-center justify-center gap-1">
                                         <span>Eliminar</span>
                                         <input type="checkbox" id="selectAllEliminar"
                                             class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
@@ -377,47 +377,47 @@
                                             $fontClass = 'font-normal text-gray-600';
                                         }
                                     @endphp
-                                    <div class="grid grid-cols-5 gap-2 px-4 py-2 border-b border-gray-100 hover:bg-gray-50 transition-colors {{ $bgClass }} {{ $loop->last ? 'rounded-b-lg' : '' }}">
+                                    <div class="grid grid-cols-5 gap-1 px-3 py-1.5 border-b border-gray-100 hover:bg-gray-50 transition-colors {{ $bgClass }} {{ $loop->last ? 'rounded-b-lg' : '' }}">
                                         <!-- Módulo -->
                                         <div class="flex items-center text-sm {{ $fontClass }} {{ $indent }}">
                                             @if($nivel != '1')
-                                                <span class="text-gray-400 mr-2">└─</span>
+                                                <span class="text-gray-400 mr-1">└─</span>
                                             @endif
                                             {{ $modulo->modulo }}
                                             @if($nivel == '1')
-                                                <span class="ml-2 px-2 py-0.5 bg-blue-200 text-blue-800 text-xs rounded-full">Principal</span>
+                                                <span class="ml-1 px-1.5 py-0.5 bg-blue-200 text-blue-800 text-xs rounded-full">Principal</span>
                                             @elseif($nivel == '2')
-                                                <span class="ml-2 px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Submódulo</span>
+                                                <span class="ml-1 px-1 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Submódulo</span>
                                             @elseif($nivel == '3')
-                                                <span class="ml-2 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">Nivel 3</span>
+                                                <span class="ml-1 px-1 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">Nivel 3</span>
                                             @endif
                                         </div>
 
                                         <!-- Acceso -->
                                         <div class="flex items-center justify-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_acceso" value="1"
-                                                class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-acceso"
+                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-acceso"
                                                 {{ $isEdit ? (old("modulo_{$modulo->idrol}_acceso", $permisos->acceso ?? false) ? 'checked' : '') : 'checked' }}>
                                         </div>
 
                                         <!-- Crear -->
                                         <div class="flex items-center justify-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_crear" value="1"
-                                                class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-crear"
+                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-crear"
                                                 {{ $isEdit ? (old("modulo_{$modulo->idrol}_crear", $permisos->crear ?? false) ? 'checked' : '') : 'checked' }}>
                                         </div>
 
                                         <!-- Modificar -->
                                         <div class="flex items-center justify-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_modificar" value="1"
-                                                class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-modificar"
+                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-modificar"
                                                 {{ $isEdit ? (old("modulo_{$modulo->idrol}_modificar", $permisos->modificar ?? false) ? 'checked' : '') : 'checked' }}>
                                         </div>
 
                                         <!-- Eliminar -->
                                         <div class="flex items-center justify-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_eliminar" value="1"
-                                                class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-eliminar"
+                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-eliminar"
                                                 {{ $isEdit ? (old("modulo_{$modulo->idrol}_eliminar", $permisos->eliminar ?? false) ? 'checked' : '') : 'checked' }}>
                                         </div>
                                     </div>

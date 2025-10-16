@@ -24,7 +24,7 @@
 @section('menu-planeacion')
 <!-- Botones específicos para Programa Tejido -->
 <div class="flex items-center gap-2">
-	<a href="{{ route('catalogos.index') }}"
+	<a href="/submodulos-nivel3/104"
 	   class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
 		<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -263,42 +263,6 @@
 	</div>
 </div>
 
-<!-- Modal de Filtros Avanzados -->
-<div id="filterModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-3xl shadow-lg rounded-lg bg-white">
-        <div class="mt-3">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-medium text-gray-900">Filtrar</h3>
-                <button onclick="closeFilterModal()" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <div id="filterFormContainer" class="space-y-4">
-                <!-- Contenedor de filtros dinámicos -->
-                <div id="filtersInputContainer"></div>
-
-                <button type="button" onclick="addFilterRow()"
-                        class="w-full px-4 py-2 border-2 border-dashed border-gray-300 text-gray-600 rounded-lg hover:border-blue-500 hover:text-blue-600 transition-colors text-sm font-medium">
-                    + Agregar otro filtro
-                </button>
-            </div>
-
-            <div class="mt-6 flex justify-end gap-3">
-                <button type="button" onclick="closeFilterModal()"
-                        class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
-                    Cancelar
-                </button>
-                <button type="button" onclick="applyFilters(); return false;"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                    Buscar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <script>
 // Estado global
@@ -312,11 +276,195 @@ let selectedRowIndex = -1;
 
 // ===== FUNCIONES DE FILTROS =====
 function openFilterModal() {
-    document.getElementById('filterModal').classList.remove('hidden');
+    // Generar lista de filtros activos
+    let filtrosActivosHTML = '';
+    if (filters.length > 0) {
+        filtrosActivosHTML = `
+            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Filtros Activos:</h4>
+                <div class="space-y-1">
+                    ${filters.map((filtro, index) => `
+                        <div class="flex items-center justify-between bg-white p-2 rounded border">
+                            <span class="text-xs">${filtro.column}: ${filtro.value}</span>
+                            <button onclick="removeFilter(${index})" class="text-red-500 hover:text-red-700 text-xs">×</button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    Swal.fire({
+        title: 'Filtrar por Columna',
+        html: `
+            ${filtrosActivosHTML}
+            <div class="text-left space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Columna</label>
+                    <select id="filtro-columna" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Selecciona una columna...</option>
+                        ${columnsData.map(col => `<option value="${col.field}">${col.label}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor a buscar</label>
+                    <input type="text" id="filtro-valor" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresa el valor a buscar">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" id="btn-agregar-otro" class="flex-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">
+                        + Agregar Otro Filtro
+                    </button>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Agregar Filtro',
+        cancelButtonText: 'Cerrar',
+        confirmButtonColor: '#3b82f6',
+        cancelButtonColor: '#6b7280',
+        width: '450px',
+        preConfirm: () => {
+            const columna = document.getElementById('filtro-columna').value;
+            const valor = document.getElementById('filtro-valor').value;
+
+            if (!columna || !valor) {
+                Swal.showValidationMessage('Por favor selecciona una columna e ingresa un valor');
+                return false;
+            }
+
+            // Verificar si ya existe este filtro
+            const existeFiltro = filters.some(f => f.column === columna && f.value === valor);
+            if (existeFiltro) {
+                Swal.showValidationMessage('Este filtro ya está activo');
+                return false;
+            }
+
+            return { column: columna, value: valor };
+        },
+        didOpen: () => {
+            // Agregar event listener al botón "Agregar Otro Filtro"
+            document.getElementById('btn-agregar-otro').addEventListener('click', () => {
+                const columna = document.getElementById('filtro-columna').value;
+                const valor = document.getElementById('filtro-valor').value;
+
+                if (!columna || !valor) {
+                    Swal.showValidationMessage('Por favor selecciona una columna e ingresa un valor');
+                    return;
+                }
+
+                // Verificar si ya existe este filtro
+                const existeFiltro = filters.some(f => f.column === columna && f.value === valor);
+                if (existeFiltro) {
+                    Swal.showValidationMessage('Este filtro ya está activo');
+                    return;
+                }
+
+                // Agregar filtro y limpiar campos
+                filters.push({ column: columna, value: valor });
+                applyFilters();
+                showToast('Filtro agregado correctamente', 'success');
+
+                // Limpiar campos para el siguiente filtro
+                document.getElementById('filtro-valor').value = '';
+
+                // Actualizar la vista del modal con los nuevos filtros activos
+                updateFilterModal();
+            });
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Agregar nuevo filtro
+            filters.push(result.value);
+
+            // Aplicar filtros
+            applyFilters();
+
+            showToast('Filtro agregado correctamente', 'success');
+        }
+    });
 }
 
-function closeFilterModal() {
-    document.getElementById('filterModal').classList.add('hidden');
+
+function removeFilter(index) {
+    filters.splice(index, 1);
+    applyFilters();
+    showToast('Filtro eliminado', 'info');
+    updateFilterModal();
+}
+
+function updateFilterModal() {
+    // Generar nueva lista de filtros activos
+    let filtrosActivosHTML = '';
+    if (filters.length > 0) {
+        filtrosActivosHTML = `
+            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Filtros Activos:</h4>
+                <div class="space-y-1">
+                    ${filters.map((filtro, index) => `
+                        <div class="flex items-center justify-between bg-white p-2 rounded border">
+                            <span class="text-xs">${filtro.column}: ${filtro.value}</span>
+                            <button onclick="removeFilter(${index})" class="text-red-500 hover:text-red-700 text-xs">×</button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Actualizar el contenido del modal
+    const modalContent = document.querySelector('.swal2-html-container');
+    if (modalContent) {
+        modalContent.innerHTML = `
+            ${filtrosActivosHTML}
+            <div class="text-left space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Columna</label>
+                    <select id="filtro-columna" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Selecciona una columna...</option>
+                        ${columnsData.map(col => `<option value="${col.field}">${col.label}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor a buscar</label>
+                    <input type="text" id="filtro-valor" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresa el valor a buscar">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" id="btn-agregar-otro" class="flex-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">
+                        + Agregar Otro Filtro
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Reagregar event listener al botón
+        document.getElementById('btn-agregar-otro').addEventListener('click', () => {
+            const columna = document.getElementById('filtro-columna').value;
+            const valor = document.getElementById('filtro-valor').value;
+
+            if (!columna || !valor) {
+                Swal.showValidationMessage('Por favor selecciona una columna e ingresa un valor');
+                return;
+            }
+
+            // Verificar si ya existe este filtro
+            const existeFiltro = filters.some(f => f.column === columna && f.value === valor);
+            if (existeFiltro) {
+                Swal.showValidationMessage('Este filtro ya está activo');
+                return;
+            }
+
+            // Agregar filtro y limpiar campos
+            filters.push({ column: columna, value: valor });
+            applyFilters();
+            showToast('Filtro agregado correctamente', 'success');
+
+            // Limpiar campos para el siguiente filtro
+            document.getElementById('filtro-valor').value = '';
+
+            // Actualizar la vista del modal con los nuevos filtros activos
+            updateFilterModal();
+        });
+    }
 }
 
 function resetFilters() {
@@ -390,12 +538,7 @@ function resetFilters() {
     pinnedColumns = [];
     selectedFilterIndex = -1;
 
-    // Limpiar modal de filtros
-    document.getElementById('filtersInputContainer').innerHTML = '';
-    addFilterRow();
-
     // Actualizar UI
-    updateActiveFiltersDisplay();
     updateFilterCount();
 
     // Ocultar badge de filtros
@@ -405,15 +548,7 @@ function resetFilters() {
         filterBadge.textContent = '0';
     }
 
-    Swal.fire({
-        title: 'Restablecido',
-        text: 'Todos los filtros y configuraciones han sido eliminados',
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end'
-    });
+    showToast('Restablecido<br>Todos los filtros y configuraciones han sido eliminados', 'success');
 }
 
 // ===== FUNCIONES DE COLUMNAS =====
@@ -529,108 +664,17 @@ function updatePinnedColumnsPositions() {
 
 function showColumnVisibilityAlert() {
     if (hiddenColumns.length > 0) {
-        Swal.fire({
-            title: 'Columnas ocultas',
-            html: `Tienes ${hiddenColumns.length} columna(s) oculta(s). <br>Usa "Restablecer" para mostrarlas de nuevo.`,
-            icon: 'info',
-            timer: 3000,
-            showConfirmButton: false,
-            position: 'top-end',
-            toast: true
-        });
+        showToast(`Columnas ocultas<br>Tienes ${hiddenColumns.length} columna(s) oculta(s). Usa "Restablecer" para mostrarlas de nuevo.`, 'info');
     }
 }
 
 // ===== FUNCIONES DE FILTROS =====
-function addFilterRow() {
-    const container = document.getElementById('filtersInputContainer');
-    const filterIndex = filters.length;
-
-    const filterRow = document.createElement('div');
-    filterRow.className = 'filter-row p-4 border border-gray-200 rounded-lg bg-gray-50';
-    filterRow.dataset.filterIndex = filterIndex;
-    filterRow.innerHTML = `
-        <div class="flex items-center gap-3">
-            <div class="flex-1">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Columna</label>
-                <select class="filter-column w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" onchange="updateFilterPreview(${filterIndex})">
-                    <option value="">Selecciona una columna...</option>
-                    ${columnsData.map(col => `<option value="${col.field}">${col.label}</option>`).join('')}
-                </select>
-            </div>
-            <div class="flex-1">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Valor</label>
-                <input type="text" class="filter-value w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Escribe el valor..." onchange="updateFilterPreview(${filterIndex})">
-            </div>
-            <div class="pt-6">
-                <button type="button" onclick="removeFilter(${filterIndex})" class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" title="Eliminar filtro">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-        </div>
-        <div class="filter-preview mt-2 text-xs text-gray-500 hidden"></div>
-    `;
-
-    container.appendChild(filterRow);
-    filters.push({ column: '', value: '', index: filterIndex });
-}
-
-function removeFilter(index) {
-    const filterRow = document.querySelector(`[data-filter-index="${index}"]`);
-    if (filterRow) {
-        filterRow.remove();
-    }
-    filters = filters.filter(f => f.index !== index);
-    updateFilterCount();
-}
-
-function updateFilterPreview(index) {
-    const filterRow = document.querySelector(`[data-filter-index="${index}"]`);
-    const column = filterRow.querySelector('.filter-column').value;
-    const value = filterRow.querySelector('.filter-value').value;
-    const preview = filterRow.querySelector('.filter-preview');
-
-    if (column && value) {
-        const columnLabel = columnsData.find(c => c.field === column)?.label || column;
-        preview.textContent = `Filtro: ${columnLabel} contiene "${value}"`;
-        preview.classList.remove('hidden');
-
-        // Actualizar en el array
-        const filterObj = filters.find(f => f.index === index);
-        if (filterObj) {
-            filterObj.column = column;
-            filterObj.value = value;
-        }
-    } else {
-        preview.classList.add('hidden');
-    }
-}
-
 function applyFilters() {
-    // Recoger todos los filtros activos
-    const activeFilters = [];
-    const filterRows = document.querySelectorAll('.filter-row');
-
-    filterRows.forEach(row => {
-        const column = row.querySelector('.filter-column').value;
-        const value = row.querySelector('.filter-value').value;
-
-        if (column && value) {
-            activeFilters.push({ column, value });
-        }
-    });
-
-    if (activeFilters.length === 0) {
-        Swal.fire('Sin filtros', 'Debes agregar al menos un filtro válido', 'warning');
-        return;
-    }
-
-    // Aplicar filtros a la tabla
+    // Aplicar filtros a la tabla usando el array filters
     let visibleRows = allRows;
 
-    activeFilters.forEach(filter => {
+    if (filters.length > 0) {
+        filters.forEach(filter => {
         visibleRows = visibleRows.filter(row => {
             const cell = row.querySelector(`[data-column="${filter.column}"]`);
             if (cell) {
@@ -641,6 +685,7 @@ function applyFilters() {
             return false;
         });
     });
+    }
 
     // Actualizar tabla
     const tbody = document.querySelector('#mainTable tbody');
@@ -654,113 +699,20 @@ function applyFilters() {
     });
 
     // Actualizar UI
-    filters = activeFilters;
-    updateActiveFiltersDisplay();
     updateFilterCount();
-    closeFilterModal();
 
-    Swal.fire({
-        title: 'Filtros aplicados',
-        text: `Se aplicaron ${activeFilters.length} filtro(s) - ${visibleRows.length} resultado(s) encontrado(s)`,
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end'
-    });
+    if (filters.length > 0) {
+        showToast(`Filtros aplicados<br>Se aplicaron ${filters.length} filtro(s) - ${visibleRows.length} resultado(s) encontrado(s)`, 'success');
+    }
 }
 
 function updateActiveFiltersDisplay() {
-    const container = document.getElementById('filtersList');
-    const activeFiltersDiv = document.getElementById('activeFilters');
-    const priorityControls = document.getElementById('priorityControls');
-
-    if (filters.length === 0) {
-        if (activeFiltersDiv) activeFiltersDiv.classList.add('hidden');
-        if (priorityControls) priorityControls.classList.add('hidden');
-        return;
-    }
-
-    if (activeFiltersDiv) activeFiltersDiv.classList.remove('hidden');
-    if (priorityControls) priorityControls.classList.remove('hidden');
-
-    if (container) {
-        container.innerHTML = filters.map((filter, index) => {
-            const columnLabel = columnsData.find(c => c.field === filter.column)?.label || filter.column;
-            return `
-                <div class="inline-flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs cursor-pointer hover:bg-purple-200 ${selectedFilterIndex === index ? 'ring-2 ring-purple-500' : ''}"
-                     onclick="selectFilter(${index})">
-                    <span class="font-medium">${columnLabel}:</span>
-                    <span>${filter.value}</span>
-                    <button type="button" onclick="event.stopPropagation(); quickRemoveFilter(${index})" class="hover:text-purple-900">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            `;
-        }).join('');
-    }
-}
-
-function quickRemoveFilter(index) {
-    filters.splice(index, 1);
-    if (filters.length === 0) {
-        resetFilters();
-    } else {
-        applyFiltersFromActive();
-    }
-}
-
-function applyFiltersFromActive() {
-    let visibleRows = allRows;
-
-    filters.forEach(filter => {
-        visibleRows = visibleRows.filter(row => {
-            const cell = row.querySelector(`[data-column="${filter.column}"]`);
-            if (cell) {
-                const cellValue = cell.textContent.toLowerCase();
-                const filterValue = filter.value.toLowerCase();
-                return cellValue.includes(filterValue);
-            }
-            return false;
-        });
-    });
-
-    const tbody = document.querySelector('#mainTable tbody');
-    tbody.innerHTML = '';
-    visibleRows.forEach((row, index) => {
-        // Re-agregar event listeners para selección de filas
-        row.addEventListener('click', function() {
-            selectRow(this, index);
-        });
-        tbody.appendChild(row);
-    });
-
-    updateActiveFiltersDisplay();
+    // Función simplificada - ya no se necesita
     updateFilterCount();
 }
 
-function selectFilter(index) {
-    selectedFilterIndex = index;
-    updateActiveFiltersDisplay();
-}
 
-function moveFilterUp() {
-    if (selectedFilterIndex > 0) {
-        [filters[selectedFilterIndex], filters[selectedFilterIndex - 1]] = [filters[selectedFilterIndex - 1], filters[selectedFilterIndex]];
-        selectedFilterIndex--;
-        applyFiltersFromActive();
-    }
-}
 
-function moveFilterDown() {
-    if (selectedFilterIndex >= 0 && selectedFilterIndex < filters.length - 1) {
-        [filters[selectedFilterIndex], filters[selectedFilterIndex + 1]] = [filters[selectedFilterIndex + 1], filters[selectedFilterIndex]];
-        selectedFilterIndex++;
-        applyFiltersFromActive();
-    }
-}
 
 function updateFilterCount() {
     const badge = document.getElementById('filterCount');
@@ -772,12 +724,6 @@ function updateFilterCount() {
     }
 }
 
-// Cerrar modal al hacer clic fuera
-document.getElementById('filterModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeFilterModal();
-    }
-});
 
 // Inicializar
 document.addEventListener('DOMContentLoaded', function() {
@@ -895,15 +841,7 @@ function moveRowUp() {
         const newSelectedRow = rows[selectedRowIndex];
         selectRow(newSelectedRow, selectedRowIndex);
 
-        Swal.fire({
-            title: 'Fila movida',
-            text: 'La fila se ha movido hacia arriba',
-            icon: 'success',
-            timer: 1500,
-            showConfirmButton: false,
-            position: 'top-end',
-            toast: true
-        });
+        showToast('Fila movida<br>La fila se ha movido hacia arriba', 'success');
     }
 }
 
@@ -925,18 +863,13 @@ function moveRowDown() {
         const newSelectedRow = rows[selectedRowIndex];
         selectRow(newSelectedRow, selectedRowIndex);
 
-        Swal.fire({
-            title: 'Fila movida',
-            text: 'La fila se ha movido hacia abajo',
-            icon: 'success',
-            timer: 1500,
-            showConfirmButton: false,
-            position: 'top-end',
-            toast: true
-        });
+        showToast('Fila movida<br>La fila se ha movido hacia abajo', 'success');
     }
 }
+
 </script>
+
+@include('components.toast-notification')
 @endsection
 
 

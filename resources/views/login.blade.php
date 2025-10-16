@@ -8,7 +8,6 @@
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="{{ asset('css/estilos.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -84,14 +83,16 @@
                         <p class="text-slate-600">Escanea tu código QR para acceder</p>
                     </div>
 
-                    <x-action-button
-                        onclick="openQRModal('qr-video-container')"
-                        variant="primary"
-                        size="lg"
-                        fullWidth="true"
+                    <button
+                        type="button"
+                        onclick="openQRScanner()"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center text-lg"
                     >
+                        <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 3h7v7H3V3zm9 0h7v7h-7V3zm-9 9h7v7H3v-7zm15 0h3v3h-3v-3zm-3-9h3v3h-3V3zm3 6h3v3h-3V9zm-9 6h3v3h-3v-3zm6 0h3v3h-3v-3zm-3 0h3v3h-3v-3z"/>
+                        </svg>
                         Escanear Código QR
-                    </x-action-button>
+                    </button>
                 </div>
 
 
@@ -99,8 +100,35 @@
         </div>
     </div>
 
-    <!-- Modal de QR usando componente -->
-    <x-qr-modal id="qr-video-container" title="Escanea tu código..." />
+    <!-- Modal de QR -->
+    <div id="qr-modal" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div class="text-center">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Escáner QR</h3>
+
+                <!-- Video container -->
+                <div class="relative mb-4">
+                    <video id="qr-video" autoplay class="w-full h-64 bg-gray-100 rounded-lg"></video>
+                    <canvas id="qr-canvas" class="hidden"></canvas>
+                </div>
+
+                <!-- Status message -->
+                <div id="qr-status" class="text-sm text-gray-600 mb-4">
+                    Preparando cámara...
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex space-x-3">
+                    <button
+                        onclick="closeQRScanner()"
+                        class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+                    >
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 
@@ -147,19 +175,156 @@
             }
         }
 
-        // Función global para abrir modal QR
-        window.openQRModal = function(modalId) {
-            if (window.qrScanners && window.qrScanners[modalId]) {
-                window.qrScanners[modalId].start();
-            }
-        };
+        // Función para abrir el escáner QR
+        async function openQRScanner() {
+            const modal = document.getElementById('qr-modal');
+            const video = document.getElementById('qr-video');
+            const status = document.getElementById('qr-status');
 
-        // Función global para cerrar modal QR
-        window.closeQRModal = function(modalId) {
-            if (window.qrScanners && window.qrScanners[modalId]) {
-                window.qrScanners[modalId].stop();
+            modal.classList.remove('hidden');
+            status.textContent = 'Preparando cámara...';
+
+            try {
+                // Verificar si estamos en HTTPS o localhost
+                const isSecure = location.protocol === 'https:' ||
+                                location.hostname === 'localhost' ||
+                                location.hostname === '127.0.0.1';
+
+                if (!isSecure) {
+                    status.innerHTML = '❌ La cámara requiere HTTPS<br><small>Accede a: https://localhost:8000</small>';
+                    return;
+                }
+
+                // Verificar soporte de getUserMedia
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    status.innerHTML = '❌ Tu navegador no soporta la cámara<br><small>Usa Chrome, Firefox o Safari</small>';
+                    return;
+                }
+
+                // Solicitar acceso a la cámara
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment', // Cámara trasera
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                });
+
+                video.srcObject = stream;
+                status.textContent = 'Apunta la cámara al código QR';
+
+                // Iniciar escaneo
+                video.onloadedmetadata = () => {
+                    video.play();
+                    startQRScanning();
+                };
+
+            } catch (error) {
+                console.error('Error al acceder a la cámara:', error);
+
+                let errorMsg = '❌ No se pudo acceder a la cámara\n\n';
+                if (error.name === 'NotAllowedError') {
+                    errorMsg += 'Permisos denegados. Por favor, permite el acceso a la cámara.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMsg += 'No se encontró ninguna cámara.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMsg += 'La cámara está siendo usada por otra aplicación.';
+                } else {
+                    errorMsg += `Error: ${error.message}`;
+                }
+
+                status.innerHTML = errorMsg.replace(/\n/g, '<br>');
             }
-        };
+        }
+
+        // Función para iniciar el escaneo QR
+        function startQRScanning() {
+            const video = document.getElementById('qr-video');
+            const canvas = document.getElementById('qr-canvas');
+            const status = document.getElementById('qr-status');
+
+            interval = setInterval(() => {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+                    // Usar jsQR para detectar el código
+                    if (typeof jsQR === 'function') {
+                        const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+                        if (code) {
+                            console.log('QR detectado:', code.data);
+                            authenticateWithQR(code.data);
+                        }
+                    }
+                }
+            }, 100);
+        }
+
+        // Función para autenticar con QR detectado
+        async function authenticateWithQR(qrData) {
+            const status = document.getElementById('qr-status');
+            status.textContent = 'Verificando código...';
+
+            console.log('QR detectado:', qrData);
+
+            try {
+                const response = await fetch('/login-qr', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ numero_empleado: qrData })
+                });
+
+                console.log('Respuesta del servidor:', response.status);
+                const data = await response.json();
+                console.log('Datos recibidos:', data);
+
+                if (data.success) {
+                    status.textContent = `✅ Acceso exitoso! Bienvenido ${data.user || ''}`;
+                    // Cerrar el modal inmediatamente
+                    closeQRScanner();
+                    // Redirigir inmediatamente al primer éxito
+                    window.location.href = '/produccionProceso';
+                } else {
+                    status.textContent = `❌ ${data.message || 'Código QR inválido'}`;
+                    setTimeout(() => {
+                        status.textContent = 'Apunta la cámara al código QR';
+                    }, 3000);
+                }
+            } catch (error) {
+                console.error('Error en la autenticación QR:', error);
+                status.textContent = '❌ Error de conexión. Reintentando...';
+                setTimeout(() => {
+                    status.textContent = 'Apunta la cámara al código QR';
+                }, 3000);
+            }
+        }
+
+        // Función para cerrar el escáner QR
+        function closeQRScanner() {
+            const modal = document.getElementById('qr-modal');
+            modal.classList.add('hidden');
+
+            // Detener stream de cámara
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+
+            // Limpiar interval
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
+            }
+        }
     </script>
 
     <!-- Script para recarga de página -->

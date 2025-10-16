@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <title>ORDEN DE URDIDO Y ENGOMADO</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="{{ asset('css/estilos.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 
@@ -15,7 +14,7 @@
             <div>
                 <img src="{{ asset('images/fondosTowell/logo_towell2.png') }}" alt="Logo Towell" style="width: 2cm;">
             </div>
-            <p class="font-bold text-lg text-sm">ORDEN DE URDIDO Y ENGOMADO</p>
+            <p class="font-bold text-lg">ORDEN DE URDIDO Y ENGOMADO</p>
             <div class="text-right mr-2">
                 <p class="text-sm">No. FOLIO: <span class="font-bold text-red-600">{{ $folio }}</span></p>
             </div>
@@ -122,7 +121,7 @@
                             <th
                                 class="border border-black p-[1px]
                     {{ $index === 0 ? 'w-20' : '' }}
-                    {{ $index === 1 ? 'w-20' : '' }}  
+                    {{ $index === 1 ? 'w-20' : '' }}
                     {{ $index === 2 ? 'w-5' : '' }}
                     {{ $index === 3 ? 'w-15' : '' }}
                     {{ $index === 4 ? 'w-15' : '' }}
@@ -145,7 +144,7 @@
                         <tr>
                             @for ($j = 0; $j < 15; $j++)
                                 <td
-                                    class="border border-black p-[10px] whitespace-nowrap 
+                                    class="border border-black p-[10px] whitespace-nowrap
                             {{ $j === 0 ? 'w-32' : '' }}
                             {{ $j === 2 ? 'w-5' : '' }}
                             {{ $j === 5 ? 'w-5' : '' }}

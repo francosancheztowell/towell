@@ -39,46 +39,51 @@ class AuthController extends Controller
         }
 
         if ($empleado && $passwordOk) {
-            // Contraseña correcta, realizar login
+            // Contraseña correcta, realizar login (seguro)
             Auth::login($empleado);
+            $request->session()->regenerate();
             session()->flash('bienvenida', true);
             return redirect()->intended('/produccionProceso');
         }
 
-        // ==============================================================
-        // TEMPORAL: BYPASS DE LOGIN
-        // Permite entrar solo con número de empleado aunque la contraseña no
-        // coincida. Úsese mientras se ajusta/migra la autenticación.
-        // IMPORTANTE: quitar este bloque cuando el login quede estable.
-        // ==============================================================
-        if ($empleado) {
-            Auth::login($empleado);
-            session()->flash('bienvenida', true);
-            session()->flash('login_bypass', true); // indicador de bypass
-            return redirect()->intended('/produccionProceso');
-        }
-
-        // Si no se encuentran las credenciales, devolver error
-        return back()->with('error', 'Su contraseña está incorrecta');
+        // Credenciales inválidas
+        return back()->with('error', 'Credenciales incorrectas. Verifica tu número de empleado y contraseña.');
     }
 
     public function loginQR(Request $request)
     {
-        $request->validate([
-            'numero_empleado' => 'required|exists:sqlsrv_ti.SYSUsuario,numero_empleado'
-        ]);
+        try {
+            $request->validate([
+                'numero_empleado' => 'required|string'
+            ]);
 
-        // Buscar el usuario en la BD
-        $empleado = Usuario::where('numero_empleado', $request->numero_empleado)->first();
+            // Buscar el usuario en la BD
+            $empleado = Usuario::where('numero_empleado', $request->numero_empleado)->first();
 
-        if ($empleado) {
-            // Iniciar sesión sin contraseña
-            Auth::login($empleado);
-            session()->flash('bienvenida', true);
-            return response()->json(['success' => true]);
+            if ($empleado) {
+                // Iniciar sesión sin contraseña
+                Auth::login($empleado);
+                $request->session()->regenerate();
+                session()->flash('bienvenida', true);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Login exitoso',
+                    'user' => $empleado->nombre
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Empleado no encontrado: ' . $request->numero_empleado
+            ], 401);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
         }
-
-        return response()->json(['success' => false, 'message' => 'Empleado no encontrado'], 401);
     }
 
     public function logout()

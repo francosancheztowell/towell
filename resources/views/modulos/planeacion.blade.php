@@ -62,9 +62,9 @@
                     📑</a>
                 <a href="{{ route('velocidad.index') }}" class="button-plane rounded-full ml-1 p-1 mt-1 ">VELOCIDAD STD
                     📑</a>
-                <a href="{{ route('calendariot1.index') }}" class="button-plane rounded-full ml-1 p-1 mt-1">CALENDARIOS
+                <a href="{{ route('calendarios.index') }}" class="button-plane rounded-full ml-1 p-1 mt-1">CALENDARIOS
                     🗓️</a>
-                <a href="{{ route('planeacion.aplicaciones') }}"
+                <a href="{{ route('reportes.aplicaciones') }}"
                     class="button-plane rounded-full ml-2 p-1 mt-1">APLICACIONES
                     🧩</a>
                 <a href="{{ route('modelos.index') }}" class="button-plane-2 rounded-full ml-1 p-1 mt-1">MODELOS 🛠️</a>

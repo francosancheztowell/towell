@@ -22,6 +22,7 @@ use App\Http\Controllers\TejidoSchedullingController;
 use App\Http\Controllers\TelaresController;
 use App\Http\Controllers\UrdidoController;
 use App\Http\Controllers\WhatsAppController;
+use App\Http\Controllers\ModulosController;
 
 
 //Rutas de login, con logout, no protegidas por middleware
@@ -342,6 +343,7 @@ Route::get('/tejido/karl-mayer', function () {
     Route::get('/usuarios/create', [UsuarioController::class, 'create'])->name('usuarios.create');
     Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
     Route::get('/usuarios/select', [UsuarioController::class, 'select'])->name('usuarios.select');
+    Route::get('/usuarios/{idusuario}/qr', [UsuarioController::class, 'showQR'])->name('usuarios.qr');
     Route::get('/configuracion', [UsuarioController::class, 'showConfiguracion'])->name('configuracion.index');
     Route::get('/configuracion/submodulos/{serie}', [UsuarioController::class, 'showSubModulosConfiguracion'])->name('configuracion.submodulos');
     // CRUD REST (edit/update/destroy)
@@ -368,7 +370,7 @@ Route::get('/tejido/karl-mayer', function () {
 
 
     // ✅ NUEVAS RUTAS de PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION
-    Route::get('/catalagos/calendarios', [CalendarioController::class, 'CalendarioT1'])->name('calendariot1.index');
+    Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');
     Route::get('/aplicaciones', [PlaneacionController::class, 'aplicaciones'])->name('planeacion.aplicaciones');
     Route::post('/calendarios/update-inline', [CalendarioController::class, 'updateInline'])->name('calendarios.update.inline');
     Route::get('/planeacion/tipo-movimientos/{id}', [PlaneacionController::class, 'obtenerPorTejNum']);
@@ -446,6 +448,15 @@ Route::get('/tejido/karl-mayer', function () {
     //RUTAS TEMPORALES
     Route::post('/reportes-temporales', [ReporteTemporalController::class, 'store'])->name('reportes-temporales.store');
     Route::get('/reportes-temporales', [\App\Http\Controllers\ReporteTemporalController::class, 'index'])->name('reportes-temporales.index');
+
+    //Rutas para gestión de módulos
+    Route::resource('modulos', ModulosController::class);
+    Route::get('/modulo-modulos', [ModulosController::class, 'index'])->name('modulos.index');
+    Route::get('/modulos/{modulo}/duplicar', [ModulosController::class, 'duplicar'])->name('modulos.duplicar');
+    Route::post('/modulos/{modulo}/toggle-acceso', [ModulosController::class, 'toggleAcceso'])->name('modulos.toggle.acceso');
+    Route::post('/modulos/{modulo}/toggle-permiso', [ModulosController::class, 'togglePermiso'])->name('modulos.toggle.permiso');
+    Route::get('/api/modulos/nivel/{nivel}', [ModulosController::class, 'getModulosPorNivel'])->name('api.modulos.nivel');
+    Route::get('/api/modulos/submodulos/{dependencia}', [ModulosController::class, 'getSubmodulos'])->name('api.modulos.submodulos');
 
     //Rutas para inventario de telares
     Route::get('/inventario-telares', function (\Illuminate\Http\Request $request) {

@@ -133,6 +133,15 @@
 
                                     <!-- Botones de acción -->
                                     <div class="flex items-center gap-2 ml-2 lg:ml-4 flex-shrink-0">
+                                        <a href="{{ route('usuarios.qr', $u->idusuario) }}"
+                                           class="inline-flex items-center px-3 py-2 text-sm font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors"
+                                           title="Ver código QR">
+                                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M3 3h7v7H3V3zm9 0h7v7h-7V3zm-9 9h7v7H3v-7zm15 0h3v3h-3v-3zm-3-9h3v3h-3V3zm3 6h3v3h-3V9zm-9 6h3v3h-3v-3zm6 0h3v3h-3v-3zm-3 0h3v3h-3v-3z"/>
+                                            </svg>
+                                            QR
+                                        </a>
+
                                         <a href="{{ route('usuarios.edit', $u->idusuario) }}"
                                            class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors">
                                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

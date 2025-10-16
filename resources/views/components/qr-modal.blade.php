@@ -26,20 +26,51 @@
 <!-- Modal de QR -->
 <div
     id="{{ $id }}"
-    class="fixed inset-0 w-screen h-screen bg-black bg-opacity-80 items-center justify-center z-50 hidden"
+    class="fixed inset-0 w-screen h-screen bg-black bg-opacity-90 items-center justify-center z-50 hidden"
 >
-    <video id="qr-video" autoplay class="w-4/5 max-w-md h-auto border-4 border-white rounded-lg bg-black"></video>
+    <!-- Contenedor principal -->
+    <div class="relative w-full max-w-md mx-4">
+        <!-- Video de la cámara -->
+        <video id="qr-video" autoplay class="w-full h-auto border-4 border-white rounded-lg bg-black shadow-2xl"></video>
 
-    <div class="absolute inset-0 bg-black bg-opacity-50 flex flex-col items-center justify-center text-white text-2xl z-10">
-        <div id="qr-message" class="mb-5">{{ $title }}</div>
-        <div class="mt-5 border-3 border-white w-50 h-50 rounded-lg"></div>
+        <!-- Overlay con guías de escaneo -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <!-- Marco de escaneo -->
+            <div class="relative">
+                <!-- Marco exterior -->
+                <div class="w-64 h-64 border-2 border-white rounded-lg relative">
+                    <!-- Esquinas decorativas -->
+                    <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-400 rounded-tl-lg"></div>
+                    <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-400 rounded-tr-lg"></div>
+                    <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-400 rounded-bl-lg"></div>
+                    <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-400 rounded-br-lg"></div>
+                </div>
+            </div>
+        </div>
 
+        <!-- Información y controles -->
+        <div class="absolute inset-0 flex flex-col items-center justify-end pb-8 pointer-events-none">
+            <!-- Mensaje de estado -->
+            <div id="qr-message" class="text-white text-lg font-medium mb-4 text-center bg-black bg-opacity-60 px-4 py-2 rounded-lg">
+                {{ $title }}
+            </div>
+
+            <!-- Instrucciones -->
+            <div class="text-white text-sm text-center bg-black bg-opacity-60 px-4 py-2 rounded-lg mb-4">
+                Apunta la cámara al código QR
+            </div>
+        </div>
+
+        <!-- Botón de cerrar -->
         <button
             id="cerrar-qr"
-            class="absolute top-3 right-3 z-20 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+            class="absolute top-4 right-4 z-20 bg-red-600 hover:bg-red-700 text-white p-3 rounded-full shadow-lg transition-colors pointer-events-auto"
             onclick="closeQRModal('{{ $id }}')"
+            title="Cerrar escáner"
         >
-            Cerrar QR
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
         </button>
     </div>
 </div>
@@ -56,22 +87,43 @@ class QRScanner {
     }
 
     async start() {
+        console.log('QRScanner.start() llamado');
+        console.log('Modal:', this.modal);
+        console.log('Video:', this.video);
+
         try {
-            this.stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
-            });
+            console.log('Solicitando acceso a la cámara...');
+
+            // Intentar cámara frontal primero, luego trasera como fallback
+            try {
+                this.stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user' } // Cámara frontal
+                });
+                console.log('Cámara frontal obtenida');
+            } catch (frontError) {
+                console.log('Cámara frontal no disponible, usando trasera:', frontError);
+                this.stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' } // Cámara trasera
+                });
+                console.log('Cámara trasera obtenida');
+            }
 
             if (this.video) {
+                console.log('Configurando video...');
                 this.video.srcObject = this.stream;
                 this.modal.classList.remove('hidden');
                 this.modal.classList.add('flex');
-                this.video.play();
+                await this.video.play();
+                console.log('Video iniciado');
 
                 this.interval = setInterval(() => {
                     if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
                         this.scanQR();
                     }
                 }, 100);
+                console.log('Interval de escaneo iniciado');
+            } else {
+                console.error('Elemento video no encontrado');
             }
         } catch (error) {
             console.error('Error al acceder a la cámara:', error);
@@ -103,6 +155,11 @@ class QRScanner {
 
     async authenticateWithQR(qrData) {
         try {
+            // Actualizar mensaje
+            if (this.message) {
+                this.message.textContent = 'Verificando código...';
+            }
+
             const response = await fetch('/login-qr', {
                 method: 'POST',
                 headers: {
@@ -115,13 +172,30 @@ class QRScanner {
             const data = await response.json();
 
             if (data.success) {
-                window.location.href = '/produccionProceso';
+                if (this.message) {
+                    this.message.textContent = '¡Acceso exitoso! Redirigiendo...';
+                }
+                setTimeout(() => {
+                    window.location.href = '/produccionProceso';
+                }, 1000);
             } else {
-                alert('Error: ' + data.message);
+                if (this.message) {
+                    this.message.textContent = 'Error: ' + (data.message || 'Código QR inválido');
+                }
+                // Reiniciar escaneo después de 3 segundos
+                setTimeout(() => {
+                    this.start();
+                }, 3000);
             }
         } catch (error) {
             console.error('Error en la autenticación QR:', error);
-            alert('Error en la autenticación. Inténtalo de nuevo.');
+            if (this.message) {
+                this.message.textContent = 'Error de conexión. Reintentando...';
+            }
+            // Reiniciar escaneo después de 3 segundos
+            setTimeout(() => {
+                this.start();
+            }, 3000);
         }
     }
 
@@ -147,9 +221,15 @@ class QRScanner {
 window.qrScanners = window.qrScanners || {};
 
 function openQRModal(modalId) {
+    console.log('openQRModal llamado con:', modalId);
+    console.log('jsQR disponible:', typeof jsQR);
+
     if (!window.qrScanners[modalId]) {
+        console.log('Creando nuevo QRScanner...');
         window.qrScanners[modalId] = new QRScanner(modalId);
     }
+
+    console.log('Iniciando scanner...');
     window.qrScanners[modalId].start();
 }
 

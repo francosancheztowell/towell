@@ -77,8 +77,6 @@
                     id="password"
                     placeholder="Ingresa tu contraseña"
                     required
-                    inputmode="numeric"
-                    pattern="[0-9]*"
                     class="w-full px-4 py-4 pr-12 border border-gray-300 rounded-lg text-base transition-all duration-200 bg-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
 

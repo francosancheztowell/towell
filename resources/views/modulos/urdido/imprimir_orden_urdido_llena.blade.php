@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <title>ORDEN DE URDIDO Y ENGOMADO</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="{{ asset('css/estilos.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 
@@ -121,7 +120,7 @@
                             <th
                                 class="border border-black p-[1px]
                     {{ $index === 0 ? 'w-20' : '' }}
-                    {{ $index === 1 ? 'w-20' : '' }}  
+                    {{ $index === 1 ? 'w-20' : '' }}
                     {{ $index === 2 ? 'w-5' : '' }}
                     {{ $index === 3 ? 'w-15' : '' }}
                     {{ $index === 4 ? 'w-15' : '' }}

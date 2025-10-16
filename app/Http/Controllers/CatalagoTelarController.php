@@ -10,27 +10,44 @@ class CatalagoTelarController extends Controller
 {
     public function index(Request $request)
     {
-        // Realiza la consulta con los filtros
-        $telares = DB::table('catalago_telares')
-        ->when($request->salon, function ($query) use ($request) {
-            return $query->where('salon', 'like', '%' . $request->salon . '%');
-        })
-        ->when($request->telar, function ($query) use ($request) {
-            return $query->where('telar', 'like', '%' . $request->telar . '%');
-        })
-        ->when($request->nombre, function ($query) use ($request) {
-            return $query->where('nombre', 'like', '%' . $request->nombre . '%');
-        })
-        ->when($request->cuenta, function ($query) use ($request) {
-            return $query->where('cuenta', 'like', '%' . $request->cuenta . '%');
-        })
-        ->when($request->piel, function ($query) use ($request) {
-            return $query->where('piel', 'like', '%' . $request->piel . '%');
-        })
-        ->when($request->ancho, function ($query) use ($request) {
-            return $query->where('ancho', 'like', '%' . $request->ancho . '%');
-        })
-        ->get();
+        // Datos de ejemplo estáticos (solo frontend)
+        $telares = collect([
+            (object)['salon' => 'Salón A', 'telar' => 'T001', 'nombre' => 'Telar Sulzer 1', 'grupo' => 'Grupo 1'],
+            (object)['salon' => 'Salón A', 'telar' => 'T002', 'nombre' => 'Telar Sulzer 2', 'grupo' => 'Grupo 1'],
+            (object)['salon' => 'Salón B', 'telar' => 'T003', 'nombre' => 'Telar Jacquard 1', 'grupo' => 'Grupo 2'],
+            (object)['salon' => 'Salón B', 'telar' => 'T004', 'nombre' => 'Telar Jacquard 2', 'grupo' => 'Grupo 2'],
+            (object)['salon' => 'Salón C', 'telar' => 'T005', 'nombre' => 'Telar Air Jet 1', 'grupo' => 'Grupo 3'],
+            (object)['salon' => 'Salón C', 'telar' => 'T006', 'nombre' => 'Telar Air Jet 2', 'grupo' => 'Grupo 3'],
+            (object)['salon' => 'Salón A', 'telar' => 'T007', 'nombre' => 'Telar Sulzer 3', 'grupo' => 'Grupo 1'],
+            (object)['salon' => 'Salón B', 'telar' => 'T008', 'nombre' => 'Telar Jacquard 3', 'grupo' => 'Grupo 2'],
+            (object)['salon' => 'Salón C', 'telar' => 'T009', 'nombre' => 'Telar Air Jet 3', 'grupo' => 'Grupo 3'],
+            (object)['salon' => 'Salón D', 'telar' => 'T010', 'nombre' => 'Telar Especial 1', 'grupo' => 'Grupo 4'],
+        ]);
+
+        // Aplicar filtros de búsqueda (solo frontend)
+        if ($request->salon) {
+            $telares = $telares->filter(function ($telar) use ($request) {
+                return stripos($telar->salon, $request->salon) !== false;
+            });
+        }
+
+        if ($request->telar) {
+            $telares = $telares->filter(function ($telar) use ($request) {
+                return stripos($telar->telar, $request->telar) !== false;
+            });
+        }
+
+        if ($request->nombre) {
+            $telares = $telares->filter(function ($telar) use ($request) {
+                return stripos($telar->nombre, $request->nombre) !== false;
+            });
+        }
+
+        if ($request->grupo) {
+            $telares = $telares->filter(function ($telar) use ($request) {
+                return stripos($telar->grupo, $request->grupo) !== false;
+            });
+        }
 
         // Verifica si hay resultados
         $noResults = $telares->isEmpty();
@@ -76,5 +93,5 @@ class CatalagoTelarController extends Controller
         return redirect()->route('telares.index');
     }
 
-    
+
 }

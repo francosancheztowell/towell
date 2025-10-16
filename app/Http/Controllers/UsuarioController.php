@@ -82,11 +82,19 @@ class UsuarioController extends Controller
     public function select(Request $request)
     {
         $usuarios = Usuario::query()
-            ->select('idusuario', 'numero_empleado', 'nombre', 'area', 'turno', 'telefono', 'foto', 'puesto', 'correo')
+            ->select('idusuario', 'numero_empleado', 'nombre', 'area', 'turno', 'telefono', 'foto', 'puesto', 'correo', 'enviarMensaje')
             ->orderBy('nombre')
             ->get(); // paginate no funciona aqui :(, ya que tenemos una version 2008 de SQLSERVER, lo que lo hace imposible, la paginacion debe ser a mano.
 
         return view('modulos.usuarios.select', compact('usuarios'));
+    }
+
+    // Mostrar QR de un usuario
+    public function showQR($idusuario)
+    {
+        $usuario = Usuario::findOrFail($idusuario);
+
+        return view('modulos.usuarios.qr', compact('usuario'));
     }
 
     //CRUD REST, solo edit, update y destroy
@@ -406,7 +414,7 @@ class UsuarioController extends Controller
             'Eficiencias STD' => '/eficiencia',
             'Velocidad STD' => '/velocidad',
             'Calendarios' => '/calendarios',
-            'Aplicaciones (Cat.)' => '/planeacion/aplicaciones',
+            'Aplicaciones (Cat.)' => '/aplicaciones',
             'Modelos' => '/modelos',
             'Matriz Calibres' => '/catalogos/matriz-calibres',
             'Matriz Hilos' => '/catalogos/matriz-hilos',

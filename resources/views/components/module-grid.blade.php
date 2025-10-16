@@ -1,17 +1,17 @@
 @props(['modulos', 'columns' => 'xl:grid-cols-5', 'filterConfig' => true, 'imageFolder' => 'fotos_modulos'])
 
-<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 {{ $columns }} gap-4 md:gap-6 max-w-8xl mx-auto">
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 md:gap-4 lg:gap-5 max-w-7xl mx-auto px-4">
     @foreach ($modulos as $modulo)
         @if(!$filterConfig || $modulo['nombre'] !== 'Configuración')
             <a href="{{ isset($modulo['ruta_tipo']) && $modulo['ruta_tipo'] === 'route' ? route($modulo['ruta'], $modulo['params'] ?? []) : url($modulo['ruta']) }}" class="block group tablet-optimized module-link">
-                <div class=" p-4 md:p-6 flex flex-col items-center justify-center h-52 md:h-60 transition-all duration-300 transform group-hover:scale-105  ripple-effect">
+                <div class="p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center h-40 md:h-44 lg:h-48 transition-all duration-300 transform group-hover:scale-105 ripple-effect">
 
                     <!-- Contenedor de imagen optimizado para tablet -->
-                    <div class="flex-grow flex items-center justify-center mb-4">
+                    <div class="flex-grow flex items-center justify-center mb-3">
                         <div class="relative tablet-optimized">
                             <img src="{{ $modulo['imagen'] ? asset('images/' . $imageFolder . '/' . $modulo['imagen']) : asset('images/fondosTowell/logo_towell2.png') }}"
                                 alt="{{ $modulo['nombre'] }}"
-                                class="w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 object-cover rounded-2xl group-hover:shadow-xl transition-shadow duration-300"
+                                class="w-32 h-32 md:w-32 md:h-32 lg:w-32 lg:h-32 object-cover rounded-xl group-hover:shadow-xl transition-shadow duration-300"
                                 loading="lazy"
                                 decoding="async"
                                 onerror="this.src='{{ asset('images/fotos_usuarios/TOWELLIN.png') }}'">
@@ -19,11 +19,10 @@
                     </div>
 
                     <!-- Texto del módulo optimizado -->
-                    <div class="text-center">
-                        <h2 class="module-title font-bold text-gray-800 leading-tight group-hover:text-blue-800 transition-colors duration-300 -mt-2">
+                    <div class="text-center px-2">
+                        <h2 class="module-title font-bold text-gray-800 leading-tight group-hover:text-blue-800 transition-colors duration-300 text-sm md:text-base lg:text-lg">
                             {{ $modulo['nombre'] }}
                         </h2>
-
                     </div>
                 </div>
             </a>

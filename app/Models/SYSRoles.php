@@ -12,6 +12,16 @@ class SYSRoles extends Model
 
     protected $primaryKey = 'idrol';
 
+    /**
+     * Get the route key for the model.
+     *
+     * @return string
+     */
+    public function getRouteKeyName()
+    {
+        return 'idrol';
+    }
+
     protected $fillable = [
         'orden',
         'modulo',
