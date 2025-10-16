@@ -54,20 +54,7 @@
             </script>
         @endif
 
-        <!-- Debug Info (remover después) -->
-        @if(config('app.debug'))
-            <div class="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded mb-4">
-                <strong>DEBUG:</strong> isEdit={{ $isEdit ? 'true' : 'false' }},
-                Usuario: {{ $usuario ? $usuario->numero_empleado . ' (ID: ' . $usuario->idusuario . ')' : 'null' }},
-                Total Módulos: {{ count($modulos) }}
-                @php
-                    $nivel1 = $modulos->where('Nivel', '1')->count();
-                    $nivel2 = $modulos->where('Nivel', '2')->count();
-                    $nivel3 = $modulos->where('Nivel', '3')->count();
-                @endphp
-                (Nivel 1: {{ $nivel1 }}, Nivel 2: {{ $nivel2 }}, Nivel 3: {{ $nivel3 }})
-            </div>
-        @endif
+
 
         <!-- Header con componente reutilizable -->
         <x-page-header

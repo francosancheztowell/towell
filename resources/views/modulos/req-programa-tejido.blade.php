@@ -65,6 +65,7 @@
 		@php
 		$columns = [
 			// Orden según el Excel
+            	['field' => 'EnProceso', 'label' => 'Estado'],
 			['field' => 'CuentaRizo', 'label' => 'Cuenta'],
 			['field' => 'CalibreRizo', 'label' => 'Calibre Rizo'],
 			['field' => 'SalonTejidoId', 'label' => 'Salón'],
@@ -155,7 +156,7 @@
 			['field' => 'EntregaPT', 'label' => 'Fecha Compromiso PT'],
 			['field' => 'EntregaCte', 'label' => 'Entrega'],
 			['field' => 'PTvsCte', 'label' => 'Dif vs Compromiso'],
-			['field' => 'EnProceso', 'label' => 'Estado'],
+
 		];
 		$formatValue = function($registro, $field) {
 			$value = $registro->{$field} ?? null;
@@ -231,7 +232,7 @@
 									<tr class="hover:bg-blue-50 cursor-pointer selectable-row"
 										data-row-index="{{ $index }}">
 										@foreach($columns as $colIndex => $col)
-											<td class="px-4 py-2 text-sm text-gray-700 whitespace-nowrap column-{{ $colIndex }}" data-column="{{ $col['field'] }}">{{ $formatValue($registro, $col['field']) }}</td>
+											<td class="px-3 py-2 text-sm text-gray-700 whitespace-nowrap column-{{ $colIndex }}" data-column="{{ $col['field'] }}">{{ $formatValue($registro, $col['field']) }}</td>
 								@endforeach
 							</tr>
 						@endforeach

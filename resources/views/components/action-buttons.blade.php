@@ -1,16 +1,40 @@
 @props(['route' => null, 'showFilters' => false])
 
 <div class="flex items-center gap-2">
-    <button id="btn-subir-excel" onclick="console.log('Botón clickeado'); subirExcel{{ ucfirst($route) }}()"
-    class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
-    <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-        <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
-        <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
-        <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+    {{-- Para calendarios, mostrar dos botones de Excel separados --}}
+    @if($route === 'calendarios')
+        <button id="btn-subir-excel-calendarios" onclick="subirExcelCalendariosMaestro()"
+        class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
+        <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+         Subir Calendarios
+        </button>
 
-     Subir Excel
- </button>
+        <button id="btn-subir-excel-lineas" onclick="subirExcelLineas()"
+        class="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium">
+        <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+         Subir Líneas
+        </button>
+    @else
+        {{-- Para otros módulos, botón único --}}
+        <button id="btn-subir-excel" onclick="console.log('Botón clickeado'); subirExcel{{ ucfirst($route) }}()"
+        class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
+        <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+
+         Subir Excel
+        </button>
+    @endif
     <button id="btn-agregar" onclick="agregar{{ ucfirst($route) }}()"
        class="inline-flex items-center px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors text-sm font-medium">
         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,7 +60,7 @@
     </button>
 
     @if($showFilters)
-    <button id="btn-filtrar" onclick="filtrarPorColumna()"
+    <button id="btn-filtrar" onclick="filtrar{{ ucfirst($route) }}()"
        class="inline-flex items-center px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium">
         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
@@ -45,7 +69,7 @@
         <span id="filter-count" class="ml-1 px-1.5 py-0.5 bg-white text-blue-600 rounded-full text-xs font-bold hidden">0</span>
     </button>
 
-    <button onclick="restablecerFiltros()"
+    <button onclick="limpiarFiltros{{ ucfirst($route) }}()"
        class="inline-flex items-center px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm font-medium">
         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -76,12 +100,15 @@
                             <span class="mt-1 block text-sm text-gray-500">
                                 o haz click para seleccionar
                             </span>
-                            <input type="file" id="swal-file-excel" name="file-excel" accept=".xlsx,.xls" class="sr-only" onchange="handleFileSelect(event)">
+                            <input type="file" id="swal-file-excel" name="file-excel" accept=".xlsx,.xls" class="sr-only">
                         </label>
                     </div>
                     <p class="mt-2 text-xs text-gray-500">
                         Formatos soportados: .xlsx, .xls (Máximo 10MB)
                     </p>
+
+                    <div class="mt-4">
+                    </div>
                 </div>
 
                 <div id="swal-file-info" class="hidden p-3 bg-gray-50 rounded-lg">
@@ -132,17 +159,41 @@
                     return false;
                 }
 
-                // Simular procesamiento (aquí harías la petición real al servidor)
-                return new Promise((resolve) => {
-                    setTimeout(() => {
-                        resolve({
+                // Realizar petición real al servidor
+                const formData = new FormData();
+                formData.append('archivo_excel', file);
+                formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+
+                return fetch('/{{ $route }}/procesar-excel', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    // Verificar si la respuesta HTTP es exitosa
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            throw new Error(`Error HTTP ${response.status}: ${text || response.statusText}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        return {
                             success: true,
                             fileName: file.name,
-                            fileSize: formatFileSize(file.size)
-                        });
-                    }, 2000);
+                            fileSize: formatFileSize(file.size),
+                            message: data.message,
+                            data: data.data
+                        };
+                    } else {
+                        throw new Error(data.message || 'Error al procesar el archivo');
+                    }
+                })
+                .catch(error => {
+                    throw new Error(error.message || 'Error al procesar el archivo');
                 });
-            },
+        },
             didOpen: () => {
                 // Hacer que el input de archivo sea visible y funcional
                 const fileInput = document.getElementById('swal-file-excel');
@@ -160,12 +211,54 @@
             }
         }).then((result) => {
             if (result.isConfirmed && result.value) {
-                // Mostrar toast de éxito
-                showToast(`Archivo ${result.value.fileName} procesado exitosamente`, 'success');
+                // Mostrar mensaje detallado de éxito
+                const data = result.value.data;
+                let mensajeDetallado = `Archivo ${result.value.fileName} procesado exitosamente\n\n`;
+                mensajeDetallado += `• Registros procesados: ${data.registros_procesados}\n`;
+                mensajeDetallado += `• Nuevos registros: ${data.registros_creados}\n`;
+                mensajeDetallado += `• Registros actualizados: ${data.registros_actualizados}`;
 
-                // Aquí podrías recargar la tabla o mostrar los datos procesados
-                // location.reload(); // Si quieres recargar la página
+                if (data.errores && data.errores.length > 0) {
+                    mensajeDetallado += `\n• Errores encontrados: ${data.total_errores || data.errores.length}`;
+
+                    // Mostrar errores en un modal separado si hay muchos
+                    if (data.total_errores > 10) {
+                        mensajeDetallado += `\n\n⚠️ Hay ${data.total_errores} errores. Revisa el archivo Excel.`;
+                    }
+                }
+
+                Swal.fire({
+                    title: 'Procesamiento Completado',
+                    text: mensajeDetallado,
+                    icon: data.errores && data.errores.length > 0 ? 'warning' : 'success',
+                    confirmButtonText: 'Entendido'
+                }).then(() => {
+                    // Si hay errores, mostrar detalles
+                    if (data.errores && data.errores.length > 0) {
+                        let erroresTexto = data.errores.join('\n');
+                        if (data.total_errores > 10) {
+                            erroresTexto += `\n\n... y ${data.total_errores - 10} errores más`;
+                        }
+
+                        Swal.fire({
+                            title: 'Detalles de Errores',
+                            text: erroresTexto,
+                            icon: 'info',
+                            confirmButtonText: 'Entendido'
+                        });
+                    }
+
+                    // Recargar la página para mostrar los nuevos datos
+                    location.reload();
+                });
             }
+        }).catch((error) => {
+            Swal.fire({
+                title: 'Error',
+                text: error.message || 'Error al procesar el archivo Excel',
+                icon: 'error',
+                confirmButtonText: 'Entendido'
+            });
         });
     }
 
@@ -175,6 +268,24 @@
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+
+    // Función para manejar la selección de archivos
+    window.handleFileSelect = function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            // Mostrar información del archivo
+            const fileName = document.getElementById('swal-file-name');
+            const fileSize = document.getElementById('swal-file-size');
+            const fileInfo = document.getElementById('swal-file-info');
+
+            if (fileName && fileSize && fileInfo) {
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                fileInfo.classList.remove('hidden');
+            }
         }
+    };
     });
 </script>

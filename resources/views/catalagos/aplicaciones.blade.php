@@ -1,32 +1,37 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="container overflow-y-auto h-[600px]">
+    <div class="container">
+        <!-- Contador oculto para las funciones de filtrado -->
+        <span id="contador-registros" style="display: none;">{{ count($aplicaciones) }} registros</span>
+        <div id="filtros-activos" class="hidden"></div>
 
-
-
-        <!-- Tabla de aplicaciones con scroll -->
-        <div class="bg-white overflow-hidden">
-            <div class="overflow-y-auto max-h-[600px]">
+        <!-- Tabla de aplicaciones -->
+        <div class="bg-white overflow-hidden shadow-sm rounded-lg">
+            <div class="overflow-y-auto h-[640px] scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
                 <table class="table table-bordered table-sm w-full">
                     <thead class="sticky top-0 bg-blue-500 text-white z-10">
                         <tr>
-                            <th style="width: 20%;" class="px-4 py-1 text-center font-semibold">Clave</th>
-                            <th style="width: 40%;" class="px-4 py-1 text-center font-semibold">Nombre</th>
-                            <th style="width: 20%;" class="px-4 py-1 text-center font-semibold">Salón</th>
-                            <th style="width: 20%;" class="px-4 py-1 text-center font-semibold">Telar</th>
+                            <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Clave</th>
+                            <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Nombre</th>
+                            <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Salón</th>
+                            <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Telar</th>
                         </tr>
                     </thead>
                     <tbody id="aplicaciones-body" class="bg-white text-black">
                         @foreach ($aplicaciones as $item)
-                            <tr class="text-center hover:bg-blue-50 transition cursor-pointer border-b border-gray-200"
-                                onclick="selectRow(this, '{{ $item->AplicacionId }}')"
+                            @php
+                                $uniqueId = $item->AplicacionId;
+                            @endphp
+                            <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
+                                onclick="selectRow(this, '{{ $uniqueId }}', {{ $item->id ?? 'null' }})"
                                 ondblclick="deselectRow(this)"
-                                data-aplicacion="{{ $item->AplicacionId }}">
-                                <td class="px-4 py-1 font-medium">{{ $item->AplicacionId }}</td>
-                                <td class="px-4 py-1">{{ $item->Nombre }}</td>
-                                <td class="px-4 py-1 font-semibold">{{ $item->SalonTejidold }}</td>
-                                <td class="px-4 py-1 font-semibold">{{ $item->NoTelarId }}</td>
+                                data-aplicacion="{{ $uniqueId }}"
+                                data-aplicacion-id="{{ $item->id ?? 'null' }}">
+                                <td class="py-1 px-4 border-b">{{ $item->AplicacionId }}</td>
+                                <td class="py-1 px-4 border-b">{{ $item->Nombre }}</td>
+                                <td class="py-1 px-4 border-b font-semibold">{{ $item->SalonTejidoId }}</td>
+                                <td class="py-1 px-4 border-b">{{ $item->NoTelarId }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -37,40 +42,60 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        console.log('Script de aplicaciones cargado');
         let selectedAplicacion = null;
-        let activeFilters = [];
-        let originalData = [];
+        let selectedAplicacionId = null;
 
-        // Funciones de selección de filas
-        function selectRow(row, aplicacionId) {
-            // Remover selección anterior
+        // Variables para filtrado
+        let filtrosActuales = {
+            clave: '',
+            nombre: '',
+            salon: '',
+            telar: ''
+        };
+
+        // Datos originales para filtrado
+        let datosOriginales = @json($aplicaciones);
+        let datosActuales = datosOriginales;
+
+        // Cache para optimización de filtros
+        const cacheFiltros = new Map();
+
+        // Función global para que el botón "Filtrar" del navbar pueda llamarla
+        window.filtrarAplicaciones = function() {
+            console.log('filtrarAplicaciones llamado desde navbar');
+            mostrarFiltros();
+        };
+
+        // Función global para limpiar filtros desde el navbar
+        window.limpiarFiltrosAplicaciones = function() {
+            console.log('limpiarFiltrosAplicaciones llamado desde navbar...');
+            limpiarFiltros();
+        };
+
+        function selectRow(row, uniqueId, aplicacionId) {
             document.querySelectorAll('tbody tr').forEach(r => {
                 r.classList.remove('bg-blue-500', 'text-white');
                 r.classList.add('hover:bg-blue-50');
             });
 
-            // Seleccionar fila actual
             row.classList.remove('hover:bg-blue-50');
             row.classList.add('bg-blue-500', 'text-white');
 
-            // Guardar aplicación seleccionada
-            selectedAplicacion = aplicacionId;
+            selectedAplicacion = uniqueId;
+            selectedAplicacionId = aplicacionId;
 
-            // Habilitar botones de editar y eliminar
             enableButtons();
         }
 
         function deselectRow(row) {
-            // Solo deseleccionar si la fila está seleccionada
             if (row.classList.contains('bg-blue-500')) {
-                // Deseleccionar fila
                 row.classList.remove('bg-blue-500', 'text-white');
                 row.classList.add('hover:bg-blue-50');
 
-                // Limpiar selección
                 selectedAplicacion = null;
+                selectedAplicacionId = null;
 
-                // Deshabilitar botones
                 disableButtons();
             }
         }
@@ -80,11 +105,9 @@
             const btnEliminar = document.getElementById('btn-eliminar');
 
             if (btnEditar && btnEliminar) {
-                // Habilitar botones
                 btnEditar.disabled = false;
                 btnEliminar.disabled = false;
 
-                // Cambiar estilos a habilitado
                 btnEditar.className = 'inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium';
                 btnEliminar.className = 'inline-flex items-center px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium';
             }
@@ -95,440 +118,484 @@
             const btnEliminar = document.getElementById('btn-eliminar');
 
             if (btnEditar && btnEliminar) {
-                // Deshabilitar botones
                 btnEditar.disabled = true;
                 btnEliminar.disabled = true;
 
-                // Cambiar estilos a deshabilitado
                 btnEditar.className = 'inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed';
                 btnEliminar.className = 'inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed';
             }
 
             selectedAplicacion = null;
+            selectedAplicacionId = null;
         }
 
-        // Funciones de modales SweetAlert
         function agregarAplicacion() {
             Swal.fire({
                 title: 'Agregar Nueva Aplicación',
                 html: `
                     <div class="text-left space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Clave</label>
-                            <input type="text" id="agregar-clave" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: APP016">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Clave *</label>
+                            <input id="swal-clave" type="text" class="swal2-input" placeholder="Ej: APP001" maxlength="50" required>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                            <input type="text" id="agregar-nombre" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Sistema de Control Avanzado">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                            <input id="swal-nombre" type="text" class="swal2-input" placeholder="Ej: Sistema Control" maxlength="100" required>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Salón</label>
-                            <input type="text" id="agregar-salon" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Salón F">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Salón *</label>
+                            <input id="swal-salon" type="text" class="swal2-input" placeholder="Ej: Salón A" maxlength="50" required>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Telar</label>
-                            <input type="text" id="agregar-telar" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: T016">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Telar *</label>
+                            <input id="swal-telar" type="text" class="swal2-input" placeholder="Ej: T001" maxlength="50" required>
                         </div>
                     </div>
                 `,
                 showCancelButton: true,
-                confirmButtonText: 'Agregar',
-                cancelButtonText: 'Cancelar',
+                confirmButtonText: '<i class="fas fa-plus me-2"></i>Agregar',
+                cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
                 confirmButtonColor: '#10b981',
                 cancelButtonColor: '#6b7280',
-                width: '500px',
                 preConfirm: () => {
-                    const clave = document.getElementById('agregar-clave').value;
-                    const nombre = document.getElementById('agregar-nombre').value;
-                    const salon = document.getElementById('agregar-salon').value;
-                    const telar = document.getElementById('agregar-telar').value;
+                    const clave = document.getElementById('swal-clave').value.trim();
+                    const nombre = document.getElementById('swal-nombre').value.trim();
+                    const salon = document.getElementById('swal-salon').value.trim();
+                    const telar = document.getElementById('swal-telar').value.trim();
 
                     if (!clave || !nombre || !salon || !telar) {
-                        Swal.showValidationMessage('Por favor completa todos los campos');
+                        Swal.showValidationMessage('Por favor completa los campos requeridos');
                         return false;
                     }
+
                     return { clave, nombre, salon, telar };
                 }
             }).then((result) => {
-                if (result.isConfirmed) {
-                    showToast(`Aplicación ${result.value.nombre} agregada correctamente`, 'success');
+                if (result.isConfirmed && result.value) {
+                    const formData = new FormData();
+                    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                    formData.append('AplicacionId', result.value.clave);
+                    formData.append('Nombre', result.value.nombre);
+                    formData.append('SalonTejidoId', result.value.salon);
+                    formData.append('NoTelarId', result.value.telar);
+
+                    fetch('/aplicaciones-catalogo', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            crearToast('success', 'Aplicación creada exitosamente');
+                            setTimeout(() => location.reload(), 1500);
+                        } else {
+                            crearToast('error', data.message || 'Error al crear la aplicación');
+                        }
+                    })
+                    .catch(error => {
+                        crearToast('error', 'Error al crear la aplicación');
+                    });
                 }
             });
         }
 
         function editarAplicacion() {
-            if (!selectedAplicacion) {
+            if (!selectedAplicacion || !selectedAplicacionId) {
                 Swal.fire({
                     title: 'Error',
-                    text: 'Por favor selecciona una fila para editar',
+                    text: 'Por favor selecciona una aplicación para editar',
                     icon: 'warning'
                 });
                 return;
             }
 
-            // Obtener datos de la fila seleccionada
             const selectedRow = document.querySelector(`tr[data-aplicacion="${selectedAplicacion}"]`);
-            if (!selectedRow) return;
+            if (!selectedRow) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No se encontraron los datos de la aplicación seleccionada',
+                    icon: 'error'
+                });
+                return;
+            }
 
             const cells = selectedRow.querySelectorAll('td');
-            const clave = cells[0].textContent;
-            const nombre = cells[1].textContent;
-            const salon = cells[2].textContent;
-            const telar = cells[3].textContent;
+            const claveActual = cells[0].textContent.trim();
+            const nombreActual = cells[1].textContent.trim();
+            const salonActual = cells[2].textContent.trim();
+            const telarActual = cells[3].textContent.trim();
 
             Swal.fire({
                 title: 'Editar Aplicación',
                 html: `
                     <div class="text-left space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Clave</label>
-                            <input type="text" id="editar-clave" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Clave *</label>
+                            <input id="swal-clave-edit" type="text" class="swal2-input" placeholder="Ej: APP001" maxlength="50" required value="${claveActual}">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                            <input type="text" id="editar-nombre" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${nombre}">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                            <input id="swal-nombre-edit" type="text" class="swal2-input" placeholder="Ej: Sistema Control" maxlength="100" required value="${nombreActual}">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Salón</label>
-                            <input type="text" id="editar-salon" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${salon}">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Salón *</label>
+                            <input id="swal-salon-edit" type="text" class="swal2-input" placeholder="Ej: Salón A" maxlength="50" required value="${salonActual}">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Telar</label>
-                            <input type="text" id="editar-telar" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar}">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Telar *</label>
+                            <input id="swal-telar-edit" type="text" class="swal2-input" placeholder="Ej: T001" maxlength="50" required value="${telarActual}">
                         </div>
                     </div>
                 `,
                 showCancelButton: true,
-                confirmButtonText: 'Guardar',
-                cancelButtonText: 'Cancelar',
+                confirmButtonText: '<i class="fas fa-save me-2"></i>Guardar',
+                cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
                 confirmButtonColor: '#3b82f6',
                 cancelButtonColor: '#6b7280',
-                width: '500px',
                 preConfirm: () => {
-                    const clave = document.getElementById('editar-clave').value;
-                    const nombre = document.getElementById('editar-nombre').value;
-                    const salon = document.getElementById('editar-salon').value;
-                    const telar = document.getElementById('editar-telar').value;
+                    const clave = document.getElementById('swal-clave-edit').value.trim();
+                    const nombre = document.getElementById('swal-nombre-edit').value.trim();
+                    const salon = document.getElementById('swal-salon-edit').value.trim();
+                    const telar = document.getElementById('swal-telar-edit').value.trim();
 
                     if (!clave || !nombre || !salon || !telar) {
-                        Swal.showValidationMessage('Por favor completa todos los campos');
+                        Swal.showValidationMessage('Por favor completa los campos requeridos');
                         return false;
                     }
+
                     return { clave, nombre, salon, telar };
                 }
             }).then((result) => {
-                if (result.isConfirmed) {
-                    showToast(`Aplicación ${result.value.nombre} actualizada correctamente`, 'success');
+                if (result.isConfirmed && result.value) {
+                    const formData = new FormData();
+                    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                    formData.append('_method', 'PUT');
+                    formData.append('AplicacionId', result.value.clave);
+                    formData.append('Nombre', result.value.nombre);
+                    formData.append('SalonTejidoId', result.value.salon);
+                    formData.append('NoTelarId', result.value.telar);
+
+                    fetch(`/aplicaciones-catalogo/${selectedAplicacionId}`, {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            crearToast('success', 'Aplicación actualizada exitosamente');
+                            setTimeout(() => location.reload(), 1500);
+                        } else {
+                            crearToast('error', data.message || 'Error al actualizar la aplicación');
+                        }
+                    })
+                    .catch(error => {
+                        crearToast('error', 'Error al actualizar la aplicación');
+                    });
                 }
             });
         }
 
         function eliminarAplicacion() {
-            if (!selectedAplicacion) {
+            if (!selectedAplicacion || !selectedAplicacionId) {
                 Swal.fire({
                     title: 'Error',
-                    text: 'Por favor selecciona una fila para eliminar',
+                    text: 'Por favor selecciona una aplicación para eliminar',
                     icon: 'warning'
                 });
                 return;
             }
 
-            // Obtener datos de la fila seleccionada
             const selectedRow = document.querySelector(`tr[data-aplicacion="${selectedAplicacion}"]`);
-            if (!selectedRow) return;
+            if (!selectedRow) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No se encontraron los datos de la aplicación seleccionada',
+                    icon: 'error'
+                });
+                return;
+            }
 
             const cells = selectedRow.querySelectorAll('td');
-            const clave = cells[0].textContent;
-            const nombre = cells[1].textContent;
+            const clave = cells[0].textContent.trim();
+            const nombre = cells[1].textContent.trim();
 
             Swal.fire({
-                title: '¿Eliminar aplicación?',
-                html: `Vas a eliminar la aplicación <b>${clave}</b> - ${nombre}.`,
+                title: '¿Eliminar Aplicación?',
+                html: `
+                    <div class="text-left">
+                        <p><strong>Clave:</strong> ${clave}</p>
+                        <p><strong>Nombre:</strong> ${nombre}</p>
+                        <hr>
+                        <p class="text-red-600 font-semibold">⚠️ Esta acción no se puede deshacer.</p>
+                    </div>
+                `,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc2626',
                 cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Sí, eliminar',
-                cancelButtonText: 'Cancelar'
+                confirmButtonText: '<i class="fas fa-trash me-2"></i>Sí, eliminar',
+                cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    showToast('El registro fue eliminado correctamente', 'success');
-                    disableButtons();
+                    fetch(`/aplicaciones-catalogo/${selectedAplicacionId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            crearToast('success', 'Aplicación eliminada exitosamente');
+                            setTimeout(() => location.reload(), 1500);
+                        } else {
+                            crearToast('error', data.message || 'Error al eliminar la aplicación');
+                        }
+                    })
+                    .catch(error => {
+                        crearToast('error', 'Error al eliminar la aplicación');
+                    });
                 }
             });
         }
 
-        function filtrarPorColumna() {
-            // Generar lista de filtros activos
-            let filtrosActivosHTML = '';
-            if (activeFilters.length > 0) {
-                filtrosActivosHTML = `
-                    <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-                        <h4 class="text-sm font-medium text-gray-700 mb-2">Filtros Activos:</h4>
-                        <div class="space-y-1">
-                            ${activeFilters.map((filtro, index) => `
-                                <div class="flex items-center justify-between bg-white p-2 rounded border">
-                                    <span class="text-xs">${filtro.columna}: ${filtro.valor}</span>
-                                    <button onclick="removeFilter(${index})" class="text-red-500 hover:text-red-700 text-xs">×</button>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
+        function subirExcelAplicaciones() {
+            // Esta función será llamada por el botón "Subir Excel" del componente action-buttons
+            // El modal se maneja desde el componente
+        }
 
+        // Función global para que el botón "Subir Excel" del navbar pueda llamarla
+        window.subirExcelAplicaciones = function() {
+            subirExcelAplicaciones();
+        };
+
+        function mostrarFiltros() {
+            console.log('mostrarFiltros ejecutándose...');
             Swal.fire({
-                title: 'Filtrar por Columna',
+                title: 'Filtrar Aplicaciones',
                 html: `
-                    ${filtrosActivosHTML}
                     <div class="text-left space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Columna</label>
-                            <select id="filtro-columna" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="AplicacionId">Clave</option>
-                                <option value="Nombre">Nombre</option>
-                                <option value="SalonTejidold">Salón</option>
-                                <option value="NoTelarId">Telar</option>
-                            </select>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Clave</label>
+                                <input id="swal-clave-filtro" type="text" class="swal2-input" placeholder="Ej: APP001" value="${filtrosActuales.clave}">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                                <input id="swal-nombre-filtro" type="text" class="swal2-input" placeholder="Ej: Sistema" value="${filtrosActuales.nombre}">
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Valor a buscar</label>
-                            <input type="text" id="filtro-valor" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresa el valor a buscar">
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Salón</label>
+                                <input id="swal-salon-filtro" type="text" class="swal2-input" placeholder="Ej: Salón A" value="${filtrosActuales.salon}">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Telar</label>
+                                <input id="swal-telar-filtro" type="text" class="swal2-input" placeholder="Ej: T001" value="${filtrosActuales.telar}">
+                            </div>
                         </div>
-                        <div class="flex gap-2 pt-2">
-                            <button type="button" id="btn-agregar-otro" class="flex-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">
-                                + Agregar Otro Filtro
-                            </button>
+
+                        <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Deja los campos vacíos para no aplicar filtro en esa columna
                         </div>
                     </div>
                 `,
+                width: '600px',
                 showCancelButton: true,
-                confirmButtonText: 'Agregar Filtro',
-                cancelButtonText: 'Cerrar',
+                confirmButtonText: '<i class="fas fa-filter me-2"></i>Filtrar',
+                cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
                 confirmButtonColor: '#3b82f6',
                 cancelButtonColor: '#6b7280',
-                width: '450px',
                 preConfirm: () => {
-                    const columna = document.getElementById('filtro-columna').value;
-                    const valor = document.getElementById('filtro-valor').value;
+                    const clave = document.getElementById('swal-clave-filtro').value.trim();
+                    const nombre = document.getElementById('swal-nombre-filtro').value.trim();
+                    const salon = document.getElementById('swal-salon-filtro').value.trim();
+                    const telar = document.getElementById('swal-telar-filtro').value.trim();
 
-                    if (!valor) {
-                        Swal.showValidationMessage('Por favor ingresa un valor para filtrar');
-                        return false;
-                    }
-
-                    // Verificar si ya existe este filtro
-                    const existeFiltro = activeFilters.some(f => f.columna === columna && f.valor === valor);
-                    if (existeFiltro) {
-                        Swal.showValidationMessage('Este filtro ya está activo');
-                        return false;
-                    }
-
-                    return { columna, valor };
-                },
-                didOpen: () => {
-                    // Agregar event listener al botón "Agregar Otro Filtro"
-                    document.getElementById('btn-agregar-otro').addEventListener('click', () => {
-                        const columna = document.getElementById('filtro-columna').value;
-                        const valor = document.getElementById('filtro-valor').value;
-
-                        if (!valor) {
-                            Swal.showValidationMessage('Por favor ingresa un valor para filtrar');
-                            return;
-                        }
-
-                        // Verificar si ya existe este filtro
-                        const existeFiltro = activeFilters.some(f => f.columna === columna && f.valor === valor);
-                        if (existeFiltro) {
-                            Swal.showValidationMessage('Este filtro ya está activo');
-                            return;
-                        }
-
-                        // Agregar filtro y limpiar campos
-                        activeFilters.push({ columna, valor });
-                        applyFilters();
-                        showToast('Filtro agregado correctamente', 'success');
-
-                        // Limpiar campos para el siguiente filtro
-                        document.getElementById('filtro-valor').value = '';
-
-                        // Actualizar la vista del modal con los nuevos filtros activos
-                        updateFilterModal();
-                    });
+                    return {
+                        clave,
+                        nombre,
+                        salon,
+                        telar
+                    };
                 }
             }).then((result) => {
-                if (result.isConfirmed) {
-                    // Agregar nuevo filtro
-                    activeFilters.push(result.value);
-
-                    // Aplicar filtros
-                    applyFilters();
-
-                    showToast('Filtro agregado correctamente', 'success');
+                if (result.isConfirmed && result.value) {
+                    aplicarFiltros(result.value);
                 }
             });
         }
 
-        function removeFilter(index) {
-            activeFilters.splice(index, 1);
-            applyFilters();
-            showToast('Filtro eliminado', 'info');
-            updateFilterModal();
-        }
+        function aplicarFiltros(filtros) {
+            filtrosActuales = { ...filtros };
 
-        function updateFilterModal() {
-            // Generar nueva lista de filtros activos
-            let filtrosActivosHTML = '';
-            if (activeFilters.length > 0) {
-                filtrosActivosHTML = `
-                    <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-                        <h4 class="text-sm font-medium text-gray-700 mb-2">Filtros Activos:</h4>
-                        <div class="space-y-1">
-                            ${activeFilters.map((filtro, index) => `
-                                <div class="flex items-center justify-between bg-white p-2 rounded border">
-                                    <span class="text-xs">${filtro.columna}: ${filtro.valor}</span>
-                                    <button onclick="removeFilter(${index})" class="text-red-500 hover:text-red-700 text-xs">×</button>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
+            const cacheKey = JSON.stringify(filtrosActuales);
+
+            if (cacheFiltros.has(cacheKey)) {
+                const datosFiltrados = cacheFiltros.get(cacheKey);
+                actualizarTablaOptimizada(datosFiltrados);
+                actualizarContador(datosFiltrados.length);
+                return;
             }
 
-            // Actualizar el contenido del modal
-            const modalContent = document.querySelector('.swal2-html-container');
-            if (modalContent) {
-                modalContent.innerHTML = `
-                    ${filtrosActivosHTML}
-                    <div class="text-left space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Columna</label>
-                            <select id="filtro-columna" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="AplicacionId">Clave</option>
-                                <option value="Nombre">Nombre</option>
-                                <option value="SalonTejidold">Salón</option>
-                                <option value="NoTelarId">Telar</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Valor a buscar</label>
-                            <input type="text" id="filtro-valor" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresa el valor a buscar">
-                        </div>
-                        <div class="flex gap-2 pt-2">
-                            <button type="button" id="btn-agregar-otro" class="flex-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">
-                                + Agregar Otro Filtro
-                            </button>
-                        </div>
-                    </div>
-                `;
+            let datosFiltrados = datosOriginales.filter(item => {
+                const claveMatch = !filtros.clave || item.AplicacionId.toLowerCase().includes(filtros.clave.toLowerCase());
+                const nombreMatch = !filtros.nombre || item.Nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
+                const salonMatch = !filtros.salon || item.SalonTejidoId.toLowerCase().includes(filtros.salon.toLowerCase());
+                const telarMatch = !filtros.telar || item.NoTelarId.toLowerCase().includes(filtros.telar.toLowerCase());
 
-                // Reagregar event listener al botón
-                document.getElementById('btn-agregar-otro').addEventListener('click', () => {
-                    const columna = document.getElementById('filtro-columna').value;
-                    const valor = document.getElementById('filtro-valor').value;
-
-                    if (!valor) {
-                        Swal.showValidationMessage('Por favor ingresa un valor para filtrar');
-                        return;
-                    }
-
-                    // Verificar si ya existe este filtro
-                    const existeFiltro = activeFilters.some(f => f.columna === columna && f.valor === valor);
-                    if (existeFiltro) {
-                        Swal.showValidationMessage('Este filtro ya está activo');
-                        return;
-                    }
-
-                    // Agregar filtro y limpiar campos
-                    activeFilters.push({ columna, valor });
-                    applyFilters();
-                    showToast('Filtro agregado correctamente', 'success');
-
-                    // Limpiar campos para el siguiente filtro
-                    document.getElementById('filtro-valor').value = '';
-
-                    // Actualizar la vista del modal con los nuevos filtros activos
-                    updateFilterModal();
-                });
-            }
-        }
-
-        function applyFilters() {
-            if (!originalData.length) {
-                // Guardar datos originales la primera vez
-                const rows = document.querySelectorAll('#aplicaciones-body tr');
-                originalData = Array.from(rows).map(row => ({
-                    element: row,
-                    AplicacionId: row.cells[0].textContent.trim(),
-                    Nombre: row.cells[1].textContent.trim(),
-                    SalonTejidold: row.cells[2].textContent.trim(),
-                    NoTelarId: row.cells[3].textContent.trim()
-                }));
-            }
-
-            // Mostrar todas las filas primero
-            originalData.forEach(item => {
-                item.element.style.display = '';
+                return claveMatch && nombreMatch && salonMatch && telarMatch;
             });
 
-            // Aplicar filtros
-            if (activeFilters.length > 0) {
-                originalData.forEach(item => {
-                    let matches = true;
+            cacheFiltros.set(cacheKey, datosFiltrados);
 
-                    activeFilters.forEach(filter => {
-                        const value = item[filter.columna].toLowerCase();
-                        const filterValue = filter.valor.toLowerCase();
+            datosActuales = datosFiltrados;
 
-                        if (!value.includes(filterValue)) {
-                            matches = false;
-                        }
-                    });
+            actualizarTablaOptimizada(datosFiltrados);
+            actualizarContador(datosFiltrados.length);
 
-                    item.element.style.display = matches ? '' : 'none';
-                });
-            }
-
-            // Actualizar contador de filtros
-            updateFilterCount();
+            mostrarIndicadorFiltros();
         }
 
-        function updateFilterCount() {
-            const filterCount = document.getElementById('filter-count');
-            if (filterCount) {
-                if (activeFilters.length > 0) {
-                    filterCount.textContent = activeFilters.length;
-                    filterCount.classList.remove('hidden');
-                } else {
-                    filterCount.classList.add('hidden');
+        function limpiarFiltros() {
+            console.log('limpiarFiltros llamado...');
+
+            filtrosActuales = {
+                clave: '',
+                nombre: '',
+                salon: '',
+                telar: ''
+            };
+
+            cacheFiltros.clear();
+
+            datosActuales = datosOriginales;
+
+            actualizarTablaOptimizada(datosOriginales);
+
+            actualizarContador(datosOriginales.length);
+
+            const indicadorFiltros = document.getElementById('filtros-activos');
+            if (indicadorFiltros) {
+                indicadorFiltros.classList.add('hidden');
+            }
+
+            console.log('Mostrando toast de limpiar filtros...');
+            crearToast('success', `Filtros limpiados - Mostrando ${datosOriginales.length} registros`, 2000);
+        }
+
+        function actualizarTablaOptimizada(datos) {
+            const tbody = document.getElementById('aplicaciones-body');
+
+            if (datos.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-8 text-gray-500">
+                            <i class="fas fa-search text-4xl mb-2"></i>
+                            <br>No se encontraron resultados con los filtros aplicados
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+
+            datos.forEach(item => {
+                const uniqueId = item.AplicacionId;
+                const row = document.createElement('tr');
+                row.className = 'text-center hover:bg-blue-50 transition cursor-pointer';
+                row.setAttribute('onclick', `selectRow(this, '${uniqueId}', ${item.id || 'null'})`);
+                row.setAttribute('ondblclick', 'deselectRow(this)');
+                row.setAttribute('data-aplicacion', uniqueId);
+                row.setAttribute('data-aplicacion-id', item.id || 'null');
+
+                row.innerHTML = `
+                    <td class="py-1 px-4 border-b">${item.AplicacionId}</td>
+                    <td class="py-1 px-4 border-b">${item.Nombre}</td>
+                    <td class="py-1 px-4 border-b font-semibold">${item.SalonTejidoId}</td>
+                    <td class="py-1 px-4 border-b">${item.NoTelarId}</td>
+                `;
+
+                fragment.appendChild(row);
+            });
+
+            tbody.innerHTML = '';
+            tbody.appendChild(fragment);
+        }
+
+        function actualizarContador(total) {
+            const contador = document.getElementById('contador-registros');
+            if (contador) {
+                contador.textContent = `${total} registros`;
+            }
+        }
+
+        function mostrarIndicadorFiltros() {
+            const indicador = document.getElementById('filtros-activos');
+            if (indicador) {
+                indicador.classList.remove('hidden');
+            }
+        }
+
+        function crearToast(icono, mensaje, duracion = 1500) {
+            console.log('crearToast llamado con:', icono, mensaje, duracion);
+
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: duracion,
+                timerProgressBar: true,
+                didOpen: (toast) => {
+                    toast.addEventListener('mouseenter', Swal.stopTimer)
+                    toast.addEventListener('mouseleave', Swal.resumeTimer)
                 }
-            }
+            });
+
+            Toast.fire({
+                icon: icono,
+                title: mensaje
+            });
         }
 
-        function restablecerFiltros() {
-            // Limpiar filtros activos
-            activeFilters = [];
-
-            // Restaurar datos originales
-            if (originalData.length > 0) {
-                originalData.forEach(item => {
-                    item.element.style.display = '';
-                });
-            }
-
-            // Actualizar contador de filtros
-            updateFilterCount();
-
-            // Mostrar toast personalizado
-            showToast('Restablecido<br>Todos los filtros y configuraciones han sido eliminados', 'success');
-        }
-
-        // Inicializar botones como deshabilitados
         document.addEventListener('DOMContentLoaded', function() {
             disableButtons();
+
+            actualizarContador(datosOriginales.length);
+
+            console.log('Funciones globales disponibles:', {
+                filtrarAplicaciones: typeof window.filtrarAplicaciones,
+                limpiarFiltrosAplicaciones: typeof window.limpiarFiltrosAplicaciones
+            });
         });
     </script>
 
-    @include('components.toast-notification')
+    <style>
+        .scrollbar-thin {
+            scrollbar-width: thin;
+        }
+
+        .scrollbar-thumb-gray-400::-webkit-scrollbar-thumb {
+            background-color: #9ca3af;
+            border-radius: 4px;
+        }
+
+        .scrollbar-track-gray-100::-webkit-scrollbar-track {
+            background-color: #f3f4f6;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background-color: #6b7280;
+        }
+    </style>
 
 @endsection

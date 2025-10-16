@@ -18,10 +18,10 @@
                         <tbody id="calendario-tab-body" class="bg-white text-black">
                             @foreach ($calendarioTab as $item)
                                 <tr class="text-center hover:bg-blue-50 transition cursor-pointer border-b border-gray-200"
-                                    onclick="selectRowTab(this, '{{ $item->Calendariold }}')"
+                                    onclick="selectRowTab(this, '{{ $item->CalendarioId }}')"
                                     ondblclick="deselectRowTab(this)"
-                                    data-calendario="{{ $item->Calendariold }}">
-                                    <td class="px-4  font-medium">{{ $item->Calendariold }}</td>
+                                    data-calendario="{{ $item->CalendarioId }}">
+                                    <td class="px-4  font-medium">{{ $item->CalendarioId }}</td>
                                     <td class="px-4 ">{{ $item->Nombre }}</td>
                         </tr>
                     @endforeach
@@ -50,11 +50,11 @@
                         <tbody id="calendario-line-body" class="bg-white text-black">
                             @foreach ($calendarioLine as $item)
                                 <tr class="text-center hover:bg-green-50 transition cursor-pointer border-b border-gray-200"
-                                    onclick="selectRowLine(this, '{{ $item->Calendariold }}-{{ $item->Turno }}')"
+                                    onclick="selectRowLine(this, '{{ $item->CalendarioId }}-{{ $item->Turno }}')"
                                     ondblclick="deselectRowLine(this)"
-                                    data-calendario-line="{{ $item->Calendariold }}-{{ $item->Turno }}">
-                                    <td class="px-4  font-medium">{{ $item->Calendariold }}</td>
-                                    <td class="px-4 ">{{ date('d/m/Y H:i', strtotime($item->Fechalnicio)) }}</td>
+                                    data-calendario-line="{{ $item->CalendarioId }}-{{ $item->Turno }}">
+                                    <td class="px-4  font-medium">{{ $item->CalendarioId }}</td>
+                                    <td class="px-4 ">{{ date('d/m/Y H:i', strtotime($item->FechaInicio)) }}</td>
                                     <td class="px-4 ">{{ date('d/m/Y H:i', strtotime($item->FechaFin)) }}</td>
                                     <td class="px-4  font-semibold">{{ $item->HorasTurno }}</td>
                                     <td class="px-4  font-semibold">{{ $item->Turno }}</td>
@@ -98,6 +98,9 @@
             // Guardar calendario seleccionado
             selectedCalendarioTab = calendarioId;
 
+            // ✨ FILTRAR LA SEGUNDA TABLA - Mostrar solo líneas del calendario seleccionado
+            filtrarLineasPorCalendario(calendarioId);
+
             // Habilitar botones de editar y eliminar
             enableButtons();
         }
@@ -107,7 +110,44 @@
                 row.classList.remove('bg-blue-500', 'text-white');
                 row.classList.add('hover:bg-blue-50');
                 selectedCalendarioTab = null;
+
+                // ✨ MOSTRAR TODAS LAS LÍNEAS NUEVAMENTE
+                const tbody = document.getElementById('calendario-line-body');
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    row.style.display = '';
+                });
+
                 disableButtons();
+            }
+        }
+
+        // ✨ FUNCIÓN PARA FILTRAR LA SEGUNDA TABLA
+        function filtrarLineasPorCalendario(calendarioId) {
+            const tbody = document.getElementById('calendario-line-body');
+            const rows = tbody.querySelectorAll('tr');
+            let filasVisibles = 0;
+
+            rows.forEach(row => {
+                const dataCalendario = row.getAttribute('data-calendario-line').split('-')[0]; // Obtener solo el CalendarioId
+
+                if (dataCalendario === calendarioId) {
+                    row.style.display = ''; // Mostrar fila
+                    filasVisibles++;
+                } else {
+                    row.style.display = 'none'; // Ocultar fila
+                }
+            });
+
+            // Si no hay filas visibles, mostrar mensaje
+            if (filasVisibles === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-gray-500">
+                            No hay líneas para este calendario
+                        </td>
+                    </tr>
+                `;
             }
         }
 
@@ -416,7 +456,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Columna</label>
                             <select id="filtro-columna" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="Calendariold">No Calendario</option>
+                                <option value="CalendarioId">No Calendario</option>
                                 <option value="Nombre">Nombre</option>
                             </select>
                         </div>
@@ -508,13 +548,13 @@
 
             if (tabla === 'tab') {
                 columnaSelect.innerHTML = `
-                    <option value="Calendariold">No Calendario</option>
+                    <option value="CalendarioId">No Calendario</option>
                     <option value="Nombre">Nombre</option>
                 `;
             } else {
                 columnaSelect.innerHTML = `
-                    <option value="Calendariold">No Calendario</option>
-                    <option value="Fechalnicio">Inicio (Fecha Hora)</option>
+                    <option value="CalendarioId">No Calendario</option>
+                    <option value="FechaInicio">Inicio (Fecha Hora)</option>
                     <option value="FechaFin">Fin (Fecha Hora)</option>
                     <option value="HorasTurno">Horas</option>
                     <option value="Turno">Turno</option>
@@ -544,7 +584,7 @@
                 const rows = document.querySelectorAll('#calendario-tab-body tr');
                 originalDataTab = Array.from(rows).map(row => ({
                     element: row,
-                    Calendariold: row.cells[0].textContent.trim(),
+                    CalendarioId: row.cells[0].textContent.trim(),
                     Nombre: row.cells[1].textContent.trim()
                 }));
             }
@@ -563,14 +603,13 @@
                     item.element.style.display = matches ? '' : 'none';
                 }
             });
-
             // Aplicar filtros a tabla 2
             if (!originalDataLine.length) {
                 const rows = document.querySelectorAll('#calendario-line-body tr');
                 originalDataLine = Array.from(rows).map(row => ({
                     element: row,
-                    Calendariold: row.cells[0].textContent.trim(),
-                    Fechalnicio: row.cells[1].textContent.trim(),
+                    CalendarioId: row.cells[0].textContent.trim(),
+                    FechaInicio: row.cells[1].textContent.trim(),
                     FechaFin: row.cells[2].textContent.trim(),
                     HorasTurno: row.cells[3].textContent.trim(),
                     Turno: row.cells[4].textContent.trim()
@@ -627,6 +666,256 @@
             updateFilterCount();
             showToast('Restablecido<br>Todos los filtros y configuraciones han sido eliminados', 'success');
         }
+
+        // Funciones globales para navbar
+        window.subirExcelCalendarios = function() {
+            // Esta función es manejada por el componente action-buttons
+        };
+
+        window.subirExcelCalendariosMaestro = function() {
+            Swal.fire({
+                title: 'Subir Excel de Calendarios',
+                html: `
+                    <div class="space-y-4">
+                        <p class="text-sm text-gray-600">Carga un archivo Excel con la información de calendarios.</p>
+                        <p class="text-sm text-gray-600 font-semibold">Las columnas deben ser: <strong>No Calendario, Nombre</strong></p>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <label for="swal-file-excel-calendarios" class="cursor-pointer">
+                                <span class="mt-2 block text-sm font-medium text-gray-900">Arrastra o haz click para seleccionar</span>
+                                <input type="file" id="swal-file-excel-calendarios" name="file-excel" accept=".xlsx,.xls" class="sr-only">
+                            </label>
+                        </div>
+                        <div id="swal-file-info-calendarios" class="hidden p-3 bg-gray-50 rounded-lg">
+                            <p class="text-sm font-medium text-gray-900" id="swal-file-name-calendarios"></p>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Procesar Excel',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#10b981',
+                width: '500px',
+                preConfirm: () => {
+                    const fileInput = document.getElementById('swal-file-excel-calendarios');
+                    const file = fileInput.files[0];
+                    if (!file) {
+                        Swal.showValidationMessage('Por favor selecciona un archivo');
+                        return false;
+                    }
+                    return file;
+                },
+                didOpen: () => {
+                    const fileInput = document.getElementById('swal-file-excel-calendarios');
+                    fileInput.addEventListener('change', function() {
+                        if (this.files[0]) {
+                            document.getElementById('swal-file-name-calendarios').textContent = this.files[0].name;
+                            document.getElementById('swal-file-info-calendarios').classList.remove('hidden');
+                        }
+                    });
+                }
+            }).then(result => {
+                if (result.isConfirmed && result.value) {
+                    // Mostrar modal de procesamiento
+                    Swal.fire({
+                        title: '⏳ Procesando...',
+                        html: '<p class="text-gray-600">Se está procesando tu archivo de calendarios.</p><div class="mt-4"><div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-green-600 h-2 rounded-full animate-pulse" style="width: 100%"></div></div></div>',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    const formData = new FormData();
+                    formData.append('archivo_excel', result.value);
+                    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                    formData.append('tipo', 'calendarios');
+
+                    fetch('/calendarios/procesar-excel', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        Swal.close();
+
+                        if (data.success) {
+                            Swal.fire({
+                                title: '✅ ¡Procesado Exitosamente!',
+                                html: `
+                                    <div class="text-left space-y-2">
+                                        <p><strong>📊 Resultado del procesamiento:</strong></p>
+                                        <ul class="space-y-1 text-sm">
+                                            <li>✓ Registros procesados: <strong>${data.data.registros_procesados}</strong></li>
+                                            <li>✓ Nuevos registros: <strong class="text-green-600">${data.data.registros_creados}</strong></li>
+                                            <li>⚠️ Errores encontrados: <strong class="text-yellow-600">${data.data.total_errores}</strong></li>
+                                        </ul>
+                                        ${data.data.total_errores > 0 ? `<p class="text-xs text-gray-500 mt-3">Verifica el archivo Excel y revisa los errores.</p>` : ''}
+                                    </div>
+                                `,
+                                icon: data.data.total_errores > 0 ? 'warning' : 'success',
+                                confirmButtonText: 'Entendido',
+                                confirmButtonColor: '#10b981'
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: '❌ Error en el Procesamiento',
+                                text: data.message || 'Hubo un problema al procesar el archivo',
+                                icon: 'error',
+                                confirmButtonText: 'Entendido',
+                                confirmButtonColor: '#ef4444'
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        Swal.close();
+                        Swal.fire({
+                            title: '❌ Error de Conexión',
+                            text: 'Error al procesar: ' + error.message,
+                            icon: 'error',
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#ef4444'
+                        });
+                    });
+                }
+            });
+        };
+
+        window.subirExcelLineas = function() {
+            Swal.fire({
+                title: 'Subir Excel de Líneas de Calendarios',
+                html: `
+                    <div class="space-y-4">
+                        <p class="text-sm text-gray-600">Carga un archivo Excel con las líneas de calendarios.</p>
+                        <p class="text-sm text-gray-600 font-semibold">Las columnas deben ser: <strong>No Calendario, Inicio (Fecha Hora), Fin (Fecha Hora), Horas, Turno</strong></p>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <label for="swal-file-excel-lineas" class="cursor-pointer">
+                                <span class="mt-2 block text-sm font-medium text-gray-900">Arrastra o haz click para seleccionar</span>
+                                <input type="file" id="swal-file-excel-lineas" name="file-excel" accept=".xlsx,.xls" class="sr-only">
+                            </label>
+                        </div>
+                        <div id="swal-file-info-lineas" class="hidden p-3 bg-gray-50 rounded-lg">
+                            <p class="text-sm font-medium text-gray-900" id="swal-file-name-lineas"></p>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Procesar Excel',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#3b82f6',
+                width: '500px',
+                preConfirm: () => {
+                    const fileInput = document.getElementById('swal-file-excel-lineas');
+                    const file = fileInput.files[0];
+                    if (!file) {
+                        Swal.showValidationMessage('Por favor selecciona un archivo');
+                        return false;
+                    }
+                    return file;
+                },
+                didOpen: () => {
+                    const fileInput = document.getElementById('swal-file-excel-lineas');
+                    fileInput.addEventListener('change', function() {
+                        if (this.files[0]) {
+                            document.getElementById('swal-file-name-lineas').textContent = this.files[0].name;
+                            document.getElementById('swal-file-info-lineas').classList.remove('hidden');
+                        }
+                    });
+                }
+            }).then(result => {
+                if (result.isConfirmed && result.value) {
+                    // Mostrar modal de procesamiento
+                    Swal.fire({
+                        title: ' Procesando...',
+                        html: '<p class="text-gray-600">Se está procesando tu archivo de líneas de calendarios.</p><div class="mt-4"><div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-blue-600 h-2 rounded-full animate-pulse" style="width: 100%"></div></div></div>',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    const formData = new FormData();
+                    formData.append('archivo_excel', result.value);
+                    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                    formData.append('tipo', 'lineas');
+
+                    fetch('/calendarios/procesar-excel', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        Swal.close();
+
+                        if (data.success) {
+                            Swal.fire({
+                                title: '✅ ¡Procesado Exitosamente!',
+                                html: `
+                                    <div class="text-left space-y-2">
+                                        <p><strong>📊 Resultado del procesamiento:</strong></p>
+                                        <ul class="space-y-1 text-sm">
+                                            <li>Registros procesados: <strong>${data.data.registros_procesados}</strong></li>
+                                        </ul>
+                                    </div>
+                                `,
+                                icon: 'success',
+                                confirmButtonText: 'Entendido',
+                                confirmButtonColor: '#3b82f6'
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: '❌ Error en el Procesamiento',
+                                text: data.message || 'Hubo un problema al procesar el archivo',
+                                icon: 'error',
+                                confirmButtonText: 'Entendido',
+                                confirmButtonColor: '#ef4444'
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        Swal.close();
+                        Swal.fire({
+                            title: '❌ Error de Conexión',
+                            text: 'Error al procesar: ' + error.message,
+                            icon: 'error',
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#ef4444'
+                        });
+                    });
+                }
+            });
+        };
+
+        window.agregarCalendarios = function() {
+            agregarCalendario();
+        };
+
+        window.editarCalendarios = function() {
+            editarCalendario();
+        };
+
+        window.eliminarCalendarios = function() {
+            eliminarCalendario();
+        };
+
+        window.filtrarCalendarios = function() {
+            filtrarPorColumna();
+        };
+
+        window.limpiarFiltrosCalendarios = function() {
+            restablecerFiltros();
+        };
 
         // Inicializar botones como deshabilitados
         document.addEventListener('DOMContentLoaded', function() {

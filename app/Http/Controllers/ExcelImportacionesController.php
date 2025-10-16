@@ -146,6 +146,9 @@ class ExcelImportacionesController extends Controller
             $registrosDespues = ReqProgramaTejido::count();
             $registrosImportados = $registrosDespues - $registrosAntes;
 
+            // ✨ MARCAR EN PROCESO - El registro más reciente de cada telar
+            $this->marcarEnProceso();
+
             // Log de estadísticas para debugging
             Log::info('Estadísticas de importación', [
                 'stats' => $stats,
@@ -234,5 +237,55 @@ class ExcelImportacionesController extends Controller
         $inventarioTelares = TejInventarioTelares::orderBy('no_telar', 'asc')->get();
 
         return view('modulos.programa_urd_eng.reservar-programar', compact('inventarioTelares'));
+    }
+
+    /**
+     * ✨ Marca automáticamente como EnProceso = 1 el PRIMER registro (fecha más temprana) de cada telar
+     * Esto significa que para cada telar (ej: 201), el registro que inició primero se marca como "en proceso"
+     */
+    private function marcarEnProceso()
+    {
+        try {
+            Log::info('========== INICIANDO MARCAR EN PROCESO ==========');
+
+            // 1. Primero, reiniciar todos los registros a EnProceso = 0
+            $resetCount = ReqProgramaTejido::query()->update(['EnProceso' => 0]);
+            Log::info("✓ Reiniciados {$resetCount} registros a EnProceso = 0");
+
+            // 2. Obtener todos los telares distintos
+            $telares = ReqProgramaTejido::select('NoTelarId')
+                ->distinct()
+                ->pluck('NoTelarId');
+
+            Log::info("✓ Encontrados " . $telares->count() . " telares distintos");
+
+            $marcados = 0;
+
+            // 3. Para cada telar, obtener el PRIMER registro (fecha más temprana)
+            foreach ($telares as $telar) {
+                // Buscar el registro con fecha de inicio MÁS TEMPRANA para este telar
+                $primerRegistro = ReqProgramaTejido::where('NoTelarId', $telar)
+                    ->whereNotNull('FechaInicio')
+                    ->orderBy('FechaInicio', 'asc')  // ✅ ASC = Más antiguo primero
+                    ->first();
+
+                if ($primerRegistro) {
+                    $primerRegistro->update(['EnProceso' => 1]);
+                    $marcados++;
+                    Log::info("✓ Telar {$telar}: Marcado PRIMER registro ID {$primerRegistro->Id} con fecha {$primerRegistro->FechaInicio}");
+                } else {
+                    Log::warning("⚠ Telar {$telar}: No se encontró registro con FechaInicio");
+                }
+            }
+
+            Log::info("✓ Total de registros marcados como EnProceso = 1: {$marcados}");
+            Log::info('========== MARCAR EN PROCESO COMPLETADO ==========');
+        } catch (\Exception $e) {
+            Log::error('✗ Error al marcar EnProceso: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
 }

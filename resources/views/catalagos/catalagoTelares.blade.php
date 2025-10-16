@@ -3,8 +3,6 @@
 @section('content')
     <div class="container">
 
-
-
         <!-- Mensaje si no hay resultados -->
         @if ($noResults)
             <div class="alert alert-warning text-center" role="alert">
@@ -25,14 +23,19 @@
                 </thead>
                 <tbody id="telares-body" class="bg-white text-black">
                     @foreach ($telares as $telar)
+                        @php
+                            // Crear un ID único combinando salón y telar
+                            $uniqueId = $telar->SalonTejidoId . '_' . $telar->NoTelarId;
+                        @endphp
                         <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
-                            onclick="selectRow(this, '{{ $telar->telar }}')"
+                            onclick="selectRow(this, '{{ $uniqueId }}', {{ $telar->id ?? 'null' }})"
                             ondblclick="deselectRow(this)"
-                            data-telar="{{ $telar->telar }}">
-                            <td class="py-2 px-4 border-b">{{ $telar->salon }}</td>
-                            <td class="py-2 px-4 border-b">{{ $telar->telar }}</td>
-                            <td class="py-2 px-4 border-b">{{ $telar->nombre }}</td>
-                            <td class="py-2 px-4 border-b">{{ $telar->grupo ?? 'N/A' }}</td>
+                            data-telar="{{ $uniqueId }}"
+                            data-telar-id="{{ $telar->id ?? 'null' }}">
+                            <td class="py-2 px-4 border-b">{{ $telar->SalonTejidoId }}</td>
+                            <td class="py-2 px-4 border-b">{{ $telar->NoTelarId }}</td>
+                            <td class="py-2 px-4 border-b">{{ $telar->Nombre }}</td>
+                            <td class="py-2 px-4 border-b">{{ $telar->Grupo ?? 'N/A' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -42,104 +45,16 @@
 
     </div>
 
-    <!-- Modal Añadir Telar -->
-    <div id="modal-agregar" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">Agregar Nuevo Telar</h3>
-                <button onclick="cerrarModal('modal-agregar')" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <form id="form-agregar" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Salón</label>
-                    <input type="text" id="agregar-salon" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Salón A">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Telar</label>
-                    <input type="text" id="agregar-telar" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: T001">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                    <input type="text" id="agregar-nombre" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Telar Sulzer 1">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Grupo</label>
-                    <input type="text" id="agregar-grupo" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Grupo 1">
-                </div>
-
-                <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" onclick="cerrarModal('modal-agregar')" class="px-4 py-2 text-gray-600 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                        Agregar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Editar Telar -->
-    <div id="modal-editar" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">Editar Telar</h3>
-                <button onclick="cerrarModal('modal-editar')" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <form id="form-editar" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Salón</label>
-                    <input type="text" id="editar-salon" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Telar</label>
-                    <input type="text" id="editar-telar" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" readonly>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                    <input type="text" id="editar-nombre" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Grupo</label>
-                    <input type="text" id="editar-grupo" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" onclick="cerrarModal('modal-editar')" class="px-4 py-2 text-gray-600 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                        Guardar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Confirmar Eliminar (reemplazado por SweetAlert2) -->
-    <div id="modal-eliminar" class="hidden"></div>
+    <!-- Los modales HTML han sido reemplazados por SweetAlert2 -->
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         let selectedTelar = null;
+        let selectedTelarId = null;
 
-        function selectRow(row, telarId) {
+        function selectRow(row, uniqueId, telarId) {
+            console.log('selectRow llamado con uniqueId:', uniqueId, 'telarId:', telarId); // Debug
+
             // Remover selección anterior
             document.querySelectorAll('tbody tr').forEach(r => {
                 r.classList.remove('bg-blue-500', 'text-white');
@@ -151,7 +66,9 @@
             row.classList.add('bg-blue-500', 'text-white');
 
             // Guardar telar seleccionado
-            selectedTelar = telarId;
+            selectedTelar = uniqueId;
+            selectedTelarId = telarId;
+            console.log('selectedTelar establecido a:', selectedTelar, 'selectedTelarId:', selectedTelarId); // Debug
 
             // Habilitar botones de editar y eliminar
             enableButtons();
@@ -166,6 +83,7 @@
 
                 // Limpiar selección
                 selectedTelar = null;
+                selectedTelarId = null;
 
                 // Deshabilitar botones
                 disableButtons();
@@ -204,73 +122,367 @@
             selectedTelar = null;
         }
 
-        // Funciones para manejar modales
-        function abrirModal(modalId) {
-            document.getElementById(modalId).classList.remove('hidden');
-        }
-
-        function cerrarModal(modalId) {
-            document.getElementById(modalId).classList.add('hidden');
-        }
+        // Las funciones de modales HTML han sido reemplazadas por SweetAlert2
 
         function agregarTelar() {
-            // Limpiar formulario
-            document.getElementById('agregar-salon').value = '';
-            document.getElementById('agregar-telar').value = '';
-            document.getElementById('agregar-nombre').value = '';
-            document.getElementById('agregar-grupo').value = '';
+            Swal.fire({
+                title: 'Crear Nuevo Telar',
+                html: `
+                    <div class="text-left">
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Salón de Tejido *</label>
+                            <input id="swal-salon" type="text" class="swal2-input" placeholder="Ej: Jacquard, Smith" maxlength="20" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Número de Telar *</label>
+                            <input id="swal-telar" type="text" class="swal2-input" placeholder="Ej: 201, 202, 300" maxlength="10" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Grupo</label>
+                            <input id="swal-grupo" type="text" class="swal2-input" placeholder="Ej: Jacquard Smith, Itema Nuevo" maxlength="30">
+                        </div>
 
-            // Abrir modal
-            abrirModal('modal-agregar');
+                    </div>
+                `,
+                width: '500px',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fas fa-save me-2"></i>Crear',
+                cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#6c757d',
+                preConfirm: () => {
+                    const salon = document.getElementById('swal-salon').value.trim();
+                    const telar = document.getElementById('swal-telar').value.trim();
+                    const grupo = document.getElementById('swal-grupo').value.trim();
+
+                    if (!salon || !telar) {
+                        Swal.showValidationMessage('Por favor completa los campos requeridos (Salón y Telar)');
+                        return false;
+                    }
+
+                    return { salon, telar, grupo };
+                },
+                didOpen: () => {
+                    const salonInput = document.getElementById('swal-salon');
+                    const telarInput = document.getElementById('swal-telar');
+                    const previewDiv = document.getElementById('preview-nombre');
+
+                    function updatePreview() {
+                        const salon = salonInput.value.trim();
+                        const telar = telarInput.value.trim();
+
+                        if (salon && telar) {
+                            const salonUpper = salon.toUpperCase();
+                            let prefijo;
+
+                            if (salonUpper.includes('JACQUARD')) {
+                                prefijo = 'JAC';
+                            } else if (salonUpper.includes('SMITH')) {
+                                prefijo = 'Smith';
+                            } else {
+                                prefijo = salon.substring(0, 3).toUpperCase();
+                            }
+
+                            previewDiv.textContent = prefijo + ' ' + telar;
+                        } else {
+                            previewDiv.textContent = '-';
+                        }
+                    }
+
+                    salonInput.addEventListener('input', updatePreview);
+                    telarInput.addEventListener('input', updatePreview);
+                }
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    const { salon, telar, grupo } = result.value;
+
+                    // Mostrar loader
+                    Swal.fire({
+                        title: 'Creando...',
+                        text: 'Por favor espera',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        willOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    // Realizar petición AJAX para crear el telar
+                    fetch('/telares', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({
+                            SalonTejidoId: salon,
+                            NoTelarId: telar,
+                            Grupo: grupo
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: '¡Telar Creado!',
+                                text: data.message,
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            throw new Error(data.message || 'Error al crear el telar');
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire({
+                            title: 'Error',
+                            text: error.message || 'Error al crear el telar',
+                            icon: 'error'
+                        });
+                    });
+                }
+            });
         }
 
         function editarTelar() {
-            if (!selectedTelar) {
-                alert('Por favor selecciona un telar para editar');
+            console.log('editarTelar llamado, selectedTelar:', selectedTelar, 'selectedTelarId:', selectedTelarId); // Debug
+
+            if (!selectedTelar || !selectedTelarId) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Por favor selecciona un telar para editar',
+                    icon: 'warning'
+                });
                 return;
             }
 
             // Obtener datos de la fila seleccionada
             const selectedRow = document.querySelector(`tr[data-telar="${selectedTelar}"]`);
-            if (selectedRow) {
-                const cells = selectedRow.querySelectorAll('td');
-                document.getElementById('editar-salon').value = cells[0].textContent;
-                document.getElementById('editar-telar').value = cells[1].textContent;
-                document.getElementById('editar-nombre').value = cells[2].textContent;
-                document.getElementById('editar-grupo').value = cells[3].textContent;
+            if (!selectedRow) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No se encontraron los datos del telar seleccionado',
+                    icon: 'error'
+                });
+                return;
             }
 
-            // Abrir modal
-            abrirModal('modal-editar');
+            const cells = selectedRow.querySelectorAll('td');
+            const salonActual = cells[0].textContent.trim();
+            const telarActual = cells[1].textContent.trim();
+            const nombreActual = cells[2].textContent.trim();
+            const grupoActual = cells[3].textContent.trim();
+
+            Swal.fire({
+                title: 'Editar Telar',
+                html: `
+                    <div class="text-left">
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Salón de Tejido *</label>
+                            <input id="swal-salon-edit" type="text" class="swal2-input" placeholder="Ej: Jacquard, Smith" maxlength="20" required value="${salonActual}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Número de Telar *</label>
+                            <input id="swal-telar-edit" type="text" class="swal2-input" placeholder="Ej: 201, 202, 300" maxlength="10" required value="${telarActual}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Grupo</label>
+                            <input id="swal-grupo-edit" type="text" class="swal2-input" placeholder="Ej: Jacquard Smith, Itema Nuevo" maxlength="30" value="${grupoActual}">
+                        </div>
+                    </div>
+                `,
+                width: '500px',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fas fa-save me-2"></i>Actualizar',
+                cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+                confirmButtonColor: '#ffc107',
+                cancelButtonColor: '#6c757d',
+                preConfirm: () => {
+                    const salon = document.getElementById('swal-salon-edit').value.trim();
+                    const telar = document.getElementById('swal-telar-edit').value.trim();
+                    const grupo = document.getElementById('swal-grupo-edit').value.trim();
+
+                    if (!salon || !telar) {
+                        Swal.showValidationMessage('Por favor completa los campos requeridos (Salón y Telar)');
+                        return false;
+                    }
+
+                    return { salon, telar, grupo };
+                },
+                didOpen: () => {
+                    const salonInput = document.getElementById('swal-salon-edit');
+                    const telarInput = document.getElementById('swal-telar-edit');
+                    const previewDiv = document.getElementById('preview-nombre-edit');
+
+                    function updatePreview() {
+                        const salon = salonInput.value.trim();
+                        const telar = telarInput.value.trim();
+
+                        if (salon && telar) {
+                            const salonUpper = salon.toUpperCase();
+                            let prefijo;
+
+                            if (salonUpper.includes('JACQUARD')) {
+                                prefijo = 'JAC';
+                            } else if (salonUpper.includes('SMITH')) {
+                                prefijo = 'Smith';
+                            } else {
+                                prefijo = salon.substring(0, 3).toUpperCase();
+                            }
+
+                            previewDiv.textContent = prefijo + ' ' + telar;
+                        } else {
+                            previewDiv.textContent = '-';
+                        }
+                    }
+
+                    salonInput.addEventListener('input', updatePreview);
+                    telarInput.addEventListener('input', updatePreview);
+                }
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    const { salon, telar, grupo } = result.value;
+
+                    // Mostrar loader
+                    Swal.fire({
+                        title: 'Actualizando...',
+                        text: 'Por favor espera',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        willOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    // Realizar petición AJAX para actualizar el telar
+                    fetch(`/telares/${selectedTelarId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({
+                            SalonTejidoId: salon,
+                            NoTelarId: telar,
+                            Grupo: grupo
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: '¡Telar Actualizado!',
+                                text: data.message,
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            throw new Error(data.message || 'Error al actualizar el telar');
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire({
+                            title: 'Error',
+                            text: error.message || 'Error al actualizar el telar',
+                            icon: 'error'
+                        });
+                    });
+                }
+            });
         }
 
         function eliminarTelar() {
-            if (!selectedTelar) {
-                alert('Por favor selecciona un telar para eliminar');
+            console.log('eliminarTelar llamado, selectedTelar:', selectedTelar, 'selectedTelarId:', selectedTelarId); // Debug
+
+            if (!selectedTelar || !selectedTelarId) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Por favor selecciona un telar para eliminar',
+                    icon: 'warning'
+                });
                 return;
             }
 
             const selectedRow = document.querySelector(`tr[data-telar="${selectedTelar}"]`);
-            const nombre = selectedRow ? selectedRow.querySelectorAll('td')[2].textContent : selectedTelar;
+            if (!selectedRow) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No se encontraron los datos del telar seleccionado',
+                    icon: 'error'
+                });
+                return;
+            }
+
+            const cells = selectedRow.querySelectorAll('td');
+            const salon = cells[0].textContent.trim();
+            const telar = cells[1].textContent.trim();
+            const nombre = cells[2].textContent.trim();
 
             Swal.fire({
-                title: '¿Eliminar telar?',
-                html: `Vas a eliminar <b>${nombre}</b>. Esta acción no se puede deshacer.`,
+                title: '¿Eliminar Telar?',
+                html: `
+                    <div class="text-left">
+                        <p><strong>Salón:</strong> ${salon}</p>
+                        <p><strong>Telar:</strong> ${telar}</p>
+                        <p><strong>Nombre:</strong> ${nombre}</p>
+                    </div>
+                `,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc2626',
                 cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Sí, eliminar',
-                cancelButtonText: 'Cancelar'
+                confirmButtonText: '<i class="fas fa-trash me-2"></i>Sí, eliminar',
+                cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Aquí puedes realizar la petición DELETE
-                    // fetch('/telares/' + selectedTelar, { method: 'DELETE' })
+                    // Mostrar loader
+                    Swal.fire({
+                        title: 'Eliminando...',
+                        text: 'Por favor espera',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        willOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
 
-                    showToast('El telar fue eliminado correctamente', 'success');
-
-                    // Reiniciar selección/botones
-                    disableButtons();
+                    // Realizar petición AJAX para eliminar el telar
+                    fetch(`/telares/${selectedTelarId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: '¡Telar Eliminado!',
+                                text: data.message,
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            throw new Error(data.message || 'Error al eliminar el telar');
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire({
+                            title: 'Error',
+                            text: error.message || 'Error al eliminar el telar',
+                            icon: 'error'
+                        });
+                    });
                 }
             });
         }
@@ -281,46 +493,9 @@
             console.log('Subir Excel para Telares - función llamada desde action-buttons');
         }
 
-        // Inicializar botones como deshabilitados y listeners de formularios
+        // Inicializar botones como deshabilitados
         document.addEventListener('DOMContentLoaded', function() {
             disableButtons();
-
-            // Event listeners para los formularios de modales
-            document.getElementById('form-agregar').addEventListener('submit', function(e) {
-                e.preventDefault();
-
-                const salon = document.getElementById('agregar-salon').value;
-                const telar = document.getElementById('agregar-telar').value;
-                const nombre = document.getElementById('agregar-nombre').value;
-                const grupo = document.getElementById('agregar-grupo').value;
-
-                if (!salon || !telar || !nombre || !grupo) {
-                    alert('Por favor completa todos los campos');
-                    return;
-                }
-
-                // Simulación de guardado
-                showToast(`${nombre} (${telar}) agregado correctamente`, 'success');
-                cerrarModal('modal-agregar');
-            });
-
-            document.getElementById('form-editar').addEventListener('submit', function(e) {
-                e.preventDefault();
-
-                const salon = document.getElementById('editar-salon').value;
-                const telar = document.getElementById('editar-telar').value;
-                const nombre = document.getElementById('editar-nombre').value;
-                const grupo = document.getElementById('editar-grupo').value;
-
-                if (!salon || !telar || !nombre || !grupo) {
-                    alert('Por favor completa todos los campos');
-                    return;
-                }
-
-                // Simulación de actualización
-                showToast(`${nombre} (${telar}) actualizado correctamente`, 'success');
-                cerrarModal('modal-editar');
-            });
         });
 
     </script>

@@ -23,6 +23,7 @@ use App\Http\Controllers\TelaresController;
 use App\Http\Controllers\UrdidoController;
 use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\ModulosController;
+use App\Http\Controllers\AplicacionesController;
 
 
 //Rutas de login, con logout, no protegidas por middleware
@@ -357,8 +358,11 @@ Route::get('/tejido/karl-mayer', function () {
     Route::resource('planeacion', PlaneacionController::class);
     //RUTAS de CATALAGOS (3 catalagos), se usaron rutas de recursos para manejar las operaciones CRUD ¡IMPORTANTE!
     Route::resource('telares', CatalagoTelarController::class);
+    Route::post('/telares/procesar-excel', [CatalagoTelarController::class, 'procesarExcel'])->name('telares.procesar-excel');
     Route::resource('eficiencia', CatalagoEficienciaController::class);
+    Route::post('/eficiencia/procesar-excel', [CatalagoEficienciaController::class, 'procesarExcel'])->name('eficiencia.procesar-excel');
     Route::resource('velocidad', CatalagoVelocidadController::class);
+    Route::post('/velocidad/procesar-excel', [CatalagoVelocidadController::class, 'procesarExcel'])->name('velocidad.procesar-excel');
 
     Route::get('/traspasoDataRedireccion', [TejidoSchedullingController::class, 'envioDeDataPlaneacion']);
     Route::get('/Tejido-Scheduling/ultimo-por-telar', [TejidoSchedullingController::class, 'buscarUltimoPorTelar']);
@@ -371,7 +375,10 @@ Route::get('/tejido/karl-mayer', function () {
 
     // ✅ NUEVAS RUTAS de PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION
     Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');
-    Route::get('/aplicaciones', [PlaneacionController::class, 'aplicaciones'])->name('planeacion.aplicaciones');
+    Route::post('/calendarios/procesar-excel', [CalendarioController::class, 'procesarExcel'])->name('calendario.procesar-excel');
+    Route::get('/aplicaciones', [AplicacionesController::class, 'index'])->name('planeacion.aplicaciones');
+    Route::resource('aplicaciones-catalogo', AplicacionesController::class);
+    Route::post('/aplicaciones/procesar-excel', [AplicacionesController::class, 'procesarExcel'])->name('aplicaciones.procesar-excel');
     Route::post('/calendarios/update-inline', [CalendarioController::class, 'updateInline'])->name('calendarios.update.inline');
     Route::get('/planeacion/tipo-movimientos/{id}', [PlaneacionController::class, 'obtenerPorTejNum']);
     Route::put('/tejido-en-proceso/{num_registro}', [PlaneacionController::class, 'update'])->name('tejido_scheduling.update');
@@ -380,13 +387,7 @@ Route::get('/tejido/karl-mayer', function () {
     Route::get('/modelo/detalle', [PlaneacionController::class, 'buscarDetalleModelo'])->name('modelos.detalle'); // ruta pra obtener DETALLES del registro del modelo, de acuerdo con la CLAVE_AX y el NOMBRE_MODELO
     Route::get('/telares/datos', [PlaneacionController::class, 'obtenerDatosTelar'])->name('telares.datos');
 
-
-    // Rutas de catálogos
-    Route::resource('telares', CatalagoTelarController::class);
-    Route::resource('eficiencia', CatalagoEficienciaController::class);
-    Route::resource('velocidad', CatalagoVelocidadController::class);
-
-    //RUTAS para REPORTES en TEJIDO_SCHEDULING - REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES
+    //RUTAS para REPORTES en TEJIDO_SCHEDULING - REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES
     // routes/web.php
     Route::get('/reportes/consumo', [\App\Http\Controllers\ReportesController::class, 'consumo'])->name('reportes.consumo');
     Route::get('/reportes/run', [\App\Http\Controllers\ReportesController::class, 'run'])->name('reportes.run');

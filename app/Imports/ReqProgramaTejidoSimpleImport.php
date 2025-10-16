@@ -98,6 +98,48 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 		return strtr($value, $trans);
 	}
 
+	/**
+	 * 🔍 Encuentra la primera columna que contenga TODAS las palabras clave
+	 * y que NO contenga ninguna de las palabras excluidas
+	 */
+	private function findFirstColumnContaining(array $row, array $mustContain, array $mustNotContain = [])
+	{
+		foreach ($row as $key => $value) {
+			$keyLower = strtolower($key);
+
+			// Verificar que contenga TODAS las palabras requeridas
+			$hasAll = true;
+			foreach ($mustContain as $word) {
+				if (strpos($keyLower, strtolower($word)) === false) {
+					$hasAll = false;
+					break;
+				}
+			}
+
+			if (!$hasAll) {
+				continue;
+			}
+
+			// Verificar que NO contenga ninguna palabra excluida
+			$hasExcluded = false;
+			foreach ($mustNotContain as $excludedWord) {
+				if (strpos($keyLower, strtolower($excludedWord)) !== false) {
+					$hasExcluded = true;
+					break;
+				}
+			}
+
+			if ($hasExcluded) {
+				continue;
+			}
+
+			// Si pasa todas las validaciones, retornar el valor
+			return ($value !== '' && $value !== null) ? $value : null;
+		}
+
+		return null;
+	}
+
 	/** Detecta si una fila luce como un encabezado repetido dentro del cuerpo */
 	private function looksLikeHeaderRow(array $row): bool
 	{
@@ -136,13 +178,27 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 				return null;
 			}
 
-			$this->rowCounter++;
-			Log::info("Procesando fila {$this->rowCounter}", [
-				'row_keys' => array_keys($row),
-				'fecha_compromiso_1' => $this->getValueByPosition($row, 'Fecha Compromiso', 1),
-				'fecha_compromiso_2' => $this->getValueByPosition($row, 'Fecha Compromiso', 2),
-				'std_hr_efectivo' => $this->getValue($row, ['Std/Hr Efectivo', 'STD Hrs Efect', 'std_hrs_efect'])
-			]);
+	$this->rowCounter++;
+
+	// Solo loguear la primera fila para ver las claves
+	if ($this->rowCounter === 1) {
+		Log::info("========== CLAVES DEL EXCEL (PRIMERA FILA) ==========");
+		Log::info("Total de columnas: " . count($row));
+		Log::info("Claves normalizadas:", array_keys($row));
+
+		// Buscar columnas específicas
+		$columnasImportantes = [];
+		foreach (array_keys($row) as $key) {
+			if (strpos($key, 'prod') !== false ||
+			    strpos($key, 'std') !== false ||
+			    strpos($key, 'peso') !== false ||
+			    strpos($key, 'toa') !== false) {
+				$columnasImportantes[] = $key;
+			}
+		}
+		Log::info("Columnas con 'prod', 'std', 'peso' o 'toa':", $columnasImportantes);
+		Log::info("====================================================");
+	}
 
 			// Mapear las columnas del Excel a los campos de la tabla
 			$modelo = new ReqProgramaTejido([
@@ -197,28 +253,29 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 			'Peine' => $this->parseInteger($this->getValue($row, ['Pei.', 'Pei', 'Peine', 'peine'])),
 			'Luchaje' => $this->parseInteger($this->getValue($row, ['Lcr', 'Luchaje', 'luchaje'])),
 			'PesoCrudo' => $this->parseInteger($this->getValue($row, ['Pcr', 'Peso Crudo', 'peso crudo', 'peso_crudo'])),
-			'PesoGRM2' => $this->parseInteger($this->getValue($row, ['Peso (gr/m²)', 'Peso GRM2', 'peso grm2', 'peso_grm2'])),
-			'DiasEficiencia' => $this->parseFloat($this->getValue($row, ['Días Ef.', 'Dias Ef.', 'Días Eficiencia', 'Dias Eficiencia', 'dias_eficiencia'])),
-			'ProdKgDia' => $this->parseFloat($this->getValue($row, ['Prod (Kg)/Día', 'Prod (Kg)/Dia', 'Prod Kg/Día', 'Prod Kg/Dia', 'prod kg/dia', 'prod_kg_dia'])),
-			'StdDia' => $this->parseFloat($this->getValue($row, ['Std/Día', 'Std/Dia', 'STD Día', 'STD Dia', 'std_dia'])),
-			'ProdKgDia2' => $this->parseFloat($this->getValue($row, ['Prod (Kg)/Día 2', 'Prod (Kg)/Dia 2', 'Prod Kg/Día 2', 'Prod Kg/Dia 2', 'prod_kg_dia2'])),
-			'StdToaHra' => $this->parseFloat($this->getValue($row, ['Std (Toa/Hr) 100%', 'STD Toa/Hra', 'std_toa_hra'])),
-			'DiasJornada' => $this->parseFloat($this->getValue($row, ['Días Jornada', 'Dias Jornada', 'dias_jornada','Jornada','jornada'])),
-			'HorasProd' => $this->parseFloat($this->getValue($row, ['Horas', 'Horas Prod', 'horas prod', 'horas_prod'])),
-			'StdHrsEfect' => $this->parseFloat($this->getValue($row, ['Std/Hr Efectivo', 'STD Hrs Efect', 'std_hrs_efect'])),
+		'PesoGRM2' => $this->parseInteger($this->getValue($row, ['Peso(gr/m²)', 'Peso(gr/m²)', 'peso(gr/m²)', 'peso_grm2', 'Peso', 'peso gr m 2', 'peso_gr_m_2'])),
+		'DiasEficiencia' => $this->parseFloat($this->getValue($row, ['Días Ef.', 'Dias Ef.', 'Días Eficiencia', 'Dias Eficiencia', 'dias_eficiencia'])),
+
+	// 🔍 COLUMNAS PROBLEMÁTICAS - Búsqueda flexible por contenido
+	'ProdKgDia' => $this->parseFloat($this->findFirstColumnContaining($row, ['prod', 'kg', 'dia'], ['2'])),
+	'StdDia' => $this->parseFloat($this->findFirstColumnContaining($row, ['std', 'dia'], ['toa', 'hr', '100', 'efectivo'])),
+	'ProdKgDia2' => $this->parseFloat($this->findFirstColumnContaining($row, ['prod', 'kg', 'dia', '2'])),
+	'StdToaHra' => $this->parseFloat($this->findFirstColumnContaining($row, ['std', 'toa', 'hr', '100'])),
+
+	'DiasJornada' => $this->parseFloat($this->getValue($row, ['Días Jornada', 'Dias Jornada Completa', 'Dias jornada completa', 'dias_jornada','Jornada','jornada', 'dias jornada completa'])),
+	'HorasProd' => $this->parseFloat($this->getValue($row, ['Horas', 'Horas Prod', 'horas prod', 'horas_prod'])),
+	'StdHrsEfect' => $this->parseFloat($this->findFirstColumnContaining($row, ['std', 'hr', 'efectivo']) ?: $this->getValue($row, ['Std/Hr Efectivo', 'STD Hrs Efect', 'std_hrs_efect'])),
 
 			// Fechas
 			'FechaInicio' => $this->parseDate($this->getValue($row, ['Inicio', 'Fecha Inicio', 'fecha inicio', 'fecha_inicio'])),
 			'FechaFinal' => $this->parseDate($this->getValue($row, ['Fin', 'Fecha Final', 'fecha final', 'fecha_final'])),
 
-			// Fechas Compromiso - Manejar columnas duplicadas
+			// Fechas Compromiso - Manejar columnas con nombres específicos
 			'EntregaProduc' => $this->parseDate(
-				$this->getValue($row, ['Fecha Compromiso Prod.', 'Fecha Compromiso Prod', 'Entrega Producción', 'Entrega Produccion', 'entrega_produc']) ?:
-				$this->getValueByPosition($row, 'Fecha Compromiso', 1)
+				$this->getValue($row, ['Fecha Compromiso Prod', 'Fecha Compromiso Prod.', 'Entrega Producción', 'Entrega Produccion', 'entrega_produc'])
 			),
 			'EntregaPT' => $this->parseDate(
-				$this->getValue($row, ['Fecha Compromiso PT', 'Entrega PT', 'entrega_pt']) ?:
-				$this->getValueByPosition($row, 'Fecha Compromiso', 2)
+				$this->getValue($row, ['Fecha Compromiso PT', 'Entrega PT', 'entrega_pt'])
 			),
 			'EntregaCte' => $this->parseDate($this->getValue($row, ['Entrega', 'Entrega Cte', 'entrega_cte'])),
 			'PTvsCte' => $this->parseInteger($this->getValue($row, ['Dif vs Compromiso', 'PT vs Cte', 'pt vs cte', 'pt_vs_cte'])),
@@ -244,29 +301,21 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 			'CustName' => $this->parseString($this->getValue($row, ['Nombre Cliente', 'cust_name']), 60),
 			'AplicacionId' => $this->parseString($this->getValue($row, ['Aplic.', 'Aplic', 'aplicacion_id']), 10),
 			'Observaciones' => $this->parseString($this->getValue($row, ['Obs', 'Observaciones', 'observaciones']), 100),
-			'TipoPedido' => $this->parseString($this->getValue($row, ['Tipo Ped.', 'Tipo Ped', 'tipo_pedido']), 20),
-			'NoTiras' => $this->parseInteger($this->getValue($row, ['Tiras', 'No Tiras', 'no_tiras'])),
+		'TipoPedido' => $this->parseString($this->getValue($row, ['Tipo Ped.', 'Tipo Ped', 'tipo_pedido']), 20),
+		'NoTiras' => $this->parseInteger($this->getValue($row, ['Tiras', 'No Tiras', 'no_tiras'])),
 
-			// Pedido y producción (adicionales si vienen)
-			'TotalPedido' => $this->parseFloat($this->getValue($row, ['Pedido', 'Total Pedido', 'total_pedido'])),
-			'Produccion' => $this->parseFloat($this->getValue($row, ['Producción', 'Produccion', 'produccion'])),
-			'SaldoPedido' => $this->parseFloat($this->getValue($row, ['Saldos', 'Saldo Pedido', 'saldo_pedido'])),
-			'SaldoMarbete' => $this->parseInteger($this->getValue($row, ['Saldo Marbetes', 'saldo_marbete'])),
-			'ProgramarProd' => $this->parseDate($this->getValue($row, ['Día Scheduling', 'Dia Scheduling', 'programar_prod'])),
-			'NoProduccion' => $this->parseString($this->getValue($row, ['Orden Prod.', 'Orden Prod', 'no_produccion']), 15),
-			'Programado' => $this->parseDate($this->getValue($row, ['INN', 'programado'])),
-			'DobladilloId' => $this->parseString($this->getValue($row, ['Dob', 'dobladillo_id']), 20),
-			'PasadasComb1' => $this->parseInteger($this->getValue($row, ['Pasadas C1', 'pasadas_comb1'])),
-			'PasadasComb2' => $this->parseInteger($this->getValue($row, ['Pasadas C2', 'pasadas_comb2'])),
-			'PasadasComb3' => $this->parseInteger($this->getValue($row, ['Pasadas C3', 'pasadas_comb3'])),
-			'PasadasComb4' => $this->parseInteger($this->getValue($row, ['Pasadas C4', 'pasadas_comb4'])),
-			'PasadasComb5' => $this->parseInteger($this->getValue($row, ['Pasadas C5', 'pasadas_comb5'])),
+		// Campos adicionales de pedido y producción
+		'ProgramarProd' => $this->parseDate($this->getValue($row, ['Day Sheduling', 'Day Scheduling', 'Día Scheduling', 'Dia Scheduling', 'programar_prod'])),
+		'NoProduccion' => $this->parseString($this->getValue($row, ['Orden Prod.', 'Orden Prod', 'no_produccion']), 15),
+		'Programado' => $this->parseDate($this->getValue($row, ['INN', 'Inn', 'programado'])),
+		'SaldoPedido' => $this->parseFloat($this->getValue($row, ['Saldos', 'Saldo Pedido', 'saldo_pedido', 'saldos'])),
 
-			// Extras
-			'Calc4' => $this->parseFloat($this->getValue($row, ['calc4'])),
-			'Calc5' => $this->parseFloat($this->getValue($row, ['calc5'])),
-			'Calc6' => $this->parseFloat($this->getValue($row, ['calc6'])),
-			'RowNum' => $this->rowCounter,
+		// Calc4, Calc5, Calc6 como FLOAT (la BD espera float, no datetime)
+		// Si en Excel se ven como fechas, es porque son números de Excel interpretados como fechas
+		'Calc4' => $this->parseFloat($this->getValue($row, ['Calc4', 'calc4', 'Calc 4'])),
+		'Calc5' => $this->parseFloat($this->getValue($row, ['Calc5', 'calc5', 'Calc 5'])),
+		'Calc6' => $this->parseFloat($this->getValue($row, ['Calc6', 'calc6', 'Calc 6'])),
+		'RowNum' => $this->rowCounter,
 
 		]);
 
@@ -387,13 +436,32 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 				return $value->format('Y-m-d');
 			}
 
-			// Si es un timestamp numérico
+			// Si es un timestamp numérico (número de Excel)
 			if (is_numeric($value)) {
-				// Manejar timestamps de Excel (días desde 1900-01-01)
-				if ($value > 25569) { // 1970-01-01 en días de Excel
-					$timestamp = ($value - 25569) * 86400; // Convertir a segundos Unix
-					return Carbon::createFromTimestamp($timestamp)->format('Y-m-d');
+				$excelDate = (float)$value;
+
+				// Validar que sea un número razonable para una fecha
+				if ($excelDate > 0 && $excelDate < 60000) {
+					$days = floor($excelDate);
+					$fraction = $excelDate - $days;
+
+					// Ajuste por bug de Excel (29 de febrero de 1900 no existe)
+					if ($excelDate > 60) {
+						$days = $days - 1;
+					}
+
+					// Crear fecha base del 1900-01-01
+					$baseDate = new \DateTime('1900-01-01');
+
+					// Sumar los días
+					if ($days > 1) {
+						$baseDate->modify('+' . ($days - 1) . ' days');
+					}
+
+					return $baseDate->format('Y-m-d');
 				}
+
+				// Si es un pequeño número, probablemente sea un timestamp Unix
 				return Carbon::createFromTimestamp($value)->format('Y-m-d');
 			}
 
@@ -411,36 +479,31 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 				'septiembre' => '09', 'octubre' => '10', 'noviembre' => '11', 'diciembre' => '12',
 				// Abreviaciones español
 				'ene' => '01', 'feb' => '02', 'mar' => '03', 'abr' => '04',
-				'may' => '05', 'jun' => '06', 'jul' => '07', 'ago' => '08',
+				'jun' => '06', 'jul' => '07', 'ago' => '08',
 				'sep' => '09', 'sept' => '09', 'oct' => '10', 'nov' => '11', 'dic' => '12',
 				// Inglés
 				'january' => '01', 'february' => '02', 'march' => '03', 'april' => '04',
-				'may' => '05', 'june' => '06', 'july' => '07', 'august' => '08',
+				'june' => '06', 'july' => '07', 'august' => '08',
 				'september' => '09', 'october' => '10', 'november' => '11', 'december' => '12',
 				// Abreviaciones inglés
-				'jan' => '01', 'feb' => '02', 'mar' => '03', 'apr' => '04',
-				'may' => '05', 'jun' => '06', 'jul' => '07', 'aug' => '08',
-				'sep' => '09', 'oct' => '10', 'nov' => '11', 'dec' => '12'
+				'jan' => '01', 'apr' => '04',
+				'aug' => '08', 'dec' => '12'
 			];
 
 			// Patrones de fecha que manejamos
 			$patrones = [
-				// DD/MM/YYYY o DD-MM-YYYY
+				// DD/MM/YYYY o DD-MM-YYYY (detecta inteligentemente el formato)
 				'/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/' => function($matches) {
-					return sprintf('%04d-%02d-%02d', $matches[3], $matches[2], $matches[1]);
-				},
-				// MM/DD/YYYY o MM-DD-YYYY (formato americano)
-				'/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/' => function($matches) {
-					// Si el primer número es > 12, asumir formato DD/MM/YYYY
+					// Si el primer número es > 12, es formato DD/MM/YYYY
 					if ($matches[1] > 12) {
 						return sprintf('%04d-%02d-%02d', $matches[3], $matches[2], $matches[1]);
 					}
-					// Si el segundo número es > 12, asumir formato MM/DD/YYYY
+					// Si el segundo número es > 12, es formato MM/DD/YYYY
 					if ($matches[2] > 12) {
 						return sprintf('%04d-%02d-%02d', $matches[3], $matches[1], $matches[2]);
 					}
-					// Ambos <= 12, asumir MM/DD/YYYY (americano)
-					return sprintf('%04d-%02d-%02d', $matches[3], $matches[1], $matches[2]);
+					// Ambos <= 12, asumir formato europeo (DD/MM/YYYY)
+					return sprintf('%04d-%02d-%02d', $matches[3], $matches[2], $matches[1]);
 				},
 				// DD/MM/YY o DD-MM-YY
 				'/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/' => function($matches) {

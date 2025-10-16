@@ -104,7 +104,7 @@
 
                         <!-- Botones de acción para catálogo de telares -->
                         @if(request()->routeIs('telares.index'))
-                            <x-action-buttons route="telar" />
+                            <x-action-buttons route="telares" />
                         @endif
 
                         <!-- Botones de acción para catálogo de eficiencia -->
@@ -119,12 +119,12 @@
 
                         <!-- Botones de acción para calendarios -->
                         @if(request()->routeIs('calendarios.index'))
-                            <x-action-buttons route="calendario" :showFilters="true" />
+                            <x-action-buttons route="calendarios" :showFilters="true" />
                         @endif
 
                         <!-- Botones de acción para aplicaciones -->
                         @if(request()->routeIs('planeacion.aplicaciones'))
-                            <x-action-buttons route="aplicacion" :showFilters="true" />
+                            <x-action-buttons route="aplicaciones" :showFilters="true" />
                         @endif
                     </div>
 
