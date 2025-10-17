@@ -16,17 +16,17 @@
                         </button>
                         <h2 class="text-2xl font-bold text-white flex-1 text-center">
                             Consultar Requerimiento
-                        </h2>
+                    </h2>
                     </div>
                 </div>
 
                 <!-- Información del requerimiento -->
-                <div class="p-4 ">
+                <div class="p-4 sm:p-6 lg:p-8">
                     <!-- Información del requerimiento en formato tabla -->
-                    <div class="mb-6 flex flex-col lg:flex-row gap-4">
+                    <div class="mb-6 flex flex-col lg:flex-row gap-3 sm:gap-4 lg:gap-6">
                         <!-- Tabla de datos del requerimiento -->
                         <div class="flex-1 border border-gray-300 rounded-lg overflow-hidden min-w-0">
-                            <div class="overflow-y-auto h-[190px]">
+                            <div class="overflow-y-auto h-32 md:h-24 lg:h-48">
                                 <table class="w-full">
                                 <thead class="sticky top-0 z-10">
                                     <tr class="bg-gradient-to-r from-gray-50 to-gray-100">
@@ -105,7 +105,7 @@
                         </div>
 
                         <!-- Botones de acciones -->
-                        <div class="flex flex-col space-y-2 lg:min-w-[180px]">
+                        <div class="flex flex-col space-y-2 lg:min-w-48">
                             <button class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
                                 <i class="fas fa-list mr-2"></i>Solicitar consumo
                             </button>
@@ -123,7 +123,7 @@
 
                     <!-- Tabla de detalles -->
                     <div class="border border-gray-300 rounded-lg overflow-hidden">
-                        <div class="overflow-y-auto h-[300px]">
+                        <div class="overflow-y-auto h-32 md:h-20 xl:h-48">
                         <table class="w-full">
                             <thead class="sticky top-0 z-10">
                                 <tr class="bg-gradient-to-r from-gray-50 to-gray-100">
@@ -140,11 +140,9 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">Calibre Trama</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">Fibra Trama</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">Fibra Trama</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CodColorTrama</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">ColorTrama</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
                                 </tr>
@@ -156,7 +154,6 @@
                                     <td class="px-4 py-1 text-sm text-gray-900">1</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
                                 </tr>
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CalibreComb22</td>
@@ -166,7 +163,6 @@
                                     <td class="px-4 py-1 text-sm text-gray-900">1</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
                                 </tr>
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CalibreComb32</td>
@@ -176,51 +172,52 @@
                                     <td class="px-4 py-1 text-sm text-gray-900">1</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">1</td>
                                 </tr>
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CalibreComb42</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">Fibra Comb4</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CodColorComb4</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">NombreCC4</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900">1</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">CalibreComb42</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">Fibra Comb4</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">CodColorComb4</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">NombreCC4</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900">1</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">1</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">1</td>
                                 </tr>
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CalibreComb52</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">Fibra Comb5</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CodColorComb5</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">NombreCC5</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900">1</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">1</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">CalibreComb52</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">Fibra Comb5</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">CodColorComb5</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">NombreCC5</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900">1</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">1</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">1</td>
                                 </tr>
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CalibreComb32</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">Fibra Comb3</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CodColorComb3</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">NombreCC3</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900">1</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">CalibreComb32</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">Fibra Comb3</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">CodColorComb3</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">NombreCC3</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900">1</td>
                                 </tr>
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CalibreComb42</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">Fibra Comb4</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CodColorComb4</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">NombreCC4</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900">1</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">CalibreComb42</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">Fibra Comb4</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">CodColorComb4</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">NombreCC4</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900">1</td>
                                 </tr>
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CalibreComb52</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">Fibra Comb5</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">CodColorComb5</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">NombreCC5</td>
-                                    <td class="px-4 py-1 text-sm text-gray-900">1</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">CalibreComb52</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">Fibra Comb5</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">CodColorComb5</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">NombreCC5</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900">1</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
+            </div>
             </div>
             </div>
 

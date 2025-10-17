@@ -94,19 +94,15 @@ class QRScanner {
         try {
             console.log('Solicitando acceso a la cámara...');
 
-            // Intentar cámara frontal primero, luego trasera como fallback
-            try {
-                this.stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user' } // Cámara frontal
-                });
-                console.log('Cámara frontal obtenida');
-            } catch (frontError) {
-                console.log('Cámara frontal no disponible, usando trasera:', frontError);
-                this.stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' } // Cámara trasera
-                });
-                console.log('Cámara trasera obtenida');
-            }
+            // Forzar SOLO cámara frontal
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'user', // Cámara frontal obligatoria
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                }
+            });
+            console.log('Cámara frontal obtenida');
 
             if (this.video) {
                 console.log('Configurando video...');

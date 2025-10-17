@@ -94,11 +94,21 @@
                         </div>
                         </div>
 
+                    <!-- Botón de nuevo requerimiento -->
+                    <div class="flex justify-end mb-4">
+                        <button onclick="agregarNuevoRequerimiento()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-md">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Nuevo Requerimiento
+                        </button>
+                    </div>
+
                     <!-- Tabla de detalles -->
                     <div class=" rounded-lg overflow-hidden ">
-                        <table class="w-full mt-8">
+                        <table class="w-full mt-2.5 ">
                             <thead>
-                                <tr class="bg-gradient-to-r from-gray-50 to-gray-100">
+                                <tr class="">
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Artículo</th>
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Fibra</th>
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Cod Color</th>
@@ -106,7 +116,7 @@
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Cantidad (Conos)</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
+                            <tbody class="">
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">Calibre Trama</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">Fibra Trama</td>
@@ -225,9 +235,9 @@
                                                     <div class="flex space-x-1 min-w-max">
                                                         @for($i = 1; $i <= 100; $i++)
                                                             <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $i == 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}" data-value="{{ $i }}">{{ $i }}</span>
-                                                        @endfor
-                                                    </div>
-                                                </div>
+                        @endfor
+                    </div>
+                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -252,9 +262,9 @@
                                                             <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $i == 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}" data-value="{{ $i }}">{{ $i }}</span>
                                                         @endfor
                                                     </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                        </div>
+                        </div>
+                        </div>
                                     </td>
                                 </tr>
                             </tbody>
@@ -324,6 +334,15 @@
 
         // Funcionalidad del scroll horizontal de números
         document.addEventListener('DOMContentLoaded', function() {
+            // Cerrar editores al hacer clic fuera de ellos
+            document.addEventListener('click', function(event) {
+                const isInsideEditor = event.target.closest('.quantity-edit-container');
+                const isEditButton = event.target.closest('.edit-quantity-btn');
+
+                if (!isInsideEditor && !isEditButton) {
+                    closeAllQuantityEditors();
+                }
+            });
             document.querySelectorAll('.number-option').forEach(option => {
                 option.addEventListener('click', function() {
                     const container = this.closest('.number-scroll-container');
@@ -380,7 +399,10 @@
             const quantityDisplay = row.querySelector('.quantity-display');
 
             if (editContainer.classList.contains('hidden')) {
-                // Mostrar editor
+                // Cerrar todos los editores abiertos primero
+                closeAllQuantityEditors();
+
+                // Mostrar editor actual
                 editContainer.classList.remove('hidden');
                 button.classList.add('hidden');
                 quantityDisplay.classList.add('hidden');
@@ -390,6 +412,34 @@
                 button.classList.remove('hidden');
                 quantityDisplay.classList.remove('hidden');
             }
+        }
+
+        // Función para cerrar todos los editores de cantidad
+        function closeAllQuantityEditors() {
+            document.querySelectorAll('.quantity-edit-container').forEach(container => {
+                if (!container.classList.contains('hidden')) {
+                    const row = container.closest('tr');
+                    const editBtn = row.querySelector('.edit-quantity-btn');
+                    const display = row.querySelector('.quantity-display');
+
+                    container.classList.add('hidden');
+                    editBtn.classList.remove('hidden');
+                    display.classList.remove('hidden');
+                }
+            });
+        }
+
+        // Función para agregar nuevo requerimiento
+        function agregarNuevoRequerimiento() {
+            showToast('Agregando nuevo requerimiento...');
+
+            // Aquí se implementaría la lógica para agregar un nuevo requerimiento
+            // Por ejemplo: redirigir a un formulario, mostrar un modal, etc.
+            console.log('Agregando nuevo requerimiento');
+
+            // Ejemplo: mostrar un modal o redirigir
+            // window.location.href = '/nuevo-requerimiento-formulario';
+            // o mostrar un modal con formulario
         }
 
         // Función para mostrar toast

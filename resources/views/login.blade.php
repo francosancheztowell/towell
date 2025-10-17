@@ -201,10 +201,10 @@
                     return;
                 }
 
-                // Solicitar acceso a la cámara
+                // Solicitar acceso a la cámara frontal
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: 'environment', // Cámara trasera
+                        facingMode: 'user', // Cámara frontal
                         width: { ideal: 640 },
                         height: { ideal: 480 }
                     }
