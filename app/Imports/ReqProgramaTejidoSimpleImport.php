@@ -253,7 +253,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 			'Peine' => $this->parseInteger($this->getValue($row, ['Pei.', 'Pei', 'Peine', 'peine'])),
 			'Luchaje' => $this->parseInteger($this->getValue($row, ['Lcr', 'Luchaje', 'luchaje'])),
 			'PesoCrudo' => $this->parseInteger($this->getValue($row, ['Pcr', 'Peso Crudo', 'peso crudo', 'peso_crudo'])),
-		'PesoGRM2' => $this->parseInteger($this->getValue($row, ['Peso(gr/m²)', 'Peso(gr/m²)', 'peso(gr/m²)', 'peso_grm2', 'Peso', 'peso gr m 2', 'peso_gr_m_2'])),
+		'PesoGRM2' => $this->parseInteger($this->getValue($row, ['Peso (gr/m²)', 'Peso GRM2', 'peso grm2', 'peso_grm2', 'Peso    (gr / m²)', 'peso gr m 2', 'peso_gr_m_2'])),
 		'DiasEficiencia' => $this->parseFloat($this->getValue($row, ['Días Ef.', 'Dias Ef.', 'Días Eficiencia', 'Dias Eficiencia', 'dias_eficiencia'])),
 
 	// 🔍 COLUMNAS PROBLEMÁTICAS - Búsqueda flexible por contenido

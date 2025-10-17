@@ -54,3 +54,4 @@ return [
         'Referrer-Policy' => 'strict-origin-when-cross-origin',
     ],
 ];
+

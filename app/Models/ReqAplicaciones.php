@@ -73,3 +73,4 @@ class ReqAplicaciones extends Model
         ]);
     }
 }
+

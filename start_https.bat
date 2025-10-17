@@ -38,3 +38,4 @@ REM Para desarrollo simple, usaremos el servidor HTTP normal con headers HTTPS
 php artisan serve --host=0.0.0.0 --port=8000
 
 pause
+

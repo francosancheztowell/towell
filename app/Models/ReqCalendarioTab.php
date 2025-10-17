@@ -36,3 +36,4 @@ class ReqCalendarioTab extends Model
         return self::orderBy('CalendarioId')->get();
     }
 }
+

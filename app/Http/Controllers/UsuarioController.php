@@ -433,9 +433,13 @@ class UsuarioController extends Controller
             // Módulos de Tejido (orden 52)
             'Inv Telas' => '/tejido/inventario-telas',
             'Marcas Finales- Cortes de Eficiencia' => '/tejido/marcas-finales',
-            'Inv Trama' => '/tejido/inventario-trama',
+            'Inv Trama' => '/submodulos-nivel3/203',  // ✅ Usar URL automática para nietos
             'Producción Reenconado Cabezuela' => '/tejido/produccion-reenconado',
             'Configurar' => '/tejido/configurar',
+
+            // Nietos de Inv Trama (nivel 3) - orden 203-1, 203-2
+            'Nuevo requerimiento' => '/modulo-nuevo-requerimiento',
+            'Consultar requerimiento' => '/modulo-consultar-requerimiento',
 
             // Submódulos de Configurar (orden 53)
             'Secuencia Inv Telas' => '/tejido/secuencia-inv-telas',

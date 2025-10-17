@@ -29,3 +29,4 @@ class TelaresPlantillaExport implements FromArray, WithHeadings
         return ['Salon', 'Telar', 'Nombre', 'Grupo'];
     }
 }
+

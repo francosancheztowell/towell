@@ -535,7 +535,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Mínima (%)</label>
                                 <input id="swal-eficiencia-min" type="number" class="swal2-input" placeholder="Ej: 70" min="0" max="100" value="${filtrosActuales.eficiencia_min}">
-                            </div>
+                        </div>
                         <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Máxima (%)</label>
                                 <input id="swal-eficiencia-max" type="number" class="swal2-input" placeholder="Ej: 90" min="0" max="100" value="${filtrosActuales.eficiencia_max}">
@@ -745,7 +745,7 @@
                 if (filtrosActivos > 0) {
                     filterCount.textContent = filtrosActivos;
                     filterCount.classList.remove('hidden');
-                } else {
+            } else {
                     filterCount.classList.add('hidden');
                 }
             }

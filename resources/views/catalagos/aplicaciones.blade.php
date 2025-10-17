@@ -381,7 +381,7 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Clave</label>
                                 <input id="swal-clave-filtro" type="text" class="swal2-input" placeholder="Ej: APP001" value="${filtrosActuales.clave}">
                             </div>
-                            <div>
+                        <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                                 <input id="swal-nombre-filtro" type="text" class="swal2-input" placeholder="Ej: Sistema" value="${filtrosActuales.nombre}">
                             </div>
@@ -391,8 +391,8 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Salón</label>
                                 <input id="swal-salon-filtro" type="text" class="swal2-input" placeholder="Ej: Salón A" value="${filtrosActuales.salon}">
-                            </div>
-                            <div>
+                        </div>
+                        <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Telar</label>
                                 <input id="swal-telar-filtro" type="text" class="swal2-input" placeholder="Ej: T001" value="${filtrosActuales.telar}">
                             </div>

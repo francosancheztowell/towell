@@ -106,3 +106,4 @@ Busca líneas que digan:
 - **Usa formatos consistentes** en todo el Excel
 - **Verifica los datos de ejemplo** antes de hacer bulk
 - **Descarga un plantilla** si está disponible en el sistema
+

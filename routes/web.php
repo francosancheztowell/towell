@@ -115,6 +115,14 @@ Route::get('/tejido/karl-mayer', function () {
     Route::get('/tejido/inventario-telas/jacquard', [TelaresController::class, 'inventarioJacquard'])->name('tejido.inventario.jacquard');
     Route::get('/tejido/inventario-telas/itema', [TelaresController::class, 'inventarioItema'])->name('tejido.inventario.itema');
 
+    // Rutas para Inventario Trama
+    Route::get('/modulo-nuevo-requerimiento', function () {
+        return view('modulos.nuevo-requerimiento');
+    });
+    Route::get('/modulo-consultar-requerimiento', function () {
+        return view('modulos.consultar-requerimiento');
+    });
+
     // API para obtener datos del proceso actual
     Route::get('/api/telares/proceso-actual/{telarId}', function ($telarId) {
         // Determinar el tipo de salón según el telar
