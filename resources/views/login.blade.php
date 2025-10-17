@@ -106,9 +106,9 @@
             <div class="text-center">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Escáner QR</h3>
 
-                <!-- Video container -->
+                <!-- Video container con efecto espejo -->
                 <div class="relative mb-4">
-                    <video id="qr-video" autoplay class="w-full h-64 bg-gray-100 rounded-lg"></video>
+                    <video id="qr-video" autoplay class="w-full h-64 bg-gray-100 rounded-lg" style="transform: scaleX(-1);"></video>
                     <canvas id="qr-canvas" class="hidden"></canvas>
                 </div>
 
@@ -249,13 +249,22 @@
                     canvas.height = video.videoHeight;
 
                     const ctx = canvas.getContext('2d');
+
+                    // Voltear horizontalmente para cámara frontal (efecto espejo)
+                    ctx.translate(canvas.width, 0);
+                    ctx.scale(-1, 1);
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    // Resetear transformación
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
                     // Usar jsQR para detectar el código
                     if (typeof jsQR === 'function') {
-                        const code = jsQR(imageData.data, canvas.width, canvas.height);
+                        const code = jsQR(imageData.data, canvas.width, canvas.height, {
+                            inversionAttempts: "dontInvert",
+                        });
 
                         if (code) {
                             console.log('QR detectado:', code.data);

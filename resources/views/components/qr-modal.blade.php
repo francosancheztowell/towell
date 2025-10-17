@@ -30,8 +30,8 @@
 >
     <!-- Contenedor principal -->
     <div class="relative w-full max-w-md mx-4">
-        <!-- Video de la cámara -->
-        <video id="qr-video" autoplay class="w-full h-auto border-4 border-white rounded-lg bg-black shadow-2xl"></video>
+        <!-- Video de la cámara con efecto espejo -->
+        <video id="qr-video" autoplay class="w-full h-auto border-4 border-white rounded-lg bg-black shadow-2xl" style="transform: scaleX(-1);"></video>
 
         <!-- Overlay con guías de escaneo -->
         <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -134,13 +134,22 @@ class QRScanner {
         canvas.width = this.video.videoWidth;
         canvas.height = this.video.videoHeight;
         const context = canvas.getContext('2d');
+
+        // Voltear horizontalmente para cámara frontal (efecto espejo)
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
         context.drawImage(this.video, 0, 0, canvas.width, canvas.height);
+
+        // Resetear transformación
+        context.setTransform(1, 0, 0, 1, 0, 0);
 
         const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
 
         // Verificar si jsQR está disponible
         if (typeof jsQR === 'function') {
-            const qrCode = jsQR(imageData.data, canvas.width, canvas.height);
+            const qrCode = jsQR(imageData.data, canvas.width, canvas.height, {
+                inversionAttempts: "dontInvert",
+            });
 
             if (qrCode) {
                 this.stop();

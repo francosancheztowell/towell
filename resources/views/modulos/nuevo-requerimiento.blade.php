@@ -108,7 +108,7 @@
                     <div class=" rounded-lg overflow-hidden ">
                         <table class="w-full mt-2.5 ">
                             <thead>
-                                <tr class="">
+                                <tr class="bg-gray-100">
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Artículo</th>
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Fibra</th>
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Cod Color</th>
