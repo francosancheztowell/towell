@@ -10,8 +10,8 @@ class SYSRoles extends Model
 
     protected $connection = 'sqlsrv'; // Especificar conexión SQL Server
 
-    // Deshabilitar timestamps si no existen en la tabla
-    public $timestamps = false;
+    // Habilitar timestamps si existen en la tabla
+    public $timestamps = true;
 
     protected $primaryKey = 'idrol';
 
@@ -47,8 +47,6 @@ class SYSRoles extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
     ];
-
-    public $timestamps = true;
 
     const CREATED_AT = 'created_at';
     const UPDATED_AT = 'updated_at';

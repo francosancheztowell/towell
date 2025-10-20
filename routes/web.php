@@ -149,27 +149,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/modulos/{id}/toggle-acceso', [ModulosController::class, 'toggleAcceso'])->name('modulos.toggle.acceso');
             Route::post('/modulos/{id}/toggle-permiso', [ModulosController::class, 'togglePermiso'])->name('modulos.toggle.permiso');
 
-            // Ruta de prueba para verificar autenticación
-            Route::get('/test-auth', function() {
-                try {
-                    $modulos = SYSRoles::count();
-                    return response()->json([
-                        'authenticated' => Auth::check(),
-                        'user_id' => Auth::id(),
-                        'user' => Auth::user(),
-                        'database_connection' => 'OK',
-                        'modulos_count' => $modulos
-                    ]);
-                } catch (\Exception $e) {
-                    return response()->json([
-                        'authenticated' => Auth::check(),
-                        'user_id' => Auth::id(),
-                        'user' => Auth::user(),
-                        'database_connection' => 'ERROR',
-                        'error' => $e->getMessage()
-                    ]);
-                }
-            })->name('test.auth');
+
 
             // Route::get('/cargar-catalogos', [ExcelImportacionesController::class, 'showForm'])->name('cargar.catalogos');
             // Route::post('/cargar-catalogos', [ExcelImportacionesController::class, 'uploadCatalogos'])->name('cargar.catalogos.upload');
