@@ -16,6 +16,7 @@ use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\AplicacionesController;
 use App\Http\Controllers\NuevoRequerimientoController;
 use App\Http\Controllers\ConsultarRequerimientoController;
+use App\Models\SYSRoles;
 
 
 //Rutas de login, con logout, no protegidas por middleware
@@ -34,6 +35,148 @@ Route::get('/obtener-empleados/{area}', function ($area) {
     } catch (\Throwable $e) {
         return [];
     }
+});
+
+// ============================================
+// RUTAS PARA MÓDULOS SIN AUTENTICACIÓN
+// ============================================
+Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () {
+    // Listar módulos
+    Route::get('/', function() {
+        try {
+            $modulos = SYSRoles::orderBy('orden')->get();
+            return view('modulos.gestion-modulos.index', compact('modulos'));
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()]);
+        }
+    })->name('index');
+
+    // Crear módulo
+    Route::get('/create', function() {
+        $modulosPrincipales = SYSRoles::where('Nivel', 1)
+            ->whereNull('Dependencia')
+            ->orderBy('orden')
+            ->get();
+        return view('modulos.gestion-modulos.create', compact('modulosPrincipales'));
+    })->name('create');
+
+    // Guardar módulo
+    Route::post('/', function(\Illuminate\Http\Request $request) {
+        try {
+            $data = $request->validate([
+                'orden' => 'required|string|max:255',
+                'modulo' => 'required|string|max:255',
+                'Nivel' => 'required|string',
+                'Dependencia' => 'nullable|string',
+                'acceso' => 'boolean',
+                'crear' => 'boolean',
+                'modificar' => 'boolean',
+                'eliminar' => 'boolean',
+                'reigstrar' => 'boolean',
+                'imagen_archivo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+            ]);
+
+            // Convertir checkboxes a boolean
+            $data['acceso'] = $request->has('acceso');
+            $data['crear'] = $request->has('crear');
+            $data['modificar'] = $request->has('modificar');
+            $data['eliminar'] = $request->has('eliminar');
+            $data['reigstrar'] = $request->has('reigstrar');
+
+            // Manejar imagen
+            if ($request->hasFile('imagen_archivo')) {
+                $file = $request->file('imagen_archivo');
+                $filename = time() . '.' . $file->getClientOriginalExtension();
+                $file->move(public_path('images/fotos_modulos/'), $filename);
+                $data['imagen'] = $filename;
+            }
+
+            SYSRoles::create($data);
+
+            return redirect()->route('produccion.index')
+                ->with('success', 'Módulo creado exitosamente');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Error al crear módulo: ' . $e->getMessage());
+        }
+    })->name('store');
+
+    // Editar módulo
+    Route::get('/{id}/edit', function($id) {
+        try {
+            $modulo = SYSRoles::findOrFail($id);
+            $modulosPrincipales = SYSRoles::where('Nivel', 1)
+                ->whereNull('Dependencia')
+                ->where('idrol', '!=', $modulo->idrol)
+                ->orderBy('orden')
+                ->get();
+            return view('modulos.gestion-modulos.edit', compact('modulo', 'modulosPrincipales'));
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()]);
+        }
+    })->name('edit');
+
+    // Actualizar módulo
+    Route::put('/{id}', function($id, \Illuminate\Http\Request $request) {
+        try {
+            $modulo = SYSRoles::findOrFail($id);
+
+            $data = $request->validate([
+                'orden' => 'required|string|max:255',
+                'modulo' => 'required|string|max:255',
+                'Nivel' => 'required|string',
+                'Dependencia' => 'nullable|string',
+                'acceso' => 'boolean',
+                'crear' => 'boolean',
+                'modificar' => 'boolean',
+                'eliminar' => 'boolean',
+                'reigstrar' => 'boolean',
+                'imagen_archivo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+            ]);
+
+            // Convertir checkboxes a boolean
+            $data['acceso'] = $request->has('acceso');
+            $data['crear'] = $request->has('crear');
+            $data['modificar'] = $request->has('modificar');
+            $data['eliminar'] = $request->has('eliminar');
+            $data['reigstrar'] = $request->has('reigstrar');
+
+            // Manejar imagen
+            if ($request->hasFile('imagen_archivo')) {
+                $file = $request->file('imagen_archivo');
+                $filename = time() . '.' . $file->getClientOriginalExtension();
+                $file->move(public_path('images/fotos_modulos/'), $filename);
+                $data['imagen'] = $filename;
+            }
+
+            $modulo->update($data);
+
+            return redirect()->route('produccion.index')
+                ->with('success', 'Módulo actualizado exitosamente');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Error al actualizar módulo: ' . $e->getMessage());
+        }
+    })->name('update');
+
+    // Eliminar módulo
+    Route::delete('/{id}', function($id) {
+        try {
+            $modulo = SYSRoles::findOrFail($id);
+            $modulo->delete();
+
+            return redirect()->route('produccion.index')
+                ->with('success', 'Módulo eliminado exitosamente');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al eliminar módulo: ' . $e->getMessage());
+        }
+    })->name('destroy');
 });
 
 
@@ -148,11 +291,6 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/modulos/{id}', [ModulosController::class, 'destroy'])->name('modulos.destroy');
             Route::post('/modulos/{id}/toggle-acceso', [ModulosController::class, 'toggleAcceso'])->name('modulos.toggle.acceso');
             Route::post('/modulos/{id}/toggle-permiso', [ModulosController::class, 'togglePermiso'])->name('modulos.toggle.permiso');
-
-
-
-            // Route::get('/cargar-catalogos', [ExcelImportacionesController::class, 'showForm'])->name('cargar.catalogos');
-            // Route::post('/cargar-catalogos', [ExcelImportacionesController::class, 'uploadCatalogos'])->name('cargar.catalogos.upload');
         });
     });
 

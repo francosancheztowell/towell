@@ -1,4 +1,4 @@
-@extends('layouts.app', ['ocultarBotones' => true])
+@extends('layouts.simple')
 
 @section('title', 'Gestión de Módulos')
 
@@ -6,7 +6,7 @@
 @section('menu-planeacion')
 <!-- Botones específicos para Gestión de Módulos -->
 <div class="flex items-center gap-2">
-    <a href="{{ route('configuracion.utileria.modulos.create') }}"
+    <a href="{{ route('modulos.sin.auth.create') }}"
        class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -223,7 +223,7 @@
                 <h3 class="mt-2 text-sm font-medium text-gray-900">No hay módulos registrados</h3>
                 <p class="mt-1 text-sm text-gray-500">Comienza creando tu primer módulo</p>
                 <div class="mt-6">
-                    <a href="{{ route('configuracion.utileria.modulos.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <a href="{{ route('modulos.sin.auth.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
@@ -451,7 +451,7 @@ function editarModuloSeleccionado() {
     const checkedBoxes = $('.modulo-checkbox:checked');
     if (checkedBoxes.length === 1) {
         const id = checkedBoxes.first().data('id');
-        window.location.href = `/configuracion/utileria/modulos/${id}/edit`;
+        window.location.href = `/modulos-sin-auth/${id}/edit`;
     }
 }
 
@@ -508,7 +508,7 @@ function eliminarModulos(ids) {
     // Eliminar cada módulo
     ids.forEach(function(id, index) {
         $.ajax({
-            url: `/configuracion/utileria/modulos/${id}`,
+            url: `/modulos-sin-auth/${id}`,
             method: 'DELETE',
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content')
@@ -525,13 +525,13 @@ function eliminarModulos(ids) {
                             text: `${eliminados} módulo(s) eliminado(s) correctamente`,
                             timer: 2000,
                             showConfirmButton: false
-                        }).then(() => location.reload());
+                        }).then(() => window.location.href = '/produccionProceso');
                     } else {
                         Swal.fire({
                             icon: 'warning',
                             title: 'Parcialmente completado',
                             text: `${eliminados} módulo(s) eliminado(s), ${errores} error(es)`
-                        }).then(() => location.reload());
+                        }).then(() => window.location.href = '/produccionProceso');
                     }
                 }
             },
@@ -544,7 +544,7 @@ function eliminarModulos(ids) {
                             icon: 'warning',
                             title: 'Parcialmente completado',
                             text: `${eliminados} módulo(s) eliminado(s), ${errores} error(es)`
-                        }).then(() => location.reload());
+                        }).then(() => window.location.href = '/produccionProceso');
                     } else {
                         Swal.fire({
                             icon: 'error',

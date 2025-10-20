@@ -120,16 +120,90 @@ class ModulosController extends Controller
      */
     public function edit($id)
     {
-        $modulo = SYSRoles::findOrFail($id);
+        try {
+            Log::info('Edit method called', [
+                'id' => $id,
+                'user_id' => Auth::id(),
+                'user_authenticated' => Auth::check(),
+                'user' => Auth::user()
+            ]);
 
-        // Obtener módulos principales para usar como dependencias
-        $modulosPrincipales = SYSRoles::where('Nivel', 1)
-            ->whereNull('Dependencia')
-            ->where('idrol', '!=', $modulo->idrol) // Excluir el módulo actual
-            ->orderBy('orden')
-            ->get();
+            $modulo = SYSRoles::findOrFail($id);
 
-        return view('modulos.gestion-modulos.edit', compact('modulo', 'modulosPrincipales'));
+            Log::info('Module found for edit', [
+                'module_id' => $modulo->idrol,
+                'module_name' => $modulo->modulo,
+                'module_orden' => $modulo->orden
+            ]);
+
+            // Obtener módulos principales para usar como dependencias
+            $modulosPrincipales = SYSRoles::where('Nivel', 1)
+                ->whereNull('Dependencia')
+                ->where('idrol', '!=', $modulo->idrol) // Excluir el módulo actual
+                ->orderBy('orden')
+                ->get();
+
+            Log::info('Edit view data prepared', [
+                'module' => $modulo->toArray(),
+                'modulos_principales_count' => $modulosPrincipales->count()
+            ]);
+
+            return view('modulos.gestion-modulos.edit', compact('modulo', 'modulosPrincipales'));
+
+        } catch (\Exception $e) {
+            Log::error('Error in edit method', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+                'user_authenticated' => Auth::check()
+            ]);
+
+            return redirect()->route('configuracion.utileria.modulos')
+                ->with('error', 'Error al cargar el módulo para editar: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Mostrar el formulario simplificado para editar un módulo
+     */
+    public function editSimple($id)
+    {
+        try {
+            Log::info('EditSimple method called', [
+                'id' => $id,
+                'user_id' => Auth::id(),
+                'user_authenticated' => Auth::check()
+            ]);
+
+            $modulo = SYSRoles::findOrFail($id);
+
+            // Obtener módulos principales para usar como dependencias
+            $modulosPrincipales = SYSRoles::where('Nivel', 1)
+                ->whereNull('Dependencia')
+                ->where('idrol', '!=', $modulo->idrol) // Excluir el módulo actual
+                ->orderBy('orden')
+                ->get();
+
+            Log::info('EditSimple view data prepared', [
+                'module' => $modulo->toArray(),
+                'modulos_principales_count' => $modulosPrincipales->count()
+            ]);
+
+            return view('modulos.gestion-modulos.edit-simple', compact('modulo', 'modulosPrincipales'));
+
+        } catch (\Exception $e) {
+            Log::error('Error in editSimple method', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+                'user_authenticated' => Auth::check()
+            ]);
+
+            return redirect()->route('configuracion.utileria.modulos')
+                ->with('error', 'Error al cargar el módulo para editar: ' . $e->getMessage());
+        }
     }
 
     /**

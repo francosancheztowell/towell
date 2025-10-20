@@ -1,4 +1,4 @@
-@extends('layouts.app', ['ocultarBotones' => true])
+@extends('layouts.simple')
 
 @section('title', 'Crear Nuevo Módulo')
 
@@ -23,7 +23,7 @@
 
     <!-- Formulario -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
-        <form action="{{ route('configuracion.utileria.modulos.store') }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ route('modulos.sin.auth.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
 
             <!-- Campos principales -->
@@ -152,7 +152,7 @@
             <div class="p-6 border-b border-gray-200">
                 <label for="imagen_archivo" class="block text-sm font-medium text-gray-700 mb-3">Imagen del Módulo</label>
                 <input type="file"
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('imagen_archivo') border-red-500 @enderror"
+                       class="w-full px-3 py-2 border  rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('imagen_archivo') border-red-500 @enderror"
                        id="imagen_archivo"
                        name="imagen_archivo"
                        accept="image/*">
@@ -164,7 +164,7 @@
 
             <!-- Botones -->
             <div class="p-6 bg-gray-50 flex justify-end space-x-3">
-                <a href="{{ route('configuracion.utileria.modulos') }}"
+                <a href="{{ route('modulos.sin.auth.index') }}"
                    class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
                     Cancelar
                 </a>
