@@ -93,28 +93,60 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
 
             $nuevoModulo = SYSRoles::create($data);
 
-            // Asignar permisos del nuevo módulo a todos los usuarios existentes
-            $usuarios = \App\Models\Usuario::all();
-            foreach ($usuarios as $usuario) {
-                // Verificar si ya existe el registro para evitar duplicados
-                $existeRegistro = \App\Models\SYSUsuariosRoles::where('idusuario', $usuario->idusuario)
-                    ->where('idrol', $nuevoModulo->idrol)
-                    ->exists();
+            // Verificar usuarios existentes
+            $usuariosCount = \Illuminate\Support\Facades\DB::table('SYSUsuario')->count();
+            \Illuminate\Support\Facades\Log::info('Usuarios existentes en SYSUsuario', ['count' => $usuariosCount]);
 
-                if (!$existeRegistro) {
-                    \App\Models\SYSUsuariosRoles::create([
-                        'idusuario' => $usuario->idusuario,
-                        'idrol' => $nuevoModulo->idrol,
-                        'acceso' => $data['acceso'] ? 1 : 0,
-                        'crear' => $data['crear'] ? 1 : 0,
-                        'modificar' => $data['modificar'] ? 1 : 0,
-                        'eliminar' => $data['eliminar'] ? 1 : 0,
-                        'reigstrar' => $data['reigstrar'] ? 1 : 0,
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]);
-                }
-            }
+            // Asignar permisos del nuevo módulo a todos los usuarios existentes usando SQL directo
+            $acceso = $data['acceso'] ? 1 : 0;
+            $crear = $data['crear'] ? 1 : 0;
+            $modificar = $data['modificar'] ? 1 : 0;
+            $eliminar = $data['eliminar'] ? 1 : 0;
+            $registrar = $data['reigstrar'] ? 1 : 0;
+            $fechaActual = now()->format('Y-m-d H:i:s');
+
+            \Illuminate\Support\Facades\Log::info('Datos para asignar permisos', [
+                'idrol' => $nuevoModulo->idrol,
+                'acceso' => $acceso,
+                'crear' => $crear,
+                'modificar' => $modificar,
+                'eliminar' => $eliminar,
+                'registrar' => $registrar,
+                'fecha' => $fechaActual
+            ]);
+
+            // SQL directo para insertar permisos a todos los usuarios existentes
+            $sql = "
+                INSERT INTO SYSUsuariosRoles (idusuario, idrol, acceso, crear, modificar, eliminar, registrar, assigned_at)
+                SELECT
+                    u.idusuario,
+                    {$nuevoModulo->idrol} as idrol,
+                    {$acceso} as acceso,
+                    {$crear} as crear,
+                    {$modificar} as modificar,
+                    {$eliminar} as eliminar,
+                    {$registrar} as registrar,
+                    '{$fechaActual}' as assigned_at
+                FROM SYSUsuario u
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM SYSUsuariosRoles ur
+                    WHERE ur.idusuario = u.idusuario
+                    AND ur.idrol = {$nuevoModulo->idrol}
+                )
+            ";
+            
+            \Illuminate\Support\Facades\Log::info('SQL a ejecutar', ['sql' => $sql]);
+            
+            $resultado = \Illuminate\Support\Facades\DB::statement($sql);
+            
+            \Illuminate\Support\Facades\Log::info('Resultado de la asignación de permisos', ['resultado' => $resultado]);
+            
+            // Verificar cuántos registros se insertaron
+            $permisosAsignados = \Illuminate\Support\Facades\DB::table('SYSUsuariosRoles')
+                ->where('idrol', $nuevoModulo->idrol)
+                ->count();
+                
+            \Illuminate\Support\Facades\Log::info('Permisos asignados después de la inserción', ['count' => $permisosAsignados]);
 
             return redirect()->route('produccion.index')
                 ->with('success', 'Módulo creado exitosamente y permisos asignados a todos los usuarios');
