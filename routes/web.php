@@ -91,10 +91,33 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
                 $data['imagen'] = $filename;
             }
 
-            SYSRoles::create($data);
+            $nuevoModulo = SYSRoles::create($data);
+
+            // Asignar permisos del nuevo módulo a todos los usuarios existentes
+            $usuarios = \App\Models\Usuario::all();
+            foreach ($usuarios as $usuario) {
+                // Verificar si ya existe el registro para evitar duplicados
+                $existeRegistro = \App\Models\SYSUsuariosRoles::where('idusuario', $usuario->idusuario)
+                    ->where('idrol', $nuevoModulo->idrol)
+                    ->exists();
+
+                if (!$existeRegistro) {
+                    \App\Models\SYSUsuariosRoles::create([
+                        'idusuario' => $usuario->idusuario,
+                        'idrol' => $nuevoModulo->idrol,
+                        'acceso' => $data['acceso'] ? 1 : 0,
+                        'crear' => $data['crear'] ? 1 : 0,
+                        'modificar' => $data['modificar'] ? 1 : 0,
+                        'eliminar' => $data['eliminar'] ? 1 : 0,
+                        'reigstrar' => $data['reigstrar'] ? 1 : 0,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                }
+            }
 
             return redirect()->route('produccion.index')
-                ->with('success', 'Módulo creado exitosamente');
+                ->with('success', 'Módulo creado exitosamente y permisos asignados a todos los usuarios');
 
         } catch (\Exception $e) {
             return redirect()->back()
@@ -169,12 +192,16 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
             $modulo = SYSRoles::findOrFail($id);
             $modulo->delete();
 
-            return redirect()->route('produccion.index')
-                ->with('success', 'Módulo eliminado exitosamente');
+            return response()->json([
+                'success' => true,
+                'message' => 'Módulo eliminado exitosamente'
+            ]);
 
         } catch (\Exception $e) {
-            return redirect()->back()
-                ->with('error', 'Error al eliminar módulo: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar módulo: ' . $e->getMessage()
+            ], 500);
         }
     })->name('destroy');
 });

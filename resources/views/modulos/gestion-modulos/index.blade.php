@@ -514,9 +514,13 @@ function eliminarModulos(ids) {
                 _token: $('meta[name="csrf-token"]').attr('content')
             },
             success: function(response) {
-                eliminados++;
+                if (response.success) {
+                    eliminados++;
+                } else {
+                    errores++;
+                }
+
                 if (eliminados + errores === ids.length) {
-                    // Todos los módulos procesados
                     Swal.close();
                     if (errores === 0) {
                         Swal.fire({
@@ -535,7 +539,7 @@ function eliminarModulos(ids) {
                     }
                 }
             },
-            error: function() {
+            error: function(xhr, status, error) {
                 errores++;
                 if (eliminados + errores === ids.length) {
                     Swal.close();
