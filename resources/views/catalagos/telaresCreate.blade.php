@@ -4,7 +4,7 @@
 <br><br>
     <div class="container">
         <h1 class="text-3xl font-bold text-center mb-10">Agregar Telar</h1>
-        <form action="{{ route('telares.store') }}" method="POST">
+        <form action="{{ route('planeacion.telares.store') }}" method="POST">
             @csrf
             <div class="form-group">
                 <label for="salon">Salón</label>

@@ -26,7 +26,7 @@
                     ✏️ EDITANDO USUARIO #{{ $usuario->numero_empleado }}
                 </h1>
 
-                <a href="{{ route('usuarios.select') }}"
+                <a href="{{ route('configuracion.usuarios.select') }}"
                     class="text-[11px] px-2 py-1 rounded-full bg-blue-200 text-blue-900 font-bold">
                     ← Volver al listado
                 </a>
@@ -81,7 +81,7 @@
                 </div>
             </div>
 
-            <form action="{{ route('usuarios.update', $usuario) }}" method="POST"
+            <form action="{{ route('configuracion.usuarios.update', $usuario) }}" method="POST"
                 class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 @csrf
                 @method('PUT')
@@ -189,7 +189,7 @@
                         💾 Guardar cambios
                     </button>
 
-                    <a href="{{ route('usuarios.select') }}"
+                    <a href="{{ route('configuracion.usuarios.select') }}"
                         class="w-1/4 inline-flex items-center text-[12px] px-3 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-900 font-semibold border border-blue-300">
                         ← Cancelar
                     </a>

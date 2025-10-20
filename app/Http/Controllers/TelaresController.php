@@ -7,6 +7,7 @@ use App\Models\InvSecuenciaTelares;
 use App\Models\ReqProgramaTejido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class TelaresController
 {
@@ -270,43 +271,61 @@ class TelaresController
      */
     public function inventarioItema()
     {
+        // Debug: Ver todos los registros de ReqProgramaTejido para ITEMA/SMIT
+        $todosRegistrosItema = DB::table('ReqProgramaTejido')
+            ->whereIn('SalonTejidoId', ['ITEMA', 'SMIT'])
+            ->select('NoTelarId', 'EnProceso', 'NoProduccion', 'NombreProducto', 'SalonTejidoId')
+            ->get();
+
+        Log::info('DEBUG - Todos los registros ITEMA/SMIT en ReqProgramaTejido:', [
+            'count' => $todosRegistrosItema->count(),
+            'registros' => $todosRegistrosItema->toArray()
+        ]);
+
         // Primero obtener solo los telares que están en proceso (EnProceso = 1)
-        $telaresEnProceso = DB::table('ReqProgramaTejido')
-            ->where('SalonTejidoId', 'ITEMA')
+        $telaresEnProcesoRaw = DB::table('ReqProgramaTejido')
+            ->whereIn('SalonTejidoId', ['ITEMA', 'SMIT'])
             ->where('EnProceso', 1)
             ->pluck('NoTelarId')
             ->toArray();
 
-        // Verificar si hay telares en proceso
-        if (empty($telaresEnProceso)) {
-            // Si no hay telares en proceso, verificar si hay telares futuros
-            $telaresFuturos = DB::table('ReqProgramaTejido')
-                ->where('SalonTejidoId', 'ITEMA')
-                ->where('EnProceso', 0)
-                ->pluck('NoTelarId')
-                ->unique()
-                ->toArray();
-
-            if (empty($telaresFuturos)) {
-                // No hay telares en proceso ni futuros
-                $telaresOrdenados = [];
-            } else {
-                // Hay telares futuros, mostrar la secuencia completa para mostrar mensaje
-                $telaresOrdenados = DB::table('InvSecuenciaTelares')
-                    ->where('TipoTelar', 'ITEMA')
-                    ->orderBy('Secuencia')
-                    ->pluck('NoTelar')
-                    ->toArray();
+        // Convertir telares que vienen en formato 1XX a 3XX (ej: 118 -> 318, 120 -> 320)
+        // Esto maneja el caso donde los números de telar están en formato corto
+        $telaresEnProceso = array_map(function($telar) {
+            $telarInt = intval($telar);
+            // Si el telar es de 3 dígitos y empieza con 1 (100-199), convertir a 3XX
+            if ($telarInt >= 100 && $telarInt < 200) {
+                return 300 + ($telarInt % 100); // 118 -> 318, 120 -> 320
             }
-        } else {
-            // Ordenar los telares en proceso según la secuencia de InvSecuenciaTelares
-            $telaresOrdenados = DB::table('InvSecuenciaTelares')
-                ->where('TipoTelar', 'ITEMA')
-                ->whereIn('NoTelar', $telaresEnProceso)
-                ->orderBy('Secuencia')
-                ->pluck('NoTelar')
-                ->toArray();
+            return $telarInt;
+        }, $telaresEnProcesoRaw);
+
+        // Log para depuración
+        Log::info('Telares Itema en proceso encontrados:', [
+            'count' => count($telaresEnProceso),
+            'telares_originales' => $telaresEnProcesoRaw,
+            'telares_convertidos' => $telaresEnProceso
+        ]);
+
+        // SOLUCIÓN: Usar array hardcodeado como JACQUARD
+        // Orden de telares ITEMA según InvSecuenciaTelares
+        $todosTelaresItema = [300, 299, 302, 301, 304, 303, 306, 305, 308, 307, 310, 309, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320];
+
+        // Filtrar solo los telares que están en proceso manteniendo el orden
+        $telaresOrdenados = [];
+        foreach ($todosTelaresItema as $telar) {
+            if (in_array($telar, $telaresEnProceso)) {
+                $telaresOrdenados[] = $telar;
+            }
         }
+
+        Log::info('Telares Itema - Debug completo:', [
+            'telares_originales_raw' => $telaresEnProcesoRaw,
+            'telares_convertidos' => $telaresEnProceso,
+            'todos_telares_itema' => $todosTelaresItema,
+            'telares_ordenados_final' => $telaresOrdenados,
+            'count_ordenados' => count($telaresOrdenados)
+        ]);
 
         // Convertir a enteros para consistencia
         $telaresOrdenados = array_map('intval', $telaresOrdenados);
@@ -315,10 +334,26 @@ class TelaresController
         $datosTelaresCompletos = [];
 
         foreach ($telaresOrdenados as $numeroTelar) {
+            // Convertir de vuelta a formato original si es necesario (ej: 318 -> 118)
+            // para buscar en la base de datos con el número original
+            $numeroTelarOriginal = $numeroTelar;
+            if ($numeroTelar >= 300 && $numeroTelar < 400) {
+                // Verificar si existe con formato 1XX
+                $existeConFormato1XX = DB::table('ReqProgramaTejido')
+                    ->whereIn('SalonTejidoId', ['ITEMA', 'SMIT'])
+                    ->where('NoTelarId', 100 + ($numeroTelar % 100))
+                    ->where('EnProceso', 1)
+                    ->exists();
+
+                if ($existeConFormato1XX) {
+                    $numeroTelarOriginal = 100 + ($numeroTelar % 100); // 318 -> 118
+                }
+            }
+
             // Obtener datos del telar en proceso
             $telarEnProceso = DB::table('ReqProgramaTejido')
-                ->where('SalonTejidoId', 'ITEMA')
-                ->where('NoTelarId', $numeroTelar)
+                ->whereIn('SalonTejidoId', ['ITEMA', 'SMIT'])
+                ->where('NoTelarId', $numeroTelarOriginal)
                 ->where('EnProceso', 1)
                 ->select([
                     'NoTelarId as Telar',
@@ -367,12 +402,17 @@ class TelaresController
                 ])
                 ->first();
 
+            // Actualizar el número de telar al formato de secuencia (3XX) si se obtuvo con formato 1XX
+            if ($telarEnProceso && $numeroTelarOriginal != $numeroTelar) {
+                $telarEnProceso->Telar = $numeroTelar; // Usar el número de secuencia (318, 320, etc)
+            }
+
             // Obtener siguiente orden
             $ordenSig = null;
             if ($telarEnProceso) {
                 $ordenSig = DB::table('ReqProgramaTejido')
-                    ->where('SalonTejidoId', 'ITEMA')
-                    ->where('NoTelarId', $numeroTelar)
+                    ->whereIn('SalonTejidoId', ['ITEMA', 'SMIT'])
+                    ->where('NoTelarId', $numeroTelarOriginal)
                     ->where('EnProceso', 0)
                     ->where('FechaInicio', '>', $telarEnProceso->Inicio_Tejido)
                     ->select([
@@ -432,6 +472,13 @@ class TelaresController
                 'ordenSig' => $ordenSig
             ];
         }
+
+        Log::info('ITEMA - Datos finales enviados a la vista:', [
+            'telaresItema_count' => count($telaresOrdenados),
+            'telaresItema' => $telaresOrdenados,
+            'datosTelaresCompletos_count' => count($datosTelaresCompletos),
+            'datosTelaresCompletos_keys' => array_keys($datosTelaresCompletos)
+        ]);
 
         return view('modulos/tejido/inventario-telas/itema', [
             'telaresItema' => $telaresOrdenados,

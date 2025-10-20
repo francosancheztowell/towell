@@ -74,3 +74,4 @@ class ReqAplicaciones extends Model
     }
 }
 
+

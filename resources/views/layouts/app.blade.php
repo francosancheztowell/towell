@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+@php use Illuminate\Support\Str; @endphp
 <html lang="es">
 
 <head>
@@ -103,27 +104,27 @@
                         @yield('menu-planeacion')
 
                         <!-- Botones de acción para catálogo de telares -->
-                        @if(request()->routeIs('telares.index'))
-                            <x-action-buttons route="telares" />
+                        @if(request()->routeIs('planeacion.catalogos.telares') || request()->routeIs('telares.index'))
+                            <x-action-buttons route="telares" :showFilters="true" />
                         @endif
 
                         <!-- Botones de acción para catálogo de eficiencia -->
-                        @if(request()->routeIs('eficiencia.index'))
+                        @if(request()->routeIs('planeacion.catalogos.eficiencia') || request()->routeIs('eficiencia.index'))
                             <x-action-buttons route="eficiencia" :showFilters="true" />
                         @endif
 
                         <!-- Botones de acción para catálogo de velocidad -->
-                        @if(request()->routeIs('velocidad.index'))
+                        @if(request()->routeIs('planeacion.catalogos.velocidad') || request()->routeIs('velocidad.index'))
                             <x-action-buttons route="velocidad" :showFilters="true" />
                         @endif
 
                         <!-- Botones de acción para calendarios -->
-                        @if(request()->routeIs('calendarios.index'))
+                        @if(request()->routeIs('planeacion.catalogos.calendarios') || request()->routeIs('calendarios.index'))
                             <x-action-buttons route="calendarios" :showFilters="true" />
                         @endif
 
                         <!-- Botones de acción para aplicaciones -->
-                        @if(request()->routeIs('planeacion.aplicaciones'))
+                        @if(request()->routeIs('planeacion.catalogos.aplicaciones') || request()->routeIs('planeacion.aplicaciones'))
                             <x-action-buttons route="aplicaciones" :showFilters="true" />
                         @endif
                     </div>
@@ -134,7 +135,7 @@
                         @yield('navbar-right')
 
                         <!-- Notificar Falla con texto e ícono -->
-                        <button href="{{ route('telares.falla') }}" class="bg-yellow-400 hover:bg-yellow-500 flex items-center gap-2 px-3 py-2 text-sm font-medium  rounded-lg transition-colors">
+                        <button href="{{ route('planeacion.telares.falla') }}" class="bg-yellow-400 hover:bg-yellow-500 flex items-center gap-2 px-3 py-2 text-sm font-medium  rounded-lg transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 " fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                             </svg>
@@ -165,8 +166,24 @@
 
                         <!-- Círculo de usuario -->
                         <div class="relative">
-                            <button class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
-                                {{ strtoupper(substr(Auth::user()->nombre, 0, 1)) }}
+                            @php
+                                $usuario = Auth::user();
+                                $fotoUrl = null;
+                                if (!empty($usuario->foto)) {
+                                    $fotoUrl = !Str::startsWith($usuario->foto, ['http://', 'https://', '/'])
+                                        ? asset('storage/usuarios/' . $usuario->foto)
+                                        : asset('storage/' . ltrim($usuario->foto, '/'));
+                                }
+                            @endphp
+                            <button class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl overflow-hidden">
+                                @if($fotoUrl)
+                                    <img src="{{ $fotoUrl }}" alt="Foto de {{ $usuario->nombre }}"
+                                         class="w-full h-full object-cover">
+                                @else
+                                    <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm hover:from-blue-600 hover:to-blue-700">
+                                        {{ strtoupper(substr($usuario->nombre, 0, 1)) }}
+                                    </div>
+                                @endif
                             </button>
                         </div>
                     </div>

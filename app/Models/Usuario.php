@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Hash;
 
@@ -59,11 +57,7 @@ class Usuario extends Authenticatable
         }
     }
 
-    // Relación con telares (si la necesitas)
-    public function telares()
-    {
-        return $this->belongsToMany(CatalagoTelar::class, 'telares_usuario', 'usuario_id', 'telar_id');
-    }
+
 
     // Para que {usuario} en la ruta resuelva por idusuario
     public function getRouteKeyName()

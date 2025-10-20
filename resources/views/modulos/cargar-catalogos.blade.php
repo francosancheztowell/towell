@@ -7,7 +7,7 @@
 
     <!-- View Records Button -->
     <div class="mb-6">
-        <a href="{{ route('catalogos.req-programa-tejido') }}"
+        <a href="{{ route('planeacion.catalogos') }}"
            class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors duration-300">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709" />
@@ -31,7 +31,7 @@
             </div>
 
             <!-- File Upload Form -->
-            <form action="{{ route('catalogos.upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
+            <form action="{{ route('configuracion.utileria.cargar.catalogos.upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
                 @csrf
                 <div class="mb-6">
                     <label for="excel_file" class="block text-sm font-medium text-gray-700 mb-2">

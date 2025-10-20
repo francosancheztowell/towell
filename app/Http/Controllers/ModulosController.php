@@ -7,6 +7,7 @@ use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class ModulosController extends Controller
 {
@@ -49,7 +50,14 @@ class ModulosController extends Controller
     public function store(Request $request)
     {
         try {
+            Log::info('Store method called', [
+                'user_id' => Auth::id(),
+                'user_authenticated' => Auth::check(),
+                'request_data' => $request->all()
+            ]);
+
             Log::info('Store request recibido:', $request->all());
+            Log::info('Usuario autenticado:', ['user_id' => Auth::id(), 'user' => Auth::user()]);
 
             $validator = Validator::make($request->all(), [
                 'orden' => 'required|string|max:50',
@@ -94,11 +102,15 @@ class ModulosController extends Controller
             Log::info('Datos a crear:', $data);
             $modulo = SYSRoles::create($data);
 
-            return redirect()->route('modulos.edit', $modulo)
+            return redirect()->route('configuracion.utileria.modulos.edit', $modulo->idrol)
                 ->with('success', "Módulo '{$modulo->modulo}' creado exitosamente");
 
         } catch (\Exception $e) {
-            Log::error('Error al crear módulo: ' . $e->getMessage());
+            Log::error('Error al crear módulo: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+                'user_authenticated' => Auth::check()
+            ]);
             return back()->with('error', 'Error al crear el módulo: ' . $e->getMessage())->withInput();
         }
     }
@@ -106,8 +118,10 @@ class ModulosController extends Controller
     /**
      * Mostrar el formulario para editar un módulo
      */
-    public function edit(SYSRoles $modulo)
+    public function edit($id)
     {
+        $modulo = SYSRoles::findOrFail($id);
+
         // Obtener módulos principales para usar como dependencias
         $modulosPrincipales = SYSRoles::where('Nivel', 1)
             ->whereNull('Dependencia')
@@ -121,9 +135,18 @@ class ModulosController extends Controller
     /**
      * Actualizar un módulo existente
      */
-    public function update(Request $request, SYSRoles $modulo)
+    public function update(Request $request, $id)
     {
         try {
+            Log::info('Update method called', [
+                'id' => $id,
+                'user_id' => Auth::id(),
+                'user_authenticated' => Auth::check(),
+                'request_data' => $request->all()
+            ]);
+
+            $modulo = SYSRoles::findOrFail($id);
+
             Log::info('Update request recibido:', $request->all());
             Log::info('Módulo a actualizar:', ['id' => $modulo->idrol, 'modulo' => $modulo->modulo]);
 
@@ -178,11 +201,16 @@ class ModulosController extends Controller
             Log::info('Datos a actualizar:', $data);
             $modulo->update($data);
 
-            return redirect()->route('modulos.edit', $modulo)
+            return redirect()->route('configuracion.utileria.modulos.edit', $modulo->idrol)
                 ->with('success', "Módulo '{$modulo->modulo}' actualizado exitosamente");
 
         } catch (\Exception $e) {
-            Log::error('Error al actualizar módulo: ' . $e->getMessage());
+            Log::error('Error al actualizar módulo: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+                'user_authenticated' => Auth::check(),
+                'module_id' => $id
+            ]);
             return back()->with('error', 'Error al actualizar el módulo: ' . $e->getMessage())->withInput();
         }
     }
@@ -190,9 +218,11 @@ class ModulosController extends Controller
     /**
      * Eliminar un módulo
      */
-    public function destroy(SYSRoles $modulo)
+    public function destroy($id)
     {
         try {
+            $modulo = SYSRoles::findOrFail($id);
+
             // Verificar si el módulo tiene submódulos dependientes
             $tieneSubmodulos = SYSRoles::where('Dependencia', $modulo->orden)->exists();
 
@@ -203,7 +233,7 @@ class ModulosController extends Controller
             $nombreModulo = $modulo->modulo;
             $modulo->delete();
 
-            return redirect()->route('modulos.index')
+            return redirect()->route('configuracion.utileria.modulos')
                 ->with('success', "Módulo '{$nombreModulo}' eliminado exitosamente");
 
         } catch (\Exception $e) {
@@ -260,16 +290,18 @@ class ModulosController extends Controller
     /**
      * Duplicar un módulo
      */
-    public function duplicar(SYSRoles $modulo)
+    public function duplicar($id)
     {
         try {
+            $modulo = SYSRoles::findOrFail($id);
+
             // Crear una copia del módulo
             $nuevoModulo = $modulo->replicate();
             $nuevoModulo->orden = $modulo->orden . '_copia';
             $nuevoModulo->modulo = $modulo->modulo . ' (Copia)';
             $nuevoModulo->save();
 
-            return redirect()->route('modulos.index')
+            return redirect()->route('configuracion.utileria.modulos')
                 ->with('success', "Módulo '{$modulo->modulo}' duplicado exitosamente");
 
         } catch (\Exception $e) {
@@ -281,9 +313,11 @@ class ModulosController extends Controller
     /**
      * Cambiar el estado de acceso de un módulo
      */
-    public function toggleAcceso(SYSRoles $modulo)
+    public function toggleAcceso($id)
     {
         try {
+            $modulo = SYSRoles::findOrFail($id);
+
             $modulo->acceso = !$modulo->acceso;
             $modulo->save();
 
@@ -306,9 +340,11 @@ class ModulosController extends Controller
     /**
      * Cambiar el estado de un permiso específico de un módulo
      */
-    public function togglePermiso(Request $request, SYSRoles $modulo)
+    public function togglePermiso(Request $request, $id)
     {
         try {
+            $modulo = SYSRoles::findOrFail($id);
+
             // Validar que el campo esté presente y sea válido
             $campo = $request->input('campo');
             $valor = $request->input('valor');

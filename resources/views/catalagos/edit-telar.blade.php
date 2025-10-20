@@ -52,20 +52,20 @@
                         </div>
                     </div>
 
-                    <form action="{{ route('telares.update', $telar) }}" method="POST">
+                    <form action="{{ route('planeacion.telares.update', $telar) }}" method="POST">
                         @csrf
                         @method('PUT')
-                        
+
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="SalonTejidoId" class="form-label">
                                         <i class="fas fa-building me-1"></i>Salón de Tejido *
                                     </label>
-                                    <input type="text" 
-                                           class="form-control @error('SalonTejidoId') is-invalid @enderror" 
-                                           id="SalonTejidoId" 
-                                           name="SalonTejidoId" 
+                                    <input type="text"
+                                           class="form-control @error('SalonTejidoId') is-invalid @enderror"
+                                           id="SalonTejidoId"
+                                           name="SalonTejidoId"
                                            value="{{ old('SalonTejidoId', $telar->SalonTejidoId) }}"
                                            placeholder="Ej: Jacquard, Smith"
                                            maxlength="20"
@@ -76,16 +76,16 @@
                                     <div class="form-text">El nombre del salón donde está ubicado el telar</div>
                                 </div>
                             </div>
-                            
+
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="NoTelarId" class="form-label">
                                         <i class="fas fa-cogs me-1"></i>Número de Telar *
                                     </label>
-                                    <input type="text" 
-                                           class="form-control @error('NoTelarId') is-invalid @enderror" 
-                                           id="NoTelarId" 
-                                           name="NoTelarId" 
+                                    <input type="text"
+                                           class="form-control @error('NoTelarId') is-invalid @enderror"
+                                           id="NoTelarId"
+                                           name="NoTelarId"
                                            value="{{ old('NoTelarId', $telar->NoTelarId) }}"
                                            placeholder="Ej: 201, 202, 300"
                                            maxlength="10"
@@ -104,10 +104,10 @@
                                     <label for="Grupo" class="form-label">
                                         <i class="fas fa-layer-group me-1"></i>Grupo
                                     </label>
-                                    <input type="text" 
-                                           class="form-control @error('Grupo') is-invalid @enderror" 
-                                           id="Grupo" 
-                                           name="Grupo" 
+                                    <input type="text"
+                                           class="form-control @error('Grupo') is-invalid @enderror"
+                                           id="Grupo"
+                                           name="Grupo"
                                            value="{{ old('Grupo', $telar->Grupo) }}"
                                            placeholder="Ej: Jacquard Smith, Itema Nuevo"
                                            maxlength="30">
@@ -144,10 +144,10 @@
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
-                            <a href="{{ route('telares.index') }}" class="btn btn-secondary">
+                            <a href="{{ route('planeacion.catalogos.telares') }}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left me-2"></i>Volver a Telares
                             </a>
-                            
+
                             <button type="submit" class="btn btn-warning" onclick="confirmarActualizacion()">
                                 <i class="fas fa-save me-2"></i>Actualizar Telar
                             </button>
@@ -163,10 +163,10 @@
 // Función para generar nombre automáticamente
 function generarNombre(salon, telar) {
     if (!salon || !telar) return '-';
-    
+
     const salonUpper = salon.toUpperCase();
     let prefijo;
-    
+
     if (salonUpper.includes('JACQUARD')) {
         prefijo = 'JAC';
     } else if (salonUpper.includes('SMITH')) {
@@ -174,7 +174,7 @@ function generarNombre(salon, telar) {
     } else {
         prefijo = salon.substring(0, 3).toUpperCase();
     }
-    
+
     return prefijo + ' ' + telar;
 }
 
@@ -185,19 +185,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewSalon = document.getElementById('preview-salon');
     const previewTelar = document.getElementById('preview-telar');
     const previewNombre = document.getElementById('preview-nombre');
-    
+
     function updatePreview() {
         const salon = salonInput.value.trim();
         const telar = telarInput.value.trim();
-        
+
         previewSalon.textContent = salon || '-';
         previewTelar.textContent = telar || '-';
         previewNombre.textContent = generarNombre(salon, telar);
     }
-    
+
     salonInput.addEventListener('input', updatePreview);
     telarInput.addEventListener('input', updatePreview);
-    
+
     // Actualizar inicial
     updatePreview();
 });
@@ -205,12 +205,12 @@ document.addEventListener('DOMContentLoaded', function() {
 // Confirmación con SweetAlert
 function confirmarActualizacion() {
     event.preventDefault();
-    
+
     const salon = document.getElementById('SalonTejidoId').value;
     const telar = document.getElementById('NoTelarId').value;
     const grupo = document.getElementById('Grupo').value;
     const nombre = generarNombre(salon, telar);
-    
+
     Swal.fire({
         title: '¿Actualizar Telar?',
         html: `
@@ -238,7 +238,7 @@ function confirmarActualizacion() {
                     Swal.showLoading();
                 }
             });
-            
+
             setTimeout(() => {
                 document.querySelector('form').submit();
             }, 500);
@@ -247,4 +247,5 @@ function confirmarActualizacion() {
 }
 </script>
 @endsection
+
 

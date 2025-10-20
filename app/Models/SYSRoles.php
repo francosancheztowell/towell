@@ -10,6 +10,9 @@ class SYSRoles extends Model
 
     protected $connection = 'sqlsrv'; // Especificar conexión SQL Server
 
+    // Deshabilitar timestamps si no existen en la tabla
+    public $timestamps = false;
+
     protected $primaryKey = 'idrol';
 
     /**

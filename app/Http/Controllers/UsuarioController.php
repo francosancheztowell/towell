@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use App\Models\Usuario;
 use App\Models\SYSRoles;
 use App\Models\SYSUsuariosRoles;
-use App\Models\SYSUsuario;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -42,7 +41,7 @@ class UsuarioController extends Controller
                 'area'            => 'nullable|string|max:100',
                 'telefono'        => 'nullable|string|max:20',
                 'turno'           => 'nullable|string|max:10',
-                'foto'            => 'nullable|image|max:2048',
+                'foto'            => 'nullable|image|mimes:jpeg,png,jpg,gif,bmp,webp,svg,tiff,tif|max:10240',
                 'puesto'          => 'nullable|string|max:100',
                 'correo'          => 'nullable|email|max:255',
             ]);
@@ -100,10 +99,13 @@ class UsuarioController extends Controller
     //CRUD REST, solo edit, update y destroy
 
     // EDITAR
-    public function edit(Usuario $usuario)
+    public function edit($id)
     {
         // Cargar TODOS los módulos (principales, hijos y nietos)
         $modulos = SYSRoles::orderBy('orden')->get();
+
+        // Obtener el usuario por ID
+        $usuario = Usuario::findOrFail($id);
 
         // Obtener permisos actuales del usuario
         $permisosUsuario = SYSUsuariosRoles::where('idusuario', $usuario->idusuario)
@@ -120,7 +122,7 @@ class UsuarioController extends Controller
     }
 
     // ACTUALIZAR
-    public function update(Request $request, Usuario $usuario)
+    public function update(Request $request, $id)
     {
         // Validación con los campos correctos de la tabla SYSUsuario
         $data = $request->validate([
@@ -128,7 +130,7 @@ class UsuarioController extends Controller
             'area'     => 'nullable|string|max:100',
             'telefono' => 'nullable|string|max:20',
             'turno'    => 'nullable|string|max:10',
-            'foto'     => 'nullable|image|max:2048',
+            'foto'     => 'nullable|image|mimes:jpeg,png,jpg,gif,bmp,webp,svg,tiff,tif|max:10240',
             'puesto'   => 'nullable|string|max:100',
             'correo'   => 'nullable|email|max:255',
             'contrasenia' => 'nullable|string|min:4',
@@ -144,20 +146,22 @@ class UsuarioController extends Controller
             $data['foto'] = basename($storedPath); // guardar solo el nombre del archivo
         }
 
-        // Si deseas permitir cambiar la contraseña (no se actualiza si viene vacía)
+        // Si se proporciona una nueva contraseña, hashearla
         if ($request->filled('contrasenia')) {
-            // La contraseña será hasheada automáticamente por el mutador en el modelo
-            $data['contrasenia'] = $request->input('contrasenia');
+            $data['contrasenia'] = Hash::make($request->input('contrasenia'));
         } else {
-            // Si no se proporciona contraseña, no la actualizamos
+            // Si no se proporciona contraseña, mantener la actual
             unset($data['contrasenia']);
         }
+
+        // Obtener el usuario por ID
+        $usuario = Usuario::findOrFail($id);
 
         // numero_empleado lo dejamos como clave, no editable aquí
         $usuario->update($data);
 
         // Actualizar permisos
-        $this->guardarPermisos($request, $usuario->idusuario);
+        $this->guardarPermisos($request, $id);
 
         return redirect()
             ->route('usuarios.select')
@@ -165,13 +169,30 @@ class UsuarioController extends Controller
     }
 
     // ELIMINAR
-    public function destroy(Usuario $usuario)
+    public function destroy($id)
     {
-        $usuario->delete();
+        try {
+            $usuario = Usuario::findOrFail($id);
 
-        return redirect()
-            ->route('usuarios.select')
-            ->with('success', "Usuario #{$usuario->numero_empleado} eliminado correctamente.");
+            // Eliminar primero los registros relacionados en SYSUsuariosRoles
+            SYSUsuariosRoles::where('idusuario', $id)->delete();
+
+            // Luego eliminar el usuario
+            $usuario->delete();
+
+            return redirect()
+                ->route('usuarios.select')
+                ->with('success', "Usuario #{$usuario->numero_empleado} eliminado correctamente.");
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar usuario', [
+                'usuario_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()
+                ->route('usuarios.select')
+                ->with('error', 'No se pudo eliminar el usuario. Verifica que no tenga registros relacionados.');
+        }
     }
 
     // Método para mostrar módulos principales de configuración (900 y 1000)
@@ -408,38 +429,46 @@ class UsuarioController extends Controller
             'Reportes' => '/planeacion/reportes',
             'Reportes Planeación' => '/planeacion/reportes',
             'Producciones Terminadas' => '/planeacion/producciones-terminadas',
+            'Catálogos' => '/planeacion/catalogos',
+            'Catalogos' => '/planeacion/catalogos',
+            'Catálogos (Cat.)' => '/planeacion/catalogos',
+            'Catalogos (Cat.)' => '/planeacion/catalogos',
+            'Catálogos de Planeación' => '/planeacion/catalogos',
+            'Catalogos de Planeacion' => '/planeacion/catalogos',
 
-            // Submódulos de Catálogos (nietos - nivel 3)
-            'Telares' => '/telares',
-            'Eficiencias STD' => '/eficiencia',
-            'Velocidad STD' => '/velocidad',
-            'Calendarios' => '/calendarios',
-            'Aplicaciones (Cat.)' => '/aplicaciones',
-            'Modelos' => '/modelos',
-            'Matriz Calibres' => '/catalogos/matriz-calibres',
-            'Matriz Hilos' => '/catalogos/matriz-hilos',
-            'Codificación Modelos' => '/catalogos/codificacion-modelos',
+            // Submódulos de Catálogos (nietos - nivel 3) - ESTRUCTURA JERÁRQUICA
+            'Telares' => '/planeacion/catalogos/telares',
+            'Eficiencias STD' => '/planeacion/catalogos/eficiencia',
+            'Velocidad STD' => '/planeacion/catalogos/velocidad',
+            'Calendarios' => '/planeacion/catalogos/calendarios',
+            'Aplicaciones (Cat.)' => '/planeacion/catalogos/aplicaciones',
+            'Modelos' => '/planeacion/catalogos/modelos',
+            'Matriz Calibres' => '/planeacion/catalogos/matriz-calibres',
+            'Matriz Hilos' => '/planeacion/catalogos/matriz-hilos',
+            'Codificación Modelos' => '/planeacion/catalogos/codificacion-modelos',
 
             // Submódulos de Programa Tejido (nietos - nivel 3)
-            'Programa Tejido' => '/catalogos/req-programa-tejido',
+            'Programa Tejido' => '/planeacion/programa-tejido',
+            'Programa de Tejido' => '/planeacion/programa-tejido',
+            'Programa Tejido (Cat.)' => '/planeacion/programa-tejido',
             'Orden de Cambio' => '/tejido/orden-cambio',
             'Marbetes' => '/tejido/marbetes',
 
             // Nietos de Inv Telas (nivel 3) - orden 201-1, 201-2, 201-3
             'Jacquard' => '/tejido/inventario-telas/jacquard',
-            'Itema' => '/tejido/itema-nuevo',
+            'Itema' => '/tejido/inventario-telas/itema',
             'Karl Mayer' => '/tejido/karl-mayer',
 
-            // Módulos de Tejido (orden 52)
+            // Módulos de Tejido (orden 52) - ESTRUCTURA JERÁRQUICA
             'Inv Telas' => '/tejido/inventario-telas',
-            'Marcas Finales- Cortes de Eficiencia' => '/tejido/marcas-finales',
+            'Marcas Finales- Cortes de Eficiencia' => '/tejido/inventario/marcas-finales',
             'Inv Trama' => '/submodulos-nivel3/203',  // ✅ Usar URL automática para nietos
             'Producción Reenconado Cabezuela' => '/tejido/produccion-reenconado',
             'Configurar' => '/tejido/configurar',
 
-            // Nietos de Inv Trama (nivel 3) - orden 203-1, 203-2
-            'Nuevo requerimiento' => '/modulo-nuevo-requerimiento',
-            'Consultar requerimiento' => '/modulo-consultar-requerimiento',
+            // Nietos de Inv Trama (nivel 3) - orden 203-1, 203-2 - ESTRUCTURA JERÁRQUICA
+            'Nuevo requerimiento' => '/tejido/inventario/trama/nuevo-requerimiento',
+            'Consultar requerimiento' => '/tejido/inventario/trama/consultar-requerimiento',
 
             // Submódulos de Configurar (orden 53)
             'Secuencia Inv Telas' => '/tejido/secuencia-inv-telas',
@@ -472,14 +501,9 @@ class UsuarioController extends Controller
             'Reservar y Programar' => '/programa-urd-eng/reservar-programar',
             'Edición de Ordenes Programadas' => '/modulo-edicion-urdido-engomado',
 
-            // Módulos de Mantenimiento (orden 21)
-            'Solicitudes' => '/mantenimiento/solicitudes',
-            'Catalogo de Fallas' => '/mantenimiento/catalogo-fallas',
-            'Catalogo de Paros' => '/mantenimiento/catalogo-paros',
-            'Reportes' => '/mantenimiento/reportes',
 
-            // Módulos de configuración (nivel 2) - sin nietos
-            'Usuarios' => '/usuarios/select',
+            // Módulos de configuración (nivel 2) - ESTRUCTURA JERÁRQUICA
+            'Usuarios' => '/configuracion/usuarios/select',
             'Parametros' => '/configuracion/parametros',
             'Base Datos Principal' => '/configuracion/base-datos',
             'BD Pro (ERP Productivo)' => '/configuracion/bd-pro-productivo',
@@ -489,23 +513,42 @@ class UsuarioController extends Controller
             'Ambiente' => '/configuracion/ambiente',
             // 'Utilería' tiene nietos, se maneja automáticamente arriba
 
-            // Nietos de Utilería (nivel 3)
-            'Cargar Catálogos' => '/modulo-cargar-catálogos',
+            // Nietos de Utilería (nivel 3) - ESTRUCTURA JERÁRQUICA
+            'Cargar Catálogos' => '/configuracion/utileria/cargar-catalogos',
             'Cargar Orden de Producción' => '/configuracion/cargar-orden-produccion',
             'Cargar Planeación' => '/configuracion/cargar-planeacion',
+            'Modulos' => '/configuracion/utileria/modulos',
         ];
 
-        // Si existe en el mapeo específico, usarlo
+        // Debug temporal para ver el nombre del módulo
+        Log::info('Generando ruta para módulo: ' . $nombreModulo . ' - Orden: ' . $orden);
+
+        if (strpos($nombreModulo, 'Catálogo') !== false || strpos($nombreModulo, 'Catalog') !== false) {
+            Log::info('Módulo de catálogos detectado: ' . $nombreModulo . ' - Orden: ' . $orden);
+        }
+
+        // Si existe en el mapeo específico, usarlo (PRIORIDAD ABSOLUTA)
         if (isset($rutasSubModulos[$nombreModulo])) {
+            Log::info('Ruta encontrada en mapeo: ' . $rutasSubModulos[$nombreModulo]);
             return $rutasSubModulos[$nombreModulo];
         }
 
+        // Verificación especial para catálogos (cualquier variación)
+        if (strpos(strtolower($nombreModulo), 'catálogo') !== false ||
+            strpos(strtolower($nombreModulo), 'catalog') !== false ||
+            $orden == '104') {
+            Log::info('Redirigiendo catálogos a: /planeacion/catalogos');
+            return '/planeacion/catalogos';
+        }
+
         // SEGUNDO: Verificar si este módulo tiene nietos (nivel 3) - si tiene, redirigir a la vista de nietos
+        // SOLO si NO está en el mapeo específico
         $tieneNietos = SYSRoles::where('Nivel', 3)
             ->where('Dependencia', $orden)
             ->exists();
 
         if ($tieneNietos) {
+            Log::info('Módulo tiene nietos, redirigiendo a: /submodulos-nivel3/' . $orden);
             return '/submodulos-nivel3/' . $orden;
         }
 
@@ -523,7 +566,7 @@ class UsuarioController extends Controller
     }
 
     // Método para mostrar submódulos de nivel 3 (ej: 201_1, 201_2, etc.)
-    public function showSubModulosNivel3($moduloPadre)
+    public function showSubModulosNivel3($moduloPadre = '104')
     {
         $usuarioActual = Auth::user();
         $idusuario = $usuarioActual->idusuario;

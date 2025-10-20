@@ -27,7 +27,7 @@
                         </div>
                     @endif
 
-                    <form action="{{ route('telares.store') }}" method="POST">
+                    <form action="{{ route('planeacion.telares.store') }}" method="POST">
                         @csrf
 
                         <div class="row">
@@ -118,7 +118,7 @@
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
-                            <a href="{{ route('telares.index') }}" class="btn btn-secondary">
+                            <a href="{{ route('planeacion.catalogos.telares') }}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left me-2"></i>Volver a Telares
                             </a>
 

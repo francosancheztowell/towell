@@ -3,7 +3,7 @@
 @section('content')
     <div class="container">
         <h1 class="text-3xl font-bold text-center mb-10">Agregar Registro de Velocidad</h1>
-        <form action="{{ route('velocidad.store') }}" method="POST">
+        <form action="{{ route('planeacion.velocidad.store') }}" method="POST">
             @csrf
             <div class="form-group">
                 <label for="telar">Telar</label>

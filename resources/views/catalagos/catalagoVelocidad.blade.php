@@ -432,8 +432,84 @@
         }
 
         function subirExcelVelocidad() {
-            // Esta función será llamada por el botón "Subir Excel" del componente action-buttons
-            // El modal se maneja desde el componente
+            Swal.fire({
+                title: 'Subir Excel - Velocidad',
+                html: `
+                    <div class="text-left">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Seleccionar archivo Excel</label>
+                            <input id="excel-file" type="file" accept=".xlsx,.xls" class="swal2-input">
+                        </div>
+                        <div class="text-sm text-gray-600 bg-blue-50 p-3 rounded">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Formatos soportados: .xlsx, .xls (máximo 10MB)
+                        </div>
+                    </div>
+                `,
+                width: '500px',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fas fa-upload me-2"></i>Subir',
+                cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#6c757d',
+                preConfirm: () => {
+                    const fileInput = document.getElementById('excel-file');
+                    if (!fileInput.files[0]) {
+                        Swal.showValidationMessage('Por favor selecciona un archivo Excel');
+                        return false;
+                    }
+                    return fileInput.files[0];
+                }
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    const file = result.value;
+
+                    // Mostrar loader
+                    Swal.fire({
+                        title: 'Procesando...',
+                        text: 'Subiendo y procesando archivo Excel',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        willOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    // Crear FormData
+                    const formData = new FormData();
+                    formData.append('archivo_excel', file);
+                    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+
+                    // Enviar archivo
+                    fetch('/velocidad/excel', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: '¡Excel Procesado!',
+                                text: data.message,
+                                icon: 'success',
+                                timer: 3000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            throw new Error(data.message || 'Error al procesar el archivo');
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire({
+                            title: 'Error',
+                            text: error.message || 'Error al subir el archivo Excel',
+                            icon: 'error'
+                        });
+                    });
+                }
+            });
         }
 
         // Función global para que el botón "Subir Excel" del navbar pueda llamarla
@@ -441,10 +517,10 @@
             subirExcelVelocidad();
         };
 
-
-        // Función global para que el botón "Filtrar" del navbar pueda llamarla
+        // Función global para filtros
         window.filtrarVelocidad = function() {
-            console.log('filtrarVelocidad llamado desde navbar');
+            console.log('Filtrar velocidad desde navbar - función llamada');
+            console.log('mostrarFiltros disponible:', typeof mostrarFiltros);
             mostrarFiltros();
         };
 

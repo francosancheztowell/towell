@@ -250,7 +250,7 @@ class CatalagoTelarController extends Controller
     /**
      * Actualizar un telar existente
      */
-    public function update(Request $request, ReqTelares $telar)
+    public function update(Request $request, $uniqueId)
     {
         try {
             $request->validate([
@@ -258,6 +258,29 @@ class CatalagoTelarController extends Controller
                 'NoTelarId' => 'required|string|max:10',
                 'Grupo' => 'nullable|string|max:30'
             ]);
+
+            // Buscar el telar por uniqueId (SalonTejidoId_NoTelarId)
+            $partes = explode('_', $uniqueId);
+            if (count($partes) !== 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ID de telar inválido'
+                ], 400);
+            }
+
+            $salon = $partes[0];
+            $telarNum = $partes[1];
+
+            $telar = ReqTelares::where('SalonTejidoId', $salon)
+                              ->where('NoTelarId', $telarNum)
+                              ->first();
+
+            if (!$telar) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Telar no encontrado'
+                ], 404);
+            }
 
             // Verificar si ya existe otro telar con el mismo salón y número (excluyendo el actual)
             $telarExistente = ReqTelares::where('SalonTejidoId', $request->SalonTejidoId)
@@ -299,9 +322,32 @@ class CatalagoTelarController extends Controller
     /**
      * Eliminar un telar
      */
-    public function destroy(ReqTelares $telar)
+    public function destroy($uniqueId)
     {
         try {
+            // Buscar el telar por uniqueId (SalonTejidoId_NoTelarId)
+            $partes = explode('_', $uniqueId);
+            if (count($partes) !== 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ID de telar inválido'
+                ], 400);
+            }
+
+            $salon = $partes[0];
+            $telarNum = $partes[1];
+
+            $telar = ReqTelares::where('SalonTejidoId', $salon)
+                              ->where('NoTelarId', $telarNum)
+                              ->first();
+
+            if (!$telar) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Telar no encontrado'
+                ], 404);
+            }
+
             $nombre = $telar->Nombre;
             $telar->delete();
 
@@ -342,6 +388,14 @@ class CatalagoTelarController extends Controller
         }
 
         return $prefijo . ' ' . $telar;
+    }
+
+    /**
+     * Mostrar vista de fallas de telares
+     */
+    public function falla()
+    {
+        return view('telares.falla');
     }
 
 }

@@ -23,7 +23,7 @@
 
     <!-- Formulario -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
-        <form action="{{ route('modulos.update', $modulo) }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ route('configuracion.utileria.modulos.update', $modulo->idrol) }}" method="POST" enctype="multipart/form-data">
             @csrf
             @method('PUT')
 
@@ -34,7 +34,7 @@
                     <div>
                         <label for="orden" class="block text-sm font-medium text-gray-700 mb-1">Orden <span class="text-red-500">*</span></label>
                         <input type="text"
-                               class="w-full px-3 py-2 border  rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('orden') border-red-500 @enderror"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('orden') border-red-500 @enderror"
                                id="orden"
                                name="orden"
                                value="{{ old('orden', $modulo->orden) }}"
@@ -49,7 +49,7 @@
                     <div>
                         <label for="modulo" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Módulo <span class="text-red-500">*</span></label>
                         <input type="text"
-                               class="w-full px-3 py-2 border  rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('modulo') border-red-500 @enderror"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('modulo') border-red-500 @enderror"
                                id="modulo"
                                name="modulo"
                                value="{{ old('modulo', $modulo->modulo) }}"
@@ -63,7 +63,7 @@
                     <!-- Nivel -->
                     <div>
                         <label for="Nivel" class="block text-sm font-medium text-gray-700 mb-1">Nivel <span class="text-red-500">*</span></label>
-                        <select class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('Nivel') border-red-500 @enderror"
+                        <select class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('Nivel') border-red-500 @enderror"
                                 id="Nivel"
                                 name="Nivel"
                                 required>
@@ -81,7 +81,7 @@
                 <!-- Dependencia -->
                 <div class="mt-4">
                     <label for="Dependencia" class="block text-sm font-medium text-gray-700 mb-1">Dependencia</label>
-                    <select class="w-full md:w-1/3 px-3 py-2 border  rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('Dependencia') border-red-500 @enderror"
+                    <select class="w-full md:w-1/3 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('Dependencia') border-red-500 @enderror"
                             id="Dependencia"
                             name="Dependencia">
                         <option value="">Sin dependencia</option>
@@ -169,7 +169,7 @@
                 @endif
 
                 <input type="file"
-                       class="w-full px-3 py-2 border  rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('imagen_archivo') border-red-500 @enderror"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('imagen_archivo') border-red-500 @enderror"
                        id="imagen_archivo"
                        name="imagen_archivo"
                        accept="image/*">
@@ -181,7 +181,7 @@
 
             <!-- Botones -->
             <div class="p-6 bg-gray-50 flex justify-end space-x-3">
-                <a href="{{ route('modulos.index') }}"
+                <a href="{{ route('configuracion.utileria.modulos') }}"
                    class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
                     Cancelar
                 </a>
@@ -273,7 +273,7 @@ function toggleAcceso(id, nuevoEstado) {
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
-                url: `/modulos/${id}/toggle-acceso`,
+                url: `/configuracion/utileria/modulos/${id}/toggle-acceso`,
                 method: 'POST',
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content')

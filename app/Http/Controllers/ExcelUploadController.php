@@ -3,9 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
 
 class ExcelUploadController extends Controller
 {
@@ -18,7 +16,7 @@ class ExcelUploadController extends Controller
             ]);
 
             $file = $request->file('excel_file');
-            
+
             // Leer el archivo Excel
             $spreadsheet = IOFactory::load($file->getPathname());
             $worksheet = $spreadsheet->getActiveSheet();
@@ -26,17 +24,17 @@ class ExcelUploadController extends Controller
 
             // Obtener las columnas esperadas
             $expectedColumns = [
-                'Cuenta', 'Calibre Rizo', 'Salon', 'Telar', 'Ultimo', 'Cambios Hilo', 'Maq', 'Ancho', 'Ef Std', 'Vel', 
-                'Hilo', 'Calibre Pie', 'Jornada', 'Clave mod.', 'Usar cuando no existe en base', 'Clave AX', 'Tamaño AX', 
-                'Rasurado', 'Producto', 'Pedido', 'Saldos', 'Saldo Marbetes', 'Day Sheduling', 'Orden Prod.', 'INN', 
-                'Id Flog', 'Descrip.', 'Aplic.', 'Obs', 'Tipo Ped', 'Tiras', 'Pei.', 'Lcr', 'Pcr', 'Luc', 
-                'CALIBRE TRA', 'Fibra Trama', 'Dob', 'PASADAS TRA', 'PASADAS C1', 'PASADAS C2', 'PASADAS C3', 'PASADAS C4', 
-                'PASADAS C5', 'ancho por toalla', 'CODIGO COLOR', 'COLOR TRA', 'CALIBRE C1', 'FIBRA C1', 'CODIGO COLOR', 
-                'COLOR C1', 'CALIBRE C2', 'FIBRA C2', 'CODIGO COLOR', 'COLOR C2', 'CALIBRE C3', 'FIBRA C3', 'CODIGO COLOR', 
-                'COLOR C3', 'CALIBRE C4', 'FIBRA C4', 'CODIGO COLOR', 'COLOR C4', 'CALIBRE C5', 'FIBRA C5', 'CODIGO COLOR', 
-                'COLOR C5', 'Plano', 'Cuenta Pie', 'CODIGO COLOR', 'Color Pie', 'Peso (gr / m²)', 'Dias Ef.', 
-                'Prod (Kg)/Día', 'Std/Dia', 'Prod (Kg)/Día', 'Std (Toa/Hr) 100%', 'Dias jornada completa', 'Horas', 
-                'Std/Hr.efectivo', 'Inicio', 'Calc4', 'Calc5', 'Calc6', 'Fin', 'Fecha Compromiso', 'Fecha Compromiso', 
+                'Cuenta', 'Calibre Rizo', 'Salon', 'Telar', 'Ultimo', 'Cambios Hilo', 'Maq', 'Ancho', 'Ef Std', 'Vel',
+                'Hilo', 'Calibre Pie', 'Jornada', 'Clave mod.', 'Usar cuando no existe en base', 'Clave AX', 'Tamaño AX',
+                'Rasurado', 'Producto', 'Pedido', 'Saldos', 'Saldo Marbetes', 'Day Sheduling', 'Orden Prod.', 'INN',
+                'Id Flog', 'Descrip.', 'Aplic.', 'Obs', 'Tipo Ped', 'Tiras', 'Pei.', 'Lcr', 'Pcr', 'Luc',
+                'CALIBRE TRA', 'Fibra Trama', 'Dob', 'PASADAS TRA', 'PASADAS C1', 'PASADAS C2', 'PASADAS C3', 'PASADAS C4',
+                'PASADAS C5', 'ancho por toalla', 'CODIGO COLOR', 'COLOR TRA', 'CALIBRE C1', 'FIBRA C1', 'CODIGO COLOR',
+                'COLOR C1', 'CALIBRE C2', 'FIBRA C2', 'CODIGO COLOR', 'COLOR C2', 'CALIBRE C3', 'FIBRA C3', 'CODIGO COLOR',
+                'COLOR C3', 'CALIBRE C4', 'FIBRA C4', 'CODIGO COLOR', 'COLOR C4', 'CALIBRE C5', 'FIBRA C5', 'CODIGO COLOR',
+                'COLOR C5', 'Plano', 'Cuenta Pie', 'CODIGO COLOR', 'Color Pie', 'Peso (gr / m²)', 'Dias Ef.',
+                'Prod (Kg)/Día', 'Std/Dia', 'Prod (Kg)/Día', 'Std (Toa/Hr) 100%', 'Dias jornada completa', 'Horas',
+                'Std/Hr.efectivo', 'Inicio', 'Calc4', 'Calc5', 'Calc6', 'Fin', 'Fecha Compromiso', 'Fecha Compromiso',
                 'Entrega', 'Dif vs Compromiso'
             ];
 
@@ -49,7 +47,7 @@ class ExcelUploadController extends Controller
 
             // Obtener la primera fila (encabezados)
             $headers = array_shift($data);
-            
+
             // Verificar que las columnas coincidan
             $missingColumns = array_diff($expectedColumns, $headers);
             if (!empty($missingColumns)) {
@@ -72,13 +70,13 @@ class ExcelUploadController extends Controller
                     $columnIndex = array_search($column, $headers);
                     $rowData[$column] = isset($row[$columnIndex]) ? $row[$columnIndex] : null;
                 }
-                
+
                 $processedData[] = $rowData;
             }
 
             // Aquí puedes guardar los datos en la base de datos o hacer lo que necesites
             // Por ahora solo retornamos los datos procesados para mostrar en el frontend
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Archivo Excel procesado correctamente',

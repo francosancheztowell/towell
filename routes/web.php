@@ -6,24 +6,16 @@ use App\Http\Controllers\CalendarioController;
 use App\Http\Controllers\CatalagoEficienciaController;
 use App\Http\Controllers\CatalagoTelarController;
 use App\Http\Controllers\CatalagoVelocidadController;
-use App\Http\Controllers\ChatbotController;
-use App\Http\Controllers\EngomadoController;
-use App\Http\Controllers\ExcelImportacionesController;
-use App\Http\Controllers\ModelosController;
-use App\Http\Controllers\PlaneacionController;
+use App\Http\Controllers\CortesEficienciaController;
 use App\Http\Controllers\RequerimientoController;
 use App\Http\Controllers\UsuarioController;
-use App\Models\Usuario;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ReporteFallaController;
-use App\Http\Controllers\ReporteTemporalController;
-use App\Http\Controllers\TejedorController;
-use App\Http\Controllers\TejidoSchedullingController;
 use App\Http\Controllers\TelaresController;
 use App\Http\Controllers\UrdidoController;
-use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\AplicacionesController;
+use App\Http\Controllers\NuevoRequerimientoController;
+use App\Http\Controllers\ConsultarRequerimientoController;
 
 
 //Rutas de login, con logout, no protegidas por middleware
@@ -35,37 +27,6 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/login-qr', [AuthController::class, 'loginQR']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Rutas para obtener datos de empleados
-Route::get('/obtener-nombre/{noEmpleado}', function ($noEmpleado) {
-    // Fallback temporal para usuarios de prueba (PRIORITARIO para evitar 500)
-    $fakeUsers = [
-        '1001' => ['nombre' => 'Juan Pérez',  'foto' => 'fotos_usuarios/juan_perez2.jpg'],
-        '1002' => ['nombre' => 'María López', 'foto' => 'fotos_usuarios/maría_lopez.jpg'],
-        '1003' => ['nombre' => 'Almacen',     'foto' => 'fotos_usuarios/carlos_ramirez.jpg'],
-        '1004' => ['nombre' => 'Engomado',    'foto' => 'fotos_usuarios/ana_torres.jpg'],
-        '1005' => ['nombre' => 'Tejido',      'foto' => 'fotos_usuarios/pedro_gomez.jpg'],
-    ];
-    $num = (string) $noEmpleado;
-    if (isset($fakeUsers[$num])) {
-        return response()->json($fakeUsers[$num]);
-    }
-
-    // Intento de búsqueda en BD envuelta en try/catch para evitar 500
-    try {
-        $empleado = App\Models\Usuario::where('numero_empleado', $noEmpleado)->first();
-    } catch (\Throwable $e) {
-        $empleado = null;
-    }
-
-    if ($empleado) {
-        return response()->json([
-            'nombre' => $empleado->nombre,
-            'foto' => $empleado->foto
-        ]);
-    }
-
-    return response()->json([], 404);
-});
 
 Route::get('/obtener-empleados/{area}', function ($area) {
     try {
@@ -78,50 +39,198 @@ Route::get('/obtener-empleados/{area}', function ($area) {
 
 // Rutas protegidas por autenticación
 Route::middleware(['auth'])->group(function () {
+    // RUTA PRINCIPAL
     Route::get('/produccionProceso', [UsuarioController::class, 'index'])->name('produccion.index');
 
-    // Rutas para sub-módulos
+    // RUTAS PARA SUB-MÓDULOS
     Route::get('/submodulos/{modulo}', [UsuarioController::class, 'showSubModulos'])->name('submodulos.show');
     Route::get('/submodulos-nivel3/{moduloPadre}', [UsuarioController::class, 'showSubModulosNivel3'])->name('submodulos.nivel3');
 
     // API para precarga de submódulos (AJAX)
     Route::get('/api/submodulos/{moduloPrincipal}', [UsuarioController::class, 'getSubModulosAPI'])->name('api.submodulos');
 
-    //RUTAS DEL MODULO **tejido************************************************************************************************************
-    Route::get('/modulo-tejido', function () {
-        return view('modulos/tejido');
+    // ============================================
+    // MÓDULO PLANEACIÓN (100)
+    // ============================================
+    Route::prefix('planeacion')->name('planeacion.')->group(function () {
+        // Submódulos de Planeación
+        // Route::get('/programa-tejido', [ExcelImportacionesController::class, 'showReqProgramaTejido'])->name('catalogos.req-programa-tejido');
+
+        // Catálogos con estructura jerárquica
+        Route::prefix('catalogos')->name('catalogos.')->group(function () {
+            Route::get('/', [UsuarioController::class, 'showSubModulosNivel3'])->name('index');
+            // Route::get('/req-programa-tejido', [ExcelImportacionesController::class, 'showReqProgramaTejido'])->name('req-programa-tejido');
+            Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares');
+            Route::get('/telares/falla', [CatalagoTelarController::class, 'falla'])->name('telares.falla');
+            Route::get('/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia');
+            Route::get('/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad');
+            Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios');
+            Route::get('/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones');
+        });
+
+        // Rutas directas para compatibilidad
+        Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares.index');
+        Route::get('/telares/falla', [CatalagoTelarController::class, 'falla'])->name('telares.falla');
+        Route::get('/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia.index');
+        Route::get('/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad.index');
+        Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');
+        Route::get('/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones.index');
+
+        // Rutas para procesar Excel de catálogos
+        Route::post('/telares/excel', [CatalagoTelarController::class, 'procesarExcel'])->name('telares.excel.upload');
+        Route::post('/eficiencia/excel', [CatalagoEficienciaController::class, 'procesarExcel'])->name('eficiencia.excel.upload');
+        Route::post('/velocidad/excel', [CatalagoVelocidadController::class, 'procesarExcel'])->name('velocidad.excel.upload');
+        Route::post('/aplicaciones/excel', [AplicacionesController::class, 'procesarExcel'])->name('aplicaciones.excel.upload');
+
+
     });
-    Route::get('/tejido/jacquard-sulzer', function () {
-        return view('modulos/tejido/jacquard-sulzer');
+
+    // ============================================
+    // MÓDULO TEJIDO (200)
+    // ============================================
+    Route::prefix('tejido')->name('tejido.')->group(function () {
+        // Inventario de Telas
+        Route::get('/inventario-telas', function () {
+        return view('modulos/tejido/inventario-telas');
+        })->name('inventario.telas');
+
+        // Inventario específico por tipo de telar
+        Route::get('/inventario-telas/jacquard', [TelaresController::class, 'inventarioJacquard'])->name('inventario.jacquard');
+        Route::get('/inventario-telas/itema', [TelaresController::class, 'inventarioItema'])->name('inventario.itema');
+
+        // Marcas Finales
+        Route::get('/inventario/marcas-finales', [App\Http\Controllers\MarcasFinalesController::class, 'index'])->name('inventario.marcas.finales');
+        Route::post('/inventario/marcas-finales', [App\Http\Controllers\MarcasFinalesController::class, 'store'])->name('inventario.marcas.finales.store');
+        Route::get('/inventario/marcas-finales/{folio}', [App\Http\Controllers\MarcasFinalesController::class, 'show'])->name('inventario.marcas.finales.show');
+        Route::put('/inventario/marcas-finales/{folio}', [App\Http\Controllers\MarcasFinalesController::class, 'update'])->name('inventario.marcas.finales.update');
+        Route::post('/inventario/marcas-finales/{folio}/finalizar', [App\Http\Controllers\MarcasFinalesController::class, 'finalizar'])->name('inventario.marcas.finales.finalizar');
+
+        // Trama - Nuevo y Consultar Requerimientos
+        Route::get('/inventario/trama/nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('inventario.trama.nuevo.requerimiento');
+        Route::post('/inventario/trama/nuevo-requerimiento', [NuevoRequerimientoController::class, 'guardarRequerimientos'])->name('inventario.trama.nuevo.requerimiento.store');
+        Route::get('/inventario/trama/consultar-requerimiento', [ConsultarRequerimientoController::class, 'index'])->name('inventario.trama.consultar.requerimiento');
+        Route::get('/inventario/trama/consultar-requerimiento/{folio}/resumen', [ConsultarRequerimientoController::class, 'resumen'])->name('inventario.trama.consultar.requerimiento.resumen');
+        Route::get('/inventario/trama/nuevo-requerimiento/en-proceso', [NuevoRequerimientoController::class, 'enProcesoInfo'])->name('inventario.trama.nuevo.requerimiento.enproceso');
+        Route::post('/inventario/trama/nuevo-requerimiento/actualizar-cantidad', [NuevoRequerimientoController::class, 'actualizarCantidad'])->name('inventario.trama.nuevo.requerimiento.actualizar.cantidad');
     });
-    Route::get('/tejido/jacquard-smith', function () {
-        return view('modulos/tejido/jacquard-smith');
+
+    // ============================================
+    // MÓDULO PRODUCCIÓN URD ENGOMADO
+    // ============================================
+    Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () {
+        Route::get('/reservar-programar', function () {
+            return view('modulos/programa-urd-eng/reservar-programar');
+        })->name('reservar.programar');
     });
-    Route::get('/tejido/smith', function () {
-        return view('modulos/tejido/smith');
+
+    // ============================================
+    // MÓDULO CONFIGURACIÓN (900)
+    // ============================================
+    Route::prefix('configuracion')->name('configuracion.')->group(function () {
+        // Usuarios
+        Route::prefix('usuarios')->name('usuarios.')->group(function () {
+            Route::get('/select', [UsuarioController::class, 'select'])->name('select');
+            Route::get('/create', [UsuarioController::class, 'create'])->name('create');
+            Route::post('/store', [UsuarioController::class, 'store'])->name('store');
+            Route::get('/{id}/qr', [UsuarioController::class, 'showQR'])->name('qr');
+            Route::get('/{id}/edit', [UsuarioController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [UsuarioController::class, 'update'])->name('update');
+            Route::delete('/{id}', [UsuarioController::class, 'destroy'])->name('destroy');
+        });
+
+        // Utilería
+        Route::prefix('utileria')->name('utileria.')->group(function () {
+            Route::get('/modulos', [ModulosController::class, 'index'])->name('modulos');
+            Route::get('/modulos/create', [ModulosController::class, 'create'])->name('modulos.create');
+            Route::post('/modulos', [ModulosController::class, 'store'])->name('modulos.store');
+            Route::get('/modulos/{id}/edit', [ModulosController::class, 'edit'])->name('modulos.edit');
+            Route::put('/modulos/{id}', [ModulosController::class, 'update'])->name('modulos.update');
+            Route::delete('/modulos/{id}', [ModulosController::class, 'destroy'])->name('modulos.destroy');
+            Route::post('/modulos/{id}/toggle-acceso', [ModulosController::class, 'toggleAcceso'])->name('modulos.toggle.acceso');
+            Route::post('/modulos/{id}/toggle-permiso', [ModulosController::class, 'togglePermiso'])->name('modulos.toggle.permiso');
+
+            // Ruta de prueba para verificar autenticación
+            Route::get('/test-auth', function() {
+                try {
+                    $modulos = SYSRoles::count();
+                    return response()->json([
+                        'authenticated' => Auth::check(),
+                        'user_id' => Auth::id(),
+                        'user' => Auth::user(),
+                        'database_connection' => 'OK',
+                        'modulos_count' => $modulos
+                    ]);
+                } catch (\Exception $e) {
+                    return response()->json([
+                        'authenticated' => Auth::check(),
+                        'user_id' => Auth::id(),
+                        'user' => Auth::user(),
+                        'database_connection' => 'ERROR',
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            })->name('test.auth');
+
+            // Route::get('/cargar-catalogos', [ExcelImportacionesController::class, 'showForm'])->name('cargar.catalogos');
+            // Route::post('/cargar-catalogos', [ExcelImportacionesController::class, 'uploadCatalogos'])->name('cargar.catalogos.upload');
+        });
     });
-    Route::get('/tejido/itema-viejo', function () {
-        return view('modulos/tejido/itema-viejo');
-    });
-    Route::get('/tejido/itema-nuevo', function () {
-        return view('modulos/tejido/itema-nuevo');
-    });
-Route::get('/tejido/karl-mayer', function () {
-    return view('modulos/tejido/karl-mayer');
-});
+
+    // ============================================
+    // RUTAS DIRECTAS (COMPATIBILIDAD)
+    // ============================================
+
+    // Rutas directas de catálogos
+    // Route::get('/planeacion/programa-tejido', [ExcelImportacionesController::class, 'showReqProgramaTejido'])->name('catalogos.req-programa-tejido');
+    Route::get('/planeacion/telares', [CatalagoTelarController::class, 'index'])->name('telares.index');
+    Route::get('/planeacion/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia.index');
+    Route::get('/planeacion/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad.index');
+    Route::get('/planeacion/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');
+    Route::get('/planeacion/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones.index');
+
+    // Rutas directas de tejido
     Route::get('/tejido/inventario-telas', function () {
         return view('modulos/tejido/inventario-telas');
-    });
+    })->name('tejido.inventario.telas');
     Route::get('/tejido/inventario-telas/jacquard', [TelaresController::class, 'inventarioJacquard'])->name('tejido.inventario.jacquard');
     Route::get('/tejido/inventario-telas/itema', [TelaresController::class, 'inventarioItema'])->name('tejido.inventario.itema');
+    Route::get('/modulo-marcas-finales', [App\Http\Controllers\MarcasFinalesController::class, 'index'])->name('modulo.marcas.finales');
+    Route::post('/modulo-marcas-finales', [App\Http\Controllers\MarcasFinalesController::class, 'store'])->name('modulo.marcas.finales.store');
+    Route::get('/modulo-marcas-finales/{folio}', [App\Http\Controllers\MarcasFinalesController::class, 'show'])->name('modulo.marcas.finales.show');
+    Route::put('/modulo-marcas-finales/{folio}', [App\Http\Controllers\MarcasFinalesController::class, 'update'])->name('modulo.marcas.finales.update');
+    Route::post('/modulo-marcas-finales/{folio}/finalizar', [App\Http\Controllers\MarcasFinalesController::class, 'finalizar'])->name('modulo.marcas.finales.finalizar');
 
-    // Rutas para Inventario Trama
-    Route::get('/modulo-nuevo-requerimiento', function () {
-        return view('modulos.nuevo-requerimiento');
-    });
-    Route::get('/modulo-consultar-requerimiento', function () {
-        return view('modulos.consultar-requerimiento');
-    });
+    // Rutas para Cortes de Eficiencia
+    Route::get('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'index'])->name('cortes.eficiencia');
+    Route::get('/modulo-cortes-de-eficiencia/turno-info', [CortesEficienciaController::class, 'getTurnoInfo'])->name('cortes.eficiencia.turno.info');
+Route::get('/modulo-cortes-de-eficiencia/datos-telares', [CortesEficienciaController::class, 'getDatosTelares'])->name('cortes.eficiencia.datos.telares');
+    Route::get('/modulo-cortes-de-eficiencia/generar-folio', [CortesEficienciaController::class, 'generarFolio'])->name('cortes.eficiencia.generar.folio');
+    Route::post('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'store'])->name('cortes.eficiencia.store');
+    Route::get('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'show'])->name('cortes.eficiencia.show');
+    Route::put('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'update'])->name('cortes.eficiencia.update');
+    Route::post('/modulo-cortes-de-eficiencia/{id}/finalizar', [CortesEficienciaController::class, 'finalizar'])->name('cortes.eficiencia.finalizar');
+    Route::get('/modulo-nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('modulo.nuevo.requerimiento');
+    Route::post('/modulo-nuevo-requerimiento/guardar', [NuevoRequerimientoController::class, 'guardarRequerimientos'])->name('modulo.nuevo.requerimiento.store');
+    Route::get('/modulo-nuevo-requerimiento/turno-info', [NuevoRequerimientoController::class, 'getTurnoInfo'])->name('modulo.nuevo.requerimiento.turno.info');
+    Route::get('/modulo-nuevo-requerimiento/en-proceso', [NuevoRequerimientoController::class, 'enProcesoInfo'])->name('modulo.nuevo.requerimiento.enproceso');
+    Route::post('/modulo-nuevo-requerimiento/actualizar-cantidad', [NuevoRequerimientoController::class, 'actualizarCantidad'])->name('modulo.nuevo.requerimiento.actualizar.cantidad');
+    Route::get('/modulo-consultar-requerimiento', [ConsultarRequerimientoController::class, 'index'])->name('modulo.consultar.requerimiento');
+    Route::get('/modulo-consultar-requerimiento/{folio}', [ConsultarRequerimientoController::class, 'show'])->name('modulo.consultar.requerimiento.show');
+    Route::post('/modulo-consultar-requerimiento/{folio}/status', [ConsultarRequerimientoController::class, 'updateStatus'])->name('modulo.consultar.requerimiento.status');
+    Route::get('/modulo-consultar-requerimiento/{folio}/resumen', [ConsultarRequerimientoController::class, 'resumen'])->name('modulo.consultar.requerimiento.resumen');
+
+    // Rutas directas de configuración
+    Route::get('/usuarios/select', [UsuarioController::class, 'select'])->name('usuarios.select');
+    Route::get('/usuarios/create', [UsuarioController::class, 'create'])->name('usuarios.create');
+    Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
+    Route::get('/usuarios/{id}/qr', [UsuarioController::class, 'showQR'])->name('usuarios.qr');
+    Route::get('/usuarios/{id}/edit', [UsuarioController::class, 'edit'])->name('usuarios.edit');
+    Route::put('/usuarios/{id}', [UsuarioController::class, 'update'])->name('usuarios.update');
+    Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
+    Route::get('/modulo-cargar-catálogos', function () {
+        return view('modulos/cargar-catalogos');
+    })->name('catalogos.index');
+    // Route::post('/catalogos/upload', [ExcelImportacionesController::class, 'uploadCatalogos'])->name('catalogos.upload');
 
     // API para obtener datos del proceso actual
     Route::get('/api/telares/proceso-actual/{telarId}', function ($telarId) {
@@ -208,112 +317,81 @@ Route::get('/tejido/karl-mayer', function () {
         return response()->json($siguienteOrden ?: null);
     });
 
-    //RUTAS DEL MODULO **urdido**
+    // ============================================
+    // RUTAS LEGACY (MANTENER POR COMPATIBILIDAD)
+    // ============================================
+
+    // Módulo Urdido (mantener por compatibilidad)
     Route::get('/modulo-urdido', function () {
         return view('modulos/urdido');
     });
     Route::get('/urdido/programar-requerimientos', function () {
         return view('modulos/urdido/programar-requerimientos');
     });
-    //rutas para la interfaz INREGSAR FOLIO del modulo URDIDO, se agregaron mas rutas para function drag-and-drop
     Route::get('ingresar-folio', [UrdidoController::class, 'cargarOrdenesPendientesUrd'])->name('ingresarFolio');
-    Route::post(
-        '/urdido/prioridad/mover',
-        [UrdidoController::class, 'mover']
-    )->name('urdido.prioridad.mover');
-    Route::post(
-        '/engomado/prioridad/mover',
-        [EngomadoController::class, 'mover']
-    )->name('engomado.prioridad.mover');
-
+    Route::post('/urdido/prioridad/mover', [UrdidoController::class, 'mover'])->name('urdido.prioridad.mover');
+    // Route::post('/engomado/prioridad/mover', [EngomadoController::class, 'mover'])->name('engomado.prioridad.mover');
     Route::post('orden-trabajo', [UrdidoController::class, 'cargarDatosUrdido'])->name('produccion.ordenTrabajo');
     Route::post('/urdido/autoguardar', [UrdidoController::class, 'autoguardar'])->name('urdido.autoguardar');
     Route::post('/urdido/finalizar', [UrdidoController::class, 'finalizarUrdido'])->name('urdido.finalizar');
-
-    Route::post('/engomado/autoguardar', [EngomadoController::class, 'autoguardar'])->name('engomado.autoguardar');
-    Route::post('/engomado/finalizar', [EngomadoController::class, 'finalizarEngomado'])->name('engomado.finalizar');
-
+    // Route::post('/engomado/autoguardar', [EngomadoController::class, 'autoguardar'])->name('engomado.autoguardar');
+    // Route::post('/engomado/finalizar', [EngomadoController::class, 'finalizarEngomado'])->name('engomado.finalizar');
     Route::get('/imprimir-orden-llena-urd/{folio}', [UrdidoController::class, 'imprimirOrdenUrdido'])->name('imprimir.orden.urdido');
     Route::get('/imprimir-papeletas-pequenias/{folio}', [UrdidoController::class, 'imprimirPapeletas'])->name('imprimir.orden.papeletas');
 
-    //RUTAS DEL MODULO **engomado**
+    // Módulo Engomado
     Route::get('/modulo-engomado', function () {
         return view('modulos/engomado');
     });
     Route::get('/engomado/programar-requerimientos', function () {
         return view('modulos/engomado/programar-requerimientos');
     });
-
-    Route::get('/ingresar-folio-engomado', [EngomadoController::class, 'cargarOrdenesPendientesEng'])->name('ingresarFolioEngomado');
-    Route::post('/orden-trabajo-engomado', [EngomadoController::class, 'cargarDatosEngomado'])->name('produccion.ordenTrabajoEngomado');
-    Route::post('/guardar-y-finalizar-engomado', [EngomadoController::class, 'guardarYFinalizar'])->name('ordenEngomado.guardarYFinalizar'); //Ruta que sustituye a 2 amtiguas rutas de 2 botones que se unificaron
-    Route::get('/imprimir-orden/{folio}', [EngomadoController::class, 'imprimirOrdenUE'])->name('imprimir.orden');
-    Route::get('/imprimir-papeletas-llenas/{folio}', [EngomadoController::class, 'imprimirPapeletasEngomado'])->name('imprimir.papeletas.engomado');
+    // Route::get('/ingresar-folio-engomado', [EngomadoController::class, 'cargarOrdenesPendientesEng'])->name('ingresarFolioEngomado');
+    // Route::post('/orden-trabajo-engomado', [EngomadoController::class, 'cargarDatosEngomado'])->name('produccion.ordenTrabajoEngomado');
+    // Route::post('/guardar-y-finalizar-engomado', [EngomadoController::class, 'guardarYFinalizar'])->name('ordenEngomado.guardarYFinalizar');
+    // Route::get('/imprimir-orden/{folio}', [EngomadoController::class, 'imprimirOrdenUE'])->name('imprimir.orden');
+    // Route::get('/imprimir-papeletas-llenas/{folio}', [EngomadoController::class, 'imprimirPapeletasEngomado'])->name('imprimir.papeletas.engomado');
     Route::get('/folio-pantalla/{folio}', function ($folio) {
         return view('modulos.programar_requerimientos.FolioEnPantalla')->with('folio', $folio);
     })->name('folio.pantalla');
 
-    //RUTAS DEL MODULO **ATADORES ATADORES ATADORES ATADORES**
+    // Módulo Atadores
     Route::get('/modulo-atadores', function () {
         return view('modulos/atadores');
     });
     Route::get('/atadores/programar-requerimientos', function () {
         return view('modulos/atadores/programar-requerimientos');
     });
-    Route::get('/atadores-juliosAtados',  [AtadorController::class, 'cargarDatosUrdEngAtador'])->name('datosAtadores.Atador');
-    Route::post('/atadores/save', [AtadorController::class, 'save'])->name('atadores.save'); // para create/update vía AJAX
-    Route::get('/atadores/show', [AtadorController::class, 'show'])->name('atadores.show'); // para mostrar registro por orden y turno vía AJAX
+    Route::get('/atadores-juliosAtados', [AtadorController::class, 'cargarDatosUrdEngAtador'])->name('datosAtadores.Atador');
+    Route::post('/atadores/save', [AtadorController::class, 'save'])->name('atadores.save');
+    Route::get('/atadores/show', [AtadorController::class, 'show'])->name('atadores.show');
     Route::post('/tejedores/validar', [AtadorController::class, 'validarTejedor'])->name('tejedor.validar');
 
-
-    //RUTAS DEL MODULO **tejedores** TEJEDORES TEJEDORES
-    Route::get('/modulo-tejedores', function () {
-        return view('modulos/tejedores');
-    });
-    Route::get('/tejedores/programar-requerimientos', function () {
-        return view('modulos/tejedores/programar-requerimientos');
-    });
-    Route::get('/tejedores/formato', [TejedorController::class, 'index'])->name('tejedores.index');
-    Route::post('/manufactura/guardar', [TejedorController::class, 'store'])->name('manufactura.guardar');
-
-    Route::post('/manufactura/{id}/update', [TejedorController::class, 'update'])->name('manufactura.update');
-
-
-
-    //RUTAS DEL MODULO **mantenimiento**
+    // Módulo Mantenimiento
     Route::get('/modulo-mantenimiento', function () {
         return view('modulos/mantenimiento');
     });
 
-    //RUTAS DEL MODULO **Programacion-Urdido-Engomado**
-    Route::get('/programa-urd-eng/reservar-programar', [ExcelImportacionesController::class, 'showReservarProgramar'])->name('programa.urdeng.reservar');
+    // ============================================
+    // RUTAS DE PRODUCCIÓN URD ENGOMADO
+    // ============================================
+    // Route::get('/programa-urd-eng/reservar-programar', [ExcelImportacionesController::class, 'showReservarProgramar'])->name('programa.urdeng.reservar');
     Route::post('/guardar-requerimiento', [RequerimientoController::class, 'store']);
-    // Ruta temporal para requerimientos (evitar error 500)
     Route::get('/ultimos-requerimientos', function() {
         return response()->json([]);
     });
     Route::get('/modulo-UrdidoEngomado', [RequerimientoController::class, 'requerimientosActivos'])->name('index.requerimientosActivos');
     Route::get('/tejido/programarReq-step1', [RequerimientoController::class, 'requerimientosAProgramar'])->name('formulario.programarRequerimientos');
     Route::post('/tejido/guardarUrdidoEngomado', [RequerimientoController::class, 'requerimientosAGuardar'])->name('crear.ordenes.lanzador');
-
-    Route::get('/prog-req/init/resolve-folio', [RequerimientoController::class, 'resolveFolio'])->name('prog.init.resolveFolio'); // Resolver/crear folio a partir de ids[] o folio existente
-    Route::get('/prog-req/init/fetch-by-folio', [RequerimientoController::class, 'initAndFetchByFolio'])->name('prog.init.fetchByFolio'); // Inicializa si falta (inserta “folio” en tablas destino) y devuelve datos
+    Route::get('/prog-req/init/resolve-folio', [RequerimientoController::class, 'resolveFolio'])->name('prog.init.resolveFolio');
+    Route::get('/prog-req/init/fetch-by-folio', [RequerimientoController::class, 'initAndFetchByFolio'])->name('prog.init.fetchByFolio');
     Route::post('/prog-req/init/upsert-and-fetch', [RequerimientoController::class, 'upsertAndFetchByFolio'])->name('prog.init.upsertFetch');
     Route::post('/prog-req/autosave/construccion', [RequerimientoController::class, 'autosaveConstruccion'])->name('urdido.autosave.construccion');
     Route::post('/prog-req/autosave/urdido-engomado', [RequerimientoController::class, 'autosaveUrdidoEngomado'])->name('urdido.autosave.engomado');
-    Route::post('/prog/validar-folios', [RequerimientoController::class, 'validarFolios'])
-        ->name('prog.validar.folios');
-    Route::post('/urdido/autosave/lmaturdido', [RequerimientoController::class, 'autosaveLmaturdido'])->name('urdido.autosave.lmaturdido');
-    Route::post('/inventario/seleccion', [RequerimientoController::class, 'step3Store'])->name('inventario.step3.store'); // guardado de step 3 prog-requerimientos en BD BD BD BD
+    Route::post('/prog/validar-folios', [RequerimientoController::class, 'validarFolios'])->name('prog.validar.folios');
+    Route::post('/inventario/seleccion', [RequerimientoController::class, 'step3Store'])->name('inventario.step3.store');
 
-
-
-    Route::post('/prog-req/step2', [RequerimientoController::class, 'step2'])->name('urdido.step2');
-    Route::post('/prog-req/step3', [RequerimientoController::class, 'step3'])->name('urdido.step3');
-    Route::get('/tejido/bomids', [App\Http\Controllers\Select2Controller::class, 'getBomIds'])->name('bomids.api'); //<- rutas para buscador select2 BOMIDs
-    Route::get('/tejido/bomids2', [App\Http\Controllers\Select2Controller::class, 'getBomIds2'])->name('bomids.api2'); //<- rutas para buscador select2 BOMIDs
-
-    //RUTAS DEL MODULO **EDICION-Urdido-Engomado** 22-05-2025
+    // Módulo Edición Urdido-Engomado
     Route::get('/modulo-edicion-urdido-engomado', function () {
         return view('/modulos/edicion_urdido_engomado/edicion-urdido-engomado-folio');
     })->name('ingresarFolioEdicion');
@@ -321,10 +399,8 @@ Route::get('/tejido/karl-mayer', function () {
     Route::post('/tejido/actualizarUrdidoEngomado', [UrdidoController::class, 'ordenToActualizar'])->name('orden.produccion.update');
     Route::post('/reservar-inventario', [RequerimientoController::class, 'BTNreservar'])->name('reservar.inventario');
 
-    //RUTAS DEL MODULO **configuracion**
+    // Módulo Configuración
     Route::get('/modulo-configuracion', [UsuarioController::class, 'showConfiguracion'])->name('configuracion.index');
-
-    // Rutas para submódulos de configuración (usar showSubModulosConfiguracion con orden/nombre)
     Route::get('/configuracion/parametros', function () { return view('modulos/configuracion/parametros'); });
     Route::get('/configuracion/base-datos', function () { return view('modulos/configuracion/base-datos'); });
     Route::get('/configuracion/bd-pro-productivo', function () { return view('modulos/configuracion/bd-pro-productivo'); });
@@ -335,132 +411,27 @@ Route::get('/tejido/karl-mayer', function () {
     Route::get('/configuracion/cargar-orden-produccion', function () { return view('modulos/configuracion/cargar-orden-produccion'); });
     Route::get('/configuracion/cargar-planeacion', function () { return view('modulos/configuracion/cargar-planeacion'); });
 
-    //ruta temporal para vista de circulo - borrar despues
+    // Ruta temporal
     Route::get('/urdido/urdidoTemporal', function () {
         return view('modulos/urdido/urdidoTemporal');
     });
 
-    //ruta para llegar a la vista dinámica para INFORMACIÓN INDIVIDUAL DE TELARES *************************************************************
-    //***********************************************************************************************************************************
+    // ============================================
+    // RUTAS ADICIONALES NECESARIAS
+    // ============================================
+
+    // Información individual de telares
     Route::get('/tejido/jacquard-sulzer/{telar}', [TelaresController::class, 'mostrarTelarSulzer'])->name('tejido.mostrarTelarSulzer');
-    //el método de arriba sirve para mstrar la informacion de un telar individualmente (telar-informacion-individual)
     Route::get('/ordenes-programadas-dinamica/{telar}', [TelaresController::class, 'obtenerOrdenesProgramadas'])->name('ordenes.programadas');
 
+    // Rutas adicionales de planeación
+    // Route::get('/planeacion/tipo-movimientos/{id}', [PlaneacionController::class, 'obtenerPorTejNum']);
+    // Route::put('/tejido-en-proceso/{num_registro}', [PlaneacionController::class, 'update'])->name('tejido_scheduling.update');
+    // Route::get('/buscar-modelos', [PlaneacionController::class, 'buscarModelos'])->name('modelos.buscar');
+    // Route::get('/modelos-por-clave', [PlaneacionController::class, 'obtenerModelosPorClave'])->name('modelos.porClave');
+    // Route::get('/modelo/detalle', [PlaneacionController::class, 'buscarDetalleModelo'])->name('modelos.detalle');
 
-    //CRUDZAZO de USUARIOS, 1er mantenimiento 19-08-2025. USUARIOS USUARIOS USUARIOS USUARIOS, en el USUARIOSCONTROLLER se manejan los contenedores visibles o no visibles
-    //Route::get('/alta-usuarios', function () { return view('alta_usuarios');});//BORRAR UNA VEZ CREADO EL CONTROLLER
-    Route::get('/usuarios/create', [UsuarioController::class, 'create'])->name('usuarios.create');
-    Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
-    Route::get('/usuarios/select', [UsuarioController::class, 'select'])->name('usuarios.select');
-    Route::get('/usuarios/{idusuario}/qr', [UsuarioController::class, 'showQR'])->name('usuarios.qr');
-    Route::get('/configuracion', [UsuarioController::class, 'showConfiguracion'])->name('configuracion.index');
-    Route::get('/configuracion/submodulos/{serie}', [UsuarioController::class, 'showSubModulosConfiguracion'])->name('configuracion.submodulos');
-    // CRUD REST (edit/update/destroy)
-    Route::resource('usuarios', UsuarioController::class)->only(['edit', 'update', 'destroy']);
-
-    //Route::get('/usuarios/{numero_empleado}/edit', [UsuarioController::class, 'edit'])->name('usuarios.edit'); // (puedes apuntarlo a tu formulario existente)
-    //Route::delete('/usuarios/{numero_empleado}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
-
-    //RUTAS DEL MODULO planeacion
-    // Ruta de RECURSOS para Planeacion
-    Route::resource('planeacion', PlaneacionController::class);
-    //RUTAS de CATALAGOS (3 catalagos), se usaron rutas de recursos para manejar las operaciones CRUD ¡IMPORTANTE!
-    Route::resource('telares', CatalagoTelarController::class);
-    Route::post('/telares/procesar-excel', [CatalagoTelarController::class, 'procesarExcel'])->name('telares.procesar-excel');
-    Route::resource('eficiencia', CatalagoEficienciaController::class);
-    Route::post('/eficiencia/procesar-excel', [CatalagoEficienciaController::class, 'procesarExcel'])->name('eficiencia.procesar-excel');
-    Route::resource('velocidad', CatalagoVelocidadController::class);
-    Route::post('/velocidad/procesar-excel', [CatalagoVelocidadController::class, 'procesarExcel'])->name('velocidad.procesar-excel');
-
-    Route::get('/traspasoDataRedireccion', [TejidoSchedullingController::class, 'envioDeDataPlaneacion']);
-    Route::get('/Tejido-Scheduling/ultimo-por-telar', [TejidoSchedullingController::class, 'buscarUltimoPorTelar']);
-    Route::get('/Tejido-Scheduling/fechaFin', [TejidoSchedullingController::class, 'calcularFechaFin']);
-    Route::get('/Tejido-Scheduling/editar', [TejidoSchedullingController::class, 'editarRegistro']); // formulario de edición para Registros de Planeación
-    Route::post('/Tejido-Scheduling/actualizar', [TejidoSchedullingController::class, 'actualizarRegistro'])->name('actualizarRegistro.add');
-    Route::post('/tejido-scheduling/mover', [TejidoSchedullingController::class, 'moverRegistro'])->name('tejido.mover'); //ruta para subir
-
-
-
-    // ✅ NUEVAS RUTAS de PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION  PLANEACION
-    Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');
-    Route::post('/calendarios/procesar-excel', [CalendarioController::class, 'procesarExcel'])->name('calendario.procesar-excel');
-    Route::get('/aplicaciones', [AplicacionesController::class, 'index'])->name('planeacion.aplicaciones');
-    Route::resource('aplicaciones-catalogo', AplicacionesController::class);
-    Route::post('/aplicaciones/procesar-excel', [AplicacionesController::class, 'procesarExcel'])->name('aplicaciones.procesar-excel');
-    Route::post('/calendarios/update-inline', [CalendarioController::class, 'updateInline'])->name('calendarios.update.inline');
-    Route::get('/planeacion/tipo-movimientos/{id}', [PlaneacionController::class, 'obtenerPorTejNum']);
-    Route::put('/tejido-en-proceso/{num_registro}', [PlaneacionController::class, 'update'])->name('tejido_scheduling.update');
-    Route::get('/buscar-modelos', [PlaneacionController::class, 'buscarModelos'])->name('modelos.buscar'); //<- Rutas para SELECTS en Planeacion
-    Route::get('/modelos-por-clave', [PlaneacionController::class, 'obtenerModelosPorClave'])->name('modelos.porClave');
-    Route::get('/modelo/detalle', [PlaneacionController::class, 'buscarDetalleModelo'])->name('modelos.detalle'); // ruta pra obtener DETALLES del registro del modelo, de acuerdo con la CLAVE_AX y el NOMBRE_MODELO
-    Route::get('/telares/datos', [PlaneacionController::class, 'obtenerDatosTelar'])->name('telares.datos');
-
-    //RUTAS para REPORTES en TEJIDO_SCHEDULING - REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES REPORTES
-    // routes/web.php
-    Route::get('/reportes/consumo', [\App\Http\Controllers\ReportesController::class, 'consumo'])->name('reportes.consumo');
-    Route::get('/reportes/run', [\App\Http\Controllers\ReportesController::class, 'run'])->name('reportes.run');
-    Route::get('/reportes/resumen-tejido', [\App\Http\Controllers\ReportesController::class, 'resumenTejido'])->name('reportes.resumen.tejido');
-    Route::get('/reportes/aplicaciones', [\App\Http\Controllers\ReportesController::class, 'aplicaciones'])->name('reportes.aplicaciones');
-    Route::get('/reportes/rasurado', [\App\Http\Controllers\ReportesController::class, 'rasurado'])->name('reportes.rasurado');
-    Route::get('/reportes/perso-x-mod', [\App\Http\Controllers\ReportesController::class, 'pesoPorMod'])->name('reportes.peso.por.mod');
-    Route::get('/reportes/perso-tenido', [\App\Http\Controllers\ReportesController::class, 'pesoTenido'])->name('reportes.peso.tenido');
-
-    //twilio
-    // Ruta para mostrar el formulario (GET)
-    Route::get('/reportar', function () {
-        return view('reportar');
-    })->name('reportar.falla.form');
-    Route::post('/reportar-falla', [ReporteFallaController::class, 'enviarReporte'])->name('reportar.falla');
-
-    //WhatsApp Business
-    Route::get('/whatsapp', function () {
-        return view('whatsapp');
-    });
-    Route::post('/send-whatsapp', [WhatsAppController::class, 'sendMessage']);
-    //Route::get('/whatsapp2', function () {return view('whatsapp2');});
-    Route::get('/whatsapp2', [WhatsAppController::class, 'mensajeFallas'])->name('telares.falla');
-    Route::post('/send-whatsapp2', [WhatsAppController::class, 'enviarMensaje']);
-    Route::post('/send-failSMS', [ReporteFallaController::class, 'enviarSMS']);
-
-    //TELEGRAM
-    Route::post('/reportes-temporales/guardar', [ReporteTemporalController::class, 'guardar'])
-        ->name('reportes.temporales.guardar');
-
-    // MODELOS ***************************************************************************************************************************
-    // Custom routes for modelos with composite keys
-    Route::put('/modelos/{clave_ax}/{tamanio_ax}', [ModelosController::class, 'update'])->name('modelos.update');
-    Route::get('/modelos/{clave_ax}/{tamanio_ax}/edit', [ModelosController::class, 'edit'])->name('modelos.edit');
-
-    // Resource routes excluding the conflicting ones
-    Route::resource('modelos', ModelosController::class)->except(['update', 'edit']);
-    Route::get('/flogs/buscar', [App\Http\Controllers\TejidoSchedullingController::class, 'buscarFlogso'])->name('flog.buscar');
-
-    //Rutas para chatbot, prueba 1 de IA integrada a Laravel
-    Route::get('/chatbot', [ChatbotController::class, 'index']);
-    Route::post('/chatbot/message', [ChatbotController::class, 'sendMessage']);
-
-    //Rutas para importaciones de excel, TEJIDO_SCHEDULING y MODELOS
-    Route::get('/tejido-scheduling/import', [ExcelImportacionesController::class, 'showForm'])->name('tejido.import.form');
-    Route::post('/tejido-scheduling/import', [ExcelImportacionesController::class, 'import'])->name('tejido.import');
-    Route::get('/tejido-scheduling/ventas', [TejidoSchedullingController::class, 'showBlade'])->name('tejido.scheduling.ventas');
-    Route::get('/tejido-scheduling/pronosticos', [TejidoSchedullingController::class, 'showBladePronos'])->name('tejido.pronosticos.blade');
-    // Ruta para AJAX (puede ser POST o GET)
-    Route::post('/pronosticos/ajax', [TejidoSchedullingController::class, 'getPronosticosAjax'])->name('pronosticos.ajax');
-
-    //Rutas para cargar catálogos
-    Route::get('/modulo-cargar-catálogos', function () {
-        return view('modulos/cargar-catalogos');
-    })->name('catalogos.index');
-    Route::post('/catalogos/upload', [ExcelImportacionesController::class, 'uploadCatalogos'])->name('catalogos.upload');
-    Route::get('/catalogos/req-programa-tejido', [ExcelImportacionesController::class, 'showReqProgramaTejido'])->name('catalogos.req-programa-tejido');
-
-    //RUTAS TEMPORALES
-    Route::post('/reportes-temporales', [ReporteTemporalController::class, 'store'])->name('reportes-temporales.store');
-    Route::get('/reportes-temporales', [\App\Http\Controllers\ReporteTemporalController::class, 'index'])->name('reportes-temporales.index');
-
-    //Rutas para gestión de módulos
-    Route::resource('modulos', ModulosController::class);
-    Route::get('/modulo-modulos', [ModulosController::class, 'index'])->name('modulos.index');
+    // Rutas adicionales de módulos
     Route::get('/modulos/{modulo}/duplicar', [ModulosController::class, 'duplicar'])->name('modulos.duplicar');
     Route::post('/modulos/{modulo}/toggle-acceso', [ModulosController::class, 'toggleAcceso'])->name('modulos.toggle.acceso');
     Route::post('/modulos/{modulo}/toggle-permiso', [ModulosController::class, 'togglePermiso'])->name('modulos.toggle.permiso');
@@ -542,4 +513,6 @@ Route::get('/tejido/karl-mayer', function () {
             ], 500);
         }
     })->name('inventario-telares.guardar');
+
+    // RUTAS DE MÓDULOS (MOVIDAS A MÓDULOS ORGANIZADOS)
 });

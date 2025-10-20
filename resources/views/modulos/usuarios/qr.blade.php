@@ -35,7 +35,17 @@
 
                 <!-- QR Code -->
                 <div class="flex justify-center mb-6">
-                    <div id="qrcode" class="inline-block p-4 bg-white border-4 border-gray-200 rounded-lg shadow-md"></div>
+                    <div class="relative inline-block">
+                        <div id="qrcode" class="p-4 bg-white border-4 border-gray-200 rounded-lg shadow-md"></div>
+                        <!-- Imagen TOWELLIN en el centro del QR -->
+                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div class="bg-white p-2 rounded-lg shadow-lg">
+                                <img src="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}"
+                                     alt="TOWELLIN Logo"
+                                     class="w-20 h-20 object-contain">
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Download Button -->
@@ -49,7 +59,7 @@
 
                 <!-- Back Button -->
                 <div class="mt-4">
-                    <a href="{{ route('usuarios.select') }}"
+                    <a href="{{ route('configuracion.usuarios.select') }}"
                         class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -60,21 +70,6 @@
             </div>
         </div>
 
-        <!-- Instructions -->
-        <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 class="font-semibold text-blue-900 mb-2 flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Instrucciones de uso
-            </h3>
-            <ul class="text-sm text-blue-900 space-y-1 ml-7">
-                <li>1. Abre la página de inicio de sesión</li>
-                <li>2. Selecciona la opción "Código QR"</li>
-                <li>3. Escanea este código con la cámara</li>
-                <li>4. Accederás automáticamente al sistema</li>
-            </ul>
-        </div>
     </div>
 
     <!-- QRCode.js Library -->
@@ -92,17 +87,50 @@
 
         // Función para descargar el QR
         function downloadQR() {
-            const canvas = document.querySelector('#qrcode canvas');
+            const qrContainer = document.querySelector('#qrcode');
+            const canvas = qrContainer.querySelector('canvas');
+
             if (canvas) {
-                const url = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = 'QR_{{ $usuario->numero_empleado }}_{{ str_replace(' ', '_', $usuario->nombre) }}.png';
-                link.href = url;
-                link.click();
+                // Crear un canvas más grande para incluir la imagen
+                const downloadCanvas = document.createElement('canvas');
+                const ctx = downloadCanvas.getContext('2d');
+
+                // Dimensiones del canvas final
+                const size = 300;
+                downloadCanvas.width = size;
+                downloadCanvas.height = size;
+
+                // Dibujar el QR en el canvas
+                ctx.drawImage(canvas, 0, 0, size, size);
+
+                // Cargar y dibujar la imagen TOWELLIN en el centro
+                const img = new Image();
+                img.onload = function() {
+                    const logoSize = 100;
+                    const logoX = (size - logoSize) / 2;
+                    const logoY = (size - logoSize) / 2;
+
+                    // Fondo blanco para la imagen
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(logoX - 5, logoY - 5, logoSize + 10, logoSize + 10);
+
+                    // Dibujar la imagen
+                    ctx.drawImage(img, logoX, logoY, logoSize, logoSize);
+
+                    // Descargar el resultado
+                    const url = downloadCanvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.download = 'QR_{{ $usuario->numero_empleado }}_{{ str_replace(' ', '_', $usuario->nombre) }}.png';
+                    link.href = url;
+                    link.click();
+                };
+
+                img.src = '{{ asset('images/fotos_usuarios/TOWELLIN.png') }}';
             }
         }
     </script>
 @endsection
+
 
 
 

@@ -17,7 +17,7 @@
                         confirmButtonColor: '#2563eb',
                         confirmButtonText: 'Entendido'
                     }).then(() => {
-                        window.location.href = "{{ route('usuarios.create') }}";
+                        window.location.href = "{{ route('configuracion.usuarios.create') }}";
                     });
                 });
             </script>
@@ -61,7 +61,7 @@
         />
 
         <!-- Formulario -->
-        <form action="{{ route('usuarios.store') }}" method="POST" enctype="multipart/form-data" class="bg-white rounded-b-xl shadow-sm">
+        <form action="{{ route('configuracion.usuarios.store') }}" method="POST" enctype="multipart/form-data" class="bg-white rounded-b-xl shadow-sm">
                 @csrf
 
                 <!-- Datos Generales -->
@@ -182,10 +182,10 @@
                                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                                     <!-- Upload -->
                                     <div class="flex-1">
-                                        <input id="foto" name="foto" type="file" accept="image/*"
+                                        <input id="foto" name="foto" type="file" accept="image/*,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,.tiff,.tif"
                                             class="block w-full text-sm text-gray-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                             onchange="previewImage(event)">
-                                        <p class="mt-1 text-xs text-gray-500">Formatos: JPG, PNG. Tamaño sugerido 512×512px</p>
+                                        <p class="mt-1 text-xs text-gray-500">Formatos: JPG, JPEG, PNG, GIF, BMP, WEBP, SVG, TIFF. Tamaño máximo: 10MB. Recomendado: 1024×1024px</p>
                                     </div>
 
                                     <!-- Preview -->
@@ -369,7 +369,7 @@
                 <div class="sticky bottom-0 left-0 right-0 z-20">
                     <div class="px-4 sm:px-6 py-3 sm:py-4">
                         <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-end max-w-7xl mx-auto">
-                            <a href="{{ route('usuarios.select') }}"
+                            <a href="{{ route('configuracion.usuarios.select') }}"
                                class="px-4 sm:px-6 py-2 sm:py-3 bg-red-500 border border-gray-300 rounded-lg text-sm font-medium text-white focus:outline-none focus:ring-2 transition-colors text-center">
                                 Cancelar
                             </a>
@@ -430,6 +430,32 @@
             if (!file) {
                 preview?.classList.add('hidden');
                 placeholder?.classList.remove('hidden');
+                return;
+            }
+
+            // Validar tamaño del archivo (10MB = 10,485,760 bytes)
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Archivo muy grande',
+                    text: 'El archivo debe ser menor a 10MB. Tamaño actual: ' + (file.size / (1024 * 1024)).toFixed(2) + 'MB',
+                    confirmButtonColor: '#2563eb'
+                });
+                evt.target.value = ''; // Limpiar el input
+                return;
+            }
+
+            // Validar formato del archivo
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/bmp', 'image/webp', 'image/svg+xml', 'image/tiff'];
+            if (!allowedTypes.includes(file.type)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Formato no válido',
+                    text: 'Formatos permitidos: JPG, JPEG, PNG, GIF, BMP, WEBP, SVG, TIFF',
+                    confirmButtonColor: '#2563eb'
+                });
+                evt.target.value = ''; // Limpiar el input
                 return;
             }
 

@@ -6,7 +6,7 @@
 @section('menu-planeacion')
 <!-- Botones específicos para Gestión de Módulos -->
 <div class="flex items-center gap-2">
-    <a href="{{ route('modulos.create') }}"
+    <a href="{{ route('configuracion.utileria.modulos.create') }}"
        class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -223,7 +223,7 @@
                 <h3 class="mt-2 text-sm font-medium text-gray-900">No hay módulos registrados</h3>
                 <p class="mt-1 text-sm text-gray-500">Comienza creando tu primer módulo</p>
                 <div class="mt-6">
-                    <a href="{{ route('modulos.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <a href="{{ route('configuracion.utileria.modulos.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
@@ -247,7 +247,7 @@ $(document).ready(function() {
         const acceso = $(this).is(':checked');
 
         $.ajax({
-            url: `/modulos/${id}/toggle-acceso`,
+            url: `/configuracion/utileria/modulos/${id}/toggle-acceso`,
             method: 'POST',
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content')
@@ -290,7 +290,7 @@ $(document).ready(function() {
         const valor = $(this).is(':checked');
 
         $.ajax({
-            url: `/modulos/${id}/toggle-permiso`,
+            url: `/configuracion/utileria/modulos/${id}/toggle-permiso`,
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
@@ -451,7 +451,7 @@ function editarModuloSeleccionado() {
     const checkedBoxes = $('.modulo-checkbox:checked');
     if (checkedBoxes.length === 1) {
         const id = checkedBoxes.first().data('id');
-        window.location.href = `/modulos/${id}/edit`;
+        window.location.href = `/configuracion/utileria/modulos/${id}/edit`;
     }
 }
 
@@ -508,7 +508,7 @@ function eliminarModulos(ids) {
     // Eliminar cada módulo
     ids.forEach(function(id, index) {
         $.ajax({
-            url: `/modulos/${id}`,
+            url: `/configuracion/utileria/modulos/${id}`,
             method: 'DELETE',
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content')

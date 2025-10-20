@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use Illuminate\Support\Str; @endphp
 
 @php
     $soloAtras = true;
@@ -31,7 +32,7 @@
         headerClass="bg-white rounded-t-xl shadow-sm border-gray-200"
     >
         <x-slot name="actions">
-            <a href="{{ route('usuarios.create') }}"
+            <a href="{{ route('configuracion.usuarios.create') }}"
                class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -66,7 +67,13 @@
                             <!-- Avatar -->
                             <div class="flex-shrink-0">
                                 @if (!empty($u->foto))
-                                    <img src="{{ $u->foto }}" alt="Foto de {{ $u->nombre }}"
+                                    @php
+                                        // Construir la URL completa de la foto
+                                        $fotoUrl = !Str::startsWith($u->foto, ['http://', 'https://', '/'])
+                                            ? asset('storage/usuarios/' . $u->foto)
+                                            : asset('storage/' . ltrim($u->foto, '/'));
+                                    @endphp
+                                    <img src="{{ $fotoUrl }}" alt="Foto de {{ $u->nombre }}"
                                         class="h-12 w-12 rounded-full object-cover border-2 border-gray-200">
                                 @else
                                     <div class="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-2 border-gray-200">
@@ -133,7 +140,7 @@
 
                                     <!-- Botones de acción -->
                                     <div class="flex items-center gap-2 ml-2 lg:ml-4 flex-shrink-0">
-                                        <a href="{{ route('usuarios.qr', $u->idusuario) }}"
+                                        <a href="{{ route('configuracion.usuarios.qr', $u->idusuario) }}"
                                            class="inline-flex items-center px-3 py-2 text-sm font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors"
                                            title="Ver código QR">
                                             <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -142,7 +149,7 @@
                                             QR
                                         </a>
 
-                                        <a href="{{ route('usuarios.edit', $u->idusuario) }}"
+                                        <a href="{{ route('configuracion.usuarios.edit', $u->idusuario) }}"
                                            class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors">
                                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -150,7 +157,7 @@
                                             Editar
                                         </a>
 
-                                        <form action="{{ route('usuarios.destroy', $u->idusuario) }}" method="POST"
+                                        <form action="{{ route('configuracion.usuarios.destroy', $u->idusuario) }}" method="POST"
                                               onsubmit="return confirmarEliminacion(event)" class="inline">
                                             @csrf
                                             @method('DELETE')
@@ -175,7 +182,7 @@
                         <h3 class="mt-2 text-sm font-medium text-gray-900">No hay usuarios</h3>
                         <p class="mt-1 text-sm text-gray-500">Comienza creando un nuevo usuario.</p>
                         <div class="mt-6">
-                            <a href="{{ route('usuarios.create') }}"
+                            <a href="{{ route('configuracion.usuarios.create') }}"
                                class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

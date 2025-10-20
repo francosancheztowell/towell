@@ -4,7 +4,7 @@
 <div class="container">
     <h1 class="mb-4 text-3xl font-bold text-center">Editar Registro de Eficiencia</h1>
 
-    <form action="{{ route('eficiencia.update', $registro->id) }}" method="POST">
+    <form action="{{ route('planeacion.eficiencia.update', $registro->id) }}" method="POST">
         @csrf
         @method('PUT') <!--Envía una petición PUT a eficiencia.update para actualizar el registro.-->
 
@@ -34,7 +34,7 @@
         </div>
 
         <button type="submit" class="btn btn-success mt-3">Actualizar Registro</button>
-        <a href="{{ route('eficiencia.index') }}" class="btn btn-secondary mt-3">Cancelar</a>
+        <a href="{{ route('planeacion.catalogos.eficiencia') }}" class="btn btn-secondary mt-3">Cancelar</a>
     </form>
 </div>
 @endsection
