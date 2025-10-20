@@ -224,7 +224,10 @@ Route::middleware(['auth'])->group(function () {
     // ============================================
     Route::prefix('planeacion')->name('planeacion.')->group(function () {
         // Submódulos de Planeación
-        // Route::get('/programa-tejido', [ExcelImportacionesController::class, 'showReqProgramaTejido'])->name('catalogos.req-programa-tejido');
+        Route::get('/programa-tejido', function() {
+            $registros = \App\Models\ReqProgramaTejido::orderBy('NoTelarId')->get();
+            return view('modulos.req-programa-tejido', compact('registros'));
+        })->name('catalogos.req-programa-tejido');
 
         // Catálogos con estructura jerárquica
         Route::prefix('catalogos')->name('catalogos.')->group(function () {
@@ -326,7 +329,10 @@ Route::middleware(['auth'])->group(function () {
     // ============================================
 
     // Rutas directas de catálogos
-    // Route::get('/planeacion/programa-tejido', [ExcelImportacionesController::class, 'showReqProgramaTejido'])->name('catalogos.req-programa-tejido');
+    Route::get('/planeacion/programa-tejido', function() {
+        $registros = \App\Models\ReqProgramaTejido::orderBy('NoTelarId')->get();
+        return view('modulos.req-programa-tejido', compact('registros'));
+    })->name('catalogos.req-programa-tejido');
     Route::get('/planeacion/telares', [CatalagoTelarController::class, 'index'])->name('telares.index');
     Route::get('/planeacion/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia.index');
     Route::get('/planeacion/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad.index');
