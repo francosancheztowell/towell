@@ -151,6 +151,20 @@
             <!-- Imagen del módulo -->
             <div class="p-6 border-b border-gray-200">
                 <label for="imagen_archivo" class="block text-sm font-medium text-gray-700 mb-3">Imagen del Módulo</label>
+
+                <!-- Preview de imagen -->
+                <div id="imagen-preview" class="mb-4 hidden">
+                    <div class="flex items-center space-x-4">
+                        <img id="preview-img"
+                             alt="Vista previa"
+                             class="w-16 h-16 object-cover rounded-lg border border-gray-200">
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">Vista previa</p>
+                            <p id="preview-filename" class="text-xs text-gray-500"></p>
+                        </div>
+                    </div>
+                </div>
+
                 <input type="file"
                        class="w-full px-3 py-2 border  rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('imagen_archivo') border-red-500 @enderror"
                        id="imagen_archivo"
@@ -216,6 +230,22 @@ $(document).ready(function() {
 
     // Actualizar preview cuando cambien los checkboxes
     $('input[type="checkbox"]').on('change', actualizarPreview);
+
+    // Preview de imagen en tiempo real
+    $('#imagen_archivo').on('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#preview-img').attr('src', e.target.result);
+                $('#preview-filename').text(file.name);
+                $('#imagen-preview').removeClass('hidden');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            $('#imagen-preview').addClass('hidden');
+        }
+    });
 
     // Trigger inicial
     $('#Nivel').trigger('change');

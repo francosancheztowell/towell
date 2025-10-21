@@ -9,12 +9,17 @@
                     <!-- Contenedor de imagen optimizado para tablet -->
                     <div class="flex-grow flex items-center justify-center mb-3">
                         <div class="relative tablet-optimized">
-                            <img src="{{ $modulo['imagen'] ? asset('images/' . $imageFolder . '/' . $modulo['imagen']) : asset('images/fondosTowell/logo_towell2.png') }}"
+                            @php
+                                $imagenUrl = $modulo['imagen'] ? asset('images/' . $imageFolder . '/' . $modulo['imagen']) : asset('images/fondosTowell/TOWELLIN.png');
+                                $imagenFallback = asset('images/fondosTowell/TOWELLIN.png');
+                            @endphp
+                            <img src="{{ $imagenUrl }}"
                                 alt="{{ $modulo['nombre'] }}"
                                 class="w-32 h-32 md:w-32 md:h-32 lg:w-32 lg:h-32 object-cover rounded-xl group-hover:shadow-xl transition-shadow duration-300"
                                 loading="lazy"
                                 decoding="async"
-                                onerror="this.src='{{ asset('images/fotos_usuarios/TOWELLIN.png') }}'">
+                                onerror="this.src='{{ $imagenFallback }}'"
+                                title="{{ $modulo['nombre'] }} - {{ $modulo['imagen'] ?? 'Sin imagen' }}">
                         </div>
                     </div>
 
