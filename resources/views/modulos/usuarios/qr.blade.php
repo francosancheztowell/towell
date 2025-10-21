@@ -11,8 +11,17 @@
             <div class="text-center">
                 <div class="mb-4">
                     @if (!empty($usuario->foto))
-                        <img src="{{ asset('storage/usuarios/' . $usuario->foto) . '?v=' . time() }}" alt="Foto de {{ $usuario->nombre }}"
-                            class="h-24 w-24 mx-auto rounded-full object-cover border-4 border-blue-500 shadow-lg">
+        @php
+            $fotoUrl = getFotoUsuarioUrl($usuario->foto ?? null);
+        @endphp
+        @if($fotoUrl)
+            <img src="{{ $fotoUrl }}" alt="Foto de {{ $usuario->nombre }}"
+                class="h-24 w-24 mx-auto rounded-full object-cover border-4 border-blue-500 shadow-lg">
+        @else
+            <div class="h-24 w-24 mx-auto rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-4 border-blue-500 shadow-lg">
+                <span class="text-white font-bold text-2xl">{{ iniciales($usuario->nombre ?? 'U') }}</span>
+            </div>
+        @endif
                     @else
                         <div class="h-24 w-24 mx-auto rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-4 border-blue-500 shadow-lg">
                             <span class="text-white font-bold text-2xl">

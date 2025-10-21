@@ -46,10 +46,12 @@ class UsuarioController extends Controller
                 'correo'          => 'nullable|email|max:255',
             ]);
 
-            // 4) Foto (guardar ruta pública)
+            // 4) Foto (guardar en public/images/fotos_usuarios como los módulos)
             if ($request->hasFile('foto')) {
-                $storedPath = $request->file('foto')->store('usuarios', 'public');
-                $data['foto'] = basename($storedPath); // guardar solo el nombre del archivo
+                $file = $request->file('foto');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $file->move(public_path('images/fotos_usuarios'), $fileName);
+                $data['foto'] = $fileName; // guardar solo el nombre del archivo
             }
 
             // 5) Hashear contraseña
@@ -138,12 +140,10 @@ class UsuarioController extends Controller
 
         // Si se sube una nueva foto
         if ($request->hasFile('foto')) {
-            // Asegurar carpeta
-            if (!Storage::disk('public')->exists('usuarios')) {
-                Storage::disk('public')->makeDirectory('usuarios');
-            }
-            $storedPath = $request->file('foto')->store('usuarios', 'public');
-            $data['foto'] = basename($storedPath); // guardar solo el nombre del archivo
+            $file = $request->file('foto');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('images/fotos_usuarios'), $fileName);
+            $data['foto'] = $fileName; // guardar solo el nombre del archivo
         }
 
         // Si se proporciona una nueva contraseña, hashearla

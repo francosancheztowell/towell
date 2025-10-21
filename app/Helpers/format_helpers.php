@@ -50,14 +50,14 @@ if (!function_exists('getFotoUsuarioUrl')) {
             return null;
         }
 
-        // Verificar si el archivo existe físicamente
-        $archivoPath = storage_path('app/public/usuarios/' . $foto);
+        // Usar la misma lógica que los módulos - verificar en public/images/fotos_usuarios
+        $archivoPath = public_path('images/fotos_usuarios/' . $foto);
 
         if (!file_exists($archivoPath)) {
             return null;
         }
 
-        // Generar URL con timestamp para evitar caché
-        return asset('storage/usuarios/' . $foto) . '?v=' . time();
+        // Generar URL con timestamp para evitar caché (misma lógica que módulos)
+        return asset('images/fotos_usuarios/' . $foto) . '?v=' . time();
     }
 }
