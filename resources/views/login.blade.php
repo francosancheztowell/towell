@@ -211,12 +211,26 @@
                 });
 
                 video.srcObject = stream;
-                status.textContent = 'Apunta la cámara al código QR';
+                status.textContent = 'Preparando cámara...';
 
-                // Iniciar escaneo
+                // Iniciar escaneo con mejor manejo de eventos
                 video.onloadedmetadata = () => {
-                    video.play();
-                    startQRScanning();
+                    video.play().then(() => {
+                        status.textContent = 'Apunta la cámara al código QR';
+                        // Esperar un poco para que la cámara se estabilice
+                        setTimeout(() => {
+                            startQRScanning();
+                        }, 500);
+                    }).catch(error => {
+                        console.error('Error al reproducir video:', error);
+                        status.textContent = '❌ Error al iniciar la cámara';
+                    });
+                };
+
+                // Manejar errores del video
+                video.onerror = (error) => {
+                    console.error('Error en el video:', error);
+                    status.textContent = '❌ Error en la cámara';
                 };
 
             } catch (error) {
@@ -242,9 +256,12 @@
             const video = document.getElementById('qr-video');
             const canvas = document.getElementById('qr-canvas');
             const status = document.getElementById('qr-status');
+            let isProcessing = false; // Evitar múltiples procesamientos simultáneos
 
             interval = setInterval(() => {
-                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                if (video.readyState === video.HAVE_ENOUGH_DATA && !isProcessing) {
+                    isProcessing = true;
+
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
 
@@ -260,26 +277,46 @@
 
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-                    // Usar jsQR para detectar el código
+                    // Usar jsQR para detectar el código con mejores opciones
                     if (typeof jsQR === 'function') {
                         const code = jsQR(imageData.data, canvas.width, canvas.height, {
-                            inversionAttempts: "dontInvert",
+                            inversionAttempts: "attemptBoth",
+                            greyScaleWeights: {
+                                red: 0.2126,
+                                green: 0.7152,
+                                blue: 0.0722,
+                            },
                         });
 
-                        if (code) {
+                        if (code && code.data && code.data.trim() !== '') {
                             console.log('QR detectado:', code.data);
-                            authenticateWithQR(code.data);
+                            // Limpiar el interval inmediatamente para evitar múltiples detecciones
+                            clearInterval(interval);
+                            authenticateWithQR(code.data.trim());
+                            return;
                         }
                     }
+
+                    isProcessing = false;
                 }
-            }, 100);
+            }, 150); // Aumentar intervalo para mejor rendimiento
         }
 
         // Función para autenticar con QR detectado
         async function authenticateWithQR(qrData) {
             const status = document.getElementById('qr-status');
-            status.textContent = 'Verificando código...';
+            const modal = document.getElementById('qr-modal');
 
+            // Validar que el QR no esté vacío
+            if (!qrData || qrData.trim() === '') {
+                status.textContent = '❌ Código QR vacío. Intenta de nuevo.';
+                setTimeout(() => {
+                    status.textContent = 'Apunta la cámara al código QR';
+                }, 2000);
+                return;
+            }
+
+            status.textContent = 'Verificando código...';
             console.log('QR detectado:', qrData);
 
             try {
@@ -289,23 +326,32 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                     },
-                    body: JSON.stringify({ numero_empleado: qrData })
+                    body: JSON.stringify({ numero_empleado: qrData.trim() })
                 });
 
                 console.log('Respuesta del servidor:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
                 const data = await response.json();
                 console.log('Datos recibidos:', data);
 
                 if (data.success) {
                     status.textContent = `✅ Acceso exitoso! Bienvenido ${data.user || ''}`;
-                    // Cerrar el modal inmediatamente
-                    closeQRScanner();
-                    // Redirigir inmediatamente al primer éxito
-                    window.location.href = '/produccionProceso';
+
+                    // Cerrar el modal y redirigir después de un breve delay
+                    setTimeout(() => {
+                        closeQRScanner();
+                        window.location.href = '/produccionProceso';
+                    }, 1000);
                 } else {
                     status.textContent = `❌ ${data.message || 'Código QR inválido'}`;
                     setTimeout(() => {
                         status.textContent = 'Apunta la cámara al código QR';
+                        // Reiniciar el escaneo después del error
+                        startQRScanning();
                     }, 3000);
                 }
             } catch (error) {
@@ -313,6 +359,8 @@
                 status.textContent = '❌ Error de conexión. Reintentando...';
                 setTimeout(() => {
                     status.textContent = 'Apunta la cámara al código QR';
+                    // Reiniciar el escaneo después del error
+                    startQRScanning();
                 }, 3000);
             }
         }
@@ -320,6 +368,9 @@
         // Función para cerrar el escáner QR
         function closeQRScanner() {
             const modal = document.getElementById('qr-modal');
+            const video = document.getElementById('qr-video');
+            const status = document.getElementById('qr-status');
+
             modal.classList.add('hidden');
 
             // Detener stream de cámara
@@ -333,6 +384,15 @@
                 clearInterval(interval);
                 interval = null;
             }
+
+            // Limpiar video
+            if (video) {
+                video.srcObject = null;
+                video.pause();
+            }
+
+            // Resetear status
+            status.textContent = 'Preparando cámara...';
         }
     </script>
 
