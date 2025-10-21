@@ -88,96 +88,108 @@
     @if($isActive)
         <!-- Sección EN PROCESO -->
         <div class="p-3">
-            <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 <!-- Información Principal -->
                 <div class="space-y-2">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Orden</span>
-                        <span class="text-sm font-semibold text-gray-900">{{ $telar->Orden_Prod ?? '-' }}</span>
+                    <div class="flex items-start justify-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Orden:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Orden_Prod ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Flog</span>
-                        <span class="text-sm font-semibold text-gray-900">{{ $telar->Id_Flog ?? '-' }}</span>
+                    <div class="flex items-start justify-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Flog:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Id_Flog ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Cliente</span>
-                        <span class="text-sm font-semibold text-gray-900">{{ $telar->Cliente ?? '-' }}</span>
+                    <div class="flex items-start justify-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Cliente:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-1">{{ $telar->Cliente ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Tiras</span>
-                        <span class="text-sm font-semibold text-gray-900">{{ $telar->Tiras ?? '-' }}</span>
+                    <div class="flex items-start justify-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Tiras:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Tiras ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Tamaño</span>
-                        <span class="text-sm font-semibold text-gray-900">{{ $telar->Tamano_AX ?? '-' }}</span>
+                    <div class="flex items-start justify-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Tamaño:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Tamano_AX ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Artículo</span>
-                        <span class="text-sm font-semibold text-gray-900">{{ ($telar->ItemId ?? '') . ' ' . ($telar->Nombre_Producto ?? '') }}</span>
+                    <div class="flex items-start justify-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Artículo:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ ($telar->ItemId ?? '') . ' ' . ($telar->Nombre_Producto ?? '') }}</span>
                     </div>
                 </div>
 
                 <!-- Especificaciones Técnicas -->
                 <div class="space-y-2">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Rizo</span>
-                        <span class="text-sm font-semibold text-gray-900">
+                    <div class="flex items-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Rizo:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">
                             {{ ($telar->Cuenta ?? '') . ($telar->Calibre_Rizo ? ' - ' . $telar->Calibre_Rizo : '') . ($telar->Fibra_Rizo ? ' - ' . $telar->Fibra_Rizo : '') }}
                         </span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Pie</span>
-                        <span class="text-sm font-semibold text-gray-900">
+                    <div class="flex items-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Pie:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">
                             {{ ($telar->Cuenta_Pie ?? '') . ($telar->Calibre_Pie ? ' - ' . $telar->Calibre_Pie : '') . ($telar->Fibra_Pie ? ' - ' . $telar->Fibra_Pie : '') }}
                         </span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Trama</span>
-                        <span class="text-sm font-semibold text-gray-900">
+                    <div class="flex items-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Trama:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">
                             {{ ($telar->CALIBRE_TRA ?? '') . ($telar->COLOR_TRAMA ? ' - ' . $telar->COLOR_TRAMA : '') }}
                         </span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Pedido</span>
-                        <span class="text-sm font-semibold text-gray-900">{{ $telar->Saldos ?? '-' }}</span>
+                    <div class="flex items-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Pedido:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Saldos ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Producción</span>
-                        <span class="text-sm font-semibold text-gray-900">{{ $telar->Prod_Kg_Dia ?? '-' }}</span>
+                    <div class="flex items-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Producción:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Prod_Kg_Dia ?? '-' }}</span>
                     </div>
                 </div>
 
                 <!-- Información Adicional -->
                 <div class="space-y-2">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Marbetes Pend</span>
-                        <span class="text-sm font-semibold text-gray-900">{{ $telar->Marbetes_Pend ?? '-' }}</span>
+                    <div class="flex items-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Marbetes:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Marbetes_Pend ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Inicio</span>
-                        <span class="text-sm font-semibold text-gray-900">
-                            {{ $telar->Inicio_Tejido ? \Carbon\Carbon::parse($telar->Inicio_Tejido)->format('d/m') : '-' }}
+                    <div class="flex items-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Inicio:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">
+                            @if($telar->Inicio_Tejido && $telar->Inicio_Tejido !== '1900-01-01')
+                                {{ \Carbon\Carbon::parse($telar->Inicio_Tejido)->format('d/m/Y') }}
+                            @else
+                                -
+                            @endif
                         </span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Fin</span>
-                        <span class="text-sm font-semibold text-gray-900">
-                            {{ $telar->Fin_Tejido ? \Carbon\Carbon::parse($telar->Fin_Tejido)->format('d/m') : '-' }}
+                    <div class="flex items-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Fin:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">
+                            @if($telar->Fin_Tejido && $telar->Fin_Tejido !== '1900-01-01')
+                                {{ \Carbon\Carbon::parse($telar->Fin_Tejido)->format('d/m/Y') }}
+                            @else
+                                -
+                            @endif
                         </span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Comp tejido</span>
-                        <span class="text-sm font-semibold text-gray-900">
-                            {{ $telar->Fecha_Compromiso ? \Carbon\Carbon::parse($telar->Fecha_Compromiso)->format('d/m') : '-' }}
+                    <div class="flex items-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Comp:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">
+                            @if($telar->Fecha_Compromiso && $telar->Fecha_Compromiso !== '1900-01-01')
+                                {{ \Carbon\Carbon::parse($telar->Fecha_Compromiso)->format('d/m/Y') }}
+                            @else
+                                -
+                            @endif
                         </span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Total Paros</span>
-                        <span class="text-sm font-semibold text-gray-900">{{ $telar->Total_Paros ?? '-' }}</span>
+                    <div class="flex items-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Paros:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Total_Paros ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Tiempo de Paro</span>
-                        <span class="text-sm font-semibold text-gray-900">{{ $telar->Tiempo_Paro ?? '-' }}</span>
+                    <div class="flex items-start">
+                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">T. Paro:</span>
+                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Tiempo_Paro ?? '-' }}</span>
                     </div>
                 </div>
             </div>
@@ -194,53 +206,53 @@
             @if($ordenSig && ($ordenSig->Orden_Prod || $ordenSig->Nombre_Producto))
                 <!-- Sección SIGUIENTE ORDEN con datos -->
                 <div class="p-3">
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                         <!-- Columna 1: Orden -->
                         <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide">Orden</span>
-                                <span class="text-sm font-semibold text-gray-900">{{ $ordenSig->Orden_Prod ?? '-' }}</span>
+                            <div class="flex items-start">
+                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Orden:</span>
+                                <span class="text-sm font-semibold text-gray-900 ml-2">{{ $ordenSig->Orden_Prod ?? '-' }}</span>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide">Artículo - Tamaño</span>
-                                <span class="text-sm font-semibold text-gray-900">{{ ($ordenSig->ItemId ?? '') . ' - ' . ($ordenSig->Tamano_AX ?? '') }}</span>
+                            <div class="flex items-start">
+                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Artículo:</span>
+                                <span class="text-sm font-semibold text-gray-900 ml-2">{{ ($ordenSig->ItemId ?? '') . ' - ' . ($ordenSig->Tamano_AX ?? '') }}</span>
                             </div>
-                        </div>
-
-                        <!-- Columna 2: Producto -->
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide">InventSizeId + Nombre Producto</span>
-                                <span class="text-sm font-semibold text-gray-900">{{ $ordenSig->Nombre_Producto ?? '-' }}</span>
+                            <div class="flex items-start">
+                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Producto:</span>
+                                <span class="text-sm font-semibold text-gray-900 ml-2">{{ $ordenSig->Nombre_Producto ?? '-' }}</span>
                             </div>
                         </div>
 
-                        <!-- Columna 3: Rizo -->
+                        <!-- Columna 2: Especificaciones -->
                         <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide">Rizo</span>
-                                <span class="text-sm font-semibold text-gray-900">
+                            <div class="flex items-start">
+                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Rizo:</span>
+                                <span class="text-sm font-semibold text-gray-900 ml-2">
                                     {{ ($ordenSig->Cuenta ?? '') . ($ordenSig->Calibre_Rizo ? ' - ' . $ordenSig->Calibre_Rizo : '') . ($ordenSig->Fibra_Rizo ? ' - ' . $ordenSig->Fibra_Rizo : '') }}
                                 </span>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide">Pie</span>
-                                <span class="text-sm font-semibold text-gray-900">
+                            <div class="flex items-start">
+                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Pie:</span>
+                                <span class="text-sm font-semibold text-gray-900 ml-2">
                                     {{ ($ordenSig->Cuenta_Pie ?? '') . ($ordenSig->Calibre_Pie ? ' - ' . $ordenSig->Calibre_Pie : '') . ($ordenSig->Fibra_Pie ? ' - ' . $ordenSig->Fibra_Pie : '') }}
                                 </span>
                             </div>
                         </div>
 
-                        <!-- Columna 4: Pedido -->
+                        <!-- Columna 3: Pedido -->
                         <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide">Pedido</span>
-                                <span class="text-sm font-semibold text-gray-900">{{ $ordenSig->Saldos ?? '-' }}</span>
+                            <div class="flex items-start">
+                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Pedido:</span>
+                                <span class="text-sm font-semibold text-gray-900 ml-2">{{ $ordenSig->Saldos ?? '-' }}</span>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide">Fecha Inicio</span>
-                                <span class="text-sm font-semibold text-gray-900">
-                                    {{ $ordenSig->Inicio_Tejido ? \Carbon\Carbon::parse($ordenSig->Inicio_Tejido)->format('d/m') : '-' }}
+                            <div class="flex items-start">
+                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Inicio:</span>
+                                <span class="text-sm font-semibold text-gray-900 ml-2">
+                                    @if($ordenSig->Inicio_Tejido && $ordenSig->Inicio_Tejido !== '1900-01-01')
+                                        {{ \Carbon\Carbon::parse($ordenSig->Inicio_Tejido)->format('d/m/Y') }}
+                                    @else
+                                        -
+                                    @endif
                                 </span>
                             </div>
                         </div>

@@ -70,8 +70,8 @@
                                     @php
                                         // Construir la URL completa de la foto
                                         $fotoUrl = !Str::startsWith($u->foto, ['http://', 'https://', '/'])
-                                            ? asset('storage/usuarios/' . $u->foto)
-                                            : asset('storage/' . ltrim($u->foto, '/'));
+                                            ? asset('storage/usuarios/' . $u->foto) . '?v=' . time()
+                                            : asset('storage/' . ltrim($u->foto, '/')) . '?v=' . time();
                                     @endphp
                                     <img src="{{ $fotoUrl }}" alt="Foto de {{ $u->nombre }}"
                                         class="h-12 w-12 rounded-full object-cover border-2 border-gray-200">

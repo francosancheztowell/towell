@@ -227,6 +227,13 @@ class TelaresController
                 ];
                 $ordenSig = null;
             } else {
+                // Debug: Log para verificar datos
+                Log::info('DEBUG - Buscando siguiente orden para telar Jacquard:', [
+                    'numero_telar' => $numeroTelar,
+                    'fecha_inicio_actual' => $telarEnProceso->Inicio_Tejido,
+                    'telar_en_proceso' => $telarEnProceso->Telar
+                ]);
+
                 // Obtener la siguiente orden programada (basada en FechaInicio, no FechaFinal)
                 $ordenSig = DB::table('ReqProgramaTejido')
                     ->where('SalonTejidoId', 'JACQUARD')
@@ -251,6 +258,21 @@ class TelaresController
                     ])
                     ->orderBy('FechaInicio')
                     ->first();
+
+            // Debug: Log resultado de siguiente orden
+            Log::info('DEBUG - Resultado siguiente orden Jacquard:', [
+                'telar' => $numeroTelar,
+                'orden_sig_encontrada' => $ordenSig ? true : false,
+                'orden_sig_data' => $ordenSig
+            ]);
+
+            // Debug: Log fechas del telar en proceso
+            Log::info('DEBUG - Fechas del telar en proceso Jacquard:', [
+                'telar' => $numeroTelar,
+                'inicio_tejido' => $telarEnProceso->Inicio_Tejido ?? 'N/A',
+                'fin_tejido' => $telarEnProceso->Fin_Tejido ?? 'N/A',
+                'fecha_compromiso' => $telarEnProceso->Fecha_Compromiso ?? 'N/A'
+            ]);
             }
 
             $datosTelaresCompletos[$numeroTelar] = [
@@ -410,6 +432,14 @@ class TelaresController
             // Obtener siguiente orden
             $ordenSig = null;
             if ($telarEnProceso) {
+                // Debug: Log para verificar datos
+                Log::info('DEBUG - Buscando siguiente orden para telar Itema:', [
+                    'numero_telar_original' => $numeroTelarOriginal,
+                    'numero_telar_secuencia' => $numeroTelar,
+                    'fecha_inicio_actual' => $telarEnProceso->Inicio_Tejido,
+                    'telar_en_proceso' => $telarEnProceso->Telar
+                ]);
+
                 $ordenSig = DB::table('ReqProgramaTejido')
                     ->whereIn('SalonTejidoId', ['ITEMA', 'SMIT'])
                     ->where('NoTelarId', $numeroTelarOriginal)
@@ -433,6 +463,21 @@ class TelaresController
                     ])
                     ->orderBy('FechaInicio')
                     ->first();
+
+                // Debug: Log resultado de siguiente orden
+                Log::info('DEBUG - Resultado siguiente orden Itema:', [
+                    'telar' => $numeroTelar,
+                    'orden_sig_encontrada' => $ordenSig ? true : false,
+                    'orden_sig_data' => $ordenSig
+                ]);
+
+                // Debug: Log fechas del telar en proceso
+                Log::info('DEBUG - Fechas del telar en proceso Itema:', [
+                    'telar' => $numeroTelar,
+                    'inicio_tejido' => $telarEnProceso->Inicio_Tejido ?? 'N/A',
+                    'fin_tejido' => $telarEnProceso->Fin_Tejido ?? 'N/A',
+                    'fecha_compromiso' => $telarEnProceso->Fecha_Compromiso ?? 'N/A'
+                ]);
             }
 
             // Si no hay telar en proceso, crear objeto vacío

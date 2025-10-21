@@ -607,6 +607,21 @@ Route::get('/modulo-cortes-de-eficiencia/datos-telares', [CortesEficienciaContro
     });
 
     // ============================================
+    // RUTAS PARA SERVIR IMÁGENES
+    // ============================================
+
+    // Ruta para servir imágenes de usuarios
+    Route::get('/storage/usuarios/{filename}', function ($filename) {
+        $path = storage_path('app/public/usuarios/' . $filename);
+
+        if (!file_exists($path)) {
+            abort(404);
+        }
+
+        return response()->file($path);
+    })->name('storage.usuarios');
+
+    // ============================================
     // RUTAS LEGACY (MANTENER POR COMPATIBILIDAD)
     // ============================================
 

@@ -204,9 +204,9 @@
                                             if ($isEdit && !empty($usuario->foto)) {
                                                 // Si la DB almacena solo el nombre (imagen.jpg), construir ruta /storage/usuarios/imagen.jpg
                                                 if (!Str::startsWith($usuario->foto, ['http://', 'https://', '/'])) {
-                                                    $fotoUrl = asset('storage/usuarios/' . $usuario->foto);
+                                                    $fotoUrl = asset('storage/usuarios/' . $usuario->foto) . '?v=' . time();
                                                 } else {
-                                                    $fotoUrl = asset('storage/' . ltrim($usuario->foto, '/'));
+                                                    $fotoUrl = asset('storage/' . ltrim($usuario->foto, '/')) . '?v=' . time();
                                                 }
                                             }
                                         @endphp
