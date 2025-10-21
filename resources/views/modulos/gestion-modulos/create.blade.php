@@ -182,6 +182,19 @@
 
 <script>
 $(document).ready(function() {
+    // Mostrar SweetAlert de error si hay errores de validación
+    @if($errors->any())
+        Swal.fire({
+            icon: 'error',
+            title: 'Error de validación',
+            text: 'Por favor revisa los campos marcados en rojo',
+            timer: 3000,
+            showConfirmButton: false,
+            toast: true,
+            position: 'top-end'
+        });
+    @endif
+
     // Auto-actualizar dependencias cuando cambie el nivel
     $('#Nivel').on('change', function() {
         const nivel = $(this).val();

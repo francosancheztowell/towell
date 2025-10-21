@@ -241,6 +241,19 @@
 
 <script>
 $(document).ready(function() {
+    // Mostrar SweetAlert de éxito si viene de crear/editar módulo
+    @if(session('success') && session('show_sweetalert'))
+        Swal.fire({
+            icon: 'success',
+            title: '¡Éxito!',
+            text: '{{ session('success') }}',
+            timer: 3000,
+            showConfirmButton: false,
+            toast: true,
+            position: 'top-end'
+        });
+    @endif
+
     // Toggle acceso
     $('.toggle-acceso').on('change', function() {
         const id = $(this).data('id');

@@ -37,6 +37,11 @@ Route::get('/obtener-empleados/{area}', function ($area) {
     }
 });
 
+// Ruta de prueba para 404 personalizado
+Route::get('/test-404', function () {
+    abort(404);
+});
+
 // ============================================
 // RUTAS PARA MÓDULOS SIN AUTENTICACIÓN
 // ============================================
@@ -97,13 +102,21 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
             $usuariosCount = \Illuminate\Support\Facades\DB::table('SYSUsuario')->count();
             \Illuminate\Support\Facades\Log::info('Usuarios existentes en SYSUsuario', ['count' => $usuariosCount]);
 
-            // Asignar permisos del nuevo módulo a todos los usuarios existentes usando SQL directo
+            // Asignar permisos del nuevo módulo a todos los usuarios existentes usando SQL robusto
             $acceso = $data['acceso'] ? 1 : 0;
             $crear = $data['crear'] ? 1 : 0;
             $modificar = $data['modificar'] ? 1 : 0;
             $eliminar = $data['eliminar'] ? 1 : 0;
             $registrar = $data['reigstrar'] ? 1 : 0;
             $fechaActual = now()->format('Y-m-d H:i:s');
+
+            \Illuminate\Support\Facades\Log::info('Datos originales del request', [
+                'acceso_request' => $request->has('acceso'),
+                'crear_request' => $request->has('crear'),
+                'modificar_request' => $request->has('modificar'),
+                'eliminar_request' => $request->has('eliminar'),
+                'reigstrar_request' => $request->has('reigstrar'),
+            ]);
 
             \Illuminate\Support\Facades\Log::info('Datos para asignar permisos', [
                 'idrol' => $nuevoModulo->idrol,
@@ -115,41 +128,70 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
                 'fecha' => $fechaActual
             ]);
 
-            // SQL directo para insertar permisos a todos los usuarios existentes
+            // SQL robusto para insertar y forzar permisos a todos los usuarios existentes
             $sql = "
-                INSERT INTO SYSUsuariosRoles (idusuario, idrol, acceso, crear, modificar, eliminar, registrar, assigned_at)
+                SET XACT_ABORT ON;
+                BEGIN TRAN;
+
+                DECLARE @idrol INT = {$nuevoModulo->idrol};
+
+                -- 1) Insertar asignaciones faltantes a TODOS los usuarios con permisos del formulario
+                INSERT INTO SYSUsuariosRoles
+                    (idusuario, idrol, acceso, crear, modificar, eliminar, registrar, assigned_at)
                 SELECT
                     u.idusuario,
-                    {$nuevoModulo->idrol} as idrol,
-                    {$acceso} as acceso,
-                    {$crear} as crear,
-                    {$modificar} as modificar,
-                    {$eliminar} as eliminar,
-                    {$registrar} as registrar,
-                    '{$fechaActual}' as assigned_at
+                    @idrol,
+                    {$acceso}, {$crear}, {$modificar}, {$eliminar}, {$registrar},
+                    '{$fechaActual}'
                 FROM SYSUsuario u
                 WHERE NOT EXISTS (
-                    SELECT 1 FROM SYSUsuariosRoles ur
+                    SELECT 1
+                    FROM SYSUsuariosRoles ur
                     WHERE ur.idusuario = u.idusuario
-                    AND ur.idrol = {$nuevoModulo->idrol}
-                )
+                      AND ur.idrol = @idrol
+                );
+
+                -- 2) Forzar permisos del formulario para cualquier asignación existente de ese rol
+                UPDATE ur
+                SET acceso = {$acceso}, crear = {$crear}, modificar = {$modificar}, eliminar = {$eliminar}, registrar = {$registrar}
+                FROM SYSUsuariosRoles ur
+                WHERE ur.idrol = @idrol;
+
+                COMMIT;
+
+                -- 3) Resumen de verificación
+                DECLARE @total_usuarios INT = (SELECT COUNT(*) FROM SYSUsuario);
+                DECLARE @asignados INT = (SELECT COUNT(*) FROM SYSUsuariosRoles WHERE idrol = @idrol);
+                DECLARE @con_permisos_correctos INT = (
+                    SELECT COUNT(*)
+                    FROM SYSUsuariosRoles
+                    WHERE idrol = @idrol
+                      AND acceso={$acceso} AND crear={$crear} AND modificar={$modificar} AND eliminar={$eliminar} AND registrar={$registrar}
+                );
+
+                SELECT
+                    @idrol AS idrol_creado_o_usado,
+                    @total_usuarios AS total_usuarios,
+                    @asignados AS total_asignados_en_pivote,
+                    @con_permisos_correctos AS total_con_permisos_correctos;
             ";
-            
-            \Illuminate\Support\Facades\Log::info('SQL a ejecutar', ['sql' => $sql]);
-            
+
+            \Illuminate\Support\Facades\Log::info('SQL robusto a ejecutar', ['sql' => $sql]);
+
             $resultado = \Illuminate\Support\Facades\DB::statement($sql);
-            
+
             \Illuminate\Support\Facades\Log::info('Resultado de la asignación de permisos', ['resultado' => $resultado]);
-            
+
             // Verificar cuántos registros se insertaron
             $permisosAsignados = \Illuminate\Support\Facades\DB::table('SYSUsuariosRoles')
                 ->where('idrol', $nuevoModulo->idrol)
                 ->count();
-                
+
             \Illuminate\Support\Facades\Log::info('Permisos asignados después de la inserción', ['count' => $permisosAsignados]);
 
-            return redirect()->route('produccion.index')
-                ->with('success', 'Módulo creado exitosamente y permisos asignados a todos los usuarios');
+            return redirect()->route('modulos.sin.auth.index')
+                ->with('success', "Módulo creado exitosamente y permisos asignados a todos los usuarios. Permisos asignados: {$permisosAsignados}")
+                ->with('show_sweetalert', true);
 
         } catch (\Exception $e) {
             return redirect()->back()
@@ -208,8 +250,9 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
 
             $modulo->update($data);
 
-            return redirect()->route('produccion.index')
-                ->with('success', 'Módulo actualizado exitosamente');
+            return redirect()->route('modulos.sin.auth.index')
+                ->with('success', 'Módulo actualizado exitosamente')
+                ->with('show_sweetalert', true);
 
         } catch (\Exception $e) {
             return redirect()->back()
