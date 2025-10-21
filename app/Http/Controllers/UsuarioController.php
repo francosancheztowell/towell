@@ -499,7 +499,7 @@ class UsuarioController extends Controller
 
             // Módulos de Programa Urd/Eng (orden 45)
             'Reservar y Programar' => '/programa-urd-eng/reservar-programar',
-            'Edición de Ordenes Programadas' => '/modulo-edicion-urdido-engomado',
+            //'Edición de Ordenes Programadas' => '/modulo-edicion-urdido-engomado',
 
 
             // Módulos de configuración (nivel 2) - ESTRUCTURA JERÁRQUICA

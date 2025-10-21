@@ -17,6 +17,7 @@ use App\Http\Controllers\AplicacionesController;
 use App\Http\Controllers\NuevoRequerimientoController;
 use App\Http\Controllers\ConsultarRequerimientoController;
 use App\Models\SYSRoles;
+use Illuminate\Support\Facades\Artisan;
 
 
 //Rutas de login, con logout, no protegidas por middleware
@@ -89,11 +90,13 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
             $data['reigstrar'] = $request->has('reigstrar');
 
             // Manejar imagen
+            $imagenActualizada = false;
             if ($request->hasFile('imagen_archivo')) {
                 $file = $request->file('imagen_archivo');
                 $filename = time() . '.' . $file->getClientOriginalExtension();
                 $file->move(public_path('images/fotos_modulos/'), $filename);
                 $data['imagen'] = $filename;
+                $imagenActualizada = true;
             }
 
             $nuevoModulo = SYSRoles::create($data);
@@ -189,6 +192,32 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
 
             \Illuminate\Support\Facades\Log::info('Permisos asignados después de la inserción', ['count' => $permisosAsignados]);
 
+            // Limpiar caché automáticamente si se subió una imagen
+            if ($imagenActualizada) {
+                Artisan::call('cache:clear');
+                Artisan::call('view:clear');
+
+                // Limpiar caché específico de módulos
+                $usuarios = \App\Models\SYSUsuario::all();
+                foreach($usuarios as $usuario) {
+                    $cacheKeys = [
+                        "modulos_principales_user_{$usuario->idusuario}",
+                        "submodulos_planeacion_user_{$usuario->idusuario}",
+                        "submodulos_tejido_user_{$usuario->idusuario}",
+                        "submodulos_urdido_user_{$usuario->idusuario}",
+                        "submodulos_engomado_user_{$usuario->idusuario}",
+                        "submodulos_atadores_user_{$usuario->idusuario}",
+                        "submodulos_tejedores_user_{$usuario->idusuario}",
+                        "submodulos_mantenimiento_user_{$usuario->idusuario}",
+                        "submodulos_configuracion_user_{$usuario->idusuario}",
+                    ];
+
+                    foreach($cacheKeys as $cacheKey) {
+                        cache()->forget($cacheKey);
+                    }
+                }
+            }
+
             return redirect()->route('modulos.sin.auth.index')
                 ->with('success', "Módulo creado exitosamente y permisos asignados a todos los usuarios. Permisos asignados: {$permisosAsignados}")
                 ->with('show_sweetalert', true);
@@ -241,14 +270,42 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
             $data['reigstrar'] = $request->has('reigstrar');
 
             // Manejar imagen
+            $imagenActualizada = false;
             if ($request->hasFile('imagen_archivo')) {
                 $file = $request->file('imagen_archivo');
                 $filename = time() . '.' . $file->getClientOriginalExtension();
                 $file->move(public_path('images/fotos_modulos/'), $filename);
                 $data['imagen'] = $filename;
+                $imagenActualizada = true;
             }
 
             $modulo->update($data);
+
+            // Limpiar caché automáticamente si se actualizó la imagen
+            if ($imagenActualizada) {
+                Artisan::call('cache:clear');
+                Artisan::call('view:clear');
+
+                // Limpiar caché específico de módulos
+                $usuarios = \App\Models\SYSUsuario::all();
+                foreach($usuarios as $usuario) {
+                    $cacheKeys = [
+                        "modulos_principales_user_{$usuario->idusuario}",
+                        "submodulos_planeacion_user_{$usuario->idusuario}",
+                        "submodulos_tejido_user_{$usuario->idusuario}",
+                        "submodulos_urdido_user_{$usuario->idusuario}",
+                        "submodulos_engomado_user_{$usuario->idusuario}",
+                        "submodulos_atadores_user_{$usuario->idusuario}",
+                        "submodulos_tejedores_user_{$usuario->idusuario}",
+                        "submodulos_mantenimiento_user_{$usuario->idusuario}",
+                        "submodulos_configuracion_user_{$usuario->idusuario}",
+                    ];
+
+                    foreach($cacheKeys as $cacheKey) {
+                        cache()->forget($cacheKey);
+                    }
+                }
+            }
 
             return redirect()->route('modulos.sin.auth.index')
                 ->with('success', 'Módulo actualizado exitosamente')
@@ -367,7 +424,13 @@ Route::middleware(['auth'])->group(function () {
     // ============================================
     Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () {
         Route::get('/reservar-programar', function () {
-            return view('modulos/programa-urd-eng/reservar-programar');
+            // Obtener datos de inventario de telares para la vista
+            $inventarioTelares = \App\Models\TejInventarioTelares::where('status', 'Activo')
+                ->orderBy('no_telar')
+                ->orderBy('tipo')
+                ->get();
+
+            return view('modulos.programa_urd_eng.reservar-programar', compact('inventarioTelares'));
         })->name('reservar.programar');
     });
 
@@ -551,9 +614,9 @@ Route::get('/modulo-cortes-de-eficiencia/datos-telares', [CortesEficienciaContro
     Route::get('/modulo-urdido', function () {
         return view('modulos/urdido');
     });
-    Route::get('/urdido/programar-requerimientos', function () {
-        return view('modulos/urdido/programar-requerimientos');
-    });
+    //Route::get('/urdido/programar-requerimientos', function () {
+    //    return view('modulos/urdido/programar-requerimientos');
+    //});
     Route::get('ingresar-folio', [UrdidoController::class, 'cargarOrdenesPendientesUrd'])->name('ingresarFolio');
     Route::post('/urdido/prioridad/mover', [UrdidoController::class, 'mover'])->name('urdido.prioridad.mover');
     // Route::post('/engomado/prioridad/mover', [EngomadoController::class, 'mover'])->name('engomado.prioridad.mover');
@@ -569,9 +632,9 @@ Route::get('/modulo-cortes-de-eficiencia/datos-telares', [CortesEficienciaContro
     Route::get('/modulo-engomado', function () {
         return view('modulos/engomado');
     });
-    Route::get('/engomado/programar-requerimientos', function () {
-        return view('modulos/engomado/programar-requerimientos');
-    });
+    //Route::get('/engomado/programar-requerimientos', function () {
+    //    return view('modulos/engomado/programar-requerimientos');
+    //});
     // Route::get('/ingresar-folio-engomado', [EngomadoController::class, 'cargarOrdenesPendientesEng'])->name('ingresarFolioEngomado');
     // Route::post('/orden-trabajo-engomado', [EngomadoController::class, 'cargarDatosEngomado'])->name('produccion.ordenTrabajoEngomado');
     // Route::post('/guardar-y-finalizar-engomado', [EngomadoController::class, 'guardarYFinalizar'])->name('ordenEngomado.guardarYFinalizar');
@@ -618,9 +681,9 @@ Route::get('/modulo-cortes-de-eficiencia/datos-telares', [CortesEficienciaContro
     Route::post('/inventario/seleccion', [RequerimientoController::class, 'step3Store'])->name('inventario.step3.store');
 
     // Módulo Edición Urdido-Engomado
-    Route::get('/modulo-edicion-urdido-engomado', function () {
-        return view('/modulos/edicion_urdido_engomado/edicion-urdido-engomado-folio');
-    })->name('ingresarFolioEdicion');
+    //Route::get('/modulo-edicion-urdido-engomado', function () {
+    //    return view('/modulos/edicion_urdido_engomado/edicion-urdido-engomado-folio');
+    //})->name('ingresarFolioEdicion');
     Route::get('/orden-trabajo-editar', [UrdidoController::class, 'cargarDatosOrdenUrdEng'])->name('update.ordenTrabajo');
     Route::post('/tejido/actualizarUrdidoEngomado', [UrdidoController::class, 'ordenToActualizar'])->name('orden.produccion.update');
     Route::post('/reservar-inventario', [RequerimientoController::class, 'BTNreservar'])->name('reservar.inventario');

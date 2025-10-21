@@ -10,20 +10,24 @@
                     <div class="flex-grow flex items-center justify-center mb-3">
                         <div class="relative tablet-optimized">
                             @php
-                                // Usar timestamp actual para forzar recarga (solución temporal)
+                                // FORZAR ACTUALIZACIÓN CON TIMESTAMP PARA EVITAR CACHÉ
                                 $timestamp = time();
-                                if ($modulo['imagen']) {
-                                    $imagenUrl = asset('images/' . $imageFolder . '/' . $modulo['imagen']) . '?v=' . $timestamp . '&t=' . rand(1000, 9999);
+                                if (!empty($modulo['imagen'])) {
+                                    $imagenUrl = asset('images/' . $imageFolder . '/' . $modulo['imagen']) . '?v=' . $timestamp;
                                 } else {
                                     $imagenUrl = asset('images/fondosTowell/TOWELLIN.png') . '?v=' . $timestamp;
                                 }
                                 $imagenFallback = asset('images/fondosTowell/TOWELLIN.png') . '?v=' . $timestamp;
                             @endphp
+
                             <img src="{{ $imagenUrl }}"
                                 alt="{{ $modulo['nombre'] }}"
                                 class="w-32 h-32 md:w-32 md:h-32 lg:w-32 lg:h-32 object-cover rounded-xl group-hover:shadow-xl transition-shadow duration-300"
                                 onerror="this.src='{{ $imagenFallback }}'"
-                                title="{{ $modulo['nombre'] }} - {{ $modulo['imagen'] ?? 'Sin imagen' }}">
+                                title="{{ $modulo['nombre'] }} - {{ $modulo['imagen'] ?? 'Sin imagen' }}"
+                                loading="eager"
+                                decoding="sync"
+                                style="image-rendering: auto;">
                         </div>
                     </div>
 

@@ -121,20 +121,35 @@
 
         <!-- Tabla de telares -->
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="w-full border-collapse border border-gray-300">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">1°</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Telar</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">% Efi</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Marcas #</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Trama #</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Pie #</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Rizo #</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Otros #</th>
+                        <th class="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">1°</th>
+                        <th class="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">Telar</th>
+                        <th class="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">% Efi</th>
+                        <th class="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">
+                            <div>Marcas</div>
+                            <div class="text-xs text-gray-500">#</div>
+                        </th>
+                        <th class="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">
+                            <div>Trama</div>
+                            <div class="text-xs text-gray-500">#</div>
+                        </th>
+                        <th class="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">
+                            <div>Pie</div>
+                            <div class="text-xs text-gray-500">#</div>
+                        </th>
+                        <th class="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">
+                            <div>Rizo</div>
+                            <div class="text-xs text-gray-500">#</div>
+                        </th>
+                        <th class="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">
+                            <div>Otros</div>
+                            <div class="text-xs text-gray-500">#</div>
+                        </th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="tabla-telares">
+                <tbody class="bg-white" id="tabla-telares">
                     <!-- Se llena dinámicamente -->
                 </tbody>
             </table>
@@ -261,21 +276,40 @@
         const tbody = document.getElementById('tabla-telares');
         tbody.innerHTML = '';
 
-        marca.marcas_line.forEach((linea, index) => {
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-50';
-            tr.innerHTML = `
-                <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">${index + 1}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">${linea.NoTelarId}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">${linea.Eficiencia || 0}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">${linea.Marcas || 0}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">${linea.Trama || 0}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">${linea.Pie || 0}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">${linea.Rizo || 0}</td>
-                <td class="px-4 py-3 text-sm text-gray-900">${linea.Otros || 0}</td>
-            `;
-            tbody.appendChild(tr);
-        });
+        // Si no hay datos, mostrar telares del 201 al 211 como ejemplo
+        if (!marca.marcas_line || marca.marcas_line.length === 0) {
+            for (let i = 201; i <= 211; i++) {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                tr.innerHTML = `
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900">${i - 200}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm font-semibold text-gray-900">${i}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900"></td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900"></td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900"></td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900"></td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900"></td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900"></td>
+                `;
+                tbody.appendChild(tr);
+            }
+        } else {
+            marca.marcas_line.forEach((linea, index) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                tr.innerHTML = `
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900">${index + 1}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm font-semibold text-gray-900">${linea.NoTelarId}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900">${linea.Eficiencia || 0}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900">${linea.Marcas || 0}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900">${linea.Trama || 0}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900">${linea.Pie || 0}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900">${linea.Rizo || 0}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center text-sm text-gray-900">${linea.Otros || 0}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
 
         document.getElementById('detalles-marca').style.display = 'block';
 

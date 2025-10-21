@@ -88,8 +88,8 @@
                 <thead class="bg-gray-50 sticky top-0 z-10">
                     <tr>
                         <th class="border border-gray-300 px-1 py-2 text-left text-xs font-semibold text-gray-700 w-16">Telar</th>
-                        <th class="border border-gray-300 px-0 py-2 text-center text-xs font-semibold text-gray-700 w-12">RPM STD</th>
-                        <th class="border border-gray-300 px-0 py-2 text-center text-xs font-semibold text-gray-700 w-14">Eficiencia STD</th>
+                        <th class="border border-gray-300 px-0 py-2 text-center text-xs font-semibold text-gray-700 w-10">RPM STD</th>
+                        <th class="border border-gray-300 px-0 py-2 text-center text-xs font-semibold text-gray-700 w-10">Eficiencia STD</th>
 
                         <!-- Horario 1 -->
                         <th colspan="3" class="border border-gray-300 px-2 py-2 text-center text-xs font-semibold text-gray-700 bg-blue-100">Horario 1</th>
@@ -125,18 +125,18 @@
                     <!-- Telares 201-215 -->
                     @for($i = 201; $i <= 215; $i++)
                     <tr class="hover:bg-gray-50">
-                        <td class="border border-gray-300 px-1 py-2 text-center text-xs font-medium w-16">{{ $i }}</td>
-                        <td class="border border-gray-300 px-0 py-2 w-12">
-                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-xs bg-blue-50 text-center" placeholder="RPM" data-telar="{{ $i }}" data-field="rpm_std" readonly>
+                        <td class="border border-gray-300 px-1 py-2 text-center text-sm font-semibold w-16">{{ $i }}</td>
+                        <td class="border border-gray-300 px-0 py-2 w-10">
+                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-sm bg-blue-50 text-center" placeholder="RPM" data-telar="{{ $i }}" data-field="rpm_std" readonly>
                         </td>
-                        <td class="border border-gray-300 px-0 py-2 w-14">
-                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-xs bg-green-50 text-center" placeholder="Eficiencia" data-telar="{{ $i }}" data-field="eficiencia_std" readonly>
+                        <td class="border border-gray-300 px-0 py-2 w-10">
+                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-sm bg-green-50 text-center" placeholder="Eficiencia" data-telar="{{ $i }}" data-field="eficiencia_std" readonly>
                         </td>
 
                         <!-- Horario 1 -->
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-xs text-gray-900" id="h1_rpm_display_{{ $i }}">0</span>
+                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h1_rpm_display_{{ $i }}">0</span>
                                 <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleRpmEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -146,7 +146,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 500; $j += 5)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="rpm">{{ $j }}</span>
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -155,7 +155,7 @@
                         </td>
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-xs text-gray-900" id="h1_efic_display_{{ $i }}">0%</span>
+                                <span class="efic-display text-sm text-gray-900 font-medium" id="h1_efic_display_{{ $i }}">0%</span>
                                 <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleEficEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -165,7 +165,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 100; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="eficiencia">{{ $j }}</span>
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="eficiencia">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -179,7 +179,7 @@
                         <!-- Horario 2 -->
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-xs text-gray-900" id="h2_rpm_display_{{ $i }}">0</span>
+                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h2_rpm_display_{{ $i }}">0</span>
                                 <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-green-600 transition-colors" onclick="toggleRpmEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -189,7 +189,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 500; $j += 5)
-                                                <span class="number-option inline-block w-6 h-6 text-center leading-6 text-xs cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="rpm">{{ $j }}</span>
+                                                <span class="number-option inline-block w-6 h-6 text-center leading-6 text-sm font-medium cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -198,7 +198,7 @@
                         </td>
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-xs text-gray-900" id="h2_efic_display_{{ $i }}">0%</span>
+                                <span class="efic-display text-sm text-gray-900 font-medium" id="h2_efic_display_{{ $i }}">0%</span>
                                 <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-green-600 transition-colors" onclick="toggleEficEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -208,7 +208,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 100; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="eficiencia">{{ $j }}</span>
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="eficiencia">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -222,7 +222,7 @@
                         <!-- Horario 3 -->
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-xs text-gray-900" id="h3_rpm_display_{{ $i }}">0</span>
+                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h3_rpm_display_{{ $i }}">0</span>
                                 <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-yellow-600 transition-colors" onclick="toggleRpmEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -232,7 +232,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 500; $j += 5)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="rpm">{{ $j }}</span>
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -241,7 +241,7 @@
                         </td>
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-xs text-gray-900" id="h3_efic_display_{{ $i }}">0%</span>
+                                <span class="efic-display text-sm text-gray-900 font-medium" id="h3_efic_display_{{ $i }}">0%</span>
                                 <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-yellow-600 transition-colors" onclick="toggleEficEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -251,7 +251,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 100; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="eficiencia">{{ $j }}</span>
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="eficiencia">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -267,18 +267,18 @@
                     <!-- Telares 299-320 -->
                     @for($i = 299; $i <= 320; $i++)
                     <tr class="hover:bg-gray-50">
-                        <td class="border border-gray-300 px-1 py-2 text-center text-xs font-medium w-16">{{ $i }}</td>
-                        <td class="border border-gray-300 px-0 py-2 w-12">
-                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-xs bg-blue-50 text-center" placeholder="RPM" data-telar="{{ $i }}" data-field="rpm_std" readonly>
+                        <td class="border border-gray-300 px-1 py-2 text-center text-sm font-semibold w-16">{{ $i }}</td>
+                        <td class="border border-gray-300 px-0 py-2 w-10">
+                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-sm bg-blue-50 text-center" placeholder="RPM" data-telar="{{ $i }}" data-field="rpm_std" readonly>
                         </td>
-                        <td class="border border-gray-300 px-0 py-2 w-14">
-                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-xs bg-green-50 text-center" placeholder="Eficiencia" data-telar="{{ $i }}" data-field="eficiencia_std" readonly>
+                        <td class="border border-gray-300 px-0 py-2 w-10">
+                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-sm bg-green-50 text-center" placeholder="Eficiencia" data-telar="{{ $i }}" data-field="eficiencia_std" readonly>
                         </td>
 
                         <!-- Horario 1 -->
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-xs text-gray-900" id="h1_rpm_display_{{ $i }}">0</span>
+                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h1_rpm_display_{{ $i }}">0</span>
                                 <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleRpmEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -288,7 +288,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 500; $j += 5)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="rpm">{{ $j }}</span>
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -297,7 +297,7 @@
                         </td>
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-xs text-gray-900" id="h1_efic_display_{{ $i }}">0%</span>
+                                <span class="efic-display text-sm text-gray-900 font-medium" id="h1_efic_display_{{ $i }}">0%</span>
                                 <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleEficEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -307,7 +307,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 100; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="eficiencia">{{ $j }}</span>
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="eficiencia">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -321,7 +321,7 @@
                         <!-- Horario 2 -->
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-xs text-gray-900" id="h2_rpm_display_{{ $i }}">0</span>
+                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h2_rpm_display_{{ $i }}">0</span>
                                 <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-green-600 transition-colors" onclick="toggleRpmEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -331,7 +331,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 500; $j += 5)
-                                                <span class="number-option inline-block w-6 h-6 text-center leading-6 text-xs cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="rpm">{{ $j }}</span>
+                                                <span class="number-option inline-block w-6 h-6 text-center leading-6 text-sm font-medium cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -340,7 +340,7 @@
                         </td>
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-xs text-gray-900" id="h2_efic_display_{{ $i }}">0%</span>
+                                <span class="efic-display text-sm text-gray-900 font-medium" id="h2_efic_display_{{ $i }}">0%</span>
                                 <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-green-600 transition-colors" onclick="toggleEficEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -350,7 +350,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 100; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="eficiencia">{{ $j }}</span>
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="eficiencia">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -364,7 +364,7 @@
                         <!-- Horario 3 -->
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-xs text-gray-900" id="h3_rpm_display_{{ $i }}">0</span>
+                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h3_rpm_display_{{ $i }}">0</span>
                                 <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-yellow-600 transition-colors" onclick="toggleRpmEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -374,7 +374,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 500; $j += 5)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="rpm">{{ $j }}</span>
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -383,7 +383,7 @@
                         </td>
                         <td class="border border-gray-300 px-1 py-2">
                             <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-xs text-gray-900" id="h3_efic_display_{{ $i }}">0%</span>
+                                <span class="efic-display text-sm text-gray-900 font-medium" id="h3_efic_display_{{ $i }}">0%</span>
                                 <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-yellow-600 transition-colors" onclick="toggleEficEdit(this)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -393,7 +393,7 @@
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
                                             @for($j = 0; $j <= 100; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="eficiencia">{{ $j }}</span>
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="eficiencia">{{ $j }}</span>
                                             @endfor
                                         </div>
                                     </div>
@@ -428,9 +428,8 @@
             if (tipo === 'rpm') {
                 display.textContent = valor;
             } else {
-                // Convertir el valor a decimal (77 -> 0.77%)
-                const decimalValue = (valor / 100).toFixed(2);
-                display.textContent = decimalValue + '%';
+                // Para eficiencia, mantener el mismo formato que RPM (valor directo)
+                display.textContent = valor + '%';
             }
         }
     }
@@ -555,12 +554,10 @@
                     const eficStdInput = document.querySelector(`input[data-telar="${telar}"][data-field="eficiencia_std"]`);
                     if (eficStdInput && eficStdInput.value) {
                         const eficStd = parseFloat(eficStdInput.value.replace('%', '')) || 0;
-                        // Convertir a decimal (0.77% -> 77 para el modal)
-                        const modalValue = Math.round(eficStd * 100);
                         display.textContent = eficStd + '%';
 
-                        // Buscar el valor exacto en el modal (77)
-                        const exactOption = container.querySelector(`span[data-value="${modalValue}"]`);
+                        // Buscar el valor exacto en el modal
+                        const exactOption = container.querySelector(`span[data-value="${eficStd}"]`);
                         if (exactOption) {
                             exactOption.classList.remove('bg-gray-100', 'text-gray-700');
                             exactOption.classList.add('bg-blue-500', 'text-white');
@@ -579,9 +576,8 @@
                         }
                     }
                 } else {
-                    // Si ya tiene un valor, convertir a decimal para el modal
-                    const modalValue = Math.round(currentValue * 100);
-                    const exactOption = container.querySelector(`span[data-value="${modalValue}"]`);
+                    // Si ya tiene un valor, buscar el valor exacto en el modal
+                    const exactOption = container.querySelector(`span[data-value="${currentValue}"]`);
                     if (exactOption) {
                         exactOption.classList.remove('bg-gray-100', 'text-gray-700');
                         exactOption.classList.add('bg-blue-500', 'text-white');
@@ -689,9 +685,8 @@
                 if (tipo === 'rpm') {
                     display.textContent = valor;
                 } else {
-                    // Convertir el valor a decimal (77 -> 0.77%)
-                    const decimalValue = (valor / 100).toFixed(2);
-                    display.textContent = decimalValue + '%';
+                    // Para eficiencia, mantener el mismo formato que RPM (valor directo)
+                    display.textContent = valor + '%';
                 }
 
                 // Propagar valor
