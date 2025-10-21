@@ -151,9 +151,9 @@
                                             <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $it['cod_color'] ?: '-' }}</td>
                                             <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $it['color'] ?: '-' }}</td>
                                             <td class="px-4 py-1">
-                                                <div class="flex items-center justify-between relative">
-                                                    <span class="quantity-display text-sm text-gray-900">{{ (int)($it['cantidad'] ?? 0) }}</span>
-                                                    <button class="edit-quantity-btn ml-2 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleQuantityEdit(this)">
+                                                <div class="flex items-center justify-center relative">
+                                                    <span class="quantity-display text-md text-gray-900 cursor-pointer hover:text-blue-600 transition-colors" onclick="toggleQuantityEdit(this)">{{ (int)($it['cantidad'] ?? 0) }}</span>
+                                                    <button class="edit-quantity-btn  p-2 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                         </svg>
@@ -180,7 +180,7 @@
                                         <td class="px-4 py-1">
                                             <div class="flex items-center justify-between relative">
                                                 <span class="quantity-display text-sm text-gray-900">0</span>
-                                                <button class="edit-quantity-btn ml-2 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleQuantityEdit(this)">
+                                                <button class="edit-quantity-btn ml-2 p-1 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                     </svg>
@@ -207,7 +207,7 @@
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-between">
                                             <span class="quantity-display text-sm text-gray-900">0</span>
-                                            <button class="edit-quantity-btn ml-2 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleQuantityEdit(this)">
+                                            <button class="edit-quantity-btn ml-2 p-1 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
@@ -234,7 +234,7 @@
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-between">
                                             <span class="quantity-display text-sm text-gray-900">0</span>
-                                            <button class="edit-quantity-btn ml-2 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleQuantityEdit(this)">
+                                            <button class="edit-quantity-btn ml-2 p-1 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
@@ -261,7 +261,7 @@
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-between relative">
                                             <span class="quantity-display text-sm text-gray-900">0</span>
-                                            <button class="edit-quantity-btn ml-2 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleQuantityEdit(this)">
+                                            <button class="edit-quantity-btn ml-2 p-1 text-white  transition-colors" onclick="toggleQuantityEdit(this)">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
@@ -271,9 +271,9 @@
                                                     <div class="flex space-x-1 min-w-max">
                                                         @for($i = 0; $i <= 100; $i++)
                                                             <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $i == 0 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}" data-value="{{ $i }}">{{ $i }}</span>
-                        @endfor
-                    </div>
-                </div>
+                                                        @endfor
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -288,7 +288,7 @@
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-between relative">
                                             <span class="quantity-display text-sm text-gray-900">0</span>
-                                            <button class="edit-quantity-btn ml-2 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleQuantityEdit(this)">
+                                            <button class="edit-quantity-btn ml-2 p-1 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
@@ -622,10 +622,11 @@
         });
 
         // Función para mostrar/ocultar el editor de cantidad
-        function toggleQuantityEdit(button) {
-            const row = button.closest('tr');
+        function toggleQuantityEdit(element) {
+            const row = element.closest('tr');
             const editContainer = row.querySelector('.quantity-edit-container');
             const quantityDisplay = row.querySelector('.quantity-display');
+            const editBtn = row.querySelector('.edit-quantity-btn');
 
             if (editContainer.classList.contains('hidden')) {
                 // Cerrar todos los editores abiertos primero
@@ -633,13 +634,17 @@
 
                 // Mostrar editor actual
                 editContainer.classList.remove('hidden');
-                button.classList.add('hidden');
-                quantityDisplay.classList.add('hidden');
+                // Ocultar el botón si existe
+                if (editBtn) {
+                    editBtn.classList.add('hidden');
+                }
             } else {
                 // Ocultar editor
                 editContainer.classList.add('hidden');
-                button.classList.remove('hidden');
-                quantityDisplay.classList.remove('hidden');
+                // Mostrar el botón si existe
+                if (editBtn) {
+                    editBtn.classList.remove('hidden');
+                }
             }
         }
 
@@ -652,8 +657,14 @@
                     const display = row.querySelector('.quantity-display');
 
                     container.classList.add('hidden');
-                    editBtn.classList.remove('hidden');
-                    display.classList.remove('hidden');
+                    // Solo mostrar el botón si existe
+                    if (editBtn) {
+                        editBtn.classList.remove('hidden');
+                    }
+                    // El display siempre debe permanecer visible
+                    if (display) {
+                        display.classList.remove('hidden');
+                    }
                 }
             });
         }
@@ -889,7 +900,7 @@
                 <td class="px-4 py-1">
                     <div class="flex items-center justify-between relative">
                         <span class="quantity-display text-sm text-gray-900">${datos.cantidad}</span>
-                        <button class="edit-quantity-btn ml-2 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleQuantityEdit(this)">
+                        <button class="edit-quantity-btn ml-2 p-1 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
