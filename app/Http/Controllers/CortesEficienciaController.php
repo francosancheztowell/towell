@@ -19,6 +19,15 @@ class CortesEficienciaController extends Controller
     }
 
     /**
+     * Mostrar la vista para consultar cortes de eficiencia
+     */
+    public function consultar()
+    {
+        // Por ahora retornamos una vista simple, después se puede expandir con datos de BD
+        return view('modulos.consultar-cortes-eficiencia');
+    }
+
+    /**
      * Obtener información del turno actual
      */
     public function getTurnoInfo()

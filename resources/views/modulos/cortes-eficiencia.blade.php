@@ -145,7 +145,7 @@
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 500; $j += 5)
+                                            @for($j = 0; $j <= 500; $j++)
                                                 <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
@@ -188,7 +188,7 @@
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 500; $j += 5)
+                                            @for($j = 0; $j <= 500; $j++)
                                                 <span class="number-option inline-block w-6 h-6 text-center leading-6 text-sm font-medium cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
@@ -231,7 +231,7 @@
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 500; $j += 5)
+                                            @for($j = 0; $j <= 500; $j++)
                                                 <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
@@ -287,7 +287,7 @@
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 500; $j += 5)
+                                            @for($j = 0; $j <= 500; $j++)
                                                 <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
@@ -330,7 +330,7 @@
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 500; $j += 5)
+                                            @for($j = 0; $j <= 500; $j++)
                                                 <span class="number-option inline-block w-6 h-6 text-center leading-6 text-sm font-medium cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
@@ -373,7 +373,7 @@
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 500; $j += 5)
+                                            @for($j = 0; $j <= 500; $j++)
                                                 <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="rpm">{{ $j }}</span>
                                             @endfor
                                         </div>
@@ -469,19 +469,19 @@
                         const rpmStd = parseFloat(rpmStdInput.value) || 0;
                         display.textContent = rpmStd;
 
-                        // Buscar el múltiplo de 5 más cercano
-                        const closestValue = Math.round(rpmStd / 5) * 5;
-                        const closestOption = container.querySelector(`span[data-value="${closestValue}"]`);
+                        // Buscar el valor exacto
+                        const exactValue = Math.round(rpmStd);
+                        const exactOption = container.querySelector(`span[data-value="${exactValue}"]`);
 
-                        if (closestOption) {
-                            closestOption.classList.remove('bg-gray-100', 'text-gray-700');
-                            closestOption.classList.add('bg-blue-500', 'text-white');
+                        if (exactOption) {
+                            exactOption.classList.remove('bg-gray-100', 'text-gray-700');
+                            exactOption.classList.add('bg-blue-500', 'text-white');
 
-                            // Centrar el scroll en el número más cercano
+                            // Centrar el scroll en el número exacto
                             const scrollContainer = container.querySelector('.number-scroll-container');
                             const containerWidth = scrollContainer.offsetWidth;
-                            const optionLeft = closestOption.offsetLeft;
-                            const optionWidth = closestOption.offsetWidth;
+                            const optionLeft = exactOption.offsetLeft;
+                            const optionWidth = exactOption.offsetWidth;
                             const scrollLeft = optionLeft - (containerWidth / 2) + (optionWidth / 2);
 
                             scrollContainer.scrollTo({
@@ -491,19 +491,19 @@
                         }
                     }
                 } else {
-                    // Si ya tiene un valor, buscar el múltiplo de 5 más cercano
-                    const closestValue = Math.round(currentValue / 5) * 5;
-                    const closestOption = container.querySelector(`span[data-value="${closestValue}"]`);
+                    // Si ya tiene un valor, buscar el valor exacto
+                    const exactValue = Math.round(currentValue);
+                    const exactOption = container.querySelector(`span[data-value="${exactValue}"]`);
 
-                    if (closestOption) {
-                        closestOption.classList.remove('bg-gray-100', 'text-gray-700');
-                        closestOption.classList.add('bg-blue-500', 'text-white');
+                    if (exactOption) {
+                        exactOption.classList.remove('bg-gray-100', 'text-gray-700');
+                        exactOption.classList.add('bg-blue-500', 'text-white');
 
-                        // Centrar el scroll en el número más cercano
+                        // Centrar el scroll en el número exacto
                         const scrollContainer = container.querySelector('.number-scroll-container');
                         const containerWidth = scrollContainer.offsetWidth;
-                        const optionLeft = closestOption.offsetLeft;
-                        const optionWidth = closestOption.offsetWidth;
+                        const optionLeft = exactOption.offsetLeft;
+                        const optionWidth = exactOption.offsetWidth;
                         const scrollLeft = optionLeft - (containerWidth / 2) + (optionWidth / 2);
 
                         scrollContainer.scrollTo({
@@ -535,7 +535,8 @@
                 const eficienciaStdInput = document.querySelector(`input[data-telar="${telar}"][data-field="eficiencia_std"]`);
                 if (eficienciaStdInput && eficienciaStdInput.value) {
                     const eficienciaStd = parseFloat(eficienciaStdInput.value.replace('%', '')) || 0;
-                    display.textContent = eficienciaStd + '%';
+                    const eficienciaStdInt = Math.round(eficienciaStd * 100); // 0.77 -> 77
+                    display.textContent = eficienciaStdInt + '%';
                 }
             }
 
@@ -554,10 +555,11 @@
                     const eficStdInput = document.querySelector(`input[data-telar="${telar}"][data-field="eficiencia_std"]`);
                     if (eficStdInput && eficStdInput.value) {
                         const eficStd = parseFloat(eficStdInput.value.replace('%', '')) || 0;
-                        display.textContent = eficStd + '%';
+                        const eficStdInt = Math.round(eficStd * 100); // 0.77 -> 77
+                        display.textContent = eficStdInt + '%';
 
-                        // Buscar el valor exacto en el modal
-                        const exactOption = container.querySelector(`span[data-value="${eficStd}"]`);
+                        // Buscar el valor exacto en el modal - convertir decimal a entero
+                        const exactOption = container.querySelector(`span[data-value="${eficStdInt}"]`);
                         if (exactOption) {
                             exactOption.classList.remove('bg-gray-100', 'text-gray-700');
                             exactOption.classList.add('bg-blue-500', 'text-white');
@@ -618,14 +620,27 @@
     }
 
     function propagarValor(telar, horario, tipo, valor) {
-        // Si es Horario 1, propagar a Horario 2 y 3
+        // Si es Horario 1, propagar a Horario 2 y 3 (solo si están en 0)
         if (horario === 1) {
-            inicializarValor(telar, 2, tipo, valor);
-            inicializarValor(telar, 3, tipo, valor);
+            // Verificar si Horario 2 está en 0
+            const displayH2 = document.getElementById(`h2_${tipo === 'rpm' ? 'rpm' : 'efic'}_display_${telar}`);
+            if (displayH2 && (displayH2.textContent === '0' || displayH2.textContent === '0%')) {
+                inicializarValor(telar, 2, tipo, valor);
+            }
+
+            // Verificar si Horario 3 está en 0
+            const displayH3 = document.getElementById(`h3_${tipo === 'rpm' ? 'rpm' : 'efic'}_display_${telar}`);
+            if (displayH3 && (displayH3.textContent === '0' || displayH3.textContent === '0%')) {
+                inicializarValor(telar, 3, tipo, valor);
+            }
         }
-        // Si es Horario 2, propagar a Horario 3
+        // Si es Horario 2, propagar a Horario 3 (solo si está en 0)
         else if (horario === 2) {
-            inicializarValor(telar, 3, tipo, valor);
+            // Verificar si Horario 3 está en 0
+            const displayH3 = document.getElementById(`h3_${tipo === 'rpm' ? 'rpm' : 'efic'}_display_${telar}`);
+            if (displayH3 && (displayH3.textContent === '0' || displayH3.textContent === '0%')) {
+                inicializarValor(telar, 3, tipo, valor);
+            }
         }
         // Horario 3 no propaga a nadie
     }
@@ -721,6 +736,26 @@
                 closeAllEditors();
             }
         });
+
+        // Auto-guardar cuando se cambie el folio
+        const folioElement = document.getElementById('folio');
+        if (folioElement) {
+            folioElement.addEventListener('blur', function() {
+                if (this.value && !currentFolio) {
+                    currentFolio = this.value;
+                    enableActionButtons();
+                }
+            });
+        }
+
+        // Detectar cambios en los inputs para habilitar edición
+        document.querySelectorAll('#telares-body input').forEach(input => {
+            input.addEventListener('input', function() {
+                if (currentFolio && !isEditing) {
+                    isEditing = true;
+                }
+            });
+        });
     });
 
     async function cargarTurnoActual() {
@@ -796,6 +831,9 @@
 
     // Funciones de botones de acción
     async function nuevoCorte() {
+        console.log('Función nuevoCorte llamada');
+        console.log('isEditing:', isEditing);
+
         if (isEditing) {
             Swal.fire({
                 title: '¿Guardar cambios?',
@@ -812,11 +850,13 @@
                 }
             });
         } else {
+            console.log('Llamando a generarNuevoFolio');
             generarNuevoFolio();
         }
     }
 
     async function generarNuevoFolio() {
+        console.log('Función generarNuevoFolio llamada');
         try {
             // Mostrar loading
             Swal.fire({
@@ -829,6 +869,7 @@
                 }
             });
 
+            console.log('Haciendo petición a /modulo-cortes-de-eficiencia/generar-folio');
             // Hacer petición para generar folio
             const response = await fetch('/modulo-cortes-de-eficiencia/generar-folio', {
                 method: 'GET',
@@ -837,7 +878,9 @@
                 }
             });
 
+            console.log('Respuesta recibida:', response);
             const data = await response.json();
+            console.log('Datos recibidos:', data);
 
             if (data.success) {
                 // Llenar formulario con datos generados
@@ -873,6 +916,7 @@
             }
 
         } catch (error) {
+            console.error('Error en generarNuevoFolio:', error);
             Swal.close();
             Swal.fire({
                 title: 'Error',
@@ -1141,22 +1185,6 @@
         document.getElementById('btn-finalizar').className = 'inline-flex items-center px-4 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed';
     }
 
-    // Auto-guardar cuando se cambie el folio
-    document.getElementById('folio').addEventListener('blur', function() {
-        if (this.value && !currentFolio) {
-            currentFolio = this.value;
-            enableActionButtons();
-        }
-    });
-
-    // Detectar cambios en los inputs para habilitar edición
-    document.querySelectorAll('#telares-body input').forEach(input => {
-        input.addEventListener('input', function() {
-            if (currentFolio && !isEditing) {
-                isEditing = true;
-            }
-        });
-    });
 
     // Funciones para el modal de observaciones con SweetAlert2
     function abrirModalObservaciones(checkbox) {

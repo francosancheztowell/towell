@@ -9,16 +9,27 @@
         <!-- Navbar de telares -->
         <div id="telar-navbar" class="fixed top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-lg z-40 transition-all duration-300">
             <div class="container mx-auto px-4 py-3">
-                <div class="flex flex-wrap justify-center gap-2 max-w-6xl mx-auto">
-                    @php $__telares = (isset($editMode) && $editMode) ? ($telaresEdit ?? []) : ($telaresOrdenados ?? []); @endphp
-                    @foreach($__telares as $telar)
-                        <button onclick="scrollToTelar({{ $telar }})" class="telar-nav-btn px-3 py-1.5 rounded text-sm font-medium transition-all duration-200 border border-gray-300 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-700" data-telar="{{ $telar }}">
+                <div class="flex flex-wrap justify-center gap-2 max-w-8xl mx-auto">
+                    @php
+                        $__telares = (isset($editMode) && $editMode) ? ($telaresEdit ?? []) : ($telaresOrdenados ?? []);
+
+                        // Ordenar los telares por secuencia (no por número de telar)
+                        // Los telares deben aparecer en el orden: 201, 203, 205, 207, 209, 211, 210, 215, 208, 213, 206, 214, 204, 202, 299, 301, 303, 305, 307, 309, 311, 310, 313, 308, 315, 306, 317, 304, 319, 302, 300, 320, 318, 316, 314, 312
+                        $secuenciaCorrecta = [201, 203, 205, 207, 209, 211, 210, 215, 208, 213, 206, 214, 204, 202, 299, 301, 303, 305, 307, 309, 311, 310, 313, 308, 315, 306, 317, 304, 319, 302, 300, 320, 318, 316, 314, 312];
+
+                        $telaresOrdenados = collect($__telares)->sortBy(function($telar) use ($secuenciaCorrecta) {
+                            $posicion = array_search((int)$telar, $secuenciaCorrecta);
+                            return $posicion !== false ? $posicion : 999; // Si no está en la secuencia, ponerlo al final
+                        })->values()->all();
+                    @endphp
+                    @foreach($telaresOrdenados as $index => $telar)
+                        <button onclick="scrollToTelar({{ $telar }})" class="telar-nav-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 border-2 border-gray-300 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:border-blue-400 hover:text-blue-800 shadow-sm hover:shadow-md" data-telar="{{ $telar }}" title="Telar {{ $telar }}">
                             {{ $telar }}
                         </button>
                     @endforeach
                 </div>
             </div>
-        </div>
+                    </div>
 
         <!-- Lista de Requerimientos en Proceso -->
         <div class="space-y-6">
@@ -115,9 +126,9 @@
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Fin (FechaFinal):</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Fin_Tejido ?? '-' }}</span>
-                            </div>
                         </div>
-                    </div>
+                        </div>
+                        </div>
 
                     <!-- Botones de acción -->
                     <div class="flex justify-end mb-4 relative z-10">
@@ -144,8 +155,8 @@
                             <tbody class="">
                                 @if(isset($editMode) && $editMode)
                                     @php $items = ($consumosPorTelar[$telar]['items'] ?? []); @endphp
-                                    @foreach($items as $it)
-                                        <tr class="hover:bg-gray-50" data-consumo-id="{{ $it['id'] }}">
+                                    @foreach($items as $index => $it)
+                                        <tr class="{{ $index % 2 === 0 ? 'bg-white' : 'bg-gray-50' }} hover:bg-blue-50" data-consumo-id="{{ $it['id'] }}">
                                             <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $it['calibre'] !== null ? number_format($it['calibre'], 2) : '-' }}</td>
                                             <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $it['fibra'] ?: '-' }}</td>
                                             <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $it['cod_color'] ?: '-' }}</td>
@@ -170,20 +181,17 @@
                                         </tr>
                                     @endforeach
                                 @else
-                                    <tr class="hover:bg-gray-50">
+                                    <tr class="bg-white hover:bg-blue-50">
                                         <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ isset($telarData->CALIBRE_TRA) && $telarData->CALIBRE_TRA !== null ? number_format($telarData->CALIBRE_TRA, 2) : '-' }}</td>
                                         <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_TRA ?? '-' }}</td>
                                         <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_TRAMA ?? '-' }}</td>
                                         <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_TRAMA ?? '-' }}</td>
                                         <td class="px-4 py-1">
                                             <div class="flex items-center justify-center relative">
-                                                <span class="quantity-display text-md font-semibold">0</span>
                                                 <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
+                                                    <span class="quantity-display text-md font-semibold">0</span>
                                                 </button>
-                                                <div class="quantity-edit-container hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                                <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
                                                         <div class="flex space-x-1 min-w-max">
                                                             @for($i = 0; $i <= 100; $i++)
@@ -197,18 +205,15 @@
                                     </tr>
                                 @endif
                                 @if(isset($telarData->CALIBRE_C2) && $telarData->CALIBRE_C2 !== null && $telarData->CALIBRE_C2 != 0)
-                                <tr class="hover:bg-gray-50">
+                                <tr class="bg-gray-50 hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C2, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C2 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C2 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_C2 ?? '-' }}</td>
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-center">
-                                            <span class="quantity-display text-sm text-gray-900">0</span>
                                             <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
+                                                <span class="quantity-display text-md font-semibold">0</span>
                                             </button>
                                             <div class="quantity-edit-container hidden relative w-20">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -224,18 +229,15 @@
                                 </tr>
                                 @endif
                                 @if(isset($telarData->CALIBRE_C3) && $telarData->CALIBRE_C3 !== null && $telarData->CALIBRE_C3 != 0)
-                                <tr class="hover:bg-gray-50">
+                                <tr class="bg-white hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C3, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C3 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C3 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_C3 ?? '-' }}</td>
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-center">
-                                            <span class="quantity-display text-sm text-gray-900">0</span>
                                             <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
+                                                <span class="quantity-display text-md font-semibold">0</span>
                                             </button>
                                             <div class="quantity-edit-container hidden relative w-20">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -251,45 +253,39 @@
                                 </tr>
                                 @endif
                                 @if(isset($telarData->CALIBRE_C4) && $telarData->CALIBRE_C4 !== null && $telarData->CALIBRE_C4 != 0)
-                                <tr class="hover:bg-gray-50">
+                                <tr class="bg-gray-200 hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C4, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C4 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C4 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_C4 ?? '-' }}</td>
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-center relative">
-                                            <span class="quantity-display text-sm text-gray-900">0</span>
-                                            <button class="edit-quantity-btn ml-2 p-1 text-white  transition-colors" onclick="toggleQuantityEdit(this)">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
+                                            <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
+                                                <span class="quantity-display text-md font-semibold">0</span>
                                             </button>
                                             <div class="quantity-edit-container hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
                                                     <div class="flex space-x-1 min-w-max">
                                                         @for($i = 0; $i <= 100; $i++)
                                                             <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $i == 0 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}" data-value="{{ $i }}">{{ $i }}</span>
-                                                        @endfor
-                                                    </div>
-                                                </div>
+                        @endfor
+                    </div>
+                </div>
                                             </div>
                                         </div>
                                     </td>
                                 </tr>
                                 @endif
                                 @if(isset($telarData->CALIBRE_C5) && $telarData->CALIBRE_C5 !== null && $telarData->CALIBRE_C5 != 0)
-                                <tr class="hover:bg-gray-50">
+                                <tr class="bg-white hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C5, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C5 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C5 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_C5 ?? '-' }}</td>
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-center relative">
-                                            <span class="quantity-display text-sm text-gray-900">0</span>
                                             <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
+                                                <span class="quantity-display text-md font-semibold">0</span>
                                             </button>
                                             <div class="quantity-edit-container hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -657,11 +653,11 @@
                     container.classList.add('hidden');
                     // Solo mostrar el botón si existe
                     if (editBtn) {
-                        editBtn.classList.remove('hidden');
+                    editBtn.classList.remove('hidden');
                     }
                     // El display siempre debe permanecer visible
                     if (display) {
-                        display.classList.remove('hidden');
+                    display.classList.remove('hidden');
                     }
                 }
             });
@@ -826,13 +822,16 @@
 
         // Función para agregar nuevo requerimiento
         function agregarNuevoRequerimiento() {
+            console.log('Función agregarNuevoRequerimiento llamada');
             // Verificar si estamos en modo edición (con folio en query)
             const params = new URLSearchParams(window.location.search);
             const folioQuery = params.get('folio');
 
             if (folioQuery) {
+                console.log('Modo edición detectado');
                 // Modo edición: permitir agregar sin verificar "En Proceso"
                 const modal = document.getElementById('modal-nuevo-requerimiento');
+                console.log('Modal encontrado:', modal);
                 modal.classList.remove('hidden');
                 document.getElementById('form-nuevo-requerimiento').reset();
                 document.getElementById('modal-cantidad').value = 0;
@@ -840,10 +839,13 @@
             }
 
             // Modo creación: verificar si hay En Proceso
+            console.log('Modo creación detectado');
             fetch('/modulo-nuevo-requerimiento/en-proceso')
                 .then(r => r.json())
                 .then(data => {
+                    console.log('Respuesta del servidor:', data);
                     if (data && data.exists) {
+                        console.log('Orden en proceso encontrada');
                         Swal.fire({
                             icon: 'info',
                             title: 'Orden en Proceso',
@@ -859,12 +861,15 @@
                         return;
                     }
 
+                    console.log('Abriendo modal');
                     const modal = document.getElementById('modal-nuevo-requerimiento');
+                    console.log('Modal encontrado:', modal);
                     modal.classList.remove('hidden');
                     document.getElementById('form-nuevo-requerimiento').reset();
                     document.getElementById('modal-cantidad').value = 0;
                 })
-                .catch(() => {
+                .catch((error) => {
+                    console.log('Error en fetch:', error);
                     const modal = document.getElementById('modal-nuevo-requerimiento');
                     modal.classList.remove('hidden');
                     document.getElementById('form-nuevo-requerimiento').reset();
@@ -889,7 +894,10 @@
 
             // Crear nueva fila
             const nuevaFila = document.createElement('tr');
-            nuevaFila.className = 'hover:bg-gray-50';
+            // Calcular el índice para el patrón alternado
+            const existingRows = tbody.querySelectorAll('tr');
+            const newIndex = existingRows.length;
+            nuevaFila.className = `${newIndex % 2 === 0 ? 'bg-white' : 'bg-gray-200'} hover:bg-blue-50`;
             nuevaFila.innerHTML = `
                 <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">${datos.articulo}</td>
                 <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">${datos.fibra}</td>
@@ -897,13 +905,10 @@
                 <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">${datos.nombreColor}</td>
                 <td class="px-4 py-1">
                     <div class="flex items-center justify-center relative">
-                        <span class="quantity-display text-md font-semibold">${datos.cantidad}</span>
                         <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
+                            <span class="quantity-display text-md font-semibold">${datos.cantidad}</span>
                         </button>
-                        <div class="quantity-edit-container hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                        <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                             <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
                                 <div class="flex space-x-1 min-w-max">
                                     ${Array.from({length: 101}, (_, i) =>
