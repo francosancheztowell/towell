@@ -18,7 +18,7 @@
                     @endforeach
                 </div>
             </div>
-                    </div>
+        </div>
 
         <!-- Lista de Requerimientos en Proceso -->
         <div class="space-y-6">
@@ -48,8 +48,8 @@
                         $tipo = $info['tipo'] ?? 'jacquard';
                     }
                 @endphp
-            <div id="telar-{{ $telar }}" class="telar-section bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden" data-telar="{{ $telar }}" data-salon="{{ $tipo === 'itema' ? 'ITEMA' : 'JACQUARD' }}" data-orden="{{ $telarData->Orden_Prod ?? '' }}" data-producto="{{ $telarData->Nombre_Producto ?? '' }}">
-                <div class="{{ $tipo === 'itema' ? 'bg-green-500' : 'bg-blue-500' }} px-4 py-4 border-t-4 border-orange-400">
+            <div id="telar-{{ $telar }}" class="telar-section bg-white rounded-lg shadow-lg  border border-gray-200 overflow-hidden" data-telar="{{ $telar }}" data-salon="{{ $tipo === 'itema' ? 'ITEMA' : 'JACQUARD' }}" data-orden="{{ $telarData->Orden_Prod ?? '' }}" data-producto="{{ $telarData->Nombre_Producto ?? '' }}">
+                <div class="{{ $tipo === 'itema' ? 'bg-green-700' : 'bg-blue-700' }} px-4 py-4 border-t-4 border-orange-400">
                     <h2 class="text-xl font-bold text-white text-center">
                         PRODUCCIÓN EN PROCESO TELAR {{ strtoupper($tipo) }}
                         <span class="inline-block bg-red-600 text-white px-3 py-1 rounded-lg ml-2 font-bold text-xl">{{ $telar }}</span>
@@ -60,19 +60,19 @@
                     <div class="grid grid-cols-3 lg:grid-cols-3 gap-6 mb-6">
                         <!-- Columna izquierda -->
                         <div class="space-y-3">
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Folio:</span>
                                 <span class="text-sm font-semibold text-gray-900 folio-actual">{{ (isset($editMode) && $editMode && $editFolio) ? $editFolio->Folio : '-' }}</span>
                     </div>
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Fecha:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ (isset($editMode) && $editMode && $editFolio) ? $editFolio->Fecha : (getdate()['year'] . '-' . getdate()['mon'] . '-' . getdate()['mday']) }}</span>
                     </div>
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Turno:</span>
                                 <span class="text-sm font-semibold text-gray-900 turno-actual">{{ (isset($editMode) && $editMode && $editFolio) ? ('Turno ' . $editFolio->Turno) : '-' }}</span>
                     </div>
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Orden (NoProduccion):</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Orden_Prod ?? '-' }}</span>
                     </div>
@@ -80,19 +80,19 @@
 
                         <!-- Columna derecha -->
                         <div class="space-y-3">
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">No Flog (FlogsId):</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Id_Flog ?? '-' }}</span>
                             </div>
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Cliente (CustName):</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Cliente ?? '-' }}</span>
                             </div>
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Tamaño (InventSizeId):</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->InventSizeId ?? '-' }}</span>
                             </div>
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Artículo (ItemId + NombreProducto):</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ ($telarData->ItemId ?? '-') . ' ' . ($telarData->Nombre_Producto ?? '-') }}</span>
                             </div>
@@ -100,27 +100,27 @@
 
                         <!-- Columna adicional -->
                         <div class="space-y-3">
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Pedido (TotalPedido):</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Saldos ?? '-' }}</span>
                             </div>
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Producción (Produccion):</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Produccion ?? '-' }}</span>
                             </div>
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Inicio (FechaInicio):</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Inicio_Tejido ?? '-' }}</span>
                             </div>
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Fin (FechaFinal):</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Fin_Tejido ?? '-' }}</span>
+                            </div>
                         </div>
-                        </div>
-                        </div>
+                    </div>
 
                     <!-- Botones de acción -->
-                    <div class="flex justify-end mb-4">
+                    <div class="flex justify-end mb-4 relative z-10">
                         <button onclick="agregarNuevoRequerimiento()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-md">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -130,9 +130,9 @@
                     </div>
 
                     <!-- Tabla de detalles -->
-                    <div class=" rounded-lg overflow-hidden ">
+                    <div class=" rounded-lg overflow-hidden relative z-10">
                         <table class="w-full mt-2.5 ">
-                            <thead>
+                            <thead class="relative z-10">
                                 <tr class="bg-gray-100">
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Artículo</th>
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Fibra</th>
@@ -152,13 +152,11 @@
                                             <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $it['color'] ?: '-' }}</td>
                                             <td class="px-4 py-1">
                                                 <div class="flex items-center justify-center relative">
-                                                    <span class="quantity-display text-md text-gray-900 cursor-pointer hover:text-blue-600 transition-colors" onclick="toggleQuantityEdit(this)">{{ (int)($it['cantidad'] ?? 0) }}</span>
-                                                    <button class="edit-quantity-btn  p-2 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                        </svg>
+                                                    <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
+                                                        <span class="quantity-display text-md font-semibold">{{ (int)($it['cantidad'] ?? 0) }}</span>
+
                                                     </button>
-                                                    <div class="quantity-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                                    <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                         <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
                                                             <div class="flex space-x-1 min-w-max">
                                                                 @for($i = 0; $i <= 100; $i++)
@@ -178,14 +176,14 @@
                                         <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_TRAMA ?? '-' }}</td>
                                         <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_TRAMA ?? '-' }}</td>
                                         <td class="px-4 py-1">
-                                            <div class="flex items-center justify-between relative">
-                                                <span class="quantity-display text-sm text-gray-900">0</span>
-                                                <button class="edit-quantity-btn ml-2 p-1 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
+                                            <div class="flex items-center justify-center relative">
+                                                <span class="quantity-display text-md font-semibold">0</span>
+                                                <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                     </svg>
                                                 </button>
-                                                <div class="quantity-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                                <div class="quantity-edit-container hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
                                                         <div class="flex space-x-1 min-w-max">
                                                             @for($i = 0; $i <= 100; $i++)
@@ -205,9 +203,9 @@
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C2 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_C2 ?? '-' }}</td>
                                     <td class="px-4 py-1">
-                                        <div class="flex items-center justify-between">
+                                        <div class="flex items-center justify-center">
                                             <span class="quantity-display text-sm text-gray-900">0</span>
-                                            <button class="edit-quantity-btn ml-2 p-1 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
+                                            <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
@@ -232,9 +230,9 @@
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C3 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_C3 ?? '-' }}</td>
                                     <td class="px-4 py-1">
-                                        <div class="flex items-center justify-between">
+                                        <div class="flex items-center justify-center">
                                             <span class="quantity-display text-sm text-gray-900">0</span>
-                                            <button class="edit-quantity-btn ml-2 p-1 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
+                                            <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
@@ -259,14 +257,14 @@
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C4 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_C4 ?? '-' }}</td>
                                     <td class="px-4 py-1">
-                                        <div class="flex items-center justify-between relative">
+                                        <div class="flex items-center justify-center relative">
                                             <span class="quantity-display text-sm text-gray-900">0</span>
                                             <button class="edit-quantity-btn ml-2 p-1 text-white  transition-colors" onclick="toggleQuantityEdit(this)">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
                                             </button>
-                                            <div class="quantity-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                            <div class="quantity-edit-container hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
                                                     <div class="flex space-x-1 min-w-max">
                                                         @for($i = 0; $i <= 100; $i++)
@@ -286,14 +284,14 @@
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C5 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_C5 ?? '-' }}</td>
                                     <td class="px-4 py-1">
-                                        <div class="flex items-center justify-between relative">
+                                        <div class="flex items-center justify-center relative">
                                             <span class="quantity-display text-sm text-gray-900">0</span>
-                                            <button class="edit-quantity-btn ml-2 p-1 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
+                                            <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
                                             </button>
-                                            <div class="quantity-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                            <div class="quantity-edit-container hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
                                                     <div class="flex space-x-1 min-w-max">
                                                         @for($i = 0; $i <= 100; $i++)
@@ -342,7 +340,7 @@
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <!-- Header del modal -->
             <div class="bg-blue-500 px-6 py-4 rounded-t-lg">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-center items-center">
                     <h3 class="text-lg font-semibold text-white">Agregar Nuevo Requerimiento</h3>
                     <button onclick="cerrarModal()" class="text-white hover:text-gray-200 transition-colors">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -898,14 +896,14 @@
                 <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">${datos.codColor}</td>
                 <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">${datos.nombreColor}</td>
                 <td class="px-4 py-1">
-                    <div class="flex items-center justify-between relative">
-                        <span class="quantity-display text-sm text-gray-900">${datos.cantidad}</span>
-                        <button class="edit-quantity-btn ml-2 p-1 text-white hover:text-blue-200 transition-colors" onclick="toggleQuantityEdit(this)">
+                    <div class="flex items-center justify-center relative">
+                        <span class="quantity-display text-md font-semibold">${datos.cantidad}</span>
+                        <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                         </button>
-                        <div class="quantity-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                        <div class="quantity-edit-container hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                             <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
                                 <div class="flex space-x-1 min-w-max">
                                     ${Array.from({length: 101}, (_, i) =>
