@@ -42,3 +42,22 @@ if (!function_exists('formatearFechaInputLocal')) {
         }
     }
 }
+
+
+if (!function_exists('getFotoUsuarioUrl')) {
+    function getFotoUsuarioUrl($foto) {
+        if (empty($foto)) {
+            return null;
+        }
+
+        // Verificar si el archivo existe físicamente
+        $archivoPath = storage_path('app/public/usuarios/' . $foto);
+
+        if (!file_exists($archivoPath)) {
+            return null;
+        }
+
+        // Generar URL con timestamp para evitar caché
+        return asset('storage/usuarios/' . $foto) . '?v=' . time();
+    }
+}

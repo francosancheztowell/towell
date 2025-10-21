@@ -66,13 +66,10 @@
                         <div class="flex items-start gap-3 lg:gap-4">
                             <!-- Avatar -->
                             <div class="flex-shrink-0">
-                                @if (!empty($u->foto))
-                                    @php
-                                        // Construir la URL completa de la foto
-                                        $fotoUrl = !Str::startsWith($u->foto, ['http://', 'https://', '/'])
-                                            ? asset('storage/usuarios/' . $u->foto) . '?v=' . time()
-                                            : asset('storage/' . ltrim($u->foto, '/')) . '?v=' . time();
-                                    @endphp
+                                @php
+                                    $fotoUrl = getFotoUsuarioUrl($u->foto ?? null);
+                                @endphp
+                                @if ($fotoUrl)
                                     <img src="{{ $fotoUrl }}" alt="Foto de {{ $u->nombre }}"
                                         class="h-12 w-12 rounded-full object-cover border-2 border-gray-200">
                                 @else

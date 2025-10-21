@@ -168,12 +168,7 @@
                         <div class="relative">
                             @php
                                 $usuario = Auth::user();
-                                $fotoUrl = null;
-                                if (!empty($usuario->foto)) {
-                                    $fotoUrl = !Str::startsWith($usuario->foto, ['http://', 'https://', '/'])
-                                        ? asset('storage/usuarios/' . $usuario->foto) . '?v=' . time()
-                                        : asset('storage/' . ltrim($usuario->foto, '/')) . '?v=' . time();
-                                }
+                                $fotoUrl = getFotoUsuarioUrl($usuario->foto ?? null);
                             @endphp
                             <button class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl overflow-hidden">
                                 @if($fotoUrl)
