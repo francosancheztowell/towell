@@ -10,8 +10,8 @@
         // Configuración
         config: {
             cachePrefix: 'towell_modules_',
-            cacheExpiry: 3600000, // 1 hora en milisegundos
-            enableLocalStorage: true,
+            cacheExpiry: 60000, // 1 minuto en milisegundos (reducido para desarrollo)
+            enableLocalStorage: false, // Deshabilitado para evitar problemas con imágenes actualizadas
             enablePrefetch: true
         },
 
@@ -67,7 +67,7 @@
 
             const endTime = performance.now();
             const duration = (endTime - startTime).toFixed(0);
-            
+
             console.log(`✅ Precarga completada en ${duration}ms`);
             console.log(`   📦 Desde caché: ${cached} | 🌐 Desde servidor: ${loaded}`);
         },
@@ -99,10 +99,10 @@
                 }
 
                 const data = await response.json();
-                
+
                 // Guardar en caché local
                 this.saveToCache(modulo, data);
-                
+
                 console.log(`   📥 ${modulo} - cargado (${data.length} submódulos)`);
                 return false;
 
@@ -145,7 +145,7 @@
                 if (!cached) return null;
 
                 const cacheData = JSON.parse(cached);
-                
+
                 // Verificar si expiró
                 if (Date.now() > cacheData.expiry) {
                     localStorage.removeItem(this.config.cachePrefix + key);
@@ -172,7 +172,7 @@
                 if (moduloMatch) {
                     const modulo = moduloMatch[1];
                     const cachedData = this.getFromCache(modulo);
-                    
+
                     if (cachedData) {
                         console.log(`⚡ Navegación instantánea a: ${modulo}`);
                         // La página se cargará normalmente pero desde caché del servidor
@@ -203,6 +203,7 @@
     window.ModulePrefetch = ModulePrefetch;
 
 })();
+
 
 
 

@@ -157,7 +157,7 @@
                 @if($modulo->imagen)
                     <div class="mb-4">
                         <div class="flex items-center space-x-4">
-                            <img src="{{ asset('images/fotos_modulos/' . $modulo->imagen) }}"
+                            <img src="{{ asset('images/fotos_modulos/' . $modulo->imagen) . '?v=' . time() }}"
                                  alt="Imagen actual"
                                  class="w-16 h-16 object-cover rounded-lg border border-gray-200">
                             <div>

@@ -174,7 +174,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @if($modulo->imagen)
-                                        <img src="{{ asset('images/fotos_modulos/' . $modulo->imagen) }}"
+                                        <img src="{{ asset('images/fotos_modulos/' . $modulo->imagen) . '?v=' . time() }}"
                                              alt="{{ $modulo->modulo }}"
                                              class="w-8 h-8 object-cover rounded-lg border border-gray-200"
                                              title="{{ $modulo->modulo }}">
