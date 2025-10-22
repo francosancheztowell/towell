@@ -35,6 +35,9 @@ class CatalagoEficienciaController extends Controller
      */
     public function procesarExcel(Request $request)
     {
+        // Aumentar tiempo límite de ejecución para archivos grandes
+        set_time_limit(300); // 5 minutos
+
         try {
             // Validar el archivo
             $request->validate([
@@ -102,31 +105,32 @@ class CatalagoEficienciaController extends Controller
     public function store(Request $request)
     {
         try {
-        $request->validate([
+            // Validación rápida
+            $request->validate([
                 'NoTelarId' => 'required|string|max:10',
-                'FibraId' => 'required|string|max:15',
+                'FibraId' => 'required|string|max:20',
                 'Eficiencia' => 'required|numeric|min:0|max:1',
                 'Densidad' => 'nullable|string|max:10'
             ]);
 
-            // Extraer el salón del nombre del telar (ej: "JAC 201" -> "Jacquard")
-            $salon = $this->extraerSalon($request->NoTelarId);
+            // Usar solo el número del telar para evitar problemas de longitud
+            $salon = $request->salon ?: 'JACQUARD'; // Usar salón enviado o JACQUARD por defecto
 
-            // Verificar si ya existe una eficiencia con el mismo telar y fibra
-            $eficienciaExistente = ReqEficienciaStd::where('NoTelarId', $request->NoTelarId)
-                                                  ->where('FibraId', $request->FibraId)
-                                                  ->first();
-
-            if ($eficienciaExistente) {
+            // Verificar duplicados en una sola consulta
+            if (ReqEficienciaStd::where('SalonTejidoId', $salon)
+                               ->where('NoTelarId', $request->NoTelarId)
+                               ->where('FibraId', $request->FibraId)
+                               ->exists()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Ya existe una eficiencia para este telar y tipo de fibra'
                 ], 422);
             }
 
-            $eficiencia = ReqEficienciaStd::create([
+            // Crear registro
+            ReqEficienciaStd::create([
                 'SalonTejidoId' => $salon,
-                'NoTelarId' => $request->NoTelarId,
+                'NoTelarId' => $request->NoTelarId, // Solo el número del telar
                 'FibraId' => $request->FibraId,
                 'Eficiencia' => $request->Eficiencia,
                 'Densidad' => $request->Densidad ?? 'Normal'
@@ -134,11 +138,10 @@ class CatalagoEficienciaController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Eficiencia para '{$request->NoTelarId} - {$request->FibraId}' creada exitosamente"
+                'message' => "Eficiencia para '{$salon} {$request->NoTelarId} - {$request->FibraId}' creada exitosamente"
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al crear eficiencia: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear la eficiencia: ' . $e->getMessage()
@@ -153,31 +156,31 @@ class CatalagoEficienciaController extends Controller
     {
         try {
             $request->validate([
-                'NoTelarId' => 'required|string|max:10',
-                'FibraId' => 'required|string|max:15',
+                'NoTelarId' => 'required|string|max:20',
+                'FibraId' => 'required|string|max:30',
                 'Eficiencia' => 'required|numeric|min:0|max:1',
                 'Densidad' => 'nullable|string|max:10'
             ]);
 
-            // Extraer el salón del nombre del telar
-            $salon = $this->extraerSalon($request->NoTelarId);
+            // Usar solo el número del telar para evitar problemas de longitud
+            $salon = $request->salon ?: 'JACQUARD'; // Usar salón enviado o JACQUARD por defecto
 
-            // Verificar si ya existe otra eficiencia con el mismo telar y fibra (excluyendo la actual)
-            $eficienciaExistente = ReqEficienciaStd::where('NoTelarId', $request->NoTelarId)
-                                                  ->where('FibraId', $request->FibraId)
-                                                  ->where('id', '!=', $eficiencia->id)
-                                                  ->first();
-
-            if ($eficienciaExistente) {
+            // Verificar duplicados excluyendo el registro actual
+            if (ReqEficienciaStd::where('SalonTejidoId', $salon)
+                               ->where('NoTelarId', $request->NoTelarId)
+                               ->where('FibraId', $request->FibraId)
+                               ->where('Id', '!=', $eficiencia->Id)
+                               ->exists()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Ya existe otra eficiencia para este telar y tipo de fibra'
                 ], 422);
             }
 
+            // Actualizar registro
             $eficiencia->update([
                 'SalonTejidoId' => $salon,
-                'NoTelarId' => $request->NoTelarId,
+                'NoTelarId' => $request->NoTelarId, // Solo el número del telar
                 'FibraId' => $request->FibraId,
                 'Eficiencia' => $request->Eficiencia,
                 'Densidad' => $request->Densidad ?? 'Normal'
@@ -185,11 +188,10 @@ class CatalagoEficienciaController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Eficiencia para '{$request->NoTelarId} - {$request->FibraId}' actualizada exitosamente"
+                'message' => "Eficiencia para '{$salon} {$request->NoTelarId} - {$request->FibraId}' actualizada exitosamente"
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al actualizar eficiencia: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar la eficiencia: ' . $e->getMessage()
@@ -213,7 +215,6 @@ class CatalagoEficienciaController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al eliminar eficiencia: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al eliminar la eficiencia: ' . $e->getMessage()
@@ -221,24 +222,4 @@ class CatalagoEficienciaController extends Controller
         }
     }
 
-    /**
-     * Extraer el salón del nombre del telar
-     */
-    private function extraerSalon($nombreTelar)
-    {
-        $nombreTelar = trim($nombreTelar);
-
-        // Patrones conocidos
-        if (stripos($nombreTelar, 'JAC') !== false) {
-            return 'Jacquard';
-        } elseif (stripos($nombreTelar, 'Smith') !== false) {
-            return 'Smith';
-        } elseif (stripos($nombreTelar, 'Itema') !== false) {
-            return 'Itema';
-        }
-
-        // Si no coincide con ningún patrón, extraer la primera palabra
-        $partes = explode(' ', $nombreTelar);
-        return $partes[0] ?? 'Desconocido';
-    }
 }

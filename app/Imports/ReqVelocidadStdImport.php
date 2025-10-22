@@ -41,12 +41,13 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
             $velocidad = $this->parseFloat($this->getValue($row, ['RPM', 'rpm', 'Velocidad', 'velocidad']));
             $densidad = $this->parseString($this->getValue($row, ['Densidad', 'densidad']), 10);
 
-            // Si viene el salón en el Excel, usarlo; si no, extraerlo del nombre del telar
-            $salon = !empty($salonExcel) ? $salonExcel : $this->extraerSalon($telar);
+            // Usar el salón del Excel o un valor por defecto
+            $salon = !empty($salonExcel) ? $salonExcel : 'JACQUARD';
 
-            // Si el telar es solo un número (ej: "201"), generar el nombre completo (ej: "JAC 201")
-            if (!empty($salon) && is_numeric($telar)) {
-                $telar = $this->generarNombreTelar($salon, $telar);
+            // Mantener solo el número del telar (sin prefijos)
+            if (!is_numeric($telar)) {
+                // Si tiene prefijo, extraer solo el número
+                $telar = $this->extraerNumeroTelar($telar);
             }
 
             Log::info("Datos extraídos fila {$this->rowCounter}", [
@@ -136,13 +137,6 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
         return null;
     }
 
-    /**
-     * Genera el nombre completo del telar
-     */
-    private function generarNombreTelar($salon, $numeroTelar)
-    {
-        return $salon . ' ' . $numeroTelar;
-    }
 
 
     private function looksLikeHeaderRow($row)
@@ -227,13 +221,6 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
         return $floatValue > 0 ? $floatValue : null;
     }
 
-    private function extraerSalon($telar)
-    {
-        if (!$telar) return null;
-
-        $parts = explode(' ', $telar);
-        return count($parts) > 0 ? $parts[0] : null;
-    }
 
     public function batchSize(): int
     {
@@ -255,5 +242,39 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
             'total_rows' => $this->rowCounter,
             'errores' => $this->errores
         ];
+    }
+
+    /**
+     * Extraer solo el número del telar (sin prefijos)
+     */
+    private function extraerNumeroTelar($nombreTelar)
+    {
+        if (empty($nombreTelar)) {
+            return '';
+        }
+
+        $nombreTelar = trim($nombreTelar);
+
+        // Remover prefijos comunes de salón
+        $prefijos = ['JAC', 'JACQUARD', 'ITEM', 'ITEMA', 'KARL', 'MAYER', 'SMITH'];
+
+        foreach ($prefijos as $prefijo) {
+            if (stripos($nombreTelar, $prefijo) === 0) {
+                $nombreTelar = trim(substr($nombreTelar, strlen($prefijo)));
+                break;
+            }
+        }
+
+        // Si queda solo números, devolverlos
+        if (preg_match('/^\d+$/', $nombreTelar)) {
+            return $nombreTelar;
+        }
+
+        // Si contiene números, extraer solo los números
+        if (preg_match('/\d+/', $nombreTelar, $matches)) {
+            return $matches[0];
+        }
+
+        return $nombreTelar; // Devolver tal como está si no se puede extraer número
     }
 }

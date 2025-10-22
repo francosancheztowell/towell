@@ -387,6 +387,16 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/velocidad/excel', [CatalagoVelocidadController::class, 'procesarExcel'])->name('velocidad.excel.upload');
         Route::post('/aplicaciones/excel', [AplicacionesController::class, 'procesarExcel'])->name('aplicaciones.excel.upload');
 
+        // Rutas CRUD para eficiencia
+        Route::post('/eficiencia', [CatalagoEficienciaController::class, 'store'])->name('eficiencia.store');
+        Route::put('/eficiencia/{eficiencia}', [CatalagoEficienciaController::class, 'update'])->name('eficiencia.update');
+        Route::delete('/eficiencia/{eficiencia}', [CatalagoEficienciaController::class, 'destroy'])->name('eficiencia.destroy');
+
+        // Rutas CRUD para velocidad
+        Route::post('/velocidad', [CatalagoVelocidadController::class, 'store'])->name('velocidad.store');
+        Route::put('/velocidad/{velocidad}', [CatalagoVelocidadController::class, 'update'])->name('velocidad.update');
+        Route::delete('/velocidad/{velocidad}', [CatalagoVelocidadController::class, 'destroy'])->name('velocidad.destroy');
+
 
     });
 

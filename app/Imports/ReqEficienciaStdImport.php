@@ -102,20 +102,8 @@ class ReqEficienciaStdImport implements ToModel, WithHeadingRow, WithBatchInsert
         try {
             $this->rowCounter++;
 
-            // Log para debugging - Antes de normalizar
-            Log::info("=== FILA {$this->rowCounter} - ANTES DE NORMALIZAR ===", [
-                'row_keys_original' => array_keys($row),
-                'row_values_original' => array_values($row)
-            ]);
-
             // Normalizar claves de encabezado
             $row = $this->normalizeRowKeys($row);
-
-            // Log después de normalizar
-            Log::info("=== FILA {$this->rowCounter} - DESPUÉS DE NORMALIZAR ===", [
-                'row_keys_normalized' => array_keys($row),
-                'row_values_normalized' => array_values($row)
-            ]);
 
             // Saltar encabezados repetidos
             if ($this->looksLikeHeaderRow($row)) {
@@ -131,22 +119,24 @@ class ReqEficienciaStdImport implements ToModel, WithHeadingRow, WithBatchInsert
             $eficiencia = $this->parseFloat($this->getValue($row, ['Eficiencia', 'eficiencia']));
             $densidad = $this->parseString($this->getValue($row, ['Densidad', 'densidad']), 10);
 
-            // Si viene el salón en el Excel, usarlo; si no, extraerlo del nombre del telar
-            $salon = !empty($salonExcel) ? $salonExcel : $this->extraerSalon($telar);
+            // Usar el salón del Excel o un valor por defecto
+            $salon = !empty($salonExcel) ? $salonExcel : 'JACQUARD';
 
-            // Si el telar es solo un número (ej: "201"), generar el nombre completo (ej: "JAC 201")
-            if (!empty($salon) && is_numeric($telar)) {
-                $telar = $this->generarNombreTelar($salon, $telar);
+            // Mantener solo el número del telar (sin prefijos)
+            if (!is_numeric($telar)) {
+                // Si tiene prefijo, extraer solo el número
+                $telar = $this->extraerNumeroTelar($telar);
             }
+            // Si es solo un número, mantenerlo como está (no hacer nada)
 
-            Log::info("Datos extraídos fila {$this->rowCounter}", [
-                'salon_excel' => $salonExcel,
-                'salon' => $salon,
-                'telar' => $telar,
-                'fibra' => $fibra,
-                'eficiencia' => $eficiencia,
-                'densidad' => $densidad
-            ]);
+            // Log solo cada 100 filas para reducir overhead
+            if ($this->rowCounter % 100 === 0) {
+                Log::info("Procesando fila {$this->rowCounter}", [
+                    'salon' => $salon,
+                    'telar' => $telar,
+                    'fibra' => $fibra
+                ]);
+            }
 
             // Validar que los campos requeridos no estén vacíos
             if (empty($telar) || empty($fibra) || is_null($eficiencia)) {
@@ -173,7 +163,6 @@ class ReqEficienciaStdImport implements ToModel, WithHeadingRow, WithBatchInsert
                 ]);
                 $this->processedRows++;
                 $this->updatedRows++;
-                Log::info("Eficiencia existente actualizada: {$telar} - {$fibra}");
                 return null;
             } else {
                 // Crear nuevo registro
@@ -187,7 +176,6 @@ class ReqEficienciaStdImport implements ToModel, WithHeadingRow, WithBatchInsert
 
                 $this->processedRows++;
                 $this->createdRows++;
-                Log::info("Nueva eficiencia creada: {$telar} - {$fibra}");
                 return $modelo;
             }
 
@@ -206,12 +194,12 @@ class ReqEficienciaStdImport implements ToModel, WithHeadingRow, WithBatchInsert
 
     public function batchSize(): int
     {
-        return 100;
+        return 50; // Reducir tamaño del batch para mejor rendimiento
     }
 
     public function chunkSize(): int
     {
-        return 100;
+        return 25; // Reducir chunk size para procesar menos filas a la vez
     }
 
     /**
@@ -273,56 +261,40 @@ class ReqEficienciaStdImport implements ToModel, WithHeadingRow, WithBatchInsert
         return $s === '' ? null : $s;
     }
 
+
+
     /**
-     * Extraer el salón del nombre del telar
+     * Extraer solo el número del telar (sin prefijos)
      */
-    private function extraerSalon($nombreTelar)
+    private function extraerNumeroTelar($nombreTelar)
     {
         if (empty($nombreTelar)) {
-            return 'Desconocido';
+            return '';
         }
 
         $nombreTelar = trim($nombreTelar);
 
-        // Patrones conocidos
-        if (stripos($nombreTelar, 'JAC') !== false) {
-            return 'Jacquard';
-        } elseif (stripos($nombreTelar, 'Smith') !== false) {
-            return 'Smith';
-        } elseif (stripos($nombreTelar, 'Itema') !== false) {
-            return 'Itema';
+        // Remover prefijos comunes de salón
+        $prefijos = ['JAC', 'JACQUARD', 'ITEM', 'ITEMA', 'KARL', 'MAYER', 'SMITH'];
+
+        foreach ($prefijos as $prefijo) {
+            if (stripos($nombreTelar, $prefijo) === 0) {
+                $nombreTelar = trim(substr($nombreTelar, strlen($prefijo)));
+                break;
+            }
         }
 
-        // Si no coincide con ningún patrón, extraer la primera palabra
-        $partes = explode(' ', $nombreTelar);
-        return $partes[0] ?? 'Desconocido';
-    }
-
-    /**
-     * Generar el nombre completo del telar basado en el salón y número
-     */
-    private function generarNombreTelar($salon, $numeroTelar)
-    {
-        if (empty($salon) || empty($numeroTelar)) {
-            return $numeroTelar;
+        // Si queda solo números, devolverlos; si no, devolver el nombre completo
+        if (preg_match('/^\d+$/', $nombreTelar)) {
+            return $nombreTelar;
         }
 
-        // Convertir salón a mayúsculas para comparación
-        $salonUpper = strtoupper(trim($salon));
-
-        // Determinar el prefijo basado en el salón
-        if (strpos($salonUpper, 'JACQUARD') !== false || strpos($salonUpper, 'JAC') !== false) {
-            $prefijo = 'JAC';
-        } elseif (strpos($salonUpper, 'SMITH') !== false) {
-            $prefijo = 'Smith';
-        } elseif (strpos($salonUpper, 'ITEMA') !== false) {
-            $prefijo = 'Itema';
-        } else {
-            // Si no coincide con los patrones conocidos, usar las primeras 3 letras del salón
-            $prefijo = strtoupper(substr(trim($salon), 0, 3));
+        // Si contiene números, extraer solo los números
+        if (preg_match('/\d+/', $nombreTelar, $matches)) {
+            return $matches[0];
         }
 
-        return $prefijo . ' ' . $numeroTelar;
+        return $nombreTelar; // Devolver tal como está si no se puede extraer número
     }
 }
 

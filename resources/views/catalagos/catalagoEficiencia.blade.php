@@ -21,12 +21,14 @@
                         @php
                             // Crear un ID único combinando telar y fibra
                             $uniqueId = $item->NoTelarId . '_' . $item->FibraId;
+                            // Usar una combinación única si no hay ID
+                            $recordId = $item->Id ?: $item->SalonTejidoId . '_' . $item->NoTelarId . '_' . $item->FibraId;
                         @endphp
                         <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
-                            onclick="selectRow(this, '{{ $uniqueId }}', {{ $item->id ?? 'null' }})"
+                            onclick="selectRow(this, '{{ $uniqueId }}', '{{ $recordId }}')"
                                 ondblclick="deselectRow(this)"
                             data-eficiencia="{{ $uniqueId }}"
-                            data-eficiencia-id="{{ $item->id ?? 'null' }}">
+                            data-eficiencia-id="{{ $recordId }}">
                             <td class="py-1 px-4 border-b">{{ $item->SalonTejidoId }}</td>
                             <td class="py-1 px-4 border-b">{{ $item->NoTelarId }}</td>
                             <td class="py-1 px-4 border-b">{{ $item->FibraId }}</td>
@@ -43,6 +45,44 @@
     <!-- Los modales HTML han sido reemplazados por SweetAlert2 -->
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .slider-compact {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            outline: none;
+            border-radius: 3px;
+            background: #e5e7eb;
+        }
+
+        .slider-compact::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .slider-compact::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .slider-compact::-moz-range-track {
+            height: 6px;
+            border-radius: 3px;
+            background: #e5e7eb;
+        }
+    </style>
     <script>
         let selectedEficiencia = null;
         let selectedEficienciaId = null;
@@ -87,7 +127,7 @@
         }
 
         function selectRow(row, uniqueId, eficienciaId) {
-            console.log('selectRow llamado con uniqueId:', uniqueId, 'eficienciaId:', eficienciaId); // Debug
+            console.log('selectRow llamado con uniqueId:', uniqueId, 'eficienciaId:', eficienciaId, 'tipo:', typeof eficienciaId); // Debug
 
             // Remover selección anterior
             document.querySelectorAll('tbody tr').forEach(r => {
@@ -102,7 +142,7 @@
             // Guardar eficiencia seleccionada
             selectedEficiencia = uniqueId;
             selectedEficienciaId = eficienciaId;
-            console.log('selectedEficiencia establecido a:', selectedEficiencia, 'selectedEficienciaId:', selectedEficienciaId); // Debug
+            console.log('selectedEficiencia establecido a:', selectedEficiencia, 'selectedEficienciaId:', selectedEficienciaId, 'tipo:', typeof selectedEficienciaId); // Debug
 
             // Habilitar botones de editar y eliminar
             enableButtons();
@@ -127,73 +167,272 @@
         function enableButtons() {
             const btnEditar = document.getElementById('btn-editar');
             const btnEliminar = document.getElementById('btn-eliminar');
-            if (btnEditar) btnEditar.disabled = false;
-            if (btnEliminar) btnEliminar.disabled = false;
+
+            if (btnEditar) {
+                btnEditar.disabled = false;
+                btnEditar.className = 'inline-flex items-center px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors text-sm font-medium';
+            }
+
+            if (btnEliminar) {
+                btnEliminar.disabled = false;
+                btnEliminar.className = 'inline-flex items-center px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium';
+            }
         }
 
         function disableButtons() {
             const btnEditar = document.getElementById('btn-editar');
             const btnEliminar = document.getElementById('btn-eliminar');
-            if (btnEditar) btnEditar.disabled = true;
-            if (btnEliminar) btnEliminar.disabled = true;
+
+            if (btnEditar) {
+                btnEditar.disabled = true;
+                btnEditar.className = 'inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed';
+            }
+
+            if (btnEliminar) {
+                btnEliminar.disabled = true;
+                btnEliminar.className = 'inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed';
+            }
+        }
+
+        // Datos de telares por salón
+        const telaresPorSalon = {
+            'JACQUARD': [201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 213, 214, 215],
+            'ITEMA': [299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320]
+        };
+
+        function actualizarTelares() {
+            const salon = document.getElementById('swal-salon').value;
+            const telarSelect = document.getElementById('swal-telar');
+
+            // Limpiar opciones
+            telarSelect.innerHTML = '';
+
+            if (salon && telaresPorSalon[salon]) {
+                // Agregar opción por defecto
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Selecciona un telar';
+                telarSelect.appendChild(defaultOption);
+
+                // Agregar telares del salón seleccionado
+                telaresPorSalon[salon].forEach(telar => {
+                    const option = document.createElement('option');
+                    option.value = telar;
+                    option.textContent = telar;
+                    telarSelect.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Primero selecciona un salón';
+                telarSelect.appendChild(option);
+            }
+        }
+
+        function actualizarEficiencia(valor) {
+            document.getElementById('eficiencia-value').textContent = valor + '%';
+        }
+
+        function actualizarEficienciaEdit(valor) {
+            document.getElementById('eficiencia-value-edit').textContent = valor + '%';
+        }
+
+        // Funciones para el modal de filtrar
+        function actualizarTelaresFiltro() {
+            console.log('actualizarTelaresFiltro llamado');
+            const salonSelect = document.getElementById('swal-salon');
+            const telarSelect = document.getElementById('swal-telar');
+
+            if (!salonSelect || !telarSelect) {
+                console.log('No se encontraron los elementos del modal de filtros');
+                return;
+            }
+
+            const salonSeleccionado = salonSelect.value;
+            console.log('Salón seleccionado:', salonSeleccionado);
+
+            // Limpiar opciones existentes
+            telarSelect.innerHTML = '';
+
+            if (salonSeleccionado && telaresPorSalon[salonSeleccionado]) {
+                console.log('Telares disponibles para', salonSeleccionado, ':', telaresPorSalon[salonSeleccionado]);
+
+                // Agregar opción por defecto
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Seleccionar';
+                telarSelect.appendChild(defaultOption);
+
+                // Agregar telares del salón seleccionado
+                telaresPorSalon[salonSeleccionado].forEach(telar => {
+                    const option = document.createElement('option');
+                    option.value = telar;
+                    option.textContent = telar;
+                    telarSelect.appendChild(option);
+                });
+
+                console.log('Opciones agregadas al select de telares');
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Primero selecciona un salón';
+                telarSelect.appendChild(option);
+                console.log('No hay telares disponibles para el salón seleccionado');
+            }
+        }
+
+        function actualizarEficienciaFiltro(valor, tipo) {
+            if (tipo === 'min') {
+                document.getElementById('eficiencia-min-value').textContent = valor + '%';
+            } else if (tipo === 'max') {
+                document.getElementById('eficiencia-max-value').textContent = valor + '%';
+            }
+        }
+
+        function actualizarTelaresEdit() {
+            const salonSelect = document.getElementById('swal-salon-edit');
+            const telarSelect = document.getElementById('swal-telar-edit');
+            const salonSeleccionado = salonSelect.value;
+
+            if (!telarSelect) {
+                console.error('No se encontró el elemento swal-telar-edit');
+                return;
+            }
+
+            // MÉTODO FORZADO MEJORADO - Recrear completamente el select
+            const parent = telarSelect.parentNode;
+            const newSelect = document.createElement('select');
+
+            // Copiar todas las clases y atributos
+            newSelect.className = telarSelect.className;
+            newSelect.id = telarSelect.id;
+            newSelect.required = telarSelect.required;
+            newSelect.style.cssText = telarSelect.style.cssText;
+
+            // Generar opciones
+            let optionsHTML = '<option value="">Seleccionar</option>';
+            if (salonSeleccionado && telaresPorSalon[salonSeleccionado]) {
+                telaresPorSalon[salonSeleccionado].forEach(numero => {
+                    optionsHTML += `<option value="${numero}">${numero}</option>`;
+                });
+            } else {
+                optionsHTML = '<option value="">Primero selecciona un salón</option>';
+            }
+
+            newSelect.innerHTML = optionsHTML;
+
+            // Reemplazar completamente
+            parent.replaceChild(newSelect, telarSelect);
+
+            // FORZADO INMEDIATO - Sin timeouts para primera selección
+            newSelect.style.display = 'none';
+            newSelect.offsetHeight;
+            newSelect.style.display = '';
+
+            newSelect.style.visibility = 'hidden';
+            newSelect.offsetHeight;
+            newSelect.style.visibility = 'visible';
+
+            newSelect.style.opacity = '0';
+            newSelect.offsetHeight;
+            newSelect.style.opacity = '1';
+
+            // Forzar focus y blur para activar inmediatamente
+            newSelect.focus();
+            newSelect.blur();
+
+            // Forzado adicional para asegurar funcionamiento
+            requestAnimationFrame(() => {
+                newSelect.style.display = 'none';
+                newSelect.offsetHeight;
+                newSelect.style.display = '';
+
+                newSelect.style.visibility = 'hidden';
+                newSelect.offsetHeight;
+                newSelect.style.visibility = 'visible';
+            });
+
+            // Forzado final para garantizar
+            setTimeout(() => {
+                newSelect.style.display = 'none';
+                newSelect.offsetHeight;
+                newSelect.style.display = '';
+
+                newSelect.focus();
+                newSelect.blur();
+            }, 5);
         }
 
         function agregarEficiencia() {
             Swal.fire({
                 title: 'Crear Nueva Eficiencia',
                 html: `
-                    <div class="text-left">
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Telar *</label>
-                            <input id="swal-telar" type="text" class="swal2-input" placeholder="Ej: JAC 201" maxlength="10" required>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Salón *</label>
+                            <select id="swal-salon" class="w-full px-2 py-2 border border-gray-300 rounded text-center" required onchange="actualizarTelares()">
+                                <option value="">Seleccionar</option>
+                                <option value="JACQUARD">JACQUARD</option>
+                                <option value="ITEMA">ITEMA</option>
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Hilo *</label>
-                            <input id="swal-fibra" type="text" class="swal2-input" placeholder="Ej: H, PAP, FIL370" maxlength="15" required>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Telar *</label>
+                            <select id="swal-telar" class="w-full px-2 py-2 border border-gray-300 rounded text-center" required>
+                                <option value="">Seleccionar</option>
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Eficiencia * (0.00 a 1.00 o %)</label>
-                            <input id="swal-eficiencia" type="text" class="swal2-input" placeholder="Ej: 0.78 o 78%" required>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Hilo *</label>
+                            <input id="swal-fibra" type="text" class="w-full px-2 py-2 border border-gray-300 rounded text-center" placeholder="H" maxlength="15" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Densidad</label>
-                            <input id="swal-densidad" type="text" class="swal2-input" placeholder="Ej: Normal, Alta, Baja" maxlength="10" value="Normal">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Densidad</label>
+                            <select id="swal-densidad" class="w-full px-2 py-2 border border-gray-300 rounded text-center">
+                                <option value="Normal">Normal</option>
+                                <option value="Alta">Alta</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Eficiencia: <span id="eficiencia-value" class="font-bold text-blue-600">78%</span></label>
+                            <input id="swal-eficiencia" type="range" min="0" max="100" value="78" step="1"
+                                   class="w-full h-4 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-compact"
+                                   oninput="actualizarEficiencia(this.value)">
                         </div>
                     </div>
                 `,
-                width: '500px',
+                width: '400px',
                 showCancelButton: true,
                 confirmButtonText: '<i class="fas fa-save me-2"></i>Crear',
                 cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
-                confirmButtonColor: '#198754',
+                confirmButtonColor: '#255be6',
                 cancelButtonColor: '#6c757d',
                 preConfirm: () => {
-                    const telar = document.getElementById('swal-telar').value.trim();
+                    const salon = document.getElementById('swal-salon').value;
+                    const telar = document.getElementById('swal-telar').value;
                     const fibra = document.getElementById('swal-fibra').value.trim();
-                    const eficienciaStr = document.getElementById('swal-eficiencia').value.trim();
-                    const densidad = document.getElementById('swal-densidad').value.trim();
+                    const eficienciaPorcentaje = document.getElementById('swal-eficiencia').value;
+                    const densidad = document.getElementById('swal-densidad').value;
 
-                    if (!telar || !fibra || !eficienciaStr) {
+                    if (!salon || !telar || !fibra) {
                         Swal.showValidationMessage('Por favor completa los campos requeridos');
                         return false;
                     }
 
-                    // Convertir eficiencia a decimal
-                    let eficiencia = parseFloat(eficienciaStr.replace('%', ''));
-                    if (eficienciaStr.includes('%')) {
-                        eficiencia = eficiencia / 100;
-                    }
+                    // Convertir eficiencia de porcentaje a decimal
+                    const eficiencia = parseFloat(eficienciaPorcentaje) / 100;
 
                     if (isNaN(eficiencia) || eficiencia < 0 || eficiencia > 1) {
-                        Swal.showValidationMessage('La eficiencia debe estar entre 0 y 1 (o 0% y 100%)');
+                        Swal.showValidationMessage('La eficiencia debe estar entre 0% y 100%');
                         return false;
                     }
 
-                    return { telar, fibra, eficiencia, densidad };
+                    // Enviar el número del telar y el salón
+                    return { telar: telar, salon: salon, fibra, eficiencia, densidad };
                 }
             }).then((result) => {
                 if (result.isConfirmed && result.value) {
-                    const { telar, fibra, eficiencia, densidad } = result.value;
+                    const { telar, salon, fibra, eficiencia, densidad } = result.value;
 
                     // Mostrar loader
                     Swal.fire({
@@ -207,21 +446,39 @@
                     });
 
                     // Realizar petición AJAX para crear la eficiencia
-                    fetch('/eficiencia', {
+                    const requestData = {
+                        NoTelarId: telar,
+                        salon: salon,
+                        FibraId: fibra,
+                        Eficiencia: eficiencia,
+                        Densidad: densidad
+                    };
+
+                    console.log('Enviando datos:', requestData);
+
+                    // Crear AbortController para timeout
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
+
+                    fetch('/planeacion/eficiencia', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                         },
-                        body: JSON.stringify({
-                            NoTelarId: telar,
-                            FibraId: fibra,
-                            Eficiencia: eficiencia,
-                            Densidad: densidad
-                        })
+                        body: JSON.stringify(requestData),
+                        signal: controller.signal
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        clearTimeout(timeoutId);
+                        console.log('Respuesta recibida:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
+                        console.log('Datos recibidos:', data);
                         if (data.success) {
                             Swal.fire({
                                 title: '¡Eficiencia Creada!',
@@ -237,9 +494,20 @@
                         }
                     })
                     .catch(error => {
+                        clearTimeout(timeoutId);
+                        console.error('Error al crear eficiencia:', error);
+
+                        let errorMessage = 'Error al crear la eficiencia. Verifica tu conexión y permisos.';
+
+                        if (error.name === 'AbortError') {
+                            errorMessage = 'La petición tardó demasiado. Intenta nuevamente.';
+                        } else if (error.message) {
+                            errorMessage = error.message;
+                        }
+
                         Swal.fire({
                             title: 'Error',
-                            text: error.message || 'Error al crear la eficiencia',
+                            text: errorMessage,
                             icon: 'error'
                         });
                     });
@@ -248,9 +516,9 @@
         }
 
         function editarEficiencia() {
-            console.log('editarEficiencia llamado, selectedEficiencia:', selectedEficiencia, 'selectedEficienciaId:', selectedEficienciaId); // Debug
+            console.log('editarEficiencia llamado, selectedEficiencia:', selectedEficiencia, 'selectedEficienciaId:', selectedEficienciaId, 'tipo:', typeof selectedEficienciaId); // Debug
 
-            if (!selectedEficiencia || !selectedEficienciaId) {
+            if (!selectedEficiencia || !selectedEficienciaId || selectedEficienciaId === 'null' || selectedEficienciaId === null) {
                 Swal.fire({
                     title: 'Error',
                     text: 'Por favor selecciona una eficiencia para editar',
@@ -277,61 +545,115 @@
             const eficienciaActual = parseFloat(cells[3].textContent.trim().replace('%', '')) / 100;
             const densidadActual = cells[4].textContent.trim();
 
+            // Obtener el telar desde los datos originales
+            const eficienciaData = datosActuales.find(item => {
+                const uniqueId = item.NoTelarId + '_' + item.FibraId;
+                return uniqueId === selectedEficiencia;
+            });
+
+            // Usar directamente el número del telar
+            const numeroTelarActual = eficienciaData ? eficienciaData.NoTelarId : telarActual;
+
             Swal.fire({
                 title: 'Editar Eficiencia',
                 html: `
-                    <div class="text-left">
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Telar *</label>
-                            <input id="swal-telar-edit" type="text" class="swal2-input" placeholder="Ej: JAC 201" maxlength="10" required value="${telarActual}">
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Salón *</label>
+                            <select id="swal-salon-edit" class="w-full px-2 py-1 border border-gray-300 rounded text-center" required>
+                                <option value="JACQUARD" ${salonActual === 'JACQUARD' ? 'selected' : ''}>JACQUARD</option>
+                                <option value="ITEMA" ${salonActual === 'ITEMA' ? 'selected' : ''}>ITEMA</option>
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Hilo *</label>
-                            <input id="swal-fibra-edit" type="text" class="swal2-input" placeholder="Ej: H, PAP, FIL370" maxlength="15" required value="${fibraActual}">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Telar *</label>
+                            <select id="swal-telar-edit" class="w-full px-2 py-1 border border-gray-300 rounded text-center" required onchange="actualizarTelaresEdit()">
+                                <option value="">Seleccionar</option>
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Eficiencia * (0.00 a 1.00 o %)</label>
-                            <input id="swal-eficiencia-edit" type="text" class="swal2-input" placeholder="Ej: 0.78 o 78%" required value="${eficienciaActual}">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Hilo *</label>
+                            <input id="swal-fibra-edit" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-center" placeholder="H" maxlength="15" required value="${fibraActual}">
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Densidad</label>
-                            <input id="swal-densidad-edit" type="text" class="swal2-input" placeholder="Ej: Normal, Alta, Baja" maxlength="10" value="${densidadActual}">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Densidad</label>
+                            <select id="swal-densidad-edit" class="w-full px-2 py-1 border border-gray-300 rounded text-center">
+                                <option value="Normal" ${densidadActual === 'Normal' ? 'selected' : ''}>Normal</option>
+                                <option value="Alta" ${densidadActual === 'Alta' ? 'selected' : ''}>Alta</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Eficiencia: <span id="eficiencia-value-edit" class="font-bold text-blue-600">${Math.round(eficienciaActual * 100)}%</span></label>
+                            <input id="swal-eficiencia-edit" type="range" min="0" max="100" value="${Math.round(eficienciaActual * 100)}" step="1"
+                                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-compact"
+                                   oninput="actualizarEficienciaEdit(this.value)">
                         </div>
                     </div>
                 `,
-                width: '500px',
+                width: '400px',
                 showCancelButton: true,
+                didOpen: () => {
+                    // Inicializar telares basado en el salón actual
+                    const salonSelect = document.getElementById('swal-salon-edit');
+                    const telarSelect = document.getElementById('swal-telar-edit');
+                    const salonActual = salonSelect.value;
+
+                    // Limpiar opciones existentes
+                    telarSelect.innerHTML = '<option value="">Seleccionar</option>';
+
+                    // Cargar opciones del salón actual
+                    if (salonActual && telaresPorSalon[salonActual]) {
+                        telaresPorSalon[salonActual].forEach(numero => {
+                            const option = document.createElement('option');
+                            option.value = numero;
+                            option.textContent = numero;
+                            telarSelect.appendChild(option);
+                        });
+                    }
+
+                    // Agregar event listener para cuando cambie el salón
+                    salonSelect.addEventListener('change', function() {
+                        setTimeout(() => {
+                            actualizarTelaresEdit();
+                        }, 50);
+                    });
+                },
                 confirmButtonText: '<i class="fas fa-save me-2"></i>Actualizar',
                 cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
                 confirmButtonColor: '#ffc107',
                 cancelButtonColor: '#6c757d',
                 preConfirm: () => {
+                    const salon = document.getElementById('swal-salon-edit').value;
                     const telar = document.getElementById('swal-telar-edit').value.trim();
                     const fibra = document.getElementById('swal-fibra-edit').value.trim();
-                    const eficienciaStr = document.getElementById('swal-eficiencia-edit').value.trim();
-                    const densidad = document.getElementById('swal-densidad-edit').value.trim();
+                    const eficienciaPorcentaje = document.getElementById('swal-eficiencia-edit').value;
+                    const densidad = document.getElementById('swal-densidad-edit').value;
 
-                    if (!telar || !fibra || !eficienciaStr) {
+                    if (!salon || !telar || !fibra || !eficienciaPorcentaje) {
                         Swal.showValidationMessage('Por favor completa los campos requeridos');
                         return false;
                     }
 
-                    // Convertir eficiencia a decimal
-                    let eficiencia = parseFloat(eficienciaStr.replace('%', ''));
-                    if (eficienciaStr.includes('%')) {
-                        eficiencia = eficiencia / 100;
-                    }
+                    // Convertir eficiencia de porcentaje a decimal
+                    const eficiencia = parseFloat(eficienciaPorcentaje) / 100;
 
                     if (isNaN(eficiencia) || eficiencia < 0 || eficiencia > 1) {
-                        Swal.showValidationMessage('La eficiencia debe estar entre 0 y 1 (o 0% y 100%)');
+                        Swal.showValidationMessage('La eficiencia debe estar entre 0% y 100%');
                         return false;
                     }
 
-                    return { telar, fibra, eficiencia, densidad };
+                    // Enviar los datos en el formato esperado por el backend
+                    return {
+                        NoTelarId: telar,
+                        SalonTejidoId: salon,
+                        FibraId: fibra,
+                        Eficiencia: eficiencia,
+                        Densidad: densidad
+                    };
                 }
             }).then((result) => {
                 if (result.isConfirmed && result.value) {
-                    const { telar, fibra, eficiencia, densidad } = result.value;
+                    const { NoTelarId, SalonTejidoId, FibraId, Eficiencia, Densidad } = result.value;
 
                     // Mostrar loader
                     Swal.fire({
@@ -344,21 +666,41 @@
                         }
                     });
 
+                    // Debug: Mostrar datos que se van a enviar
+                    console.log('Datos a enviar:', {
+                        NoTelarId: NoTelarId,
+                        SalonTejidoId: SalonTejidoId,
+                        FibraId: FibraId,
+                        Eficiencia: Eficiencia,
+                        Densidad: Densidad
+                    });
+
                     // Realizar petición AJAX para actualizar la eficiencia
-                    fetch(`/eficiencia/${selectedEficienciaId}`, {
+                    fetch(`/planeacion/eficiencia/${selectedEficienciaId}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                         },
                         body: JSON.stringify({
-                            NoTelarId: telar,
-                            FibraId: fibra,
-                            Eficiencia: eficiencia,
-                            Densidad: densidad
+                            NoTelarId: NoTelarId,
+                            SalonTejidoId: SalonTejidoId,
+                            FibraId: FibraId,
+                            Eficiencia: Eficiencia,
+                            Densidad: Densidad
                         })
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            // Debug: Mostrar detalles del error 422
+                            console.log('Error response status:', response.status);
+                            return response.text().then(text => {
+                                console.log('Error response body:', text);
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            });
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
                             Swal.fire({
@@ -375,9 +717,10 @@
                         }
                     })
                     .catch(error => {
+                        console.error('Error al actualizar eficiencia:', error);
                         Swal.fire({
                             title: 'Error',
-                            text: error.message || 'Error al actualizar la eficiencia',
+                            text: error.message || 'Error al actualizar la eficiencia. Verifica tu conexión y permisos.',
                             icon: 'error'
                         });
                     });
@@ -386,9 +729,9 @@
         }
 
         function eliminarEficiencia() {
-            console.log('eliminarEficiencia llamado, selectedEficiencia:', selectedEficiencia, 'selectedEficienciaId:', selectedEficienciaId); // Debug
+            console.log('eliminarEficiencia llamado, selectedEficiencia:', selectedEficiencia, 'selectedEficienciaId:', selectedEficienciaId, 'tipo:', typeof selectedEficienciaId); // Debug
 
-            if (!selectedEficiencia || !selectedEficienciaId) {
+            if (!selectedEficiencia || !selectedEficienciaId || selectedEficienciaId === 'null' || selectedEficienciaId === null) {
                 Swal.fire({
                     title: 'Error',
                     text: 'Por favor selecciona una eficiencia para eliminar',
@@ -415,16 +758,7 @@
 
             Swal.fire({
                 title: '¿Eliminar Eficiencia?',
-                html: `
-                    <div class="text-left">
-                        <p><strong>Salón:</strong> ${salon}</p>
-                        <p><strong>Telar:</strong> ${telar}</p>
-                        <p><strong>Fibra:</strong> ${fibra}</p>
-                        <p><strong>Eficiencia:</strong> ${eficiencia}</p>
-                        <hr>
-                        <p class="text-red-600 font-semibold">⚠️ Esta acción no se puede deshacer.</p>
-                    </div>
-                `,
+
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc2626',
@@ -445,14 +779,19 @@
                     });
 
                     // Realizar petición AJAX para eliminar la eficiencia
-                    fetch(`/eficiencia/${selectedEficienciaId}`, {
+                    fetch(`/planeacion/eficiencia/${selectedEficienciaId}`, {
                         method: 'DELETE',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                         }
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
                             Swal.fire({
@@ -469,9 +808,10 @@
                         }
                     })
                     .catch(error => {
+                        console.error('Error al eliminar eficiencia:', error);
                         Swal.fire({
                             title: 'Error',
-                            text: error.message || 'Error al eliminar la eficiencia',
+                            text: error.message || 'Error al eliminar la eficiencia. Verifica tu conexión y permisos.',
                             icon: 'error'
                         });
                     });
@@ -494,7 +834,7 @@
                         </div>
                     </div>
                 `,
-                width: '500px',
+                width: '400px',
                 showCancelButton: true,
                 confirmButtonText: '<i class="fas fa-upload me-2"></i>Subir',
                 cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
@@ -529,7 +869,7 @@
                     formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
 
                     // Enviar archivo
-                    fetch('/eficiencia/excel', {
+                    fetch('/planeacion/eficiencia/excel', {
                         method: 'POST',
                         body: formData
                     })
@@ -580,64 +920,94 @@
             Swal.fire({
                 title: 'Filtrar Eficiencias',
                 html: `
-                    <div class="text-left space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-3 text-sm">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Salón</label>
-                                <input id="swal-salon" type="text" class="swal2-input" placeholder="Ej: JACQUARD" value="${filtrosActuales.salon}">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Salón</label>
+                            <select id="swal-salon" class="w-full px-2 py-1 border border-gray-300 rounded text-center" value="${filtrosActuales.salon}" onchange="actualizarTelaresFiltro()">
+                                <option value="">Seleccionar</option>
+                                <option value="JACQUARD">JACQUARD</option>
+                                <option value="ITEMA">ITEMA</option>
+                            </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Telar</label>
-                                <input id="swal-telar" type="text" class="swal2-input" placeholder="Ej: JAC 201" value="${filtrosActuales.telar}">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Telar</label>
+                            <select id="swal-telar" class="w-full px-2 py-1 border border-gray-300 rounded text-xs" onchange="actualizarTelaresFiltro()">
+                                <option value="">Seleccionar</option>
+                            </select>
                             </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Hilo</label>
-                                <input id="swal-fibra" type="text" class="swal2-input" placeholder="Ej: H, PAP, FIL370" value="${filtrosActuales.fibra}">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Tipo de Hilo</label>
+                            <input id="swal-fibra" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-xs" placeholder="H, PAP, FIL370" value="${filtrosActuales.fibra}">
                             </div>
                         <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Densidad</label>
-                                <select id="swal-densidad" class="swal2-input">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Densidad</label>
+                            <select id="swal-densidad" class="w-full px-2 py-1 border border-gray-300 rounded text-xs">
                                     <option value="">Todas</option>
                                     <option value="Normal" ${filtrosActuales.densidad === 'Normal' ? 'selected' : ''}>Normal</option>
                                     <option value="Alta" ${filtrosActuales.densidad === 'Alta' ? 'selected' : ''}>Alta</option>
-                                    <option value="Baja" ${filtrosActuales.densidad === 'Baja' ? 'selected' : ''}>Baja</option>
                             </select>
                         </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Eficiencia Mínima (%)</label>
+                            <div class="flex items-center space-x-2">
+                                <input id="swal-eficiencia-min" type="range" min="0" max="100" value="${filtrosActuales.eficiencia_min || 0}"
+                                       class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-compact"
+                                       oninput="actualizarEficienciaFiltro(this.value, 'min')">
+                                <span id="eficiencia-min-value" class="text-xs font-bold text-blue-600 w-12">${filtrosActuales.eficiencia_min || 0}%</span>
                         </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Mínima (%)</label>
-                                <input id="swal-eficiencia-min" type="number" class="swal2-input" placeholder="Ej: 70" min="0" max="100" value="${filtrosActuales.eficiencia_min}">
                         </div>
-                        <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Máxima (%)</label>
-                                <input id="swal-eficiencia-max" type="number" class="swal2-input" placeholder="Ej: 90" min="0" max="100" value="${filtrosActuales.eficiencia_max}">
+                        <div class="col-span-2">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Eficiencia Máxima (%)</label>
+                            <div class="flex items-center space-x-2">
+                                <input id="swal-eficiencia-max" type="range" min="0" max="100" value="${filtrosActuales.eficiencia_max || 100}"
+                                       class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-compact"
+                                       oninput="actualizarEficienciaFiltro(this.value, 'max')">
+                                <span id="eficiencia-max-value" class="text-xs font-bold text-blue-600 w-12">${filtrosActuales.eficiencia_max || 100}%</span>
                             </div>
                         </div>
-
-                        <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Deja los campos vacíos para no aplicar filtro en esa columna
                         </div>
+                    <div class="mt-3 text-xs text-gray-500 bg-blue-50 p-2 rounded">
+                            <i class="fas fa-info-circle mr-1"></i>
+                        Deja campos vacíos para no aplicar filtro
                     </div>
                 `,
-                width: '600px',
+                width: '400px',
                 showCancelButton: true,
                 confirmButtonText: '<i class="fas fa-search mr-2"></i>Filtrar',
                 cancelButtonText: '<i class="fas fa-times mr-2"></i>Cancelar',
                 confirmButtonColor: '#3b82f6',
                 cancelButtonColor: '#6b7280',
+                didOpen: () => {
+                    // Inicializar select de salón
+                    const salonSelect = document.getElementById('swal-salon');
+                    if (salonSelect) {
+                        // Establecer valor del salón si existe
+                        if (filtrosActuales.salon) {
+                            salonSelect.value = filtrosActuales.salon;
+                        }
+
+                        // Actualizar telares basado en el salón seleccionado
+                        setTimeout(() => {
+                            actualizarTelaresFiltro();
+
+                            // Preseleccionar telar si existe
+                            setTimeout(() => {
+                                const telarSelect = document.getElementById('swal-telar');
+                                if (telarSelect && filtrosActuales.telar) {
+                                    telarSelect.value = filtrosActuales.telar;
+                                }
+                            }, 100);
+                        }, 100);
+
+                    }
+                },
                 preConfirm: () => {
                     const salon = document.getElementById('swal-salon').value.trim();
                     const telar = document.getElementById('swal-telar').value.trim();
                     const fibra = document.getElementById('swal-fibra').value.trim();
                     const densidad = document.getElementById('swal-densidad').value;
-                    const eficienciaMin = document.getElementById('swal-eficiencia-min').value.trim();
-                    const eficienciaMax = document.getElementById('swal-eficiencia-max').value.trim();
+                    const eficienciaMin = document.getElementById('swal-eficiencia-min').value;
+                    const eficienciaMax = document.getElementById('swal-eficiencia-max').value;
 
                     // Validar rangos de eficiencia
                     if (eficienciaMin && eficienciaMax && parseFloat(eficienciaMin) > parseFloat(eficienciaMax)) {
@@ -670,7 +1040,16 @@
 
             // Verificar cache primero
             if (cacheFiltros.has(cacheKey)) {
-                const datosFiltrados = cacheFiltros.get(cacheKey);
+                let datosFiltrados = cacheFiltros.get(cacheKey);
+
+                // Aplicar conversión SMITH → ITEMA también en el cache
+                datosFiltrados = datosFiltrados.map(item => {
+                    if (item.SalonTejidoId === 'SMITH') {
+                        return { ...item, SalonTejidoId: 'ITEMA' };
+                    }
+                    return item;
+                });
+
                 actualizarTablaOptimizada(datosFiltrados);
                 actualizarContador(datosFiltrados.length);
 
@@ -684,7 +1063,17 @@
             // Filtrar datos de forma más eficiente
             let datosFiltrados = datosOriginales.filter(item => {
                 // Optimización: salir temprano si no cumple un filtro
-                if (filtros.salon && !item.SalonTejidoId.toLowerCase().includes(filtros.salon.toLowerCase())) return false;
+                if (filtros.salon) {
+                    const salonFiltro = filtros.salon.toLowerCase();
+                    const salonItem = item.SalonTejidoId.toLowerCase();
+
+                    // Si se filtra por ITEMA, también incluir SMITH
+                    if (salonFiltro === 'itema') {
+                        if (salonItem !== 'itema' && salonItem !== 'smith') return false;
+                    } else {
+                        if (!salonItem.includes(salonFiltro)) return false;
+                    }
+                }
                 if (filtros.telar && !item.NoTelarId.toLowerCase().includes(filtros.telar.toLowerCase())) return false;
                 if (filtros.fibra && !item.FibraId.toLowerCase().includes(filtros.fibra.toLowerCase())) return false;
                 if (filtros.densidad && item.Densidad !== filtros.densidad) return false;
@@ -701,6 +1090,14 @@
                 }
 
                 return true;
+            });
+
+            // Aplicar conversión SMITH → ITEMA a los datos filtrados antes de mostrar
+            datosFiltrados = datosFiltrados.map(item => {
+                if (item.SalonTejidoId === 'SMITH') {
+                    return { ...item, SalonTejidoId: 'ITEMA' };
+                }
+                return item;
             });
 
             // Guardar en cache (máximo 10 entradas para evitar uso excesivo de memoria)
@@ -787,14 +1184,17 @@
 
                 const row = document.createElement('tr');
                 row.className = 'text-center hover:bg-blue-50 transition cursor-pointer';
-                row.onclick = () => selectRow(row, uniqueId, item.id || null);
+                row.onclick = () => selectRow(row, uniqueId, item.Id || null);
                 row.ondblclick = () => deselectRow(row);
                 row.setAttribute('data-eficiencia', uniqueId);
-                row.setAttribute('data-eficiencia-id', item.id || 'null');
+                row.setAttribute('data-eficiencia-id', item.Id || 'null');
+
+                // Usar directamente el número del telar
+                const numeroTelar = item.NoTelarId;
 
                 row.innerHTML = `
                     <td class="py-1 px-4 border-b">${item.SalonTejidoId}</td>
-                    <td class="py-1 px-4 border-b">${item.NoTelarId}</td>
+                    <td class="py-1 px-4 border-b">${numeroTelar}</td>
                     <td class="py-1 px-4 border-b">${item.FibraId}</td>
                     <td class="py-1 px-4 border-b font-semibold">${eficienciaPorcentaje}%</td>
                     <td class="py-1 px-4 border-b">${item.Densidad || 'Normal'}</td>
@@ -838,6 +1238,7 @@
                 }
             }
         }
+
 
         // Inicializar página
         document.addEventListener('DOMContentLoaded', function() {

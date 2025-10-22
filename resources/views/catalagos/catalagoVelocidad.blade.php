@@ -25,10 +25,10 @@
                             $uniqueId = $item->NoTelarId . '_' . $item->FibraId;
                         @endphp
                         <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
-                            onclick="selectRow(this, '{{ $uniqueId }}', {{ $item->id ?? 'null' }})"
+                            onclick="selectRow(this, '{{ $uniqueId }}', {{ $item->Id ?: 'null' }})"
                                 ondblclick="deselectRow(this)"
                             data-velocidad="{{ $uniqueId }}"
-                            data-velocidad-id="{{ $item->id ?? 'null' }}">
+                            data-velocidad-id="{{ $item->Id ?: 'null' }}">
                             <td class="py-1 px-4 border-b">{{ $item->SalonTejidoId }}</td>
                             <td class="py-1 px-4 border-b">{{ $item->NoTelarId }}</td>
                             <td class="py-1 px-4 border-b">{{ $item->FibraId }}</td>
@@ -56,6 +56,12 @@
             velocidad_min: '',
             velocidad_max: '',
             densidad: ''
+        };
+
+        // Mapeo de telares por salón
+        const telaresPorSalon = {
+            'JACQUARD': ['201', '202', '203', '204', '205', '206', '207', '208', '209', '210', '211', '212', '213', '214', '215', '216', '217', '218', '219', '220'],
+            'ITEMA': ['299', '300', '301', '302', '303', '304', '305', '306', '307', '308', '309', '310', '311', '312', '313', '314', '315', '316', '317', '318', '319', '320']
         };
 
         // Datos originales para filtrado
@@ -115,62 +121,158 @@
         function enableButtons() {
             const btnEditar = document.getElementById('btn-editar');
             const btnEliminar = document.getElementById('btn-eliminar');
-            if (btnEditar) btnEditar.disabled = false;
-            if (btnEliminar) btnEliminar.disabled = false;
+            if (btnEditar) {
+                btnEditar.disabled = false;
+                btnEditar.classList.remove('bg-gray-400', 'text-gray-200', 'cursor-not-allowed');
+                btnEditar.classList.add('bg-yellow-600', 'hover:bg-yellow-700', 'text-white');
+            }
+            if (btnEliminar) {
+                btnEliminar.disabled = false;
+                btnEliminar.classList.remove('bg-gray-400', 'text-gray-200', 'cursor-not-allowed');
+                btnEliminar.classList.add('bg-red-600', 'hover:bg-red-700', 'text-white');
+            }
         }
 
         function disableButtons() {
             const btnEditar = document.getElementById('btn-editar');
             const btnEliminar = document.getElementById('btn-eliminar');
-            if (btnEditar) btnEditar.disabled = true;
-            if (btnEliminar) btnEliminar.disabled = true;
+            if (btnEditar) {
+                btnEditar.disabled = true;
+                btnEditar.classList.remove('bg-yellow-600', 'hover:bg-yellow-700', 'text-white');
+                btnEditar.classList.add('bg-gray-400', 'text-gray-200', 'cursor-not-allowed');
+            }
+            if (btnEliminar) {
+                btnEliminar.disabled = true;
+                btnEliminar.classList.remove('bg-red-600', 'hover:bg-red-700', 'text-white');
+                btnEliminar.classList.add('bg-gray-400', 'text-gray-200', 'cursor-not-allowed');
+            }
+        }
+
+        // Función para actualizar telares según el salón seleccionado
+        function actualizarTelares() {
+            const salonSelect = document.getElementById('swal-salon');
+            const telarSelect = document.getElementById('swal-telar');
+
+            if (!salonSelect || !telarSelect) return;
+
+            const salonSeleccionado = salonSelect.value;
+            telarSelect.innerHTML = '<option value="">Seleccionar</option>';
+
+            if (salonSeleccionado && telaresPorSalon[salonSeleccionado]) {
+                telaresPorSalon[salonSeleccionado].forEach(telar => {
+                    const option = document.createElement('option');
+                    option.value = telar;
+                    option.textContent = telar;
+                    telarSelect.appendChild(option);
+                });
+            }
+        }
+
+        // Función para actualizar telares en el modal de editar
+        function actualizarTelaresEdit() {
+            const salonSelect = document.getElementById('swal-salon-edit');
+            const telarSelect = document.getElementById('swal-telar-edit');
+
+            if (!salonSelect || !telarSelect) return;
+
+            const salonSeleccionado = salonSelect.value;
+            telarSelect.innerHTML = '<option value="">Seleccionar</option>';
+
+            if (salonSeleccionado && telaresPorSalon[salonSeleccionado]) {
+                telaresPorSalon[salonSeleccionado].forEach(telar => {
+                    const option = document.createElement('option');
+                    option.value = telar;
+                    option.textContent = telar;
+                    telarSelect.appendChild(option);
+                });
+            }
+        }
+
+        // Función para actualizar telares en el modal de filtros
+        function actualizarTelaresFiltro() {
+            const salonSelect = document.getElementById('swal-salon-filtro');
+            const telarSelect = document.getElementById('swal-telar-filtro');
+
+            if (!salonSelect || !telarSelect) return;
+
+            const salonSeleccionado = salonSelect.value;
+            telarSelect.innerHTML = '<option value="">Todos</option>';
+
+            if (salonSeleccionado && telaresPorSalon[salonSeleccionado]) {
+                telaresPorSalon[salonSeleccionado].forEach(telar => {
+                    const option = document.createElement('option');
+                    option.value = telar;
+                    option.textContent = telar;
+                    telarSelect.appendChild(option);
+                });
+            }
         }
 
         function agregarVelocidad() {
             Swal.fire({
                 title: 'Crear Nueva Velocidad',
                 html: `
-                    <div class="text-left">
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Telar *</label>
-                            <input id="swal-telar" type="text" class="swal2-input" placeholder="Ej: JAC 201" maxlength="50" required>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Salón *</label>
+                            <select id="swal-salon" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" required>
+                                <option value="">Seleccionar</option>
+                                <option value="JACQUARD">JACQUARD</option>
+                                <option value="ITEMA">ITEMA</option>
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Fibra *</label>
-                            <input id="swal-fibra" type="text" class="swal2-input" placeholder="Ej: H, PAP" maxlength="50" required>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Telar *</label>
+                            <select id="swal-telar" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" required>
+                                <option value="">Seleccionar</option>
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Velocidad (RPM) *</label>
-                            <input id="swal-velocidad" type="number" class="swal2-input" placeholder="Ej: 850.5" min="0" step="0.1" required>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Fibra *</label>
+                            <input id="swal-fibra" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="H, PAP" maxlength="20" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Densidad</label>
-                            <input id="swal-densidad" type="text" class="swal2-input" placeholder="Ej: Normal, Alta" maxlength="50" value="Normal">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Densidad</label>
+                            <select id="swal-densidad" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                <option value="Normal" selected>Normal</option>
+                                <option value="Alta">Alta</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Velocidad (RPM) *</label>
+                            <input id="swal-velocidad" type="number" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="850" min="0" step="1" required>
                         </div>
                     </div>
                 `,
-                width: '500px',
+                width: '400px',
                 showCancelButton: true,
                 confirmButtonText: '<i class="fas fa-save me-2"></i>Crear',
                 cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
                 confirmButtonColor: '#198754',
                 cancelButtonColor: '#6c757d',
+                didOpen: () => {
+                    const salonSelect = document.getElementById('swal-salon');
+                    if (salonSelect) {
+                        salonSelect.addEventListener('change', actualizarTelares);
+                    }
+                },
                 preConfirm: () => {
+                    const salon = document.getElementById('swal-salon').value.trim();
                     const telar = document.getElementById('swal-telar').value.trim();
                     const fibra = document.getElementById('swal-fibra').value.trim();
                     const velocidad = document.getElementById('swal-velocidad').value.trim();
                     const densidad = document.getElementById('swal-densidad').value.trim();
 
-                    if (!telar || !fibra || !velocidad) {
+                    if (!salon || !telar || !fibra || !velocidad) {
                         Swal.showValidationMessage('Por favor completa los campos requeridos');
                         return false;
                     }
 
-                    return { telar, fibra, velocidad: parseFloat(velocidad), densidad };
+                    return { salon, telar, fibra, velocidad: parseFloat(velocidad), densidad };
                 }
             }).then((result) => {
                 if (result.isConfirmed && result.value) {
-                    const { telar, fibra, rpm, densidad } = result.value;
+                    const { salon, telar, fibra, velocidad, densidad } = result.value;
 
                     Swal.fire({
                         title: 'Creando...',
@@ -182,16 +284,17 @@
                         }
                     });
 
-                    fetch('/velocidad', {
+                    fetch('/planeacion/velocidad', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                         },
                         body: JSON.stringify({
+                            SalonTejidoId: salon,
                             NoTelarId: telar,
                             FibraId: fibra,
-                            RPM: rpm,
+                            Velocidad: velocidad,
                             Densidad: densidad
                         })
                     })
@@ -251,47 +354,67 @@
             Swal.fire({
                 title: 'Editar Velocidad',
                 html: `
-                    <div class="text-left">
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Telar *</label>
-                            <input id="swal-telar-edit" type="text" class="swal2-input" placeholder="Ej: JAC 201" maxlength="50" required value="${telarActual}">
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Salón *</label>
+                            <select id="swal-salon-edit" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" required>
+                                <option value="">Seleccionar</option>
+                                <option value="JACQUARD">JACQUARD</option>
+                                <option value="ITEMA">ITEMA</option>
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Fibra *</label>
-                            <input id="swal-fibra-edit" type="text" class="swal2-input" placeholder="Ej: H, PAP" maxlength="50" required value="${fibraActual}">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Telar *</label>
+                            <select id="swal-telar-edit" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" required>
+                                <option value="">Seleccionar</option>
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Velocidad (RPM) *</label>
-                            <input id="swal-velocidad-edit" type="number" class="swal2-input" placeholder="Ej: 850.5" min="0" step="0.1" required value="${velocidadActual}">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Fibra *</label>
+                            <input id="swal-fibra-edit" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="H, PAP" maxlength="20" required value="${fibraActual}">
                         </div>
-                        <div class="mb-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Densidad</label>
-                            <input id="swal-densidad-edit" type="text" class="swal2-input" placeholder="Ej: Normal, Alta" maxlength="50" value="${densidadActual}">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Densidad</label>
+                            <select id="swal-densidad-edit" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                <option value="Normal" ${densidadActual === 'Normal' ? 'selected' : ''}>Normal</option>
+                                <option value="Alta" ${densidadActual === 'Alta' ? 'selected' : ''}>Alta</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Velocidad (RPM) *</label>
+                            <input id="swal-velocidad-edit" type="number" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="850" min="0" step="1" required value="${velocidadActual}">
                         </div>
                     </div>
                 `,
-                width: '500px',
+                width: '400px',
                 showCancelButton: true,
                 confirmButtonText: '<i class="fas fa-save me-2"></i>Actualizar',
                 cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
                 confirmButtonColor: '#ffc107',
                 cancelButtonColor: '#6c757d',
+                didOpen: () => {
+                    const salonSelect = document.getElementById('swal-salon-edit');
+                    if (salonSelect) {
+                        salonSelect.addEventListener('change', actualizarTelaresEdit);
+                    }
+                },
                 preConfirm: () => {
+                    const salon = document.getElementById('swal-salon-edit').value.trim();
                     const telar = document.getElementById('swal-telar-edit').value.trim();
                     const fibra = document.getElementById('swal-fibra-edit').value.trim();
                     const velocidad = document.getElementById('swal-velocidad-edit').value.trim();
                     const densidad = document.getElementById('swal-densidad-edit').value.trim();
 
-                    if (!telar || !fibra || !velocidad) {
+                    if (!salon || !telar || !fibra || !velocidad) {
                         Swal.showValidationMessage('Por favor completa los campos requeridos');
                         return false;
                     }
 
-                    return { telar, fibra, velocidad: parseFloat(velocidad), densidad };
+                    return { salon, telar, fibra, velocidad: parseFloat(velocidad), densidad };
                 }
             }).then((result) => {
                 if (result.isConfirmed && result.value) {
-                    const { telar, fibra, rpm, densidad } = result.value;
+                    const { salon, telar, fibra, velocidad, densidad } = result.value;
 
                     Swal.fire({
                         title: 'Actualizando...',
@@ -303,16 +426,17 @@
                         }
                     });
 
-                    fetch(`/velocidad/${selectedVelocidadId}`, {
+                    fetch(`/planeacion/velocidad/${selectedVelocidadId}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                         },
                         body: JSON.stringify({
+                            SalonTejidoId: salon,
                             NoTelarId: telar,
                             FibraId: fibra,
-                            RPM: rpm,
+                            Velocidad: velocidad,
                             Densidad: densidad
                         })
                     })
@@ -370,15 +494,6 @@
 
             Swal.fire({
                 title: '¿Eliminar Velocidad?',
-                html: `
-                    <div class="text-left">
-                        <p><strong>Telar:</strong> ${telar}</p>
-                        <p><strong>Fibra:</strong> ${fibra}</p>
-                        <p><strong>RPM:</strong> ${rpm}</p>
-                        <hr>
-                        <p class="text-red-600 font-semibold">⚠️ Esta acción no se puede deshacer.</p>
-                    </div>
-                `,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc2626',
@@ -397,7 +512,7 @@
                         }
                     });
 
-                    fetch(`/velocidad/${selectedVelocidadId}`, {
+                    fetch(`/planeacion/velocidad/${selectedVelocidadId}`, {
                         method: 'DELETE',
                         headers: {
                             'Content-Type': 'application/json',
@@ -481,7 +596,7 @@
                     formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
 
                     // Enviar archivo
-                    fetch('/velocidad/excel', {
+                    fetch('/planeacion/velocidad/excel', {
                         method: 'POST',
                         body: formData
                     })
@@ -535,60 +650,62 @@
             Swal.fire({
                 title: 'Filtrar Velocidades',
                 html: `
-                    <div class="text-left space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Salón</label>
-                                <input id="swal-salon" type="text" class="swal2-input" placeholder="Ej: JACQUARD" value="${filtrosActuales.salon}">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Telar</label>
-                                <input id="swal-telar" type="text" class="swal2-input" placeholder="Ej: JAC 201" value="${filtrosActuales.telar}">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Fibra</label>
-                                <input id="swal-fibra" type="text" class="swal2-input" placeholder="Ej: H, PAP, FIL370" value="${filtrosActuales.fibra}">
-                            </div>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
                         <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Densidad</label>
-                                <select id="swal-densidad" class="swal2-input">
-                                    <option value="">Todas</option>
-                                    <option value="Normal" ${filtrosActuales.densidad === 'Normal' ? 'selected' : ''}>Normal</option>
-                                    <option value="Alta" ${filtrosActuales.densidad === 'Alta' ? 'selected' : ''}>Alta</option>
-                                    <option value="Baja" ${filtrosActuales.densidad === 'Baja' ? 'selected' : ''}>Baja</option>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Salón</label>
+                            <select id="swal-salon-filtro" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                <option value="">Todos</option>
+                                <option value="JACQUARD" ${filtrosActuales.salon === 'JACQUARD' ? 'selected' : ''}>JACQUARD</option>
+                                <option value="ITEMA" ${filtrosActuales.salon === 'ITEMA' ? 'selected' : ''}>ITEMA</option>
                             </select>
                         </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Velocidad Mínima (RPM)</label>
-                                <input id="swal-velocidad-min" type="number" class="swal2-input" placeholder="Ej: 200" min="0" value="${filtrosActuales.velocidad_min}">
-                            </div>
                         <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Velocidad Máxima (RPM)</label>
-                                <input id="swal-velocidad-max" type="number" class="swal2-input" placeholder="Ej: 1000" min="0" value="${filtrosActuales.velocidad_max}">
-                            </div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Telar</label>
+                            <select id="swal-telar-filtro" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                <option value="">Todos</option>
+                            </select>
                         </div>
-
-                        <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Deja los campos vacíos para no aplicar filtro en esa columna
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Fibra</label>
+                            <input id="swal-fibra" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="H, PAP" value="${filtrosActuales.fibra}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Densidad</label>
+                            <select id="swal-densidad" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                <option value="">Todas</option>
+                                <option value="Normal" ${filtrosActuales.densidad === 'Normal' ? 'selected' : ''}>Normal</option>
+                                <option value="Alta" ${filtrosActuales.densidad === 'Alta' ? 'selected' : ''}>Alta</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Velocidad Mínima (RPM)</label>
+                            <input id="swal-velocidad-min" type="number" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="200" min="0" value="${filtrosActuales.velocidad_min}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Velocidad Máxima (RPM)</label>
+                            <input id="swal-velocidad-max" type="number" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="1000" min="0" value="${filtrosActuales.velocidad_max}">
                         </div>
                     </div>
                 `,
-                width: '600px',
+                width: '400px',
                 showCancelButton: true,
                 confirmButtonText: '<i class="fas fa-filter me-2"></i>Filtrar',
                 cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
                 confirmButtonColor: '#3b82f6',
                 cancelButtonColor: '#6b7280',
+                didOpen: () => {
+                    const salonSelect = document.getElementById('swal-salon-filtro');
+                    if (salonSelect) {
+                        salonSelect.addEventListener('change', actualizarTelaresFiltro);
+                        // Llamar inicialmente para cargar los telares del salón seleccionado
+                        setTimeout(() => {
+                            actualizarTelaresFiltro();
+                        }, 100);
+                    }
+                },
                 preConfirm: () => {
-                    const salon = document.getElementById('swal-salon').value.trim();
-                    const telar = document.getElementById('swal-telar').value.trim();
+                    const salon = document.getElementById('swal-salon-filtro').value.trim();
+                    const telar = document.getElementById('swal-telar-filtro').value.trim();
                     const fibra = document.getElementById('swal-fibra').value.trim();
                     const densidad = document.getElementById('swal-densidad').value;
                     const velocidadMin = document.getElementById('swal-velocidad-min').value.trim();
@@ -627,7 +744,9 @@
 
             // Aplicar filtros
             let datosFiltrados = datosOriginales.filter(item => {
-                const salonMatch = !filtros.salon || item.SalonTejidoId.toLowerCase().includes(filtros.salon.toLowerCase());
+                // Convertir SMITH a ITEMA para filtrado
+                const salonItem = item.SalonTejidoId === 'SMITH' ? 'ITEMA' : item.SalonTejidoId;
+                const salonMatch = !filtros.salon || salonItem.toLowerCase().includes(filtros.salon.toLowerCase());
                 const telarMatch = !filtros.telar || item.NoTelarId.toLowerCase().includes(filtros.telar.toLowerCase());
                 const fibraMatch = !filtros.fibra || item.FibraId.toLowerCase().includes(filtros.fibra.toLowerCase());
                 const densidadMatch = !filtros.densidad || item.Densidad === filtros.densidad;
@@ -709,13 +828,16 @@
                 const uniqueId = item.NoTelarId + '_' + item.FibraId;
                 const row = document.createElement('tr');
                 row.className = 'text-center hover:bg-blue-50 transition cursor-pointer';
-                row.setAttribute('onclick', `selectRow(this, '${uniqueId}', ${item.id || 'null'})`);
+                row.setAttribute('onclick', `selectRow(this, '${uniqueId}', ${item.Id || 'null'})`);
                 row.setAttribute('ondblclick', 'deselectRow(this)');
                 row.setAttribute('data-velocidad', uniqueId);
-                row.setAttribute('data-velocidad-id', item.id || 'null');
+                row.setAttribute('data-velocidad-id', item.Id || 'null');
+
+                // Convertir SMITH a ITEMA para mostrar en la tabla
+                const salonDisplay = item.SalonTejidoId === 'SMITH' ? 'ITEMA' : item.SalonTejidoId;
 
                 row.innerHTML = `
-                    <td class="py-1 px-4 border-b">${item.SalonTejidoId}</td>
+                    <td class="py-1 px-4 border-b">${salonDisplay}</td>
                     <td class="py-1 px-4 border-b">${item.NoTelarId}</td>
                     <td class="py-1 px-4 border-b">${item.FibraId}</td>
                     <td class="py-1 px-4 border-b font-semibold">${item.Velocidad} RPM</td>

@@ -10,7 +10,9 @@
 
     <!-- Preload de imágenes críticas para mejor rendimiento -->
     <link rel="preload" as="image" href="{{ asset('images/fondosTowell/logo.png') }}">
+    @if(file_exists(public_path('images/fotos_usuarios/TOWELLIN.png')))
     <link rel="preload" as="image" href="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}">
+    @endif
 
     <!-- Optimización de imágenes -->
     <style>

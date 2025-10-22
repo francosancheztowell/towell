@@ -111,10 +111,11 @@ class CatalagoVelocidadController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'NoTelarId' => 'required|string|max:50',
-                'FibraId' => 'required|string|max:50',
-                'RPM' => 'required|integer|min:0',
-                'Densidad' => 'nullable|string|max:50'
+                'SalonTejidoId' => 'nullable|string|max:20',
+                'NoTelarId' => 'required|string|max:10',
+                'FibraId' => 'required|string|max:20',
+                'Velocidad' => 'required|integer|min:0',
+                'Densidad' => 'nullable|string|max:10'
             ]);
 
             if ($validator->fails()) {
@@ -136,13 +137,11 @@ class CatalagoVelocidadController extends Controller
                 ], 422);
             }
 
-            $salon = explode(' ', $request->NoTelarId)[0] ?? null;
-
             $velocidad = ReqVelocidadStd::create([
-                'SalonTejidoId' => $salon,
+                'SalonTejidoId' => $request->SalonTejidoId ?? 'Ninguno',
                 'NoTelarId' => $request->NoTelarId,
                 'FibraId' => $request->FibraId,
-                'RPM' => $request->RPM,
+                'Velocidad' => $request->Velocidad,
                 'Densidad' => $request->Densidad ?? 'Normal'
             ]);
 
@@ -167,10 +166,11 @@ class CatalagoVelocidadController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'NoTelarId' => 'required|string|max:50',
-                'FibraId' => 'required|string|max:50',
-                'RPM' => 'required|integer|min:0',
-                'Densidad' => 'nullable|string|max:50'
+                'SalonTejidoId' => 'nullable|string|max:20',
+                'NoTelarId' => 'required|string|max:10',
+                'FibraId' => 'required|string|max:20',
+                'Velocidad' => 'required|integer|min:0',
+                'Densidad' => 'nullable|string|max:10'
             ]);
 
             if ($validator->fails()) {
@@ -183,7 +183,7 @@ class CatalagoVelocidadController extends Controller
             $velocidadExistente = ReqVelocidadStd::where('NoTelarId', $request->NoTelarId)
                                                 ->where('FibraId', $request->FibraId)
                                                 ->where('Densidad', $request->Densidad ?? 'Normal')
-                                                ->where('id', '!=', $velocidad->id)
+                                                ->where('Id', '!=', $velocidad->Id)
                                                 ->first();
 
             if ($velocidadExistente) {
@@ -193,13 +193,11 @@ class CatalagoVelocidadController extends Controller
                 ], 422);
             }
 
-            $salon = explode(' ', $request->NoTelarId)[0] ?? null;
-
             $velocidad->update([
-                'SalonTejidoId' => $salon,
+                'SalonTejidoId' => $request->SalonTejidoId ?? 'JACQUARD',
                 'NoTelarId' => $request->NoTelarId,
                 'FibraId' => $request->FibraId,
-                'RPM' => $request->RPM,
+                'Velocidad' => $request->Velocidad,
                 'Densidad' => $request->Densidad ?? 'Normal'
             ]);
 

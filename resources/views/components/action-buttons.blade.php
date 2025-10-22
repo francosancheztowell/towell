@@ -14,7 +14,7 @@
         </button>
 
         <button id="btn-subir-excel-lineas" onclick="subirExcelLineas()"
-        class="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium">
+        class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
         <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
             <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
             <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
@@ -36,7 +36,7 @@
         </button>
     @endif
     <button id="btn-agregar" onclick="agregar{{ ucfirst($route) }}()"
-       class="inline-flex items-center px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors text-sm font-medium">
+       class="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium">
         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
@@ -164,7 +164,7 @@
                 formData.append('archivo_excel', file);
                 formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
 
-                return fetch('/{{ $route }}/procesar-excel', {
+                return fetch('/planeacion/{{ $route }}/excel', {
                     method: 'POST',
                     body: formData
                 })

@@ -10,7 +10,7 @@ class ReqVelocidadStd extends Model
     use HasFactory;
 
     protected $table = 'dbo.ReqVelocidadStd';
-    protected $primaryKey = 'id';
+    protected $primaryKey = 'Id';
     public $timestamps = false;
 
     protected $fillable = [
@@ -25,9 +25,17 @@ class ReqVelocidadStd extends Model
         'Velocidad' => 'float'
     ];
 
+    /**
+     * Convertir SMITH a ITEMA para mostrar en la vista
+     */
+    public function getSalonTejidoIdAttribute($value)
+    {
+        return $value === 'SMITH' ? 'ITEMA' : $value;
+    }
+
     public function getRouteKeyName()
     {
-        return 'id';
+        return 'Id';
     }
 
     public static function obtenerTodos()

@@ -17,7 +17,7 @@ class ReqEficienciaStd extends Model
     /**
      * Clave primaria de la tabla
      */
-    protected $primaryKey = 'id';
+    protected $primaryKey = 'Id';
 
     /**
      * Campos que se pueden asignar masivamente
@@ -45,7 +45,7 @@ class ReqEficienciaStd extends Model
      */
     public function getRouteKeyName()
     {
-        return 'id';
+        return 'Id';
     }
 
     /**
@@ -155,6 +155,20 @@ class ReqEficienciaStd extends Model
     public function getFibraAttribute()
     {
         return $this->FibraId;
+    }
+
+
+    /**
+     * Accessor para mostrar SMITH como ITEMA en la tabla
+     */
+    public function getSalonTejidoIdAttribute($value)
+    {
+        // Si el valor es SMITH, mostrarlo como ITEMA
+        if ($value === 'SMITH') {
+            return 'ITEMA';
+        }
+
+        return $value;
     }
 }
 
