@@ -2,9 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\CatalagoTelar;
 use App\Models\ReqTelares;
-use App\Exports\TelaresPlantillaExport;
 use App\Imports\ReqTelaresImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,385 +15,216 @@ class CatalagoTelarController extends Controller
     public function index(Request $request)
     {
         try {
-            // Obtener datos reales desde la base de datos usando ReqTelares
-            $query = ReqTelares::query();
+            $q = ReqTelares::query();
 
-            // Aplicar filtros de búsqueda
-            if ($request->filled('salon')) {
-                $query->where('SalonTejidoId', 'like', "%{$request->salon}%");
-            }
+            if ($request->filled('salon'))  $q->where('SalonTejidoId', 'like', "%{$request->salon}%");
+            if ($request->filled('telar'))  $q->where('NoTelarId', 'like', "%{$request->telar}%");
+            if ($request->filled('nombre')) $q->where('Nombre', 'like', "%{$request->nombre}%");
+            if ($request->filled('grupo'))  $q->where('Grupo', 'like', "%{$request->grupo}%");
 
-            if ($request->filled('telar')) {
-                $query->where('NoTelarId', 'like', "%{$request->telar}%");
-            }
-
-            if ($request->filled('nombre')) {
-                $query->where('Nombre', 'like', "%{$request->nombre}%");
-            }
-
-            if ($request->filled('grupo')) {
-                $query->where('Grupo', 'like', "%{$request->grupo}%");
-            }
-
-            // Obtener resultados ordenados
-            $telares = $query->orderBy('SalonTejidoId')
-                           ->orderBy('NoTelarId')
-                           ->get();
-
-            // Verifica si hay resultados
+            $telares   = $q->orderBy('SalonTejidoId')->orderBy('NoTelarId')->get();
             $noResults = $telares->isEmpty();
 
-            // Pasa los resultados y el estado de "sin resultados"
-            return view('catalagos.catalagoTelares', compact('telares', 'noResults'));
-
+            return view('catalagos.catalagoTelares', compact('telares','noResults'));
         } catch (\Exception $e) {
-            Log::error('Error al obtener telares: ' . $e->getMessage());
-
-            // En caso de error, mostrar datos vacíos
-            $telares = collect();
-            $noResults = true;
-
-            return view('catalagos.catalagoTelares', compact('telares', 'noResults'))
-                ->with('error', 'Error al cargar los datos de telares');
+            Log::error('Telares index error: '.$e->getMessage());
+            return view('catalagos.catalagoTelares', ['telares'=>collect(), 'noResults'=>true])
+                   ->with('error','Error al cargar los telares');
         }
     }
 
-
-    public function show($id)
-    {
-        // Solo para evitar el error
-        return redirect()->route('telares.index');
-    }
-
-    /**
-     * Procesar archivo Excel subido
-     */
+    /** Excel */
     public function procesarExcel(Request $request)
     {
+        $v = Validator::make($request->all(), [
+            'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240'
+        ]);
+        if ($v->fails()) {
+            return response()->json(['success'=>false,'message'=>'Archivo inválido','errors'=>$v->errors()], 400);
+        }
+
+        $file = $request->file('archivo_excel');
+        DB::beginTransaction();
         try {
-            // Validar que se haya subido un archivo
-            $validator = Validator::make($request->all(), [
-                'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240' // 10MB máximo
-            ]);
+            $import = new ReqTelaresImport();
+            Excel::import($import, $file);
+            DB::commit();
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Archivo inválido. Debe ser un archivo Excel (.xlsx o .xls) de máximo 10MB.',
-                    'errors' => $validator->errors()
-                ], 400);
-            }
-
-            $archivo = $request->file('archivo_excel');
-            $nombreArchivo = $archivo->getClientOriginalName();
-            Log::info('Procesando archivo Excel: ' . $nombreArchivo);
-
-            // Usar transacciones para asegurar consistencia
-            DB::beginTransaction();
-
-            try {
-                // Contar registros antes de la importación
-                $registrosAntes = ReqTelares::count();
-
-                // Procesar el archivo Excel usando la clase de importación
-                $importador = new ReqTelaresImport();
-                Excel::import($importador, $archivo);
-
-                // Obtener estadísticas del importador
-                $stats = $importador->getStats();
-
-                // Contar registros después de la importación
-                $registrosDespues = ReqTelares::count();
-                $registrosImportados = $registrosDespues - $registrosAntes;
-
-                // Log de estadísticas para debugging
-                Log::info('Estadísticas de importación de telares', [
-                    'stats' => $stats,
-                    'registros_antes' => $registrosAntes,
-                    'registros_despues' => $registrosDespues,
-                    'registros_importados' => $registrosImportados
-                ]);
-
-                DB::commit();
-
-                // Preparar respuesta
-                $mensaje = "Archivo {$nombreArchivo} procesado exitosamente. ";
-                $mensaje .= "Registros procesados: {$stats['processed_rows']}, ";
-                $mensaje .= "Creados: {$stats['created_rows']}, ";
-                $mensaje .= "Actualizados: {$stats['updated_rows']}, ";
-                $mensaje .= "Filas saltadas: {$stats['skipped_rows']}";
-
-                if (!empty($stats['errores'])) {
-                    $totalErrores = count($stats['errores']);
-                    $mensaje .= ". Errores encontrados: {$totalErrores}";
-                }
-
-                return response()->json([
-                    'success' => true,
-                    'message' => $mensaje,
-                    'data' => [
-                        'registros_procesados' => $stats['processed_rows'],
-                        'registros_creados' => $stats['created_rows'],
-                        'registros_actualizados' => $stats['updated_rows'],
-                        'errores' => array_slice($stats['errores'], 0, 10), // Primeros 10 errores
-                        'total_errores' => count($stats['errores']),
-                        'filas_saltadas' => $stats['skipped_rows']
-                    ]
-                ]);
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-                Log::error('Error al procesar Excel de telares: ' . $e->getMessage(), [
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error interno del servidor al procesar el archivo Excel: ' . $e->getMessage()
-                ], 500);
-            }
-
-        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
-            $errores = [];
-            foreach ($e->failures() as $failure) {
-                $errores[] = "Fila {$failure->row()}: " . implode(', ', $failure->errors());
-            }
-
+            $stats = $import->getStats();
             return response()->json([
-                'success' => false,
-                'message' => 'Error de validación en el archivo: ' . implode('; ', $errores)
-            ], 422);
-
+                'success'=>true,
+                'message'=>"Procesado: {$stats['processed_rows']} filas (Creados {$stats['created_rows']}, Actualizados {$stats['updated_rows']}, Saltadas {$stats['skipped_rows']})",
+                'data'=>$stats
+            ]);
         } catch (\Exception $e) {
-            Log::error('Error al procesar Excel: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error interno del servidor al procesar el archivo Excel: ' . $e->getMessage()
-            ], 500);
+            DB::rollBack();
+            Log::error('Excel telares error: '.$e->getMessage());
+            return response()->json(['success'=>false,'message'=>'Error al procesar el Excel: '.$e->getMessage()], 500);
         }
     }
 
-
-    /**
-     * Mostrar formulario para crear un nuevo telar
-     */
-    public function create()
-    {
-        return view('catalagos.create-telar');
-    }
-
-    /**
-     * Guardar un nuevo telar
-     */
+    /** Crear */
     public function store(Request $request)
     {
         try {
             $request->validate([
                 'SalonTejidoId' => 'required|string|max:20',
-                'NoTelarId' => 'required|string|max:10',
-                'Grupo' => 'nullable|string|max:30'
+                'NoTelarId'     => 'required|string|max:10',
+                'Nombre'        => 'nullable|string|max:30',
+                'Grupo'         => 'nullable|string|max:30',
             ]);
 
-            // Verificar si ya existe un telar con el mismo salón y número
-            $telarExistente = ReqTelares::where('SalonTejidoId', $request->SalonTejidoId)
-                                      ->where('NoTelarId', $request->NoTelarId)
-                                      ->first();
-
-            if ($telarExistente) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Ya existe un telar con el mismo salón y número'
-                ], 422);
+            // Duplicados
+            $dup = ReqTelares::where('SalonTejidoId', $request->SalonTejidoId)
+                             ->where('NoTelarId', $request->NoTelarId)
+                             ->exists();
+            if ($dup) {
+                return response()->json(['success'=>false,'message'=>'Ya existe un telar con el mismo salón y número'], 422);
             }
 
-            // Generar nombre automáticamente
-            $nombre = $this->generarNombre($request->SalonTejidoId, $request->NoTelarId);
+            $nombre = $request->Nombre ?: $this->makeName($request->SalonTejidoId, $request->NoTelarId);
 
-            $telar = ReqTelares::create([
+            ReqTelares::create([
                 'SalonTejidoId' => $request->SalonTejidoId,
-                'NoTelarId' => $request->NoTelarId,
-                'Nombre' => $nombre,
-                'Grupo' => $request->Grupo
+                'NoTelarId'     => $request->NoTelarId,
+                'Nombre'        => $nombre,
+                'Grupo'         => $request->Grupo
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => "Telar '{$nombre}' creado exitosamente"
-            ]);
-
+            return response()->json(['success'=>true,'message'=>"Telar '{$nombre}' creado exitosamente"]);
         } catch (\Exception $e) {
-            Log::error('Error al crear telar: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear el telar: ' . $e->getMessage()
-            ], 500);
+            Log::error('Crear telar error: '.$e->getMessage());
+            return response()->json(['success'=>false,'message'=>'Error al crear: '.$e->getMessage()], 500);
         }
     }
 
-    /**
-     * Mostrar formulario para editar un telar
-     */
-    public function edit(ReqTelares $telar)
-    {
-        return view('catalagos.edit-telar', compact('telar'));
-    }
-
-    /**
-     * Actualizar un telar existente
-     */
+    /** Actualizar por uniqueId = "Salon_Telar" */
     public function update(Request $request, $uniqueId)
     {
         try {
-            $request->validate([
-                'SalonTejidoId' => 'required|string|max:20',
-                'NoTelarId' => 'required|string|max:10',
-                'Grupo' => 'nullable|string|max:30'
+            Log::info('Update telar llamado', [
+                'uniqueId' => $uniqueId,
+                'request_data' => $request->all()
             ]);
 
-            // Buscar el telar por uniqueId (SalonTejidoId_NoTelarId)
-            $partes = explode('_', $uniqueId);
-            if (count($partes) !== 2) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'ID de telar inválido'
-                ], 400);
-            }
+            $request->validate([
+                'SalonTejidoId' => 'required|string|max:20',
+                'NoTelarId'     => 'required|string|max:10',
+                'Nombre'        => 'nullable|string|max:30',
+                'Grupo'         => 'nullable|string|max:30',
+            ]);
 
-            $salon = $partes[0];
-            $telarNum = $partes[1];
+            // Parsear uniqueId respetando salones con guiones bajos
+            $pos = strrpos($uniqueId, '_');
+            if ($pos === false) return response()->json(['success'=>false,'message'=>'ID de telar inválido'], 400);
+            $salonKey = substr($uniqueId, 0, $pos);
+            $telarKey = substr($uniqueId, $pos + 1);
 
-            $telar = ReqTelares::where('SalonTejidoId', $salon)
-                              ->where('NoTelarId', $telarNum)
-                              ->first();
+            Log::info('Parsing uniqueId', [
+                'salonKey' => $salonKey,
+                'telarKey' => $telarKey
+            ]);
 
+            // Buscar el telar con diferentes variaciones
+            $telar = ReqTelares::where('SalonTejidoId', $salonKey)->where('NoTelarId', $telarKey)->first();
+
+            // Si no se encuentra, intentar con variaciones
             if (!$telar) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Telar no encontrado'
-                ], 404);
+                Log::info('Buscando telar con variaciones', [
+                    'salonKey' => $salonKey,
+                    'telarKey' => $telarKey
+                ]);
+
+                // Buscar todos los telares para debugging
+                $todosLosTelares = ReqTelares::all();
+                Log::info('Todos los telares en la base de datos', [
+                    'count' => $todosLosTelares->count(),
+                    'telares' => $todosLosTelares->map(function($t) {
+                        return [
+                            'id' => $t->id,
+                            'SalonTejidoId' => $t->SalonTejidoId,
+                            'NoTelarId' => $t->NoTelarId,
+                            'Nombre' => $t->Nombre
+                        ];
+                    })->toArray()
+                ]);
+
+                Log::warning('Telar no encontrado', [
+                    'salonKey' => $salonKey,
+                    'telarKey' => $telarKey
+                ]);
+                return response()->json(['success'=>false,'message'=>'Telar no encontrado'], 404);
             }
 
-            // Verificar si ya existe otro telar con el mismo salón y número (excluyendo el actual)
-            $telarExistente = ReqTelares::where('SalonTejidoId', $request->SalonTejidoId)
-                                      ->where('NoTelarId', $request->NoTelarId)
-                                      ->where('id', '!=', $telar->id)
-                                      ->first();
+            Log::info('Telar encontrado', [
+                'telar_id' => $telar->id,
+                'current_data' => $telar->toArray()
+            ]);
 
-            if ($telarExistente) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Ya existe otro telar con el mismo salón y número'
-                ], 422);
+            // Si cambia combinación, validar duplicados
+            if ($request->SalonTejidoId !== $telar->SalonTejidoId || $request->NoTelarId !== $telar->NoTelarId) {
+                $dup = ReqTelares::where('SalonTejidoId', $request->SalonTejidoId)
+                                 ->where('NoTelarId', $request->NoTelarId)
+                                 ->exists();
+                if ($dup) return response()->json(['success'=>false,'message'=>'Ya existe otro telar con ese Salón/Telar'], 422);
             }
 
-            // Generar nombre automáticamente
-            $nombre = $this->generarNombre($request->SalonTejidoId, $request->NoTelarId);
+            $nombre = $request->Nombre ?: $this->makeName($request->SalonTejidoId, $request->NoTelarId);
 
-            $telar->update([
+            Log::info('Actualizando telar con datos', [
                 'SalonTejidoId' => $request->SalonTejidoId,
                 'NoTelarId' => $request->NoTelarId,
                 'Nombre' => $nombre,
                 'Grupo' => $request->Grupo
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => "Telar '{$nombre}' actualizado exitosamente"
+            $resultado = $telar->update([
+                'SalonTejidoId' => $request->SalonTejidoId,
+                'NoTelarId'     => $request->NoTelarId,
+                'Nombre'        => $nombre,
+                'Grupo'         => $request->Grupo
             ]);
 
+            $telarActualizado = $telar->fresh();
+            Log::info('Resultado de actualización', [
+                'resultado' => $resultado,
+                'telar_actualizado' => $telarActualizado ? $telarActualizado->toArray() : 'No se pudo obtener datos actualizados'
+            ]);
+
+            return response()->json(['success'=>true,'message'=>"Telar '{$nombre}' actualizado exitosamente"]);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar telar: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar el telar: ' . $e->getMessage()
-            ], 500);
+            Log::error('Actualizar telar error: '.$e->getMessage());
+            return response()->json(['success'=>false,'message'=>'Error al actualizar: '.$e->getMessage()], 500);
         }
     }
 
-    /**
-     * Eliminar un telar
-     */
+    /** Eliminar por uniqueId */
     public function destroy($uniqueId)
     {
         try {
-            // Buscar el telar por uniqueId (SalonTejidoId_NoTelarId)
-            $partes = explode('_', $uniqueId);
-            if (count($partes) !== 2) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'ID de telar inválido'
-                ], 400);
-            }
+            $pos = strrpos($uniqueId, '_');
+            if ($pos === false) return response()->json(['success'=>false,'message'=>'ID de telar inválido'], 400);
+            $salonKey = substr($uniqueId, 0, $pos);
+            $telarKey = substr($uniqueId, $pos + 1);
 
-            $salon = $partes[0];
-            $telarNum = $partes[1];
+            $telar = ReqTelares::where('SalonTejidoId', $salonKey)->where('NoTelarId', $telarKey)->first();
+            if (!$telar) return response()->json(['success'=>false,'message'=>'Telar no encontrado'], 404);
 
-            $telar = ReqTelares::where('SalonTejidoId', $salon)
-                              ->where('NoTelarId', $telarNum)
-                              ->first();
-
-            if (!$telar) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Telar no encontrado'
-                ], 404);
-            }
-
-            $nombre = $telar->Nombre;
+            $nm = $telar->Nombre;
             $telar->delete();
 
-            return response()->json([
-                'success' => true,
-                'message' => "Telar '{$nombre}' eliminado exitosamente"
-            ]);
-
+            return response()->json(['success'=>true,'message'=>"Telar '{$nm}' eliminado exitosamente"]);
         } catch (\Exception $e) {
-            Log::error('Error al eliminar telar: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar el telar: ' . $e->getMessage()
-            ], 500);
+            Log::error('Eliminar telar error: '.$e->getMessage());
+            return response()->json(['success'=>false,'message'=>'Error al eliminar: '.$e->getMessage()], 500);
         }
     }
 
-    /**
-     * Genera el nombre del telar basado en el salón y número
-     */
-    private function generarNombre($salon, $telar)
+    /** Generador de nombre cuando no lo provee el usuario */
+    private function makeName($salon, $telar): string
     {
-        if (empty($salon) || empty($telar)) {
-            return null;
-        }
-
-        // Convertir a mayúsculas para comparación
-        $salonUpper = strtoupper(trim($salon));
-
-        // Determinar el prefijo basado en el salón
-        if (strpos($salonUpper, 'JACQUARD') !== false) {
-            $prefijo = 'JAC';
-        } elseif (strpos($salonUpper, 'SMITH') !== false) {
-            $prefijo = 'Smith';
-        } else {
-            // Si no coincide con los patrones conocidos, usar las primeras 3 letras del salón
-            $prefijo = strtoupper(substr(trim($salon), 0, 3));
-        }
-
-        return $prefijo . ' ' . $telar;
+        $up = strtoupper(trim((string)$salon));
+        $pref = str_contains($up, 'JACQUARD') ? 'JAC' : (str_contains($up, 'SMITH') ? 'Smith' : strtoupper(substr($up, 0, 3)));
+        return trim($pref.' '.$telar);
     }
-
-    /**
-     * Mostrar vista de fallas de telares
-     */
-    public function falla()
-    {
-        return view('telares.falla');
-    }
-
 }

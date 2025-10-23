@@ -18,9 +18,8 @@ class ReqEficienciaStdImport implements ToModel, WithHeadingRow, WithBatchInsert
     private int $skippedRows = 0;
     private int $createdRows = 0;
     private int $updatedRows = 0;
-    private int $duplicadosRows = 0; // Duplicados dentro del mismo Excel
+
     private array $errores = [];
-    private array $processedInThisImport = []; // Para rastrear registros ya procesados en esta importación
 
     /**
      * Normaliza una clave eliminando acentos, espacios y convirtiendo a minúsculas
@@ -112,22 +111,12 @@ class ReqEficienciaStdImport implements ToModel, WithHeadingRow, WithBatchInsert
                 return null;
             }
 
-            // Extraer datos de la fila
-            $salonExcel = $this->parseString($this->getValue($row, ['Salon', 'salon', 'SalonTejidoId', 'salontejidoid']), 20);
+            // Extraer datos de la fila directamente
+            $salon = $this->parseString($this->getValue($row, ['Salon', 'salon', 'SalonTejidoId', 'salontejidoid']), 20);
             $telar = $this->parseString($this->getValue($row, ['NoTelar', 'No Telar', 'notelar', 'Telar']), 10);
             $fibra = $this->parseString($this->getValue($row, ['Fibra', 'FibraId', 'fibraid', 'TipoHilo', 'Tipo Hilo', 'tipo_hilo']), 15);
             $eficiencia = $this->parseFloat($this->getValue($row, ['Eficiencia', 'eficiencia']));
             $densidad = $this->parseString($this->getValue($row, ['Densidad', 'densidad']), 10);
-
-            // Usar el salón del Excel o un valor por defecto
-            $salon = !empty($salonExcel) ? $salonExcel : 'JACQUARD';
-
-            // Mantener solo el número del telar (sin prefijos)
-            if (!is_numeric($telar)) {
-                // Si tiene prefijo, extraer solo el número
-                $telar = $this->extraerNumeroTelar($telar);
-            }
-            // Si es solo un número, mantenerlo como está (no hacer nada)
 
             // Log solo cada 100 filas para reducir overhead
             if ($this->rowCounter % 100 === 0) {
@@ -145,39 +134,18 @@ class ReqEficienciaStdImport implements ToModel, WithHeadingRow, WithBatchInsert
                 return null;
             }
 
-            // Crear clave única para este registro (telar + fibra + densidad)
-            $uniqueKey = $telar . '|' . $fibra . '|' . ($densidad ?? 'Normal');
+            // Crear nuevo registro directamente
+            $modelo = new ReqEficienciaStd([
+                'SalonTejidoId' => $salon,
+                'NoTelarId' => $telar,
+                'FibraId' => $fibra,
+                'Eficiencia' => $eficiencia,
+                'Densidad' => $densidad ?? 'Normal'
+            ]);
 
-            // Verificar si ya existe una eficiencia con el mismo telar y fibra en la BD
-            $eficienciaExistente = ReqEficienciaStd::where('NoTelarId', $telar)
-                                                  ->where('FibraId', $fibra)
-                                                  ->where('Densidad', $densidad ?? 'Normal')
-                                                  ->first();
-
-            if ($eficienciaExistente) {
-                // Actualizar registro existente
-                $eficienciaExistente->update([
-                    'SalonTejidoId' => $salon,
-                    'Eficiencia' => $eficiencia,
-                    'Densidad' => $densidad ?? 'Normal'
-                ]);
-                $this->processedRows++;
-                $this->updatedRows++;
-                return null;
-            } else {
-                // Crear nuevo registro
-                $modelo = new ReqEficienciaStd([
-                    'SalonTejidoId' => $salon,
-                    'NoTelarId' => $telar,
-                    'FibraId' => $fibra,
-                    'Eficiencia' => $eficiencia,
-                    'Densidad' => $densidad ?? 'Normal'
-                ]);
-
-                $this->processedRows++;
-                $this->createdRows++;
-                return $modelo;
-            }
+            $this->processedRows++;
+            $this->createdRows++;
+            return $modelo;
 
         } catch (\Exception $e) {
             Log::error('Error importing row: ' . $e->getMessage(), [
@@ -263,38 +231,5 @@ class ReqEficienciaStdImport implements ToModel, WithHeadingRow, WithBatchInsert
 
 
 
-    /**
-     * Extraer solo el número del telar (sin prefijos)
-     */
-    private function extraerNumeroTelar($nombreTelar)
-    {
-        if (empty($nombreTelar)) {
-            return '';
-        }
-
-        $nombreTelar = trim($nombreTelar);
-
-        // Remover prefijos comunes de salón
-        $prefijos = ['JAC', 'JACQUARD', 'ITEM', 'ITEMA', 'KARL', 'MAYER', 'SMITH'];
-
-        foreach ($prefijos as $prefijo) {
-            if (stripos($nombreTelar, $prefijo) === 0) {
-                $nombreTelar = trim(substr($nombreTelar, strlen($prefijo)));
-                break;
-            }
-        }
-
-        // Si queda solo números, devolverlos; si no, devolver el nombre completo
-        if (preg_match('/^\d+$/', $nombreTelar)) {
-            return $nombreTelar;
-        }
-
-        // Si contiene números, extraer solo los números
-        if (preg_match('/\d+/', $nombreTelar, $matches)) {
-            return $matches[0];
-        }
-
-        return $nombreTelar; // Devolver tal como está si no se puede extraer número
-    }
 }
 

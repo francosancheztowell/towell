@@ -191,13 +191,13 @@
                                 location.hostname === '127.0.0.1';
 
                 if (!isSecure) {
-                    status.innerHTML = '❌ La cámara requiere HTTPS<br><small>Accede a: https://localhost:8000</small>';
+                    status.innerHTML = 'La cámara requiere HTTPS<br><small>Accede a: https://localhost:8000</small>';
                     return;
                 }
 
                 // Verificar soporte de getUserMedia
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    status.innerHTML = '❌ Tu navegador no soporta la cámara<br><small>Usa Chrome, Firefox o Safari</small>';
+                    status.innerHTML = 'Tu navegador no soporta la cámara<br><small>Usa Chrome, Firefox o Safari</small>';
                     return;
                 }
 
@@ -223,20 +223,20 @@
                         }, 500);
                     }).catch(error => {
                         console.error('Error al reproducir video:', error);
-                        status.textContent = '❌ Error al iniciar la cámara';
+                        status.textContent = 'Error al iniciar la cámara';
                     });
                 };
 
                 // Manejar errores del video
                 video.onerror = (error) => {
                     console.error('Error en el video:', error);
-                    status.textContent = '❌ Error en la cámara';
+                    status.textContent = 'Error en la cámara';
                 };
 
             } catch (error) {
                 console.error('Error al acceder a la cámara:', error);
 
-                let errorMsg = '❌ No se pudo acceder a la cámara\n\n';
+                let errorMsg = 'No se pudo acceder a la cámara\n\n';
                 if (error.name === 'NotAllowedError') {
                     errorMsg += 'Permisos denegados. Por favor, permite el acceso a la cámara.';
                 } else if (error.name === 'NotFoundError') {
@@ -309,7 +309,7 @@
 
             // Validar que el QR no esté vacío
             if (!qrData || qrData.trim() === '') {
-                status.textContent = '❌ Código QR vacío. Intenta de nuevo.';
+                status.textContent = 'Código QR vacío. Intenta de nuevo.';
                 setTimeout(() => {
                     status.textContent = 'Apunta la cámara al código QR';
                 }, 2000);
@@ -339,7 +339,7 @@
                 console.log('Datos recibidos:', data);
 
                 if (data.success) {
-                    status.textContent = `✅ Acceso exitoso! Bienvenido ${data.user || ''}`;
+                    status.textContent = `Acceso exitoso! Bienvenido ${data.user || ''}`;
 
                     // Cerrar el modal y redirigir después de un breve delay
                     setTimeout(() => {
@@ -347,7 +347,7 @@
                         window.location.href = '/produccionProceso';
                     }, 1000);
                 } else {
-                    status.textContent = `❌ ${data.message || 'Código QR inválido'}`;
+                    status.textContent = `${data.message || 'Código QR inválido'}`;
                     setTimeout(() => {
                         status.textContent = 'Apunta la cámara al código QR';
                         // Reiniciar el escaneo después del error
@@ -356,7 +356,7 @@
                 }
             } catch (error) {
                 console.error('Error en la autenticación QR:', error);
-                status.textContent = '❌ Error de conexión. Reintentando...';
+                status.textContent = 'Error de conexión. Reintentando...';
                 setTimeout(() => {
                     status.textContent = 'Apunta la cámara al código QR';
                     // Reiniciar el escaneo después del error

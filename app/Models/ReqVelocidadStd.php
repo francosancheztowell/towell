@@ -25,13 +25,6 @@ class ReqVelocidadStd extends Model
         'Velocidad' => 'float'
     ];
 
-    /**
-     * Convertir SMITH a ITEMA para mostrar en la vista
-     */
-    public function getSalonTejidoIdAttribute($value)
-    {
-        return $value === 'SMITH' ? 'ITEMA' : $value;
-    }
 
     public function getRouteKeyName()
     {

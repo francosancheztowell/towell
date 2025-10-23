@@ -381,10 +381,26 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');
         Route::get('/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones.index');
 
+        // Rutas CRUD para telares
+        Route::post('/telares', [CatalagoTelarController::class, 'store'])->name('telares.store');
+        Route::put('/telares/{telar}', [CatalagoTelarController::class, 'update'])->name('telares.update');
+        Route::delete('/telares/{telar}', [CatalagoTelarController::class, 'destroy'])->name('telares.destroy');
+
         // Rutas para procesar Excel de catálogos
         Route::post('/telares/excel', [CatalagoTelarController::class, 'procesarExcel'])->name('telares.excel.upload');
         Route::post('/eficiencia/excel', [CatalagoEficienciaController::class, 'procesarExcel'])->name('eficiencia.excel.upload');
         Route::post('/velocidad/excel', [CatalagoVelocidadController::class, 'procesarExcel'])->name('velocidad.excel.upload');
+        Route::post('/calendarios/excel', [CalendarioController::class, 'procesarExcel'])->name('calendarios.excel.upload');
+
+        // Rutas CRUD para calendarios
+        Route::post('/calendarios', [CalendarioController::class, 'store'])->name('calendarios.store');
+        Route::put('/calendarios/{calendario}', [CalendarioController::class, 'update'])->name('calendarios.update');
+        Route::delete('/calendarios/{calendario}', [CalendarioController::class, 'destroy'])->name('calendarios.destroy');
+
+        // Rutas CRUD para líneas de calendario
+        Route::post('/calendarios/lineas', [CalendarioController::class, 'storeLine'])->name('calendarios.lineas.store');
+        Route::put('/calendarios/lineas/{linea}', [CalendarioController::class, 'updateLine'])->name('calendarios.lineas.update');
+        Route::delete('/calendarios/lineas/{linea}', [CalendarioController::class, 'destroyLine'])->name('calendarios.lineas.destroy');
         Route::post('/aplicaciones/excel', [AplicacionesController::class, 'procesarExcel'])->name('aplicaciones.excel.upload');
 
         // Rutas CRUD para eficiencia
@@ -397,7 +413,15 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/velocidad/{velocidad}', [CatalagoVelocidadController::class, 'update'])->name('velocidad.update');
         Route::delete('/velocidad/{velocidad}', [CatalagoVelocidadController::class, 'destroy'])->name('velocidad.destroy');
 
+        // Rutas CRUD para aplicaciones
+        Route::post('/aplicaciones', [AplicacionesController::class, 'store'])->name('aplicaciones.store');
+        Route::put('/aplicaciones/{aplicacion}', [AplicacionesController::class, 'update'])->name('aplicaciones.update');
+        Route::delete('/aplicaciones/{aplicacion}', [AplicacionesController::class, 'destroy'])->name('aplicaciones.destroy');
 
+        // Rutas CRUD para codificacion
+        Route::post('/codificacion', [CodificacionController::class, 'store'])->name('codificacion.store');
+        Route::put('/codificacion/{codificacion}', [CodificacionController::class, 'update'])->name('codificacion.update');
+        Route::delete('/codificacion/{codificacion}', [CodificacionController::class, 'destroy'])->name('codificacion.destroy');
     });
 
     // ============================================
@@ -481,7 +505,6 @@ Route::middleware(['auth'])->group(function () {
         $registros = \App\Models\ReqProgramaTejido::orderBy('NoTelarId')->get();
         return view('modulos.req-programa-tejido', compact('registros'));
     })->name('catalogos.req-programa-tejido');
-    Route::get('/planeacion/telares', [CatalagoTelarController::class, 'index'])->name('telares.index');
     Route::get('/planeacion/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia.index');
     Route::get('/planeacion/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad.index');
     Route::get('/planeacion/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');

@@ -158,17 +158,5 @@ class ReqEficienciaStd extends Model
     }
 
 
-    /**
-     * Accessor para mostrar SMITH como ITEMA en la tabla
-     */
-    public function getSalonTejidoIdAttribute($value)
-    {
-        // Si el valor es SMITH, mostrarlo como ITEMA
-        if ($value === 'SMITH') {
-            return 'ITEMA';
-        }
-
-        return $value;
-    }
 }
 

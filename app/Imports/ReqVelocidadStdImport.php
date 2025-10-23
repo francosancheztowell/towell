@@ -34,24 +34,14 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
                 return null;
             }
 
-            // Extraer datos de la fila usando el mismo método que eficiencia
-            $salonExcel = $this->parseString($this->getValue($row, ['Salon', 'salon', 'SalonTejidoId', 'salontejidoid']), 20);
+            // Extraer datos de la fila directamente
+            $salon = $this->parseString($this->getValue($row, ['Salon', 'salon', 'SalonTejidoId', 'salontejidoid']), 20);
             $telar = $this->parseString($this->getValue($row, ['NoTelar', 'No Telar', 'notelar', 'Telar']), 10);
             $fibra = $this->parseString($this->getValue($row, ['Fibra', 'FibraId', 'fibraid']), 15);
             $velocidad = $this->parseFloat($this->getValue($row, ['RPM', 'rpm', 'Velocidad', 'velocidad']));
             $densidad = $this->parseString($this->getValue($row, ['Densidad', 'densidad']), 10);
 
-            // Usar el salón del Excel o un valor por defecto
-            $salon = !empty($salonExcel) ? $salonExcel : 'JACQUARD';
-
-            // Mantener solo el número del telar (sin prefijos)
-            if (!is_numeric($telar)) {
-                // Si tiene prefijo, extraer solo el número
-                $telar = $this->extraerNumeroTelar($telar);
-            }
-
             Log::info("Datos extraídos fila {$this->rowCounter}", [
-                'salon_excel' => $salonExcel,
                 'salon' => $salon,
                 'telar' => $telar,
                 'fibra' => $fibra,
@@ -66,38 +56,19 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
                 return null;
             }
 
-            // Verificar si ya existe una velocidad con el mismo telar, fibra y densidad en la BD
-            $velocidadExistente = ReqVelocidadStd::where('NoTelarId', $telar)
-                                                 ->where('FibraId', $fibra)
-                                                 ->where('Densidad', $densidad ?? 'Normal')
-                                                 ->first();
+            // Crear nuevo registro directamente
+            $modelo = new ReqVelocidadStd([
+                'SalonTejidoId' => $salon,
+                'NoTelarId' => $telar,
+                'FibraId' => $fibra,
+                'Velocidad' => $velocidad,
+                'Densidad' => $densidad ?? 'Normal'
+            ]);
 
-            if ($velocidadExistente) {
-                // Actualizar registro existente
-                $velocidadExistente->update([
-                    'SalonTejidoId' => $salon,
-                    'Velocidad' => $velocidad,
-                    'Densidad' => $densidad ?? 'Normal'
-                ]);
-                $this->processedRows++;
-                $this->updatedRows++;
-                Log::info("Velocidad existente actualizada: {$telar} - {$fibra}");
-                return null;
-            } else {
-                // Crear nuevo registro
-                $modelo = new ReqVelocidadStd([
-                    'SalonTejidoId' => $salon,
-                    'NoTelarId' => $telar,
-                    'FibraId' => $fibra,
-                    'Velocidad' => $velocidad,
-                    'Densidad' => $densidad ?? 'Normal'
-                ]);
-
-                $this->processedRows++;
-                $this->createdRows++;
-                Log::info("Nueva velocidad creada: {$telar} - {$fibra} - {$velocidad} RPM");
-                return $modelo;
-            }
+            $this->processedRows++;
+            $this->createdRows++;
+            Log::info("Nueva velocidad creada: {$telar} - {$fibra} - {$velocidad} RPM");
+            return $modelo;
 
         } catch (\Exception $e) {
             $this->errores[] = "Fila {$this->rowCounter}: {$e->getMessage()}";
@@ -244,37 +215,4 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
         ];
     }
 
-    /**
-     * Extraer solo el número del telar (sin prefijos)
-     */
-    private function extraerNumeroTelar($nombreTelar)
-    {
-        if (empty($nombreTelar)) {
-            return '';
-        }
-
-        $nombreTelar = trim($nombreTelar);
-
-        // Remover prefijos comunes de salón
-        $prefijos = ['JAC', 'JACQUARD', 'ITEM', 'ITEMA', 'KARL', 'MAYER', 'SMITH'];
-
-        foreach ($prefijos as $prefijo) {
-            if (stripos($nombreTelar, $prefijo) === 0) {
-                $nombreTelar = trim(substr($nombreTelar, strlen($prefijo)));
-                break;
-            }
-        }
-
-        // Si queda solo números, devolverlos
-        if (preg_match('/^\d+$/', $nombreTelar)) {
-            return $nombreTelar;
-        }
-
-        // Si contiene números, extraer solo los números
-        if (preg_match('/\d+/', $nombreTelar, $matches)) {
-            return $matches[0];
-        }
-
-        return $nombreTelar; // Devolver tal como está si no se puede extraer número
-    }
 }

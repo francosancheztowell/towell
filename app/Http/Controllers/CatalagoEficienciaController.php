@@ -114,12 +114,13 @@ class CatalagoEficienciaController extends Controller
             ]);
 
             // Usar solo el número del telar para evitar problemas de longitud
-            $salon = $request->salon ?: 'JACQUARD'; // Usar salón enviado o JACQUARD por defecto
+            $salon = $request->SalonTejidoId ?: 'JACQUARD'; // Usar salón enviado o JACQUARD por defecto
 
             // Verificar duplicados en una sola consulta
             if (ReqEficienciaStd::where('SalonTejidoId', $salon)
                                ->where('NoTelarId', $request->NoTelarId)
                                ->where('FibraId', $request->FibraId)
+                               ->where('Densidad', $request->Densidad ?? 'Normal')
                                ->exists()) {
                 return response()->json([
                     'success' => false,
@@ -163,13 +164,14 @@ class CatalagoEficienciaController extends Controller
             ]);
 
             // Usar solo el número del telar para evitar problemas de longitud
-            $salon = $request->salon ?: 'JACQUARD'; // Usar salón enviado o JACQUARD por defecto
+            $salon = $request->SalonTejidoId ?: 'JACQUARD'; // Usar salón enviado o JACQUARD por defecto
 
             // Verificar duplicados excluyendo el registro actual
             if (ReqEficienciaStd::where('SalonTejidoId', $salon)
                                ->where('NoTelarId', $request->NoTelarId)
                                ->where('FibraId', $request->FibraId)
-                               ->where('Id', '!=', $eficiencia->Id)
+                               ->where('Densidad', $request->Densidad ?? 'Normal')
+                               ->where('Id', '!=', (int)$eficiencia->Id)
                                ->exists()) {
                 return response()->json([
                     'success' => false,

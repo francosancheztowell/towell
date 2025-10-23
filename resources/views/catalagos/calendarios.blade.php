@@ -20,7 +20,8 @@
                                 <tr class="text-center hover:bg-blue-50 transition cursor-pointer border-b border-gray-200"
                                     onclick="selectRowTab(this, '{{ $item->CalendarioId }}')"
                                     ondblclick="deselectRowTab(this)"
-                                    data-calendario="{{ $item->CalendarioId }}">
+                                    data-calendario="{{ $item->CalendarioId }}"
+                                    data-calendario-id="{{ $item->Id }}">
                                     <td class="px-4  font-medium">{{ $item->CalendarioId }}</td>
                                     <td class="px-4 ">{{ $item->Nombre }}</td>
                         </tr>
@@ -52,7 +53,8 @@
                                 <tr class="text-center hover:bg-green-50 transition cursor-pointer border-b border-gray-200"
                                     onclick="selectRowLine(this, '{{ $item->CalendarioId }}-{{ $item->Turno }}')"
                                     ondblclick="deselectRowLine(this)"
-                                    data-calendario-line="{{ $item->CalendarioId }}-{{ $item->Turno }}">
+                                    data-calendario-line="{{ $item->CalendarioId }}-{{ $item->Turno }}"
+                                    data-linea-id="{{ $item->Id }}">
                                     <td class="px-4  font-medium">{{ $item->CalendarioId }}</td>
                                     <td class="px-4 ">{{ date('d/m/Y H:i', strtotime($item->FechaInicio)) }}</td>
                                     <td class="px-4 ">{{ date('d/m/Y H:i', strtotime($item->FechaFin)) }}</td>
@@ -95,8 +97,8 @@
             // Limpiar selecciones de la otra tabla
             selectedCalendarioLine = null;
 
-            // Guardar calendario seleccionado
-            selectedCalendarioTab = calendarioId;
+            // Guardar calendario seleccionado (usar ID de la base de datos)
+            selectedCalendarioTab = row.getAttribute('data-calendario-id');
 
             // ✨ FILTRAR LA SEGUNDA TABLA - Mostrar solo líneas del calendario seleccionado
             filtrarLineasPorCalendario(calendarioId);
@@ -170,8 +172,8 @@
             // Limpiar selecciones de la otra tabla
             selectedCalendarioTab = null;
 
-            // Guardar calendario line seleccionado
-            selectedCalendarioLine = calendarioLineId;
+            // Guardar calendario line seleccionado (usar ID de la base de datos)
+            selectedCalendarioLine = row.getAttribute('data-linea-id');
 
             // Habilitar botones de editar y eliminar
             enableButtons();
@@ -211,8 +213,97 @@
             }
         }
 
+        // Función para agregar línea de calendario
+        function agregarLineaCalendario() {
+            Swal.fire({
+                title: 'Agregar Nueva Línea de Calendario',
+                html: `
+                    <div class="text-left space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">No Calendario</label>
+                            <input type="text" id="agregar-linea-calendario-id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: CAL011">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Inicio (Fecha Hora)</label>
+                            <input type="datetime-local" id="agregar-fecha-inicio" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fin (Fecha Hora)</label>
+                            <input type="datetime-local" id="agregar-fecha-fin" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Horas</label>
+                            <input type="number" step="0.1" id="agregar-horas" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="8.0">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
+                            <select id="agregar-turno" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="1">Turno 1</option>
+                                <option value="2">Turno 2</option>
+                                <option value="3">Turno 3</option>
+                            </select>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Agregar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                width: '500px',
+                preConfirm: () => {
+                    const calendarioId = document.getElementById('agregar-linea-calendario-id').value;
+                    const fechaInicio = document.getElementById('agregar-fecha-inicio').value;
+                    const fechaFin = document.getElementById('agregar-fecha-fin').value;
+                    const horas = document.getElementById('agregar-horas').value;
+                    const turno = document.getElementById('agregar-turno').value;
+
+                    if (!calendarioId || !fechaInicio || !fechaFin || !horas || !turno) {
+                        Swal.showValidationMessage('Por favor completa todos los campos');
+                        return false;
+                    }
+                    return { calendarioId, fechaInicio, fechaFin, horas, turno };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Enviar datos al servidor
+                    fetch('/planeacion/calendarios/lineas', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({
+                            CalendarioId: result.value.calendarioId,
+                            FechaInicio: result.value.fechaInicio,
+                            FechaFin: result.value.fechaFin,
+                            HorasTurno: result.value.horas,
+                            Turno: result.value.turno
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast(data.message, 'success');
+                            location.reload();
+                        } else {
+                            showToast(data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        showToast('Error al crear línea de calendario', 'error');
+                    });
+                }
+            });
+        }
+
         // Funciones de modales SweetAlert para Calendarios
         function agregarCalendario() {
+            // Si hay una línea seleccionada, agregar línea de calendario
+            if (selectedCalendarioLine) {
+                agregarLineaCalendario();
+                return;
+            }
             Swal.fire({
                 title: 'Agregar Nuevo Calendario',
                 html: `
@@ -245,12 +336,37 @@
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    showToast(`Calendario ${result.value.nombre} agregado correctamente`, 'success');
+                    // Enviar datos al servidor
+                    fetch('/planeacion/calendarios', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({
+                            CalendarioId: result.value.calendarioId,
+                            Nombre: result.value.nombre
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast(data.message, 'success');
+                            location.reload();
+                        } else {
+                            showToast(data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        showToast('Error al crear calendario', 'error');
+                    });
                 }
             });
         }
 
         function editarCalendario() {
+            console.log('editarCalendario llamado, selectedCalendarioTab:', selectedCalendarioTab, 'selectedCalendarioLine:', selectedCalendarioLine);
+
             if (!selectedCalendarioTab && !selectedCalendarioLine) {
                 Swal.fire({
                     title: 'Error',
@@ -262,7 +378,7 @@
 
             if (selectedCalendarioTab) {
                 // Editar calendario de la tabla 1
-                const selectedRow = document.querySelector(`tr[data-calendario="${selectedCalendarioTab}"]`);
+                const selectedRow = document.querySelector(`tr[data-calendario-id="${selectedCalendarioTab}"]`);
                 if (!selectedRow) return;
 
                 const cells = selectedRow.querySelectorAll('td');
@@ -301,12 +417,38 @@
                     }
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        showToast(`Calendario ${result.value.nombre} actualizado correctamente`, 'success');
+                        // Obtener el CalendarioId real de la fila seleccionada
+                        const selectedRow = document.querySelector(`tr[data-calendario-id="${selectedCalendarioTab}"]`);
+                        const calendarioId = selectedRow.querySelector('td:first-child').textContent;
+
+                        // Enviar datos al servidor
+                        fetch(`/planeacion/calendarios/${calendarioId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            },
+                            body: JSON.stringify({
+                                Nombre: result.value.nombre
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast(data.message, 'success');
+                                location.reload();
+                            } else {
+                                showToast(data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            showToast('Error al actualizar calendario', 'error');
+                        });
                     }
                 });
             } else if (selectedCalendarioLine) {
                 // Editar línea de calendario de la tabla 2
-                const selectedRow = document.querySelector(`tr[data-calendario-line="${selectedCalendarioLine}"]`);
+                const selectedRow = document.querySelector(`tr[data-linea-id="${selectedCalendarioLine}"]`);
                 if (!selectedRow) return;
 
                 const cells = selectedRow.querySelectorAll('td');
@@ -315,6 +457,46 @@
                 const fechaFin = cells[2].textContent;
                 const horas = cells[3].textContent;
                 const turno = cells[4].textContent;
+
+                // Convertir fechas al formato datetime-local
+                function convertirFechaParaInput(fechaTexto) {
+                    console.log('Convirtiendo fecha:', fechaTexto);
+
+                    // Limpiar el texto de la fecha
+                    let fechaLimpia = fechaTexto.trim();
+
+                    // Si contiene "a. m." o "p. m.", convertir a formato 24h
+                    if (fechaLimpia.includes('a. m.')) {
+                        fechaLimpia = fechaLimpia.replace(' a. m.', '');
+                    } else if (fechaLimpia.includes('p. m.')) {
+                        fechaLimpia = fechaLimpia.replace(' p. m.', '');
+                        // Convertir a formato 24h (sumar 12 horas si es necesario)
+                        const partes = fechaLimpia.split(' ');
+                        if (partes.length === 2) {
+                            const [fecha, hora] = partes;
+                            const [horaStr, minuto] = hora.split(':');
+                            let hora24 = parseInt(horaStr);
+                            if (hora24 !== 12) { // Si no es 12 PM, sumar 12
+                                hora24 += 12;
+                            }
+                            fechaLimpia = `${fecha} ${hora24.toString().padStart(2, '0')}:${minuto}`;
+                        }
+                    }
+
+                    // Intentar parsear la fecha
+                    const fecha = new Date(fechaLimpia);
+                    if (isNaN(fecha.getTime())) {
+                        console.log('No se pudo parsear la fecha, usando fallback');
+                        return "2024-01-01T06:00"; // Fallback si no se puede parsear
+                    }
+
+                    const resultado = fecha.toISOString().slice(0, 16);
+                    console.log('Fecha convertida:', resultado);
+                    return resultado;
+                }
+
+                const fechaInicioFormato = convertirFechaParaInput(fechaInicio);
+                const fechaFinFormato = convertirFechaParaInput(fechaFin);
 
                 Swal.fire({
                     title: 'Editar Línea de Calendario',
@@ -326,11 +508,11 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Inicio (Fecha Hora)</label>
-                                <input type="datetime-local" id="editar-fecha-inicio" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="2024-01-01T06:00">
+                                <input type="datetime-local" id="editar-fecha-inicio" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${fechaInicioFormato}">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Fin (Fecha Hora)</label>
-                                <input type="datetime-local" id="editar-fecha-fin" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="2024-01-01T14:00">
+                                <input type="datetime-local" id="editar-fecha-fin" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${fechaFinFormato}">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Horas</label>
@@ -338,7 +520,11 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
-                                <input type="number" id="editar-turno" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${turno}">
+                                <select id="editar-turno" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="1" ${turno == '1' ? 'selected' : ''}>Turno 1</option>
+                                    <option value="2" ${turno == '2' ? 'selected' : ''}>Turno 2</option>
+                                    <option value="3" ${turno == '3' ? 'selected' : ''}>Turno 3</option>
+                                </select>
                             </div>
                         </div>
                     `,
@@ -363,13 +549,50 @@
                     }
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        showToast(`Línea de calendario actualizada correctamente`, 'success');
+                        // Obtener el ID de la línea seleccionada
+                        const lineaId = selectedCalendarioLine;
+                        console.log('Enviando actualización de línea con ID:', lineaId);
+                        console.log('Datos a enviar:', {
+                            FechaInicio: result.value.fechaInicio,
+                            FechaFin: result.value.fechaFin,
+                            HorasTurno: result.value.horas,
+                            Turno: result.value.turno
+                        });
+
+                        // Enviar datos al servidor
+                        fetch(`/planeacion/calendarios/lineas/${lineaId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            },
+                            body: JSON.stringify({
+                                FechaInicio: result.value.fechaInicio,
+                                FechaFin: result.value.fechaFin,
+                                HorasTurno: result.value.horas,
+                                Turno: result.value.turno
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast(data.message, 'success');
+                                location.reload();
+                            } else {
+                                showToast(data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            showToast('Error al actualizar línea de calendario', 'error');
+                        });
                     }
                 });
             }
         }
 
         function eliminarCalendario() {
+            console.log('eliminarCalendario llamado, selectedCalendarioTab:', selectedCalendarioTab, 'selectedCalendarioLine:', selectedCalendarioLine);
+
             if (!selectedCalendarioTab && !selectedCalendarioLine) {
                 Swal.fire({
                     title: 'Error',
@@ -382,7 +605,7 @@
             let title, html;
 
             if (selectedCalendarioTab) {
-                const selectedRow = document.querySelector(`tr[data-calendario="${selectedCalendarioTab}"]`);
+                const selectedRow = document.querySelector(`tr[data-calendario-id="${selectedCalendarioTab}"]`);
                 if (!selectedRow) return;
 
                 const cells = selectedRow.querySelectorAll('td');
@@ -392,7 +615,7 @@
                 title = '¿Eliminar calendario?';
                 html = `Vas a eliminar el calendario <b>${calendarioId}</b> - ${nombre}.`;
             } else if (selectedCalendarioLine) {
-                const selectedRow = document.querySelector(`tr[data-calendario-line="${selectedCalendarioLine}"]`);
+                const selectedRow = document.querySelector(`tr[data-linea-id="${selectedCalendarioLine}"]`);
                 if (!selectedRow) return;
 
                 const cells = selectedRow.querySelectorAll('td');
@@ -414,7 +637,55 @@
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    showToast('El registro fue eliminado correctamente', 'success');
+                    if (selectedCalendarioTab) {
+                        // Obtener el CalendarioId real de la fila seleccionada
+                        const selectedRow = document.querySelector(`tr[data-calendario-id="${selectedCalendarioTab}"]`);
+                        const calendarioId = selectedRow.querySelector('td:first-child').textContent;
+
+                        // Eliminar calendario
+                        fetch(`/planeacion/calendarios/${calendarioId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast(data.message, 'success');
+                                location.reload();
+                            } else {
+                                showToast(data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            showToast('Error al eliminar calendario', 'error');
+                        });
+                    } else if (selectedCalendarioLine) {
+                        // Eliminar línea de calendario
+                        const selectedRow = document.querySelector(`tr[data-linea-id="${selectedCalendarioLine}"]`);
+                        const lineaId = selectedCalendarioLine;
+                        console.log('Enviando eliminación de línea con ID:', lineaId);
+
+                        fetch(`/planeacion/calendarios/lineas/${lineaId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast(data.message, 'success');
+                                location.reload();
+                            } else {
+                                showToast(data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            showToast('Error al eliminar línea de calendario', 'error');
+                        });
+                    }
                     disableButtons();
                 }
             });
@@ -720,7 +991,7 @@
                 if (result.isConfirmed && result.value) {
                     // Mostrar modal de procesamiento
                     Swal.fire({
-                        title: '⏳ Procesando...',
+                        title: 'Procesando...',
                         html: '<p class="text-gray-600">Se está procesando tu archivo de calendarios.</p><div class="mt-4"><div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-green-600 h-2 rounded-full animate-pulse" style="width: 100%"></div></div></div>',
                         allowOutsideClick: false,
                         allowEscapeKey: false,
@@ -734,7 +1005,7 @@
                     formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
                     formData.append('tipo', 'calendarios');
 
-                    fetch('/calendarios/procesar-excel', {
+                    fetch('/planeacion/calendarios/excel', {
                         method: 'POST',
                         body: formData
                     })
@@ -744,19 +1015,13 @@
 
                         if (data.success) {
                             Swal.fire({
-                                title: '✅ ¡Procesado Exitosamente!',
+                                title: '¡Procesado Exitosamente!',
                                 html: `
                                     <div class="text-left space-y-2">
-                                        <p><strong>📊 Resultado del procesamiento:</strong></p>
-                                        <ul class="space-y-1 text-sm">
-                                            <li>✓ Registros procesados: <strong>${data.data.registros_procesados}</strong></li>
-                                            <li>✓ Nuevos registros: <strong class="text-green-600">${data.data.registros_creados}</strong></li>
-                                            <li>⚠️ Errores encontrados: <strong class="text-yellow-600">${data.data.total_errores}</strong></li>
-                                        </ul>
-                                        ${data.data.total_errores > 0 ? `<p class="text-xs text-gray-500 mt-3">Verifica el archivo Excel y revisa los errores.</p>` : ''}
+                                        <p>Registros procesados: <strong>${data.data.registros_procesados}</strong></p>
                                     </div>
                                 `,
-                                icon: data.data.total_errores > 0 ? 'warning' : 'success',
+                                icon: 'success',
                                 confirmButtonText: 'Entendido',
                                 confirmButtonColor: '#10b981'
                             }).then(() => {
@@ -764,7 +1029,7 @@
                             });
                         } else {
                             Swal.fire({
-                                title: '❌ Error en el Procesamiento',
+                                title: 'Error en el Procesamiento',
                                 text: data.message || 'Hubo un problema al procesar el archivo',
                                 icon: 'error',
                                 confirmButtonText: 'Entendido',
@@ -775,7 +1040,7 @@
                     .catch(error => {
                         Swal.close();
                         Swal.fire({
-                            title: '❌ Error de Conexión',
+                            title: 'Error de Conexión',
                             text: 'Error al procesar: ' + error.message,
                             icon: 'error',
                             confirmButtonText: 'Entendido',
@@ -848,7 +1113,7 @@
                     formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
                     formData.append('tipo', 'lineas');
 
-                    fetch('/calendarios/procesar-excel', {
+                    fetch('/planeacion/calendarios/excel', {
                         method: 'POST',
                         body: formData
                     })
@@ -858,13 +1123,10 @@
 
                         if (data.success) {
                             Swal.fire({
-                                title: '✅ ¡Procesado Exitosamente!',
+                                title: '¡Procesado Exitosamente!',
                                 html: `
                                     <div class="text-left space-y-2">
-                                        <p><strong>📊 Resultado del procesamiento:</strong></p>
-                                        <ul class="space-y-1 text-sm">
-                                            <li>Registros procesados: <strong>${data.data.registros_procesados}</strong></li>
-                                        </ul>
+                                        <p>Registros procesados: <strong>${data.data.registros_procesados}</strong></p>
                                     </div>
                                 `,
                                 icon: 'success',
@@ -875,7 +1137,7 @@
                             });
                         } else {
                             Swal.fire({
-                                title: '❌ Error en el Procesamiento',
+                                title: 'Error en el Procesamiento',
                                 text: data.message || 'Hubo un problema al procesar el archivo',
                                 icon: 'error',
                                 confirmButtonText: 'Entendido',
@@ -886,7 +1148,7 @@
                     .catch(error => {
                         Swal.close();
                         Swal.fire({
-                            title: '❌ Error de Conexión',
+                            title: 'Error de Conexión',
                             text: 'Error al procesar: ' + error.message,
                             icon: 'error',
                             confirmButtonText: 'Entendido',
@@ -899,6 +1161,10 @@
 
         window.agregarCalendarios = function() {
             agregarCalendario();
+        };
+
+        window.agregarLineaCalendarios = function() {
+            agregarLineaCalendario();
         };
 
         window.editarCalendarios = function() {

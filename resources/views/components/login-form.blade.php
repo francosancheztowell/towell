@@ -55,7 +55,7 @@
                 Número de Empleado
             </label>
             <input
-                type="text"
+                type="number"
                 name="numero_empleado"
                 id="numero_empleado"
                 placeholder="Ingresa tu número de empleado"

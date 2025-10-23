@@ -10,7 +10,7 @@ class ReqCalendarioLine extends Model
     use HasFactory;
 
     protected $table = 'dbo.ReqCalendarioLine';
-    protected $primaryKey = 'id';
+    protected $primaryKey = 'Id';
     public $timestamps = false;
 
     protected $fillable = [
@@ -22,7 +22,7 @@ class ReqCalendarioLine extends Model
     ];
 
     protected $casts = [
-        'id' => 'integer',
+        'Id' => 'integer',
         'HorasTurno' => 'float',
         'Turno' => 'integer',
         'FechaInicio' => 'datetime',
@@ -31,7 +31,7 @@ class ReqCalendarioLine extends Model
 
     public function getRouteKeyName()
     {
-        return 'id';
+        return 'Id';
     }
 
     // Relación con calendario

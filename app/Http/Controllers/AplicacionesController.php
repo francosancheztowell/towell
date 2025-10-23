@@ -114,7 +114,7 @@ class AplicacionesController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'AplicacionId' => 'required|string|unique:dbo.ReqAplicaciones,AplicacionId|max:50',
+                'AplicacionId' => 'required|string|unique:ReqAplicaciones,AplicacionId|max:50',
                 'Nombre' => 'required|string|max:100',
                 'SalonTejidoId' => 'required|string|max:50',
                 'NoTelarId' => 'required|string|max:50'
@@ -156,10 +156,24 @@ class AplicacionesController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $aplicacion = ReqAplicaciones::findOrFail($id);
+            // Buscar por ID numérico o por AplicacionId
+            $aplicacion = null;
+            if (is_numeric($id)) {
+                $aplicacion = ReqAplicaciones::find($id);
+            }
+            if (!$aplicacion) {
+                $aplicacion = ReqAplicaciones::where('AplicacionId', $id)->first();
+            }
+
+            if (!$aplicacion) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aplicación no encontrada'
+                ], 404);
+            }
 
             $validator = Validator::make($request->all(), [
-                'AplicacionId' => 'required|string|max:50|unique:dbo.ReqAplicaciones,AplicacionId,' . $aplicacion->id,
+                'AplicacionId' => 'required|string|max:50|unique:ReqAplicaciones,AplicacionId,' . $aplicacion->Id,
                 'Nombre' => 'required|string|max:100',
                 'SalonTejidoId' => 'required|string|max:50',
                 'NoTelarId' => 'required|string|max:50'
@@ -201,7 +215,22 @@ class AplicacionesController extends Controller
     public function destroy($id)
     {
         try {
-            $aplicacion = ReqAplicaciones::findOrFail($id);
+            // Buscar por ID numérico o por AplicacionId
+            $aplicacion = null;
+            if (is_numeric($id)) {
+                $aplicacion = ReqAplicaciones::find($id);
+            }
+            if (!$aplicacion) {
+                $aplicacion = ReqAplicaciones::where('AplicacionId', $id)->first();
+            }
+
+            if (!$aplicacion) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aplicación no encontrada'
+                ], 404);
+            }
+
             $aplicacion->delete();
 
             return response()->json([

@@ -14,7 +14,7 @@ class ReqTelares extends Model
     /**
      * Clave primaria de la tabla
      */
-    protected $primaryKey = 'id';
+    protected $primaryKey = 'Id';
 
     /**
      * Campos que se pueden asignar masivamente
@@ -41,7 +41,7 @@ class ReqTelares extends Model
      */
     public function getRouteKeyName()
     {
-        return 'id';
+        return 'Id';
     }
 
     /**

@@ -7,9 +7,11 @@ use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\BeforeImport;
 use Illuminate\Support\Facades\Log;
 
-class ReqCalendarioTabImport implements ToModel, WithHeadingRow, WithBatchInserts, WithChunkReading
+class ReqCalendarioTabImport implements ToModel, WithHeadingRow, WithBatchInserts, WithChunkReading, WithEvents
 {
     private $procesados = 0;
     private $creados = 0;
@@ -60,6 +62,22 @@ class ReqCalendarioTabImport implements ToModel, WithHeadingRow, WithBatchInsert
             Log::error("✗ Error fila {$this->rowCounter}: {$e->getMessage()}");
             return null;
         }
+    }
+
+    /**
+     * Registrar eventos para limpiar datos antes de importar
+     */
+    public function registerEvents(): array
+    {
+        return [
+            BeforeImport::class => function(BeforeImport $event) {
+                Log::info("🧹 Limpiando datos existentes de calendarios tablas antes de importar...");
+
+                // Limpiar todas las tablas de calendario
+                $deleted = ReqCalendarioTab::truncate();
+                Log::info("🗑️ Eliminadas todas las tablas de calendario existentes");
+            }
+        ];
     }
 
     public function batchSize(): int

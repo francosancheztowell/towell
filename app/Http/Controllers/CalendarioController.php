@@ -29,6 +29,288 @@ class CalendarioController extends Controller
     }
 
     /**
+     * Crear nuevo calendario
+     */
+    public function store(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'CalendarioId' => 'required|string|max:20|unique:ReqCalendarioTab,CalendarioId',
+                'Nombre' => 'required|string|max:255'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $calendario = ReqCalendarioTab::create([
+                'CalendarioId' => $request->CalendarioId,
+                'Nombre' => $request->Nombre
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Calendario creado exitosamente',
+                'data' => $calendario
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error al crear calendario: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar calendario
+     */
+    public function update(Request $request, $id)
+    {
+        try {
+            $calendario = ReqCalendarioTab::where('CalendarioId', $id)->first();
+            if (!$calendario) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Calendario no encontrado'
+                ], 404);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'Nombre' => 'required|string|max:255'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $calendario->update([
+                'Nombre' => $request->Nombre
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Calendario actualizado exitosamente',
+                'data' => $calendario
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error al actualizar calendario: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar calendario
+     */
+    public function destroy($id)
+    {
+        try {
+            $calendario = ReqCalendarioTab::where('CalendarioId', $id)->first();
+            if (!$calendario) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Calendario no encontrado'
+                ], 404);
+            }
+
+            // Eliminar también las líneas asociadas
+            ReqCalendarioLine::where('CalendarioId', $calendario->CalendarioId)->delete();
+            $calendario->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Calendario y sus líneas eliminados exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error al eliminar calendario: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
+
+    /**
+     * Crear nueva línea de calendario
+     */
+    public function storeLine(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'CalendarioId' => 'required|string|max:20',
+                'FechaInicio' => 'required|date',
+                'FechaFin' => 'required|date',
+                'HorasTurno' => 'required|numeric|min:0',
+                'Turno' => 'required|integer|min:1'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Verificar que el calendario existe
+            $calendario = ReqCalendarioTab::where('CalendarioId', $request->CalendarioId)->first();
+            if (!$calendario) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El calendario especificado no existe'
+                ], 422);
+            }
+
+            $linea = ReqCalendarioLine::create([
+                'CalendarioId' => $request->CalendarioId,
+                'FechaInicio' => $request->FechaInicio,
+                'FechaFin' => $request->FechaFin,
+                'HorasTurno' => $request->HorasTurno,
+                'Turno' => $request->Turno
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Línea de calendario creada exitosamente',
+                'data' => $linea
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error al crear línea de calendario: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar línea de calendario
+     */
+    public function updateLine(Request $request, $id)
+    {
+        try {
+            Log::info("updateLine llamado con ID: {$id}");
+            Log::info("Datos recibidos: " . json_encode($request->all()));
+
+            $linea = ReqCalendarioLine::find($id);
+            if (!$linea) {
+                Log::error("Línea no encontrada con ID: {$id}");
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Línea de calendario no encontrada'
+                ], 404);
+            }
+
+            Log::info("Línea encontrada: " . json_encode($linea->toArray()));
+
+            $validator = Validator::make($request->all(), [
+                'FechaInicio' => 'required|date',
+                'FechaFin' => 'required|date',
+                'HorasTurno' => 'required|numeric|min:0',
+                'Turno' => 'required|integer|min:1'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            Log::info("Actualizando línea con datos:", [
+                'FechaInicio' => $request->FechaInicio,
+                'FechaFin' => $request->FechaFin,
+                'HorasTurno' => $request->HorasTurno,
+                'Turno' => $request->Turno
+            ]);
+
+            $resultado = $linea->update([
+                'FechaInicio' => $request->FechaInicio,
+                'FechaFin' => $request->FechaFin,
+                'HorasTurno' => $request->HorasTurno,
+                'Turno' => $request->Turno
+            ]);
+
+            Log::info("Resultado de la actualización: " . ($resultado ? 'true' : 'false'));
+
+            Log::info("Línea actualizada exitosamente");
+
+            // Refrescar el modelo para obtener los datos actualizados
+            $lineaActualizada = $linea->fresh();
+            if ($lineaActualizada) {
+                Log::info("Datos después de actualizar: " . json_encode($lineaActualizada->toArray()));
+            } else {
+                Log::warning("No se pudo obtener los datos actualizados de la línea");
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Línea de calendario actualizada exitosamente',
+                'data' => $linea
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error al actualizar línea de calendario: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar línea de calendario
+     */
+    public function destroyLine($id)
+    {
+        try {
+            Log::info("destroyLine llamado con ID: {$id}");
+
+            $linea = ReqCalendarioLine::find($id);
+            if (!$linea) {
+                Log::error("Línea no encontrada con ID: {$id}");
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Línea de calendario no encontrada'
+                ], 404);
+            }
+
+            Log::info("Línea encontrada para eliminar: " . json_encode($linea->toArray()));
+
+            $linea->delete();
+            Log::info("Línea eliminada exitosamente");
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Línea de calendario eliminada exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error al eliminar línea de calendario: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
+
+    /**
      * Procesar archivo Excel de calendarios
      */
     public function procesarExcel(Request $request)
