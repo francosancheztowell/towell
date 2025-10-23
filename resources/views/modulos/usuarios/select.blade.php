@@ -200,7 +200,6 @@
                 const form = e.target;
                 Swal.fire({
                     title: '¿Eliminar usuario?',
-                    text: 'Esta acción no se puede deshacer.',
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#dc2626',
@@ -212,7 +211,7 @@
                 });
                 return false;
             } else {
-                return confirm('¿Eliminar usuario? Esta acción no se puede deshacer.');
+                return confirm('¿Eliminar usuario? ');
             }
         }
     </script>

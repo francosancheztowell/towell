@@ -417,11 +417,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/aplicaciones', [AplicacionesController::class, 'store'])->name('aplicaciones.store');
         Route::put('/aplicaciones/{aplicacion}', [AplicacionesController::class, 'update'])->name('aplicaciones.update');
         Route::delete('/aplicaciones/{aplicacion}', [AplicacionesController::class, 'destroy'])->name('aplicaciones.destroy');
-
-        // Rutas CRUD para codificacion
-        Route::post('/codificacion', [CodificacionController::class, 'store'])->name('codificacion.store');
-        Route::put('/codificacion/{codificacion}', [CodificacionController::class, 'update'])->name('codificacion.update');
-        Route::delete('/codificacion/{codificacion}', [CodificacionController::class, 'destroy'])->name('codificacion.destroy');
     });
 
     // ============================================

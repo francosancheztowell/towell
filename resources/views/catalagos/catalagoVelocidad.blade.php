@@ -166,7 +166,7 @@ function actualizarTelaresCreate() {
     const salon = document.getElementById('swal-salon').value;
     repoblarSelect(document.getElementById('swal-telar'), telaresPorSalon[salon] || [], '');
 }
-        function agregarVelocidad() {
+        function agregarVelocidadLocal() {
             Swal.fire({
                 title: 'Crear Nueva Velocidad',
                 html: `
@@ -574,7 +574,7 @@ window.limpiarFiltrosVelocidad = function() {
 };
 
 window.agregarVelocidad = function() {
-    agregarVelocidad();
+    agregarVelocidadLocal();
 };
 
 function limpiarFiltros() {

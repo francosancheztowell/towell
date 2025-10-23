@@ -150,7 +150,7 @@ function actualizarTelaresCreate() {
 function actualizarEficiencia(valor) {
     document.getElementById('eficiencia-value').textContent = valor + '%';
 }
-function agregarEficiencia() {
+function agregarEficienciaLocal() {
     Swal.fire({
         title: 'Crear Nueva Eficiencia',
         html: `
@@ -605,7 +605,7 @@ window.limpiarFiltrosEficiencia = function() {
 };
 
 window.agregarEficiencia = function() {
-    agregarEficiencia();
+    agregarEficienciaLocal();
 };
 </script>
 @endsection
