@@ -1,6 +1,6 @@
 @props(['modulos', 'columns' => 'xl:grid-cols-5', 'filterConfig' => true, 'imageFolder' => 'fotos_modulos'])
 
-<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 md:gap-4 lg:gap-5 max-w-7xl mx-auto px-4">
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 md:gap-4 lg:gap-5 max-w-6xl mx-auto px-6 py-8">
     @foreach ($modulos as $modulo)
         @if(!$filterConfig || $modulo['nombre'] !== 'Configuración')
             <a href="{{ isset($modulo['ruta_tipo']) && $modulo['ruta_tipo'] === 'route' ? route($modulo['ruta'], $modulo['params'] ?? []) : url($modulo['ruta']) }}" class="block group tablet-optimized module-link">

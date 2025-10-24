@@ -35,16 +35,9 @@
             if (!window.location.pathname.includes('produccionProceso')) {
                 return;
             }
-
-            console.log('🚀 Iniciando precarga de módulos...');
-
-            // Esperar 500ms después de que la página cargue
-            // para no interferir con la carga inicial
             setTimeout(() => {
                 this.prefetchAllModules();
             }, 500);
-
-            // Interceptar clicks en módulos para navegación instantánea
             this.setupInstantNavigation();
         },
 
@@ -52,7 +45,6 @@
          * Precargar todos los módulos en background
          */
         async prefetchAllModules() {
-            const startTime = performance.now();
             let loaded = 0;
             let cached = 0;
 
@@ -64,12 +56,6 @@
                     loaded++;
                 }
             }
-
-            const endTime = performance.now();
-            const duration = (endTime - startTime).toFixed(0);
-
-            console.log(`✅ Precarga completada en ${duration}ms`);
-            console.log(`   📦 Desde caché: ${cached} | 🌐 Desde servidor: ${loaded}`);
         },
 
         /**
@@ -80,7 +66,6 @@
                 // Verificar si ya está en caché
                 const cachedData = this.getFromCache(modulo);
                 if (cachedData) {
-                    console.log(`   ⚡ ${modulo} - desde caché local`);
                     return true;
                 }
 
@@ -94,7 +79,6 @@
                 });
 
                 if (!response.ok) {
-                    console.warn(`   ⚠️ ${modulo} - error ${response.status}`);
                     return false;
                 }
 
@@ -103,11 +87,9 @@
                 // Guardar en caché local
                 this.saveToCache(modulo, data);
 
-                console.log(`   📥 ${modulo} - cargado (${data.length} submódulos)`);
                 return false;
 
             } catch (error) {
-                console.warn(`   ❌ ${modulo} - error:`, error.message);
                 return false;
             }
         },
@@ -130,7 +112,6 @@
                     JSON.stringify(cacheData)
                 );
             } catch (e) {
-                console.warn('Error guardando en caché:', e.message);
             }
         },
 
@@ -174,7 +155,6 @@
                     const cachedData = this.getFromCache(modulo);
 
                     if (cachedData) {
-                        console.log(`⚡ Navegación instantánea a: ${modulo}`);
                         // La página se cargará normalmente pero desde caché del servidor
                     }
                 }
@@ -188,7 +168,6 @@
             for (const modulo of this.modulesToPrefetch) {
                 localStorage.removeItem(this.config.cachePrefix + modulo);
             }
-            console.log('🗑️ Caché limpiado');
         }
     };
 
@@ -198,9 +177,6 @@
     } else {
         ModulePrefetch.init();
     }
-
-    // Exponer globalmente para debugging
-    window.ModulePrefetch = ModulePrefetch;
 
 })();
 

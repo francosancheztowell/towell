@@ -704,7 +704,8 @@ class UsuarioController extends Controller
 
         return view('/produccionProceso', [
             'modulos' => $modulos,
-            'tieneConfiguracion' => $tieneConfiguracion
+            'tieneConfiguracion' => $tieneConfiguracion,
+            'pageTitle' => 'Producción en Proceso'
         ]);
     }
 

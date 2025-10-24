@@ -5,6 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>@yield('title', 'TOWELL S.A DE C.V')</title>
 
@@ -42,6 +43,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Agregar Axios desde el CDN -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <!-- Configuración de Axios para CSRF -->
+    <script>
+        // Configurar Axios para incluir automáticamente el token CSRF
+        window.axios = axios;
+        window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+
+        // Obtener el token CSRF del meta tag
+        const token = document.head.querySelector('meta[name="csrf-token"]');
+        if (token) {
+            window.axios.defaults.headers.common['X-CSRF-TOKEN'] = token.content;
+        } else {
+            console.error('CSRF token not found: https://laravel.com/docs/csrf#csrf-x-csrf-token');
+        }
+    </script>
 
     <!-- jQuery (debe ir primero) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -84,8 +100,55 @@
                 background-position: 0% 50%;
             }
         }
+
+        /* Optimizaciones específicas para tablets */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .tablet-optimized {
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            .module-link {
+                min-height: 200px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .module-link:hover {
+                transform: translateY(-4px);
+            }
+
+            .module-link:active {
+                transform: translateY(-2px) scale(0.98);
+            }
+        }
+
+        /* Efecto ripple para tablets */
+        .ripple-effect {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ripple-effect::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(59, 130, 246, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .ripple-effect:active::before {
+            width: 300px;
+            height: 300px;
+        }
     </style>
-    @stack('styles') <!-- Aquí se inyectarán los estilos agregados con @push('styles') -->
+    @stack('styles')  @push('styles')
     </head>
 
     <body class="min-h-screen flex flex-col">
@@ -103,6 +166,9 @@
 
                     <!-- Sección central -->
                     <div class="flex items-center gap-4">
+                        @if (Route::currentRouteName() === 'produccion.index')
+                            <h1 class="text-xl md:text-2xl font-bold text-gray-800">Producción en Proceso</h1>
+                        @endif
                         @yield('menu-planeacion')
 
                         <!-- Botones de acción para catálogo de telares -->
@@ -244,6 +310,11 @@
                 const btn = document.getElementById("btnUsuarios");
                 const menu = document.getElementById("menuUsuarios");
 
+                // Verificar que los elementos existen antes de agregar event listeners
+                if (!btn || !menu) {
+                    return;
+                }
+
                 btn.addEventListener("click", function(e) {
                     e.stopPropagation(); // Evita que el evento se propague y se cierre de inmediato
                     const isOpen = !menu.classList.contains("hidden");
@@ -264,7 +335,7 @@
 
                 // Ocultar el menú si haces clic fuera de él
                 document.addEventListener("click", function(e) {
-                    if (!btn.contains(e.target) && !menu.contains(e.target)) {
+                    if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
                         menu.classList.add("hidden");
                         menu.classList.remove("scale-100", "opacity-100");
                         menu.classList.add("scale-95", "opacity-0");
@@ -272,13 +343,15 @@
                 });
 
                 // También cerrar al hacer clic en una opción
-                menu.querySelectorAll("a").forEach(link => {
-                    link.addEventListener("click", () => {
-                        menu.classList.add("hidden");
-                        menu.classList.remove("scale-100", "opacity-100");
-                        menu.classList.add("scale-95", "opacity-0");
+                if (menu) {
+                    menu.querySelectorAll("a").forEach(link => {
+                        link.addEventListener("click", () => {
+                            menu.classList.add("hidden");
+                            menu.classList.remove("scale-100", "opacity-100");
+                            menu.classList.add("scale-95", "opacity-0");
+                        });
                     });
-                });
+                }
             });
         </script>
 
