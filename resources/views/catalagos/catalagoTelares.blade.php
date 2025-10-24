@@ -11,10 +11,10 @@
             <table class="min-w-full text-sm">
                 <thead class="sticky top-0 bg-blue-500 border-b-2 text-white z-20">
                     <tr>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Salón</th>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Telar</th>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Nombre</th>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Grupo</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Salón</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Telar</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Nombre</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Grupo</th>
                     </tr>
                 </thead>
                 <tbody id="telares-body" class="bg-white text-black">

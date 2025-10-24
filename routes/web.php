@@ -16,6 +16,7 @@ use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\AplicacionesController;
 use App\Http\Controllers\NuevoRequerimientoController;
 use App\Http\Controllers\ConsultarRequerimientoController;
+use App\Http\Controllers\CodificacionController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
 
@@ -371,6 +372,19 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad');
             Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios');
             Route::get('/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones');
+            // Rutas para Codificación de Modelos (orden específico primero)
+            Route::get('/codificacion-modelos', [CodificacionController::class, 'index'])->name('codificacion-modelos');
+            Route::get('/test-codificacion', function() { return 'Test route works!'; });
+            Route::get('/codificacion-modelos/create', [CodificacionController::class, 'create'])->name('codificacion.create');
+            Route::get('/codificacion-modelos/get-all', [CodificacionController::class, 'getAll'])->name('codificacion.get-all');
+            Route::get('/codificacion-modelos/estadisticas', [CodificacionController::class, 'estadisticas'])->name('codificacion.estadisticas');
+            Route::get('/codificacion-modelos/{id}/edit', [CodificacionController::class, 'edit'])->name('codificacion.edit');
+            Route::get('/codificacion-modelos/{id}', [CodificacionController::class, 'show'])->name('codificacion.show');
+            Route::post('/codificacion-modelos', [CodificacionController::class, 'store'])->name('codificacion.store');
+            Route::put('/codificacion-modelos/{id}', [CodificacionController::class, 'update'])->name('codificacion.update');
+            Route::delete('/codificacion-modelos/{id}', [CodificacionController::class, 'destroy'])->name('codificacion.destroy');
+            Route::post('/codificacion-modelos/excel', [CodificacionController::class, 'procesarExcel'])->name('codificacion.excel');
+            Route::post('/codificacion-modelos/buscar', [CodificacionController::class, 'buscar'])->name('codificacion.buscar');
         });
 
         // Rutas directas para compatibilidad

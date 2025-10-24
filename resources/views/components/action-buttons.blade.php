@@ -164,7 +164,7 @@
                 formData.append('archivo_excel', file);
                 formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
 
-                return fetch('/planeacion/{{ $route }}/excel', {
+                return fetch('/planeacion/catalogos/{{ $route }}-modelos/excel', {
                     method: 'POST',
                     body: formData
                 })
@@ -218,38 +218,77 @@
                 mensajeDetallado += `• Nuevos registros: ${data.registros_creados}\n`;
                 mensajeDetallado += `• Registros actualizados: ${data.registros_actualizados}`;
 
-                if (data.errores && data.errores.length > 0) {
-                    mensajeDetallado += `\n• Errores encontrados: ${data.total_errores || data.errores.length}`;
+                if (data.errores && (data.errores.total_errores > 0 || data.errores.length > 0)) {
+                    const totalErrores = data.errores.total_errores || data.errores.length;
+                    mensajeDetallado += `\n• Errores encontrados: ${totalErrores}`;
 
                     // Mostrar errores en un modal separado si hay muchos
-                    if (data.total_errores > 10) {
-                        mensajeDetallado += `\n\n⚠️ Hay ${data.total_errores} errores. Revisa el archivo Excel.`;
+                    if (totalErrores > 10) {
+                        mensajeDetallado += `\n\n Hay ${totalErrores} errores. Revisa el archivo Excel.`;
                     }
                 }
 
                 Swal.fire({
                     title: 'Procesamiento Completado',
                     text: mensajeDetallado,
-                    icon: data.errores && data.errores.length > 0 ? 'warning' : 'success',
-                    confirmButtonText: 'Entendido'
-                }).then(() => {
+                    icon: (data.errores && (data.errores.total_errores > 0 || data.errores.length > 0)) ? 'warning' : 'success',
+                    confirmButtonText: 'Entendido',
+                    showCancelButton: true,
+                    cancelButtonText: 'Recargar página',
+                    cancelButtonColor: '#3085d6'
+                }).then((result) => {
+                    if (result.dismiss === Swal.DismissReason.cancel) {
+                        location.reload();
+                    }
                     // Si hay errores, mostrar detalles
-                    if (data.errores && data.errores.length > 0) {
-                        let erroresTexto = data.errores.join('\n');
-                        if (data.total_errores > 10) {
-                            erroresTexto += `\n\n... y ${data.total_errores - 10} errores más`;
+                    if (data.errores && (data.errores.total_errores > 0 || data.errores.length > 0)) {
+                        console.log('Estructura de errores:', data.errores);
+                        const totalErrores = data.errores.total_errores || data.errores.length;
+                        let erroresTexto = '';
+
+                        // Manejar diferentes formatos de errores
+                        if (data.errores.errores && Array.isArray(data.errores.errores)) {
+                            // Nuevo formato: {total_errores: X, errores: [...]}
+                            data.errores.errores.forEach(error => {
+                                erroresTexto += `Fila ${error.fila}: ${error.error}\n`;
+                            });
+                        } else if (Array.isArray(data.errores)) {
+                            // Formato antiguo: array directo
+                            data.errores.forEach(error => {
+                                if (typeof error === 'string') {
+                                    erroresTexto += error + '\n';
+                                } else if (error.fila && error.error) {
+                                    erroresTexto += `Fila ${error.fila}: ${error.error}\n`;
+                                } else {
+                                    erroresTexto += JSON.stringify(error) + '\n';
+                                }
+                            });
+                        } else {
+                            // Formato desconocido - mostrar como JSON
+                            erroresTexto = JSON.stringify(data.errores, null, 2);
+                        }
+
+                        if (totalErrores > 10) {
+                            erroresTexto += `\n\n... y ${totalErrores - 10} errores más`;
                         }
 
                         Swal.fire({
                             title: 'Detalles de Errores',
                             text: erroresTexto,
                             icon: 'info',
-                            confirmButtonText: 'Entendido'
+                            confirmButtonText: 'Entendido',
+                            showCancelButton: true,
+                            cancelButtonText: 'Recargar página',
+                            cancelButtonColor: '#3085d6'
+                        }).then((result) => {
+                            if (result.dismiss === Swal.DismissReason.cancel) {
+                                location.reload();
+                            }
                         });
                     }
 
-                    // Recargar la página para mostrar los nuevos datos
-                    location.reload();
+                    // No recargar automáticamente para poder ver los logs
+                    // location.reload();
                 });
             }
         }).catch((error) => {

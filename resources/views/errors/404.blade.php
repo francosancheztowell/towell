@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            background: linear-gradient(135deg, #c8e3ff 0%, #e2e8f0 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
     </style>
@@ -15,13 +15,13 @@
 <body class="min-h-screen flex items-center justify-center">
     <div class="max-w-md mx-auto px-6 text-center">
         <!-- Logo TOWELLIN -->
-        <div class="mb-12">
-            <img src="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}" alt="TOWELLIN" class="h-32 mx-auto">
+        <div class="mb-6">
+            <img src="{{ asset('images/fotos_usuarios/towelin404.png') }}" alt="TOWELLIN" class="h-56 mx-auto">
         </div>
 
         <!-- Número 404 -->
-        <div class="mb-8">
-            <h1 class="text-6xl font-light text-gray-800 mb-2">
+        <div class="mb-6">
+            <h1 class="text-8xl font-medium text-blue-700 mb-2">
                 404
             </h1>
             <div class="w-16 h-1 bg-blue-500 mx-auto"></div>
@@ -30,10 +30,10 @@
         <!-- Mensaje principal -->
         <div class="mb-12">
             <h2 class="text-xl font-medium text-gray-700 mb-4">
-                Página no disponible
+                Página en construcción
             </h2>
             <p class="text-gray-500 text-sm leading-relaxed">
-                La página que buscas no está disponible en este momento.
+                La página que buscas está en construcción.
             </p>
         </div>
 

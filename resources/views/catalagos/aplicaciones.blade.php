@@ -10,10 +10,10 @@
             <table class="table table-bordered table-sm w-full">
                 <thead class="sticky top-0 bg-blue-500 text-white z-10">
                     <tr>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Clave</th>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Nombre</th>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Salón</th>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Telar</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Clave</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Nombre</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Salón</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Telar</th>
                     </tr>
                 </thead>
                 <tbody id="aplicaciones-body" class="bg-white text-black">
@@ -332,7 +332,6 @@ function eliminarAplicacion() {
         <p><strong>Clave:</strong> ${clave}</p>
         <p><strong>Nombre:</strong> ${nombre}</p>
         <hr>
-        <p class="text-red-600 font-semibold">Esta acción no se puede deshacer.</p>
       </div>
     `,
     icon:'warning',

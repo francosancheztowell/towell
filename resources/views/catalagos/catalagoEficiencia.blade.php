@@ -8,11 +8,11 @@
             <table class="table table-bordered table-sm w-full">
                 <thead class="sticky top-0 bg-blue-500 text-white z-10">
                     <tr>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Salón</th>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Telar</th>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Tipo de Hilo</th>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Eficiencia</th>
-                        <th class="py-1 px-2 font-bold uppercase tracking-wider text-center">Densidad</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Salón</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Telar</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Tipo de Hilo</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Eficiencia</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Densidad</th>
                     </tr>
                 </thead>
                 <tbody id="eficiencia-body" class="bg-white text-black">

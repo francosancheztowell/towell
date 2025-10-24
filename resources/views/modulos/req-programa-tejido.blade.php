@@ -48,23 +48,15 @@
 		Filtros
 		<span id="filterCount" class="ml-2 px-2 py-0.5 bg-white text-purple-600 rounded-full text-xs font-bold hidden">0</span>
 	</button>
-
 </div>
 @endsection
 
 @section('content')
 <div class="container mx-auto px-2 py-8 max-w-full -mt-6">
-    <!-- Back Button -->
-
-
-
-	<!-- Tabla en el orden del Excel -->
 	<div class="bg-white rounded-lg shadow overflow-hidden w-full mx-auto" style="max-width: 100%;">
-
 
 		@php
 		$columns = [
-			// Orden según el Excel
             	['field' => 'EnProceso', 'label' => 'Estado'],
 			['field' => 'CuentaRizo', 'label' => 'Cuenta'],
 			['field' => 'CalibreRizo', 'label' => 'Calibre Rizo'],
@@ -156,26 +148,27 @@
 			['field' => 'EntregaPT', 'label' => 'Fecha Compromiso PT'],
 			['field' => 'EntregaCte', 'label' => 'Entrega'],
 			['field' => 'PTvsCte', 'label' => 'Dif vs Compromiso'],
-
 		];
+
 		$formatValue = function($registro, $field) {
 			$value = $registro->{$field} ?? null;
-			if (is_null($value) || $value === '') return '';
+			if ($value === null || $value === '') return '';
 
-			// 1) Porcentaje para Ef Std (0.77 -> 77%)
 			if ($field === 'EficienciaSTD' && is_numeric($value)) {
 				return rtrim(rtrim(number_format(((float)$value) * 100, 0), '0'), '.') . '%';
 			}
 
-			// 2) Formateo de Fechas estilo "19-sep" para campos fecha conocidos
-			$fechaCampos = ['Programado','ProgramarProd','FechaInicio','FechaFinal','EntregaProduc','EntregaPT','EntregaCte','Día Scheduling'];
+			// Campos fecha conocidos (usa claves, no labels)
+			$fechaCampos = [
+				'Programado','ProgramarProd','FechaInicio','FechaFinal',
+				'EntregaProduc','EntregaPT','EntregaCte'
+			];
+
 			if (in_array($field, $fechaCampos, true)) {
 				try {
-					// Si es Carbon
 					if ($value instanceof \Carbon\Carbon) {
 						return $value->year > 1970 ? strtolower($value->format('d-M')) : '';
 					}
-					// Si viene como string: intentar parsear
 					$dt = \Carbon\Carbon::parse($value);
 					return $dt->year > 1970 ? strtolower($dt->format('d-M')) : '';
 				} catch (\Exception $e) {
@@ -183,12 +176,9 @@
 				}
 			}
 
-			// 3) Números con decimales -> 2 decimales (mantener comportamiento previo)
-			if (is_numeric($value) && !preg_match('/^\d+$/', (string)$value)) return number_format((float)$value, 2);
-
-			// 4) Campos de texto que eran boolean
-			if (in_array($field, ['Ultimo','CambioHilo'], true)) {
-				return $value;
+			// Números con decimales
+			if (is_numeric($value) && !preg_match('/^\d+$/', (string)$value)) {
+				return number_format((float)$value, 2);
 			}
 
 			return $value;
@@ -203,7 +193,9 @@
 							<thead class="bg-blue-500 text-white">
 								<tr>
 									@foreach($columns as $index => $col)
-									<th class="px-4 py-2 text-left text-xs font-semibold text-white uppercase whitespace-nowrap column-{{ $index }}" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6;" data-column="{{ $col['field'] }}" data-index="{{ $index }}">
+									<th class="px-4 py-2 text-left text-xs font-semibold text-white whitespace-nowrap column-{{ $index }}"
+										style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6;"
+										data-column="{{ $col['field'] }}" data-index="{{ $index }}">
 										<div class="flex items-center justify-between gap-2">
 											<span class="flex-1">{{ $col['label'] }}</span>
 											<div class="flex items-center gap-2">
@@ -229,10 +221,12 @@
 					</thead>
 					<tbody class="bg-white divide-y divide-gray-100">
 								@foreach($registros as $index => $registro)
-									<tr class="hover:bg-blue-50 cursor-pointer selectable-row"
-										data-row-index="{{ $index }}">
+								<tr class="hover:bg-blue-50 cursor-pointer selectable-row" data-row-index="{{ $index }}">
 										@foreach($columns as $colIndex => $col)
-											<td class="px-3 py-2 text-sm text-gray-700 whitespace-nowrap column-{{ $colIndex }}" data-column="{{ $col['field'] }}">{{ $formatValue($registro, $col['field']) }}</td>
+										<td class="px-3 py-2 text-sm text-gray-700 whitespace-nowrap column-{{ $colIndex }}"
+											data-column="{{ $col['field'] }}">
+											{{ $formatValue($registro, $col['field']) }}
+										</td>
 								@endforeach
 							</tr>
 						@endforeach
@@ -241,8 +235,6 @@
 					</div>
 				</div>
 			</div>
-
-			<!-- Sin paginación: se muestran todos los registros -->
 		@else
 			<div class="px-6 py-12 text-center">
 				<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -264,47 +256,49 @@
 	</div>
 </div>
 
+<style>
+	/* Igual que tu diseño, con apoyo para “pinned” */
+	.pinned-column { position: sticky !important; background-color: #3b82f6 !important; color: #fff !important; }
+</style>
 
 <script>
-// Estado global
+// ===== Estado =====
 let filters = [];
 let hiddenColumns = [];
 let pinnedColumns = [];
-let columnsData = @json(array_map(function($col) { return ['field' => $col['field'], 'label' => $col['label']]; }, $columns));
 let allRows = [];
-let selectedFilterIndex = -1;
 let selectedRowIndex = -1;
 
-// ===== FUNCIONES DE FILTROS =====
-function openFilterModal() {
-    // Generar lista de filtros activos
-    let filtrosActivosHTML = '';
-    if (filters.length > 0) {
-        filtrosActivosHTML = `
-            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+// ===== Helpers DOM =====
+const $ = (sel, ctx=document) => ctx.querySelector(sel);
+const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+const tbodyEl = () => $('#mainTable tbody');
+
+// ===== Filtros =====
+function renderFilterModalContent() {
+	const options = @json(array_map(fn($c)=>['field'=>$c['field'],'label'=>$c['label']], $columns));
+	const filtrosHTML = filters.length
+		? `<div class="mb-4 p-3 bg-gray-50 rounded-lg">
                 <h4 class="text-sm font-medium text-gray-700 mb-2">Filtros Activos:</h4>
                 <div class="space-y-1">
-                    ${filters.map((filtro, index) => `
+					${filters.map((f,i)=>`
                         <div class="flex items-center justify-between bg-white p-2 rounded border">
-                            <span class="text-xs">${filtro.column}: ${filtro.value}</span>
-                            <button onclick="removeFilter(${index})" class="text-red-500 hover:text-red-700 text-xs">×</button>
+							<span class="text-xs">${f.column}: ${f.value}</span>
+							<button onclick="removeFilter(${i})" class="text-red-500 hover:text-red-700 text-xs">×</button>
                         </div>
                     `).join('')}
                 </div>
-            </div>
-        `;
-    }
+		   </div>`
+		: '';
 
-    Swal.fire({
-        title: 'Filtrar por Columna',
-        html: `
-            ${filtrosActivosHTML}
+	return `
+		${filtrosHTML}
             <div class="text-left space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Columna</label>
                     <select id="filtro-columna" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Selecciona una columna...</option>
-                        ${columnsData.map(col => `<option value="${col.field}">${col.label}</option>`).join('')}
+					${options.map(col=>`<option value="${col.field}">${col.label}</option>`).join('')}
                     </select>
                 </div>
                 <div>
@@ -317,560 +311,282 @@ function openFilterModal() {
                     </button>
                 </div>
             </div>
-        `,
+	`;
+}
+
+function openFilterModal() {
+	Swal.fire({
+		title: 'Filtrar por Columna',
+		html: renderFilterModalContent(),
         showCancelButton: true,
         confirmButtonText: 'Agregar Filtro',
         cancelButtonText: 'Cerrar',
         confirmButtonColor: '#3b82f6',
         cancelButtonColor: '#6b7280',
         width: '450px',
-        preConfirm: () => {
-            const columna = document.getElementById('filtro-columna').value;
-            const valor = document.getElementById('filtro-valor').value;
-
-            if (!columna || !valor) {
-                Swal.showValidationMessage('Por favor selecciona una columna e ingresa un valor');
-                return false;
-            }
-
-            // Verificar si ya existe este filtro
-            const existeFiltro = filters.some(f => f.column === columna && f.value === valor);
-            if (existeFiltro) {
-                Swal.showValidationMessage('Este filtro ya está activo');
-                return false;
-            }
-
-            return { column: columna, value: valor };
-        },
         didOpen: () => {
-            // Agregar event listener al botón "Agregar Otro Filtro"
-            document.getElementById('btn-agregar-otro').addEventListener('click', () => {
-                const columna = document.getElementById('filtro-columna').value;
-                const valor = document.getElementById('filtro-valor').value;
+			$('#btn-agregar-otro').addEventListener('click', () => {
+				const col = $('#filtro-columna').value;
+				const val = $('#filtro-valor').value;
+				if (!col || !val) return Swal.showValidationMessage('Selecciona columna y valor');
+				if (filters.some(f => f.column===col && f.value===val)) return Swal.showValidationMessage('Este filtro ya está activo');
 
-                if (!columna || !valor) {
-                    Swal.showValidationMessage('Por favor selecciona una columna e ingresa un valor');
-                    return;
-                }
-
-                // Verificar si ya existe este filtro
-                const existeFiltro = filters.some(f => f.column === columna && f.value === valor);
-                if (existeFiltro) {
-                    Swal.showValidationMessage('Este filtro ya está activo');
-                    return;
-                }
-
-                // Agregar filtro y limpiar campos
-                filters.push({ column: columna, value: valor });
+				filters.push({ column: col, value: val });
                 applyFilters();
                 showToast('Filtro agregado correctamente', 'success');
-
-                // Limpiar campos para el siguiente filtro
-                document.getElementById('filtro-valor').value = '';
-
-                // Actualizar la vista del modal con los nuevos filtros activos
-                updateFilterModal();
-            });
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Agregar nuevo filtro
-            filters.push(result.value);
-
-            // Aplicar filtros
+				Swal.update({ html: renderFilterModalContent() });
+				openFilterModal(); // re-abre para re-inyectar listeners
+			});
+		},
+		preConfirm: () => {
+			const col = $('#filtro-columna').value;
+			const val = $('#filtro-valor').value;
+			if (!col || !val) { Swal.showValidationMessage('Selecciona columna y valor'); return false; }
+			if (filters.some(f => f.column===col && f.value===val)) { Swal.showValidationMessage('Este filtro ya está activo'); return false; }
+			return { column: col, value: val };
+		}
+	}).then(res => {
+		if (res.isConfirmed) {
+			filters.push(res.value);
             applyFilters();
-
             showToast('Filtro agregado correctamente', 'success');
         }
     });
 }
-
 
 function removeFilter(index) {
     filters.splice(index, 1);
     applyFilters();
     showToast('Filtro eliminado', 'info');
-    updateFilterModal();
+	Swal.update({ html: renderFilterModalContent() });
 }
 
-function updateFilterModal() {
-    // Generar nueva lista de filtros activos
-    let filtrosActivosHTML = '';
-    if (filters.length > 0) {
-        filtrosActivosHTML = `
-            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-                <h4 class="text-sm font-medium text-gray-700 mb-2">Filtros Activos:</h4>
-                <div class="space-y-1">
-                    ${filters.map((filtro, index) => `
-                        <div class="flex items-center justify-between bg-white p-2 rounded border">
-                            <span class="text-xs">${filtro.column}: ${filtro.value}</span>
-                            <button onclick="removeFilter(${index})" class="text-red-500 hover:text-red-700 text-xs">×</button>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
+function applyFilters() {
+	let rows = allRows.slice();
+	if (filters.length) {
+		rows = rows.filter(tr => {
+			return filters.every(f => {
+				const cell = tr.querySelector(`[data-column="${f.column}"]`);
+				return cell ? cell.textContent.toLowerCase().includes(f.value.toLowerCase()) : false;
+			});
+		});
+	}
+	const tb = tbodyEl();
+	tb.innerHTML = '';
+	rows.forEach((r,i) => {
+		r.onclick = () => selectRow(r, i);
+		tb.appendChild(r);
+	});
+	updateFilterCount();
+	if (filters.length) showToast(`Filtros aplicados<br>${filters.length} filtro(s) · ${rows.length} resultado(s)`, 'success');
+}
 
-    // Actualizar el contenido del modal
-    const modalContent = document.querySelector('.swal2-html-container');
-    if (modalContent) {
-        modalContent.innerHTML = `
-            ${filtrosActivosHTML}
-            <div class="text-left space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Columna</label>
-                    <select id="filtro-columna" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Selecciona una columna...</option>
-                        ${columnsData.map(col => `<option value="${col.field}">${col.label}</option>`).join('')}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor a buscar</label>
-                    <input type="text" id="filtro-valor" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresa el valor a buscar">
-                </div>
-                <div class="flex gap-2 pt-2">
-                    <button type="button" id="btn-agregar-otro" class="flex-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">
-                        + Agregar Otro Filtro
-                    </button>
-                </div>
-            </div>
-        `;
-
-        // Reagregar event listener al botón
-        document.getElementById('btn-agregar-otro').addEventListener('click', () => {
-            const columna = document.getElementById('filtro-columna').value;
-            const valor = document.getElementById('filtro-valor').value;
-
-            if (!columna || !valor) {
-                Swal.showValidationMessage('Por favor selecciona una columna e ingresa un valor');
-                return;
-            }
-
-            // Verificar si ya existe este filtro
-            const existeFiltro = filters.some(f => f.column === columna && f.value === valor);
-            if (existeFiltro) {
-                Swal.showValidationMessage('Este filtro ya está activo');
-                return;
-            }
-
-            // Agregar filtro y limpiar campos
-            filters.push({ column: columna, value: valor });
-            applyFilters();
-            showToast('Filtro agregado correctamente', 'success');
-
-            // Limpiar campos para el siguiente filtro
-            document.getElementById('filtro-valor').value = '';
-
-            // Actualizar la vista del modal con los nuevos filtros activos
-            updateFilterModal();
-        });
+function updateFilterCount() {
+	const badge = $('#filterCount');
+	if (!badge) return;
+	if (filters.length > 0) {
+		badge.textContent = filters.length;
+		badge.classList.remove('hidden');
+	} else {
+		badge.classList.add('hidden');
     }
 }
 
 function resetFilters() {
-    // Restaurar todas las filas
-    const tbody = document.querySelector('#mainTable tbody');
-    tbody.innerHTML = '';
-    allRows.forEach((row, index) => {
-        // Re-agregar event listeners para selección de filas
-        row.addEventListener('click', function() {
-            selectRow(this, index);
-        });
-        tbody.appendChild(row);
-    });
+	// Filas originales
+	const tb = tbodyEl();
+	tb.innerHTML = '';
+	allRows.forEach((r,i) => {
+		r.classList.remove('bg-blue-500','text-white','hover:bg-blue-50');
+		r.classList.add('hover:bg-blue-50');
+		$$('td', r).forEach(td => td.classList.remove('text-white','text-gray-700'));
+		r.onclick = () => selectRow(r, i);
+		tb.appendChild(r);
+	});
 
-    // Mostrar todas las columnas
-    hiddenColumns.forEach(index => {
-        const elements = document.querySelectorAll(`.column-${index}`);
-        const hideBtn = document.querySelector(`.column-${index} .hide-btn`);
-
-        elements.forEach(el => {
-            el.style.display = '';
-        });
-
-        // Restaurar apariencia del botón ocultar
+	// Mostrar columnas ocultas
+	hiddenColumns.forEach(idx => {
+		$$(`.column-${idx}`).forEach(el => el.style.display = '');
+		const hideBtn = $(`th.column-${idx} .hide-btn`);
         if (hideBtn) {
             hideBtn.classList.remove('bg-red-600');
             hideBtn.classList.add('bg-red-500');
             hideBtn.title = 'Ocultar columna';
         }
     });
-
-    // Quitar todas las columnas fijadas
-    pinnedColumns.forEach(index => {
-        const elements = document.querySelectorAll(`.column-${index}`);
-        const pinBtn = document.querySelector(`.column-${index} .pin-btn`);
-
-        elements.forEach(el => {
-            el.classList.remove('pinned-column');
-            const isHeader = el.tagName === 'TH';
-
-            if (isHeader) {
-                // Restaurar estado original del header (sticky top solamente)
-                el.style.position = 'sticky';
-                el.style.left = '';
-                el.style.top = '0';
-                el.style.zIndex = '30';
-                el.style.backgroundColor = '#3b82f6';
-                el.style.color = 'white';
-            } else {
-                // Las celdas normales no tienen sticky
-                el.style.position = '';
-                el.style.left = '';
-                el.style.top = '';
-                el.style.zIndex = '';
-                el.style.backgroundColor = '';
-                el.style.color = '';
-            }
-        });
-
-        // Restaurar apariencia del botón fijar
-        if (pinBtn) {
-            pinBtn.classList.remove('bg-yellow-600');
-            pinBtn.classList.add('bg-yellow-500');
-            pinBtn.title = 'Fijar columna';
-        }
-    });
-
-    // Limpiar estado
-    filters = [];
     hiddenColumns = [];
-    pinnedColumns = [];
-    selectedFilterIndex = -1;
 
-    // Actualizar UI
+	// Desfijar columnas
+    pinnedColumns = [];
+	updatePinnedColumnsPositions(); // limpiará estilos
+
+	// UI filtros
+	filters = [];
     updateFilterCount();
 
-    // Ocultar badge de filtros
-    const filterBadge = document.getElementById('filterCount');
-    if (filterBadge) {
-        filterBadge.classList.add('hidden');
-        filterBadge.textContent = '0';
-    }
+	// Ocultar controles de prioridad
+	const rpc = $('#rowPriorityControls');
+	if (rpc) rpc.classList.add('hidden');
 
-    showToast('Restablecido<br>Todos los filtros y configuraciones han sido eliminados', 'success');
+	selectedRowIndex = -1;
+
+	showToast('Restablecido<br>Se limpiaron filtros, fijados y columnas ocultas', 'success');
 }
 
-// ===== FUNCIONES DE COLUMNAS =====
+// ===== Columnas: ocultar / fijar =====
 function hideColumn(index) {
-    const elements = document.querySelectorAll(`.column-${index}`);
-    const hideBtn = document.querySelector(`.column-${index} .hide-btn`);
-
-    elements.forEach(el => {
-        el.style.display = 'none';
-    });
-
-    // Cambiar apariencia del botón
+	$$(`.column-${index}`).forEach(el => el.style.display = 'none');
+	const hideBtn = $(`th.column-${index} .hide-btn`);
     if (hideBtn) {
         hideBtn.classList.remove('bg-red-500');
         hideBtn.classList.add('bg-red-600');
         hideBtn.title = 'Columna oculta';
     }
-
-    if (!hiddenColumns.includes(index)) {
-        hiddenColumns.push(index);
-    }
-
-    showColumnVisibilityAlert();
+	if (!hiddenColumns.includes(index)) hiddenColumns.push(index);
+	showToast(`Columna oculta`, 'info');
 }
 
 function togglePinColumn(index) {
-    const elements = document.querySelectorAll(`.column-${index}`);
-    const isPinned = pinnedColumns.includes(index);
-    const pinBtn = document.querySelector(`.column-${index} .pin-btn`);
+	const exists = pinnedColumns.includes(index);
+	if (exists) pinnedColumns = pinnedColumns.filter(i => i !== index);
+	else pinnedColumns.push(index);
+	pinnedColumns.sort((a,b)=>a-b);
 
-    if (isPinned) {
-        // Desfijar columna
-        elements.forEach(el => {
-            el.classList.remove('pinned-column');
-            const isHeader = el.tagName === 'TH';
+	// Botón estado
+	const pinBtn = $(`th.column-${index} .pin-btn`);
+	if (pinBtn) {
+		pinBtn.classList.toggle('bg-yellow-600', !exists);
+		pinBtn.classList.toggle('bg-yellow-500', exists);
+		pinBtn.title = exists ? 'Fijar columna' : 'Desfijar columna';
+	}
 
-            if (isHeader) {
-                // Restaurar estado original del header (sticky top solamente)
+	updatePinnedColumnsPositions();
+}
+
+function updatePinnedColumnsPositions() {
+	// Limpia estilos de todas primero
+	const allIdx = [...new Set($$('th[class*="column-"]').map(th => +th.dataset.index))];
+	allIdx.forEach(idx => {
+		$$(`.column-${idx}`).forEach(el => {
+			// Mantén sticky top en TH, pero quita left/zIndex/background si no está fijada
+			if (el.tagName === 'TH') {
+				el.style.top = '0';
                 el.style.position = 'sticky';
-                el.style.left = '';
-                el.style.top = '0';
                 el.style.zIndex = '30';
                 el.style.backgroundColor = '#3b82f6';
-                el.style.color = 'white';
+				el.style.color = '#fff';
             } else {
-                // Las celdas normales no tienen sticky
                 el.style.position = '';
-                el.style.left = '';
                 el.style.top = '';
                 el.style.zIndex = '';
                 el.style.backgroundColor = '';
                 el.style.color = '';
             }
-        });
+			el.style.left = '';
+			el.classList.remove('pinned-column');
+		});
+	});
 
-        pinnedColumns = pinnedColumns.filter(i => i !== index);
+	// Aplica fijados en orden
+	let left = 0;
+	pinnedColumns.forEach((idx, order) => {
+		const th = $(`th.column-${idx}`);
+		if (!th || th.style.display === 'none') return;
 
-        // Cambiar apariencia del botón
-        if (pinBtn) {
-            pinBtn.classList.remove('bg-yellow-600');
-            pinBtn.classList.add('bg-yellow-500');
-            pinBtn.title = 'Fijar columna';
-        }
-    } else {
-        // Fijar columna
-        pinnedColumns.push(index);
-        pinnedColumns.sort((a, b) => a - b); // Ordenar por índice
-
-        // Cambiar apariencia del botón
-        if (pinBtn) {
-            pinBtn.classList.remove('bg-yellow-500');
-            pinBtn.classList.add('bg-yellow-600');
-            pinBtn.title = 'Desfijar columna';
-        }
-    }
-
-    // Actualizar todas las columnas fijadas con sus posiciones correctas
-    updatePinnedColumnsPositions();
-}
-
-function updatePinnedColumnsPositions() {
-    let leftOffset = 0;
-
-    pinnedColumns.forEach((colIndex, orderIndex) => {
-        const elements = document.querySelectorAll(`.column-${colIndex}`);
-
-        // Obtener el ancho de la primera celda (th) para calcular el offset
-        const firstElement = elements[0];
-        const columnWidth = firstElement ? firstElement.offsetWidth : 0;
-
-        elements.forEach(el => {
+		const width = th.offsetWidth;
+		$$(`.column-${idx}`).forEach(el => {
             el.classList.add('pinned-column');
+			el.style.left = left + 'px';
+			if (el.tagName === 'TH') {
+				el.style.top = '0';
+				el.style.zIndex = String(40 + order);
             el.style.position = 'sticky';
-            el.style.left = `${leftOffset}px`;
-
-            // Z-index más alto para columnas fijadas
-            // Para headers (th): también sticky top para scroll vertical
-            const isHeader = el.tagName === 'TH';
-            if (isHeader) {
-                el.style.top = '0';
-                el.style.zIndex = `${40 + orderIndex}`;
             } else {
-                el.style.zIndex = `${35 + orderIndex}`;
-            }
-
-            el.style.backgroundColor = '#3b82f6';
-            el.style.color = 'white';
-        });
-
-        leftOffset += columnWidth;
-    });
+				el.style.zIndex = String(35 + order);
+				el.style.position = 'sticky';
+			}
+		});
+		left += width;
+	});
 }
 
-function showColumnVisibilityAlert() {
-    if (hiddenColumns.length > 0) {
-        showToast(`Columnas ocultas<br>Tienes ${hiddenColumns.length} columna(s) oculta(s). Usa "Restablecer" para mostrarlas de nuevo.`, 'info');
-    }
-}
-
-// ===== FUNCIONES DE FILTROS =====
-function applyFilters() {
-    // Aplicar filtros a la tabla usando el array filters
-    let visibleRows = allRows;
-
-    if (filters.length > 0) {
-        filters.forEach(filter => {
-        visibleRows = visibleRows.filter(row => {
-            const cell = row.querySelector(`[data-column="${filter.column}"]`);
-            if (cell) {
-                const cellValue = cell.textContent.toLowerCase();
-                const filterValue = filter.value.toLowerCase();
-                return cellValue.includes(filterValue);
-            }
-            return false;
-        });
-    });
-    }
-
-    // Actualizar tabla
-    const tbody = document.querySelector('#mainTable tbody');
-    tbody.innerHTML = '';
-    visibleRows.forEach((row, index) => {
-        // Re-agregar event listeners para selección de filas
-        row.addEventListener('click', function() {
-            selectRow(this, index);
-        });
-        tbody.appendChild(row);
-    });
-
-    // Actualizar UI
-    updateFilterCount();
-
-    if (filters.length > 0) {
-        showToast(`Filtros aplicados<br>Se aplicaron ${filters.length} filtro(s) - ${visibleRows.length} resultado(s) encontrado(s)`, 'success');
-    }
-}
-
-function updateActiveFiltersDisplay() {
-    // Función simplificada - ya no se necesita
-    updateFilterCount();
-}
-
-
-
-
-function updateFilterCount() {
-    const badge = document.getElementById('filterCount');
-    if (filters.length > 0) {
-        badge.textContent = filters.length;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
-    }
-}
-
-
-// Inicializar
-document.addEventListener('DOMContentLoaded', function() {
-    // Guardar todas las filas originales
-    const tbody = document.querySelector('#mainTable tbody');
-    if (tbody) {
-        allRows = Array.from(tbody.querySelectorAll('tr'));
-
-        // Agregar event listeners iniciales a todas las filas
-        allRows.forEach((row, index) => {
-            row.addEventListener('click', function() {
-                selectRow(this, index);
-            });
-        });
-    }
-
-    // Inicializar contador de filtros
-    const badge = document.getElementById('filterCount');
-    if (badge) {
-        badge.classList.add('hidden');
-        badge.textContent = '0';
-    }
-
-    // Agregar primer filtro automáticamente
-    addFilterRow();
-});
-
-// ===== FUNCIONES DE SELECCIÓN DE FILAS =====
+// ===== Selección de filas / prioridad =====
 function selectRow(rowElement, rowIndex) {
-    // Si la fila ya está seleccionada, deseleccionarla
+	// Toggle si ya estaba seleccionada
     if (selectedRowIndex === rowIndex && rowElement.classList.contains('bg-blue-500')) {
-        deselectRow();
-        return;
-    }
+		return deselectRow();
+	}
 
-    // Remover selección anterior
-    const allSelectableRows = document.querySelectorAll('.selectable-row');
-    allSelectableRows.forEach(row => {
-        row.classList.remove('bg-blue-500', 'text-white');
+	// Limpiar selección previa
+	$$('.selectable-row').forEach(row => {
+		row.classList.remove('bg-blue-500','text-white');
         row.classList.add('hover:bg-blue-50');
-
-        // Restaurar color de texto de las celdas
-        const cells = row.querySelectorAll('td');
-        cells.forEach(cell => {
-            cell.classList.remove('text-white');
-            cell.classList.add('text-gray-700');
+		$$('td', row).forEach(td => {
+			td.classList.remove('text-white');
+			td.classList.add('text-gray-700');
         });
     });
 
-    // Seleccionar nueva fila
-    rowElement.classList.add('bg-blue-500', 'text-white');
+	// Seleccionar actual
+	rowElement.classList.add('bg-blue-500','text-white');
     rowElement.classList.remove('hover:bg-blue-50');
+	$$('td', rowElement).forEach(td => {
+		td.classList.add('text-white');
+		td.classList.remove('text-gray-700');
+	});
 
-    // Cambiar color de texto de las celdas
-    const cells = rowElement.querySelectorAll('td');
-    cells.forEach(cell => {
-        cell.classList.add('text-white');
-        cell.classList.remove('text-gray-700');
-    });
-
-    // Actualizar índice seleccionado
     selectedRowIndex = rowIndex;
 
-    // Mostrar controles de prioridad de filas
-    const rowPriorityControls = document.getElementById('rowPriorityControls');
-    if (rowPriorityControls) {
-        rowPriorityControls.classList.remove('hidden');
-    }
-
-    console.log('Fila seleccionada:', rowIndex); // Debug
+	// Mostrar controles
+	const rpc = $('#rowPriorityControls');
+	if (rpc) rpc.classList.remove('hidden');
 }
 
 function deselectRow() {
-    // Remover selección de todas las filas
-    const allSelectableRows = document.querySelectorAll('.selectable-row');
-    allSelectableRows.forEach(row => {
-        row.classList.remove('bg-blue-500', 'text-white');
+	$$('.selectable-row').forEach(row => {
+		row.classList.remove('bg-blue-500','text-white');
         row.classList.add('hover:bg-blue-50');
-
-        // Restaurar color de texto de las celdas
-        const cells = row.querySelectorAll('td');
-        cells.forEach(cell => {
-            cell.classList.remove('text-white');
-            cell.classList.add('text-gray-700');
+		$$('td', row).forEach(td => {
+			td.classList.remove('text-white');
+			td.classList.add('text-gray-700');
         });
     });
-
-    // Actualizar índice seleccionado
     selectedRowIndex = -1;
-
-    // Ocultar controles de prioridad de filas
-    const rowPriorityControls = document.getElementById('rowPriorityControls');
-    if (rowPriorityControls) {
-        rowPriorityControls.classList.add('hidden');
-    }
-
-    console.log('Fila deseleccionada'); // Debug
+	const rpc = $('#rowPriorityControls');
+	if (rpc) rpc.classList.add('hidden');
 }
 
 function moveRowUp() {
-    if (selectedRowIndex > 0) {
-        const tbody = document.querySelector('#mainTable tbody');
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-
-        // Intercambiar filas
-        const currentRow = rows[selectedRowIndex];
-        const previousRow = rows[selectedRowIndex - 1];
-
-        tbody.insertBefore(currentRow, previousRow);
-
-        // Actualizar índice seleccionado
+	const tb = tbodyEl();
+	if (selectedRowIndex <= 0) return;
+	const rows = $$('.selectable-row', tb);
+	tb.insertBefore(rows[selectedRowIndex], rows[selectedRowIndex - 1]);
         selectedRowIndex--;
-
-        // Re-aplicar selección visual
-        const newSelectedRow = rows[selectedRowIndex];
-        selectRow(newSelectedRow, selectedRowIndex);
-
-        showToast('Fila movida<br>La fila se ha movido hacia arriba', 'success');
-    }
+	selectRow($$('.selectable-row', tb)[selectedRowIndex], selectedRowIndex);
+	showToast('Fila movida<br>Se movió hacia arriba', 'success');
 }
 
 function moveRowDown() {
-    const tbody = document.querySelector('#mainTable tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-
-    if (selectedRowIndex < rows.length - 1) {
-        // Intercambiar filas
-        const currentRow = rows[selectedRowIndex];
-        const nextRow = rows[selectedRowIndex + 1];
-
-        tbody.insertBefore(nextRow, currentRow);
-
-        // Actualizar índice seleccionado
+	const tb = tbodyEl();
+	const rows = $$('.selectable-row', tb);
+	if (selectedRowIndex < 0 || selectedRowIndex >= rows.length - 1) return;
+	tb.insertBefore(rows[selectedRowIndex + 1], rows[selectedRowIndex]);
         selectedRowIndex++;
-
-        // Re-aplicar selección visual
-        const newSelectedRow = rows[selectedRowIndex];
-        selectRow(newSelectedRow, selectedRowIndex);
-
-        showToast('Fila movida<br>La fila se ha movido hacia abajo', 'success');
-    }
+	selectRow($$('.selectable-row', tb)[selectedRowIndex], selectedRowIndex);
+	showToast('Fila movida<br>Se movió hacia abajo', 'success');
 }
 
+// ===== Init =====
+document.addEventListener('DOMContentLoaded', function() {
+	const tb = tbodyEl();
+	if (tb) {
+		allRows = $$('.selectable-row', tb);
+		allRows.forEach((row, i) => row.addEventListener('click', () => selectRow(row, i)));
+	}
+	updateFilterCount();
+	window.addEventListener('resize', () => updatePinnedColumnsPositions());
+});
 </script>
 
 @include('components.toast-notification')
 @endsection
-
-
