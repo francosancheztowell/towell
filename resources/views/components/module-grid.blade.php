@@ -3,12 +3,13 @@
 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 md:gap-4 lg:gap-5 max-w-6xl mx-auto px-6 py-8">
     @foreach ($modulos as $modulo)
         @if(!$filterConfig || $modulo['nombre'] !== 'Configuración')
-            <a href="{{ isset($modulo['ruta_tipo']) && $modulo['ruta_tipo'] === 'route' ? route($modulo['ruta'], $modulo['params'] ?? []) : url($modulo['ruta']) }}" class="block group tablet-optimized module-link">
-                <div class="p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center h-40 md:h-44 lg:h-48 transition-all duration-300 transform group-hover:scale-105 ripple-effect">
+            <a href="{{ isset($modulo['ruta_tipo']) && $modulo['ruta_tipo'] === 'route' ? route($modulo['ruta'], $modulo['params'] ?? []) : url($modulo['ruta']) }}"
+               class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect">
+                <div class="p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center min-h-[10rem] md:min-h-[13rem] lg:min-h-[12rem] transition-all duration-300 transform hover:scale-105 active:scale-[0.98]">
 
                     <!-- Contenedor de imagen optimizado para tablet -->
-                    <div class="flex-grow flex items-center justify-center mb-3">
-                        <div class="relative tablet-optimized">
+                    <div class="flex-shrink-0 mb-3">
+                        <div class="relative transform transition-transform duration-300 group-hover:-translate-y-0.5">
                             @php
                                 // FORZAR ACTUALIZACIÓN CON TIMESTAMP PARA EVITAR CACHÉ
                                 $timestamp = time();
@@ -22,18 +23,17 @@
 
                             <img src="{{ $imagenUrl }}"
                                 alt="{{ $modulo['nombre'] }}"
-                                class="w-32 h-32 md:w-32 md:h-32 lg:w-32 lg:h-32 object-cover rounded-xl group-hover:shadow-xl transition-shadow duration-300"
+                                class="w-32 h-32 md:w-44 md:h-44 lg:w-36 lg:h-36 object-cover rounded-xl shadow-md group-hover:shadow-xl transition-shadow duration-300"
                                 onerror="this.src='{{ $imagenFallback }}'"
                                 title="{{ $modulo['nombre'] }} - {{ $modulo['imagen'] ?? 'Sin imagen' }}"
                                 loading="eager"
-                                decoding="sync"
-                                style="image-rendering: auto;">
+                                decoding="sync">
                         </div>
                     </div>
 
                     <!-- Texto del módulo optimizado -->
-                    <div class="text-center px-2">
-                        <h2 class="module-title font-bold text-gray-800 leading-tight group-hover:text-blue-800 transition-colors duration-300 text-sm md:text-base lg:text-lg">
+                    <div class="text-center px-2 mt-auto">
+                        <h2 class="font-bold text-gray-800 leading-snug group-hover:text-blue-700 transition-colors duration-300 text-sm md:text-base lg:text-base break-words">
                             {{ $modulo['nombre'] }}
                         </h2>
                     </div>
@@ -42,56 +42,3 @@
         @endif
     @endforeach
 </div>
-
-@push('styles')
-    <style>
-        /* Estilos optimizados para tablet */
-        .tablet-optimized {
-            -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
-            touch-action: manipulation;
-        }
-
-        .group:hover .tablet-optimized {
-            transform: translateY(-2px);
-        }
-
-        .module-card {
-            background: linear-gradient(145deg, #ffffff, #f8fafc);
-            border: 1px solid #e2e8f0;
-        }
-
-        .module-card:hover {
-            background: linear-gradient(145deg, #f8fafc, #ffffff);
-            border-color: #3b82f6;
-        }
-
-        .module-link {
-            min-height: 48px;
-            min-width: 48px;
-        }
-
-        .ripple-effect {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .ripple-effect::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(59, 130, 246, 0.3);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .ripple-effect:active::before {
-            width: 300px;
-            height: 300px;
-        }
-    </style>
-@endpush
-
