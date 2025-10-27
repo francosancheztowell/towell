@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use App\Models\Usuario;
 use App\Models\SYSRoles;
@@ -10,7 +9,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class UsuarioController extends Controller
@@ -366,9 +364,9 @@ class UsuarioController extends Controller
         $usuarioActual = Auth::user();
         $idusuario = $usuarioActual->idusuario;
 
-        // Cachear submódulos por módulo principal y usuario
+        // Cachear submódulos por módulo principal y usuario (24 horas)
         $cacheKey = "submodulos_{$moduloPrincipal}_user_{$idusuario}";
-        $subModulos = cache()->remember($cacheKey, 3600, function () use ($idusuario, $moduloPadre) {
+        $subModulos = cache()->remember($cacheKey, 86400, function () use ($idusuario, $moduloPadre) {
             try {
                 // Obtener submódulos de nivel 2 que dependen del módulo padre
                 $subModulosDB = SYSUsuariosRoles::join('SYSRoles as r', 'SYSUsuariosRoles.idrol', '=', 'r.idrol')
@@ -642,9 +640,9 @@ class UsuarioController extends Controller
             return redirect()->route('login')->with('error', 'Usuario sin número de empleado válido');
         }
 
-        // Cachear módulos en sesión por 60 minutos
+        // Cachear módulos en sesión por 24 horas
         $cacheKey = "modulos_principales_user_{$idusuario}";
-        $modulos = cache()->remember($cacheKey, 3600, function () use ($idusuario) {
+        $modulos = cache()->remember($cacheKey, 86400, function () use ($idusuario) {
             try {
                 // Obtener SOLO módulos principales de nivel 1 usando la nueva estructura jerárquica
                 $modulosDB = SYSUsuariosRoles::join('SYSRoles as r', 'SYSUsuariosRoles.idrol', '=', 'r.idrol')
@@ -740,7 +738,7 @@ class UsuarioController extends Controller
 
         // Usar el mismo caché que showSubModulos
         $cacheKey = "submodulos_{$moduloPrincipal}_user_{$idusuario}";
-        $subModulos = cache()->remember($cacheKey, 3600, function () use ($idusuario, $rango) {
+        $subModulos = cache()->remember($cacheKey, 86400, function () use ($idusuario, $rango) {
             try {
                 $codigoModuloPadre = $rango['inicio'];
 
@@ -808,20 +806,28 @@ class UsuarioController extends Controller
      */
     private function guardarPermisos(Request $request, $idusuario)
     {
-        // Eliminar permisos anteriores
-        SYSUsuariosRoles::where('idusuario', $idusuario)->delete();
+        try {
+            // Log para verificar datos recibidos
+            Log::info('Guardando permisos para usuario', [
+                'idusuario' => $idusuario,
+                'total_permisos_recibidos' => count($request->all())
+            ]);
 
-        // Obtener TODOS los módulos (principales, hijos y nietos)
-        $modulos = SYSRoles::orderBy('orden')->get();
+            // Eliminar permisos anteriores
+            SYSUsuariosRoles::where('idusuario', $idusuario)->delete();
 
-        foreach ($modulos as $modulo) {
-            $acceso = $request->has("modulo_{$modulo->idrol}_acceso");
-            $crear = $request->has("modulo_{$modulo->idrol}_crear");
-            $modificar = $request->has("modulo_{$modulo->idrol}_modificar");
-            $eliminar = $request->has("modulo_{$modulo->idrol}_eliminar");
+            // Obtener TODOS los módulos (principales, hijos y nietos)
+            $modulos = SYSRoles::orderBy('orden')->get();
 
-            // Solo guardar si al menos tiene acceso
-            if ($acceso) {
+            $permisosGuardados = 0;
+            foreach ($modulos as $modulo) {
+                $acceso = $request->has("modulo_{$modulo->idrol}_acceso") ? 1 : 0;
+                $crear = $request->has("modulo_{$modulo->idrol}_crear") ? 1 : 0;
+                $modificar = $request->has("modulo_{$modulo->idrol}_modificar") ? 1 : 0;
+                $eliminar = $request->has("modulo_{$modulo->idrol}_eliminar") ? 1 : 0;
+                $registrar = $crear; // Usar mismo valor que crear
+
+                // Guardar siempre, incluso si no tiene acceso (para mantener la consistencia)
                 SYSUsuariosRoles::create([
                     'idusuario' => $idusuario,
                     'idrol' => $modulo->idrol,
@@ -829,9 +835,66 @@ class UsuarioController extends Controller
                     'crear' => $crear,
                     'modificar' => $modificar,
                     'eliminar' => $eliminar,
-                    'registrar' => $crear, // Usar mismo valor que crear
+                    'registrar' => $registrar,
+                    'assigned_at' => now(),
                 ]);
+                $permisosGuardados++;
+
+                // Log para los primeros 3 módulos
+                if ($permisosGuardados <= 3) {
+                    Log::info("Permiso guardado para módulo: {$modulo->modulo} (idrol: {$modulo->idrol})", [
+                        'acceso' => $acceso,
+                        'crear' => $crear,
+                        'modificar' => $modificar,
+                        'eliminar' => $eliminar
+                    ]);
+                }
             }
+
+            Log::info('Permisos guardados exitosamente', [
+                'usuario_id' => $idusuario,
+                'total_permisos' => $permisosGuardados
+            ]);
+
+            // Limpiar caché de módulos para este usuario para que los cambios se reflejen inmediatamente
+            $this->limpiarCachePermisos($idusuario);
+
+        } catch (\Exception $e) {
+            Log::error('Error al guardar permisos', [
+                'usuario_id' => $idusuario,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Limpiar el caché de permisos de un usuario
+     * @param int $idusuario
+     */
+    private function limpiarCachePermisos($idusuario)
+    {
+        try {
+            // Limpiar caché de módulos principales
+            $cacheKey = "modulos_principales_user_{$idusuario}";
+            cache()->forget($cacheKey);
+
+            // Limpiar caché de submódulos de todos los módulos principales
+            $modulos = ['planeacion', 'tejido', 'urdido', 'engomado', 'atadores', 'tejedores', 'mantenimiento', 'programa-urd-eng'];
+            foreach ($modulos as $modulo) {
+                $subCacheKey = "submodulos_{$modulo}_user_{$idusuario}";
+                cache()->forget($subCacheKey);
+            }
+
+            // También limpiar el caché general de configuración
+            cache()->flush();
+
+        } catch (\Exception $e) {
+            Log::error('Error al limpiar caché de permisos', [
+                'usuario_id' => $idusuario,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }

@@ -39,11 +39,11 @@ class SYSRoles extends Model
     ];
 
     protected $casts = [
-        'acceso' => 'boolean',
-        'crear' => 'boolean',
-        'modificar' => 'boolean',
-        'eliminar' => 'boolean',
-        'reigstrar' => 'boolean',
+        'acceso' => 'integer',
+        'crear' => 'integer',
+        'modificar' => 'integer',
+        'eliminar' => 'integer',
+        'reigstrar' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
     ];

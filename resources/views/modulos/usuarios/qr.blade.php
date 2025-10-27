@@ -2,6 +2,22 @@
 
 @php
     $soloAtras = true;
+
+    // Helper simple para iniciales
+    function iniciales($nombre)
+    {
+        $partes = preg_split('/\s+/', trim($nombre));
+        $ini = '';
+        foreach ($partes as $p) {
+            if ($p !== '') {
+                $ini .= mb_strtoupper(mb_substr($p, 0, 1));
+            }
+            if (mb_strlen($ini) >= 2) {
+                break;
+            }
+        }
+        return mb_substr($ini, 0, 2);
+    }
 @endphp
 
 @section('content')
@@ -66,16 +82,6 @@
                     Descargar QR
                 </button>
 
-                <!-- Back Button -->
-                <div class="mt-4">
-                    <a href="{{ route('configuracion.usuarios.select') }}"
-                        class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a Lista de Usuarios
-                    </a>
-                </div>
             </div>
         </div>
 

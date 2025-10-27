@@ -75,71 +75,146 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <!-- Estilos personalizados (solo animaciones que Tailwind no soporta) -->
+
+    <!-- Desregistrar y limpiar Service Workers antiguos -->
+    <script>
+        (function() {
+            // Ejecutar INMEDIATAMENTE, antes de que cargue cualquier cosa
+            console.log('[ServiceWorker Cleanup] Iniciando limpieza...');
+
+            if ('serviceWorker' in navigator) {
+                // Función para limpiar todo
+                async function cleanupServiceWorkers() {
+                    try {
+                        // 1. Obtener todos los registros
+                        const registrations = await navigator.serviceWorker.getRegistrations();
+                        console.log('[ServiceWorker] Encontrados', registrations.length, 'registros');
+
+                        // 2. Desregistrar cada uno
+                        for (const registration of registrations) {
+                            const success = await registration.unregister();
+                            console.log('[ServiceWorker] Desregistrado:', success);
+                        }
+
+                        // 3. Limpiar caché
+                        if ('caches' in window) {
+                            const cacheNames = await caches.keys();
+                            console.log('[ServiceWorker] Encontrados', cacheNames.length, 'caches');
+
+                            for (const name of cacheNames) {
+                                await caches.delete(name);
+                                console.log('[ServiceWorker] Cache eliminado:', name);
+                            }
+                        }
+
+                        // 4. Forzar actualización
+                        if (navigator.serviceWorker.controller) {
+                            navigator.serviceWorker.controller.postMessage({action: 'skipWaiting'});
+                        }
+
+                        console.log('[ServiceWorker Cleanup] ✅ Limpieza completada');
+                    } catch (error) {
+                        console.error('[ServiceWorker Cleanup] ❌ Error:', error);
+                    }
+                }
+
+                // Ejecutar ahora
+                cleanupServiceWorkers();
+
+                // También ejecutar al cargar la página
+                window.addEventListener('load', cleanupServiceWorkers);
+
+                // Ejecutar cuando la página está activa
+                document.addEventListener('visibilitychange', function() {
+                    if (!document.hidden) {
+                        cleanupServiceWorkers();
+                    }
+                });
+            } else {
+                console.log('[ServiceWorker] No disponible en este navegador');
+            }
+        })();
+    </script>
+
+    <!-- Configuración de Tailwind para animación personalizada -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'gradientAnimation': 'gradientAnimation 5s ease infinite',
+                    },
+                    keyframes: {
+                        gradientAnimation: {
+                            '0%, 100%': { 'background-position': '0% 50%' },
+                            '50%': { 'background-position': '100% 50%' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        /* Animación del fondo degradado */
-        body {
-            background: linear-gradient(135deg, #099ff6, #c2e7ff, #0857be);
-            background-size: 300% 300%;
-            animation: gradientAnimation 5s ease infinite;
-        }
-
-        @keyframes gradientAnimation {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-        }
-
-        /* Efecto ripple (no disponible en Tailwind) */
-        .ripple-effect::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(59, 130, 246, 0.3);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
+        /* Efecto ripple - requiere ::before dinámico */
+        @keyframes ripple {
+            0% {
+                width: 0;
+                height: 0;
+            }
+            100% {
+                width: 300px;
+                height: 300px;
+            }
         }
 
         .ripple-effect:active::before {
-            width: 300px;
-            height: 300px;
-        }
-
-        /* Animación para el botón de atrás */
-        @keyframes slideInLeft {
-            0% {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            100% {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        #btn-back.flex {
-            animation: slideInLeft 0.3s ease-out;
-        }
-
-        /* Efecto táctil mejorado para tablets */
-        @media (min-width: 768px) and (max-width: 1024px) {
-            #btn-back:active {
-                transform: scale(0.92);
-            }
-        }
-
-        /* Modal compacto de usuario */
-        #user-modal {
-            max-width: calc(100vw - 2rem);
+            animation: ripple 0.6s ease-out;
         }
     </style>
     @stack('styles')  @push('styles')
     </head>
 
-    <body class="min-h-screen flex flex-col">
+    <!-- Script para optimizar la navegación y evitar recargas innecesarias -->
+    <script>
+        // Guardar el estado de la navbar en sessionStorage
+        (function() {
+            const currentPath = window.location.pathname;
+            const storedPath = sessionStorage.getItem('lastNavbarPath');
+
+            // Si la ruta ya está cargada, marcar la navbar como persistente
+            if (storedPath === currentPath) {
+                document.documentElement.setAttribute('data-navbar-loaded', 'true');
+            } else {
+                sessionStorage.setItem('lastNavbarPath', currentPath);
+                document.documentElement.setAttribute('data-navbar-loaded', 'false');
+            }
+
+            // Detectar cambios de navegación
+            let isNavigating = false;
+
+            document.addEventListener('click', function(e) {
+                const link = e.target.closest('a[href]');
+                if (!link || link.target === '_blank') return;
+
+                // Ignorar links externos
+                if (link.hostname !== window.location.hostname) return;
+
+                const href = link.getAttribute('href');
+
+                // Si es un link diferente al actual, marcar como navegando
+                if (href && href !== '#' && href !== window.location.pathname) {
+                    isNavigating = true;
+                }
+            });
+
+            // Limpiar el flag cuando la navegación se complete
+            window.addEventListener('pageshow', function(e) {
+                isNavigating = false;
+            });
+        })();
+    </script>
+
+    <body class="min-h-screen flex flex-col overflow-x-hidden h-screen bg-gradient-to-br from-blue-500 via-blue-200 to-blue-700 bg-[length:300%_300%] animate-gradientAnimation relative">
         <!-- Incluir el loader global -->
         @include('layouts.globalLoader')
 
@@ -149,12 +224,10 @@
                 <div class="flex items-center justify-between">
                     <!-- Sección Izquierda: Botón Atrás + Logo -->
                     <div class="flex items-center gap-2 md:gap-3">
-                        <!-- Botón Atrás (visible en tablet/móvil) -->
-                        <button id="btn-back"
-                                class="items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-lg bg-blue-50 hover:bg-blue-100 active:bg-blue-200 text-blue-600 hover:text-blue-700 transition-all duration-200 touch-manipulation opacity-0 invisible pointer-events-none"
-                                title="Volver atrás">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        <!-- Botón Atrás -->
+                        <button id="btn-back" class="opacity-0 invisible pointer-events-none w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-blue-200 hover:bg-blue-400 text-black rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 touch-manipulation" title="Volver atrás">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                             </svg>
                         </button>
 
@@ -258,7 +331,7 @@
         </nav>
 
         <!-- Modal Compacto de Usuario (estilo redes sociales) -->
-        <div id="user-modal" class="fixed top-16 right-4 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50 opacity-0 invisible scale-95 transition-all duration-200 origin-top-right">
+        <div id="user-modal" class="fixed top-16 right-4 max-w-[calc(100vw-2rem)] w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50 opacity-0 invisible scale-95 transition-all duration-200 origin-top-right">
             <!-- Contenido del modal -->
             <div class="p-4">
                 <!-- Avatar y nombre -->
@@ -423,7 +496,7 @@
         </script>
 
         <!-- Contenido de la página -->
-        <main class="">
+        <main class="overflow-x-hidden max-w-full">
             @yield('content')
             <!-- JavaScript para mostrar/ocultar el loader -->
         </main>

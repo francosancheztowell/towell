@@ -12,6 +12,6 @@
         <x-module-grid :modulos="$modulos" columns="xl:grid-cols-4" :filterConfig="true" />
     </div>
 
-    <!-- Sistema de Precarga de Módulos -->
-    <script src="{{ asset('js/module-prefetch.js') }}"></script>
+    <!-- Sistema de Precarga de Módulos - DESHABILITADO TEMPORALMENTE -->
+    {{-- <script src="{{ asset('js/module-prefetch.js') }}"></script> --}}
 @endsection

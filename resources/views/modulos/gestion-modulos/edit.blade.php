@@ -4,10 +4,6 @@
 
 @section('content')
 <div class="container mx-auto px-4 py-4 max-w-full -mt-6">
-
-    <!-- Botón de regresar -->
-    <x-back-button text="Volver a Gestión de Módulos" />
-
     <!-- Mensajes de éxito/error -->
     @if(session('success'))
         <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">

@@ -43,7 +43,7 @@ class AuthController extends Controller
             Auth::login($empleado);
             $request->session()->regenerate();
             session()->flash('bienvenida', true);
-            return redirect()->intended('http://127.0.0.1:8000/produccionProceso');
+            return redirect()->intended('/produccionProceso');
         }
 
         // Credenciales inválidas

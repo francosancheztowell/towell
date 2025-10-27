@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         // Registrar middleware para forzar HTTPS - TEMPORALMENTE DESHABILITADO
         // $middleware->append(\App\Http\Middleware\ForceHttps::class);
+
+        // Trust all proxies to work behind any proxy or load balancer
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

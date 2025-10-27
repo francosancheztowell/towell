@@ -1,12 +1,13 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
+@section('page-title')
+    <x-page-title
+        title="Configuración"
+    />
+@endsection
+
 @section('content')
     <div class="container mx-auto px-4 py-6 overflow-y-auto min-h-screen" id="globalLoader">
-        <!-- Header usando componente reutilizable -->
-        <x-produccion-proceso-header titulo="Configuración" />
-
-        <!-- Botón de regreso -->
-        <x-back-button />
 
         @if (count($subModulos) === 0)
             <!-- Estado vacío -->

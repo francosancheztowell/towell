@@ -173,6 +173,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Trust all proxies
+    |--------------------------------------------------------------------------
+    |
+    | Allow the application to work behind any proxy or load balancer
+    |
+    */
+
+    /*
+    |--------------------------------------------------------------------------
     | HTTP Access Only
     |--------------------------------------------------------------------------
     |
@@ -200,6 +209,18 @@ return [
     */
 
     'same_site' => env('SESSION_SAME_SITE', 'lax'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Trusted Proxies Configuration
+    |--------------------------------------------------------------------------
+    |
+    | This configuration allows the session to work properly behind proxies
+    | and load balancers by trusting the X-Forwarded-* headers.
+    |
+    */
+
+    'trusted_proxies' => env('TRUSTED_PROXIES', '*'),
 
     /*
     |--------------------------------------------------------------------------

@@ -2,8 +2,6 @@
 
 @section('content')
 <div class="container mx-auto px-4 py-8">
-    <!-- Back Button -->
-    <x-back-button />
 
     <!-- View Records Button -->
     <div class="mb-6">

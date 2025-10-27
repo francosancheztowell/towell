@@ -2,10 +2,6 @@
 
 @section('content')
     <div class="container mx-auto">
-        <div class="mt-2">
-            <x-back-button text="Volver a Inventario de Telas" />
-        </div>
-
         <!-- Navbar de telares usando componente (ordenados por secuencia) -->
         @if(count($telaresJacquard) > 0)
             <x-telar-navbar :telares="$telaresJacquard" />

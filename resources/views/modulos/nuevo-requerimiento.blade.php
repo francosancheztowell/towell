@@ -2,11 +2,6 @@
 
 @section('content')
     <div class="container mx-auto">
-        <div class="mt-2">
-            <x-back-button text="Volver a Inventario Trama" />
-        </div>
-
-        <!-- Navbar de telares -->
         <div id="telar-navbar" class="fixed top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-lg z-40 transition-all duration-300">
             <div class="container mx-auto px-4 py-3">
                 <div class="flex flex-wrap justify-center gap-2 max-w-8xl mx-auto">

@@ -70,6 +70,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ asset('js/catalog-core.js') }}"></script>
     <script>
         let selectedCalendarioTab = null;
         let selectedCalendarioLine = null;
@@ -188,30 +189,7 @@
             }
         }
 
-        // Funciones de botones unificadas
-        function enableButtons() {
-            const btnEditar = document.getElementById('btn-editar');
-            const btnEliminar = document.getElementById('btn-eliminar');
-
-            if (btnEditar && btnEliminar) {
-                btnEditar.disabled = false;
-                btnEliminar.disabled = false;
-                btnEditar.className = 'inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium';
-                btnEliminar.className = 'inline-flex items-center px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium';
-            }
-        }
-
-        function disableButtons() {
-            const btnEditar = document.getElementById('btn-editar');
-            const btnEliminar = document.getElementById('btn-eliminar');
-
-            if (btnEditar && btnEliminar) {
-                btnEditar.disabled = true;
-                btnEliminar.disabled = true;
-                btnEditar.className = 'inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed';
-                btnEliminar.className = 'inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed';
-            }
-        }
+        // Las funciones enableButtons() y disableButtons() están definidas en catalog-core.js
 
         // Función para agregar línea de calendario
         function agregarLineaCalendario() {

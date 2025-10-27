@@ -17,15 +17,17 @@ class SYSUsuariosRoles extends Model
         'crear',
         'modificar',
         'eliminar',
-        'registrar'
+        'registrar',
+        'assigned_at'
     ];
 
     protected $casts = [
-        'acceso' => 'boolean',
-        'crear' => 'boolean',
-        'modificar' => 'boolean',
-        'eliminar' => 'boolean',
-        'registrar' => 'boolean'
+        'acceso' => 'integer',
+        'crear' => 'integer',
+        'modificar' => 'integer',
+        'eliminar' => 'integer',
+        'registrar' => 'integer',
+        'assigned_at' => 'datetime'
     ];
 
     public $timestamps = false;

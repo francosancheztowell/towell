@@ -234,10 +234,10 @@
                 <!-- Permisos por Módulos -->
                 <div>
                     <div class="px-4 sm:px-6 py-3 sm:py-4">
-                        <!-- Header sticky con botones -->
-                        <div class="sticky top-16 z-10 pb-3 mb-4">
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-2 sm:mb-0">Permisos por Módulos</h3>
+                        <!-- Header con título y botones -->
+                        <div class="mb-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <h3 class="text-lg font-semibold text-gray-900">Permisos por Módulos</h3>
                                 <div class="flex flex-wrap gap-2">
                                     <button type="button" onclick="seleccionarTodos()"
                                         class="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 transition-colors">
@@ -290,56 +290,58 @@
                             @endforeach
                         </div>
 
-                        <!-- Header de la tabla sticky -->
-                        <div class="hidden sm:block sticky top-32 z-20 mb-1">
-                            <div class="grid grid-cols-5 gap-1 px-3 py-2 bg-blue-600 rounded-t-lg border border-blue-700 border-b-0 shadow-lg">
-                                <div class="text-xs font-semibold text-white uppercase tracking-wider">Módulo</div>
+                        <!-- Versión desktop: tabla con contenedor -->
+                        <div class="hidden sm:block">
+                            <div class="overflow-x-auto max-h-[600px] overflow-y-auto border border-gray-200 rounded-lg shadow-sm">
+                                <!-- Header de la tabla sticky -->
+                                <div class="sticky top-0 z-10">
+                                    <div class="grid grid-cols-5 gap-1 px-3 py-2 bg-blue-600 rounded-t-lg border-b border-blue-700 shadow-lg">
+                                        <div class="text-xs font-semibold text-white uppercase tracking-wider">Módulo</div>
 
-                                <!-- Acceso -->
-                                <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
-                                    <div class="flex items-center justify-center gap-1">
-                                        <span>Acceso</span>
-                                        <input type="checkbox" id="selectAllAcceso"
-                                            class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
-                                            onchange="toggleAllAcceso(this)">
+                                        <!-- Acceso -->
+                                        <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                            <div class="flex items-center justify-center gap-1">
+                                                <span>Acceso</span>
+                                                <input type="checkbox" id="selectAllAcceso"
+                                                    class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
+                                                    onchange="toggleAllAcceso(this)">
+                                            </div>
+                                        </div>
+
+                                        <!-- Crear -->
+                                        <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                            <div class="flex items-center justify-center gap-1">
+                                                <span>Crear</span>
+                                                <input type="checkbox" id="selectAllCrear"
+                                                    class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
+                                                    onchange="toggleAllCrear(this)">
+                                            </div>
+                                        </div>
+
+                                        <!-- Modificar -->
+                                        <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                            <div class="flex items-center justify-center gap-1">
+                                                <span>Modificar</span>
+                                                <input type="checkbox" id="selectAllModificar"
+                                                    class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
+                                                    onchange="toggleAllModificar(this)">
+                                            </div>
+                                        </div>
+
+                                        <!-- Eliminar -->
+                                        <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                            <div class="flex items-center justify-center gap-1">
+                                                <span>Eliminar</span>
+                                                <input type="checkbox" id="selectAllEliminar"
+                                                    class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
+                                                    onchange="toggleAllEliminar(this)">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- Crear -->
-                                <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
-                                    <div class="flex items-center justify-center gap-1">
-                                        <span>Crear</span>
-                                        <input type="checkbox" id="selectAllCrear"
-                                            class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
-                                            onchange="toggleAllCrear(this)">
-                                    </div>
-                                </div>
-
-                                <!-- Modificar -->
-                                <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
-                                    <div class="flex items-center justify-center gap-1">
-                                        <span>Modificar</span>
-                                        <input type="checkbox" id="selectAllModificar"
-                                            class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
-                                            onchange="toggleAllModificar(this)">
-                                    </div>
-                                </div>
-
-                                <!-- Eliminar -->
-                                <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
-                                    <div class="flex items-center justify-center gap-1">
-                                        <span>Eliminar</span>
-                                        <input type="checkbox" id="selectAllEliminar"
-                                            class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
-                                            onchange="toggleAllEliminar(this)">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Versión desktop: tabla -->
-                        <div class="hidden sm:block overflow-x-auto">
-                            <div class="min-w-full bg-white border border-gray-200 border-t-0 rounded-b-lg shadow-sm">
+                                <!-- Cuerpo de la tabla -->
+                                <div class="bg-white">
                                 @foreach ($modulos as $modulo)
                                     @php
                                         $permisos = isset($permisosUsuario) ? ($permisosUsuario[$modulo->idrol] ?? null) : null;
@@ -409,6 +411,7 @@
                                         </div>
                                     </div>
                                 @endforeach
+                                </div>
                             </div>
                         </div>
 

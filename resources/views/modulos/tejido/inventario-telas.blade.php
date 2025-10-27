@@ -2,12 +2,6 @@
 
 @section('content')
     <div class="container mx-auto">
-        <!-- Header usando componente reutilizable -->
-        <x-produccion-proceso-header titulo="Tejido" subtitulo="Inventario de Telas" />
-
-        <div class="mt-2">
-            <x-back-button text="Volver a Tejido" />
-        </div>
         @php
             $modulos = [
                 [

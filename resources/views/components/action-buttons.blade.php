@@ -1,63 +1,96 @@
 @props(['route' => null, 'showFilters' => false])
 
+@php
+    // Mapeo de rutas a nombres de módulos en la tabla SYSRoles
+    $rutaToNombreModulo = [
+        'telares' => 'Telares',
+        'eficiencia' => 'Eficiencias STD',
+        'velocidad' => 'Velocidad STD',
+        'calendarios' => 'Calendarios',
+        'aplicaciones' => 'Aplicaciones (Cat.)',
+        'codificacion' => 'Codificación Modelos',
+    ];
+
+    // Obtener permisos del usuario usando helper reutilizable
+    $nombreModulo = isset($rutaToNombreModulo[$route]) ? $rutaToNombreModulo[$route] : null;
+
+    $puedeCrear = $nombreModulo ? userCan('crear', $nombreModulo) : false;
+    $puedeEditar = $nombreModulo ? userCan('modificar', $nombreModulo) : false;
+    $puedeEliminar = $nombreModulo ? userCan('eliminar', $nombreModulo) : false;
+    $tieneAcceso = $nombreModulo ? userCan('acceso', $nombreModulo) : false;
+@endphp
+
 <div class="flex items-center gap-2">
-    {{-- Para calendarios, mostrar dos botones de Excel separados --}}
-    @if($route === 'calendarios')
-        <button id="btn-subir-excel-calendarios" onclick="subirExcelCalendariosMaestro()"
-        class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
-        <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-         Subir Calendarios
-        </button>
+    @if($tieneAcceso)
+        {{-- Mostrar botones de Excel solo si tiene permiso de crear --}}
+        @if($puedeCrear)
+            {{-- Para calendarios, mostrar dos botones de Excel separados --}}
+            @if($route === 'calendarios')
+                <button id="btn-subir-excel-calendarios" onclick="subirExcelCalendariosMaestro()"
+                class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
+                <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                 Subir Calendarios
+                </button>
 
-        <button id="btn-subir-excel-lineas" onclick="subirExcelLineas()"
-        class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
-        <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-         Subir Líneas
-        </button>
-    @else
-        {{-- Para otros módulos, botón único --}}
-        <button id="btn-subir-excel" onclick="console.log('Botón clickeado'); subirExcel{{ ucfirst($route) }}()"
-        class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
-        <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+                <button id="btn-subir-excel-lineas" onclick="subirExcelLineas()"
+                class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
+                <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                 Subir Líneas
+                </button>
+            @else
+                {{-- Para otros módulos, botón único --}}
+                <button id="btn-subir-excel" onclick="console.log('Botón clickeado'); subirExcel{{ ucfirst($route) }}()"
+                class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
+                <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
 
-         Subir Excel
-        </button>
+                 Subir Excel
+                </button>
+            @endif
+
+            {{-- Botón Añadir/Crear solo si tiene permiso de crear --}}
+            <button id="btn-agregar" onclick="agregar{{ ucfirst($route) }}()"
+               class="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Añadir
+            </button>
+        @endif
+
+        {{-- Botón Editar solo si tiene permiso de editar --}}
+        @if($puedeEditar)
+            <button id="btn-editar" onclick="editar{{ ucfirst($route) }}()" disabled
+               class="inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Editar
+            </button>
+        @endif
+
+        {{-- Botón Eliminar solo si tiene permiso de eliminar --}}
+        @if($puedeEliminar)
+            <button id="btn-eliminar" onclick="eliminar{{ ucfirst($route) }}()" disabled
+               class="inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Eliminar
+            </button>
+        @endif
     @endif
-    <button id="btn-agregar" onclick="agregar{{ ucfirst($route) }}()"
-       class="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium">
-        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-        Añadir
-    </button>
-
-    <button id="btn-editar" onclick="editar{{ ucfirst($route) }}()" disabled
-       class="inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed">
-        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-        </svg>
-        Editar
-    </button>
-
-    <button id="btn-eliminar" onclick="eliminar{{ ucfirst($route) }}()" disabled
-       class="inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed">
-        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-        Eliminar
-    </button>
 
     @if($showFilters)
     <button id="btn-filtrar" onclick="filtrar{{ ucfirst($route) }}()"

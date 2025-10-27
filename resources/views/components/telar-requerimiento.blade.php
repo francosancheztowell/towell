@@ -25,6 +25,24 @@
     'turnos' => 3
 ])
 
+@php
+    //esta es una funcion para verificar si el usuario tiene permiso de crear requerimientos
+    // Verificar permisos del usuario actual
+    $usuarioActual = Auth::user();
+    $idusuario = $usuarioActual ? $usuarioActual->idusuario : null;
+
+    // Obtener permisos del usuario para el módulo "Requerimientos" (idrol 21)
+    $permisos = null;
+    if ($idusuario) {
+        $permisos = \App\Models\SYSUsuariosRoles::where('idusuario', $idusuario)
+            ->where('idrol', 21) // Requerimientos
+            ->first();
+    }
+
+    // Verificar si tiene permiso de crear
+    $puedeCrear = $permisos ? $permisos->crear == 1 : false;
+@endphp
+
 <div class="p-3 md:p-1.5 lg:p-3">
     <div class="md:flex md:flex-col lg:flex-row">
         <!-- Información de cuentas -->
@@ -107,22 +125,24 @@
                                         <input
                                             type="checkbox"
                                             name="rizo{{ $turno }}"
-                                            class="{{ $claseTabla }}rizo w-3 h-3 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                            class="{{ $claseTabla }}rizo w-3 h-3 text-blue-600 rounded border-gray-300 focus:ring-blue-500 {{ !$puedeCrear ? 'opacity-50 cursor-not-allowed' : '' }}"
                                             value="rizo{{ $turno }}"
                                             id="{{ $prefijoId }}_rizo{{ $turno }}"
                                             data-telar="{{ $telar->Telar }}"
                                             data-tipo="rizo"
+                                            {{ !$puedeCrear ? 'disabled' : '' }}
                                         >
                                     </label>
                                     <label class="block">
                                         <input
                                             type="checkbox"
                                             name="pie{{ $turno }}"
-                                            class="{{ $claseTabla }}pie w-3 h-3 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                            class="{{ $claseTabla }}pie w-3 h-3 text-blue-600 rounded border-gray-300 focus:ring-blue-500 {{ !$puedeCrear ? 'opacity-50 cursor-not-allowed' : '' }}"
                                             value="pie{{ $turno }}"
                                             id="{{ $prefijoId }}_pie{{ $turno }}"
                                             data-telar="{{ $telar->Telar }}"
                                             data-tipo="pie"
+                                            {{ !$puedeCrear ? 'disabled' : '' }}
                                         >
                                     </label>
                                 </div>
