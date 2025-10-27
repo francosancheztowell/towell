@@ -32,8 +32,8 @@
                     </div>
 
                     <!-- Texto del módulo optimizado -->
-                    <div class="text-center px-2 mt-auto">
-                        <h2 class="font-bold text-gray-800 leading-snug group-hover:text-blue-700 transition-colors duration-300 text-sm md:text-base lg:text-base break-words">
+                    <div class="text-center px-2 -mt-3">
+                        <h2 class="font-bold text-white leading-tight group-hover:text-blue-100 transition-colors duration-300 text-xs md:text-sm lg:text-sm break-words drop-shadow-lg bg-black/30 px-2 py-1 rounded-md backdrop-blur-sm max-w-full">
                             {{ $modulo['nombre'] }}
                         </h2>
                     </div>

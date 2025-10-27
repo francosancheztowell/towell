@@ -53,8 +53,6 @@
         const token = document.head.querySelector('meta[name="csrf-token"]');
         if (token) {
             window.axios.defaults.headers.common['X-CSRF-TOKEN'] = token.content;
-        } else {
-            console.error('CSRF token not found: https://laravel.com/docs/csrf#csrf-x-csrf-token');
         }
     </script>
 
@@ -79,31 +77,24 @@
     <!-- Desregistrar y limpiar Service Workers antiguos -->
     <script>
         (function() {
-            // Ejecutar INMEDIATAMENTE, antes de que cargue cualquier cosa
-            console.log('[ServiceWorker Cleanup] Iniciando limpieza...');
-
             if ('serviceWorker' in navigator) {
                 // Función para limpiar todo
                 async function cleanupServiceWorkers() {
                     try {
                         // 1. Obtener todos los registros
                         const registrations = await navigator.serviceWorker.getRegistrations();
-                        console.log('[ServiceWorker] Encontrados', registrations.length, 'registros');
 
                         // 2. Desregistrar cada uno
                         for (const registration of registrations) {
-                            const success = await registration.unregister();
-                            console.log('[ServiceWorker] Desregistrado:', success);
+                            await registration.unregister();
                         }
 
                         // 3. Limpiar caché
                         if ('caches' in window) {
                             const cacheNames = await caches.keys();
-                            console.log('[ServiceWorker] Encontrados', cacheNames.length, 'caches');
 
                             for (const name of cacheNames) {
                                 await caches.delete(name);
-                                console.log('[ServiceWorker] Cache eliminado:', name);
                             }
                         }
 
@@ -111,10 +102,8 @@
                         if (navigator.serviceWorker.controller) {
                             navigator.serviceWorker.controller.postMessage({action: 'skipWaiting'});
                         }
-
-                        console.log('[ServiceWorker Cleanup] ✅ Limpieza completada');
                     } catch (error) {
-                        console.error('[ServiceWorker Cleanup] ❌ Error:', error);
+                        // Error silencioso
                     }
                 }
 
@@ -130,27 +119,15 @@
                         cleanupServiceWorkers();
                     }
                 });
-            } else {
-                console.log('[ServiceWorker] No disponible en este navegador');
             }
         })();
     </script>
 
-    <!-- Configuración de Tailwind para animación personalizada -->
+    <!-- Configuración de Tailwind -->
     <script>
         tailwind.config = {
             theme: {
-                extend: {
-                    animation: {
-                        'gradientAnimation': 'gradientAnimation 5s ease infinite',
-                    },
-                    keyframes: {
-                        gradientAnimation: {
-                            '0%, 100%': { 'background-position': '0% 50%' },
-                            '50%': { 'background-position': '100% 50%' },
-                        }
-                    }
-                }
+                extend: {}
             }
         }
     </script>
@@ -214,7 +191,7 @@
         })();
     </script>
 
-    <body class="min-h-screen flex flex-col overflow-x-hidden h-screen bg-gradient-to-br from-blue-500 via-blue-200 to-blue-700 bg-[length:300%_300%] animate-gradientAnimation relative">
+    <body class="min-h-screen flex flex-col overflow-x-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative">
         <!-- Incluir el loader global -->
         @include('layouts.globalLoader')
 

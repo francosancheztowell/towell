@@ -514,6 +514,11 @@ Route::middleware(['auth'])->group(function () {
         $registros = \App\Models\ReqProgramaTejido::orderBy('NoTelarId')->get();
         return view('modulos.req-programa-tejido', compact('registros'));
     })->name('catalogos.req-programa-tejido');
+
+    // Nueva ruta para crear programa de tejido
+    Route::get('/planeacion/programa-tejido/nuevo', function() {
+        return view('modulos.programa-tejido-nuevo.create');
+    })->name('programa-tejido.nuevo');
     Route::get('/planeacion/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia.index');
     Route::get('/planeacion/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad.index');
     Route::get('/planeacion/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');

@@ -24,6 +24,14 @@
 @section('menu-planeacion')
 <!-- Botones específicos para Programa Tejido -->
 <div class="flex items-center gap-2">
+	<button type="button" onclick="abrirNuevo(); return false;"
+			class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+		<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+		</svg>
+		Nuevo
+	</button>
+
 	<a href="/submodulos-nivel3/104"
 	   class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
 		<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -574,6 +582,11 @@ function moveRowDown() {
         selectedRowIndex++;
 	selectRow($$('.selectable-row', tb)[selectedRowIndex], selectedRowIndex);
 	showToast('Fila movida<br>Se movió hacia abajo', 'success');
+}
+
+// ===== Función para abrir nuevo registro =====
+function abrirNuevo() {
+	window.location.href = '/planeacion/programa-tejido/nuevo';
 }
 
 // ===== Init =====
