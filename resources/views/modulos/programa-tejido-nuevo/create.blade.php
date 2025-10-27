@@ -3,31 +3,7 @@
 @section('content')
 <div class=" py-6 px-4 sm:px-6 lg:px-8">
     <div class="max-w-7xl mx-auto">
-        <!-- Header con botones -->
-        <div class="bg-white shadow-sm rounded-lg mb-4 p-4">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">Nuevo Programa de Tejido</h1>
-                    <p class="text-sm text-gray-600 mt-1">Completa los datos del registro</p>
-                </div>
-                <div class="flex gap-3">
-                    <button type="button" onclick="cancelar()"
-                            class="flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-base font-medium">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        Cancelar
-                    </button>
-                    <button type="button" onclick="guardar()"
-                            class="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-base font-medium shadow-md">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                        Guardar
-                    </button>
-                </div>
-            </div>
-        </div>
+
 
         <!-- Estructura tipo hoja de cálculo - Parte superior -->
         <div class="bg-white shadow-sm rounded-lg overflow-hidden mb-4">
