@@ -1,5 +1,7 @@
 @extends('layouts.app')
 
+@section('page-title', 'Catálogo de Eficiencia')
+
 @section('content')
 <div class="container">
 

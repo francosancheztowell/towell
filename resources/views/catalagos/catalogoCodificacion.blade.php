@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
-@section('menu-planeacion')
+@section('page-title', 'Catálogo de Codificación')
+
+@section('navbar-right')
 <x-action-buttons route="codificacion" :showFilters="true" />
 @endsection
 
@@ -294,9 +296,22 @@ if (!function_exists('fmtDateDMY')) {
                     @empty
                         <tr>
                             <td colspan="100" class="text-center py-8 text-gray-500">
-                                No hay registros de codificación disponibles
+                                @if(isset($error))
+                                    <div class="text-red-600 font-semibold mb-2">
+                                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                                        Error al cargar los datos
+                                    </div>
+                                    <div class="text-sm text-gray-600">{{ $error }}</div>
+                                @elseif(isset($mensaje))
+                                    <div class="text-blue-600 font-semibold mb-2">
+                                        <i class="fas fa-info-circle mr-2"></i>
+                                        {{ $mensaje }}
+                                    </div>
+                                @else
+                                    No hay registros de codificación disponibles
+                                @endif
                             </td>
-                    </tr>
+                        </tr>
                     @endforelse
                 </tbody>
             </table>
@@ -1263,12 +1278,12 @@ function enableButtons() {
 
 	if (editBtn) {
 		editBtn.disabled = false;
-		editBtn.className = 'inline-flex items-center px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors text-sm font-medium';
+		editBtn.className = 'p-2 text-blue-600 hover:text-blue-800 rounded-md transition-colors';
 	}
 
 	if (deleteBtn) {
 		deleteBtn.disabled = false;
-		deleteBtn.className = 'inline-flex items-center px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium';
+		deleteBtn.className = 'p-2 text-red-600 hover:text-red-800 rounded-md transition-colors';
 	}
 }
 

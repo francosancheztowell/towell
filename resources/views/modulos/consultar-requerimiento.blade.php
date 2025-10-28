@@ -1,25 +1,13 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
+@section('page-title', 'Requerimientos')
+
 @section('content')
     <div class="container mx-auto">
         <!-- Lista de Requerimientos en Proceso -->
         @if($requerimientos && $requerimientos->count() > 0)
             @php $primer = $requerimientos->first(); @endphp
             <div class="bg-white overflow-hidden">
-
-                <!-- Header azul -->
-                <div class="bg-blue-500 px-3 py-3 border-t-4 border-orange-400">
-                    <div class="flex items-center">
-                        <button onclick="history.back()" class="flex items-center justify-center w-10 h-10 text-white hover:bg-blue-600 rounded-lg transition-colors mr-4">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                            </svg>
-                        </button>
-                        <h2 class="text-2xl font-bold text-white flex-1 text-center">
-                            Consultar Requerimiento
-                    </h2>
-                    </div>
-                </div>
 
                 <!-- Contenido: Tabla 1 (folios) y Tabla 2 (detalles seleccionados) -->
                 <div class="p-4 sm:p-6 lg:p-8">

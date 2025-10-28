@@ -1,5 +1,7 @@
 @extends('layouts.app')
 
+@section('page-title', 'Formulario de Codificación')
+
 @section('navbar-right')
 <div class="flex items-center gap-3">
     <button onclick="history.back()"

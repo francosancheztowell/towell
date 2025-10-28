@@ -7,6 +7,7 @@ use App\Http\Controllers\CatalagoEficienciaController;
 use App\Http\Controllers\CatalagoTelarController;
 use App\Http\Controllers\CatalagoVelocidadController;
 use App\Http\Controllers\CortesEficienciaController;
+use App\Http\Controllers\ProgramaTejidoController;
 use App\Http\Controllers\RequerimientoController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -477,6 +478,10 @@ Route::middleware(['auth'])->group(function () {
         })->name('reservar.programar');
     });
 
+    // Rutas para configuración - fuera del middleware temporalmente
+    Route::get('/configuracion/cargar-planeacion', [App\Http\Controllers\ConfiguracionController::class, 'cargarPlaneacion']);
+    Route::post('/configuracion/cargar-planeacion/upload', [App\Http\Controllers\ConfiguracionController::class, 'procesarExcel'])->middleware('web');
+
     // ============================================
     // MÓDULO CONFIGURACIÓN (900)
     // ============================================
@@ -519,6 +524,18 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/planeacion/programa-tejido/nuevo', function() {
         return view('modulos.programa-tejido-nuevo.create');
     })->name('programa-tejido.nuevo');
+
+    // Rutas API para los selects del programa de tejido
+    Route::get('/programa-tejido/salon-options', [ProgramaTejidoController::class, 'getSalonTejidoOptions']);
+    Route::get('/programa-tejido/tamano-clave-by-salon', [ProgramaTejidoController::class, 'getTamanoClaveBySalon']);
+    Route::get('/programa-tejido/flogs-id-options', [ProgramaTejidoController::class, 'getFlogsIdOptions']);
+    Route::get('/programa-tejido/calendario-id-options', [ProgramaTejidoController::class, 'getCalendarioIdOptions']);
+    Route::get('/programa-tejido/aplicacion-id-options', [ProgramaTejidoController::class, 'getAplicacionIdOptions']);
+    Route::post('/programa-tejido/datos-relacionados', [ProgramaTejidoController::class, 'getDatosRelacionados']);
+Route::get('/programa-tejido/telares-by-salon', [ProgramaTejidoController::class, 'getTelaresBySalon']);
+Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoController::class, 'getUltimaFechaFinalTelar']);
+
+// Rutas para configuración - movidas dentro del grupo de middleware
     Route::get('/planeacion/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia.index');
     Route::get('/planeacion/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad.index');
     Route::get('/planeacion/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');
@@ -760,7 +777,7 @@ Route::get('/modulo-cortes-de-eficiencia/datos-telares', [CortesEficienciaContro
     Route::get('/configuracion/bd-tow-pruebas', function () { return view('modulos/configuracion/bd-tow-pruebas'); });
     Route::get('/configuracion/ambiente', function () { return view('modulos/configuracion/ambiente'); });
     Route::get('/configuracion/cargar-orden-produccion', function () { return view('modulos/configuracion/cargar-orden-produccion'); });
-    Route::get('/configuracion/cargar-planeacion', function () { return view('modulos/configuracion/cargar-planeacion'); });
+    // Ruta movida al controlador ConfiguracionController
 
     // Ruta temporal
     Route::get('/urdido/urdidoTemporal', function () {

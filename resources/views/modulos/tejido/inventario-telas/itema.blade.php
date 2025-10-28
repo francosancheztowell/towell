@@ -1,5 +1,7 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
+@section('page-title', 'Inventario Itema')
+
 @section('content')
     <div class="container mx-auto">
 

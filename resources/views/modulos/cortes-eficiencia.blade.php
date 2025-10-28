@@ -1,16 +1,24 @@
 @extends('layouts.app')
 
+@section('page-title', 'Cortes de Eficiencia')
+
 @section('navbar-right')
     <!-- Botones de acción para Cortes de Eficiencia -->
-    <div class="flex items-center space-x-2">
-        <button id="btn-nuevo" onclick="nuevoCorte()" class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
-            <i class="fas fa-plus mr-1"></i>Nuevo
+    <div class="flex items-center gap-1">
+        <button id="btn-nuevo" onclick="nuevoCorte()" class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors" title="Nuevo">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
         </button>
-        <button id="btn-editar" onclick="editarCorte()" class="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium" disabled>
-            <i class="fas fa-edit mr-1"></i>Editar
+        <button id="btn-editar" onclick="editarCorte()" class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors cursor-not-allowed" disabled title="Editar">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
         </button>
-        <button id="btn-finalizar" onclick="finalizarCorte()" class="inline-flex items-center px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors text-sm font-medium" disabled>
-            <i class="fas fa-check mr-1"></i>Finalizar
+        <button id="btn-finalizar" onclick="finalizarCorte()" class="p-2 text-orange-600 hover:text-orange-800 hover:bg-orange-100 rounded-md transition-colors cursor-not-allowed" disabled title="Finalizar">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
         </button>
     </div>
 @endsection

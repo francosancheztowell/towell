@@ -1,5 +1,7 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
+@section('page-title', 'Inventario Jacquard')
+
 @section('content')
     <div class="container mx-auto">
         <!-- Navbar de telares usando componente (ordenados por secuencia) -->

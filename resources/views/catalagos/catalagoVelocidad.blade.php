@@ -1,5 +1,7 @@
 @extends('layouts.app')
 
+@section('page-title', 'Catálogo de Velocidad')
+
 @section('content')
     <div class="container">
 

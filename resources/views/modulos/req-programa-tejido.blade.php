@@ -1,67 +1,16 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
-@section('navbar-right')
-<!-- Controles de prioridad de filas (se muestran solo cuando hay fila seleccionada) -->
-<div id="rowPriorityControls" class="flex items-center gap-2 hidden">
-	<button type="button" onclick="moveRowUp()"
-			class="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
-		<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-		</svg>
-		Subir Prioridad
-	</button>
+@section('page-title', 'Programa de Tejido')
 
-	<button type="button" onclick="moveRowDown()"
-			class="flex items-center gap-2 px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg transition-colors">
-		<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-		</svg>
-		Bajar Prioridad
-	</button>
-</div>
+@section('navbar-right')
 @endsection
 
 @section('menu-planeacion')
-<!-- Botones específicos para Programa Tejido -->
-<div class="flex items-center gap-2">
-	<button type="button" onclick="abrirNuevo(); return false;"
-			class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-		<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-		</svg>
-		Nuevo
-	</button>
-
-	<a href="/submodulos-nivel3/104"
-	   class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-		<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-		</svg>
-		Catálogos
-	</a>
-
-	<button type="button" onclick="resetFilters(); return false;"
-			class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
-		<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-		</svg>
-		Restablecer
-	</button>
-
-	<button type="button" onclick="openFilterModal(); return false;"
-			class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-		<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-		</svg>
-		Filtros
-		<span id="filterCount" class="ml-2 px-2 py-0.5 bg-white text-purple-600 rounded-full text-xs font-bold hidden">0</span>
-	</button>
-</div>
 @endsection
 
 @section('content')
-<div class="container mx-auto px-2 py-8 max-w-full -mt-6">
-	<div class="bg-white rounded-lg shadow overflow-hidden w-full mx-auto" style="max-width: 100%;">
+<div class="w-full px-0 py-0 ">
+	<div class="bg-white shadow overflow-hidden w-full" style="max-width: 100%;">
 
 		@php
 		$columns = [
@@ -162,6 +111,12 @@
 			$value = $registro->{$field} ?? null;
 			if ($value === null || $value === '') return '';
 
+			// Checkbox para EnProceso
+			if ($field === 'EnProceso') {
+				$checked = ($value == 1 || $value === true) ? 'checked' : '';
+				return '<input type="checkbox" ' . $checked . ' disabled class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">';
+			}
+
 			if ($field === 'EficienciaSTD' && is_numeric($value)) {
 				return rtrim(rtrim(number_format(((float)$value) * 100, 0), '0'), '.') . '%';
 			}
@@ -172,13 +127,32 @@
 				'EntregaProduc','EntregaPT','EntregaCte'
 			];
 
+			// Campos que son solo fecha (sin hora)
+			$fechaSoloCampos = ['EntregaProduc','EntregaPT'];
+
 			if (in_array($field, $fechaCampos, true)) {
 				try {
 					if ($value instanceof \Carbon\Carbon) {
-						return $value->year > 1970 ? strtolower($value->format('d-M')) : '';
+						if ($value->year > 1970) {
+							// Si es campo de solo fecha, mostrar sin hora
+							if (in_array($field, $fechaSoloCampos, true)) {
+								return $value->format('d/m/Y');
+							}
+							// Si es campo datetime, mostrar con hora
+							return $value->format('d/m/Y H:i');
+						}
+						return '';
 					}
 					$dt = \Carbon\Carbon::parse($value);
-					return $dt->year > 1970 ? strtolower($dt->format('d-M')) : '';
+					if ($dt->year > 1970) {
+						// Si es campo de solo fecha, mostrar sin hora
+						if (in_array($field, $fechaSoloCampos, true)) {
+							return $dt->format('d/m/Y');
+						}
+						// Si es campo datetime, mostrar con hora
+						return $dt->format('d/m/Y H:i');
+					}
+					return '';
 				} catch (\Exception $e) {
 					return '';
 				}
@@ -194,35 +168,16 @@
 		@endphp
 
 		@if($registros->count() > 0)
-			<div class="border border-gray-200 rounded-lg overflow-hidden">
-			<div class="overflow-x-auto md:overflow-x-scroll lg:overflow-x-auto">
+			<div class="overflow-x-auto">
 					<div class="overflow-y-auto" style="max-height: 320px;">
 						<table id="mainTable" class="min-w-full divide-y divide-gray-200">
 							<thead class="bg-blue-500 text-white">
 								<tr>
 									@foreach($columns as $index => $col)
-									<th class="px-4 py-2 text-left text-xs font-semibold text-white whitespace-nowrap column-{{ $index }}"
-										style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6;"
+									<th class="px-2 py-1 text-left text-xs font-semibold text-white whitespace-nowrap column-{{ $index }}"
+										style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 80px;"
 										data-column="{{ $col['field'] }}" data-index="{{ $index }}">
-										<div class="flex items-center justify-between gap-2">
-											<span class="flex-1">{{ $col['label'] }}</span>
-											<div class="flex items-center gap-2">
-												<button type="button" onclick="togglePinColumn({{ $index }})"
-														class="pin-btn bg-yellow-500 hover:bg-yellow-600 text-white p-1.5 rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
-														title="Fijar columna">
-													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-													</svg>
-												</button>
-												<button type="button" onclick="hideColumn({{ $index }})"
-														class="hide-btn bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
-														title="Ocultar columna">
-													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-													</svg>
-												</button>
-											</div>
-										</div>
+										{{ $col['label'] }}
 									</th>
 							@endforeach
 						</tr>
@@ -231,9 +186,9 @@
 								@foreach($registros as $index => $registro)
 								<tr class="hover:bg-blue-50 cursor-pointer selectable-row" data-row-index="{{ $index }}">
 										@foreach($columns as $colIndex => $col)
-										<td class="px-3 py-2 text-sm text-gray-700 whitespace-nowrap column-{{ $colIndex }}"
+										<td class="px-3 py-2 text-sm text-gray-700 {{ in_array($col['field'], ['Programado','ProgramarProd','FechaInicio','FechaFinal','EntregaProduc','EntregaPT','EntregaCte']) ? 'whitespace-normal' : 'whitespace-nowrap' }} column-{{ $colIndex }}"
 											data-column="{{ $col['field'] }}">
-											{{ $formatValue($registro, $col['field']) }}
+											{!! $formatValue($registro, $col['field']) !!}
 										</td>
 								@endforeach
 							</tr>
@@ -241,7 +196,6 @@
 					</tbody>
 				</table>
 					</div>
-				</div>
 			</div>
 		@else
 			<div class="px-6 py-12 text-center">
@@ -439,6 +393,261 @@ function resetFilters() {
 	selectedRowIndex = -1;
 
 	showToast('Restablecido<br>Se limpiaron filtros, fijados y columnas ocultas', 'success');
+}
+
+// ===== Controles de columnas desde navbar =====
+function openPinColumnsModal() {
+	const columns = getColumnsData();
+	const pinnedColumns = getPinnedColumns();
+
+	const columnOptions = columns.map((col, index) => {
+		const isPinned = pinnedColumns.includes(index);
+		return `
+			<div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+				<span class="text-sm font-medium text-gray-700">${col.label}</span>
+				<input type="checkbox" ${isPinned ? 'checked' : ''}
+					   class="w-4 h-4 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500"
+					   data-column-index="${index}">
+			</div>
+		`;
+	}).join('');
+
+	Swal.fire({
+		title: 'Fijar Columnas',
+		html: `
+			<div class="text-left">
+				<p class="text-sm text-gray-600 mb-4">Selecciona las columnas que deseas fijar a la izquierda de la tabla:</p>
+				<div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+					${columnOptions}
+				</div>
+			</div>
+		`,
+		showCancelButton: true,
+		confirmButtonText: 'Aplicar',
+		cancelButtonText: 'Cancelar',
+		confirmButtonColor: '#f59e0b',
+		cancelButtonColor: '#6b7280',
+		width: '500px',
+		didOpen: () => {
+			// Agregar event listeners a los checkboxes
+			const checkboxes = document.querySelectorAll('#swal2-html-container input[type="checkbox"]');
+			checkboxes.forEach(checkbox => {
+				checkbox.addEventListener('change', function() {
+					const columnIndex = parseInt(this.dataset.columnIndex);
+					if (this.checked) {
+						pinColumn(columnIndex);
+					} else {
+						unpinColumn(columnIndex);
+					}
+				});
+			});
+		}
+	});
+}
+
+function openHideColumnsModal() {
+	const columns = getColumnsData();
+	const hiddenColumns = getHiddenColumns();
+
+	const columnOptions = columns.map((col, index) => {
+		const isHidden = hiddenColumns.includes(index);
+		return `
+			<div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+				<span class="text-sm font-medium text-gray-700">${col.label}</span>
+				<input type="checkbox" ${isHidden ? 'checked' : ''}
+					   class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500"
+					   data-column-index="${index}">
+			</div>
+		`;
+	}).join('');
+
+	Swal.fire({
+		title: 'Ocultar Columnas',
+		html: `
+			<div class="text-left">
+				<p class="text-sm text-gray-600 mb-4">Selecciona las columnas que deseas ocultar:</p>
+				<div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+					${columnOptions}
+				</div>
+			</div>
+		`,
+		showCancelButton: true,
+		confirmButtonText: 'Aplicar',
+		cancelButtonText: 'Cancelar',
+		confirmButtonColor: '#ef4444',
+		cancelButtonColor: '#6b7280',
+		width: '500px',
+		didOpen: () => {
+			// Agregar event listeners a los checkboxes
+			const checkboxes = document.querySelectorAll('#swal2-html-container input[type="checkbox"]');
+			checkboxes.forEach(checkbox => {
+				checkbox.addEventListener('change', function() {
+					const columnIndex = parseInt(this.dataset.columnIndex);
+					if (this.checked) {
+						hideColumn(columnIndex);
+					} else {
+						showColumn(columnIndex);
+					}
+				});
+			});
+		}
+	});
+}
+
+function getColumnsData() {
+	return [
+		{label: 'Estado', field: 'EnProceso'},
+		{label: 'Cuenta', field: 'CuentaRizo'},
+		{label: 'Calibre Rizo', field: 'CalibreRizo'},
+		{label: 'Salón', field: 'SalonTejidoId'},
+		{label: 'Telar', field: 'NoTelarId'},
+		{label: 'Último', field: 'Ultimo'},
+		{label: 'Cambios Hilo', field: 'CambioHilo'},
+		{label: 'Maq', field: 'Maquina'},
+		{label: 'Ancho', field: 'Ancho'},
+		{label: 'Ef Std', field: 'EficienciaSTD'},
+		{label: 'Vel', field: 'VelocidadSTD'},
+		{label: 'Hilo', field: 'FibraRizo'},
+		{label: 'Calibre Pie', field: 'CalibrePie'},
+		{label: 'Jornada', field: 'CalendarioId'},
+		{label: 'Clave Mod.', field: 'TamanoClave'},
+		{label: 'Usar cuando no existe en base', field: 'NoExisteBase'},
+		{label: 'Clave AX', field: 'ItemId'},
+		{label: 'Tamaño AX', field: 'InventSizeId'},
+		{label: 'Rasurado', field: 'Rasurado'},
+		{label: 'Producto', field: 'NombreProducto'},
+		{label: 'Pedido', field: 'TotalPedido'},
+		{label: 'Producción', field: 'Produccion'},
+		{label: 'Saldos', field: 'SaldoPedido'},
+		{label: 'Saldo Marbetes', field: 'SaldoMarbete'},
+		{label: 'Día Scheduling', field: 'ProgramarProd'},
+		{label: 'Orden Prod.', field: 'NoProduccion'},
+		{label: 'INN', field: 'Programado'},
+		{label: 'Id Flog', field: 'FlogsId'},
+		{label: 'Nombre Proyecto', field: 'NombreProyecto'},
+		{label: 'Clave', field: 'Clave'},
+		{label: 'Pedido', field: 'Pedido'},
+		{label: 'Peine', field: 'Peine'},
+		{label: 'Ancho Toalla', field: 'AnchoToalla'},
+		{label: 'Largo Toalla', field: 'LargoToalla'},
+		{label: 'Peso Crudo', field: 'PesoCrudo'},
+		{label: 'Luchaje', field: 'Luchaje'},
+		{label: 'No Tiras', field: 'NoTiras'},
+		{label: 'Repeticiones', field: 'Repeticiones'},
+		{label: 'Total Marbetes', field: 'TotalMarbetes'},
+		{label: 'Cambio Repaso', field: 'CambioRepaso'},
+		{label: 'Vendedor', field: 'Vendedor'},
+		{label: 'Cat Calidad', field: 'CatCalidad'},
+		{label: 'Obs', field: 'Obs'},
+		{label: 'Ancho Peine Trama', field: 'AnchoPeineTrama'},
+		{label: 'Log Lucha Total', field: 'LogLuchaTotal'},
+		{label: 'Cal Trama Fondo C1', field: 'CalTramaFondoC1'},
+		{label: 'Cal Trama Fondo C12', field: 'CalTramaFondoC12'},
+		{label: 'Fibra Trama Fondo C1', field: 'FibraTramaFondoC1'},
+		{label: 'Pasadas Trama Fondo C1', field: 'PasadasTramaFondoC1'},
+		{label: 'Calibre Comb1', field: 'CalibreComb1'},
+		{label: 'Calibre Comb12', field: 'CalibreComb12'},
+		{label: 'Fibra Comb1', field: 'FibraComb1'},
+		{label: 'Cod Color C1', field: 'CodColorC1'},
+		{label: 'Nom Color C1', field: 'NomColorC1'},
+		{label: 'Pasadas Comb1', field: 'PasadasComb1'},
+		{label: 'Calibre Comb2', field: 'CalibreComb2'},
+		{label: 'Calibre Comb22', field: 'CalibreComb22'},
+		{label: 'Fibra Comb2', field: 'FibraComb2'},
+		{label: 'Cod Color C2', field: 'CodColorC2'},
+		{label: 'Nom Color C2', field: 'NomColorC2'},
+		{label: 'Pasadas Comb2', field: 'PasadasComb2'},
+		{label: 'Calibre Comb3', field: 'CalibreComb3'},
+		{label: 'Calibre Comb32', field: 'CalibreComb32'},
+		{label: 'Fibra Comb3', field: 'FibraComb3'},
+		{label: 'Cod Color C3', field: 'CodColorC3'},
+		{label: 'Nom Color C3', field: 'NomColorC3'},
+		{label: 'Pasadas Comb3', field: 'PasadasComb3'},
+		{label: 'Calibre Comb4', field: 'CalibreComb4'},
+		{label: 'Calibre Comb42', field: 'CalibreComb42'},
+		{label: 'Fibra Comb4', field: 'FibraComb4'},
+		{label: 'Cod Color C4', field: 'CodColorC4'},
+		{label: 'Nom Color C4', field: 'NomColorC4'},
+		{label: 'Pasadas Comb4', field: 'PasadasComb4'},
+		{label: 'Calibre Comb5', field: 'CalibreComb5'},
+		{label: 'Calibre Comb52', field: 'CalibreComb52'},
+		{label: 'Fibra Comb5', field: 'FibraComb5'},
+		{label: 'Cod Color C5', field: 'CodColorC5'},
+		{label: 'Nom Color C5', field: 'NomColorC5'},
+		{label: 'Pasadas Comb5', field: 'PasadasComb5'},
+		{label: 'Total', field: 'Total'},
+		{label: 'Pasadas Dibujo', field: 'PasadasDibujo'},
+		{label: 'Contracción', field: 'Contraccion'},
+		{label: 'Tramas CM Tejido', field: 'TramasCMTejido'},
+		{label: 'Contrac Rizo', field: 'ContracRizo'},
+		{label: 'Clasificación KG', field: 'ClasificacionKG'},
+		{label: 'KG Dia', field: 'KGDia'},
+		{label: 'Densidad', field: 'Densidad'},
+		{label: 'Pzas Dia Pasadas', field: 'PzasDiaPasadas'},
+		{label: 'Pzas Dia Formula', field: 'PzasDiaFormula'},
+		{label: 'DIF', field: 'DIF'},
+		{label: 'EFIC', field: 'EFIC'},
+		{label: 'Rev', field: 'Rev'},
+		{label: 'TIRAS', field: 'TIRAS'},
+		{label: 'PASADAS', field: 'PASADAS'},
+		{label: 'Colum CT', field: 'ColumCT'},
+		{label: 'Colum CU', field: 'ColumCU'},
+		{label: 'Colum CV', field: 'ColumCV'},
+		{label: 'Comprobar Mod Dup', field: 'ComprobarModDup'},
+		{label: 'Fecha Inicio', field: 'FechaInicio'},
+		{label: 'Calc4', field: 'Calc4'},
+		{label: 'Calc5', field: 'Calc5'},
+		{label: 'Calc6', field: 'Calc6'},
+		{label: 'Fecha Final', field: 'FechaFinal'},
+		{label: 'Fecha Compromiso Prod.', field: 'EntregaProduc'},
+		{label: 'Fecha Compromiso PT', field: 'EntregaPT'},
+		{label: 'Entrega', field: 'EntregaCte'},
+		{label: 'Dif vs Compromiso', field: 'PTvsCte'}
+	];
+}
+
+function getPinnedColumns() {
+	return pinnedColumns || [];
+}
+
+function getHiddenColumns() {
+	return hiddenColumns || [];
+}
+
+function pinColumn(index) {
+	if (!pinnedColumns.includes(index)) {
+		pinnedColumns.push(index);
+		pinnedColumns.sort((a,b) => a-b);
+		updatePinnedColumnsPositions();
+	}
+}
+
+function unpinColumn(index) {
+	pinnedColumns = pinnedColumns.filter(i => i !== index);
+	updatePinnedColumnsPositions();
+}
+
+function resetColumnVisibility() {
+	// Mostrar todas las columnas
+	const allColumns = $$('th[class*="column-"]');
+	allColumns.forEach((th, index) => {
+		showColumn(index);
+	});
+	// Desfijar todas las columnas
+	pinnedColumns = [];
+	updatePinnedColumnsPositions();
+
+	Swal.fire({
+		title: 'Columnas Restablecidas',
+		text: 'Todas las columnas han sido mostradas y desfijadas',
+		icon: 'success',
+		timer: 2000,
+		showConfirmButton: false
+	});
+}
+
+function showColumn(index) {
+	$$(`.column-${index}`).forEach(el => el.style.display = '');
 }
 
 // ===== Columnas: ocultar / fijar =====

@@ -1,5 +1,7 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
+@section('page-title', 'Nuevo Requerimiento')
+
 @section('content')
     <div class="container mx-auto">
         <div id="telar-navbar" class="fixed top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-lg z-40 transition-all duration-300">

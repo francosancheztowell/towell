@@ -27,8 +27,8 @@
             const config = {
                 editBtnId: options.editBtnId || 'btn-editar',
                 deleteBtnId: options.deleteBtnId || 'btn-eliminar',
-                editClass: options.editClass || 'inline-flex items-center px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium',
-                deleteClass: options.deleteClass || 'inline-flex items-center px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium',
+                editClass: options.editClass || 'p-2 text-blue-600 hover:text-blue-800 rounded-md transition-colors',
+                deleteClass: options.deleteClass || 'p-2 text-red-600 hover:text-red-800 rounded-md transition-colors',
                 ...options
             };
 
@@ -59,7 +59,7 @@
             const config = {
                 editBtnId: options.editBtnId || 'btn-editar',
                 deleteBtnId: options.deleteBtnId || 'btn-eliminar',
-                disabledClass: options.disabledClass || 'inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg text-sm font-medium cursor-not-allowed',
+                disabledClass: options.disabledClass || 'p-2 text-gray-400 rounded-md transition-colors cursor-not-allowed',
                 ...options
             };
 

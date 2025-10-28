@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Incluir helpers de permisos manualmente
+        require_once app_path('Helpers/permission-helpers.php');
     }
 }

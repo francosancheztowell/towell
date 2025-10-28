@@ -1,5 +1,7 @@
 @extends('layouts.app')
 
+@section('page-title', 'Catálogo de Calendarios')
+
 @section('content')
     <div class="container overflow-y-auto h-[600px]">
 

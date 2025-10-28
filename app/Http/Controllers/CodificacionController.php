@@ -15,8 +15,32 @@ class CodificacionController extends Controller
     /** Vista principal */
     public function index()
     {
-        $codificaciones = ReqModelosCodificados::orderBy('Id', 'desc')->get();
-        return view('catalagos.catalogoCodificacion', compact('codificaciones'));
+        try {
+            // Intentar obtener datos sin orderBy primero para verificar si hay datos
+            $codificaciones = ReqModelosCodificados::get();
+
+            if ($codificaciones->isEmpty()) {
+                return view('catalagos.catalogoCodificacion', [
+                    'codificaciones' => collect(),
+                    'mensaje' => 'No se encontraron registros de codificación disponibles'
+                ]);
+            }
+
+            // Si hay datos, intentar ordenar por Id, si falla usar otra columna
+            try {
+                $codificaciones = ReqModelosCodificados::orderBy('Id', 'desc')->get();
+            } catch (\Exception $e) {
+                // Si falla el orderBy por Id, usar TamanoClave como alternativa
+                $codificaciones = ReqModelosCodificados::orderBy('TamanoClave', 'desc')->get();
+            }
+
+            return view('catalagos.catalogoCodificacion', compact('codificaciones'));
+        } catch (\Exception $e) {
+            return view('catalagos.catalogoCodificacion', [
+                'codificaciones' => collect(),
+                'error' => 'Error al cargar los datos: ' . $e->getMessage()
+            ]);
+        }
     }
 
     public function create()
@@ -33,8 +57,31 @@ class CodificacionController extends Controller
     /** API: todos */
     public function getAll(): JsonResponse
     {
-        $codificaciones = ReqModelosCodificados::orderBy('Id', 'desc')->get();
-        return response()->json(['success' => true, 'data' => $codificaciones]);
+        try {
+            $codificaciones = ReqModelosCodificados::get();
+
+            if ($codificaciones->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'mensaje' => 'No se encontraron registros de codificación disponibles'
+                ]);
+            }
+
+            // Intentar ordenar por Id, si falla usar TamanoClave
+            try {
+                $codificaciones = ReqModelosCodificados::orderBy('Id', 'desc')->get();
+            } catch (\Exception $e) {
+                $codificaciones = ReqModelosCodificados::orderBy('TamanoClave', 'desc')->get();
+            }
+
+            return response()->json(['success' => true, 'data' => $codificaciones]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al cargar los datos: ' . $e->getMessage()
+            ]);
+        }
     }
 
     /** API: uno */
@@ -180,8 +227,30 @@ class CodificacionController extends Controller
         if ($v = $request->get('fecha_desde'))  $q->where('FechaTejido', '>=', $v);
         if ($v = $request->get('fecha_hasta'))  $q->where('FechaTejido', '<=', $v);
 
-        $data = $q->orderBy('Id','desc')->get();
-        return response()->json(['success'=>true,'data'=>$data,'total'=>$data->count()]);
+        try {
+            // Intentar ordenar por Id, si falla usar TamanoClave
+            try {
+                $data = $q->orderBy('Id','desc')->get();
+            } catch (\Exception $e) {
+                $data = $q->orderBy('TamanoClave','desc')->get();
+            }
+
+            if ($data->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'total' => 0,
+                    'mensaje' => 'No se encontraron registros que coincidan con los filtros'
+                ]);
+            }
+
+            return response()->json(['success'=>true,'data'=>$data,'total'=>$data->count()]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error en la búsqueda: ' . $e->getMessage()
+            ]);
+        }
     }
 
     /** Estadísticas básicas */

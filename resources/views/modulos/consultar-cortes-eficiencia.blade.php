@@ -1,20 +1,9 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
+@section('page-title', 'Consultar Cortes de Eficiencia')
+
 @section('content')
 <div class="container mx-auto">
-    <!-- Header -->
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
-        <div class="bg-blue-500 px-6 py-4 border-t-4 border-orange-400">
-            <div class="flex items-center justify-between">
-                <h1 class="text-2xl font-bold text-white">Consultar Cortes de Eficiencia</h1>
-                <div class="flex space-x-2">
-                    <a href="/modulo-cortes-de-eficiencia" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors">
-                        <i class="fas fa-plus mr-2"></i>Nuevo Corte
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Lista de Cortes de Eficiencia -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">

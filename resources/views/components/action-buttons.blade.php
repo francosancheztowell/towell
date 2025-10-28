@@ -20,94 +20,93 @@
     $tieneAcceso = $nombreModulo ? userCan('acceso', $nombreModulo) : false;
 @endphp
 
-<div class="flex items-center gap-2">
+<div class="flex items-center gap-1">
     @if($tieneAcceso)
         {{-- Mostrar botones de Excel solo si tiene permiso de crear --}}
         @if($puedeCrear)
             {{-- Para calendarios, mostrar dos botones de Excel separados --}}
             @if($route === 'calendarios')
                 <button id="btn-subir-excel-calendarios" onclick="subirExcelCalendariosMaestro()"
-                class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
-                <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors"
+                title="Subir Calendarios" aria-label="Subir Calendarios">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
                     <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
                     <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                 Subir Calendarios
+                </svg>
                 </button>
 
                 <button id="btn-subir-excel-lineas" onclick="subirExcelLineas()"
-                class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
-                <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors"
+                title="Subir Líneas" aria-label="Subir Líneas">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
                     <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
                     <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                 Subir Líneas
+                </svg>
                 </button>
             @else
                 {{-- Para otros módulos, botón único --}}
                 <button id="btn-subir-excel" onclick="console.log('Botón clickeado'); subirExcel{{ ucfirst($route) }}()"
-                class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium">
-                <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors"
+                title="Subir Excel" aria-label="Subir Excel">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2" stroke-linejoin="round"/>
                     <path d="M14 3v5h5" stroke-width="2" stroke-linejoin="round"/>
                     <path d="M9 11l6 6M15 11l-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-
-                 Subir Excel
+                </svg>
                 </button>
             @endif
 
             {{-- Botón Añadir/Crear solo si tiene permiso de crear --}}
             <button id="btn-agregar" onclick="agregar{{ ucfirst($route) }}()"
-               class="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
+               title="Añadir" aria-label="Añadir">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                Añadir
             </button>
         @endif
 
         {{-- Botón Editar solo si tiene permiso de editar --}}
         @if($puedeEditar)
             <button id="btn-editar" onclick="editar{{ ucfirst($route) }}()" disabled
-               class="inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               class="p-2 text-gray-400 hover:text-gray-600 rounded-md transition-colors cursor-not-allowed"
+               title="Editar" aria-label="Editar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
-                Editar
             </button>
         @endif
 
         {{-- Botón Eliminar solo si tiene permiso de eliminar --}}
         @if($puedeEliminar)
             <button id="btn-eliminar" onclick="eliminar{{ ucfirst($route) }}()" disabled
-               class="inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               class="p-2 text-red-400 hover:text-red-600 rounded-md transition-colors cursor-not-allowed"
+               title="Eliminar" aria-label="Eliminar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
-                Eliminar
             </button>
         @endif
     @endif
 
     @if($showFilters)
     <button id="btn-filtrar" onclick="filtrar{{ ucfirst($route) }}()"
-       class="inline-flex items-center px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium">
-        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+       class="relative p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
+       title="Filtrar" aria-label="Filtrar">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
         </svg>
-        Filtrar
-        <span id="filter-count" class="ml-1 px-1.5 py-0.5 bg-white text-blue-600 rounded-full text-xs font-bold hidden">0</span>
+        <span id="filter-count" class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white rounded-full text-xs font-bold hidden">0</span>
     </button>
 
-    <button onclick="limpiarFiltros{{ ucfirst($route) }}()"
-       class="inline-flex items-center px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm font-medium">
-        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <button id="btn-restablecer-{{ $route }}" onclick="animarRestablecer{{ ucfirst($route) }}(); limpiarFiltros{{ ucfirst($route) }}()"
+       class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+       title="Restablecer" aria-label="Restablecer">
+        <svg id="icon-restablecer-{{ $route }}" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-        Restablecer
     </button>
     @endif
 </div>
@@ -356,6 +355,60 @@
                 fileName.textContent = file.name;
                 fileSize.textContent = formatFileSize(file.size);
                 fileInfo.classList.remove('hidden');
+            }
+        }
+    };
+
+    // Función para animar el icono de restablecer
+    window.animarRestablecer{{ ucfirst($route) }} = function() {
+        const icon = document.getElementById('icon-restablecer-{{ $route }}');
+        if (icon) {
+            icon.classList.add('animate-spin');
+            setTimeout(() => {
+                icon.classList.remove('animate-spin');
+            }, 1000);
+        }
+    };
+
+    // Función para actualizar el contador de filtros
+    window.actualizarContadorFiltros{{ ucfirst($route) }} = function(count) {
+        const filterCount = document.getElementById('filter-count');
+        if (filterCount) {
+            if (count > 0) {
+                filterCount.textContent = count;
+                filterCount.classList.remove('hidden');
+            } else {
+                filterCount.classList.add('hidden');
+            }
+        }
+    };
+
+    // Función para habilitar/deshabilitar botones de editar y eliminar
+    window.actualizarBotonesAccion{{ ucfirst($route) }} = function(habilitar) {
+        const btnEditar = document.getElementById('btn-editar');
+        const btnEliminar = document.getElementById('btn-eliminar');
+
+        if (btnEditar) {
+            if (habilitar) {
+                btnEditar.disabled = false;
+                btnEditar.classList.remove('text-gray-400', 'cursor-not-allowed');
+                btnEditar.classList.add('text-blue-600', 'hover:text-blue-800');
+            } else {
+                btnEditar.disabled = true;
+                btnEditar.classList.add('text-gray-400', 'cursor-not-allowed');
+                btnEditar.classList.remove('text-blue-600', 'hover:text-blue-800');
+            }
+        }
+
+        if (btnEliminar) {
+            if (habilitar) {
+                btnEliminar.disabled = false;
+                btnEliminar.classList.remove('text-red-400', 'cursor-not-allowed');
+                btnEliminar.classList.add('text-red-600', 'hover:text-red-800');
+            } else {
+                btnEliminar.disabled = true;
+                btnEliminar.classList.add('text-red-400', 'cursor-not-allowed');
+                btnEliminar.classList.remove('text-red-600', 'hover:text-red-800');
             }
         }
     };

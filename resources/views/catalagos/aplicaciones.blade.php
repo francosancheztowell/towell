@@ -1,5 +1,7 @@
 @extends('layouts.app')
 
+@section('page-title', 'Catálogo de Aplicaciones')
+
 @section('content')
 <div class="container">
 
@@ -83,14 +85,14 @@ function crearToast(icon, msg, ms = 1500) {
 function enableButtons() {
   const e = document.getElementById('btn-editar');
   const d = document.getElementById('btn-eliminar');
-  if (e) { e.disabled=false; e.className='inline-flex items-center px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm'; }
-  if (d) { d.disabled=false; d.className='inline-flex items-center px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm'; }
+  if (e) { e.disabled=false; e.className='p-2 text-blue-600 hover:text-blue-800 rounded-md transition-colors'; }
+  if (d) { d.disabled=false; d.className='p-2 text-red-600 hover:text-red-800 rounded-md transition-colors'; }
 }
 function disableButtons() {
   const e = document.getElementById('btn-editar');
   const d = document.getElementById('btn-eliminar');
-  if (e) { e.disabled=true; e.className='inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded cursor-not-allowed text-sm'; }
-  if (d) { d.disabled=true; d.className='inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded cursor-not-allowed text-sm'; }
+  if (e) { e.disabled=true; e.className='p-2 text-gray-400 rounded-md transition-colors cursor-not-allowed'; }
+  if (d) { d.disabled=true; d.className='p-2 text-gray-400 rounded-md transition-colors cursor-not-allowed'; }
 }
 
 /* ===========================
