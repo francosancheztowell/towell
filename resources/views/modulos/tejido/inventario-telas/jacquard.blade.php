@@ -46,11 +46,89 @@
           .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500 .text-3xl { color: #1d4ed8; }
           .telar-section > .bg-gray-100 .bg-gray-400 .text-3xl { color: #374151; }
         </style>
+        <!-- Ajustes adicionales: etiquetas en columna y calendario más grande -->
+        <style>
+          /* Columna izquierda: alinear arriba y pequeño padding superior */
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
+          .telar-section > .bg-gray-100 {
+            align-items: flex-start !important;
+            padding-top: 8px !important;
+          }
+
+          /* Reemplazar título de Siguiente Orden por una línea fina */
+          .telar-section > div > .bg-gray-200 h2 { display: none !important; }
+          .telar-section > div > .bg-gray-200 { padding: 0 !important; height: 1px; background: #e5e7eb !important; }
+
+          /* Ampliar ligeramente los calendarios */
+          .telar-section .flex.gap-1.overflow-x-auto.pb-2 { transform: scale(1.08); transform-origin: top left; }
+
+          /* Etiquetas de columna (posicionadas con JS) */
+          .telar-section .col-label {
+            position: absolute;
+            left: 0; right: 0; /* ocupar ancho de la columna */
+            color: #fff;
+            font-size: 10px;
+            letter-spacing: .06em;
+            text-align: center;
+            pointer-events: none;
+            opacity: .95;
+          }
+          .telar-section .col-label.center { top: 50%; transform: translateY(-50%); }
+          .telar-section .col-label.bottom { bottom: 16px; } /* subir el texto REQUERIMIENTO */
+        </style>
+        <!-- Checkboxes más grandes (solo Jacquard) -->
+        <style>
+          .telar-section input[type="checkbox"]{
+            width: 22px;
+            height: 22px;
+            accent-color: #2563eb; /* color del check */
+          }
+          /* Mejora de accesibilidad del click target si hay labels adyacentes */
+          .telar-section label{ display:inline-flex; align-items:center; gap: 6px; }
+          
+          /* Alinear sección de cuentas (Rizo, Pie, etc.) con el calendario */
+          .telar-section .grid.grid-cols-1.md\\:grid-cols-2.gap-4 {
+            align-items: start !important;
+          }
+          /* Alinear específicamente los elementos de Rizo y Pie con sus checkboxes */
+          .telar-section .space-y-2 {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+          }
+          .telar-section .space-y-2 > div {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+          }
+        </style>
+        <!-- Overrides para colocar número arriba, etiquetas en columna y línea separadora -->
+        <style>
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
+          .telar-section > .bg-gray-100{
+            align-items:flex-start !important; padding:8px 0 0 0 !important;
+          }
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .text-center,
+          .telar-section > .bg-gray-100 .text-center{ text-align:center; }
+          /* ELIMINAR el texto pegado al número */
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .text-center::after,
+          .telar-section > .bg-gray-100 .text-center::after{
+            display: none !important;
+          }
+          /* Línea fina en lugar del subtítulo de Siguiente Orden */
+          .telar-section > div > .bg-gray-200 h2{ display:none !important; }
+          .telar-section > div > .bg-gray-200{ padding:0 !important; height:1px; background:#e5e7eb !important; }
+        </style>
         <!-- Forzar color blanco para el número de telar -->
         <style>
-          /* Número dentro del header del componente (activo e inactivo) */
+          /* Número dentro del header del componente (activo e inactivo) - MÁS GRANDE Y CON PADDING */
           .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500 .text-3xl,
-          .telar-section > .bg-gray-100 .bg-gray-400 .text-3xl { color: #ffffff !important; }
+          .telar-section > .bg-gray-100 .bg-gray-400 .text-3xl { 
+            color: #ffffff !important; 
+            font-size: 2.5rem !important; /* más grande que text-3xl */
+            padding: 12px !important; /* padding alrededor del número */
+            line-height: 1 !important;
+          }
           /* Número en la columna izquierda (si se usa telar-aside) */
           .telar-aside .num { color: #ffffff !important; }
         </style>
@@ -276,6 +354,27 @@
           goToTelar(t, false);
         }
       });
+    })();
+    </script>
+    <script>
+    // Insertar etiquetas fijas en la columna: una al centro y otra abajo
+    (function(){
+      function placeLabels(){
+        document.querySelectorAll('.telar-section').forEach(section => {
+          const col = section.querySelector('.bg-gradient-to-r.from-blue-600.to-blue-700, .bg-gray-100');
+          if(!col) return;
+
+          // crear/obtener y anexar dentro de la columna
+          let center = col.querySelector('.col-label.center');
+          let bottom = col.querySelector('.col-label.bottom');
+          if(!center){ center = document.createElement('div'); center.className = 'col-label center'; center.textContent = 'SIG. ORDEN'; col.appendChild(center); }
+          if(!bottom){ bottom = document.createElement('div'); bottom.className = 'col-label bottom'; bottom.textContent = 'REQUERIMIENTO'; col.appendChild(bottom); }
+        });
+      }
+      window.addEventListener('load', placeLabels);
+      // también en navegación SPA o recargas parciales
+      document.addEventListener('visibilitychange', () => { if(!document.hidden) placeLabels(); });
+      setTimeout(placeLabels, 300);
     })();
     </script>
     @endif
