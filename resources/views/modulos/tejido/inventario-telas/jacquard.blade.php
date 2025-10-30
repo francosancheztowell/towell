@@ -88,18 +88,35 @@
           
           /* Alinear sección de cuentas (Rizo, Pie, etc.) con el calendario */
           .telar-section .grid.grid-cols-1.md\\:grid-cols-2.gap-4 {
-            align-items: start !important;
+            align-items: stretch !important; /* mismo alto para ambas columnas */
           }
-          /* Alinear específicamente los elementos de Rizo y Pie con sus checkboxes */
+          
+          /* Hacer que la sección de cuentas tenga el mismo alto que los calendarios */
+          .telar-section .grid.grid-cols-1.md\\:grid-cols-2.gap-4 > div {
+            height: 100% !important;
+          }
+          
+          /* Contenedor de cuentas con altura completa y distribución uniforme */
           .telar-section .space-y-2 {
             display: flex !important;
             flex-direction: column !important;
-            gap: 8px !important;
+            height: 100% !important;
+            justify-content: space-evenly !important; /* distribución uniforme */
+            gap: 0 !important; /* eliminar gap para usar justify-content */
           }
+          
+          /* Elementos de Rizo y Pie alineados como los checkboxes del calendario */
           .telar-section .space-y-2 > div {
             display: flex !important;
             align-items: center !important;
             gap: 8px !important;
+            min-height: 32px !important; /* altura mínima similar a las filas del calendario */
+            padding: 4px 0 !important; /* padding vertical similar */
+          }
+          
+          /* Margin-top para la caja de "Cuentas: RIZO / PIE" que está al lado de los calendarios */
+          .telar-section .rounded-lg.p-3.border.border-gray-200 {
+            margin-top: 32px !important; /* Alinear con la altura del calendario */
           }
         </style>
         <!-- Overrides para colocar número arriba, etiquetas en columna y línea separadora -->
