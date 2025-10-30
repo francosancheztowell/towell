@@ -2,6 +2,36 @@
 
 @section('page-title', 'Inventario Jacquard')
 
+@section('navbar-right')
+    @if(count($telaresJacquard ?? []) > 0)
+    <div class="relative">
+        <!-- Dropdown de Telares -->
+        <button type="button" id="btnDropdownTelares" 
+                class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+            <span class="font-medium">Telares</span>
+            <svg class="w-4 h-4 transition-transform" id="iconDropdown" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </button>
+
+        <!-- Menu Dropdown -->
+        <div id="menuDropdownTelares" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-y-auto z-50">
+            <div class="py-2">
+                <button type="button" onclick="irATelar('')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                    <span class="font-medium">Todos los telares</span>
+                </button>
+                <div class="border-t border-gray-200 my-1"></div>
+                @foreach($telaresJacquard as $t)
+                    <button type="button" onclick="irATelar('{{ $t }}')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        Telar <span class="font-semibold">{{ $t }}</span>
+                    </button>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
+@endsection
+
 @section('content')
     <div class="container mx-auto">
         <style>
@@ -67,14 +97,15 @@
             position: absolute;
             left: 0; right: 0; /* ocupar ancho de la columna */
             color: #fff;
-            font-size: 10px;
-            letter-spacing: .06em;
+            font-size: 14px; /* Texto más grande para SIG. ORDEN */
+            letter-spacing: .08em;
             text-align: center;
             pointer-events: none;
             opacity: .95;
+            font-weight: 700; /* Más bold */
           }
           .telar-section .col-label.center { top: 50%; transform: translateY(-50%); }
-          .telar-section .col-label.bottom { bottom: 16px; } /* subir el texto REQUERIMIENTO */
+          .telar-section .col-label.bottom { display: none !important; } /* Ocultar REQUERIMIENTO */
         </style>
         <!-- Checkboxes más grandes (solo Jacquard) -->
         <style>
@@ -194,42 +225,6 @@
             <x-telar-navbar :telares="$telaresJacquard" />
         @endif
 
-        <!-- Filtro y navegación por No. de Telar -->
-        @if(count($telaresJacquard) > 0)
-        <div class="bg-white shadow-sm rounded-lg p-3 mb-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <form id="formTelarJump" class="flex flex-wrap items-center gap-2">
-                <label for="telarSelect" class="text-sm text-gray-600">Ir al No. de Telar</label>
-                <select id="telarSelect" class="border rounded px-2 py-1">
-                    <option value="">Selecciona un telar…</option>
-                    @foreach($telaresJacquard as $t)
-                        <option value="{{ $t }}" {{ request('telar') == $t ? 'selected' : '' }}>{{ $t }}</option>
-                    @endforeach
-                </select>
-
-                <label class="inline-flex items-center gap-2 text-sm text-gray-600 ml-2">
-                    <input type="checkbox" id="soloUno" class="rounded"> Mostrar solo este
-                </label>
-
-                <button type="submit"
-                        class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
-                    Ir
-                </button>
-
-                <button type="button" id="btnPrev"
-                        class="px-2 py-1 border rounded text-gray-700 hover:bg-gray-50"
-                        title="Telar anterior">◀</button>
-                <button type="button" id="btnNext"
-                        class="px-2 py-1 border rounded text-gray-700 hover:bg-gray-50"
-                        title="Telar siguiente">▶</button>
-
-                <button type="button" id="btnLimpiar"
-                        class="ml-2 px-2 py-1 text-sm text-gray-600 underline">
-                    Limpiar filtro
-                </button>
-            </form>
-        </div>
-        @endif
-
         <!-- Vista completa de todos los telares Jacquard con datos reales -->
         @if(count($telaresJacquard) > 0)
             <div class="space-y-6">
@@ -277,119 +272,166 @@
         @endif
     </div>
 
-    <!-- JavaScript manejado por los componentes telar-navbar y telar-requerimiento -->
+    <!-- JavaScript para Dropdown y Navegación -->
     @if(count($telaresJacquard) > 0)
     <script>
-    (function(){
-      const $form = document.getElementById('formTelarJump');
-      if(!$form) return;
+    // Función global para ir a un telar
+    function irATelar(noTelar) {
+        console.log('Navegando al telar:', noTelar);
+        
+        // Cerrar dropdown
+        const menu = document.getElementById('menuDropdownTelares');
+        const icon = document.getElementById('iconDropdown');
+        if (menu) menu.classList.add('hidden');
+        if (icon) icon.style.transform = 'rotate(0deg)';
 
-      const $select = document.getElementById('telarSelect');
-      const $soloUno = document.getElementById('soloUno');
-      const $btnPrev = document.getElementById('btnPrev');
-      const $btnNext = document.getElementById('btnNext');
-      const $btnLimpiar = document.getElementById('btnLimpiar');
-
-      const lista = Array.from(document.querySelectorAll('[id^="telar-"]'))
-                        .map(el => parseInt(el.id.replace('telar-',''), 10))
-                        .filter(n => !Number.isNaN(n))
-                        .sort((a,b)=>a-b);
-
-      function mostrarSolo(noTelar, soloUno){
-        const id = 'telar-' + noTelar;
+        // Mostrar todos los telares
         document.querySelectorAll('[id^="telar-"]').forEach(el => {
-          if(!soloUno){ el.classList.remove('hidden'); return; }
-          el.classList.toggle('hidden', el.id !== id);
+            el.classList.remove('hidden');
         });
-      }
 
-      function goToTelar(noTelar, soloUno){
-        if(!noTelar) return;
-        const el = document.getElementById('telar-' + noTelar);
-        if(!el) return;
+        // Si se seleccionó un telar específico, ir a él
+        if (noTelar && noTelar !== '') {
+            // Usar setTimeout para asegurar que el DOM esté listo
+            setTimeout(() => {
+                const el = document.getElementById('telar-' + noTelar);
+                console.log('Elemento encontrado:', el);
+                
+                if (el) {
+                    // Scroll con offset para que aparezca completo (150px arriba del elemento)
+                    const offset = 150;
+                    const elementPosition = el.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - offset;
 
-        mostrarSolo(noTelar, soloUno);
-        el.scrollIntoView({ behavior:'smooth', block:'start' });
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: 'smooth'
+                    });
 
-        const url = new URL(location.href);
-        url.searchParams.set('telar', noTelar);
-        history.replaceState(null, '', url.toString());
-      }
-
-      function vecino(actual, dir){
-        if(!lista.length) return null;
-        const idx = lista.indexOf(Number(actual));
-        if(idx === -1) return lista[0];
-        const nextIdx = (idx + dir + lista.length) % lista.length;
-        return lista[nextIdx];
-      }
-
-      $form.addEventListener('submit', function(e){
-        e.preventDefault();
-        const val = $select.value;
-        if(!val) return;
-        goToTelar(val, $soloUno.checked);
-      });
-
-      $btnPrev?.addEventListener('click', function(){
-        const curr = $select.value || lista[0];
-        const prev = vecino(curr, -1);
-        if(prev != null){
-          $select.value = prev;
-          goToTelar(prev, $soloUno.checked);
+                    // Actualizar URL
+                    const url = new URL(location.href);
+                    url.searchParams.set('telar', noTelar);
+                    history.replaceState(null, '', url.toString());
+                } else {
+                    console.error('No se encontró el elemento telar-' + noTelar);
+                }
+            }, 100);
+        } else {
+            // Si no hay telar, ir al inicio
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            const url = new URL(location.href);
+            url.searchParams.delete('telar');
+            history.replaceState(null, '', url.toString());
         }
-      });
+    }
 
-      $btnNext?.addEventListener('click', function(){
-        const curr = $select.value || lista[0];
-        const next = vecino(curr, +1);
-        if(next != null){
-          $select.value = next;
-          goToTelar(next, $soloUno.checked);
-        }
-      });
+    // Toggle del dropdown
+    (function(){
+        const btnDropdown = document.getElementById('btnDropdownTelares');
+        const menuDropdown = document.getElementById('menuDropdownTelares');
+        const iconDropdown = document.getElementById('iconDropdown');
 
-      $btnLimpiar?.addEventListener('click', function(){
-        $select.value = '';
-        $soloUno.checked = false;
-        document.querySelectorAll('[id^="telar-"]').forEach(el => el.classList.remove('hidden'));
-        const url = new URL(location.href);
-        url.searchParams.delete('telar');
-        history.replaceState(null, '', url.toString());
-        window.scrollTo({ top:0, behavior:'smooth' });
-      });
+        btnDropdown?.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isHidden = menuDropdown.classList.contains('hidden');
+            
+            if (isHidden) {
+                menuDropdown.classList.remove('hidden');
+                iconDropdown.style.transform = 'rotate(180deg)';
+            } else {
+                menuDropdown.classList.add('hidden');
+                iconDropdown.style.transform = 'rotate(0deg)';
+            }
+        });
 
-      // Auto-enfocar si viene ?telar=### o hash #telar-###
-      window.addEventListener('DOMContentLoaded', function(){
-        const url = new URL(location.href);
-        let t = url.searchParams.get('telar');
-        if(!t && location.hash.startsWith('#telar-')){
-          t = location.hash.replace('#telar-', '');
-        }
-        if(t){
-          $select.value = t;
-          goToTelar(t, false);
-        }
-      });
+        // Cerrar dropdown al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!btnDropdown.contains(e.target) && !menuDropdown.contains(e.target)) {
+                menuDropdown.classList.add('hidden');
+                iconDropdown.style.transform = 'rotate(0deg)';
+            }
+        });
+
+        // Auto-enfocar si viene ?telar=### o hash #telar-###
+        window.addEventListener('DOMContentLoaded', function(){
+            const url = new URL(location.href);
+            let t = url.searchParams.get('telar');
+            if(!t && location.hash.startsWith('#telar-')){
+                t = location.hash.replace('#telar-', '');
+            }
+            if(t){
+                setTimeout(() => irATelar(t), 500);
+            }
+        });
     })();
     </script>
     <script>
-    // Insertar etiquetas fijas en la columna: una al centro y otra abajo
+    // Override navegación para scroll suave robusto (sin refrescar)
+    (function(){
+      function getScrollable(node){
+        let n = node ? node.parentElement : null;
+        while (n && n !== document.body) {
+          const cs = getComputedStyle(n);
+          const oy = cs.overflowY;
+          if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight) return n;
+          n = n.parentElement;
+        }
+        return document.scrollingElement || document.documentElement;
+      }
+      window.irATelar = function(noTelar){
+        // Cerrar dropdown si existe
+        const menu = document.getElementById('menuDropdownTelares');
+        const icon = document.getElementById('iconDropdown');
+        if (menu) menu.classList.add('hidden');
+        if (icon) icon.style.transform = 'rotate(0deg)';
+
+        // Mostrar todos por si hay filtro
+        document.querySelectorAll('[id^="telar-"]').forEach(el => el.classList.remove('hidden'));
+        if (!noTelar) {
+          const u0 = new URL(location.href); u0.search = ''; u0.hash = ''; history.replaceState(null,'',u0.toString());
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+
+        const el = document.getElementById('telar-'+noTelar);
+        if (!el) return;
+
+        const sticky = document.querySelector('nav.sticky, nav.fixed, .sticky.top-0');
+        const stickyH = sticky ? sticky.getBoundingClientRect().height : 0;
+        const extra = -50 // Más espacio para ver el telar completo y calendarios
+
+        const scroller = getScrollable(el);
+        const scRect = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : { top: 0 };
+        const tRect = el.getBoundingClientRect();
+        const current = scroller.scrollTop || window.pageYOffset || document.documentElement.scrollTop || 0;
+        const targetTop = tRect.top - scRect.top + current - stickyH - extra;
+
+        if (scroller.scrollTo) scroller.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+        else window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+
+        const url = new URL(location.href); url.search = ''; url.hash = 'telar-'+noTelar; history.replaceState(null,'',url.toString());
+      }
+    })();
+    </script>
+    <script>
+    // Insertar etiqueta "SIG. ORDEN" en la columna lateral
     (function(){
       function placeLabels(){
         document.querySelectorAll('.telar-section').forEach(section => {
           const col = section.querySelector('.bg-gradient-to-r.from-blue-600.to-blue-700, .bg-gray-100');
           if(!col) return;
 
-          // crear/obtener y anexar dentro de la columna
+          // Crear/obtener solo la etiqueta del centro (SIG. ORDEN)
           let center = col.querySelector('.col-label.center');
-          let bottom = col.querySelector('.col-label.bottom');
-          if(!center){ center = document.createElement('div'); center.className = 'col-label center'; center.textContent = 'SIG. ORDEN'; col.appendChild(center); }
-          if(!bottom){ bottom = document.createElement('div'); bottom.className = 'col-label bottom'; bottom.textContent = 'REQUERIMIENTO'; col.appendChild(bottom); }
+          if(!center){ 
+            center = document.createElement('div'); 
+            center.className = 'col-label center'; 
+            center.textContent = 'SIG. ORDEN'; 
+            col.appendChild(center); 
+          }
         });
       }
       window.addEventListener('load', placeLabels);
-      // también en navegación SPA o recargas parciales
       document.addEventListener('visibilitychange', () => { if(!document.hidden) placeLabels(); });
       setTimeout(placeLabels, 300);
     })();
