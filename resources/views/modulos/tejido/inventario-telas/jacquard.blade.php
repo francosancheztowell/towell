@@ -4,9 +4,135 @@
 
 @section('content')
     <div class="container mx-auto">
+        <style>
+          /* Encabezado compacto con franja vertical y solo No. de Telar */
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
+          .telar-section > .bg-gray-100 {
+            position: relative;
+            background: #fff !important;
+          }
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700::before,
+          .telar-section > .bg-gray-100::before {
+            content: "";
+            position: absolute; left: 0; top: 0; bottom: 0; width: 8px;
+            display: block;
+          }
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700::before {
+            background: linear-gradient(to bottom, #2563eb, #1d4ed8);
+          }
+          .telar-section > .bg-gray-100::before {
+            background: linear-gradient(to bottom, #9ca3af, #6b7280);
+          }
+          /* Ocultar título JACQUARD SULZER | TEJIDO */
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .flex.items-center > .flex.items-center,
+          .telar-section > .bg-gray-100 .flex.items-center > .flex.items-center {
+            display: none;
+          }
+          /* Convertir badge en número simple */
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500,
+          .telar-section > .bg-gray-100 .bg-gray-400 {
+            background: transparent !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+          }
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500 .text-xs,
+          .telar-section > .bg-gray-100 .bg-gray-400 .text-xs {
+            display: none;
+          }
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500 .text-3xl,
+          .telar-section > .bg-gray-100 .bg-gray-400 .text-3xl {
+            font-weight: 800 !important;
+          }
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500 .text-3xl { color: #1d4ed8; }
+          .telar-section > .bg-gray-100 .bg-gray-400 .text-3xl { color: #374151; }
+        </style>
+        <!-- Forzar color blanco para el número de telar -->
+        <style>
+          /* Número dentro del header del componente (activo e inactivo) */
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500 .text-3xl,
+          .telar-section > .bg-gray-100 .bg-gray-400 .text-3xl { color: #ffffff !important; }
+          /* Número en la columna izquierda (si se usa telar-aside) */
+          .telar-aside .num { color: #ffffff !important; }
+        </style>
+        <style>
+          /* Transformar el header del componente en una columna izquierda fija */
+          .telar-section{ position: relative; }
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
+          .telar-section > .bg-gray-100{
+            display:flex !important; align-items:center; justify-content:center;
+            position:absolute; left:0; top:0; bottom:0; width:110px; padding:0 !important;
+            border-right:1px solid #e5e7eb;
+            background: transparent; /* será cubierto por gradientes abajo */
+          }
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700{ background: linear-gradient(to bottom, #2563eb, #1d4ed8) !important; }
+          .telar-section > .bg-gray-100{ background: linear-gradient(to bottom, #9ca3af, #6b7280) !important; }
+          /* Ocultar barra separadora superior del header original */
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 > .absolute,
+          .telar-section > .bg-gray-100 > .absolute{ display:none !important; }
+          /* Ocultar grupo de títulos (JACQUARD SULZER | TEJIDO) */
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .flex.items-center:first-child,
+          .telar-section > .bg-gray-100 .flex.items-center:first-child{ display:none !important; }
+          /* Restyle del contenedor con el número del telar dentro del header */
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .text-center,
+          .telar-section > .bg-gray-100 .text-center{
+            color:#fff; text-shadow: 0 1px 1px rgba(0,0,0,.2);
+          }
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .text-center .text-xs,
+          .telar-section > .bg-gray-100 .text-center .text-xs{ opacity:.9; letter-spacing:.08em; }
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .text-center .text-3xl,
+          .telar-section > .bg-gray-100 .text-center .text-3xl{ font-weight:800; }
+          /* Desactivar “tarjeta” del badge original */
+          .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500,
+          .telar-section > .bg-gray-100 .bg-gray-400{ background:transparent !important; box-shadow:none !important; padding:0 !important; }
+          /* Desplazar el contenido para dejar espacio a la columna izquierda */
+          .telar-section > .p-3,
+          .telar-section > div:not([class*='bg-gradient-to-r']):not([class*='bg-gray-100']){ margin-left: 112px; }
+          @media (max-width: 640px){
+            .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
+            .telar-section > .bg-gray-100{ width:92px; }
+            .telar-section > .p-3,
+            .telar-section > div:not([class*='bg-gradient-to-r']):not([class*='bg-gray-100']){ margin-left: 96px; }
+          }
+        </style>
         <!-- Navbar de telares usando componente (ordenados por secuencia) -->
         @if(count($telaresJacquard) > 0)
             <x-telar-navbar :telares="$telaresJacquard" />
+        @endif
+
+        <!-- Filtro y navegación por No. de Telar -->
+        @if(count($telaresJacquard) > 0)
+        <div class="bg-white shadow-sm rounded-lg p-3 mb-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <form id="formTelarJump" class="flex flex-wrap items-center gap-2">
+                <label for="telarSelect" class="text-sm text-gray-600">Ir al No. de Telar</label>
+                <select id="telarSelect" class="border rounded px-2 py-1">
+                    <option value="">Selecciona un telar…</option>
+                    @foreach($telaresJacquard as $t)
+                        <option value="{{ $t }}" {{ request('telar') == $t ? 'selected' : '' }}>{{ $t }}</option>
+                    @endforeach
+                </select>
+
+                <label class="inline-flex items-center gap-2 text-sm text-gray-600 ml-2">
+                    <input type="checkbox" id="soloUno" class="rounded"> Mostrar solo este
+                </label>
+
+                <button type="submit"
+                        class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    Ir
+                </button>
+
+                <button type="button" id="btnPrev"
+                        class="px-2 py-1 border rounded text-gray-700 hover:bg-gray-50"
+                        title="Telar anterior">◀</button>
+                <button type="button" id="btnNext"
+                        class="px-2 py-1 border rounded text-gray-700 hover:bg-gray-50"
+                        title="Telar siguiente">▶</button>
+
+                <button type="button" id="btnLimpiar"
+                        class="ml-2 px-2 py-1 text-sm text-gray-600 underline">
+                    Limpiar filtro
+                </button>
+            </form>
+        </div>
         @endif
 
         <!-- Vista completa de todos los telares Jacquard con datos reales -->
@@ -57,4 +183,100 @@
     </div>
 
     <!-- JavaScript manejado por los componentes telar-navbar y telar-requerimiento -->
+    @if(count($telaresJacquard) > 0)
+    <script>
+    (function(){
+      const $form = document.getElementById('formTelarJump');
+      if(!$form) return;
+
+      const $select = document.getElementById('telarSelect');
+      const $soloUno = document.getElementById('soloUno');
+      const $btnPrev = document.getElementById('btnPrev');
+      const $btnNext = document.getElementById('btnNext');
+      const $btnLimpiar = document.getElementById('btnLimpiar');
+
+      const lista = Array.from(document.querySelectorAll('[id^="telar-"]'))
+                        .map(el => parseInt(el.id.replace('telar-',''), 10))
+                        .filter(n => !Number.isNaN(n))
+                        .sort((a,b)=>a-b);
+
+      function mostrarSolo(noTelar, soloUno){
+        const id = 'telar-' + noTelar;
+        document.querySelectorAll('[id^="telar-"]').forEach(el => {
+          if(!soloUno){ el.classList.remove('hidden'); return; }
+          el.classList.toggle('hidden', el.id !== id);
+        });
+      }
+
+      function goToTelar(noTelar, soloUno){
+        if(!noTelar) return;
+        const el = document.getElementById('telar-' + noTelar);
+        if(!el) return;
+
+        mostrarSolo(noTelar, soloUno);
+        el.scrollIntoView({ behavior:'smooth', block:'start' });
+
+        const url = new URL(location.href);
+        url.searchParams.set('telar', noTelar);
+        history.replaceState(null, '', url.toString());
+      }
+
+      function vecino(actual, dir){
+        if(!lista.length) return null;
+        const idx = lista.indexOf(Number(actual));
+        if(idx === -1) return lista[0];
+        const nextIdx = (idx + dir + lista.length) % lista.length;
+        return lista[nextIdx];
+      }
+
+      $form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const val = $select.value;
+        if(!val) return;
+        goToTelar(val, $soloUno.checked);
+      });
+
+      $btnPrev?.addEventListener('click', function(){
+        const curr = $select.value || lista[0];
+        const prev = vecino(curr, -1);
+        if(prev != null){
+          $select.value = prev;
+          goToTelar(prev, $soloUno.checked);
+        }
+      });
+
+      $btnNext?.addEventListener('click', function(){
+        const curr = $select.value || lista[0];
+        const next = vecino(curr, +1);
+        if(next != null){
+          $select.value = next;
+          goToTelar(next, $soloUno.checked);
+        }
+      });
+
+      $btnLimpiar?.addEventListener('click', function(){
+        $select.value = '';
+        $soloUno.checked = false;
+        document.querySelectorAll('[id^="telar-"]').forEach(el => el.classList.remove('hidden'));
+        const url = new URL(location.href);
+        url.searchParams.delete('telar');
+        history.replaceState(null, '', url.toString());
+        window.scrollTo({ top:0, behavior:'smooth' });
+      });
+
+      // Auto-enfocar si viene ?telar=### o hash #telar-###
+      window.addEventListener('DOMContentLoaded', function(){
+        const url = new URL(location.href);
+        let t = url.searchParams.get('telar');
+        if(!t && location.hash.startsWith('#telar-')){
+          t = location.hash.replace('#telar-', '');
+        }
+        if(t){
+          $select.value = t;
+          goToTelar(t, false);
+        }
+      });
+    })();
+    </script>
+    @endif
 @endsection
