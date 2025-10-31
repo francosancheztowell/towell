@@ -1,6 +1,9 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
-@section('page-title', 'Nuevo Requerimiento')
+@php
+    $isEditTitle = ((request()->filled('folio') && isset($editFolio)) || (!empty($editMode) && $editMode));
+@endphp
+@section('page-title', $isEditTitle ? 'Editar Requerimiento' : 'Nuevo Requerimiento')
 
 @section('content')
     <div class="container mx-auto">

@@ -555,6 +555,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/programa-tejido/datos-relacionados', [ProgramaTejidoController::class, 'getDatosRelacionados']);
 Route::get('/programa-tejido/telares-by-salon', [ProgramaTejidoController::class, 'getTelaresBySalon']);
 Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoController::class, 'getUltimaFechaFinalTelar']);
+Route::get('/programa-tejido/ultimo-registro-salon', [ProgramaTejidoController::class, 'getUltimoRegistroSalon']);
 Route::get('/programa-tejido/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
 Route::post('/programa-tejido/calcular-fecha-fin', [ProgramaTejidoController::class, 'calcularFechaFin']);
 Route::get('/programa-tejido/eficiencia-std', [ProgramaTejidoController::class, 'getEficienciaStd']);

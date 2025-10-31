@@ -3,11 +3,8 @@
 @section('page-title', 'Programa de Tejido')
 
 @section('navbar-right')
-<button id="btn-editar-programa" type="button" class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-    Editar
+<button id="btn-editar-programa" type="button" class="inline-flex items-center justify-center w-9 h-9 text-base rounded-full text-white bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar" aria-label="Editar" disabled>
+    <i class="fa-solid fa-pen-to-square"></i>
 </button>
 @endsection
 
@@ -844,6 +841,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// === Integración con modal de filtros compacto del layout ===
+// values: { columna: valor, ... }
+window.applyTableFilters = function(values){
+    try{
+        const tb = tbodyEl(); if(!tb) return;
+        // Base: filas originales
+        const rows = allRows.slice();
+        const entries = Object.entries(values || {});
+        let filtered = rows;
+        if(entries.length){
+            filtered = rows.filter(tr => {
+                return entries.every(([col, val]) => {
+                    const cell = tr.querySelector(`[data-column="${CSS.escape(col)}"]`);
+                    if(!cell) return false;
+                    return (cell.textContent || '').toLowerCase().includes(String(val).toLowerCase());
+                });
+            });
+        }
+        // Render
+        tb.innerHTML = '';
+        filtered.forEach((r,i) => { r.onclick = () => selectRow(r, i); tb.appendChild(r); });
+    }catch(e){}
+}
 </script>
 
 @include('components.toast-notification')

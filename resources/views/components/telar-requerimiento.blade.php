@@ -1,22 +1,3 @@
-{{--
-    Componente: Telar Requerimiento
-
-    Descripción:
-        Sección de requerimientos con calendario de turnos y checkboxes.
-        Maneja la programación de turnos para rizo y pie.
-
-    Props:
-        @param object $telar - Datos del telar
-        @param object $ordenSig - Datos de la siguiente orden (opcional)
-        @param string $salon - Salón del telar (Jacquard, Itema, etc.)
-        @param int $dias - Número de días a mostrar (default: 7)
-        @param int $turnos - Número de turnos por día (default: 3)
-
-    Uso:
-        <x-telar-requerimiento :telar="$telar" :ordenSig="$ordenSig" salon="Jacquard" />
-        <x-telar-requerimiento :telar="$telar" :ordenSig="$ordenSig" salon="Itema" :dias="5" :turnos="2" />
---}}
-
 @props([
     'telar',
     'ordenSig' => null,
@@ -417,10 +398,13 @@ function loadRequerimientos(telarId, salon) {
         .then(r => r.json())
         .then(json => {
             const registros = json?.data || [];
-            const fechasTablas = document.querySelectorAll('th');
 
-            // Limpiar todos los checkboxes
-            document.querySelectorAll(`input[data-telar="${telarId}"]`).forEach(checkbox => {
+            // Limitar la búsqueda al contenedor del telar correspondiente
+            const container = document.getElementById(`telar-${telarId}`) || document;
+            const fechasTablas = container.querySelectorAll('th');
+
+            // Limpiar todos los checkboxes SOLO dentro de este telar
+            container.querySelectorAll(`input[data-telar="${telarId}"]`).forEach(checkbox => {
                 checkbox.checked = false;
             });
 

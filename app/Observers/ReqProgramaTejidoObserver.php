@@ -449,13 +449,10 @@ class ReqProgramaTejidoObserver
             ]);
 
             // === PASO 1: Calcular StdToaHra ===
-            // StdToaHra = (NoTiras * 60) / ((Luchaje + Repeticiones) * VelocidadSTD / 100)
-            if ($noTiras > 0 && $vel > 0) {
-                $parte3 = (($luchaje + $repeticiones) * $vel) / 100;
-                if ($parte3 > 0) {
-                    $stdToaHra = ($noTiras * 60) / $parte3;
-                    $formulas['StdToaHra'] = (float) round($stdToaHra, 6);
-                }
+            // StdToaHra = (NoTiras * 60) / (Luchaje * VelocidadSTD / 10000)
+            if ($noTiras > 0 && $luchaje > 0 && $vel > 0) {
+                $stdToaHra = ($noTiras * 60) / ($luchaje * $vel / 10000);
+                $formulas['StdToaHra'] = (float) round($stdToaHra, 6);
             }
 
             $stdToaHra = $formulas['StdToaHra'] ?? 0;

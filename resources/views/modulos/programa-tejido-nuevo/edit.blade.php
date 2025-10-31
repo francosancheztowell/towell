@@ -188,7 +188,7 @@ function calcularFechaFinalFila(tr) {
     try {
         const finCalc = parseDateFlexible(finEl.value);
         const horas = (finCalc && dInicio) ? Math.max(0, (finCalc.getTime() - dInicio.getTime()) / 3600000) : 0;
-        const dias = horas / 24;
+        const dias = horas / 24; // DiasEficiencia en decimal
         const row2 = tr || cantidadEl.closest('tr');
         let stdToa100 = Number((row2?.getAttribute('data-stdtoa')) || 0);
         let eficiencia = Number((row2?.getAttribute('data-eficiencia')) || 1);
@@ -203,15 +203,15 @@ function calcularFechaFinalFila(tr) {
             stdToa100 = (eficiencia > 0) ? (toallasPorHoraEfect / eficiencia) : toallasPorHoraEfect;
         }
 
-        // Días Eficiencia como diferencia real entre fechas
+        // Días Eficiencia como diferencia real entre fechas (en días decimales)
         const diasEficiencia = dias; // ya calculado arriba
-        // Std/Día efectivo = (StdToaHra 100%) * 24 * EficienciaSTD
-        const stdDia = stdToa100 * 24 * Math.max(eficiencia, 0);
+        // Std/Día = StdToaHra * 24 (SIN eficiencia)
+        const stdDia = stdToa100 * 24;
         // Std/Hr Efectivo = TotalPedido / (DiasEficiencia * 24)
         const stdHrsEfect = (diasEficiencia > 0) ? (totalPedido / (diasEficiencia * 24)) : 0;
-        // Prod(Kg)/Día (100% efectivo según stdDia y peso crudo)
+        // Prod(Kg)/Día = StdDia * PesoCrudo / 1000
         const prodKgDia = (stdDia * pesoCrudo) / 1000;
-        // Prod(Kg)/Día 2 usando la tasa efectiva de horas
+        // Prod(Kg)/Día 2 = (PesoCrudo * StdHrsEfect * 24) / 1000
         const prodKgDia2 = (pesoCrudo * stdHrsEfect * 24) / 1000;
         const diasJornada = velocidadStd / 24;
         const horasProd = (stdToa100>0 && eficiencia>0) ? (totalPedido / (stdToa100 * eficiencia)) : 0;
@@ -238,7 +238,7 @@ function calcularFormulasActuales(tr) {
     const dInicio = parseDateFlexible(inicioEl?.value || '');
     const dFin = parseDateFlexible(finEl?.value || '');
     const horas = (dInicio && dFin) ? Math.max(0, (dFin.getTime() - dInicio.getTime()) / 3600000) : 0;
-    const dias = horas / 24;
+    const dias = horas / 24; // DiasEficiencia en decimal
 
     let stdToa100 = Number((row?.getAttribute('data-stdtoa')) || 0);
     let eficiencia = Number((row?.getAttribute('data-eficiencia')) || 1);
@@ -252,9 +252,13 @@ function calcularFormulasActuales(tr) {
         stdToa100 = (eficiencia > 0) ? (toallasHoraEff / eficiencia) : toallasHoraEff;
     }
 
-    const stdDia = stdToa100 * 24 * Math.max(eficiencia, 0);
+    // StdDia = StdToaHra * 24 (SIN eficiencia)
+    const stdDia = stdToa100 * 24;
+    // StdHrsEfect = TotalPedido / (DiasEficiencia * 24)
     const stdHrsEfect = (dias > 0) ? (totalPedido / (dias * 24)) : 0;
+    // ProdKgDia = StdDia * PesoCrudo / 1000
     const prodKgDia = (stdDia * pesoCrudo) / 1000;
+    // ProdKgDia2 = (PesoCrudo * StdHrsEfect * 24) / 1000
     const prodKgDia2 = (pesoCrudo * stdHrsEfect * 24) / 1000;
     const diasJornada = velocidadStd / 24;
     const horasProd = (stdToa100>0 && eficiencia>0) ? (totalPedido / (stdToa100 * eficiencia)) : 0;

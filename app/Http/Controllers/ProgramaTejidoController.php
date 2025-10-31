@@ -55,6 +55,9 @@ class ProgramaTejidoController extends Controller
             'cod_color_4' => ['nullable','string'],    // CodColorComb1
             'cod_color_5' => ['nullable','string'],    // CodColorComb3
             'cod_color_6' => ['nullable','string'],    // CodColorComb5
+            // Eficiencia y Velocidad
+            'eficiencia_std' => ['nullable','numeric'],
+            'velocidad_std' => ['nullable','numeric'],
             // Campos calculados opcionales
             'peso_grm2' => ['nullable','numeric'],
             'dias_eficiencia' => ['nullable','numeric'],
@@ -113,6 +116,17 @@ class ProgramaTejidoController extends Controller
         if (array_key_exists('dias_jornada', $data)) { $registro->DiasJornada = $data['dias_jornada']; }
         if (array_key_exists('horas_prod', $data)) { $registro->HorasProd = $data['horas_prod']; }
         if (array_key_exists('std_hrs_efect', $data)) { $registro->StdHrsEfect = $data['std_hrs_efect']; }
+
+        // Actualizar EficienciaSTD y VelocidadSTD (acepta snake_case y camelCase)
+        $eficiencia = $data['eficiencia_std'] ?? $request->input('EficienciaSTD') ?? $request->input('eficienciaSTD');
+        $velocidad = $data['velocidad_std'] ?? $request->input('VelocidadSTD') ?? $request->input('velocidadSTD');
+
+        if ($eficiencia !== null && is_numeric($eficiencia)) {
+            $registro->EficienciaSTD = (float) $eficiencia;
+        }
+        if ($velocidad !== null && is_numeric($velocidad)) {
+            $registro->VelocidadSTD = (float) $velocidad;
+        }
 
         // Actualización de nombres de color
         if (array_key_exists('nombre_color_1', $data)) {
@@ -873,6 +887,38 @@ class ProgramaTejidoController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al obtener última fecha final: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Obtener el último registro de un salón para detectar cambio de hilo
+     */
+    public function getUltimoRegistroSalon(Request $request)
+    {
+        try {
+            $salonTejidoId = $request->input('salon_tejido_id');
+
+            if (!$salonTejidoId) {
+                return response()->json(['error' => 'SalonTejidoId es requerido'], 400);
+            }
+
+            // Obtener el último registro del salón ordenado por fecha de creación o ID
+            $ultimoRegistro = ReqProgramaTejido::where('SalonTejidoId', $salonTejidoId)
+                ->orderBy('Id', 'desc')
+                ->select('Hilo', 'Id', 'FechaInicio')
+                ->first();
+
+            if (!$ultimoRegistro) {
+                return response()->json(['message' => 'No hay registros previos en este salón'], 200);
+            }
+
+            return response()->json([
+                'Hilo' => $ultimoRegistro->Hilo,
+                'Id' => $ultimoRegistro->Id,
+                'FechaInicio' => $ultimoRegistro->FechaInicio
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al obtener último registro: ' . $e->getMessage()], 500);
         }
     }
 

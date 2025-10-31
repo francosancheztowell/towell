@@ -150,26 +150,19 @@
               <!-- Controles de columnas -->
               <div class="flex items-center gap-1 mr-2">
                 <button type="button" onclick="openPinColumnsModal()"
-                        class="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 rounded-md transition-colors"
-                        title="Fijar columnas">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M15.5 3.5 20 8l-3 3 1 3-2 2-3-1-3 3-2-2 3-3-1-3 2-2 3 1 3-3Z"/>
-                    <path d="M11 15l-4 4"/>
-                  </svg>
+                        class="w-9 h-9 flex items-center justify-center text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 rounded-full transition-colors"
+                        title="Fijar columnas" aria-label="Fijar columnas">
+                  <i class="fa-solid fa-thumbtack"></i>
                 </button>
                 <button type="button" onclick="openHideColumnsModal()"
-                        class="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-md transition-colors"
-                        title="Ocultar columnas">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 11-4.243-4.243m4.242 4.242L9.88 9.88" />
-                  </svg>
+                        class="w-9 h-9 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full transition-colors"
+                        title="Ocultar columnas" aria-label="Ocultar columnas">
+                  <i class="fa-solid fa-eye-slash"></i>
                 </button>
-                <button type="button" onclick="resetColumnVisibility()"
-                        class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
-                        title="Restablecer columnas">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
+                <button type="button" onclick="resetColumnsSpin()"
+                        class="w-9 h-9 flex items-center justify-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
+                        title="Restablecer columnas" aria-label="Restablecer columnas">
+                  <i id="iconResetColumns" class="fa-solid fa-rotate"></i>
                 </button>
               </div>
 
@@ -177,51 +170,37 @@
               <div id="rowPriorityControls" class="flex items-center gap-1 hidden">
                 <!-- Subir (verde) -->
                 <button type="button" onclick="moveRowUp()"
-                        class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors"
+                        class="w-9 h-9 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full transition-colors"
                         title="Subir prioridad" aria-label="Subir prioridad">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
-                  </svg>
+                  <i class="fa-solid fa-arrow-up"></i>
                 </button>
                 <!-- Bajar (rojo) -->
                 <button type="button" onclick="moveRowDown()"
-                        class="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-md transition-colors"
+                        class="w-9 h-9 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full transition-colors"
                         title="Bajar prioridad" aria-label="Bajar prioridad">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                  </svg>
+                  <i class="fa-solid fa-arrow-down"></i>
                 </button>
                     </div>
 
               <!-- Nuevo (plus-circle) -->
               <button type="button" onclick="abrirNuevo(); return false;"
-                      class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
+                      class="w-9 h-9 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-colors"
                       title="Nuevo registro" aria-label="Nuevo registro">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8v8m4-4H8m12 0a8 8 0 11-16 0 8 8 0 0116 0z"/>
-                </svg>
+                <i class="fa-solid fa-circle-plus"></i>
               </button>
 
               <!-- Catálogos (grid) -->
               <a href="/submodulos-nivel3/104"
-                 class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
+                 class="w-9 h-9 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-colors"
                  title="Catálogos" aria-label="Catálogos">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/>
-                </svg>
+                <i class="fa-solid fa-table-cells"></i>
               </a>
 
               <!-- Filtros (reactivo) -->
               <button type="button" id="btnFilters"
-                      class="relative p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
+                      class="relative w-9 h-9 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-colors"
                       title="Filtros" aria-label="Filtros">
-                <!-- Icono de filtro (siempre visible) -->
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/>
-                </svg>
+                <i class="fa-solid fa-filter"></i>
                 <!-- Badge con número (solo cuando hay filtros activos) -->
                 <span id="filterCount"
                       class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white rounded-full text-xs font-bold hidden">0</span>
@@ -346,9 +325,9 @@
 
   <!-- ====== Modal de Filtros (simple) ====== -->
   <div id="filtersModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
-    <div class="bg-white w-full max-w-lg rounded-xl shadow-lg overflow-hidden animate-fade-in">
+    <div class="bg-white w-full max-w-3xl rounded-xl shadow-lg overflow-hidden animate-fade-in">
       <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <h3 class="font-semibold text-gray-800">Filtros</h3>
+        <h3 class="font-semibold text-gray-800">Filtros por columnas</h3>
         <button class="p-2 rounded-md hover:bg-gray-100" onclick="closeFilterModal()" aria-label="Cerrar">
           <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -356,25 +335,25 @@
         </button>
       </div>
 
-      <div class="p-4 space-y-4">
-        <div class="grid grid-cols-2 gap-3">
+      <div class="p-4 space-y-3">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
           <div>
-            <label class="text-xs text-gray-500">Salón</label>
-            <select id="f_salon" class="form-select w-full border-gray-300 rounded-md">
-              <option value="">(Todos)</option>
-              <option value="Jacquard">Jacquard</option>
-              <option value="Sulzer">Sulzer</option>
-            </select>
+            <label class="block text-xs text-gray-600 mb-1" for="f_col_select">Columna</label>
+            <select id="f_col_select" class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></select>
           </div>
-          <div>
-            <label class="text-xs text-gray-500">Telar</label>
-            <input id="f_telar" type="text" class="form-control w-full border-gray-300 rounded-md" placeholder="Ej. 201">
-          </div>
-          <div class="col-span-2">
-            <label class="text-xs text-gray-500">Producto</label>
-            <input id="f_producto" type="text" class="form-control w-full border-gray-300 rounded-md" placeholder="Buscar…">
+          <div class="md:col-span-2">
+            <label class="block text-xs text-gray-600 mb-1" for="f_col_value">Valor</label>
+            <input id="f_col_value" type="text" class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Escribe el valor a filtrar">
           </div>
         </div>
+        <div class="flex items-center justify-between">
+          <button id="f_add_btn" class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 hover:bg-blue-700 text-white" type="button" aria-label="Agregar filtro">
+            <i class="fa-solid fa-plus"></i>
+            Agregar
+          </button>
+          <small class="text-gray-500">Puedes agregar varios filtros</small>
+        </div>
+        <div id="f_list" class="flex flex-wrap gap-2"></div>
       </div>
 
       <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
@@ -467,12 +446,35 @@
     const $btnFilters = document.getElementById('btnFilters');
     if($btnFilters){
       $btnFilters.addEventListener('click', function(){
-        if(filtersState.active){ clearFilters(); } else { openFilterModal(); }
+        openFilterModal();
       });
     }
 
     function openFilterModal(){
       const m = document.getElementById('filtersModal'); if(!m) return;
+      // Poblar select y chips desde headers/estado
+      try{
+        const sel = document.getElementById('f_col_select');
+        const list = document.getElementById('f_list');
+        const inp = document.getElementById('f_col_value');
+        if(sel){
+          sel.innerHTML = '';
+          const headers = Array.from(document.querySelectorAll('#mainTable thead th'))
+            .filter(th => th && th.offsetParent !== null);
+          const optDefault = document.createElement('option'); optDefault.value=''; optDefault.textContent='Selecciona una columna…'; sel.appendChild(optDefault);
+          headers.forEach(th => {
+            const key = th.getAttribute('data-column') || '';
+            const label = (th.textContent || '').trim();
+            if(!key||!label) return;
+            const opt=document.createElement('option'); opt.value=key; opt.textContent=label; sel.appendChild(opt);
+          });
+        }
+        if(list){ list.innerHTML=''; }
+        if(filtersState && filtersState.values){
+          Object.entries(filtersState.values).forEach(([col,val])=> addFilterChip(col,val));
+        }
+        if(inp){ inp.value=''; }
+      }catch(e){}
       m.classList.remove('hidden'); m.classList.add('flex');
     }
     function closeFilterModal(){
@@ -480,15 +482,17 @@
       m.classList.remove('flex'); m.classList.add('hidden');
     }
     function confirmFilters(){
-      const v = {
-        salon: (document.getElementById('f_salon')||{}).value || '',
-        telar: (document.getElementById('f_telar')||{}).value || '',
-        producto: (document.getElementById('f_producto')||{}).value || ''
-      };
-      const count = Object.values(v).filter(x=> (x??'').toString().trim()!=='').length;
-      filtersState.values = v;
+      // Leer chips agregados
+      const chips = Array.from(document.querySelectorAll('#f_list .f-chip'));
+      const values = {};
+      chips.forEach(ch => { const col=ch.getAttribute('data-col'); const val=ch.getAttribute('data-val')||''; if(col&&val!==''){ values[col]=val; } });
+      const count = Object.keys(values).length;
+      filtersState.values = values;
       applyFilters(count);
-      // TODO: integra tu refresh real aquí, p.ej.: refreshTablaConFiltros(v);
+      // Delegar al módulo si expone filtrado real
+      if(typeof window.applyTableFilters === 'function'){
+        try{ window.applyTableFilters(values); }catch(e){}
+      } else { filterMainTable(values); }
       closeFilterModal();
     }
     function applyFilters(count){
@@ -499,12 +503,65 @@
     function clearFilters(){
       filtersState = {active:false,count:0,values:{}};
       updateFilterUI();
-      // limpiar controles (opcional)
-      ['f_salon','f_telar','f_producto'].forEach(id=>{
-        const el=document.getElementById(id); if(el){ if(el.tagName==='SELECT'){ el.selectedIndex=0; } else { el.value=''; } }
-      });
-      // TODO: integra tu limpieza real, p.ej.: refreshTablaConFiltros({});
+      // limpiar UI compacta
+      const list=document.getElementById('f_list'); if(list) list.innerHTML='';
+      const inp=document.getElementById('f_col_value'); if(inp) inp.value='';
+      const sel=document.getElementById('f_col_select'); if(sel) sel.selectedIndex=0;
+      // Resetear tabla si el módulo expone la función
+      if(typeof window.applyTableFilters === 'function'){
+        try{ window.applyTableFilters({}); }catch(e){}
+      }
     }
+    // Helpers chips
+    function addFilterChip(col, value){
+      const list = document.getElementById('f_list'); if(!list) return;
+      const existing = list.querySelector(`.f-chip[data-col="${CSS.escape(col)}"]`);
+      if(existing){ existing.setAttribute('data-val', value); existing.querySelector('.f-chip-text').textContent = `${getColumnLabel(col)}: ${value}`; return; }
+      const chip = document.createElement('div');
+      chip.className = 'f-chip inline-flex items-center gap-2 px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs border border-blue-200';
+      chip.setAttribute('data-col', col); chip.setAttribute('data-val', value);
+      chip.innerHTML = `
+        <span class="f-chip-text">${getColumnLabel(col)}: ${value}</span>
+        <button type="button" class="p-1 text-blue-600 hover:text-blue-800" aria-label="Quitar" onclick="removeFilterChip('${col}')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>`;
+      list.appendChild(chip);
+    }
+    function removeFilterChip(col){
+      const list = document.getElementById('f_list'); if(!list) return;
+      const chip = list.querySelector(`.f-chip[data-col="${CSS.escape(col)}"]`);
+      if(chip) list.removeChild(chip);
+      const values = currentFiltersFromChips();
+      const count = Object.keys(values).length;
+      filtersState.values = values; applyFilters(count);
+      if(typeof window.applyTableFilters === 'function'){
+        try{ window.applyTableFilters(values); }catch(e){}
+      } else { filterMainTable(values); }
+    }
+    function getColumnLabel(col){
+      const th = document.querySelector(`#mainTable thead th[data-column="${CSS.escape(col)}"]`);
+      return th ? (th.textContent||'').trim() : col;
+    }
+    function currentFiltersFromChips(){
+      const chips = Array.from(document.querySelectorAll('#f_list .f-chip'));
+      const values = {};
+      chips.forEach(ch => { const col=ch.getAttribute('data-col'); const val=ch.getAttribute('data-val')||''; if(col&&val!==''){ values[col]=val; } });
+      return values;
+    }
+    (function(){
+      const btn = document.getElementById('f_add_btn');
+      if(btn){ btn.addEventListener('click', function(){
+        const sel=document.getElementById('f_col_select'); const inp=document.getElementById('f_col_value');
+        const col = sel ? sel.value : ''; const val = inp ? (inp.value||'').trim() : '';
+        if(!col || val==='') return; addFilterChip(col, val); if(inp) inp.value='';
+        const values = currentFiltersFromChips();
+        const count = Object.keys(values).length;
+        filtersState.values = values; applyFilters(count);
+        if(typeof window.applyTableFilters === 'function'){
+          try{ window.applyTableFilters(values); }catch(e){}
+        }
+      }); }
+    })();
     function updateFilterUI(){
       const badge= document.getElementById('filterCount');
       const btn  = document.getElementById('btnFilters');
@@ -522,6 +579,31 @@
       const icon=document.getElementById('iconReset'); if(!icon) return;
       icon.classList.add('spin-1s'); setTimeout(()=>icon.classList.remove('spin-1s'),900);
       clearFilters();
+    }
+    // Filtro local de respaldo por columnas sobre #mainTable
+    function filterMainTable(values){
+      try{
+        const tb = document.querySelector('#mainTable tbody'); if(!tb) return;
+        if(!window.layoutFilterBaseRows || !Array.isArray(window.layoutFilterBaseRows) || window.layoutFilterBaseRows.length===0){
+          window.layoutFilterBaseRows = Array.from(tb.querySelectorAll('tr.selectable-row'));
+        }
+        const base = window.layoutFilterBaseRows;
+        const entries = Object.entries(values||{});
+        const filtered = entries.length ? base.filter(tr => {
+          return entries.every(([col,val])=>{
+            const cell = tr.querySelector(`[data-column="${CSS.escape(col)}"]`);
+            return cell ? (cell.textContent||'').toLowerCase().includes(String(val).toLowerCase()) : false;
+          });
+        }) : base.slice();
+        tb.innerHTML='';
+        filtered.forEach(tr=> tb.appendChild(tr));
+      }catch(e){}
+    }
+    // Giro para Restablecer Columnas
+    function resetColumnsSpin(){
+      const icon=document.getElementById('iconResetColumns');
+      if(icon){ icon.classList.add('spin-1s'); setTimeout(()=>icon.classList.remove('spin-1s'),900); }
+      if(typeof resetColumnVisibility==='function') resetColumnVisibility();
     }
     // Exponer si ocupas desde Blade/otros scripts
     window.openFilterModal = openFilterModal;

@@ -453,36 +453,25 @@ function calcularFechaFinalFila(fila) {
             const eficiencia = parseFloat(document.getElementById('eficiencia-std')?.value || 0.80);
 
             // Calcular StdToaHra (Estándar Toallas/Hora al 100% de velocidad)
-            // Fórmula: (NoTiras*60) / (((Total / 1) + ((Luchaje * 0.5) / 0.0254) / Repeticiones) / VelocidadSTD)
-            const rep = Number(datosModelo.Repeticiones || 0);
+            // Fórmula CORRECTA: (NoTiras * 60) / (Luchaje * VelocidadSTD / 10000)
             const velNum = Number(velocidad || 0);
             const noTirasNum = Number(datosModelo.NoTiras || 0);
-            const totalNum = Number(datosModelo.Total || 0);
             const luchajeNum = Number(datosModelo.Luchaje || 0);
 
-            if (rep <= 0 || velNum <= 0 || noTirasNum <= 0) {
-                console.warn('[STD] Parámetros insuficientes para StdToaHra', { rep, velNum, noTirasNum });
+            if (velNum <= 0 || noTirasNum <= 0 || luchajeNum <= 0) {
+                console.warn('[STD] Parámetros insuficientes para StdToaHra', { velNum, noTirasNum, luchajeNum });
                 return;
             }
 
-            const parte1 = totalNum / 1;
-            const parte2 = (luchajeNum * 0.5) / 0.0254;
-            const parte2_dividido = parte2 / rep;
-            const parte3 = (parte1 + parte2_dividido) / velNum;
-            const stdToaHra = (noTirasNum * 60) / (parte3 > 0 ? parte3 : Number.EPSILON);
+            const stdToaHra = (noTirasNum * 60) / (luchajeNum * velNum / 10000);
             const stdToaHraR = Number(stdToaHra.toFixed(6));
 
-            console.log('[STD] Componentes fórmula StdToaHra', {
+            console.log('[STD] StdToaHra calculado:', {
                 NoTiras: noTirasNum,
-                Total: totalNum,
                 Luchaje: luchajeNum,
-                Repeticiones: rep,
                 VelocidadSTD: velNum,
-                parte1,
-                parte2,
-                parte2_dividido,
-                numerador: (noTirasNum * 60),
-                denominador: parte3,
+                Numerador: (noTirasNum * 60),
+                Denominador: (luchajeNum * velNum / 10000),
                 StdToaHra: stdToaHraR
             });
 
@@ -509,6 +498,7 @@ function calcularFechaFinalFila(fila) {
                 console.log(`Telar ${noTelarId}: HorasProd=${horasProd.toFixed(2)}, Fecha final=${fechaFinalFormateada}`);
             }
         } catch (error) {
+            console.error('❌ Error al calcular fecha final:', error);
         }
     }
 }
@@ -899,12 +889,18 @@ async function guardar() {
     let formulas = {};
 
     if (datosModelo && primerTelar && primerTelar.fecha_inicio && ultimoTelar && ultimoTelar.fecha_final) {
-        // Calcular StdToaHra primero
-        const parte1 = datosModelo.Total / 1;
-        const parte2 = (datosModelo.Luchaje * 0.5) / 0.0254;
-        const parte2_dividido = parte2 / datosModelo.Repeticiones;
-        const parte3 = (parte1 + parte2_dividido) / velocidad;
-        const stdToaHra = (datosModelo.NoTiras * 60) / parte3;
+        // Calcular StdToaHra primero - FÓRMULA CORRECTA
+        // StdToaHra = (NoTiras * 60) / (Luchaje * VelocidadSTD / 10000)
+        const noTirasNum = Number(datosModelo.NoTiras || 0);
+        const luchajeNum = Number(datosModelo.Luchaje || 0);
+        const velNum = Number(velocidad || 0);
+
+        if (noTirasNum <= 0 || luchajeNum <= 0 || velNum <= 0) {
+            console.warn('[STD] Parámetros insuficientes para StdToaHra en guardar()', { noTirasNum, luchajeNum, velNum });
+            return;
+        }
+
+        const stdToaHra = (noTirasNum * 60) / (luchajeNum * velNum / 10000);
 
         // Calcular todas las fórmulas con los datos de los telares (inicio del primero, fin del último)
         // Pasar pesoCrudoFormulario para PesoGRM2 y ProdKgDia
