@@ -60,8 +60,8 @@
         .telar-section{ position: relative; }
         .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
         .telar-section > .bg-gray-100{
-            display:flex !important; align-items:center; justify-content:center;
-            position:absolute; left:0; top:0; bottom:0; width:110px; padding:0 !important;
+            display:flex !important; flex-direction: column !important; align-items:center; justify-content:space-between;
+            position:absolute; left:0; top:0; bottom:0; width:110px; padding:8px 6px !important;
             border-right:1px solid #e5e7eb;
             background: transparent;
         }
@@ -139,12 +139,24 @@
                 @endphp
             <div id="telar-{{ $telar }}" class="telar-section bg-white rounded-lg shadow-lg  border border-gray-200 overflow-hidden" data-telar="{{ $telar }}" data-salon="{{ $tipo === 'itema' ? 'ITEMA' : 'JACQUARD' }}" data-orden="{{ $telarData->Orden_Prod ?? '' }}" data-producto="{{ $telarData->Nombre_Producto ?? '' }}">
                 <div class="{{ $tipo === 'itema' ? 'bg-gray-100' : 'bg-gradient-to-r from-blue-600 to-blue-700' }} px-4 py-4">
-                    <div class="text-center">
+                    <!-- Número del telar arriba -->
+                    <div class="text-center w-full mt-1">
                         <h2 class="text-4xl font-extrabold text-white">{{ $telar }}</h2>
                     </div>
                     @if($ordenSig)
                         <div class="col-label">SIG. ORDEN</div>
                     @endif
+                    <!-- Botón Nuevo Requerimiento abajo -->
+                    <div class="w-full mt-auto">
+                        <button type="button" onclick="agregarNuevoRequerimiento(); return false;"
+                                class="w-full flex flex-col items-center justify-center gap-0.5 px-2 py-2 bg-white/95 text-blue-700 hover:bg-white shadow-sm rounded-md transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8m4-4H8m12 0a8 8 0 11-16 0 8 8 0 0116 0z"/>
+                            </svg>
+                            <span class="text-[10px] leading-3 font-semibold">Nuevo</span>
+                            <span class="text-[10px] leading-3 font-semibold">Requerimiento</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="p-6">
@@ -172,19 +184,19 @@
                         <!-- Columna derecha -->
                         <div class="space-y-3">
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">No Flog (FlogsId):</span>
+                                <span class="text-sm font-semibold text-gray-600">No Flog:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Id_Flog ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Cliente (CustName):</span>
+                                <span class="text-sm font-semibold text-gray-600">Cliente:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Cliente ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Tamaño (InventSizeId):</span>
+                                <span class="text-sm font-semibold text-gray-600">Tamaño:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->InventSizeId ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Artículo (ItemId + NombreProducto):</span>
+                                <span class="text-sm font-semibold text-gray-600">Artículo:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ ($telarData->ItemId ?? '-') . ' ' . ($telarData->Nombre_Producto ?? '-') }}</span>
                             </div>
                         </div>
@@ -192,33 +204,26 @@
                         <!-- Columna adicional -->
                         <div class="space-y-3">
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Pedido (TotalPedido):</span>
+                                <span class="text-sm font-semibold text-gray-600">Pedido:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Saldos ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Producción (Produccion):</span>
+                                <span class="text-sm font-semibold text-gray-600">Producción:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Produccion ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Inicio (FechaInicio):</span>
+                                <span class="text-sm font-semibold text-gray-600">Inicio:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Inicio_Tejido ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Fin (FechaFinal):</span>
+                                <span class="text-sm font-semibold text-gray-600">Fin:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Fin_Tejido ?? '-' }}</span>
                         </div>
                         </div>
                         </div>
 
-                    <!-- Botones de acción -->
-                    <div class="flex justify-end mb-4 relative z-10">
-                        <button onclick="agregarNuevoRequerimiento()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-md">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                            </svg>
-                            Nuevo Requerimiento
-                        </button>
-                    </div>
+                    <!-- Línea separadora gris -->
+                    <div class="w-full h-px bg-gray-300 my-4" aria-hidden="true"></div>
 
                     <!-- Tabla de detalles -->
                     <div class=" rounded-lg overflow-hidden relative z-10">
