@@ -98,19 +98,19 @@
         @include('layouts.globalLoader')
 
   <!-- NAVBAR -->
-        <nav class="bg-white sticky top-0 z-50 shadow-sm">
+        <nav class="bg-white sticky top-0 z-50">
             <div class="container mx-auto px-4 md:px-6 py-2">
                 <div class="flex items-center justify-between">
         <!-- Izquierda -->
-                    <div class="flex items-center gap-2 md:gap-3">
-          <button id="btn-back" class="opacity-0 invisible pointer-events-none w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-blue-200 hover:bg-blue-400 text-black rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
-                  title="Volver atrás" aria-label="Volver atrás">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-                            </svg>
-                        </button>
+        <div class="flex items-center gap-2 md:gap-3">
+            <button id="btn-back" class="opacity-0 invisible pointer-events-none w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-blue-200 hover:bg-blue-400 text-black rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
+                title="Volver atrás" aria-label="Volver atrás">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+            </button>
 
-                        <a href="/produccionProceso" class="flex items-center">
+                    <a href="/produccionProceso" class="flex items-center">
                             <img src="{{ asset('images/fondosTowell/logo.png') }}" alt="Logo Towell" class="h-10 md:h-12">
                         </a>
                     </div>

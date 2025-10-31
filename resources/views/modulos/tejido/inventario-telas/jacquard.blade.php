@@ -6,7 +6,7 @@
     @if(count($telaresJacquard ?? []) > 0)
     <div class="relative">
         <!-- Dropdown de Telares -->
-        <button type="button" id="btnDropdownTelares" 
+        <button type="button" id="btnDropdownTelares"
                 class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
             <span class="font-medium">Telares</span>
             <svg class="w-4 h-4 transition-transform" id="iconDropdown" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,17 +116,17 @@
           }
           /* Mejora de accesibilidad del click target si hay labels adyacentes */
           .telar-section label{ display:inline-flex; align-items:center; gap: 6px; }
-          
+
           /* Alinear sección de cuentas (Rizo, Pie, etc.) con el calendario */
           .telar-section .grid.grid-cols-1.md\\:grid-cols-2.gap-4 {
             align-items: stretch !important; /* mismo alto para ambas columnas */
           }
-          
+
           /* Hacer que la sección de cuentas tenga el mismo alto que los calendarios */
           .telar-section .grid.grid-cols-1.md\\:grid-cols-2.gap-4 > div {
             height: 100% !important;
           }
-          
+
           /* Contenedor de cuentas con altura completa y distribución uniforme */
           .telar-section .space-y-2 {
             display: flex !important;
@@ -135,7 +135,7 @@
             justify-content: space-evenly !important; /* distribución uniforme */
             gap: 0 !important; /* eliminar gap para usar justify-content */
           }
-          
+
           /* Elementos de Rizo y Pie alineados como los checkboxes del calendario */
           .telar-section .space-y-2 > div {
             display: flex !important;
@@ -144,7 +144,7 @@
             min-height: 32px !important; /* altura mínima similar a las filas del calendario */
             padding: 4px 0 !important; /* padding vertical similar */
           }
-          
+
           /* Margin-top para la caja de "Cuentas: RIZO / PIE" que está al lado de los calendarios */
           .telar-section .rounded-lg.p-3.border.border-gray-200 {
             margin-top: 32px !important; /* Alinear con la altura del calendario */
@@ -171,8 +171,8 @@
         <style>
           /* Número dentro del header del componente (activo e inactivo) - MÁS GRANDE Y CON PADDING */
           .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500 .text-3xl,
-          .telar-section > .bg-gray-100 .bg-gray-400 .text-3xl { 
-            color: #ffffff !important; 
+          .telar-section > .bg-gray-100 .bg-gray-400 .text-3xl {
+            color: #ffffff !important;
             font-size: 2.5rem !important; /* más grande que text-3xl */
             padding: 12px !important; /* padding alrededor del número */
             line-height: 1 !important;
@@ -219,6 +219,14 @@
             .telar-section > .p-3,
             .telar-section > div:not([class*='bg-gradient-to-r']):not([class*='bg-gray-100']){ margin-left: 96px; }
           }
+        </style>
+        <!-- Quitar sombra en la barra de navegación y dropdown locales -->
+        <style>
+          /* Navbar fija de telares */
+          #telares-navbar { box-shadow: none !important; }
+          /* Botón y menú del dropdown de telares */
+          #btnDropdownTelares { box-shadow: none !important; }
+          #menuDropdownTelares { box-shadow: none !important; }
         </style>
         <!-- Navbar de telares usando componente (ordenados por secuencia) -->
         @if(count($telaresJacquard) > 0)
@@ -278,7 +286,7 @@
     // Función global para ir a un telar
     function irATelar(noTelar) {
         console.log('Navegando al telar:', noTelar);
-        
+
         // Cerrar dropdown
         const menu = document.getElementById('menuDropdownTelares');
         const icon = document.getElementById('iconDropdown');
@@ -296,7 +304,7 @@
             setTimeout(() => {
                 const el = document.getElementById('telar-' + noTelar);
                 console.log('Elemento encontrado:', el);
-                
+
                 if (el) {
                     // Scroll con offset para que aparezca completo (150px arriba del elemento)
                     const offset = 150;
@@ -334,7 +342,7 @@
         btnDropdown?.addEventListener('click', function(e) {
             e.stopPropagation();
             const isHidden = menuDropdown.classList.contains('hidden');
-            
+
             if (isHidden) {
                 menuDropdown.classList.remove('hidden');
                 iconDropdown.style.transform = 'rotate(180deg)';
@@ -423,11 +431,11 @@
 
           // Crear/obtener solo la etiqueta del centro (SIG. ORDEN)
           let center = col.querySelector('.col-label.center');
-          if(!center){ 
-            center = document.createElement('div'); 
-            center.className = 'col-label center'; 
-            center.textContent = 'SIG. ORDEN'; 
-            col.appendChild(center); 
+          if(!center){
+            center = document.createElement('div');
+            center.className = 'col-label center';
+            center.textContent = 'SIG. ORDEN';
+            col.appendChild(center);
           }
         });
       }
