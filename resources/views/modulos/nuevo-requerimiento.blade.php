@@ -148,8 +148,8 @@
                     @endif
                     <!-- Botón Nuevo Requerimiento abajo -->
                     <div class="w-full mt-auto">
-                        <button type="button" onclick="agregarNuevoRequerimiento(); return false;"
-                                class="w-full flex flex-col items-center justify-center gap-0.5 px-2 py-2 bg-white/95 text-blue-700 hover:bg-white shadow-sm rounded-md transition-colors">
+                        <button type="button" onclick="agregarNuevoRequerimiento(this); return false;"
+                                 class="w-full flex flex-col items-center justify-center gap-0.5 px-2 py-2 bg-white/95 text-blue-700 hover:bg-white shadow-sm rounded-md transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8m4-4H8m12 0a8 8 0 11-16 0 8 8 0 0116 0z"/>
                             </svg>
@@ -471,7 +471,7 @@
                         <button type="button" onclick="cerrarModal()" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
                             Cancelar
                         </button>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                        <button type="button" onclick="agregarCampo()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
                             Agregar
                         </button>
                     </div>
@@ -906,17 +906,24 @@
         }
 
         // Función para agregar nuevo requerimiento
-        function agregarNuevoRequerimiento() {
-            console.log('Función agregarNuevoRequerimiento llamada');
+        // Guarda el telar donde se hizo clic para insertar ahí la fila nueva
+        let __telarTarget = null;
+
+        function agregarNuevoRequerimiento(btn) {
+            // Registrar telar origen del click
+            try {
+                __telarTarget = btn ? btn.closest('.telar-section') : null;
+            } catch (_) { __telarTarget = null; }
+            // console.log('Función agregarNuevoRequerimiento llamada');
             // Verificar si estamos en modo edición (con folio en query)
             const params = new URLSearchParams(window.location.search);
             const folioQuery = params.get('folio');
 
             if (folioQuery) {
-                console.log('Modo edición detectado');
+                // console.log('Modo edición detectado');
                 // Modo edición: permitir agregar sin verificar "En Proceso"
                 const modal = document.getElementById('modal-nuevo-requerimiento');
-                console.log('Modal encontrado:', modal);
+                // console.log('Modal encontrado:', modal);
                 modal.classList.remove('hidden');
                 document.getElementById('form-nuevo-requerimiento').reset();
                 document.getElementById('modal-cantidad').value = 0;
@@ -924,7 +931,7 @@
             }
 
             // Modo creación: verificar si hay En Proceso
-            console.log('Modo creación detectado');
+            // console.log('Modo creación detectado');
             fetch('/modulo-nuevo-requerimiento/en-proceso')
                 .then(r => r.json())
                 .then(data => {
@@ -946,9 +953,9 @@
                         return;
                     }
 
-                    console.log('Abriendo modal');
+                    // console.log('Abriendo modal');
                     const modal = document.getElementById('modal-nuevo-requerimiento');
-                    console.log('Modal encontrado:', modal);
+                    // console.log('Modal encontrado:', modal);
                     modal.classList.remove('hidden');
                     document.getElementById('form-nuevo-requerimiento').reset();
                     document.getElementById('modal-cantidad').value = 0;
@@ -968,10 +975,61 @@
             modal.classList.add('hidden');
         }
 
+        // Agrega una fila nueva desde el modal
+        function agregarCampo(){
+            const articuloEl = document.getElementById('modal-articulo');
+            const fibraEl = document.getElementById('modal-fibra');
+            const codColorEl = document.getElementById('modal-cod-color');
+            const nombreColorEl = document.getElementById('modal-nombre-color');
+            const cantidadEl = document.getElementById('modal-cantidad');
+
+            if (!articuloEl || !fibraEl || !codColorEl || !nombreColorEl || !cantidadEl) {
+                showToast('Faltan campos del modal', 'error');
+                return;
+            }
+
+            const articulo = articuloEl.value?.trim();
+            const fibra = fibraEl.value?.trim();
+            const codColor = codColorEl.value?.trim();
+            const nombreColor = nombreColorEl.value?.trim();
+            const cantidad = parseInt(cantidadEl.value ?? '0', 10) || 0;
+
+            // Validaciones básicas del modal
+            if (articulo === '' || isNaN(parseFloat(articulo))) {
+                showToast('Ingrese un artículo válido (número)', 'warning');
+                return;
+            }
+            if (fibra === '' || codColor === '' || nombreColor === '') {
+                showToast('Complete fibra, código y color', 'warning');
+                return;
+            }
+
+            agregarFilaATabla({
+                articulo: articulo,
+                fibra: fibra,
+                codColor: codColor,
+                nombreColor: nombreColor,
+                cantidad: cantidad
+            });
+
+            cerrarModal();
+            showToast('Nuevo requerimiento agregado exitosamente', 'success');
+            // Intentar autoguardado (utiliza la misma rutina existente)
+            scheduleGuardarRequerimientos();
+        }
+
         // Función para agregar la nueva fila a la tabla
         function agregarFilaATabla(datos) {
-            // Buscar la tabla del telar actualmente visible
-            const telarActivo = document.querySelector('.telar-section:not(.hidden)') || document.querySelector('.telar-section');
+            // Insertar en el telar donde se abrió el modal; si no, usar activo por navbar; si no, primero
+            let telarActivo = __telarTarget;
+            if (!telarActivo) {
+                const activeBtn = document.querySelector('#telar-navbar .telar-nav-btn.bg-blue-600');
+                if (activeBtn) {
+                    const telarNum = activeBtn.getAttribute('data-telar');
+                    telarActivo = document.getElementById(`telar-${telarNum}`);
+                }
+            }
+            if (!telarActivo) telarActivo = document.querySelector('.telar-section');
             if (!telarActivo) return;
 
             const tbody = telarActivo.querySelector('tbody');
@@ -1011,6 +1069,9 @@
 
             // Agregar event listeners a los nuevos elementos
             agregarEventListenersANuevaFila(nuevaFila);
+
+            // Limpiar el telar target para evitar “pegar” en el mismo por error
+            __telarTarget = null;
         }
 
         // Función para agregar event listeners a una nueva fila
@@ -1035,15 +1096,13 @@
                     this.classList.add('bg-blue-500', 'text-white');
 
                     // Actualizar el texto mostrado
-                    quantityDisplay.textContent = selectedValue;
+                    if (quantityDisplay) quantityDisplay.textContent = selectedValue;
 
                     // Verificar si es un consumo existente (tiene ID)
                     const consumoId = row.getAttribute('data-consumo-id');
                     if (consumoId) {
-                        // Actualizar directamente en la BD
                         actualizarCantidadEnBD(consumoId, selectedValue);
                     } else {
-                        // Mostrar toast para nuevos requerimientos
                         showToast(`Cantidad actualizada a ${selectedValue} conos`);
                     }
 
@@ -1064,9 +1123,9 @@
                         const editBtn = row.querySelector('.edit-quantity-btn');
                         const display = row.querySelector('.quantity-display');
 
-                        editContainer.classList.add('hidden');
-                        editBtn.classList.remove('hidden');
-                        display.classList.remove('hidden');
+                        if (editContainer) editContainer.classList.add('hidden');
+                        if (editBtn) editBtn.classList.remove('hidden');
+                        if (display) display.classList.remove('hidden');
                     }, 500);
 
                     // Guardado automático
