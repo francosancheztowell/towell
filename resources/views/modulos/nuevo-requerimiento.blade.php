@@ -2,31 +2,112 @@
 
 @section('page-title', 'Nuevo Requerimiento')
 
-@section('content')
-    <div class="container mx-auto">
-        <div id="telar-navbar" class="fixed top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-lg z-40 transition-all duration-300">
-            <div class="container mx-auto px-4 py-3">
-                <div class="flex flex-wrap justify-center gap-2 max-w-8xl mx-auto">
-                    @php
-                        $__telares = (isset($editMode) && $editMode) ? ($telaresEdit ?? []) : ($telaresOrdenados ?? []);
+@section('navbar-right')
+    @php
+        $__listaTelares = (isset($editMode) && $editMode) ? ($telaresEdit ?? []) : ($telaresOrdenados ?? []);
+    @endphp
+    @if(count($__listaTelares) > 0)
+    <div class="relative">
+        <!-- Dropdown de Telares -->
+        <button type="button" id="btnDropdownTelares" 
+                class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+            <span class="font-medium">Telares</span>
+            <svg class="w-4 h-4 transition-transform" id="iconDropdown" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </button>
 
-                        // Ordenar los telares por secuencia (no por número de telar)
-                        // Los telares deben aparecer en el orden: 201, 203, 205, 207, 209, 211, 210, 215, 208, 213, 206, 214, 204, 202, 299, 301, 303, 305, 307, 309, 311, 310, 313, 308, 315, 306, 317, 304, 319, 302, 300, 320, 318, 316, 314, 312
-                        $secuenciaCorrecta = [201, 203, 205, 207, 209, 211, 210, 215, 208, 213, 206, 214, 204, 202, 299, 301, 303, 305, 307, 309, 311, 310, 313, 308, 315, 306, 317, 304, 319, 302, 300, 320, 318, 316, 314, 312];
-
-                        $telaresOrdenados = collect($__telares)->sortBy(function($telar) use ($secuenciaCorrecta) {
-                            $posicion = array_search((int)$telar, $secuenciaCorrecta);
-                            return $posicion !== false ? $posicion : 999; // Si no está en la secuencia, ponerlo al final
-                        })->values()->all();
-                    @endphp
-                    @foreach($telaresOrdenados as $index => $telar)
-                        <button onclick="scrollToTelar({{ $telar }})" class="telar-nav-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 border-2 border-gray-300 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:border-blue-400 hover:text-blue-800 shadow-sm hover:shadow-md" data-telar="{{ $telar }}" title="Telar {{ $telar }}">
-                            {{ $telar }}
-                        </button>
-                    @endforeach
-                </div>
+        <!-- Menu Dropdown -->
+        <div id="menuDropdownTelares" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-y-auto z-50">
+            <div class="py-2">
+                <button type="button" onclick="irATelar('')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                    <span class="font-medium">Todos los telares</span>
+                </button>
+                <div class="border-t border-gray-200 my-1"></div>
+                @foreach($__listaTelares as $t)
+                    <button type="button" onclick="irATelar('{{ $t }}')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        Telar <span class="font-semibold">{{ $t }}</span>
+                    </button>
+                @endforeach
             </div>
-                    </div>
+        </div>
+    </div>
+    @endif
+@endsection
+
+@section('content')
+    <style>
+        /* Encabezado compacto con franja vertical y solo No. de Telar */
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
+        .telar-section > .bg-gray-100 {
+            position: relative;
+            background: #fff !important;
+        }
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700::before,
+        .telar-section > .bg-gray-100::before {
+            content: "";
+            position: absolute; left: 0; top: 0; bottom: 0; width: 8px;
+            display: block;
+        }
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700::before {
+            background: linear-gradient(to bottom, #2563eb, #1d4ed8);
+        }
+        .telar-section > .bg-gray-100::before {
+            background: linear-gradient(to bottom, #9ca3af, #6b7280);
+        }
+        
+        /* Transformar el header del componente en una columna izquierda fija */
+        .telar-section{ position: relative; }
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
+        .telar-section > .bg-gray-100{
+            display:flex !important; align-items:center; justify-content:center;
+            position:absolute; left:0; top:0; bottom:0; width:110px; padding:0 !important;
+            border-right:1px solid #e5e7eb;
+            background: transparent;
+        }
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700{ background: linear-gradient(to bottom, #2563eb, #1d4ed8) !important; }
+        .telar-section > .bg-gray-100{ background: linear-gradient(to bottom, #9ca3af, #6b7280) !important; }
+        
+        /* Restyle del contenedor con el número del telar */
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .text-center,
+        .telar-section > .bg-gray-100 .text-center{
+            color:#fff; text-shadow: 0 1px 1px rgba(0,0,0,.2);
+        }
+        
+        /* Número más grande y con padding */
+        .telar-section h2 { 
+            color: #ffffff !important; 
+            font-size: 2.5rem !important;
+            padding: 12px !important;
+            line-height: 1 !important;
+            font-weight: 800 !important;
+        }
+        
+        /* Desplazar el contenido para dejar espacio a la columna izquierda */
+        .telar-section > .p-6{ margin-left: 112px; }
+        
+        @media (max-width: 640px){
+            .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
+            .telar-section > .bg-gray-100{ width:92px; }
+            .telar-section > .p-6{ margin-left: 96px; }
+        }
+
+        /* Etiqueta "SIG. ORDEN" en la columna lateral */
+        .telar-section .col-label {
+            position: absolute;
+            left: 0; right: 0;
+            color: #fff;
+            font-size: 14px;
+            letter-spacing: .08em;
+            text-align: center;
+            pointer-events: none;
+            opacity: .95;
+            font-weight: 700;
+            top: 50%; 
+            transform: translateY(-50%);
+        }
+    </style>
+    <div class="container mx-auto">
 
         <!-- Lista de Requerimientos en Proceso -->
         <div class="space-y-6">
@@ -57,12 +138,14 @@
                     }
                 @endphp
             <div id="telar-{{ $telar }}" class="telar-section bg-white rounded-lg shadow-lg  border border-gray-200 overflow-hidden" data-telar="{{ $telar }}" data-salon="{{ $tipo === 'itema' ? 'ITEMA' : 'JACQUARD' }}" data-orden="{{ $telarData->Orden_Prod ?? '' }}" data-producto="{{ $telarData->Nombre_Producto ?? '' }}">
-                <div class="{{ $tipo === 'itema' ? 'bg-green-700' : 'bg-blue-700' }} px-4 py-4 border-t-4 border-orange-400">
-                    <h2 class="text-xl font-bold text-white text-center">
-                        PRODUCCIÓN EN PROCESO TELAR {{ strtoupper($tipo) }}
-                        <span class="inline-block bg-red-600 text-white px-3 py-1 rounded-lg ml-2 font-bold text-xl">{{ $telar }}</span>
-                    </h2>
+                <div class="{{ $tipo === 'itema' ? 'bg-gray-100' : 'bg-gradient-to-r from-blue-600 to-blue-700' }} px-4 py-4">
+                    <div class="text-center">
+                        <h2 class="text-4xl font-extrabold text-white">{{ $telar }}</h2>
                     </div>
+                    @if($ordenSig)
+                        <div class="col-label">SIG. ORDEN</div>
+                    @endif
+                </div>
 
                 <div class="p-6">
                     <div class="grid grid-cols-3 lg:grid-cols-3 gap-6 mb-6">
@@ -1156,6 +1239,92 @@
                 showToast('Error al actualizar cantidad', 'error');
             });
         }
+
+        // Dropdown y navegación tipo Jacquard
+        (function(){
+            const btnDropdown = document.getElementById('btnDropdownTelares');
+            const menuDropdown = document.getElementById('menuDropdownTelares');
+            const iconDropdown = document.getElementById('iconDropdown');
+
+            btnDropdown?.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isHidden = menuDropdown.classList.contains('hidden');
+                if (isHidden) {
+                    menuDropdown.classList.remove('hidden');
+                    if (iconDropdown) iconDropdown.style.transform = 'rotate(180deg)';
+                } else {
+                    menuDropdown.classList.add('hidden');
+                    if (iconDropdown) iconDropdown.style.transform = 'rotate(0deg)';
+                }
+            });
+
+            // Cerrar dropdown al hacer clic fuera
+            document.addEventListener('click', function(e) {
+                if (btnDropdown && !btnDropdown.contains(e.target) && menuDropdown && !menuDropdown.contains(e.target)) {
+                    menuDropdown.classList.add('hidden');
+                    if (iconDropdown) iconDropdown.style.transform = 'rotate(0deg)';
+                }
+            });
+
+            // Auto-enfocar si viene ?telar=### o hash #telar-###
+            window.addEventListener('DOMContentLoaded', function(){
+                const url = new URL(location.href);
+                let t = url.searchParams.get('telar');
+                if(!t && location.hash.startsWith('#telar-')){
+                    t = location.hash.replace('#telar-', '');
+                }
+                if(t){
+                    setTimeout(() => irATelar(t), 500);
+                }
+            });
+        })();
+
+        // Scroll suave a un telar específico y actualización de URL/hash
+        (function(){
+          function getScrollable(node){
+            let n = node ? node.parentElement : null;
+            while (n && n !== document.body) {
+              const cs = getComputedStyle(n);
+              const oy = cs.overflowY;
+              if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight) return n;
+              n = n.parentElement;
+            }
+            return document.scrollingElement || document.documentElement;
+          }
+          window.irATelar = function(noTelar){
+            // Cerrar dropdown si existe
+            const menu = document.getElementById('menuDropdownTelares');
+            const icon = document.getElementById('iconDropdown');
+            if (menu) menu.classList.add('hidden');
+            if (icon) icon.style.transform = 'rotate(0deg)';
+
+            // Mostrar todos por si hay filtro
+            document.querySelectorAll('[id^="telar-"]').forEach(el => el.classList.remove('hidden'));
+            if (!noTelar) {
+              const u0 = new URL(location.href); u0.search = ''; u0.hash = ''; history.replaceState(null,'',u0.toString());
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              return;
+            }
+
+            const el = document.getElementById('telar-'+noTelar);
+            if (!el) return;
+
+            const sticky = document.querySelector('nav.sticky, nav.fixed, .sticky.top-0, .fixed.top-16');
+            const stickyH = sticky ? sticky.getBoundingClientRect().height : 0;
+            const extra = -50; // espacio adicional
+
+            const scroller = getScrollable(el);
+            const scRect = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : { top: 0 };
+            const tRect = el.getBoundingClientRect();
+            const current = scroller.scrollTop || window.pageYOffset || document.documentElement.scrollTop || 0;
+            const targetTop = tRect.top - scRect.top + current - stickyH - extra;
+
+            if (scroller.scrollTo) scroller.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+            else window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+
+            const url = new URL(location.href); url.search = ''; url.hash = 'telar-'+noTelar; history.replaceState(null,'',url.toString());
+          }
+        })();
     </script>
 
     <style>
@@ -1168,4 +1337,3 @@
         }
     </style>
 @endsection
-
