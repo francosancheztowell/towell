@@ -19,18 +19,14 @@ class AplicacionesController extends Controller
     {
         Log::info('AplicacionesController::index() called');
 
-        // Obtener todos los resultados sin filtros del servidor
-        // Los filtros se manejan del lado del cliente con JavaScript
-        $aplicaciones = ReqAplicaciones::orderBy('SalonTejidoId')
-                                       ->orderBy('AplicacionId')
+        // Nueva estructura: solo AplicacionId, Nombre, Factor
+        $aplicaciones = ReqAplicaciones::orderBy('AplicacionId')
+                                       ->orderBy('Nombre')
                                        ->get();
 
         Log::info('Aplicaciones obtenidas: ' . count($aplicaciones), ['first' => $aplicaciones->first()?->toArray()]);
 
-        // Siempre hay resultados ya que no filtramos del lado del servidor
         $noResults = false;
-
-        // Pasa los resultados
         return view('catalagos.aplicaciones', compact('aplicaciones', 'noResults'));
     }
 
@@ -114,31 +110,29 @@ class AplicacionesController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'AplicacionId' => 'required|string|unique:ReqAplicaciones,AplicacionId|max:50',
-                'Nombre' => 'required|string|max:100',
-                'SalonTejidoId' => 'required|string|max:50',
-                'NoTelarId' => 'required|string|max:50'
+                'AplicacionId' => 'required|string|unique:dbo.ReqAplicaciones,AplicacionId|max:50',
+                'Nombre'       => 'required|string|max:100',
+                'Factor'       => 'nullable|numeric'
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Error en la validación',
-                    'errors' => $validator->errors()
+                    'errors'  => $validator->errors()
                 ], 422);
             }
 
             $aplicacion = ReqAplicaciones::create([
                 'AplicacionId' => $request->AplicacionId,
-                'Nombre' => $request->Nombre,
-                'SalonTejidoId' => $request->SalonTejidoId,
-                'NoTelarId' => $request->NoTelarId
+                'Nombre'       => $request->Nombre,
+                'Factor'       => $request->Factor,
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Aplicación creada exitosamente',
-                'data' => $aplicacion
+                'data'    => $aplicacion
             ]);
 
         } catch (\Exception $e) {
@@ -156,7 +150,6 @@ class AplicacionesController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            // Buscar por ID numérico o por AplicacionId
             $aplicacion = null;
             if (is_numeric($id)) {
                 $aplicacion = ReqAplicaciones::find($id);
@@ -173,31 +166,29 @@ class AplicacionesController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'AplicacionId' => 'required|string|max:50|unique:ReqAplicaciones,AplicacionId,' . $aplicacion->Id,
-                'Nombre' => 'required|string|max:100',
-                'SalonTejidoId' => 'required|string|max:50',
-                'NoTelarId' => 'required|string|max:50'
+                'AplicacionId' => 'required|string|max:50|unique:dbo.ReqAplicaciones,AplicacionId,' . $aplicacion->Id . ',Id',
+                'Nombre'       => 'required|string|max:100',
+                'Factor'       => 'nullable|numeric'
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Error en la validación',
-                    'errors' => $validator->errors()
+                    'errors'  => $validator->errors()
                 ], 422);
             }
 
             $aplicacion->update([
                 'AplicacionId' => $request->AplicacionId,
-                'Nombre' => $request->Nombre,
-                'SalonTejidoId' => $request->SalonTejidoId,
-                'NoTelarId' => $request->NoTelarId
+                'Nombre'       => $request->Nombre,
+                'Factor'       => $request->Factor,
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Aplicación actualizada exitosamente',
-                'data' => $aplicacion
+                'data'    => $aplicacion
             ]);
 
         } catch (\Exception $e) {

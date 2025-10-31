@@ -373,6 +373,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad');
             Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios');
             Route::get('/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones');
+            Route::get('/matriz-hilos', [App\Http\Controllers\MatrizHilosController::class, 'index'])->name('matriz-hilos');
             // Rutas para Codificación de Modelos (orden específico primero)
             Route::get('/codificacion-modelos', [CodificacionController::class, 'index'])->name('codificacion-modelos');
             Route::get('/test-codificacion', function() { return 'Test route works!'; });
@@ -385,6 +386,7 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/codificacion-modelos/{id}', [CodificacionController::class, 'update'])->name('codificacion.update');
             Route::delete('/codificacion-modelos/{id}', [CodificacionController::class, 'destroy'])->name('codificacion.destroy');
             Route::post('/codificacion-modelos/excel', [CodificacionController::class, 'procesarExcel'])->name('codificacion.excel');
+            Route::get('/codificacion-modelos/excel-progress/{id}', [CodificacionController::class, 'importProgress'])->name('codificacion.excel.progress');
             Route::post('/codificacion-modelos/buscar', [CodificacionController::class, 'buscar'])->name('codificacion.buscar');
         });
 
@@ -432,6 +434,12 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/aplicaciones', [AplicacionesController::class, 'store'])->name('aplicaciones.store');
         Route::put('/aplicaciones/{aplicacion}', [AplicacionesController::class, 'update'])->name('aplicaciones.update');
         Route::delete('/aplicaciones/{aplicacion}', [AplicacionesController::class, 'destroy'])->name('aplicaciones.destroy');
+
+        // Rutas CRUD para matriz de hilos
+        Route::post('/catalogos/matriz-hilos', [App\Http\Controllers\MatrizHilosController::class, 'store'])->name('matriz-hilos.store');
+        Route::get('/catalogos/matriz-hilos/{id}', [App\Http\Controllers\MatrizHilosController::class, 'show'])->name('matriz-hilos.show');
+        Route::put('/catalogos/matriz-hilos/{id}', [App\Http\Controllers\MatrizHilosController::class, 'update'])->name('matriz-hilos.update');
+        Route::delete('/catalogos/matriz-hilos/{id}', [App\Http\Controllers\MatrizHilosController::class, 'destroy'])->name('matriz-hilos.destroy');
     });
 
     // ============================================
@@ -508,6 +516,8 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/modulos/{id}/toggle-acceso', [ModulosController::class, 'toggleAcceso'])->name('modulos.toggle.acceso');
             Route::post('/modulos/{id}/toggle-permiso', [ModulosController::class, 'togglePermiso'])->name('modulos.toggle.permiso');
         });
+
+            // (movido fuera - esta línea estaba mal ubicada)
     });
 
     // ============================================
@@ -520,10 +530,21 @@ Route::middleware(['auth'])->group(function () {
         return view('modulos.req-programa-tejido', compact('registros'));
     })->name('catalogos.req-programa-tejido');
 
-    // Nueva ruta para crear programa de tejido
-    Route::get('/planeacion/programa-tejido/nuevo', function() {
+        // Altas especiales (placeholder)
+        Route::get('/planeacion/programa-tejido/altas-especiales', function(\Illuminate\Http\Request $request) {
+            $prop = $request->query('prop');
+            return view('modulos.altas-especiales', compact('prop'));
+        })->name('programa-tejido.altas-especiales');
+
+        // Nueva ruta para crear/editar programa de tejido
+        Route::get('/planeacion/programa-tejido/nuevo', function() {
         return view('modulos.programa-tejido-nuevo.create');
     })->name('programa-tejido.nuevo');
+        Route::post('/planeacion/programa-tejido', [ProgramaTejidoController::class, 'store'])->name('programa-tejido.store');
+        Route::get('/planeacion/programa-tejido/{id}/editar', [ProgramaTejidoController::class, 'edit'])->name('programa-tejido.edit');
+        Route::put('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'update'])->name('programa-tejido.update');
+        // JSON: ReqProgramaTejidoLine dentro de planeación
+        Route::get('/planeacion/req-programa-tejido-line', [\App\Http\Controllers\ReqProgramaTejidoLineController::class, 'index']);
 
     // Rutas API para los selects del programa de tejido
     Route::get('/programa-tejido/salon-options', [ProgramaTejidoController::class, 'getSalonTejidoOptions']);
@@ -534,6 +555,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/programa-tejido/datos-relacionados', [ProgramaTejidoController::class, 'getDatosRelacionados']);
 Route::get('/programa-tejido/telares-by-salon', [ProgramaTejidoController::class, 'getTelaresBySalon']);
 Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoController::class, 'getUltimaFechaFinalTelar']);
+Route::get('/programa-tejido/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
+Route::post('/programa-tejido/calcular-fecha-fin', [ProgramaTejidoController::class, 'calcularFechaFin']);
+Route::get('/programa-tejido/eficiencia-std', [ProgramaTejidoController::class, 'getEficienciaStd']);
+Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, 'getVelocidadStd']);
 
 // Rutas para configuración - movidas dentro del grupo de middleware
     Route::get('/planeacion/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia.index');

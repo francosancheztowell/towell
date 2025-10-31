@@ -11,9 +11,15 @@ use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\BeforeImport;
+use Maatwebsite\Excel\Events\AfterImport;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+use Throwable;
+use Maatwebsite\Excel\Events\BeforeSheet;
 
 class ReqModelosCodificadosImport implements
     ToCollection,
@@ -21,16 +27,19 @@ class ReqModelosCodificadosImport implements
     WithChunkReading,
     WithBatchInserts,
     SkipsEmptyRows,
-    WithEvents
+    WithEvents,
+    ShouldQueue
 {
     private int $rowCount = 0;
     private int $createdCount = 0;
     private int $updatedCount = 0;
     private array $errors = [];
+    private ?string $importId = null;
+    private ?int $totalRows = null;
 
     public function startRow(): int { return 1; }
-    public function chunkSize(): int { return 300; }
-    public function batchSize(): int { return 300; }
+    public function chunkSize(): int { return 1000; }
+    public function batchSize(): int { return 1000; }
 
     public function registerEvents(): array
     {
@@ -41,7 +50,81 @@ class ReqModelosCodificadosImport implements
                     @ini_set('max_execution_time', '0');
                 }
             },
+            AfterImport::class => function () {
+                // Finalizar caché marcando status como done e incluyendo errores Y totales
+                try {
+                    $cacheKey = 'excel_import_progress:' . ($this->importId ?? 'unknown');
+                    $state = Cache::get($cacheKey);
+                    if (is_array($state)) {
+                        $state['status'] = 'done';
+                        $state['created'] = $this->createdCount;
+                        $state['updated'] = $this->updatedCount;
+                        // Incluir errores en caché para mostrar en interfaz
+                        if (count($this->errors) > 0) {
+                            $state['has_errors'] = true;
+                            $state['total_errors'] = count($this->errors);
+                            // Limitar a primeros 20 errores para evitar caché muy grande
+                            $state['errors'] = array_slice($this->errors, 0, 20);
+                        }
+                        Cache::put($cacheKey, $state, 60 * 60);
+                        Log::info('Importación finalizada, caché actualizado', ['importId' => $this->importId, 'total_errors' => count($this->errors), 'created' => $this->createdCount, 'updated' => $this->updatedCount]);
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('No se pudo finalizar caché de importación: ' . $e->getMessage());
+                }
+            },
         ];
+    }
+
+    public function __construct(?string $importId = null, ?int $totalRows = null)
+    {
+        $this->importId = $importId ?? (string) Str::uuid();
+        $this->totalRows = $totalRows;
+
+        // Inicializar estado en caché
+        try {
+            $key = $this->getCacheKey();
+            Cache::put($key, [
+                'status' => 'pending',
+                'total_rows' => $this->totalRows,
+                'processed_rows' => 0,
+                'created' => 0,
+                'updated' => 0,
+                'errors' => 0,
+            ], 60 * 60); // 1 hora
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo inicializar caché de progreso: ' . $e->getMessage());
+        }
+    }
+
+    private function getCacheKey(): string
+    {
+        return 'excel_import_progress:' . ($this->importId ?? 'unknown');
+    }
+
+    private function updateProgressCache(int $processedInc = 0, int $createdInc = 0, int $updatedInc = 0, int $errorsInc = 0)
+    {
+        try {
+            $key = $this->getCacheKey();
+            $state = Cache::get($key, [
+                'status' => 'processing',
+                'total_rows' => $this->totalRows,
+                'processed_rows' => 0,
+                'created' => 0,
+                'updated' => 0,
+                'errors' => 0,
+            ]);
+
+            $state['processed_rows'] = ($state['processed_rows'] ?? 0) + $processedInc;
+            $state['created'] = ($state['created'] ?? 0) + $createdInc;
+            $state['updated'] = ($state['updated'] ?? 0) + $updatedInc;
+            $state['errors'] = ($state['errors'] ?? 0) + $errorsInc;
+            $state['status'] = 'processing';
+
+            Cache::put($key, $state, 60 * 60);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo actualizar caché de progreso: ' . $e->getMessage());
+        }
     }
 
     public function collection(Collection $rows)
@@ -185,7 +268,7 @@ class ReqModelosCodificadosImport implements
                     'Luchaje'             => $this->I($assoc, $vals, ['Luchaje'], $pos['Luchaje']),
 
                     // Tra literal (evita 10.1000 si lo quieres tal cual)
-                    'CalibreTrama'        => $this->SExact($assoc, $vals, ['Tra'], $pos['CalibreTrama'], 40),
+                    'CalibreTrama'        => $this->SF($assoc, $vals, ['Tra'], $pos['CalibreTrama'], 40),
 
                     'CodColorTrama'       => $this->S($assoc, $vals, ['Codigo Color Trama','Codigo|Color Trama'], $pos['CodColorTrama'], 40),
                     'ColorTrama'          => $this->S($assoc, $vals, ['Nombre Color Trama','Nombre|Color Trama'], $pos['ColorTrama'], 120),
@@ -199,8 +282,8 @@ class ReqModelosCodificadosImport implements
                     'TipoRizo'            => $this->S($assoc, $vals, ['TIPO DE RIZO','TIPO|DE RIZO'], $pos['TipoRizo'], 256),
                     'AlturaRizo'          => $this->S($assoc, $vals, ['ALTURA DE RIZO','ALTURA|DE RIZO','OBS'], $pos['AlturaRizo'], 50),
                     'VelocidadSTD'        => $this->I($assoc, $vals, ['Veloc.    Mínima','Veloc.|Mínima','Velocidad Mínima','Velocidad Minima'], $pos['VelocidadSTD']),
-                    'CalibreRizo'         => $this->S($assoc, $vals, ['Rizo','Calibre Rizo'], $pos['CalibreRizo'], 50),
-                    'CalibrePie'          => $this->S($assoc, $vals, ['Pie','Calibre Pie'], $pos['CalibrePie'], 50),
+                    'CalibreRizo'         => $this->SF($assoc, $vals, ['Rizo','Calibre Rizo'], $pos['CalibreRizo'], 50),
+                    'CalibrePie'          => $this->SF($assoc, $vals, ['Pie','Calibre Pie'], $pos['CalibrePie'], 50),
                     'NoTiras'             => $this->I($assoc, $vals, ['No.TIRAS'], $pos['NoTiras']),
                     'Repeticiones'        => $this->I($assoc, $vals, ['Repeticiones p/corte','Repeticiones|p/corte','Repeticiones por corte','Repeticiones p corte'], $pos['Repeticiones']),
                     'TotalMarbetes'       => $this->I($assoc, $vals, ['No. De Marbetes','No de Marbetes'], $pos['TotalMarbetes']),
@@ -212,7 +295,7 @@ class ReqModelosCodificadosImport implements
                     'LogLuchaTotal'       => $this->I($assoc, $vals, ['LOG. DE LUCHA','LOG DE LUCHA ','Log de Lucha Total'], $pos['LogLuchaTotal']),
 
                     // Fondo C1 (tolerante a nombre "plano")
-                    'CalTramaFondoC1'     => $this->S($assoc, $vals, ['C1   trama de Fondo','C1 trama de Fondo','CalTramaFondoC1'], $pos['CalTramaFondoC1'], 50),
+                    'CalTramaFondoC1'     => $this->SF($assoc, $vals, ['C1   trama de Fondo','C1 trama de Fondo','CalTramaFondoC1'], $pos['CalTramaFondoC1'], 50),
                     'PasadasTramaFondoC1' => $this->I($assoc, $vals, ['PasadasTramaFondoC1','Pasadas trama Fondo C1','PASADASTRAMAC1'], $pos['PasadasTramaFondoC1']),
 
                     'CodColorC1'          => $this->S($assoc, $vals, ['C1|Cod Color','C1 Cod Color','CodColorC1'], $pos['CodColorC1'], 40),
@@ -254,9 +337,9 @@ class ReqModelosCodificadosImport implements
                     'ComprobarModDup'     => $this->S($assoc, $vals, ['COMPROBAR modelos duplicados','COMPROBAR|modelos duplicados','ComprobarModDup'], $pos['ComprobarModDup'], 100),
 
                     // Campos adicionales que faltaban
-                    'CalibreTrama2'       => $this->S($assoc, $vals, ['Tra2','Calibre Trama 2','Hilo'], $pos['CalibreTrama2'] ?? null, 50),
-                    'CalibreRizo2'        => $this->S($assoc, $vals, ['Rizo2','Calibre Rizo 2'], $pos['CalibreRizo2'] ?? null, 50),
-                    'CalibrePie2'         => $this->S($assoc, $vals, ['Pie2','Calibre Pie 2'], $pos['CalibrePie2'] ?? null, 50),
+                    'CalibreTrama2'       => $this->SF($assoc, $vals, ['Tra2','Calibre Trama 2','Hilo'], $pos['CalibreTrama2'] ?? null, 50),
+                    'CalibreRizo2'        => $this->SF($assoc, $vals, ['Rizo2','Calibre Rizo 2'], $pos['CalibreRizo2'] ?? null, 50),
+                    'CalibrePie2'         => $this->SF($assoc, $vals, ['Pie2','Calibre Pie 2'], $pos['CalibrePie2'] ?? null, 50),
                     'CuentaRizo'          => $this->SExact($assoc, $vals, ['Cuenta Rizo','CUENTARIZO'], $pos['CuentaRizo'] ?? null, 50),
                     'FibraRizo'           => $this->SExact($assoc, $vals, ['Fibra Rizo','OBSRIZO'], $pos['FibraRizo'] ?? null, 50),
                     'CuentaPie'           => $this->S($assoc, $vals, ['Cuenta Pie','CUENTAPIE'], $pos['CuentaPie'] ?? null, 50),
@@ -273,41 +356,69 @@ class ReqModelosCodificadosImport implements
                     'MedIniRizoCenefa'    => $this->S($assoc, $vals, ['Med Ini Rizo Cenefa','Med de inicio de rizo a cenefa'], $pos['MedIniRizoCenefa'] ?? null, 50),
                     'Rasurado'            => $this->S($assoc, $vals, ['Rasurado'], $pos['Rasurado'] ?? null, 50),
                     'Obs'                 => $this->S($assoc, $vals, ['Obs'], $pos['Obs'] ?? null, 200),
-                    'CalTramaFondoC12'    => $this->S($assoc, $vals, ['Cal Trama Fondo C1 2','Hilo'], $pos['CalTramaFondoC12'] ?? null, 50),
+                    'CalTramaFondoC12'    => $this->SF($assoc, $vals, ['Cal Trama Fondo C1 2','Hilo'], $pos['CalTramaFondoC12'] ?? null, 50),
                     'FibraTramaFondoC1'   => $this->S($assoc, $vals, ['Fibra Trama Fondo C1','OBSTRAMAC1'], $pos['FibraTramaFondoC1'] ?? null, 50),
-                    'CalibreComb12'       => $this->S($assoc, $vals, ['Calibre Comb12','HiloC1'], $pos['CalibreComb12'] ?? null, 50),
-                    'CalibreComb1'        => $this->S($assoc, $vals, ['Calibre Comb1','C1'], $pos['CalibreComb1'] ?? null, 50),
+                    'CalibreComb12'       => $this->SF($assoc, $vals, ['Calibre Comb12','HiloC1'], $pos['CalibreComb12'] ?? null, 50),
+                    'CalibreComb1'        => $this->SF($assoc, $vals, ['Calibre Comb1','C1'], $pos['CalibreComb1'] ?? null, 50),
                     'FibraComb1'          => $this->S($assoc, $vals, ['Fibra Comb1','OBSC1'], $pos['FibraComb1'] ?? null, 50),
-                    'CalibreComb2'        => $this->S($assoc, $vals, ['C2'], $pos['CalibreComb2'] ?? null, 50),
-                    'CalibreComb22'       => $this->S($assoc, $vals, ['Calibre Comb22','HiloC2'], $pos['CalibreComb22'] ?? null, 50),
+                    'CalibreComb2'        => $this->SF($assoc, $vals, ['C2'], $pos['CalibreComb2'] ?? null, 50),
+                    'CalibreComb22'       => $this->SF($assoc, $vals, ['Calibre Comb22','HiloC2'], $pos['CalibreComb22'] ?? null, 50),
                     'FibraComb2'          => $this->S($assoc, $vals, ['OBSC2'], $pos['FibraComb2'] ?? null, 50),
-                    'CalibreComb32'       => $this->S($assoc, $vals, ['Calibre Comb3 2'], $pos['CalibreComb32'] ?? null, 50),
+                    'CalibreComb32'       => $this->SF($assoc, $vals, ['Calibre Comb3 2'], $pos['CalibreComb32'] ?? null, 50),
                     'FibraComb3'          => $this->S($assoc, $vals, ['Fibra Comb3','OBSC3'], $pos['FibraComb3'] ?? null, 50),
-                    'CalibreComb42'       => $this->S($assoc, $vals, ['Calibre Comb4 2','Hilo C4'], $pos['CalibreComb42'] ?? null, 50),
+                    'CalibreComb42'       => $this->SF($assoc, $vals, ['Calibre Comb4 2','Hilo C4'], $pos['CalibreComb42'] ?? null, 50),
                     'FibraComb4'          => $this->S($assoc, $vals, ['Fibra Comb4','OBSC4'], $pos['FibraComb4'] ?? null, 50),
-                    'CalibreComb52'       => $this->S($assoc, $vals, ['Calibre Comb5 2'], $pos['CalibreComb52'] ?? null, 50),
+                    'CalibreComb52'       => $this->SF($assoc, $vals, ['Calibre Comb5 2'], $pos['CalibreComb52'] ?? null, 50),
                     'FibraComb5'          => $this->S($assoc, $vals, ['Fibra Comb5'], $pos['FibraComb5'] ?? null, 50),
                 ];
 
-                // Upsert por (TamanoClave, OrdenTejido)
-                $existing = null;
-                if (!empty($data['TamanoClave']) && !empty($data['OrdenTejido'])) {
-                    $existing = ReqModelosCodificados::where('TamanoClave', $data['TamanoClave'])
-                        ->where('OrdenTejido', $data['OrdenTejido'])
-                        ->first();
-                }
-
-                if ($existing) {
-                    $existing->update($data);
-                    $this->updatedCount++;
+                // Solo procesar si es válida (claves no vacías)
+                if (!$this->isRowValid($data, $excelRow)) {
+                    // Validación agresiva falló - fila rechazada
+                    Log::error('Fila rechazada por validación', ['fila_excel' => $excelRow, 'razon' => 'isRowValid falló']);
+                    $this->updateProgressCache(1, 0, 0, 1);
                 } else {
-                    ReqModelosCodificados::create($data);
-                    $this->createdCount++;
+                    // Upsert por (TamanoClave, OrdenTejido)
+                    $existing = null;
+                    if (!empty($data['TamanoClave']) && !empty($data['OrdenTejido'])) {
+                        $existing = ReqModelosCodificados::where('TamanoClave', $data['TamanoClave'])
+                            ->where('OrdenTejido', $data['OrdenTejido'])
+                            ->first();
+                    }
+
+                    if ($existing) {
+                        $existing->update($data);
+                        $this->updatedCount++;
+                        // Actualizar caché: 1 procesado, 0 creados, 1 actualizados
+                        $this->updateProgressCache(1, 0, 1, 0);
+                    } else {
+                        ReqModelosCodificados::create($data);
+                        $this->createdCount++;
+                        // Actualizar caché: 1 procesado, 1 creado, 0 actualizados
+                        $this->updateProgressCache(1, 1, 0, 0);
+                    }
                 }
             } catch (\Throwable $e) {
                 Log::error('Error importando fila', ['fila_excel' => $excelRow, 'msg' => $e->getMessage()]);
                 $this->pushError($excelRow, $e->getMessage(), $rows[$i] instanceof Collection ? $rows[$i]->toArray() : (array)$rows[$i]);
+                // marcar error en caché
+                $this->updateProgressCache(1, 0, 0, 1);
             }
+        }
+
+        // Al finalizar el chunk, si tenemos cache, marcar estado final (parcial)
+        try {
+            $key = $this->getCacheKey();
+            $state = Cache::get($key);
+            if (is_array($state)) {
+                // Si processed_rows alcanzó total_rows, marcar done
+                if (!empty($state['total_rows']) && $state['processed_rows'] >= $state['total_rows']) {
+                    $state['status'] = 'done';
+                }
+                Cache::put($key, $state, 60 * 60);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo actualizar estado final en caché: ' . $e->getMessage());
         }
     }
 
@@ -401,8 +512,11 @@ class ReqModelosCodificadosImport implements
         // 1) clave exacta sin normalizar
         foreach ($cands as $k) {
             if (array_key_exists($k, $assoc)) {
-                $s = trim((string)$assoc[$k]);
-                return $s === '' ? null : mb_substr($s, 0, $maxLen);
+                $cleaned = $this->cleanExcelFormula($assoc[$k]);
+                if ($cleaned !== null) {
+                    $s = trim((string)$cleaned);
+                    return $s === '' ? null : mb_substr($s, 0, $maxLen);
+                }
             }
         }
 
@@ -413,8 +527,11 @@ class ReqModelosCodificadosImport implements
         foreach ($cands as $k) {
             $nk = $this->normKey($k);
             if (array_key_exists($nk, $assocNorm)) {
-                $s = trim((string)$assocNorm[$nk]);
-                return $s === '' ? null : mb_substr($s, 0, $maxLen);
+                $cleaned = $this->cleanExcelFormula($assocNorm[$nk]);
+                if ($cleaned !== null) {
+                    $s = trim((string)$cleaned);
+                    return $s === '' ? null : mb_substr($s, 0, $maxLen);
+                }
             }
         }
 
@@ -422,8 +539,11 @@ class ReqModelosCodificadosImport implements
         if ($posIdx1Based !== null) {
             $idx = $posIdx1Based - 1;
             if ($idx >= 0 && $idx < count($vals)) {
-                $s = trim((string)($vals[$idx] ?? null));
-                return $s === '' ? null : mb_substr($s, 0, $maxLen);
+                $cleaned = $this->cleanExcelFormula($vals[$idx] ?? null);
+                if ($cleaned !== null) {
+                    $s = trim((string)$cleaned);
+                    return $s === '' ? null : mb_substr($s, 0, $maxLen);
+                }
             }
         }
         return null;
@@ -433,9 +553,16 @@ class ReqModelosCodificadosImport implements
     {
         $v = $this->pick($assoc, $vals, $cands, $posIdx1Based);
         if ($v === null || $v === '') return null;
-        if (is_numeric($v)) return (int)$v;
+
+        // Intentar conversión a entero
+        if (is_numeric($v)) {
+            return (int)$v;
+        }
+
+        // Si es string, extraer números pero ser flexible
         $s = preg_replace('/[^\d\-]/', '', (string)$v);
         if ($s === '' || $s === '-' || $s === '--') return null;
+
         return is_numeric($s) ? (int)$s : null;
     }
 
@@ -443,9 +570,51 @@ class ReqModelosCodificadosImport implements
     {
         $v = $this->pick($assoc, $vals, $cands, $posIdx1Based);
         if ($v === null || $v === '') return null;
-        if (is_numeric($v)) return (float)$v;
+
+        // Conversión a float - ser flexible con formatos
+        if (is_numeric($v)) {
+            return (float)$v;
+        }
+
+        // Intentar normalizar formato (reemplazar coma por punto)
         $vv = str_replace([' ', ','], ['', '.'], (string)$v);
-        return is_numeric($vv) ? (float)$vv : null;
+        if (is_numeric($vv)) {
+            return (float)$vv;
+        }
+
+        // Si todo falla, retornar null (no rechazar la fila)
+        return null;
+    }
+
+    /**
+     * SF(): String que puede contener fracciones (5/3) -> convierte a decimal
+     * Si no es fracción, devuelve el string original truncado
+     */
+    private function SF(array $assoc, array $vals, array $cands, ?int $posIdx1Based, int $maxLen): ?string
+    {
+        $v = $this->pick($assoc, $vals, $cands, $posIdx1Based);
+        if ($v === null || $v === '') return null;
+
+        $s = trim((string)$v);
+        if ($s === '') return null;
+
+        // Intentar convertir fracciones a decimales
+        $decimal = $this->convertFractionToDecimal($s);
+        if ($decimal !== null) {
+            return mb_substr($decimal, 0, $maxLen);
+        }
+
+        // Si no es fracción, intenta validar que sea numérico o válido
+        // Rechaza textos puros (ya fue filtrado por pick(), pero aseguramos)
+        if (!preg_match('/^\d+(\.\d+)?$/', $s) && !preg_match('/^\d+\/\d+(\.\d+)?$/', $s)) {
+            // Si contiene solo números, /, , . o espacios pero NO es un patrón válido, rechaza
+            if (preg_match('/^[\d.,\/\s]+$/', $s)) {
+                return null;
+            }
+        }
+
+        // Devolver el string original (ya fue limpiado por pick())
+        return mb_substr($s, 0, $maxLen);
     }
 
     private function D(array $assoc, array $vals, array $cands, ?int $posIdx1Based): ?Carbon
@@ -476,7 +645,7 @@ class ReqModelosCodificadosImport implements
     {
         // 1) exacto
         foreach ($cands as $k) {
-            if (array_key_exists($k, $assoc)) return $assoc[$k];
+            if (array_key_exists($k, $assoc)) return $this->cleanExcelFormula($assoc[$k]);
         }
 
         // 2) exacto normalizado
@@ -485,24 +654,138 @@ class ReqModelosCodificadosImport implements
 
         foreach ($cands as $k) {
             $nk = $this->normKey($k);
-            if (array_key_exists($nk, $assocNorm)) return $assocNorm[$nk];
+            if (array_key_exists($nk, $assocNorm)) return $this->cleanExcelFormula($assocNorm[$nk]);
         }
 
         // 3) contiene (sobre normalizados)
         foreach ($cands as $k) {
             $nk = $this->normKey($k);
             foreach ($assoc as $kk => $vv) {
-                if (str_contains($this->normKey($kk), $nk)) return $vv;
+                if (str_contains($this->normKey($kk), $nk)) return $this->cleanExcelFormula($vv);
             }
         }
 
         // 4) fallback por posición
         if ($posIdx1Based !== null) {
             $idx = $posIdx1Based - 1;
-            if ($idx >= 0 && $idx < count($vals)) return $vals[$idx] ?? null;
+            if ($idx >= 0 && $idx < count($vals)) return $this->cleanExcelFormula($vals[$idx] ?? null);
         }
 
         return null;
+    }
+
+    /**
+     * Limpia fórmulas de Excel: si el valor comienza con "=", lo descarta (devuelve null)
+     * Esto previene que fórmulas de Excel sean importadas como texto
+     */
+    private function cleanExcelFormula($value): mixed
+    {
+        if ($value === null) return null;
+
+        $str = trim((string)$value);
+        if ($str === '') return null;
+
+        // DEBUG: Log de valores sospechosos
+        if (preg_match('/(TERMO|NORMAL|SEGUN|FIL\.|CUADROS|RAYÃ|VAINILLA)/i', $str)) {
+            Log::debug('cleanExcelFormula debug', ['original_value' => $value, 'trimmed' => $str]);
+        }
+
+        // Si comienza con "=", es una fórmula de Excel - descartarla
+        if (str_starts_with($str, '=')) {
+            return null;
+        }
+
+        // Detectar patrones comunes de fórmulas Excel:
+        // - Contiene paréntesis con funciones (CONCATENAR, SI.ERROR, EXTRAE, etc.)
+        // - Contiene referencias como H3, J3, etc.
+        // Algunos ejemplos: =CONCATENAR(...), =SI(...), =EXTRAE(...)
+        if (preg_match('/^[A-Z_]+\s*\(/i', $str)) {
+            // Inicia con palabra mayúscula seguida de paréntesis (función Excel)
+            return null;
+        }
+
+        // Detectar si es claramente una fórmula con referencias de celda
+        if (preg_match('/\b[A-Z]{1,3}\d+\b/', $str) && preg_match('/[()]/u', $str)) {
+            // Contiene referencias de celda (A1, H3, etc.) y paréntesis
+            return null;
+        }
+
+        // Detectar valores con asterisco al final (ej: "6/1*", "7/3*")
+        // Estos parecen ser marcadores de fórmulas o valores especiales
+        if (preg_match('/\*\s*$/', $str)) {
+            // Termina con asterisco (posible marcador de fórmula)
+            return null;
+        }
+
+        // Detectar palabras comunes que indican "sin valor" o "no aplica"
+        $strUpper = strtoupper(trim($str));
+
+        // Lista de palabras inválidas (múltiples variantes de encoding/ortografía)
+        $invalidWords = [
+            'TERMO', 'NO APLICA', 'N/A', 'NA', 'FIL', 'NORMAL', 'FIG',
+            'CUADROS', 'CUADRITOS', 'VAINILLA', 'RAYAN', 'RAYON', 'ALGODON',
+            // Variantes con encoding corrupto (de los logs)
+            'SEGUN', 'VAINILLA 464'
+        ];
+
+        // Comprobar coincidencia exacta (case-insensitive) O que comience con palabra inválida
+        foreach ($invalidWords as $word) {
+            if ($strUpper === $word || str_starts_with($strUpper, $word . '.') ||
+                str_starts_with($strUpper, $word . ' ') || str_starts_with($strUpper, $word . ',')) {
+                // DEBUG: Loguear que se rechazó
+                if (preg_match('/(TERMO|NORMAL|SEGUN|FIL|CUADROS|RAYÃ|VAINILLA)/i', $str)) {
+                    Log::debug('cleanExcelFormula REJECTED', ['value' => $str, 'matched_word' => $word]);
+                }
+                return null;
+            }
+        }
+
+        // Estrategia nuclear: Si es TOTALMENTE TEXTO (sin números) Y es mayor a 2 caracteres
+        // probablemente no es un valor numérico válido (es descripción)
+        if (!preg_match('/\d/', $str) && strlen($str) > 2) {
+            // No contiene NINGÚN dígito y es más largo que 2 caracteres
+            // Probablemente es descripción textual -> descartar
+            if (preg_match('/(TERMO|NORMAL|SEGUN|FIL|CUADROS|RAYÃ|VAINILLA)/i', $str)) {
+                Log::debug('cleanExcelFormula REJECTED (nuclear)', ['value' => $str]);
+            }
+            return null;
+        }
+
+        // Detectar si solo contiene dígitos, barras y decimales pero en formato de fracción (12/2, 7/6,5)
+        // Son válidas solo fracciones completas como "5/3" o "10.5"
+        // Si tiene patrón "número/número" o "número.número", es válido
+        if (!preg_match('/^\d+(\.\d+)?$/', $str) && !preg_match('/^\d+\/\d+(\.\d+)?$/', $str)) {
+            // NO es un número simple o fracción simple
+            // Si contiene solo números, /, , o . pero no sigue el patrón válido, descartarla
+            if (preg_match('/^[\d.,\/\s]+$/', $str)) {
+                return null;
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * Validación MÍNIMA:
+     * - Solo chequea claves obligatorias (TamanoClave, OrdenTejido)
+     * - NO rechaza por tipos numéricos - eso se maneja con conversión
+     */
+    private function isRowValid(array $data, int $excelRow): bool
+    {
+        // Solo validar claves obligatorias - lo demás se convierte al tipo correcto
+        if (empty($data['TamanoClave'])) {
+            Log::error('[CLAVE_VACIA]', ['fila' => $excelRow, 'field' => 'TamanoClave']);
+            $this->pushError($excelRow, "TamanoClave no puede estar vacío", []);
+            return false;
+        }
+
+        if (empty($data['OrdenTejido'])) {
+            Log::error('[CLAVE_VACIA]', ['fila' => $excelRow, 'field' => 'OrdenTejido']);
+            $this->pushError($excelRow, "OrdenTejido no puede estar vacío", []);
+            return false;
+        }
+
+        return true;
     }
 
     /* ===================== Errores & getters ===================== */
@@ -587,5 +870,52 @@ class ReqModelosCodificadosImport implements
         if ($cleaned === '' || $cleaned === '-' || $cleaned === '--') return null;
 
         return is_numeric($cleaned) ? (int)$cleaned : null;
+    }
+
+    /**
+     * Convierte fracciones como "5/3" a decimales con 1 decimal (16.6)
+     * Multiplica el numerador por 10 para obtener el valor correcto
+     * Si no es fracción, redondea a 1 decimal
+     */
+    private function convertFractionToDecimal($value): ?string
+    {
+        if ($value === null || $value === '') return null;
+
+        $value = trim((string)$value);
+        if ($value === '') return null;
+
+        // Si ya es un número, redondear a 1 decimal
+        if (is_numeric($value)) {
+            $num = (float)$value;
+            return (string)round($num, 1);
+        }
+
+        // Intentar parsear como fracción (numerador/denominador)
+        if (strpos($value, '/') !== false) {
+            $parts = explode('/', $value);
+            if (count($parts) === 2) {
+                $numerator = trim($parts[0]);
+                $denominator = trim($parts[1]);
+
+                // Validar que sean números
+                if (is_numeric($numerator) && is_numeric($denominator)) {
+                    $num = (float)$numerator;
+                    $denom = (float)$denominator;
+
+                    // Evitar división por cero
+                    if ($denom === 0.0) {
+                        return null;
+                    }
+
+                    // Multiplicar numerador por 10 para obtener el valor correcto
+                    // 5/3 => (5*10)/3 => 50/3 => 16.666... => 16.7 (redondeado a 1 decimal)
+                    $result = ($num * 10) / $denom;
+                    return (string)round($result, 1);
+                }
+            }
+        }
+
+        // Si no es fracción ni número, devolver null
+        return null;
     }
 }

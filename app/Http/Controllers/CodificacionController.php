@@ -7,8 +7,14 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ReqModelosCodificadosImport;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
+use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 
 class CodificacionController extends Controller
 {
@@ -195,23 +201,103 @@ class CodificacionController extends Controller
     /** Procesar Excel usando tu import */
     public function procesarExcel(Request $request): JsonResponse
     {
-        $request->validate([
-            'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240'
-        ]);
+        try {
+            $request->validate([
+                'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240'
+            ]);
 
-        $import = new ReqModelosCodificadosImport();
-        Excel::import($import, $request->file('archivo_excel'));
+            // Crear un importId único para el proceso y estimar total de filas
+            $importId = (string) Str::uuid();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Archivo procesado',
-            'data' => [
-                'registros_procesados'  => $import->getRowCount(),
-                'registros_creados'     => $import->getCreatedCount(),
-                'registros_actualizados'=> $import->getUpdatedCount(),
-                'errores'               => $import->getErrors(),
-            ]
-        ]);
+            // Obtener ruta temporal del archivo subido
+            $path = $request->file('archivo_excel')->getRealPath();
+            $totalRows = null;
+            try {
+                $ext = strtolower($request->file('archivo_excel')->getClientOriginalExtension() ?? '');
+                if ($ext === 'xls') {
+                    $reader = new XlsReader();
+                } else {
+                    $reader = new XlsxReader();
+                }
+                // listWorksheetInfo es rápido y no carga todo en memoria
+                $info = $reader->listWorksheetInfo($path);
+                $totalRows = isset($info[0]['totalRows']) ? max(0, (int)$info[0]['totalRows'] - 2) : null; // restar 2 filas de encabezado
+            } catch (\Throwable $e) {
+                Log::warning('No se pudo obtener totalRows del excel: ' . $e->getMessage());
+            }
+
+            $import = new ReqModelosCodificadosImport($importId, $totalRows);
+
+            // Encolar el import (debe tener queue configurada en el proyecto)
+            Excel::queueImport($import, $request->file('archivo_excel'));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Import encolado correctamente',
+                'data' => [
+                    'import_id' => $importId,
+                    'total_rows' => $totalRows,
+                    'poll_url' => '/planeacion/catalogos/codificacion-modelos/excel-progress/' . $importId
+                ]
+            ], 202);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validación fallida',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error en importación de ReqModelosCodificados', [
+                'archivo' => $request->file('archivo_excel')?->getClientOriginalName(),
+                'error' => $e->getMessage(),
+                'stack' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar el archivo: ' . $e->getMessage(),
+                'error_type' => class_basename($e)
+            ], 500);
+        }
+    }
+
+    /** Consultar progreso del import por importId */
+    public function importProgress($id): JsonResponse
+    {
+        try {
+            $key = 'excel_import_progress:' . $id;
+            $state = Cache::get($key);
+            if (!$state) {
+                return response()->json(['success' => false, 'message' => 'Progreso no encontrado'], 404);
+            }
+
+            // Calcular porcentaje si es posible
+            $pct = null;
+            if (!empty($state['total_rows']) && $state['total_rows'] > 0) {
+                $pct = round(100 * (($state['processed_rows'] ?? 0) / $state['total_rows']), 1);
+            }
+
+            // Extraer errores del estado para enviarlos en el response
+            $errors = [];
+            if (isset($state['errors']) && is_array($state['errors'])) {
+                $errors = array_map(function($error) {
+                    return [
+                        'fila' => $error['fila'] ?? 'N/A',
+                        'error' => substr($error['error'] ?? 'Error desconocido', 0, 150)
+                    ];
+                }, $state['errors']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $state,
+                'percent' => $pct,
+                'errors' => $errors,
+                'has_errors' => !empty($errors)
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     /** Búsqueda simple con filtros comunes */

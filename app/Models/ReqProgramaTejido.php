@@ -8,9 +8,11 @@ class ReqProgramaTejido extends Model
 {
     protected $table = 'ReqProgramaTejido';
     protected $primaryKey = 'Id';
+    public $incrementing = true;  // ✅ El ID es auto-increment
     public $timestamps = false;
 
     protected $fillable = [
+        'Id',
         'EnProceso',
         'CuentaRizo',
         'CalibreRizo',
@@ -27,11 +29,7 @@ class ReqProgramaTejido extends Model
         'CalendarioId',
         'TamanoClave',
         'NoExisteBase',
-        'ItemId',
         'InventSizeId',
-        'Rasurado',
-        'NombreProducto',
-        'TotalPedido',
         'Produccion',
         'SaldoPedido',
         'SaldoMarbete',
@@ -60,6 +58,16 @@ class ReqProgramaTejido extends Model
         'AnchoToalla',
         'CodColorTrama',
         'ColorTrama',
+        'CodColorC1',
+        'NomColorC1',
+        'CodColorC2',
+        'NomColorC2',
+        'CodColorC3',
+        'NomColorC3',
+        'CodColorC4',
+        'NomColorC4',
+        'CodColorC5',
+        'NomColorC5',
         'CalibreComb12',
         'FibraComb1',
         'CodColorComb1',
@@ -93,11 +101,9 @@ class ReqProgramaTejido extends Model
         'DiasJornada',
         'HorasProd',
         'StdHrsEfect',
-        'FechaInicio',
         'Calc4',
         'Calc5',
         'Calc6',
-        'FechaFinal',
         'EntregaProduc',
         'EntregaPT',
         'EntregaCte',
@@ -106,10 +112,13 @@ class ReqProgramaTejido extends Model
         'UpdatedAt',
         'RowNum',
         'FibraPie',
+        'FechaInicio',
+        'FechaFinal',
     ];
 
     protected $casts = [
         'EnProceso' => 'boolean',
+        'Ultimo' => 'integer',
         'CalibreRizo' => 'float',
         'Ancho' => 'float',
         'EficienciaSTD' => 'float',

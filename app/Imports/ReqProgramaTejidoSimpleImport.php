@@ -42,6 +42,8 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
             }
 
 			$modelo = new ReqProgramaTejido([
+                // === ID ÚNICO ===
+                'Id' => $this->generateUniqueId(),
                 // === PRINCIPALES ===
                 'SalonTejidoId'  => $this->parseString($this->getValue($row, ['Salón', 'Salon', 'Salon Tejido Id', 'salon_tejido_id']), 10),
                 'NoTelarId'      => $this->parseString($this->getValue($row, ['Telar', 'No Telar', 'no_telar_id']), 10),
@@ -67,30 +69,40 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'PasadasTrama'   => $this->parseInteger($this->getValue($row, ['Pasadas Tra', 'Pasadas Trama', 'pasadas_trama'])),
 
                 // === COMBINACIONES 1..5 ===
-                'CalibreComb12'  => $this->parseFloat($this->getValue($row, ['Calibre C1', 'Calibre Comb1/2', 'calibre comb1/2', 'calibre_comb12'])),
-                'FibraComb1'     => $this->parseString($this->getValue($row, ['Fibra C1', 'Fibra Comb1', 'fibra comb1', 'fibra_comb1']), 15),
-                'CodColorComb1'  => $this->parseString($this->getValue($row, ['Código Color C1', 'Codigo Color C1', 'Cod Color Comb1', 'cod color comb1', 'cod_color_comb1']), 10),
-                'NombreCC1'      => $this->parseString($this->getValue($row, ['Color C1', 'Nombre CC1', 'nombre cc1', 'nombre_cc1']), 60),
+                'CalibreComb1'   => $this->parseString($this->getValue($row, ['Calibre C1', 'Calibre Comb1', 'calibre comb1', 'calibre_comb1']), 20),
+                'CalibreComb12'  => $this->parseString($this->getValue($row, ['Calibre C1/2', 'Calibre Comb1/2', 'calibre comb1/2', 'calibre_comb12']), 20),
+                'FibraComb1'     => $this->parseString($this->getValue($row, ['Fibra C1', 'Fibra Comb1', 'fibra comb1', 'fibra_comb1']), 30),
+                'CodColorComb1'  => $this->parseString($this->getValue($row, ['Código Color C1', 'Codigo Color C1', 'Cod Color C1', 'cod color c1', 'cod_color_c1']), 10),
+                'NombreCC1'      => $this->parseString($this->getValue($row, ['Color C1', 'Nombre C1', 'nombre c1', 'nombre_c1']), 60),
+                'PasadasComb1'   => $this->parseString($this->getValue($row, ['Pasadas C1', 'Pasadas Comb1', 'pasadas c1', 'pasadas_comb1']), 20),
 
-                'CalibreComb22'  => $this->parseFloat($this->getValue($row, ['Calibre C2', 'Calibre Comb2/2', 'calibre comb2/2', 'calibre_comb22'])),
-                'FibraComb2'     => $this->parseString($this->getValue($row, ['Fibra C2', 'Fibra Comb2', 'fibra comb2', 'fibra_comb2']), 15),
-                'CodColorComb2'  => $this->parseString($this->getValue($row, ['Código Color C2', 'Codigo Color C2', 'Cod Color Comb2', 'cod color comb2', 'cod_color_comb2']), 10),
-                'NombreCC2'      => $this->parseString($this->getValue($row, ['Color C2', 'Nombre CC2', 'nombre cc2', 'nombre_cc2']), 60),
+                'CalibreComb2'   => $this->parseString($this->getValue($row, ['Calibre C2', 'Calibre Comb2', 'calibre comb2', 'calibre_comb2']), 20),
+                'CalibreComb22'  => $this->parseString($this->getValue($row, ['Calibre C2/2', 'Calibre Comb2/2', 'calibre comb2/2', 'calibre_comb22']), 20),
+                'FibraComb2'     => $this->parseString($this->getValue($row, ['Fibra C2', 'Fibra Comb2', 'fibra comb2', 'fibra_comb2']), 30),
+                'CodColorComb2'  => $this->parseString($this->getValue($row, ['Código Color C2', 'Codigo Color C2', 'Cod Color C2', 'cod color c2', 'cod_color_c2']), 10),
+                'NombreCC2'      => $this->parseString($this->getValue($row, ['Color C2', 'Nombre C2', 'nombre c2', 'nombre_c2']), 60),
+                'PasadasComb2'   => $this->parseString($this->getValue($row, ['Pasadas C2', 'Pasadas Comb2', 'pasadas c2', 'pasadas_comb2']), 20),
 
-                'CalibreComb32'  => $this->parseFloat($this->getValue($row, ['Calibre C3', 'Calibre Comb3/2', 'calibre comb3/2', 'calibre_comb32'])),
-                'FibraComb3'     => $this->parseString($this->getValue($row, ['Fibra C3', 'Fibra Comb3', 'fibra comb3', 'fibra_comb3']), 15),
-                'CodColorComb3'  => $this->parseString($this->getValue($row, ['Código Color C3', 'Codigo Color C3', 'Cod Color Comb3', 'cod color comb3', 'cod_color_comb3']), 10),
-                'NombreCC3'      => $this->parseString($this->getValue($row, ['Color C3', 'Nombre CC3', 'nombre cc3', 'nombre_cc3']), 60),
+                'CalibreComb3'   => $this->parseString($this->getValue($row, ['Calibre C3', 'Calibre Comb3', 'calibre comb3', 'calibre_comb3']), 20),
+                'CalibreComb32'  => $this->parseString($this->getValue($row, ['Calibre C3/2', 'Calibre Comb3/2', 'calibre comb3/2', 'calibre_comb32']), 20),
+                'FibraComb3'     => $this->parseString($this->getValue($row, ['Fibra C3', 'Fibra Comb3', 'fibra comb3', 'fibra_comb3']), 30),
+                'CodColorComb3'  => $this->parseString($this->getValue($row, ['Código Color C3', 'Codigo Color C3', 'Cod Color C3', 'cod color c3', 'cod_color_c3']), 10),
+                'NombreCC3'      => $this->parseString($this->getValue($row, ['Color C3', 'Nombre C3', 'nombre c3', 'nombre_c3']), 60),
+                'PasadasComb3'   => $this->parseString($this->getValue($row, ['Pasadas C3', 'Pasadas Comb3', 'pasadas c3', 'pasadas_comb3']), 20),
 
-                'CalibreComb42'  => $this->parseFloat($this->getValue($row, ['Calibre C4', 'Calibre Comb4/2', 'calibre comb4/2', 'calibre_comb42'])),
-                'FibraComb4'     => $this->parseString($this->getValue($row, ['Fibra C4', 'Fibra Comb4', 'fibra comb4', 'fibra_comb4']), 15),
-                'CodColorComb4'  => $this->parseString($this->getValue($row, ['Código Color C4', 'Codigo Color C4', 'Cod Color Comb4', 'cod color comb4', 'cod_color_comb4']), 10),
-                'NombreCC4'      => $this->parseString($this->getValue($row, ['Color C4', 'Nombre CC4', 'nombre cc4', 'nombre_cc4']), 60),
+                'CalibreComb4'   => $this->parseString($this->getValue($row, ['Calibre C4', 'Calibre Comb4', 'calibre comb4', 'calibre_comb4']), 20),
+                'CalibreComb42'  => $this->parseString($this->getValue($row, ['Calibre C4/2', 'Calibre Comb4/2', 'calibre comb4/2', 'calibre_comb42']), 20),
+                'FibraComb4'     => $this->parseString($this->getValue($row, ['Fibra C4', 'Fibra Comb4', 'fibra comb4', 'fibra_comb4']), 30),
+                'CodColorComb4'  => $this->parseString($this->getValue($row, ['Código Color C4', 'Codigo Color C4', 'Cod Color C4', 'cod color c4', 'cod_color_c4']), 10),
+                'NombreCC4'      => $this->parseString($this->getValue($row, ['Color C4', 'Nombre C4', 'nombre c4', 'nombre_c4']), 60),
+                'PasadasComb4'   => $this->parseString($this->getValue($row, ['Pasadas C4', 'Pasadas Comb4', 'pasadas c4', 'pasadas_comb4']), 20),
 
-                'CalibreComb52'  => $this->parseFloat($this->getValue($row, ['Calibre C5', 'Calibre Comb5/2', 'calibre comb5/2', 'calibre_comb52'])),
-                'FibraComb5'     => $this->parseString($this->getValue($row, ['Fibra C5', 'Fibra Comb5', 'fibra comb5', 'fibra_comb5']), 15),
-                'CodColorComb5'  => $this->parseString($this->getValue($row, ['Código Color C5', 'Codigo Color C5', 'Cod Color Comb5', 'cod color comb5', 'cod_color_comb5']), 10),
-                'NombreCC5'      => $this->parseString($this->getValue($row, ['Color C5', 'Nombre CC5', 'nombre cc5', 'nombre_cc5']), 60),
+                'CalibreComb5'   => $this->parseString($this->getValue($row, ['Calibre C5', 'Calibre Comb5', 'calibre comb5', 'calibre_comb5']), 20),
+                'CalibreComb52'  => $this->parseString($this->getValue($row, ['Calibre C5/2', 'Calibre Comb5/2', 'calibre comb5/2', 'calibre_comb52']), 20),
+                'FibraComb5'     => $this->parseString($this->getValue($row, ['Fibra C5', 'Fibra Comb5', 'fibra comb5', 'fibra_comb5']), 30),
+                'CodColorComb5'  => $this->parseString($this->getValue($row, ['Código Color C5', 'Codigo Color C5', 'Cod Color C5', 'cod color c5', 'cod_color_c5']), 10),
+                'NombreCC5'      => $this->parseString($this->getValue($row, ['Color C5', 'Nombre C5', 'nombre c5', 'nombre_c5']), 60),
+                'PasadasComb5'   => $this->parseString($this->getValue($row, ['Pasadas C5', 'Pasadas Comb5', 'pasadas c5', 'pasadas_comb5']), 20),
 
                 // === NÚMEROS ===
                 'Peine'          => $this->parseInteger($this->getValue($row, ['Pei.', 'Pei', 'Peine', 'peine'])),
@@ -212,6 +224,19 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
         if (is_numeric($value)) return (float)$value;
 
         $s = (string)$value;
+
+        // Manejar fracciones como "5/3", "1/2", etc.
+        if (str_contains($s, '/')) {
+            $parts = explode('/', $s);
+            if (count($parts) === 2 && is_numeric($parts[0]) && is_numeric($parts[1])) {
+                $numerator = (float)$parts[0];
+                $denominator = (float)$parts[1];
+                if ($denominator != 0) {
+                    return $numerator / $denominator;
+                }
+            }
+        }
+
         $isPercent = str_contains($s, '%');
         $s = str_replace(['%',' '], '', $s);
         $s = str_replace(',', '.', $s);
@@ -580,4 +605,13 @@ private function parseDate($value): ?string
         $t = ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ñ'=>'n','Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U','Ñ'=>'N'];
         return strtr($value, $t);
 	}
+
+    /**
+     * Generar un ID único para cada registro
+     */
+    private function generateUniqueId(): int
+    {
+        // Usar timestamp + contador de fila para garantizar unicidad
+        return (int)(time() * 1000) + $this->rowCounter;
+    }
 }

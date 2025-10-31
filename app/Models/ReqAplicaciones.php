@@ -35,8 +35,7 @@ class ReqAplicaciones extends Model
     protected $fillable = [
         'AplicacionId',
         'Nombre',
-        'SalonTejidoId',
-        'NoTelarId',
+        'Factor',
     ];
 
     /**
@@ -46,8 +45,7 @@ class ReqAplicaciones extends Model
         'Id'           => 'integer',
         'AplicacionId' => 'string',
         'Nombre'       => 'string',
-        'SalonTejidoId'=> 'string',
-        'NoTelarId'    => 'string',
+        'Factor'       => 'float',
     ];
 
     /**
@@ -67,36 +65,24 @@ class ReqAplicaciones extends Model
      */
     public static function obtenerTodas()
     {
-        return self::orderBy('SalonTejidoId')
-            ->orderBy('AplicacionId')
-            ->orderBy('NoTelarId')
+        return self::orderBy('AplicacionId')
+            ->orderBy('Nombre')
             ->get();
     }
 
     /**
      * Búsqueda flexible (LIKE) por salón, telar, clave o nombre.
      */
-    public static function buscar($salon = null, $telar = null, $clave = null, $nombre = null)
+    public static function buscar($clave = null, $nombre = null)
     {
         $q = self::query();
-
-        if (!is_null($salon) && $salon !== '') {
-            $q->where('SalonTejidoId', 'like', "%{$salon}%");
-        }
-        if (!is_null($telar) && $telar !== '') {
-            $q->where('NoTelarId', 'like', "%{$telar}%");
-        }
         if (!is_null($clave) && $clave !== '') {
             $q->where('AplicacionId', 'like', "%{$clave}%");
         }
         if (!is_null($nombre) && $nombre !== '') {
             $q->where('Nombre', 'like', "%{$nombre}%");
         }
-
-        return $q->orderBy('SalonTejidoId')
-            ->orderBy('AplicacionId')
-            ->orderBy('NoTelarId')
-            ->get();
+        return $q->orderBy('AplicacionId')->orderBy('Nombre')->get();
     }
 
     /**
@@ -115,8 +101,7 @@ class ReqAplicaciones extends Model
         return self::create([
             'AplicacionId'  => $datos['clave']  ?? null,
             'Nombre'        => $datos['nombre'] ?? null,
-            'SalonTejidoId' => $datos['salon']  ?? null,
-            'NoTelarId'     => $datos['telar']  ?? null,
+            'Factor'        => isset($datos['factor']) ? (float)$datos['factor'] : null,
         ]);
     }
 
@@ -128,8 +113,7 @@ class ReqAplicaciones extends Model
         return $this->update([
             'AplicacionId'  => $datos['clave']  ?? $this->AplicacionId,
             'Nombre'        => $datos['nombre'] ?? $this->Nombre,
-            'SalonTejidoId' => $datos['salon']  ?? $this->SalonTejidoId,
-            'NoTelarId'     => $datos['telar']  ?? $this->NoTelarId,
+            'Factor'        => isset($datos['factor']) ? (float)$datos['factor'] : $this->Factor,
         ]);
     }
 
@@ -154,16 +138,12 @@ class ReqAplicaciones extends Model
      * Verifica si ya existe la combinación compuesta
      * (AplicacionId + SalonTejidoId + NoTelarId).
      */
-    public static function existeCombinacion(string $clave, string $salon, string $telar, ?int $ignorarId = null): bool
+    public static function existeCombinacion(string $clave, ?int $ignorarId = null): bool
     {
-        $q = self::where('AplicacionId', $clave)
-            ->where('SalonTejidoId', $salon)
-            ->where('NoTelarId', $telar);
-
+        $q = self::where('AplicacionId', $clave);
         if ($ignorarId) {
             $q->where('Id', '<>', $ignorarId);
         }
-
         return $q->exists();
     }
 }

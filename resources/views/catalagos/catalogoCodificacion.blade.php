@@ -721,32 +721,15 @@ function procesarExcel(file) {
     })
     .then(response => response.json())
     .then(data => {
-        Swal.close();
-
-        if (data.success) {
-            const { registros_procesados, registros_creados, registros_actualizados, errores } = data.data;
-
-            let message = `Archivo procesado exitosamente!\n\n`;
-            message += `• Registros procesados: ${registros_procesados}\n`;
-            message += `• Registros creados: ${registros_creados}\n`;
-            message += `• Registros actualizados: ${registros_actualizados}`;
-
-            if (errores && errores.length > 0) {
-                message += `\n• Errores: ${errores.length}`;
-            }
-
-            Swal.fire({
-                title: '¡Éxito!',
-                text: message,
-                icon: 'success',
-                confirmButtonText: 'Aceptar'
-            }).then(() => {
-                location.reload();
-            });
+        if (data.success && data.data.poll_url) {
+            // Encolado correctamente, iniciar polling
+            const pollUrl = data.data.poll_url;
+            pollImportProgress(pollUrl);
         } else {
+            Swal.close();
             Swal.fire({
                 title: 'Error',
-                text: data.message || 'Error al procesar el archivo',
+                text: data.message || 'Error al encolar el archivo',
                 icon: 'error',
                 confirmButtonText: 'Aceptar'
             });
@@ -761,6 +744,137 @@ function procesarExcel(file) {
             confirmButtonText: 'Aceptar'
         });
     });
+}
+
+function pollImportProgress(pollUrl, maxAttempts = 600, interval = 1000) {
+    let attempts = 0;
+
+    const poll = async () => {
+        attempts++;
+
+        try {
+            const response = await fetch(pollUrl);
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                const state = result.data;
+                const percent = result.percent || 0;
+
+                // Mostrar progreso
+                const processed = state.processed_rows || 0;
+                const total = state.total_rows || '?';
+                const text = `Procesando: ${processed}/${total} registros (${percent}%)`;
+
+                Swal.update({
+                    title: 'Procesando archivo...',
+                    html: text,
+                });
+
+                // Actualizar HTML de progreso si existe
+                const progressBar = document.querySelector('.swal2-progress');
+                if (progressBar) {
+                    progressBar.style.width = percent + '%';
+                }
+
+                // Si está done, mostrar resultado final
+                if (state.status === 'done') {
+                    Swal.close();
+
+                    let message = `Archivo codificación modelos.xlsx procesado!\n\n`;
+                    message += `• Registros procesados: ${state.processed_rows || 0}\n`;
+                    message += `• Nuevos registros: ${state.created || 0}\n`;
+                    message += `• Registros actualizados: ${state.updated || 0}\n`;
+                    message += `• Total de errores: ${state.errors || 0}`;
+
+                    console.log('Import finished state:', state);
+                    console.log('Result object:', result);
+
+                    // Si hay errores, mostrar en modal separado
+                    if (result.errors && result.errors.length > 0) {
+                        let errorHTML = '<div style="text-align: left; max-height: 400px; overflow-y: auto; padding: 10px;">';
+                        errorHTML += '<h4 style="margin-top: 0; color: #d32f2f;">⚠️ Detalles de errores:</h4>';
+                        result.errors.forEach((error, idx) => {
+                            errorHTML += `<div style="margin-bottom: 12px; padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 3px; font-size: 13px;">`;
+                            errorHTML += `<strong style="color: #856404;">Fila ${error.fila}:</strong><br>`;
+                            errorHTML += `<span style="color: #856404;">${error.error}</span>`;
+                            errorHTML += `</div>`;
+                        });
+                        errorHTML += '</div>';
+
+                        Swal.fire({
+                            title: '✓ Importación completada con advertencias',
+                            html: `<div style="text-align: left;"><p><strong>${message.replace(/\n/g, '<br>')}</strong></p><hr></div>` + errorHTML,
+                            icon: 'warning',
+                            confirmButtonText: 'Aceptar',
+                            width: '800px',
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else if (state.total_errors && state.total_errors > 0) {
+                        // Si hay errores pero no se pudieron cargar en result.errors
+                        Swal.fire({
+                            title: '⚠️ Importación completada con ' + state.total_errors + ' errores',
+                            html: `<p style="text-align: left;">${message.replace(/\n/g, '<br>')}<br><br><em>Ver detalles en los logs del servidor</em></p>`,
+                            icon: 'warning',
+                            confirmButtonText: 'Aceptar',
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: '¡Éxito!',
+                            text: message,
+                            icon: 'success',
+                            confirmButtonText: 'Aceptar'
+                        }).then(() => {
+                            location.reload();
+                        });
+                    }
+                    return;
+                }
+
+                // Continuar polling
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, interval);
+                } else {
+                    Swal.close();
+                    Swal.fire({
+                        title: 'Timeout',
+                        text: 'El procesamiento tardó demasiado. Por favor, intenta más tarde.',
+                        icon: 'warning',
+                        confirmButtonText: 'Aceptar'
+                    });
+                }
+            } else {
+                // No se encontró progreso aún (quizá no se ha iniciado)
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, interval);
+                } else {
+                    Swal.close();
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'No se pudo recuperar el progreso',
+                        icon: 'error',
+                        confirmButtonText: 'Aceptar'
+                    });
+                }
+            }
+        } catch (error) {
+            if (attempts < maxAttempts) {
+                setTimeout(poll, interval);
+            } else {
+                Swal.close();
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Error de conexión: ' + error.message,
+                    icon: 'error',
+                    confirmButtonText: 'Aceptar'
+                });
+            }
+        }
+    };
+
+    poll();
 }
 
 // Variables globales para filtros

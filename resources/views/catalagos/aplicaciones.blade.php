@@ -3,19 +3,18 @@
 @section('page-title', 'Catálogo de Aplicaciones')
 
 @section('content')
-<div class="container">
+<div class="w-full">
 
 
 
     <div class="bg-white overflow-hidden shadow-sm rounded-lg">
-        <div class="overflow-y-auto h-[640px] scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+        <div class="overflow-y-auto max-h-[640px] scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
             <table class="table table-bordered table-sm w-full">
                 <thead class="sticky top-0 bg-blue-500 text-white z-10">
                     <tr>
                         <th class="py-1 px-2 font-bold  tracking-wider text-center">Clave</th>
                         <th class="py-1 px-2 font-bold  tracking-wider text-center">Nombre</th>
-                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Salón</th>
-                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Telar</th>
+                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Factor</th>
                     </tr>
                 </thead>
                 <tbody id="aplicaciones-body" class="bg-white text-black">
@@ -25,19 +24,17 @@
                             $recordId = $item->Id ?? $item->id ?? null;
                         @endphp
                         <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
-                            onclick="selectRow(this, '{{ $uniqueId }}', '{{ $uniqueId }}')"
+                            onclick="selectRow(this, '{{ $uniqueId }}', '{{ $recordId ?? $uniqueId }}')"
                             ondblclick="deselectRow(this)"
                             data-aplicacion="{{ $uniqueId }}"
                             data-aplicacion-id="{{ $uniqueId }}"
                             data-clave="{{ $item->AplicacionId }}"
                             data-nombre="{{ $item->Nombre }}"
-                            data-salon="{{ $item->SalonTejidoId }}"
-                            data-telar="{{ $item->NoTelarId }}"
+                            data-factor="{{ $item->Factor }}"
                         >
                             <td class="py-1 px-4 border-b">{{ $item->AplicacionId }}</td>
                             <td class="py-1 px-4 border-b">{{ $item->Nombre }}</td>
-                            <td class="py-1 px-4 border-b font-semibold">{{ $item->SalonTejidoId }}</td>
-                            <td class="py-1 px-4 border-b">{{ $item->NoTelarId }}</td>
+                            <td class="py-1 px-4 border-b font-semibold">{{ $item->Factor }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -65,7 +62,7 @@ let selectedRow = null;
 let selectedKey = null;
 let selectedId  = null;
 
-let filtrosActuales = { clave:'', nombre:'', salon:'', telar:'' };
+let filtrosActuales = { clave:'', nombre:'', factor:'' };
 let datosOriginales = @json($aplicaciones);
 let datosActuales   = datosOriginales;
 const cacheFiltros  = new Map();
@@ -108,7 +105,7 @@ function selectRow(row, uniqueId, id) {
 
   selectedRow = row;
   selectedKey = uniqueId;
-  selectedId  = (id && id !== 'null' && id !== '') ? id : uniqueId; // fallback a clave
+  selectedId  = (id && id !== 'null' && id !== '') ? id : uniqueId;
   enableButtons();
 }
 function deselectRow(row) {
@@ -120,28 +117,24 @@ function deselectRow(row) {
 }
 
 /* ===========================
-   Crear (con preConfirm async)
+   Crear
 =========================== */
 function agregarAplicacion() {
   Swal.fire({
     title:'Agregar Nueva Aplicación',
     html: `
-      <div class="grid grid-cols-2 gap-3 text-sm text-left">
-        <div>
+      <div class="grid grid-cols-3 gap-3 text-sm text-left">
+        <div class="col-span-1">
           <label class="block text-xs font-medium text-gray-700 mb-1">Clave *</label>
           <input id="swal-clave" type="text" class="swal2-input" placeholder="APP001" maxlength="50" required>
         </div>
-        <div>
+        <div class="col-span-1">
           <label class="block text-xs font-medium text-gray-700 mb-1">Nombre *</label>
-          <input id="swal-nombre" type="text" class="swal2-input" placeholder="Sistema" maxlength="100" required>
+          <input id="swal-nombre" type="text" class="swal2-input" placeholder="TR / RZ" maxlength="100" required>
         </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Salón *</label>
-          <input id="swal-salon" type="text" class="swal2-input" placeholder="JACQUARD / SMITH" maxlength="50" required>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Telar *</label>
-          <input id="swal-telar" type="text" class="swal2-input" placeholder="201, 300, ..." maxlength="50" required>
+        <div class="col-span-1">
+          <label class="block text-xs font-medium text-gray-700 mb-1">Factor</label>
+          <input id="swal-factor" type="number" step="0.0001" class="swal2-input" placeholder="0">
         </div>
       </div>
     `,
@@ -155,11 +148,10 @@ function agregarAplicacion() {
     preConfirm: async () => {
       const AplicacionId  = document.getElementById('swal-clave').value.trim();
       const Nombre        = document.getElementById('swal-nombre').value.trim();
-      const SalonTejidoId = document.getElementById('swal-salon').value.trim();
-      const NoTelarId     = document.getElementById('swal-telar').value.trim();
+      const Factor        = document.getElementById('swal-factor').value.trim();
 
-      if (!AplicacionId || !Nombre || !SalonTejidoId || !NoTelarId) {
-        Swal.showValidationMessage('Por favor completa los campos requeridos'); return false;
+      if (!AplicacionId || !Nombre) {
+        Swal.showValidationMessage('Clave y Nombre son obligatorios'); return false;
       }
 
       Swal.showLoading();
@@ -168,8 +160,7 @@ function agregarAplicacion() {
       CSRF_TOKEN && form.append('_token', CSRF_TOKEN);
       form.append('AplicacionId', AplicacionId);
       form.append('Nombre', Nombre);
-      form.append('SalonTejidoId', SalonTejidoId);
-      form.append('NoTelarId', NoTelarId);
+      if (Factor !== '') form.append('Factor', Factor);
 
       try {
         const r = await fetch('/planeacion/aplicaciones', { method:'POST', body: form, headers:{ 'Accept':'application/json' } });
@@ -178,9 +169,8 @@ function agregarAplicacion() {
           const errs = data?.errors || {};
           let msg = data?.message || 'Error en la validación';
           if (errs.AplicacionId?.length) msg = errs.AplicacionId[0];
-          if (errs.Nombre?.length) msg = errs.Nombre[0];
-          if (errs.SalonTejidoId?.length) msg = errs.SalonTejidoId[0];
-          if (errs.NoTelarId?.length) msg = errs.NoTelarId[0];
+          else if (errs.Nombre?.length) msg = errs.Nombre[0];
+          else if (errs.Factor?.length) msg = errs.Factor[0];
           Swal.showValidationMessage(msg);
           return false;
         }
@@ -202,7 +192,6 @@ function agregarAplicacion() {
     }
   }).then(res=>{
     if (res.isConfirmed) {
-      // Modal sigue siendo el mismo: mostramos éxito con update
       Swal.update({ icon:'success', title:'¡Aplicación creada!', html:'', showConfirmButton:false });
       setTimeout(()=> location.reload(), 800);
     }
@@ -210,7 +199,7 @@ function agregarAplicacion() {
 }
 
 /* ===========================
-   Editar (con preConfirm async) — maneja 422 sin cerrar modal
+   Editar
 =========================== */
 function editarAplicacion() {
   if (!selectedRow || !selectedId) {
@@ -220,28 +209,23 @@ function editarAplicacion() {
 
   const claveActual  = selectedRow.getAttribute('data-clave');
   const nombreActual = selectedRow.getAttribute('data-nombre');
-  const salonActual  = selectedRow.getAttribute('data-salon');
-  const telarActual  = selectedRow.getAttribute('data-telar');
+  const factorActual = selectedRow.getAttribute('data-factor') || '';
 
   Swal.fire({
     title:'Editar Aplicación',
     html: `
-      <div class="grid grid-cols-2 gap-3 text-sm text-left">
-        <div>
+      <div class="grid grid-cols-3 gap-3 text-sm text-left">
+        <div class="col-span-1">
           <label class="block text-xs font-medium text-gray-700 mb-1">Clave *</label>
           <input id="swal-clave-edit" type="text" class="swal2-input" maxlength="50" required value="${claveActual}">
         </div>
-        <div>
+        <div class="col-span-1">
           <label class="block text-xs font-medium text-gray-700 mb-1">Nombre *</label>
           <input id="swal-nombre-edit" type="text" class="swal2-input" maxlength="100" required value="${nombreActual}">
         </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Salón *</label>
-          <input id="swal-salon-edit" type="text" class="swal2-input" maxlength="50" required value="${salonActual}">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Telar *</label>
-          <input id="swal-telar-edit" type="text" class="swal2-input" maxlength="50" required value="${telarActual}">
+        <div class="col-span-1">
+          <label class="block text-xs font-medium text-gray-700 mb-1">Factor</label>
+          <input id="swal-factor-edit" type="number" step="0.0001" class="swal2-input" value="${factorActual}">
         </div>
       </div>
     `,
@@ -255,11 +239,10 @@ function editarAplicacion() {
     preConfirm: async () => {
       const AplicacionId  = document.getElementById('swal-clave-edit').value.trim();
       const Nombre        = document.getElementById('swal-nombre-edit').value.trim();
-      const SalonTejidoId = document.getElementById('swal-salon-edit').value.trim();
-      const NoTelarId     = document.getElementById('swal-telar-edit').value.trim();
+      const Factor        = document.getElementById('swal-factor-edit').value.trim();
 
-      if (!AplicacionId || !Nombre || !SalonTejidoId || !NoTelarId) {
-        Swal.showValidationMessage('Por favor completa los campos requeridos'); return false;
+      if (!AplicacionId || !Nombre) {
+        Swal.showValidationMessage('Clave y Nombre son obligatorios'); return false;
       }
 
       Swal.showLoading();
@@ -269,8 +252,7 @@ function editarAplicacion() {
       form.append('_method', 'PUT');
       form.append('AplicacionId', AplicacionId);
       form.append('Nombre', Nombre);
-      form.append('SalonTejidoId', SalonTejidoId);
-      form.append('NoTelarId', NoTelarId);
+      if (Factor !== '') form.append('Factor', Factor);
 
       try {
         const r = await fetch(`/planeacion/aplicaciones/${encodeURIComponent(selectedId)}`, {
@@ -280,12 +262,10 @@ function editarAplicacion() {
         if (r.status === 422) {
           const data = await r.json();
           const errs = data?.errors || {};
-          // Muestra el error de validación más relevante dentro del mismo modal
           let msg = data?.message || 'Error en la validación';
-          if (errs.AplicacionId?.length) msg = errs.AplicacionId[0]; // <-- "has already been taken"
+          if (errs.AplicacionId?.length) msg = errs.AplicacionId[0];
           else if (errs.Nombre?.length) msg = errs.Nombre[0];
-          else if (errs.SalonTejidoId?.length) msg = errs.SalonTejidoId[0];
-          else if (errs.NoTelarId?.length) msg = errs.NoTelarId[0];
+          else if (errs.Factor?.length) msg = errs.Factor[0];
           Swal.showValidationMessage(msg);
           return false;
         }
@@ -316,7 +296,7 @@ function editarAplicacion() {
 }
 
 /* ===========================
-   Eliminar — simple, sin cadenas de modales
+   Eliminar
 =========================== */
 function eliminarAplicacion() {
   if (!selectedRow || !selectedId) {
@@ -374,7 +354,7 @@ function eliminarAplicacion() {
 }
 
 /* ===========================
-   Excel
+   Excel (sin cambios visuales)
 =========================== */
 function subirExcelAplicaciones() {
   Swal.fire({
@@ -438,22 +418,18 @@ function mostrarFiltros() {
   Swal.fire({
     title:'Filtrar Aplicaciones',
     html: `
-      <div class="grid grid-cols-2 gap-3 text-sm text-left">
+      <div class="grid grid-cols-3 gap-3 text-sm text-left">
         <div>
           <label class="block text-xs font-medium text-gray-700 mb-1">Clave</label>
           <input id="swal-clave-filter" type="text" class="swal2-input" placeholder="APP001" value="${filtrosActuales.clave || ''}">
         </div>
         <div>
           <label class="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
-          <input id="swal-nombre-filter" type="text" class="swal2-input" placeholder="Sistema" value="${filtrosActuales.nombre || ''}">
+          <input id="swal-nombre-filter" type="text" class="swal2-input" placeholder="TR / DC" value="${filtrosActuales.nombre || ''}">
         </div>
         <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Salón</label>
-          <input id="swal-salon-filter" type="text" class="swal2-input" placeholder="JACQUARD / SMITH" value="${filtrosActuales.salon || ''}">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Telar</label>
-          <input id="swal-telar-filter" type="text" class="swal2-input" placeholder="201, 300, ..." value="${filtrosActuales.telar || ''}">
+          <label class="block text-xs font-medium text-gray-700 mb-1">Factor</label>
+          <input id="swal-factor-filter" type="text" class="swal2-input" placeholder="0 / 1 / 2" value="${filtrosActuales.factor || ''}">
         </div>
       </div>
       <div class="mt-3 text-xs text-gray-500 bg-blue-50 p-2 rounded">
@@ -469,9 +445,8 @@ function mostrarFiltros() {
     preConfirm: () => {
       const clave  = document.getElementById('swal-clave-filter').value.trim();
       const nombre = document.getElementById('swal-nombre-filter').value.trim();
-      const salon  = document.getElementById('swal-salon-filter').value.trim();
-      const telar  = document.getElementById('swal-telar-filter').value.trim();
-      return { clave, nombre, salon, telar };
+      const factor = document.getElementById('swal-factor-filter').value.trim();
+      return { clave, nombre, factor };
     }
   }).then(res=>{
     if (res.isConfirmed && res.value) aplicarFiltros(res.value);
@@ -492,12 +467,10 @@ function aplicarFiltros(f) {
   const filtrados = (datosOriginales || []).filter(it=>{
     const clave  = String(it.AplicacionId  || '').toLowerCase();
     const nombre = String(it.Nombre        || '').toLowerCase();
-    const salon  = String(it.SalonTejidoId || '').toLowerCase();
-    const telar  = String(it.NoTelarId     || '').toLowerCase();
+    const factor = String(it.Factor        || '').toLowerCase();
     if (f.clave && !clave.includes(f.clave.toLowerCase())) return false;
     if (f.nombre && !nombre.includes(f.nombre.toLowerCase())) return false;
-    if (f.salon && !salon.includes(f.salon.toLowerCase())) return false;
-    if (f.telar && !telar.includes(f.telar.toLowerCase())) return false;
+    if (f.factor && !factor.includes(f.factor.toLowerCase())) return false;
     return true;
   });
 
@@ -518,7 +491,7 @@ function actualizarTablaOptimizada(datos) {
   if (!datos || datos.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="4" class="text-center py-8 text-gray-500">
+        <td colspan="3" class="text-center py-8 text-gray-500">
           <i class="fas fa-search text-4xl mb-2"></i><br>No se encontraron resultados
         </td>
       </tr>`;
@@ -530,21 +503,19 @@ function actualizarTablaOptimizada(datos) {
      const uniqueId = item.AplicacionId;
 
      tr.className = 'text-center hover:bg-blue-50 transition cursor-pointer';
-     tr.onclick = () => selectRow(tr, uniqueId, uniqueId);
+     tr.onclick = () => selectRow(tr, uniqueId, item.Id || uniqueId);
      tr.ondblclick = () => deselectRow(tr);
 
      tr.setAttribute('data-aplicacion', uniqueId);
      tr.setAttribute('data-aplicacion-id', uniqueId);
      tr.setAttribute('data-clave', item.AplicacionId);
      tr.setAttribute('data-nombre', item.Nombre);
-     tr.setAttribute('data-salon', item.SalonTejidoId);
-     tr.setAttribute('data-telar', item.NoTelarId);
+     tr.setAttribute('data-factor', item.Factor);
 
     tr.innerHTML = `
       <td class="py-1 px-4 border-b">${item.AplicacionId}</td>
       <td class="py-1 px-4 border-b">${item.Nombre}</td>
-      <td class="py-1 px-4 border-b font-semibold">${item.SalonTejidoId}</td>
-      <td class="py-1 px-4 border-b">${item.NoTelarId}</td>`;
+      <td class="py-1 px-4 border-b font-semibold">${item.Factor ?? ''}</td>`;
     frag.appendChild(tr);
   });
   tbody.innerHTML = '';
@@ -585,7 +556,6 @@ window.mostrarFiltros     = mostrarFiltros;
 window.limpiarFiltros     = limpiarFiltros;
 window.subirExcelAplicaciones = subirExcelAplicaciones;
 
-// En caso de que tus botones llamen en plural
 window.agregarAplicaciones        = () => agregarAplicacion();
 window.editarAplicaciones         = () => editarAplicacion();
 window.eliminarAplicaciones       = () => eliminarAplicacion();
@@ -596,7 +566,7 @@ window.limpiarFiltrosAplicaciones = () => limpiarFiltros();
    Limpiar filtros
 =========================== */
 function limpiarFiltros() {
-  filtrosActuales = { clave:'', nombre:'', salon:'', telar:'' };
+  filtrosActuales = { clave:'', nombre:'', factor:'' };
   cacheFiltros.clear();
   datosActuales = datosOriginales;
   actualizarTablaOptimizada(datosOriginales);

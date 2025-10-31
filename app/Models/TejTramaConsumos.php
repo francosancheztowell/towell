@@ -44,3 +44,11 @@ class TejTramaConsumos extends Model
 
 
 
+
+
+
+
+
+
+
+

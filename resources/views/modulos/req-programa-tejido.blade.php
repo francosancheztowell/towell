@@ -3,6 +3,12 @@
 @section('page-title', 'Programa de Tejido')
 
 @section('navbar-right')
+<button id="btn-editar-programa" type="button" class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+    Editar
+</button>
 @endsection
 
 @section('menu-planeacion')
@@ -117,6 +123,12 @@
 				return '<input type="checkbox" ' . $checked . ' disabled class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">';
 			}
 
+			// Mapear 'UL' como 1 para la columna 'Ultimo'
+			if ($field === 'Ultimo') {
+				$sv = strtoupper(trim((string)$value));
+				if ($sv === 'UL') return '1';
+			}
+
 			if ($field === 'EficienciaSTD' && is_numeric($value)) {
 				return rtrim(rtrim(number_format(((float)$value) * 100, 0), '0'), '.') . '%';
 			}
@@ -184,7 +196,7 @@
 					</thead>
 					<tbody class="bg-white divide-y divide-gray-100">
 								@foreach($registros as $index => $registro)
-								<tr class="hover:bg-blue-50 cursor-pointer selectable-row" data-row-index="{{ $index }}">
+                                <tr class="hover:bg-blue-50 cursor-pointer selectable-row" data-row-index="{{ $index }}" data-id="{{ $registro->Id ?? $registro->id ?? '' }}">
 										@foreach($columns as $colIndex => $col)
 										<td class="px-3 py-2 text-sm text-gray-700 {{ in_array($col['field'], ['Programado','ProgramarProd','FechaInicio','FechaFinal','EntregaProduc','EntregaPT','EntregaCte']) ? 'whitespace-normal' : 'whitespace-nowrap' }} column-{{ $colIndex }}"
 											data-column="{{ $col['field'] }}">
@@ -197,6 +209,7 @@
 				</table>
 					</div>
 			</div>
+
 		@else
 			<div class="px-6 py-12 text-center">
 				<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -217,6 +230,9 @@
 		@endif
 	</div>
 </div>
+
+{{-- Tabla detalle ReqProgramaTejidoLine (fuera del contenedor blanco para ver el fondo) --}}
+@include('components.req-programa-tejido-line-table')
 
 <style>
 	/* Igual que tu diseño, con apoyo para “pinned” */
@@ -757,6 +773,16 @@ function selectRow(rowElement, rowIndex) {
 	// Mostrar controles
 	const rpc = $('#rowPriorityControls');
 	if (rpc) rpc.classList.remove('hidden');
+
+    // Cargar detalle de líneas filtradas por ProgramaId
+    if (window.loadReqProgramaTejidoLines) {
+        const id = rowElement.getAttribute('data-id');
+        window.loadReqProgramaTejidoLines({ programa_id: id });
+    }
+
+    // Habilitar botón editar
+    const btnEditar = document.getElementById('btn-editar-programa');
+    if (btnEditar) btnEditar.disabled = false;
 }
 
 function deselectRow() {
@@ -807,6 +833,16 @@ document.addEventListener('DOMContentLoaded', function() {
 	}
 	updateFilterCount();
 	window.addEventListener('resize', () => updatePinnedColumnsPositions());
+
+    const btnEditar = document.getElementById('btn-editar-programa');
+    if (btnEditar) {
+        btnEditar.addEventListener('click', () => {
+            const selected = $$('.selectable-row')[selectedRowIndex];
+            const id = selected ? selected.getAttribute('data-id') : null;
+            if (!id) return;
+            window.location.href = `/planeacion/programa-tejido/${encodeURIComponent(id)}/editar`;
+        });
+    }
 });
 </script>
 

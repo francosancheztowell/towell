@@ -10,7 +10,8 @@ class ReqModelosCodificados extends Model
     use HasFactory;
 
     protected $table = 'ReqModelosCodificados';
-    protected $primaryKey = 'Id';
+    protected $primaryKey = 'TamanoClave';
+    public $incrementing = false;
     public $timestamps = false;
 
     protected $fillable = [
@@ -131,13 +132,46 @@ class ReqModelosCodificados extends Model
         'ComprobarModDup'
     ];
 
-    // Si quieres manejar fechas como Carbon sin alterar texto cuando venga vacío,
-    // puedes usar $dates; si alguna llega como cadena no válida, Eloquent la deja igual.
-    protected $dates = [
-        'FechaTejido',
-        'FechaCumplimiento',
-        'FechaCompromiso',
-    ];
+    // Castings para conversión de tipos al guardar en BD
+    protected $casts = [
+        // INT fields (deben ser enteros)
+        'Peine' => 'integer',
+        'AnchoToalla' => 'integer',
+        'LargoToalla' => 'integer',
+        'PesoCrudo' => 'integer',
+        'Luchaje' => 'integer',
+        'MedidaPlano' => 'integer',
+        'VelocidadSTD' => 'integer',
+        'NoTiras' => 'integer',
+        'Repeticiones' => 'integer',
+        'TotalMarbetes' => 'integer',
+        'AnchoPeineTrama' => 'integer',
+        'LogLuchaTotal' => 'integer',
+        'ColumCT' => 'integer',
+        'ColumCU' => 'integer',
+        'ColumCV' => 'integer',
+        'TIRAS' => 'integer',
 
-    // ¡Sin casts ni accessors! Para no añadir .0000 ni convertir literales en null/0.
+        // DECIMAL fields (deben ser float/double)
+        'CalibreTrama' => 'float',
+        'CalibreTrama2' => 'float',
+        'CalibreRizo' => 'float',
+        'CalibreRizo2' => 'float',
+        'CalibrePie' => 'float',
+        'CalibrePie2' => 'float',
+        'Total' => 'float',
+        'KGDia' => 'float',
+        'Densidad' => 'float',
+        'PzasDiaPasadas' => 'float',
+        'PzasDiaFormula' => 'float',
+        'DIF' => 'float',
+        'EFIC' => 'float',
+        'Rev' => 'float',
+        'PASADAS' => 'float',
+
+        // Dates
+        'FechaTejido' => 'datetime:Y-m-d H:i:s',
+        'FechaCumplimiento' => 'datetime:Y-m-d H:i:s',
+        'FechaCompromiso' => 'datetime:Y-m-d H:i:s',
+    ];
 }

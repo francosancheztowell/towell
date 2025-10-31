@@ -9,10 +9,13 @@
         'calendarios' => 'Calendarios',
         'aplicaciones' => 'Aplicaciones (Cat.)',
         'codificacion' => 'Codificación Modelos',
+        'matriz-hilos' => 'Matriz Hilos',
     ];
 
     // Obtener permisos del usuario usando helper reutilizable
     $nombreModulo = isset($rutaToNombreModulo[$route]) ? $rutaToNombreModulo[$route] : null;
+    // Nombre seguro para JS (reemplazar no alfanumérico por guion bajo)
+    $routeJs = preg_replace('/[^A-Za-z0-9_]/', '_', ucfirst($route ?? ''));
 
     $puedeCrear = $nombreModulo ? userCan('crear', $nombreModulo) : false;
     $puedeEditar = $nombreModulo ? userCan('modificar', $nombreModulo) : false;
@@ -47,7 +50,7 @@
                 </button>
             @else
                 {{-- Para otros módulos, botón único --}}
-                <button id="btn-subir-excel" onclick="console.log('Botón clickeado'); subirExcel{{ ucfirst($route) }}()"
+                <button id="btn-subir-excel" onclick="console.log('Botón clickeado'); subirExcel{{ $routeJs }}()"
                 class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors"
                 title="Subir Excel" aria-label="Subir Excel">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
@@ -59,7 +62,7 @@
             @endif
 
             {{-- Botón Añadir/Crear solo si tiene permiso de crear --}}
-            <button id="btn-agregar" onclick="agregar{{ ucfirst($route) }}()"
+            <button id="btn-agregar" onclick="agregar{{ $routeJs }}()"
                class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
                title="Añadir" aria-label="Añadir">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,7 +73,7 @@
 
         {{-- Botón Editar solo si tiene permiso de editar --}}
         @if($puedeEditar)
-            <button id="btn-editar" onclick="editar{{ ucfirst($route) }}()" disabled
+            <button id="btn-editar" onclick="editar{{ $routeJs }}()" disabled
                class="p-2 text-gray-400 hover:text-gray-600 rounded-md transition-colors cursor-not-allowed"
                title="Editar" aria-label="Editar">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +84,7 @@
 
         {{-- Botón Eliminar solo si tiene permiso de eliminar --}}
         @if($puedeEliminar)
-            <button id="btn-eliminar" onclick="eliminar{{ ucfirst($route) }}()" disabled
+            <button id="btn-eliminar" onclick="eliminar{{ $routeJs }}()" disabled
                class="p-2 text-red-400 hover:text-red-600 rounded-md transition-colors cursor-not-allowed"
                title="Eliminar" aria-label="Eliminar">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,7 +95,7 @@
     @endif
 
     @if($showFilters)
-    <button id="btn-filtrar" onclick="filtrar{{ ucfirst($route) }}()"
+    <button id="btn-filtrar" onclick="filtrar{{ $routeJs }}()"
        class="relative p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
        title="Filtrar" aria-label="Filtrar">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,7 +104,7 @@
         <span id="filter-count" class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white rounded-full text-xs font-bold hidden">0</span>
     </button>
 
-    <button id="btn-restablecer-{{ $route }}" onclick="animarRestablecer{{ ucfirst($route) }}(); limpiarFiltros{{ ucfirst($route) }}()"
+    <button id="btn-restablecer-{{ $route }}" onclick="animarRestablecer{{ $routeJs }}(); limpiarFiltros{{ $routeJs }}()"
        class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
        title="Restablecer" aria-label="Restablecer">
         <svg id="icon-restablecer-{{ $route }}" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,7 +118,7 @@
     // Esperar a que el DOM esté listo
     document.addEventListener('DOMContentLoaded', function() {
         // Función global para subir Excel con SweetAlert2
-        window.subirExcel{{ ucfirst($route) }} = function() {
+        window.subirExcel{{ $routeJs }} = function() {
         console.log('subirExcel{{ ucfirst($route) }} llamada');
         // Crear el HTML del formulario
         const htmlContent = `
@@ -360,7 +363,7 @@
     };
 
     // Función para animar el icono de restablecer
-    window.animarRestablecer{{ ucfirst($route) }} = function() {
+    window.animarRestablecer{{ $routeJs }} = function() {
         const icon = document.getElementById('icon-restablecer-{{ $route }}');
         if (icon) {
             icon.classList.add('animate-spin');
@@ -371,7 +374,7 @@
     };
 
     // Función para actualizar el contador de filtros
-    window.actualizarContadorFiltros{{ ucfirst($route) }} = function(count) {
+    window.actualizarContadorFiltros{{ $routeJs }} = function(count) {
         const filterCount = document.getElementById('filter-count');
         if (filterCount) {
             if (count > 0) {
@@ -384,7 +387,7 @@
     };
 
     // Función para habilitar/deshabilitar botones de editar y eliminar
-    window.actualizarBotonesAccion{{ ucfirst($route) }} = function(habilitar) {
+    window.actualizarBotonesAccion{{ $routeJs }} = function(habilitar) {
         const btnEditar = document.getElementById('btn-editar');
         const btnEliminar = document.getElementById('btn-eliminar');
 

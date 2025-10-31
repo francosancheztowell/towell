@@ -84,10 +84,30 @@ class ConfiguracionController extends Controller
                 $registrosAntes = \App\Models\ReqProgramaTejido::count();
                 Log::info("Registros existentes antes de la importación: {$registrosAntes}");
 
-                // Eliminar todos los registros existentes
-                Log::info("Eliminando registros existentes...");
-                \App\Models\ReqProgramaTejido::truncate();
-                Log::info("Registros existentes eliminados");
+                // Eliminar todos los registros existentes (evitar TRUNCATE por posibles FKs)
+                Log::info("Eliminando registros existentes (DELETE ALL)...");
+                try {
+                    // Borrado en bloque
+                    DB::table('ReqProgramaTejido')->delete();
+                    Log::info("Registros existentes eliminados con DELETE");
+                } catch (\Throwable $delEx) {
+                    Log::warning("Fallo al eliminar con DELETE: " . $delEx->getMessage());
+                    // Fallback: intentar borrado chunked para bases con restricciones/locks
+                    try {
+                        $totalBefore = \App\Models\ReqProgramaTejido::count();
+                        $chunk = 1000;
+                        \App\Models\ReqProgramaTejido::query()->orderBy('Id')
+                            ->chunkById($chunk, function ($rows) {
+                                $ids = $rows->pluck('Id')->all();
+                                DB::table('ReqProgramaTejido')->whereIn('Id', $ids)->delete();
+                            }, 'Id');
+                        $totalAfter = \App\Models\ReqProgramaTejido::count();
+                        Log::info("Borrado chunked completado", ['antes'=>$totalBefore,'despues'=>$totalAfter]);
+                    } catch (\Throwable $delEx2) {
+                        Log::error("No se pudo limpiar ReqProgramaTejido: " . $delEx2->getMessage());
+                        throw $delEx2;
+                    }
+                }
 
                 // Importar usando el importador específico
                 $import = new ReqProgramaTejidoSimpleImport();
@@ -98,10 +118,14 @@ class ConfiguracionController extends Controller
                 $this->processedRows = $estadisticas['processed_rows'];
                 $this->skippedRows = $estadisticas['skipped_rows'];
 
-                // Actualizar estado EnProceso automáticamente
+                // Actualizar estado EnProceso automáticamente (no romper si el comando no está registrado)
+                try {
                 Log::info("Actualizando estado EnProceso después de la importación...");
                 Artisan::call('programa-tejido:actualizar-estado-proceso');
                 Log::info("Estado EnProceso actualizado exitosamente");
+                } catch (\Throwable $cmdEx) {
+                    Log::warning("No se pudo ejecutar el comando de actualización de estado: " . $cmdEx->getMessage());
+                }
 
                 // Obtener estadísticas después de la importación
                 $registrosDespues = \App\Models\ReqProgramaTejido::count();

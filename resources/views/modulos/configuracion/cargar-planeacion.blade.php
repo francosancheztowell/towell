@@ -199,19 +199,20 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             body: formData
         })
-        .then(response => {
+        .then(async (response) => {
+            const rawText = await response.text();
+            let parsed = null;
+            try { parsed = rawText ? JSON.parse(rawText) : null; } catch (_) { /* texto plano */ }
+
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const serverMsg = parsed && (parsed.message || parsed.error) ? (parsed.message || parsed.error) : rawText;
+                throw new Error(`HTTP ${response.status} - ${serverMsg || response.statusText}`);
             }
 
-            return response.text().then(text => {
-                try {
-                    const jsonData = JSON.parse(text);
-                    return jsonData;
-                } catch (e) {
-                    throw new Error('Respuesta no es JSON válido: ' + text.substring(0, 200));
+            if (!parsed) {
+                throw new Error('Respuesta no es JSON válido: ' + rawText.substring(0, 200));
                 }
-            });
+            return parsed;
         })
         .then(data => {
             clearInterval(progressInterval);
@@ -255,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             Swal.fire({
                 title: 'Error al procesar el archivo',
-                text: error.message,
+                text: (error && error.message) ? error.message : 'Error desconocido',
                 icon: 'error',
                 confirmButtonText: 'Entendido',
                 confirmButtonColor: '#ef4444'
