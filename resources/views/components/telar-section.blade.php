@@ -213,10 +213,10 @@
                                 <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Orden:</span>
                                 <span class="text-sm font-semibold text-gray-900 ml-2">{{ $ordenSig->Orden_Prod ?? '-' }}</span>
                             </div>
-                            <div class="flex items-start">
+                            <!-- <div class="flex items-start">
                                 <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Artículo:</span>
                                 <span class="text-sm font-semibold text-gray-900 ml-2">{{ ($ordenSig->ItemId ?? '') . ' - ' . ($ordenSig->Tamano_AX ?? '') }}</span>
-                            </div>
+                            </div> -->
                             <div class="flex items-start">
                                 <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Producto:</span>
                                 <span class="text-sm font-semibold text-gray-900 ml-2">{{ $ordenSig->Nombre_Producto ?? '-' }}</span>

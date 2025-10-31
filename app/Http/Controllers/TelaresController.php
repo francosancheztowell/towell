@@ -1,11 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
-use App\Models\Planeacion;
-use App\Models\InvSecuenciaTelares;
-use App\Models\ReqProgramaTejido;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
