@@ -108,6 +108,9 @@
         }
     </style>
     <div class="container mx-auto">
+        <script>
+            window.ACTUALIZAR_CANTIDAD_URL = @json($actualizarCantidadUrl ?? url('/modulo-nuevo-requerimiento/actualizar-cantidad'));
+        </script>
 
         <!-- Lista de Requerimientos en Proceso -->
         <div class="space-y-6">
@@ -130,6 +133,52 @@
                             'Fin_Tejido' => '-',
                         ];
                         $ordenSig = null;
+                        // Completar calibres desde Programa Tejido para mostrar todas las combinaciones
+                        try {
+                            $tipoSalon = ($tipo === 'itema') ? 'ITEMA' : 'JACQUARD';
+                            $salones = $tipoSalon === 'ITEMA' ? ['ITEMA','SMIT'] : [$tipoSalon];
+                            $telarNum = (int) $telar;
+                            $q = DB::table('ReqProgramaTejido')
+                                  ->whereIn('SalonTejidoId', $salones)
+                                  ->where('NoTelarId', $telarNum)
+                                  ->where('EnProceso', 1);
+                            if ($tipoSalon === 'ITEMA' && !$q->exists()) {
+                                $telarDb = 100 + ($telarNum % 100);
+                                $q = DB::table('ReqProgramaTejido')
+                                      ->whereIn('SalonTejidoId', $salones)
+                                      ->where('NoTelarId', $telarDb)
+                                      ->where('EnProceso', 1);
+                            }
+                            $pt = $q->select([
+                                'CalibreTrama as CALIBRE_TRA',
+                                'FibraTrama as FIBRA_TRA',
+                                'CodColorTrama as CODIGO_COLOR_TRAMA',
+                                'ColorTrama as COLOR_TRAMA',
+                                'NombreCC1 as COLOR_C1',
+                                'NombreCC2 as COLOR_C2',
+                                'NombreCC3 as COLOR_C3',
+                                'NombreCC4 as COLOR_C4',
+                                'NombreCC5 as COLOR_C5',
+                                'CalibreComb12 as CALIBRE_C1',
+                                'CalibreComb22 as CALIBRE_C2',
+                                'CalibreComb32 as CALIBRE_C3',
+                                'CalibreComb42 as CALIBRE_C4',
+                                'CalibreComb52 as CALIBRE_C5',
+                                'FibraComb1 as FIBRA_C1',
+                                'FibraComb2 as FIBRA_C2',
+                                'FibraComb3 as FIBRA_C3',
+                                'FibraComb4 as FIBRA_C4',
+                                'FibraComb5 as FIBRA_C5',
+                                'CodColorComb1 as CODIGO_COLOR_C1',
+                                'CodColorComb2 as CODIGO_COLOR_C2',
+                                'CodColorComb3 as CODIGO_COLOR_C3',
+                                'CodColorComb4 as CODIGO_COLOR_C4',
+                                'CodColorComb5 as CODIGO_COLOR_C5',
+                            ])->first();
+                            if ($pt) {
+                                foreach ($pt as $k => $v) { $telarData->{$k} = $v; }
+                            }
+                        } catch (\Exception $e) {}
                     } else {
                         $info = $datosPorTelar[$telar] ?? null;
                         $telarData = $info['telarData'] ?? null;
@@ -234,12 +283,21 @@
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Fibra</th>
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Cod Color</th>
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Nombre Color</th>
-                                    <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Cantidad (Conos)</th>
+                                    <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Cantidad</th>
                                 </tr>
                             </thead>
                             <tbody class="">
                                 @if(isset($editMode) && $editMode)
-                                    @php $items = ($consumosPorTelar[$telar]['items'] ?? []); @endphp
+                                    @php 
+                                        $items = ($consumosPorTelar[$telar]['items'] ?? []);
+                                        // Calibres existentes en la edición para evitar duplicar filas de combinaciones
+                                        $calibresExist = [];
+                                        foreach ($items as $ei) {
+                                            if ($ei['calibre'] !== null) {
+                                                $calibresExist[number_format((float)$ei['calibre'], 2)] = true;
+                                            }
+                                        }
+                                    @endphp
                                     @foreach($items as $index => $it)
                                         <tr class="{{ $index % 2 === 0 ? 'bg-white' : 'bg-gray-50' }} hover:bg-blue-50" data-consumo-id="{{ $it['id'] }}">
                                             <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $it['calibre'] !== null ? number_format($it['calibre'], 2) : '-' }}</td>
@@ -289,8 +347,56 @@
                                         </td>
                                     </tr>
                                 @endif
-                                @if(isset($telarData->CALIBRE_C2) && $telarData->CALIBRE_C2 !== null && $telarData->CALIBRE_C2 != 0)
+                                @if(isset($editMode) && $editMode && isset($telarData->CALIBRE_TRA) && $telarData->CALIBRE_TRA !== null && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_TRA, 2)])))
+                                <tr class="bg-white hover:bg-blue-50">
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_TRA, 2) }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_TRA ?? '-' }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_TRAMA ?? '-' }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_TRAMA ?? '-' }}</td>
+                                    <td class="px-4 py-1">
+                                        <div class="flex items-center justify-center relative">
+                                            <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
+                                                <span class="quantity-display text-md font-semibold">0</span>
+                                            </button>
+                                            <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                                <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                                    <div class="flex space-x-1 min-w-max">
+                                                        @for($i = 0; $i <= 100; $i++)
+                                                            <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $i == 0 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}" data-value="{{ $i }}">{{ $i }}</span>
+                                                        @endfor
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endif
+                                @if(isset($telarData->CALIBRE_C1) && $telarData->CALIBRE_C1 !== null && $telarData->CALIBRE_C1 != 0 && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_C1, 2)])))
                                 <tr class="bg-gray-50 hover:bg-blue-50">
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C1, 2) }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C1 ?? '-' }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C1 ?? '-' }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_C1 ?? '-' }}</td>
+                                    <td class="px-4 py-1">
+                                        <div class="flex items-center justify-center relative">
+                                            <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
+                                                <span class="quantity-display text-md font-semibold">0</span>
+                                            </button>
+                                            <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                                <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                                    <div class="flex space-x-1 min-w-max">
+                                                        @for($i = 0; $i <= 100; $i++)
+                                                            <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $i == 0 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}" data-value="{{ $i }}">{{ $i }}</span>
+                                                        @endfor
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endif
+                                @if(isset($telarData->CALIBRE_C2) && $telarData->CALIBRE_C2 !== null && $telarData->CALIBRE_C2 != 0 && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_C2, 2)])))
+                                <tr class="bg-white hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C2, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C2 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C2 ?? '-' }}</td>
@@ -313,8 +419,8 @@
                                     </td>
                                 </tr>
                                 @endif
-                                @if(isset($telarData->CALIBRE_C3) && $telarData->CALIBRE_C3 !== null && $telarData->CALIBRE_C3 != 0)
-                                <tr class="bg-white hover:bg-blue-50">
+                                @if(isset($telarData->CALIBRE_C3) && $telarData->CALIBRE_C3 !== null && $telarData->CALIBRE_C3 != 0 && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_C3, 2)])))
+                                <tr class="bg-gray-50 hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C3, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C3 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C3 ?? '-' }}</td>
@@ -337,8 +443,8 @@
                                     </td>
                                 </tr>
                                 @endif
-                                @if(isset($telarData->CALIBRE_C4) && $telarData->CALIBRE_C4 !== null && $telarData->CALIBRE_C4 != 0)
-                                <tr class="bg-gray-200 hover:bg-blue-50">
+                                @if(isset($telarData->CALIBRE_C4) && $telarData->CALIBRE_C4 !== null && $telarData->CALIBRE_C4 != 0 && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_C4, 2)])))
+                                <tr class="bg-white hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C4, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C4 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C4 ?? '-' }}</td>
@@ -361,8 +467,8 @@
                                     </td>
                                 </tr>
                                 @endif
-                                @if(isset($telarData->CALIBRE_C5) && $telarData->CALIBRE_C5 !== null && $telarData->CALIBRE_C5 != 0)
-                                <tr class="bg-white hover:bg-blue-50">
+                                @if(isset($telarData->CALIBRE_C5) && $telarData->CALIBRE_C5 !== null && $telarData->CALIBRE_C5 != 0 && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_C5, 2)])))
+                                <tr class="bg-gray-50 hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C5, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C5 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C5 ?? '-' }}</td>
@@ -1275,7 +1381,7 @@
         function actualizarCantidadEnBD(consumoId, cantidad) {
             console.log('Enviando actualización:', { id: consumoId, cantidad: cantidad });
 
-            fetch('/modulo-nuevo-requerimiento/actualizar-cantidad', {
+            fetch(window.ACTUALIZAR_CANTIDAD_URL || '/modulo-nuevo-requerimiento/actualizar-cantidad', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1297,12 +1403,42 @@
                 } else {
                     showToast(data.message || 'Error al actualizar cantidad', 'error');
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('Error al actualizar cantidad', 'error');
-            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error al actualizar cantidad', 'error');
+        });
         }
+
+        // Manejador delegado (captura) para asegurar selección y cierre del editor
+        document.addEventListener('click', function(e){
+            const opt = e.target.closest('.number-option');
+            if(!opt) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const container = opt.closest('.number-scroll-container');
+            if(!container) return;
+            const allOptions = container.querySelectorAll('.number-option');
+            const row = opt.closest('tr');
+            const quantityDisplay = row?.querySelector('.quantity-display');
+            const selectedValue = opt.getAttribute('data-value');
+            allOptions.forEach(o=>{ o.classList.remove('bg-blue-500','text-white'); o.classList.add('bg-gray-100','text-gray-700'); });
+            opt.classList.remove('bg-gray-100','text-gray-700');
+            opt.classList.add('bg-blue-500','text-white');
+            if (quantityDisplay) quantityDisplay.textContent = selectedValue;
+            const consumoId = row?.getAttribute('data-consumo-id');
+            if (consumoId) {
+                actualizarCantidadEnBD(consumoId, selectedValue);
+            } else {
+                showToast(`Cantidad actualizada a ${selectedValue} conos`);
+            }
+            const editContainer = row?.querySelector('.quantity-edit-container');
+            const editBtn = row?.querySelector('.edit-quantity-btn');
+            const display = row?.querySelector('.quantity-display');
+            if (editContainer) editContainer.classList.add('hidden');
+            if (editBtn) editBtn.classList.remove('hidden');
+            if (display) display.classList.remove('hidden');
+        }, true);
 
         // Dropdown y navegación tipo Jacquard
         (function(){
