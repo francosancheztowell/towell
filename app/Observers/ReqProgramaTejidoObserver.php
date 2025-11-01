@@ -233,13 +233,19 @@ class ReqProgramaTejidoObserver
                     // Kilos es la suma de TODOS los componentes (incluyendo Rizo)
                     $kilosDia = $totalComponentes + $rizo;
 
+                    // ✅ APLICACION: Guardar Factor * Kilos (multiplicación del factor por el total de kilos del día)
+                    $aplicacionValor = null;
+                    if ($factorAplicacion !== null && $kilosDia > 0) {
+                        $aplicacionValor = $factorAplicacion * $kilosDia;
+                    }
+
                     // Crear registro en ReqProgramaTejidoLine
                     $line = ReqProgramaTejidoLine::create([
                         'ProgramaId' => (int) $programa->Id,
                         'Fecha' => $dia->toDateString(),
                         'Cantidad' => round($pzasDia, 4),
                         'Kilos' => round($kilosDia, 4),
-                        'Aplicacion' => $factorAplicacion !== null ? round($factorAplicacion, 4) : null,
+                        'Aplicacion' => $aplicacionValor !== null ? round($aplicacionValor, 4) : null,
                         'Trama' => $trama !== null ? round($trama, 4) : null,
                         'Combina1' => $combinacion1 !== null ? round($combinacion1, 4) : null,
                         'Combina2' => $combinacion2 !== null ? round($combinacion2, 4) : null,
@@ -259,7 +265,8 @@ class ReqProgramaTejidoObserver
                         'HorasDia' => round($horasDia, 2),
                         'Cantidad' => round($pzasDia, 4),
                         'Kilos' => $kilosDia !== null ? round($kilosDia, 4) : null,
-                        'Aplicacion' => $factorAplicacion,
+                        'FactorAplicacion' => $factorAplicacion,
+                        'Aplicacion_calculada' => $aplicacionValor !== null ? round($aplicacionValor, 4) : null,
                         'Trama' => $trama,
                         'Combina1' => $combinacion1,
                         'Combina2' => $combinacion2,

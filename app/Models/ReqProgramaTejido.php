@@ -8,7 +8,7 @@ class ReqProgramaTejido extends Model
 {
     protected $table = 'ReqProgramaTejido';
     protected $primaryKey = 'Id';
-    public $incrementing = true;  // ✅ El ID es auto-increment
+    public $incrementing = true;  //  El ID es auto-increment
     public $timestamps = false;
 
     protected $fillable = [

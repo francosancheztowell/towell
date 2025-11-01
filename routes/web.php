@@ -542,7 +542,9 @@ Route::middleware(['auth'])->group(function () {
     })->name('programa-tejido.nuevo');
         Route::post('/planeacion/programa-tejido', [ProgramaTejidoController::class, 'store'])->name('programa-tejido.store');
         Route::get('/planeacion/programa-tejido/{id}/editar', [ProgramaTejidoController::class, 'edit'])->name('programa-tejido.edit');
-        Route::put('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'update'])->name('programa-tejido.update');
+    Route::put('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'update'])->name('programa-tejido.update');
+    Route::post('/planeacion/programa-tejido/{id}/prioridad/subir', [ProgramaTejidoController::class, 'moveUp'])->name('programa-tejido.prioridad.subir');
+    Route::post('/planeacion/programa-tejido/{id}/prioridad/bajar', [ProgramaTejidoController::class, 'moveDown'])->name('programa-tejido.prioridad.bajar');
         // JSON: ReqProgramaTejidoLine dentro de planeación
         Route::get('/planeacion/req-programa-tejido-line', [\App\Http\Controllers\ReqProgramaTejidoLineController::class, 'index']);
 

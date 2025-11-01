@@ -1,141 +1,265 @@
 @extends('layouts.app')
 
 @section('page-title', 'Editar Programa de Tejido')
-@section('navbar-right')
-<!-- Botón Actualizar en la barra de navegación -->
-<button onclick="actualizar()" class="bg-blue-600 hover:bg-blue-700 flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors">
-    <i class="fas fa-edit"></i>
-    Actualizar
-</button>
-@endsection
-@section('content')
-<div class="w-full">
 
-    @include('modulos.programa-tejido-nuevo._form')
+@section('navbar-right')
+<div class="flex items-center gap-2">
+    <button onclick="ProgramaTejidoCRUD.actualizar()" class="bg-blue-600 hover:bg-blue-700 flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors">
+        <i class="fas fa-edit"></i>
+        Actualizar
+    </button>
 </div>
 @endsection
 
+@section('content')
+<div class="w-full">
+    {{-- Formulario de datos generales --}}
+    <div class="bg-white shadow-xl overflow-hidden rounded-2xl mt-1">
+        <div class="p-8">
+            {{-- SECCIÓN: DATOS GENERALES --}}
+            <div class="mb-8">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <tbody>
+                            <!-- Fila 1: Salon, Aplicación, Calibres Trama-C4 -->
+                            <tr>
+                                <td class="px-2 py-1 font-medium text-gray-800 w-24">Salon</td>
+                                <td class="px-2 py-1">
+                                    <input id="salon-input" type="text" value="{{ $registro->SalonTejidoId ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100">
+                                </td>
+                                <td class="px-2 py-1 font-medium text-gray-800 w-24">Aplicación</td>
+                                <td class="px-2 py-1">
+                                    <input type="text" id="aplicacion-input" value="{{ $registro->AplicacionId ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100">
+                                </td>
+                                <td class="px-2 py-1 font-medium text-gray-800 w-24">Calibre Trama</td>
+                                <td class="px-2 py-1"><input type="text" id="calibre-trama" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CalibreTrama ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800 w-24">Calibre C2</td>
+                                <td class="px-2 py-1"><input type="text" id="calibre-c2" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CalibreComb22 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800 w-24">Calibre C4</td>
+                                <td class="px-2 py-1"><input type="text" id="calibre-c4" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CalibreComb42 ?? '' }}"></td>
+                            </tr>
+
+                            <!-- Fila 2: Clave Modelo, Cuenta Rizo, Hilos Trama-C4 -->
+                            <tr>
+                                <td class="px-2 py-1 font-medium text-gray-800">Clave Modelo</td>
+                                <td class="px-2 py-1 relative">
+                                    <input type="text" id="clave-modelo-input" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->TamanoClave ?? '' }}">
+                                </td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Cuenta Rizo</td>
+                                <td class="px-2 py-1"><input type="text" id="cuenta-rizo" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" disabled value="{{ $registro->CuentaRizo ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Hilo Trama</td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-trama" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->FibraTrama ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Hilo C2</td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-c2" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->FibraComb2 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Hilo C4</td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-c4" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->FibraComb4 ?? '' }}"></td>
+                            </tr>
+
+                            <!-- Fila 3: Nombre Modelo, Calibre Rizo, Cod/Color 1-3 -->
+                            <tr>
+                                <td class="px-2 py-1 font-medium text-gray-800">Nombre Modelo</td>
+                                <td class="px-2 py-1"><input type="text" id="nombre-modelo" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" disabled value="{{ $registro->NombreProducto ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Calibre Rizo</td>
+                                <td class="px-2 py-1"><input type="text" id="calibre-rizo" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" disabled value="{{ $registro->CalibreRizo ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
+                                <td class="px-2 py-1"><input type="text" id="cod-color-1" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CodColorTrama ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
+                                <td class="px-2 py-1"><input type="text" id="cod-color-2" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CodColorComb2 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
+                                <td class="px-2 py-1"><input type="text" id="cod-color-3" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CodColorComb4 ?? '' }}"></td>
+                            </tr>
+
+                            <!-- Fila 4: Tamaño, Hilo Rizo, Nombre Color 1-3 -->
+                            <tr>
+                                <td class="px-2 py-1 font-medium text-gray-800">Tamaño</td>
+                                <td class="px-2 py-1"><input type="text" id="tamano" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" disabled value="{{ $registro->InventSizeId ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Hilo Rizo</td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-rizo" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" disabled value="{{ $registro->FibraRizo ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
+                                <td class="px-2 py-1"><input type="text" id="nombre-color-1" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->ColorTrama ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
+                                <td class="px-2 py-1"><input type="text" id="nombre-color-2" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->NombreCC2 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
+                                <td class="px-2 py-1"><input type="text" id="nombre-color-3" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->NombreCC4 ?? '' }}"></td>
+                            </tr>
+
+                            <!-- Fila 5: Hilo, Cuenta Pie, Calibres C1-C3-C5 -->
+                            <tr>
+                                <td class="px-2 py-1 font-medium text-gray-800">Hilo</td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-select" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" value="{{ $registro->FibraRizo ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Cuenta Pie</td>
+                                <td class="px-2 py-1"><input type="text" id="cuenta-pie" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" disabled value="{{ $registro->CuentaPie ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Calibre C1</td>
+                                <td class="px-2 py-1"><input type="text" id="calibre-c1" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CalibreComb12 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Calibre C3</td>
+                                <td class="px-2 py-1"><input type="text" id="calibre-c3" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CalibreComb32 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Calibre C5</td>
+                                <td class="px-2 py-1"><input type="text" id="calibre-c5" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CalibreComb52 ?? '' }}"></td>
+                            </tr>
+
+                            <!-- Fila 6: IdFlog, Calibre Pie, Hilos C1-C3-C5 -->
+                            <tr>
+                                <td class="px-2 py-1 font-medium text-gray-800">IdFlog</td>
+                                <td class="px-2 py-1">
+                                    <input type="text" id="idflog-input" value="{{ $registro->FlogsId ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100">
+                                </td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Calibre Pie</td>
+                                <td class="px-2 py-1"><input type="text" id="calibre-pie" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" disabled value="{{ $registro->CalibrePie ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Hilo C1</td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-c1" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->FibraComb1 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Hilo C3</td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-c3" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->FibraComb3 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Hilo C5</td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-c5" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->FibraComb5 ?? '' }}"></td>
+                            </tr>
+
+                            <!-- Fila 7: Descripción, Hilo Pie, Cod Color 4-6 -->
+                            <tr>
+                                <td class="px-2 py-1 font-medium text-gray-800">Descripción</td>
+                                <td class="px-2 py-1"><textarea id="descripcion" rows="1" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs resize-none">{{ $registro->NombreProyecto ?? '' }}</textarea></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Hilo Pie</td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-pie" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" disabled value="{{ $registro->FibraPie ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
+                                <td class="px-2 py-1"><input type="text" id="cod-color-4" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CodColorComb1 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
+                                <td class="px-2 py-1"><input type="text" id="cod-color-5" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CodColorComb3 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
+                                <td class="px-2 py-1"><input type="text" id="cod-color-6" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CodColorComb5 ?? '' }}"></td>
+                            </tr>
+
+                            <!-- Fila 8: Calendario, Rasurado, Nombre Color 1-3-6 -->
+                            <tr>
+                                <td class="px-2 py-1 font-medium text-gray-800">Calendario</td>
+                                <td class="px-2 py-1">
+                                    <input type="text" id="calendario-input" value="{{ $registro->CalendarioId ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100">
+                                </td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Rasurado</td>
+                                <td class="px-2 py-1"><input type="text" id="rasurado" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" value="{{ $registro->Rasurado ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
+                                <td class="px-2 py-1"><input type="text" id="nombre-color-1" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->NombreCC1 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
+                                <td class="px-2 py-1"><input type="text" id="nombre-color-3" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->NombreCC3 ?? '' }}"></td>
+                                <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
+                                <td class="px-2 py-1"><input type="text" id="nombre-color-6" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->NombreCC5 ?? '' }}"></td>
+                            </tr>
+
+                            <!-- Campos ocultos -->
+                            <div class="hidden">
+                                <input type="number" id="ancho" step="0.01" disabled>
+                                <input type="number" id="eficiencia-std" step="0.01" disabled>
+                                <input type="number" id="velocidad-std" step="0.01" disabled>
+                                <input type="text" id="maquina" readonly>
+                            </div>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- SECCIÓN: TELARES Y MÉTRICAS --}}
+    @php
+        $modeloCodificado = $modeloCodificado ?? new stdClass();
+    @endphp
+    <div class="bg-white shadow-xl overflow-hidden rounded-2xl mt-1">
+        <div class="p-8">
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs border border-gray-300">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">TELAR</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">CANTIDAD</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">FECHA INICIO</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">FECHA FIN</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">COMPROMISO TEJIDO</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">FECHA CLIENTE</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">FECHA ENTREGA</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyTelares">
+                        <tr data-stdtoa="{{ $registro->StdToaHra ?? 0 }}" data-eficiencia="{{ $registro->EficienciaSTD ?? 1 }}" data-pesocrudo="{{ optional($modeloCodificado)->PesoCrudo ?? 0 }}" data-velocidadstd="{{ $registro->VelocidadSTD ?? 0 }}" data-totalpedido="{{ $registro->TotalPedido ?? $registro->SaldoPedido ?? $registro->Produccion ?? 0 }}" data-calendario="{{ $registro->CalendarioId ?? 'Calendario Tej1' }}" data-notiras="{{ optional($modeloCodificado)->NoTiras ?? 0 }}" data-total="{{ optional($modeloCodificado)->Total ?? 0 }}" data-luchaje="{{ optional($modeloCodificado)->Luchaje ?? 0 }}" data-repeticiones="{{ optional($modeloCodificado)->Repeticiones ?? 0 }}">
+                            <td class="px-3 py-2 border border-gray-300">
+                                <input type="text" value="{{ $registro->NoTelarId ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800">
+                            </td>
+                            <td class="px-3 py-2 border border-gray-300">
+                                <input type="number" id="cantidad-input" min="0" value="{{ $registro->SaldoPedido ?? $registro->Produccion ?? $registro->TotalPedido ?? '' }}" class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-white text-gray-800">
+                            </td>
+                            <td class="px-3 py-2 border border-gray-300">
+                                <input type="text" id="fecha-inicio-input" value="{{ $registro->FechaInicio ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800">
+                            </td>
+                            <td class="px-3 py-2 border border-gray-300">
+                                <input type="text" id="fecha-fin-input" value="{{ $registro->FechaFinal ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800">
+                            </td>
+                            <td class="px-3 py-2 border border-gray-300">
+                                <input type="text" value="{{ $registro->EntregaProduc ? \Carbon\Carbon::parse($registro->EntregaProduc)->format('d/m/Y') : '' }}" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800">
+                            </td>
+                            <td class="px-3 py-2 border border-gray-300">
+                                <input type="text" value="{{ $registro->EntregaCte ? \Carbon\Carbon::parse($registro->EntregaCte)->format('d/m/Y') : '' }}" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800">
+                            </td>
+                            <td class="px-3 py-2 border border-gray-300">
+                                <input type="text" value="{{ $registro->EntregaCte ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800">
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- SECCIÓN: MÉTRICAS --}}
+            <div class="mt-3" id="seccion-metricas">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs border border-gray-300">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">Días Ef.</th>
+                                <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">Prod (Kg)/Día</th>
+                                <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">Std/Día</th>
+                                <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">Prod (Kg)/Día 2</th>
+                                <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">Std (Toa/Hr) 100%</th>
+                                <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">Días Jornada</th>
+                                <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">Horas</th>
+                                <th class="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300">Std/Hr Efectivo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="px-3 py-2 border border-gray-300"><input id="DiasEficiencia-input" type="text" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800" value="{{ $registro->DiasEficiencia ?? '' }}"></td>
+                                <td class="px-3 py-2 border border-gray-300"><input id="ProdKgDia-input" type="text" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800" value="{{ $registro->ProdKgDia ?? '' }}"></td>
+                                <td class="px-3 py-2 border border-gray-300"><input id="StdDia-input" type="text" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800" value="{{ $registro->StdDia ?? '' }}"></td>
+                                <td class="px-3 py-2 border border-gray-300"><input id="ProdKgDia2-input" type="text" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800" value="{{ $registro->ProdKgDia2 ?? '' }}"></td>
+                                <td class="px-3 py-2 border border-gray-300"><input id="StdToaHra-input" type="text" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800" value="{{ $registro->StdToaHra ?? '' }}"></td>
+                                <td class="px-3 py-2 border border-gray-300"><input id="DiasJornada-input" type="text" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800" value="{{ $registro->DiasJornada ?? '' }}"></td>
+                                <td class="px-3 py-2 border border-gray-300"><input id="HorasProd-input" type="text" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800" value="{{ $registro->HorasProd ?? '' }}"></td>
+                                <td class="px-3 py-2 border border-gray-300"><input id="StdHrsEfect-input" type="text" disabled class="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-gray-100 text-gray-800" value="{{ $registro->StdHrsEfect ?? '' }}"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Scripts modulares --}}
+<script src="{{ asset('js/programa-tejido/config.js') }}?v={{ time() }}"></script>
+<script src="{{ asset('js/programa-tejido/utils.js') }}?v={{ time() }}"></script>
+<script src="{{ asset('js/programa-tejido/calendario-manager.js') }}?v={{ time() }}"></script>
+<script src="{{ asset('js/programa-tejido/telar-manager.js') }}?v={{ time() }}"></script>
+<script src="{{ asset('js/programa-tejido/form-manager.js') }}?v={{ time() }}"></script>
+<script src="{{ asset('js/programa-tejido/crud-manager.js') }}?v={{ time() }}"></script>
+
 <script>
-// Helpers de fecha
-function parseDateFlexible(str) {
-    if (!str) return null;
-    let s = String(str).trim();
-    // Quitar milisegundos tipo .000
-    s = s.replace(/\.\d{3}$/,'');
-    // dd/mm/yyyy -> yyyy-mm-dd
-    if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) {
-        const [d,m,y] = s.split(/[\/\s]/);
-        // si hay hora después, conservarla
-        const time = s.split(' ')[1] || '00:00:00';
-        s = `${y}-${m}-${d}T${time}`;
-    }
-    // yyyy-mm-dd hh:mm:ss -> yyyy-mm-ddThh:mm:ss
-    if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/.test(s)) {
-        s = s.replace(' ', 'T');
-    }
-    // yyyy-mm-dd -> agregar hora por defecto
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-        s += 'T00:00:00';
-    }
-    const d = new Date(s);
-    if (isNaN(d.getTime())) return null;
-    return d;
-}
-function formatYmdHms(d) {
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+// Configuración específica de edición
+const registroId = @json($registro->Id ?? $registro->id ?? null);
+const registroData = @json($registro ?? null);
+const modeloCodificado = @json($modeloCodificado ?? null);
+
+if (modeloCodificado) {
+    window.datosModeloActual = modeloCodificado;
 }
 
-// Regla Calendario Tej3: ventana no laborable Sábado 18:29 -> Lunes 07:00
-function aplicarCalendarioTej3(dateObj) {
-    if (!(dateObj instanceof Date) || isNaN(dateObj)) return dateObj;
-
-    const d = new Date(dateObj.getTime());
-
-    // Calcular el rango no laborable de la semana donde cae d
-    const day = d.getDay(); // 0=Dom, 6=Sáb
-    // Obtener el sábado de esa semana a las 18:29:00
-    const sab = new Date(d.getTime());
-    const diffToSat = (6 - day + 7) % 7; // días hasta sábado
-    sab.setDate(d.getDate() + (day <= 6 ? -((day+1)%7) : 0));
-    // Reposicionar sab al sábado real de la semana del d
-    sab.setDate(d.getDate() - ((day + 1) % 7));
-    sab.setHours(18, 29, 0, 0);
-
-    // Lunes siguiente 07:00:00
-    const lun = new Date(sab.getTime());
-    lun.setDate(sab.getDate() + 2); // sábado -> lunes
-    lun.setHours(7, 0, 0, 0);
-
-    // Si d cae entre sábado 18:29 y lunes 07:00, empujar a lunes 07:00
-    if (d.getTime() >= sab.getTime() && d.getTime() < lun.getTime()) {
-        return lun;
-    }
-    return d;
-}
-
-// Sumar horas reales de trabajo según Calendario Tej3:
-// - Lunes a viernes: toda la jornada disponible
-// - Sábado: solo hasta 18:29
-// - Domingo: no laborable; continuar el lunes 07:00
-function sumarHorasTej3(startDate, horas) {
-    if (!(startDate instanceof Date) || isNaN(startDate)) return startDate;
-    let cur = new Date(startDate.getTime());
-    let remaining = Number(horas) || 0;
-    const msPerHour = 3600000;
-
-    // Helper para avanzar a lunes 07:00
-    const toMonday0700 = (d) => {
-        const day = d.getDay();
-        const diffToMon = (8 - day) % 7; // 1=Mon; si Sunday(0) -> +1
-        d = new Date(d.getTime());
-        d.setDate(d.getDate() + diffToMon);
-        d.setHours(7,0,0,0);
-        return d;
-    };
-
-    while (remaining > 0.0001) {
-        const day = cur.getDay(); // 0=Dom,6=Sab
-
-        // Si es domingo, saltar a lunes 07:00
-        if (day === 0) { cur = toMonday0700(cur); continue; }
-
-        // Si es sábado y ya pasó 18:29, saltar a lunes 07:00
-        if (day === 6) {
-            const sabEnd = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 18, 29, 0, 0);
-            if (cur.getTime() >= sabEnd.getTime()) { cur = toMonday0700(cur); continue; }
-            // ventana final de hoy
-            const availableHours = (sabEnd.getTime() - cur.getTime()) / msPerHour;
-            if (remaining <= availableHours) {
-                cur = new Date(cur.getTime() + remaining * msPerHour);
-                remaining = 0;
-            } else {
-                remaining -= availableHours;
-                cur = toMonday0700(cur); // siguiente ventana
-            }
-            continue;
-        }
-
-        // Lunes a Viernes: ventana hasta fin del día (23:59:59)
-        const endOfDay = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate()+1, 0, 0, 0, 0); // próximo día 00:00
-        let nextStart = new Date(endOfDay.getTime());
-        // Si mañana es domingo, saltar a lunes 07:00
-        if (nextStart.getDay() === 0) nextStart = toMonday0700(nextStart);
-        const availableHours = (endOfDay.getTime() - cur.getTime()) / msPerHour;
-
-        if (remaining <= availableHours) {
-            cur = new Date(cur.getTime() + remaining * msPerHour);
-            remaining = 0;
-        } else {
-            remaining -= availableHours;
-            cur = nextStart;
-        }
-    }
-
-    return cur;
-}
-
-// Recalcula FECHA FIN usando capacidad: horas = cantidad / (StdToaHra * EficienciaSTD)
+/**
+ * Calcular fecha final para modo edición
+ */
 function calcularFechaFinalFila(tr) {
     const cantidadEl = document.getElementById('cantidad-input');
     const inicioEl = document.getElementById('fecha-inicio-input');
@@ -147,286 +271,202 @@ function calcularFechaFinalFila(tr) {
     const inicioVal = (inicioEl.value || '').trim();
     const finOriginalVal = (finEl.getAttribute('data-original') || finEl.value || '').trim();
 
-    // Conservar la FECHA FIN original en data-original la primera vez
     if (!finEl.getAttribute('data-original') && finEl.value) {
         finEl.setAttribute('data-original', finEl.value);
     }
 
-    const dInicio = parseDateFlexible(inicioVal);
-    const dFinOriginal = parseDateFlexible(finOriginalVal);
+    const dInicio = ProgramaTejidoUtils.parseDateFlexible(inicioVal);
+    const dFinOriginal = ProgramaTejidoUtils.parseDateFlexible(finOriginalVal);
+
     if (!dInicio) return;
 
-    // Capacidad desde data-attrs
-    const row = tr || cantidadEl.closest('tr');
-    const stdToa = Number((row?.getAttribute('data-stdtoa')) || 0); // toallas/hora a 100%
-    let eficiencia = Number((row?.getAttribute('data-eficiencia')) || 1); // 0..1 o 0..100
-    if (eficiencia > 1) eficiencia = eficiencia / 100;
-
-    if (stdToa > 0 && eficiencia > 0) {
-        const horasNecesarias = Math.max(0, cantidadNueva) / (stdToa * eficiencia);
-        // Sumar horas considerando calendarios Tej3
-        const nuevoFin = sumarHorasTej3(dInicio, horasNecesarias);
-        finEl.value = formatYmdHms(nuevoFin);
-    } else if (dFinOriginal) {
-        // Fallback proporcional si no hay capacidad en datos
-        const cantidadOriginal = Number(cantidadEl.getAttribute('data-original') || cantidadEl.defaultValue || cantidadEl.value || 0);
-        const durMs = dFinOriginal.getTime() - dInicio.getTime();
-        if ((cantidadOriginal > 0) && (durMs >= 0)) {
-            const msPorPieza = durMs / cantidadOriginal;
-            const nuevaDurMs = msPorPieza * Math.max(0, cantidadNueva);
-            const horasProporcionales = nuevaDurMs / 3600000;
-            const nuevoFin = sumarHorasTej3(dInicio, horasProporcionales);
-            finEl.value = formatYmdHms(nuevoFin);
-        } else {
-            finEl.value = formatYmdHms(dInicio);
-        }
+    if (cantidadNueva === 0) {
+        finEl.value = ProgramaTejidoUtils.formatYmdHms(dInicio);
     } else {
-        finEl.value = formatYmdHms(dInicio);
+        const row = tr || cantidadEl.closest('tr');
+        const stdToa = Number((row?.getAttribute('data-stdtoa')) || 0);
+        let eficiencia = Number((row?.getAttribute('data-eficiencia')) || 1);
+        if (eficiencia > 1) eficiencia = eficiencia / 100;
+        const calendario = row?.getAttribute('data-calendario') || 'Calendario Tej1';
+
+        if (stdToa > 0 && eficiencia > 0) {
+            const horasNecesarias = cantidadNueva / (stdToa * eficiencia);
+            const nuevoFin = CalendarioManager.sumarHorasCalendario(dInicio, horasNecesarias, calendario);
+            finEl.value = ProgramaTejidoUtils.formatYmdHms(nuevoFin);
+        } else if (dFinOriginal) {
+            const cantidadOriginal = Number(cantidadEl.getAttribute('data-original') || cantidadEl.defaultValue || cantidadEl.value || 0);
+            const durMs = dFinOriginal.getTime() - dInicio.getTime();
+            if ((cantidadOriginal > 0) && (durMs >= 0)) {
+                const msPorPieza = durMs / cantidadOriginal;
+                const nuevaDurMs = msPorPieza * cantidadNueva;
+                const horasProporcionales = nuevaDurMs / 3600000;
+                const nuevoFin = CalendarioManager.sumarHorasCalendario(dInicio, horasProporcionales, calendario);
+                finEl.value = ProgramaTejidoUtils.formatYmdHms(nuevoFin);
+            } else {
+                finEl.value = ProgramaTejidoUtils.formatYmdHms(dInicio);
+            }
+        } else {
+            finEl.value = ProgramaTejidoUtils.formatYmdHms(dInicio);
+        }
     }
 
-    // Recalcular campos derivados con la nueva fecha fin
     try {
-        const finCalc = parseDateFlexible(finEl.value);
-        const horas = (finCalc && dInicio) ? Math.max(0, (finCalc.getTime() - dInicio.getTime()) / 3600000) : 0;
-        const dias = horas / 24; // DiasEficiencia en decimal
-        const row2 = tr || cantidadEl.closest('tr');
-        let stdToa100 = Number((row2?.getAttribute('data-stdtoa')) || 0);
-        let eficiencia = Number((row2?.getAttribute('data-eficiencia')) || 1);
-        if (eficiencia > 1) eficiencia = eficiencia / 100;
-        const pesoCrudo = Number((row2?.getAttribute('data-pesocrudo')) || 0);
-        const velocidadStd = Number((row2?.getAttribute('data-velocidadstd')) || 0);
-        const totalPedido = Number((row2?.getAttribute('data-totalpedido')) || 0);
-
-        // Si no hay StdToaHra base, derivarlo de los datos efectivos
-        if (!(stdToa100 > 0) && horas > 0) {
-            const toallasPorHoraEfect = totalPedido / horas; // efectivas observadas
-            stdToa100 = (eficiencia > 0) ? (toallasPorHoraEfect / eficiencia) : toallasPorHoraEfect;
+        const metrics = calcularMetricas(tr);
+        if (metrics) {
+            pintarMetricas(metrics);
         }
-
-        // Días Eficiencia como diferencia real entre fechas (en días decimales)
-        const diasEficiencia = dias; // ya calculado arriba
-        // Std/Día = StdToaHra * 24 (SIN eficiencia)
-        const stdDia = stdToa100 * 24;
-        // Std/Hr Efectivo = TotalPedido / (DiasEficiencia * 24)
-        const stdHrsEfect = (diasEficiencia > 0) ? (totalPedido / (diasEficiencia * 24)) : 0;
-        // Prod(Kg)/Día = StdDia * PesoCrudo / 1000
-        const prodKgDia = (stdDia * pesoCrudo) / 1000;
-        // Prod(Kg)/Día 2 = (PesoCrudo * StdHrsEfect * 24) / 1000
-        const prodKgDia2 = (pesoCrudo * stdHrsEfect * 24) / 1000;
-        const diasJornada = velocidadStd / 24;
-        const horasProd = (stdToa100>0 && eficiencia>0) ? (totalPedido / (stdToa100 * eficiencia)) : 0;
-
-        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = (Number.isFinite(val) ? val.toFixed(2) : ''); };
-        setVal('StdToaHra-input', stdToa100);
-        setVal('StdDia-input', stdDia);
-        setVal('ProdKgDia-input', prodKgDia);
-        setVal('ProdKgDia2-input', prodKgDia2);
-        setVal('StdHrsEfect-input', stdHrsEfect);
-        setVal('DiasJornada-input', diasJornada);
-        setVal('HorasProd-input', horasProd);
-        const elDE = document.getElementById('DiasEficiencia-input'); if (elDE) elDE.value = (Number.isFinite(diasEficiencia)? diasEficiencia.toFixed(2):'');
-    } catch (_) {}
+    } catch (err) {
+        console.error('Error en calcularFechaFinalFila:', err);
+    }
 }
 
-// Calcula las fórmulas actuales basadas en los valores de la UI y data-attrs
-function calcularFormulasActuales(tr) {
+/**
+ * Calcular métricas para el modo edición
+ */
+function calcularMetricas(tr) {
     const cantidadEl = document.getElementById('cantidad-input');
     const inicioEl = document.getElementById('fecha-inicio-input');
     const finEl = document.getElementById('fecha-fin-input');
     const row = tr || cantidadEl?.closest('tr');
 
-    const dInicio = parseDateFlexible(inicioEl?.value || '');
-    const dFin = parseDateFlexible(finEl?.value || '');
-    const horas = (dInicio && dFin) ? Math.max(0, (dFin.getTime() - dInicio.getTime()) / 3600000) : 0;
-    const dias = horas / 24; // DiasEficiencia en decimal
+    if (!cantidadEl || !inicioEl || !finEl || !row) return null;
 
-    let stdToa100 = Number((row?.getAttribute('data-stdtoa')) || 0);
-    let eficiencia = Number((row?.getAttribute('data-eficiencia')) || 1);
-    if (eficiencia > 1) eficiencia = eficiencia / 100;
-    const pesoCrudo = Number((row?.getAttribute('data-pesocrudo')) || 0);
-    const velocidadStd = Number((row?.getAttribute('data-velocidadstd')) || 0);
-    const totalPedido = Number((row?.getAttribute('data-totalpedido')) || 0);
+    const totalPedido = Number(cantidadEl.value || row.getAttribute('data-totalpedido') || 0);
+    const dInicio = ProgramaTejidoUtils.parseDateFlexible(inicioEl.value || '');
+    const dFin = ProgramaTejidoUtils.parseDateFlexible(finEl.value || '');
+
+    if (!(dInicio && dFin)) return null;
+
+    const calendario = row.getAttribute('data-calendario') || 'Calendario Tej1';
+    // DiasEficiencia: diferencia directa entre fechas (sin calendario laboral)
+    const diasEficiencia = (dFin - dInicio) / (1000 * 60 * 60 * 24);
+    // Horas para cálculos de calendario laboral
+    const horas = CalendarioManager.calcularHorasReales(dInicio, dFin, calendario);
+
+    let stdToa100 = Number(row.getAttribute('data-stdtoa') || 0);
+    let eficiencia = Number(row.getAttribute('data-eficiencia') || 1);
+    if (eficiencia > 1) eficiencia /= 100;
 
     if (!(stdToa100 > 0) && horas > 0) {
-        const toallasHoraEff = totalPedido / horas;
-        stdToa100 = (eficiencia > 0) ? (toallasHoraEff / eficiencia) : toallasHoraEff;
+        const toallasPorHora = totalPedido / horas;
+        stdToa100 = eficiencia > 0 ? toallasPorHora / eficiencia : toallasPorHora;
     }
 
-    // StdDia = StdToaHra * 24 (SIN eficiencia)
-    const stdDia = stdToa100 * 24;
-    // StdHrsEfect = TotalPedido / (DiasEficiencia * 24)
-    const stdHrsEfect = (dias > 0) ? (totalPedido / (dias * 24)) : 0;
-    // ProdKgDia = StdDia * PesoCrudo / 1000
+    const pesoCrudo = Number(modeloCodificado?.PesoCrudo || row.getAttribute('data-pesocrudo') || 0);
+    const velocidadStd = Number(row.getAttribute('data-velocidadstd') || 0);
+    const noTiras = Number(modeloCodificado?.NoTiras || row.getAttribute('data-notiras') || 0);
+    const total = Number(modeloCodificado?.Total || row.getAttribute('data-total') || 0);
+    const luchaje = Number(modeloCodificado?.Luchaje || row.getAttribute('data-luchaje') || 0);
+    const repeticiones = Number(modeloCodificado?.Repeticiones || row.getAttribute('data-repeticiones') || 0);
+
+    // Calcular StdToaHra según fórmula oficial de la imagen
+    let stdToaHra = 0;
+    if (noTiras > 0 && total > 0 && luchaje > 0 && repeticiones > 0 && velocidadStd > 0) {
+        const parte1 = total / 1;
+        const parte2 = ((luchaje * 0.5) / 0.0254) / repeticiones;
+        const denominador = (parte1 + parte2) / velocidadStd;
+        stdToaHra = (noTiras * 60) / denominador;
+    }
+
+    // Si ya existe StdToa100 del registro, usarlo
+    if (stdToa100 > 0) {
+        stdToaHra = stdToa100;
+    }
+
+    const stdDia = stdToaHra * eficiencia * 24;
+    // StdHrsEfect: (TotalPedido / DiasEficiencia) / 24
+    const stdHrsEfect = diasEficiencia > 0 ? (totalPedido / diasEficiencia) / 24 : 0;
+    // ProdKgDia: (StdDia * PesoCrudo) / 1000 según imagen
     const prodKgDia = (stdDia * pesoCrudo) / 1000;
-    // ProdKgDia2 = (PesoCrudo * StdHrsEfect * 24) / 1000
-    const prodKgDia2 = (pesoCrudo * stdHrsEfect * 24) / 1000;
+    // ProdKgDia2: ((PesoCrudo * StdHrsEfect) * 24) / 1000
+    const prodKgDia2 = ((pesoCrudo * stdHrsEfect) * 24) / 1000;
     const diasJornada = velocidadStd / 24;
-    const horasProd = (stdToa100>0 && eficiencia>0) ? (totalPedido / (stdToa100 * eficiencia)) : 0;
+    const horasProd = stdToaHra > 0 && eficiencia > 0 ? totalPedido / (stdToaHra * eficiencia) : 0;
 
     return {
-        dias_eficiencia: dias,
-        std_toa_hra: stdToa100,
-        std_dia: stdDia,
-        std_hrs_efect: stdHrsEfect,
+        dias_eficiencia: diasEficiencia,
         prod_kg_dia: prodKgDia,
+        std_dia: stdDia,
         prod_kg_dia2: prodKgDia2,
+        std_toa_hra: stdToaHra,
         dias_jornada: diasJornada,
         horas_prod: horasProd,
+        std_hrs_efect: stdHrsEfect,
     };
 }
 
-// Inicializar data-original al cargar
-document.addEventListener('DOMContentLoaded', () => {
+/**
+ * Pintar métricas en los campos correspondientes
+ */
+function pintarMetricas(metrics) {
+    const mapping = [
+        ['DiasEficiencia-input', metrics.dias_eficiencia],
+        ['ProdKgDia-input', metrics.prod_kg_dia],
+        ['StdDia-input', metrics.std_dia],
+        ['ProdKgDia2-input', metrics.prod_kg_dia2],
+        ['StdToaHra-input', metrics.std_toa_hra],
+        ['DiasJornada-input', metrics.dias_jornada],
+        ['HorasProd-input', metrics.horas_prod],
+        ['StdHrsEfect-input', metrics.std_hrs_efect],
+    ];
+
+    mapping.forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = Number.isFinite(val) ? Number(val).toFixed(2) : '';
+    });
+}
+
+/**
+ * Calcular las fórmulas actuales basadas en los valores de la UI
+ */
+function calcularFormulasActuales(tr) {
+    const metrics = calcularMetricas(tr);
+    return metrics || {
+        dias_eficiencia: NaN,
+        prod_kg_dia: NaN,
+        std_dia: NaN,
+        prod_kg_dia2: NaN,
+        std_toa_hra: NaN,
+        dias_jornada: NaN,
+        horas_prod: NaN,
+        std_hrs_efect: NaN,
+    };
+}
+
+window.calcularFechaFinalFila = calcularFechaFinalFila;
+window.calcularFormulasActuales = calcularFormulasActuales;
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (registroId) {
+        ProgramaTejidoForm.state.registroId = registroId;
+    }
+
     const finEl = document.getElementById('fecha-fin-input');
     const cantidadEl = document.getElementById('cantidad-input');
+
     if (finEl && finEl.value && !finEl.getAttribute('data-original')) {
         finEl.setAttribute('data-original', finEl.value);
     }
+
     if (cantidadEl && !cantidadEl.getAttribute('data-original')) {
         const orig = Number(cantidadEl.defaultValue || cantidadEl.value || 0);
         cantidadEl.setAttribute('data-original', String(orig));
     }
-    // Listeners para recalcular fórmulas
+
     const tr = cantidadEl ? cantidadEl.closest('tr') : null;
+
     if (cantidadEl) {
         cantidadEl.addEventListener('input', () => calcularFechaFinalFila(tr));
         cantidadEl.addEventListener('change', () => calcularFechaFinalFila(tr));
     }
+
     if (finEl) {
         finEl.addEventListener('change', () => calcularFechaFinalFila(tr));
     }
-    // Primer pintado
-    setTimeout(() => calcularFechaFinalFila(tr), 0);
+
+    ProgramaTejidoForm.init(true, registroData);
+    setTimeout(() => calcularFechaFinalFila(tr), 100);
 });
-
-async function actualizar() {
-    try {
-        const cantidadEl = document.getElementById('cantidad-input');
-        const cantidad = cantidadEl ? Number(cantidadEl.value || 0) : 0;
-        const finEl = document.getElementById('fecha-fin-input');
-        const fechaFin = finEl ? finEl.value : null;
-        const tr = cantidadEl ? cantidadEl.closest('tr') : null;
-        const f = calcularFormulasActuales(tr);
-        // Campos adicionales a actualizar (solo los NO deshabilitados en el form)
-        const nc1 = document.getElementById('nombre-color-1')?.value ?? null; // NombreCC1
-        const nc2 = document.getElementById('nombre-color-2')?.value ?? null; // NombreCC2
-        const nc3 = document.getElementById('nombre-color-3')?.value ?? null; // NombreCC3
-        const nc6 = document.getElementById('nombre-color-6')?.value ?? null; // NombreCC5
-        const c1  = document.getElementById('calibre-c1')?.value ?? null; // CalibreComb12
-        const c2  = document.getElementById('calibre-c2')?.value ?? null; // CalibreComb22
-        const c3  = document.getElementById('calibre-c3')?.value ?? null; // CalibreComb32
-        const c4  = document.getElementById('calibre-c4')?.value ?? null; // CalibreComb42
-        const c5  = document.getElementById('calibre-c5')?.value ?? null; // CalibreComb52
-        const ctr = document.getElementById('calibre-trama')?.value ?? null;   // CalibreTrama
-        const ftr = document.getElementById('hilo-trama')?.value ?? null;      // FibraTrama
-        const fc2 = document.getElementById('hilo-c2')?.value ?? null;         // FibraComb2
-        const fc4 = document.getElementById('hilo-c4')?.value ?? null;         // FibraComb4
-        const fc1 = document.getElementById('hilo-c1')?.value ?? null;         // FibraComb1
-        const fc3 = document.getElementById('hilo-c3')?.value ?? null;         // FibraComb3
-        const fc5 = document.getElementById('hilo-c5')?.value ?? null;         // FibraComb5
-        const cod1 = document.getElementById('cod-color-1')?.value ?? null;    // CodColorTrama
-        const cod2 = document.getElementById('cod-color-2')?.value ?? null;    // CodColorComb2
-        const cod3 = document.getElementById('cod-color-3')?.value ?? null;    // CodColorComb4
-        const cod4 = document.getElementById('cod-color-4')?.value ?? null;    // CodColorComb1
-        const cod5 = document.getElementById('cod-color-5')?.value ?? null;    // CodColorComb3
-        const cod6 = document.getElementById('cod-color-6')?.value ?? null;    // CodColorComb5
-
-        const id = {{ $registro->Id ?? $registro->id }};
-
-        const resp = await fetch(`/planeacion/programa-tejido/${encodeURIComponent(id)}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                cantidad,
-                fecha_fin: fechaFin,
-                // nombres color
-                nombre_color_1: nc1,
-                nombre_color_2: nc2,
-                nombre_color_3: nc3,
-                nombre_color_6: nc6,
-                // calibres
-                calibre_trama: ctr !== null && ctr !== '' ? Number(ctr) : null,
-                calibre_c1: c1 !== null && c1 !== '' ? Number(c1) : null,
-                calibre_c2: c2 !== null && c2 !== '' ? Number(c2) : null,
-                calibre_c3: c3 !== null && c3 !== '' ? Number(c3) : null,
-                calibre_c4: c4 !== null && c4 !== '' ? Number(c4) : null,
-                calibre_c5: c5 !== null && c5 !== '' ? Number(c5) : null,
-                // fibras
-                fibra_trama: ftr,
-                fibra_c1: fc1,
-                fibra_c2: fc2,
-                fibra_c3: fc3,
-                fibra_c4: fc4,
-                fibra_c5: fc5,
-                // codigos color
-                cod_color_1: cod1,
-                cod_color_2: cod2,
-                cod_color_3: cod3,
-                cod_color_4: cod4,
-                cod_color_5: cod5,
-                cod_color_6: cod6,
-                // fórmulas calculadas
-                dias_eficiencia: Number.isFinite(f.dias_eficiencia) ? Number(f.dias_eficiencia.toFixed(4)) : null,
-                std_toa_hra: Number.isFinite(f.std_toa_hra) ? Number(f.std_toa_hra.toFixed(4)) : null,
-                std_dia: Number.isFinite(f.std_dia) ? Number(f.std_dia.toFixed(4)) : null,
-                std_hrs_efect: Number.isFinite(f.std_hrs_efect) ? Number(f.std_hrs_efect.toFixed(4)) : null,
-                prod_kg_dia: Number.isFinite(f.prod_kg_dia) ? Number(f.prod_kg_dia.toFixed(4)) : null,
-                prod_kg_dia2: Number.isFinite(f.prod_kg_dia2) ? Number(f.prod_kg_dia2.toFixed(4)) : null,
-                dias_jornada: Number.isFinite(f.dias_jornada) ? Number(f.dias_jornada.toFixed(4)) : null,
-                horas_prod: Number.isFinite(f.horas_prod) ? Number(f.horas_prod.toFixed(4)) : null,
-            })
-        });
-
-        const data = await (resp.ok ? resp.json() : resp.text().then(t => { throw new Error(t || `HTTP ${resp.status}`); }));
-        if (!data.success) throw new Error(data.message || 'No se pudo actualizar');
-
-        // Reflejar cambios sin recargar
-        if (cantidadEl && data.data) {
-            const nuevo = (data.data.SaldoPedido ?? data.data.Produccion ?? cantidad);
-            cantidadEl.value = Number(nuevo);
-        }
-        if (data.data) {
-            if (document.getElementById('nombre-color-1') && 'NombreCC1' in data.data) document.getElementById('nombre-color-1').value = data.data.NombreCC1 ?? '';
-            if (document.getElementById('nombre-color-2') && 'NombreCC2' in data.data) document.getElementById('nombre-color-2').value = data.data.NombreCC2 ?? '';
-            if (document.getElementById('nombre-color-3') && 'NombreCC3' in data.data) document.getElementById('nombre-color-3').value = data.data.NombreCC3 ?? '';
-            if (document.getElementById('nombre-color-6') && 'NombreCC5' in data.data) document.getElementById('nombre-color-6').value = data.data.NombreCC5 ?? '';
-            if (document.getElementById('calibre-trama') && 'CalibreTrama' in data.data) document.getElementById('calibre-trama').value = data.data.CalibreTrama ?? '';
-            if (document.getElementById('calibre-c1') && 'CalibreComb12' in data.data) document.getElementById('calibre-c1').value = data.data.CalibreComb12 ?? '';
-            if (document.getElementById('calibre-c2') && 'CalibreComb22' in data.data) document.getElementById('calibre-c2').value = data.data.CalibreComb22 ?? '';
-            if (document.getElementById('calibre-c3') && 'CalibreComb32' in data.data) document.getElementById('calibre-c3').value = data.data.CalibreComb32 ?? '';
-            if (document.getElementById('calibre-c4') && 'CalibreComb42' in data.data) document.getElementById('calibre-c4').value = data.data.CalibreComb42 ?? '';
-            if (document.getElementById('calibre-c5') && 'CalibreComb52' in data.data) document.getElementById('calibre-c5').value = data.data.CalibreComb52 ?? '';
-            if (document.getElementById('hilo-trama') && 'FibraTrama' in data.data) document.getElementById('hilo-trama').value = data.data.FibraTrama ?? '';
-            if (document.getElementById('hilo-c1') && 'FibraComb1' in data.data) document.getElementById('hilo-c1').value = data.data.FibraComb1 ?? '';
-            if (document.getElementById('hilo-c2') && 'FibraComb2' in data.data) document.getElementById('hilo-c2').value = data.data.FibraComb2 ?? '';
-            if (document.getElementById('hilo-c3') && 'FibraComb3' in data.data) document.getElementById('hilo-c3').value = data.data.FibraComb3 ?? '';
-            if (document.getElementById('hilo-c4') && 'FibraComb4' in data.data) document.getElementById('hilo-c4').value = data.data.FibraComb4 ?? '';
-            if (document.getElementById('hilo-c5') && 'FibraComb5' in data.data) document.getElementById('hilo-c5').value = data.data.FibraComb5 ?? '';
-            if (document.getElementById('cod-color-1') && 'CodColorTrama' in data.data) document.getElementById('cod-color-1').value = data.data.CodColorTrama ?? '';
-            if (document.getElementById('cod-color-2') && 'CodColorComb2' in data.data) document.getElementById('cod-color-2').value = data.data.CodColorComb2 ?? '';
-            if (document.getElementById('cod-color-3') && 'CodColorComb4' in data.data) document.getElementById('cod-color-3').value = data.data.CodColorComb4 ?? '';
-            if (document.getElementById('cod-color-4') && 'CodColorComb1' in data.data) document.getElementById('cod-color-4').value = data.data.CodColorComb1 ?? '';
-            if (document.getElementById('cod-color-5') && 'CodColorComb3' in data.data) document.getElementById('cod-color-5').value = data.data.CodColorComb3 ?? '';
-            if (document.getElementById('cod-color-6') && 'CodColorComb5' in data.data) document.getElementById('cod-color-6').value = data.data.CodColorComb5 ?? '';
-        }
-        if (window.Swal) {
-            await Swal.fire({ icon:'success', title:'Actualizado correctamente', timer:1200, showConfirmButton:false });
-            // Repintar fórmulas después de guardar
-            calcularFechaFinalFila(tr);
-            window.location.href = '/planeacion/programa-tejido';
-        }
-    } catch (e) {
-        if (window.Swal) {
-            Swal.fire({ icon:'error', title:'No se pudo actualizar', text: (e && e.message) ? e.message : '' });
-        } else {
-            alert(e.message || 'No se pudo actualizar');
-        }
-    }
-}
 </script>
-
-
+@endsection

@@ -23,7 +23,14 @@ class ProgramaTejidoController extends Controller
     public function edit(int $id)
     {
         $registro = \App\Models\ReqProgramaTejido::findOrFail($id);
-        return view('modulos.programa-tejido-nuevo.edit', compact('registro'));
+
+        // Obtener datos de ReqModelosCodificados basado en TamanoClave
+        $modeloCodificado = null;
+        if ($registro->TamanoClave) {
+            $modeloCodificado = \App\Models\ReqModelosCodificados::where('TamanoClave', $registro->TamanoClave)->first();
+        }
+
+        return view('modulos.programa-tejido-nuevo.edit', compact('registro', 'modeloCodificado'));
     }
 
     public function update(\Illuminate\Http\Request $request, int $id)
@@ -93,6 +100,9 @@ class ProgramaTejidoController extends Controller
                 'Produccion_nuevo' => $registro->Produccion,
             ]);
         }
+
+        //  CAPTURAR VALOR ORIGINAL DE FECHAFINAL ANTES DE CUALQUIER CAMBIO
+        $fechaFinalOriginal = $registro->FechaFinal ? \Carbon\Carbon::parse($registro->FechaFinal) : null;
 
         // Actualizar FechaFinal si viene
         if (!empty($data['fecha_fin'] ?? null)) {
@@ -179,7 +189,64 @@ class ProgramaTejidoController extends Controller
         if (array_key_exists('cod_color_5', $data)) { $registro->CodColorComb3 = $data['cod_color_5']; }
         if (array_key_exists('cod_color_6', $data)) { $registro->CodColorComb5 = $data['cod_color_6']; }
 
+        // ✅ Actualizar FechaFinal si fue calculado en el frontend
+        $fechaFinalCambiada = false;
+        if (array_key_exists('fecha_fin', $data) && !empty($data['fecha_fin'])) {
+            $nuevaFechaFinal = \Carbon\Carbon::parse($data['fecha_fin']);
+
+            // Comparar con el valor ORIGINAL capturado antes de cualquier cambio
+            // Si no había valor original, o si cambió, marcar como cambiado
+            if (!$fechaFinalOriginal || !$fechaFinalOriginal->equalTo($nuevaFechaFinal)) {
+                $registro->FechaFinal = $nuevaFechaFinal;
+                $fechaFinalCambiada = true;
+                Log::info('UPDATE - FechaFinal cambió detectado', [
+                    'Id' => $registro->Id,
+                    'FechaFinal_original' => $fechaFinalOriginal ? $fechaFinalOriginal->format('Y-m-d H:i:s') : 'NULL',
+                    'FechaFinal_nueva' => $nuevaFechaFinal->format('Y-m-d H:i:s')
+                ]);
+            } else {
+                Log::info('UPDATE - FechaFinal SIN CAMBIO', [
+                    'Id' => $registro->Id,
+                    'FechaFinal' => $fechaFinalOriginal->format('Y-m-d H:i:s')
+                ]);
+            }
+        }
+
         $registro->save();
+
+        // ✅ CASCADING DE FECHAS: Si cambió FechaFinal, actualizar registros siguientes
+        $registrosCascadeados = [];
+        Log::info('UPDATE - Iniciando cascading', [
+            'Id' => $registro->Id,
+            'fecha_fin_recibida' => $data['fecha_fin'] ?? 'NO RECIBIDA',
+            'FechaFinal_actual' => $registro->FechaFinal,
+            'FechaFinal_cambio_detectado' => $fechaFinalCambiada
+        ]);
+
+        // Ejecutar cascading solo si FechaFinal fue realmente modificada
+        if ($fechaFinalCambiada && !empty($data['fecha_fin'])) {
+            try {
+                $registrosCascadeados = $this->cascadeFechas($registro);
+                Log::info('UPDATE - Cascading completado con éxito', [
+                    'Id' => $registro->Id,
+                    'registros_actualizados' => count($registrosCascadeados),
+                    'detalles' => $registrosCascadeados
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Error en cascading de fechas', [
+                    'Id' => $registro->Id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                // No detener la actualización si el cascading falla
+            }
+        } else {
+            Log::info('UPDATE - Cascading NO ejecutado', [
+                'Id' => $registro->Id,
+                'fecha_fin' => $data['fecha_fin'] ?? null,
+                'FechaFinal_cambio_detectado' => $fechaFinalCambiada
+            ]);
+        }
 
         // ✅ EL OBSERVER SE ENCARGA DE GENERAR LAS LÍNEAS AUTOMÁTICAMENTE
         // No duplicar la lógica aquí
@@ -187,6 +254,8 @@ class ProgramaTejidoController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Programa de tejido actualizado',
+            'cascaded_records' => count($registrosCascadeados),
+            'detalles' => $registrosCascadeados,
             'data' => [
                 'Id' => $registro->Id,
                 'SaldoPedido' => $registro->SaldoPedido,
@@ -301,6 +370,46 @@ class ProgramaTejidoController extends Controller
             foreach ($request->input('telares', []) as $fila) {
                 $noTelarId = $fila['no_telar_id'];
 
+                // ✅ DETECTAR CAMBIO DE HILO desde el registro anterior ANTES de actualizar Ultimo
+                // Si el telar tenía un registro anterior con diferente hilo,
+                // marcar CambioHilo = 1 EN EL REGISTRO ANTERIOR
+                $anterior = null;
+                $hayCambioHilo = false;
+                try {
+                    // Primero buscar registro con Ultimo = 1
+                    $anterior = ReqProgramaTejido::where('SalonTejidoId', $salon)
+                        ->where('NoTelarId', $noTelarId)
+                        ->where('Ultimo', 1)
+                        ->first();
+
+                    // Si no hay con Ultimo = 1, buscar el más reciente por ID
+                    if (!$anterior) {
+                        $anterior = ReqProgramaTejido::where('SalonTejidoId', $salon)
+                            ->where('NoTelarId', $noTelarId)
+                            ->orderBy('Id', 'desc')
+                            ->first();
+                    }
+
+                    if ($anterior && $anterior->FibraRizo !== $hilo && $anterior->FibraRizo !== null && $anterior->FibraRizo !== '') {
+                        // Marcar CambioHilo = 1 en el registro anterior
+                        $anterior->CambioHilo = 1;
+                        $anterior->save();
+                        $hayCambioHilo = true;
+                        Log::info('ProgramaTejido.store - Cambio de hilo detectado y marcado', [
+                            'Salon' => $salon,
+                            'Telar' => $noTelarId,
+                            'IdAnterior' => $anterior->Id,
+                            'HiloAnterior' => $anterior->FibraRizo,
+                            'HiloNuevo' => $hilo,
+                            'CambioHiloMarcado' => 1,
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('ProgramaTejido.store - Error al detectar cambio de hilo', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
                 // Quitar bandera Ultimo del registro anterior del mismo telar/salón
                 // Buscar registros con Ultimo = 1 o Ultimo = NULL (que indica último)
                 DB::statement("
@@ -323,34 +432,6 @@ class ProgramaTejidoController extends Controller
                 $nuevo->CalendarioId = $calendarioId;
                 $nuevo->AplicacionId = $aplicacionId;
 
-                // ✅ DETECTAR CAMBIO DE HILO desde el registro anterior
-                // Si el telar tenía un registro anterior Ultimo=1 con diferente hilo,
-                // marcar CambioHilo = 1 EN EL REGISTRO ANTERIOR (no en el nuevo)
-                try {
-                    $anterior = ReqProgramaTejido::where('SalonTejidoId', $salon)
-                        ->where('NoTelarId', $noTelarId)
-                        ->where('Ultimo', 1)
-                        ->first();
-
-                    if ($anterior && $anterior->FibraRizo !== $hilo) {
-                        // Marcar CambioHilo = 1 en el registro anterior
-                        $anterior->CambioHilo = 1;
-                        $anterior->save();
-                        Log::info('ProgramaTejido.store - Cambio de hilo detectado y marcado', [
-                            'Salon' => $salon,
-                            'Telar' => $noTelarId,
-                            'IdAnterior' => $anterior->Id,
-                            'HiloAnterior' => $anterior->FibraRizo,
-                            'HiloNuevo' => $hilo,
-                            'CambioHiloMarcado' => 1,
-                        ]);
-                    }
-                } catch (\Throwable $e) {
-                    Log::warning('ProgramaTejido.store - Error al detectar cambio de hilo', [
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-
                 // Fechas y cantidades (opcionales por ahora)
                 $nuevo->FechaInicio = $fila['fecha_inicio'] ?? null;
                 $nuevo->FechaFinal = $fila['fecha_final'] ?? null;
@@ -358,6 +439,15 @@ class ProgramaTejidoController extends Controller
                 $nuevo->EntregaCte = $fila['fecha_cliente'] ?? null;
                 $nuevo->EntregaPT = $fila['fecha_entrega'] ?? null;
                 $nuevo->TotalPedido = $fila['cantidad'] ?? null;
+
+                // CambioHilo: no establecer aquí, se maneja arriba con la detección del registro anterior
+                // Solo establecer CambioHilo = 0 por defecto
+                $nuevo->CambioHilo = 0;
+
+                // Maquina: usar el valor del payload principal si existe
+                if ($request->has('Maquina') && $request->input('Maquina') !== null) {
+                    $nuevo->Maquina = $request->input('Maquina');
+                }
 
                 // Campos que vienen del formulario y se deben guardar (solo los que existen en la tabla)
                 $camposFormulario = [
@@ -875,15 +965,19 @@ class ProgramaTejidoController extends Controller
                 return response()->json(['error' => 'SalonTejidoId y NoTelarId son requeridos'], 400);
             }
 
-            // Obtener la última fecha final del telar seleccionado
-            $ultimaFecha = ReqProgramaTejido::where('SalonTejidoId', $salonTejidoId)
+            // Obtener la última fecha final, hilo, maquina y ancho del telar seleccionado
+            $ultimoRegistro = ReqProgramaTejido::where('SalonTejidoId', $salonTejidoId)
                 ->where('NoTelarId', $noTelarId)
                 ->whereNotNull('FechaFinal')
                 ->orderBy('FechaFinal', 'desc')
-                ->value('FechaFinal');
+                ->select('FechaFinal', 'FibraTrama', 'Maquina', 'Ancho')
+                ->first();
 
             return response()->json([
-                'ultima_fecha_final' => $ultimaFecha
+                'ultima_fecha_final' => $ultimoRegistro ? $ultimoRegistro->FechaFinal : null,
+                'hilo' => $ultimoRegistro ? $ultimoRegistro->FibraTrama : null,
+                'maquina' => $ultimoRegistro ? $ultimoRegistro->Maquina : null,
+                'ancho' => $ultimoRegistro ? $ultimoRegistro->Ancho : null
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al obtener última fecha final: ' . $e->getMessage()], 500);
@@ -1113,5 +1207,363 @@ class ProgramaTejidoController extends Controller
         }
         // Suma horas y minutos con control de sábado
         return $this->sumarHorasSinDomingo($fecha, $horas, $minutos);
+    }
+
+    public function moveUp(Request $request, int $id)
+    {
+        $registro = ReqProgramaTejido::findOrFail($id);
+
+        try {
+            $resultado = $this->moverPrioridad($registro, 'up');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Prioridad incrementada',
+                'cascaded_records' => count($resultado['detalles']),
+                'detalles' => $resultado['detalles'],
+            ]);
+        } catch (\Throwable $e) {
+            $codigo = $e instanceof \RuntimeException ? 422 : 500;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $codigo);
+        }
+    }
+
+    public function moveDown(Request $request, int $id)
+    {
+        $registro = ReqProgramaTejido::findOrFail($id);
+
+        try {
+            $resultado = $this->moverPrioridad($registro, 'down');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Prioridad decrementada',
+                'cascaded_records' => count($resultado['detalles']),
+                'detalles' => $resultado['detalles'],
+            ]);
+        } catch (\Throwable $e) {
+            $codigo = $e instanceof \RuntimeException ? 422 : 500;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $codigo);
+        }
+    }
+
+    private function moverPrioridad(ReqProgramaTejido $registro, string $direccion): array
+    {
+        DB::beginTransaction();
+
+        try {
+            $salon = $registro->SalonTejidoId;
+            $telar = $registro->NoTelarId;
+
+            $registros = ReqProgramaTejido::where('SalonTejidoId', $salon)
+                ->where('NoTelarId', $telar)
+                ->orderBy('FechaInicio', 'asc')
+                ->lockForUpdate()
+                ->get();
+
+            if ($registros->count() < 2) {
+                throw new \RuntimeException('Se requieren al menos dos registros para reordenar la prioridad.');
+            }
+
+            $indiceActual = $registros->search(fn ($item) => $item->Id === $registro->Id);
+            if ($indiceActual === false) {
+                throw new \RuntimeException('No se encontró el registro a reordenar dentro del telar.');
+            }
+
+            $indiceDestino = $direccion === 'up' ? $indiceActual - 1 : $indiceActual + 1;
+            if ($indiceDestino < 0) {
+                throw new \RuntimeException('Este registro ya es el primero en la secuencia.');
+            }
+            if ($indiceDestino >= $registros->count()) {
+                throw new \RuntimeException('Este registro ya es el último en la secuencia.');
+            }
+
+            $datos = [];
+            foreach ($registros as $item) {
+                $inicio = $item->FechaInicio ? \Carbon\Carbon::parse($item->FechaInicio) : null;
+                $fin = $item->FechaFinal ? \Carbon\Carbon::parse($item->FechaFinal) : null;
+                $duracion = null;
+
+                if ($inicio && $fin) {
+                    $duracion = $inicio->diffInSeconds($fin, false);
+                    if ($duracion < 0) {
+                        $duracion = 0;
+                    }
+                }
+
+                $datos[] = [
+                    'model' => $item,
+                    'inicio' => $inicio,
+                    'fin' => $fin,
+                    'duracion' => $duracion,
+                ];
+            }
+
+            $primerInicio = $datos[0]['inicio'] ? $datos[0]['inicio']->copy() : null;
+
+            $temp = $datos[$indiceActual];
+            $datos[$indiceActual] = $datos[$indiceDestino];
+            $datos[$indiceDestino] = $temp;
+
+            $indiceRecalculo = min($indiceActual, $indiceDestino);
+
+            if ($indiceRecalculo > 0 && !$datos[$indiceRecalculo - 1]['fin']) {
+                throw new \RuntimeException('El registro anterior no tiene FechaFinal definida; no se puede recalcular la secuencia.');
+            }
+
+            foreach (array_slice($datos, $indiceRecalculo) as $segmento) {
+                if (!$segmento['inicio'] || !$segmento['fin']) {
+                    throw new \RuntimeException('Existen registros sin fechas completas. Complete FechaInicio y FechaFinal antes de cambiar la prioridad.');
+                }
+            }
+
+            $detalles = [];
+            $total = count($datos);
+
+            for ($i = $indiceRecalculo; $i < $total; $i++) {
+                $segmento =& $datos[$i];
+                $modelo = $segmento['model'];
+
+                $inicioAnterior = $segmento['inicio'] ? $segmento['inicio']->copy()->format('Y-m-d H:i:s') : null;
+                $finAnterior = $segmento['fin'] ? $segmento['fin']->copy()->format('Y-m-d H:i:s') : null;
+
+                if ($i === 0) {
+                    $nuevoInicio = $primerInicio ? $primerInicio->copy() : ($segmento['inicio'] ? $segmento['inicio']->copy() : null);
+                } else {
+                    $prevFin = $datos[$i - 1]['fin'];
+                    $nuevoInicio = $prevFin ? $prevFin->copy() : null;
+                    if (!$nuevoInicio && $segmento['inicio']) {
+                        $nuevoInicio = $segmento['inicio']->copy();
+                    }
+                }
+
+                $nuevoFin = null;
+                if ($nuevoInicio && $segmento['duracion'] !== null) {
+                    $nuevoFin = $nuevoInicio->copy()->addSeconds($segmento['duracion']);
+                } elseif ($segmento['fin']) {
+                    $nuevoFin = $segmento['fin']->copy();
+                }
+
+                $segmento['inicio'] = $nuevoInicio ? $nuevoInicio->copy() : null;
+                $segmento['fin'] = $nuevoFin ? $nuevoFin->copy() : null;
+
+                $modelo->FechaInicio = $segmento['inicio'] ? $segmento['inicio']->format('Y-m-d H:i:s') : null;
+                $modelo->FechaFinal = $segmento['fin'] ? $segmento['fin']->format('Y-m-d H:i:s') : null;
+                $modelo->Ultimo = ($i === $total - 1) ? 1 : 0;
+                $modelo->UpdatedAt = now();
+                $modelo->save();
+
+                $datos[$i]['fin'] = $segmento['fin'];
+
+                if ($inicioAnterior !== $modelo->FechaInicio || $finAnterior !== $modelo->FechaFinal) {
+                    $detalles[] = [
+                        'Id' => $modelo->Id,
+                        'NoTelar' => $modelo->NoTelarId,
+                        'FechaInicio_anterior' => $inicioAnterior,
+                        'FechaInicio_nueva' => $modelo->FechaInicio,
+                        'FechaFinal_anterior' => $finAnterior,
+                        'FechaFinal_nueva' => $modelo->FechaFinal,
+                    ];
+                }
+            }
+
+            DB::commit();
+
+            Log::info('ProgramaTejido.moverPrioridad - Reordenamiento exitoso', [
+                'RegistroId' => $registro->Id,
+                'Salon' => $salon,
+                'Telar' => $telar,
+                'Direccion' => $direccion,
+                'detalles' => $detalles,
+            ]);
+
+            return ['detalles' => $detalles];
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            Log::error('ProgramaTejido.moverPrioridad - Error en reordenamiento', [
+                'RegistroId' => $registro->Id ?? null,
+                'Direccion' => $direccion,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * CASCADING DE FECHAS (Mejorado v2)
+     * Cuando se actualiza FechaFinal de un registro, todos los registros posteriores
+     * del mismo telar se recorren automáticamente.
+     *
+     * Regla: fecha_inicio[N] = fecha_fin[N-1]
+     * Se preserva la duración original de cada registro.
+     *
+     * Este método maneja:
+     * - Registros intermedios (no solo el último)
+     * - Fechas NULL o incompletas
+     * - Rollback automático en caso de error
+     * - Actualización correcta de fechas en cascada
+     */
+    private function cascadeFechas($registroActualizado)
+    {
+        DB::beginTransaction();
+        try {
+            $salonTejidoId = $registroActualizado->SalonTejidoId;
+            $noTelarId = $registroActualizado->NoTelarId;
+            $nuevaFechaFin = \Carbon\Carbon::parse($registroActualizado->FechaFinal);
+
+            Log::info('cascadeFechas - Iniciando cascading', [
+                'Id' => $registroActualizado->Id,
+                'SalonTejidoId' => $salonTejidoId,
+                'NoTelarId' => $noTelarId,
+                'Nueva_FechaFinal' => $nuevaFechaFin->format('Y-m-d H:i:s')
+            ]);
+
+            //  Obtener TODOS los registros del mismo telar/salón ordenados por FechaInicio
+            // SIN lockForUpdate (será liberado después del commit de esta función)
+            $todosRegistros = ReqProgramaTejido::where('SalonTejidoId', $salonTejidoId)
+                ->where('NoTelarId', $noTelarId)
+                ->orderBy('FechaInicio', 'asc')
+                ->get()
+                ->all(); // Convertir a array para mejor manejo
+
+            if (empty($todosRegistros)) {
+                Log::info('cascadeFechas - No hay registros para cascading', [
+                    'salon' => $salonTejidoId,
+                    'telar' => $noTelarId
+                ]);
+                DB::commit();
+                return [];
+            }
+
+            //  Encontrar el índice del registro actualizado
+            $indiceActual = null;
+            foreach ($todosRegistros as $idx => $reg) {
+                if ($reg->Id === $registroActualizado->Id) {
+                    $indiceActual = $idx;
+                    break;
+                }
+            }
+
+            if ($indiceActual === null) {
+                Log::warning('cascadeFechas - Registro actualizado no encontrado', [
+                    'id' => $registroActualizado->Id,
+                    'salon' => $salonTejidoId,
+                    'telar' => $noTelarId
+                ]);
+                DB::commit();
+                return [];
+            }
+
+            $registrosCascadeados = [];
+            $registrosActualizados = 0;
+
+            // Variable para rastrear la FechaFinal del registro anterior cascadeado
+            $fechaFinAnterior = $nuevaFechaFin;
+
+            // ✅ CASCADA: Iterar sobre registros POSTERIORES
+            for ($i = $indiceActual + 1; $i < count($todosRegistros); $i++) {
+                $registroSiguiente = $todosRegistros[$i];
+
+                // Obtener fechas originales
+                $fechaInicioOriginal = $registroSiguiente->FechaInicio;
+                $fechaFinalOriginal = $registroSiguiente->FechaFinal;
+
+                // ✅ Saltar registros sin fechas válidas
+                if (!$fechaInicioOriginal || !$fechaFinalOriginal) {
+                    Log::warning('cascadeFechas - Registro saltado (sin fechas)', [
+                        'id' => $registroSiguiente->Id,
+                        'FechaInicio' => $fechaInicioOriginal,
+                        'FechaFinal' => $fechaFinalOriginal
+                    ]);
+                    continue;
+                }
+
+                try {
+                    // Calcular duración original (preservar para mantener calendarios)
+                    $dInicio = \Carbon\Carbon::parse($fechaInicioOriginal);
+                    $dFinal = \Carbon\Carbon::parse($fechaFinalOriginal);
+                    $duracion = $dInicio->diff($dFinal);
+
+                    // ✅ Nueva FechaInicio = FechaFinal del registro anterior cascadeado
+                    $nuevoInicio = clone $fechaFinAnterior;
+
+                    // Aplicar la duración original
+                    $nuevoFin = (clone $nuevoInicio)->add($duracion);
+
+                    // ✅ Actualizar el registro en BD directamente con query (no usar ORM para evitar locks)
+                    ReqProgramaTejido::where('Id', $registroSiguiente->Id)
+                        ->update([
+                            'FechaInicio' => $nuevoInicio->format('Y-m-d H:i:s'),
+                            'FechaFinal' => $nuevoFin->format('Y-m-d H:i:s'),
+                        ]);
+
+                    $registrosActualizados++;
+
+                    // Actualizar la referencia de fechaFinAnterior para el siguiente registro
+                    $fechaFinAnterior = $nuevoFin;
+
+                    // Registrar en el array de cascadeados
+                    $registrosCascadeados[] = [
+                        'Id' => $registroSiguiente->Id,
+                        'NoTelar' => $registroSiguiente->NoTelarId,
+                        'FechaInicio_anterior' => $fechaInicioOriginal,
+                        'FechaInicio_nueva' => $nuevoInicio->format('Y-m-d H:i:s'),
+                        'FechaFinal_anterior' => $fechaFinalOriginal,
+                        'FechaFinal_nueva' => $nuevoFin->format('Y-m-d H:i:s'),
+                        'Duracion_dias' => $duracion->days,
+                        'Duracion_horas' => $duracion->h,
+                        'Duracion_minutos' => $duracion->i
+                    ];
+
+                    Log::info('cascadeFechas - Registro cascadeado exitosamente', [
+                        'Id' => $registroSiguiente->Id,
+                        'NoTelar' => $noTelarId,
+                        'FechaInicio_anterior' => $fechaInicioOriginal,
+                        'FechaInicio_nueva' => $nuevoInicio->format('Y-m-d H:i:s'),
+                        'FechaFinal_anterior' => $fechaFinalOriginal,
+                        'FechaFinal_nueva' => $nuevoFin->format('Y-m-d H:i:s')
+                    ]);
+
+                } catch (\Throwable $e) {
+                    Log::error('cascadeFechas - Error al procesar registro individual', [
+                        'Id' => $registroSiguiente->Id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    // Continuar con el siguiente en lugar de fallar completamente
+                    continue;
+                }
+            }
+
+            // ✅ Confirmar transacción
+            DB::commit();
+
+            Log::info('cascadeFechas - Cascading completado', [
+                'salon' => $salonTejidoId,
+                'telar' => $noTelarId,
+                'registrosActualizados' => $registrosActualizados,
+                'detalles' => $registrosCascadeados
+            ]);
+
+            return $registrosCascadeados;
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('cascadeFechas - Error crítico durante cascading', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'id' => $registroActualizado->Id ?? 'UNKNOWN'
+            ]);
+            // Relanzar excepción pero con rollback realizado
+            throw $e;
+        }
     }
 }
