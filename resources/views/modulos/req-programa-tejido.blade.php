@@ -3,8 +3,14 @@
 @section('page-title', 'Programa de Tejido')
 
 @section('navbar-right')
+<a href="{{ route('programa-tejido.altas-especiales') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 mr-2" title="Altas Especiales">
+    Altas Especiales
+</a>
 <button id="btn-editar-programa" type="button" class="inline-flex items-center justify-center w-9 h-9 text-base rounded-full text-white bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar" aria-label="Editar" disabled>
     <i class="fa-solid fa-pen-to-square"></i>
+</button>
+<button id="btn-eliminar-programa" type="button" class="inline-flex items-center justify-center w-9 h-9 text-base rounded-full text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed ml-2" title="Eliminar" aria-label="Eliminar" disabled>
+    <i class="fa-solid fa-trash"></i>
 </button>
 @endsection
 
@@ -127,7 +133,10 @@
 			}
 
 			if ($field === 'EficienciaSTD' && is_numeric($value)) {
-				return rtrim(rtrim(number_format(((float)$value) * 100, 0), '0'), '.') . '%';
+				// Convertir a porcentaje: 0.8 = 80%, 0.78 = 78%
+				$porcentaje = (float)$value * 100;
+				// Redondear a entero para mostrar sin decimales
+				return round($porcentaje) . '%';
 			}
 
 			// Campos fecha conocidos (usa claves, no labels)
@@ -404,6 +413,12 @@ function resetFilters() {
 	if (rpc) rpc.classList.add('hidden');
 
 	selectedRowIndex = -1;
+
+	// Deshabilitar botones
+	const btnEditar = document.getElementById('btn-editar-programa');
+	if (btnEditar) btnEditar.disabled = true;
+	const btnEliminar = document.getElementById('btn-eliminar-programa');
+	if (btnEliminar) btnEliminar.disabled = true;
 
 	showToast('Restablecido<br>Se limpiaron filtros, fijados y columnas ocultas', 'success');
 }
@@ -777,9 +792,17 @@ function selectRow(rowElement, rowIndex) {
         window.loadReqProgramaTejidoLines({ programa_id: id });
     }
 
-    // Habilitar botón editar
+    // Habilitar botones editar y eliminar
     const btnEditar = document.getElementById('btn-editar-programa');
     if (btnEditar) btnEditar.disabled = false;
+
+    const btnEliminar = document.getElementById('btn-eliminar-programa');
+    if (btnEliminar) {
+        // Verificar si el registro está en proceso
+        const enProceso = rowElement.querySelector('[data-column="EnProceso"]');
+        const estaEnProceso = enProceso && enProceso.querySelector('input[type="checkbox"]')?.checked;
+        btnEliminar.disabled = estaEnProceso;
+    }
 }
 
 function deselectRow() {
@@ -796,29 +819,201 @@ function deselectRow() {
 	if (rpc) rpc.classList.add('hidden');
 }
 
+// Función para mostrar/ocultar loading rápido
+function showLoading() {
+	let loader = document.getElementById('priority-loader');
+	if (!loader) {
+		loader = document.createElement('div');
+		loader.id = 'priority-loader';
+		loader.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center;';
+		loader.innerHTML = '<div style="background:white;padding:20px;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);"><div style="width:40px;height:40px;border:4px solid #e5e7eb;border-top-color:#3b82f6;border-radius:50%;animation:spin 0.6s linear infinite;"></div><style>@keyframes spin{to{transform:rotate(360deg);}}</style></div>';
+		document.body.appendChild(loader);
+	} else {
+		loader.style.display = 'flex';
+	}
+}
+
+function hideLoading() {
+	const loader = document.getElementById('priority-loader');
+	if (loader) loader.style.display = 'none';
+}
+
 function moveRowUp() {
 	const tb = tbodyEl();
-	if (selectedRowIndex <= 0) return;
+	if (selectedRowIndex <= 0) {
+		showToast('No se puede subir<br>El registro ya es el primero', 'error');
+		return;
+	}
 	const rows = $$('.selectable-row', tb);
-	tb.insertBefore(rows[selectedRowIndex], rows[selectedRowIndex - 1]);
-        selectedRowIndex--;
-	selectRow($$('.selectable-row', tb)[selectedRowIndex], selectedRowIndex);
-	showToast('Fila movida<br>Se movió hacia arriba', 'success');
+	const selectedRow = rows[selectedRowIndex];
+	const id = selectedRow.getAttribute('data-id');
+
+	if (!id) {
+		showToast('Error<br>No se pudo obtener el ID del registro', 'error');
+		return;
+	}
+
+	// Mostrar loading rápido
+	showLoading();
+
+	// Ejecutar directamente sin confirmación
+	fetch(`/planeacion/programa-tejido/${id}/prioridad/subir`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+		}
+	})
+	.then(response => response.json())
+	.then(data => {
+		hideLoading();
+		if (data.success) {
+			// Guardar el ID del registro movido en sessionStorage para después de recargar
+			if (data.registro_id) {
+				sessionStorage.setItem('scrollToRegistroId', data.registro_id);
+				sessionStorage.setItem('selectRegistroId', data.registro_id);
+			}
+			// Guardar mensaje de éxito para mostrar después de recargar
+			sessionStorage.setItem('priorityChangeMessage', 'Prioridad actualizada correctamente');
+			sessionStorage.setItem('priorityChangeType', 'success');
+			// Recargar la página para mostrar los cambios
+			window.location.href = '/planeacion/programa-tejido';
+		} else {
+			showToast(data.message || 'No se pudo actualizar la prioridad', 'error');
+		}
+	})
+	.catch(error => {
+		hideLoading();
+		console.error('Error:', error);
+		showToast('Ocurrió un error al procesar la solicitud', 'error');
+	});
 }
 
 function moveRowDown() {
 	const tb = tbodyEl();
 	const rows = $$('.selectable-row', tb);
-	if (selectedRowIndex < 0 || selectedRowIndex >= rows.length - 1) return;
-	tb.insertBefore(rows[selectedRowIndex + 1], rows[selectedRowIndex]);
-        selectedRowIndex++;
-	selectRow($$('.selectable-row', tb)[selectedRowIndex], selectedRowIndex);
-	showToast('Fila movida<br>Se movió hacia abajo', 'success');
+	if (selectedRowIndex < 0 || selectedRowIndex >= rows.length - 1) {
+		showToast('No se puede bajar<br>El registro ya es el último', 'error');
+		return;
+	}
+	const selectedRow = rows[selectedRowIndex];
+	const id = selectedRow.getAttribute('data-id');
+
+	if (!id) {
+		showToast('Error<br>No se pudo obtener el ID del registro', 'error');
+		return;
+	}
+
+	// Mostrar loading rápido
+	showLoading();
+
+	// Ejecutar directamente sin confirmación
+	fetch(`/planeacion/programa-tejido/${id}/prioridad/bajar`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+		}
+	})
+	.then(response => response.json())
+	.then(data => {
+		hideLoading();
+		if (data.success) {
+			// Guardar el ID del registro movido en sessionStorage para después de recargar
+			if (data.registro_id) {
+				sessionStorage.setItem('scrollToRegistroId', data.registro_id);
+				sessionStorage.setItem('selectRegistroId', data.registro_id);
+			}
+			// Guardar mensaje de éxito para mostrar después de recargar
+			sessionStorage.setItem('priorityChangeMessage', 'Prioridad actualizada correctamente');
+			sessionStorage.setItem('priorityChangeType', 'success');
+			// Recargar la página para mostrar los cambios
+			window.location.href = '/planeacion/programa-tejido';
+		} else {
+			showToast(data.message || 'No se pudo actualizar la prioridad', 'error');
+		}
+	})
+	.catch(error => {
+		hideLoading();
+		console.error('Error:', error);
+		showToast('Ocurrió un error al procesar la solicitud', 'error');
+	});
 }
 
 // ===== Función para abrir nuevo registro =====
 function abrirNuevo() {
 	window.location.href = '/planeacion/programa-tejido/nuevo';
+}
+
+// ===== Función para eliminar registro =====
+function eliminarRegistro(id) {
+	// Confirmar eliminación
+	if (typeof Swal !== 'undefined') {
+		Swal.fire({
+			title: '¿Eliminar registro?',
+			icon: 'warning',
+			showCancelButton: true,
+			confirmButtonText: 'Sí, eliminar',
+			cancelButtonText: 'Cancelar',
+			confirmButtonColor: '#dc2626',
+			cancelButtonColor: '#6b7280',
+		}).then((result) => {
+			if (result.isConfirmed) {
+				// Mostrar loading
+				showLoading();
+
+				fetch(`/planeacion/programa-tejido/${id}`, {
+					method: 'DELETE',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+					}
+				})
+				.then(response => response.json())
+				.then(data => {
+					hideLoading();
+					if (data.success) {
+						// Guardar mensaje de éxito para mostrar después de recargar
+						sessionStorage.setItem('priorityChangeMessage', 'Registro eliminado correctamente');
+						sessionStorage.setItem('priorityChangeType', 'success');
+						// Recargar la página para mostrar los cambios
+						window.location.href = '/planeacion/programa-tejido';
+					} else {
+						showToast(data.message || 'No se pudo eliminar el registro', 'error');
+					}
+				})
+				.catch(error => {
+					hideLoading();
+					console.error('Error:', error);
+					showToast('Ocurrió un error al procesar la solicitud', 'error');
+				});
+			}
+		});
+	} else {
+		// Fallback si no hay SweetAlert
+		if (!confirm('¿Eliminar registro? Esta acción no se puede deshacer.')) {
+			return;
+		}
+		showLoading();
+		fetch(`/planeacion/programa-tejido/${id}`, {
+			method: 'DELETE',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+			}
+		})
+		.then(response => response.json())
+		.then(data => {
+			hideLoading();
+			if (data.success) {
+				sessionStorage.setItem('priorityChangeMessage', 'Registro eliminado correctamente');
+				sessionStorage.setItem('priorityChangeType', 'success');
+				window.location.href = '/planeacion/programa-tejido';
+			} else {
+				showToast(data.message || 'No se pudo eliminar el registro', 'error');
+			}
+		});
+	}
 }
 
 // ===== Init =====
@@ -840,6 +1035,65 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = `/planeacion/programa-tejido/${encodeURIComponent(id)}/editar`;
         });
     }
+
+    const btnEliminar = document.getElementById('btn-eliminar-programa');
+    if (btnEliminar) {
+        btnEliminar.addEventListener('click', () => {
+            const selected = $$('.selectable-row')[selectedRowIndex];
+            const id = selected ? selected.getAttribute('data-id') : null;
+            if (!id) return;
+            eliminarRegistro(id);
+        });
+    }
+
+	// ===== Restaurar selección después de recargar (después de mover prioridad) =====
+	const registroIdToSelect = sessionStorage.getItem('selectRegistroId');
+	const registroIdToScroll = sessionStorage.getItem('scrollToRegistroId');
+	const priorityChangeMessage = sessionStorage.getItem('priorityChangeMessage');
+	const priorityChangeType = sessionStorage.getItem('priorityChangeType');
+
+	if (registroIdToSelect || registroIdToScroll) {
+		// Esperar un poco para que el DOM esté completamente cargado
+		setTimeout(() => {
+			const rows = $$('.selectable-row', tb);
+			let targetRow = null;
+			let targetIndex = -1;
+
+			// Buscar el registro por ID
+			rows.forEach((row, index) => {
+				const rowId = row.getAttribute('data-id');
+				if (rowId && (rowId === registroIdToSelect || rowId === registroIdToScroll)) {
+					targetRow = row;
+					targetIndex = index;
+				}
+			});
+
+			if (targetRow && targetIndex >= 0) {
+				// Seleccionar la fila
+				selectRow(targetRow, targetIndex);
+
+				// Desplazar la vista hacia la fila
+				targetRow.scrollIntoView({
+					behavior: 'smooth',
+					block: 'center',
+					inline: 'nearest'
+				});
+
+				// Limpiar sessionStorage
+				sessionStorage.removeItem('selectRegistroId');
+				sessionStorage.removeItem('scrollToRegistroId');
+			}
+		}, 300); // Pequeño delay para asegurar que todo esté renderizado
+	}
+
+	// Mostrar notificación después de recargar si hay un mensaje guardado
+	if (priorityChangeMessage) {
+		setTimeout(() => {
+			showToast(priorityChangeMessage, priorityChangeType || 'success');
+			sessionStorage.removeItem('priorityChangeMessage');
+			sessionStorage.removeItem('priorityChangeType');
+		}, 500); // Pequeño delay para que el DOM esté listo
+	}
 });
 
 // === Integración con modal de filtros compacto del layout ===

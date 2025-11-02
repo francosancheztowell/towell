@@ -359,7 +359,10 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('planeacion')->name('planeacion.')->group(function () {
         // Submódulos de Planeación
         Route::get('/programa-tejido', function() {
-            $registros = \App\Models\ReqProgramaTejido::orderBy('NoTelarId')->get();
+            $registros = \App\Models\ReqProgramaTejido::orderBy('SalonTejidoId')
+                ->orderBy('NoTelarId')
+                ->orderBy('FechaInicio', 'asc')
+                ->get();
             return view('modulos.req-programa-tejido', compact('registros'));
         })->name('catalogos.req-programa-tejido');
 
@@ -526,15 +529,15 @@ Route::middleware(['auth'])->group(function () {
 
     // Rutas directas de catálogos
     Route::get('/planeacion/programa-tejido', function() {
-        $registros = \App\Models\ReqProgramaTejido::orderBy('NoTelarId')->get();
+        $registros = \App\Models\ReqProgramaTejido::orderBy('SalonTejidoId')
+            ->orderBy('NoTelarId')
+            ->orderBy('FechaInicio', 'asc')
+            ->get();
         return view('modulos.req-programa-tejido', compact('registros'));
     })->name('catalogos.req-programa-tejido');
 
-        // Altas especiales (placeholder)
-        Route::get('/planeacion/programa-tejido/altas-especiales', function(\Illuminate\Http\Request $request) {
-            $prop = $request->query('prop');
-            return view('modulos.altas-especiales', compact('prop'));
-        })->name('programa-tejido.altas-especiales');
+        // Altas especiales
+        Route::get('/planeacion/programa-tejido/altas-especiales', [\App\Http\Controllers\ComprasEspecialesController::class, 'index'])->name('programa-tejido.altas-especiales');
 
         // Nueva ruta para crear/editar programa de tejido
         Route::get('/planeacion/programa-tejido/nuevo', function() {
@@ -545,6 +548,7 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'update'])->name('programa-tejido.update');
     Route::post('/planeacion/programa-tejido/{id}/prioridad/subir', [ProgramaTejidoController::class, 'moveUp'])->name('programa-tejido.prioridad.subir');
     Route::post('/planeacion/programa-tejido/{id}/prioridad/bajar', [ProgramaTejidoController::class, 'moveDown'])->name('programa-tejido.prioridad.bajar');
+    Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'destroy'])->name('programa-tejido.destroy');
         // JSON: ReqProgramaTejidoLine dentro de planeación
         Route::get('/planeacion/req-programa-tejido-line', [\App\Http\Controllers\ReqProgramaTejidoLineController::class, 'index']);
 

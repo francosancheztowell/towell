@@ -288,3 +288,5 @@ window.CalendarioManager = {
         return Math.max(0, totalHoras);
     }
 };
+
+

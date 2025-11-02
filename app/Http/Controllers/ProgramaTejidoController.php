@@ -1221,6 +1221,8 @@ class ProgramaTejidoController extends Controller
                 'message' => 'Prioridad incrementada',
                 'cascaded_records' => count($resultado['detalles']),
                 'detalles' => $resultado['detalles'],
+                'registro_id' => $registro->Id,
+                'direccion' => 'up',
             ]);
         } catch (\Throwable $e) {
             $codigo = $e instanceof \RuntimeException ? 422 : 500;
@@ -1243,8 +1245,183 @@ class ProgramaTejidoController extends Controller
                 'message' => 'Prioridad decrementada',
                 'cascaded_records' => count($resultado['detalles']),
                 'detalles' => $resultado['detalles'],
+                'registro_id' => $registro->Id,
+                'direccion' => 'down',
             ]);
         } catch (\Throwable $e) {
+            $codigo = $e instanceof \RuntimeException ? 422 : 500;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $codigo);
+        }
+    }
+
+    public function destroy(int $id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $registro = ReqProgramaTejido::findOrFail($id);
+
+            // Verificar si el registro está en proceso
+            if ($registro->EnProceso == 1) {
+                throw new \RuntimeException('No se puede eliminar un registro que está en proceso.');
+            }
+
+            $salon = $registro->SalonTejidoId;
+            $telar = $registro->NoTelarId;
+            $esUltimo = ($registro->Ultimo == '1');
+
+            // Obtener todos los registros del telar ordenados por FechaInicio
+            $registros = ReqProgramaTejido::where('SalonTejidoId', $salon)
+                ->where('NoTelarId', $telar)
+                ->orderBy('FechaInicio', 'asc')
+                ->lockForUpdate()
+                ->get();
+
+            // Encontrar el índice del registro a eliminar
+            $indiceEliminar = $registros->search(fn ($item) => $item->Id === $registro->Id);
+
+            if ($indiceEliminar === false) {
+                throw new \RuntimeException('No se encontró el registro a eliminar dentro del telar.');
+            }
+
+            // Guardar la fecha de inicio del primer registro antes de eliminar
+            $primerRegistro = $registros->first();
+            $fechaInicioOriginal = $primerRegistro->FechaInicio ? \Carbon\Carbon::parse($primerRegistro->FechaInicio) : null;
+
+            if (!$fechaInicioOriginal) {
+                throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
+            }
+
+            // Eliminar el registro y sus líneas asociadas
+            $registroId = $registro->Id;
+
+            // Eliminar líneas asociadas primero
+            DB::table('ReqProgramaTejidoLine')->where('ProgramaId', $registroId)->delete();
+
+            // Eliminar el registro
+            $registro->delete();
+
+            // Obtener los registros restantes (sin el eliminado)
+            $registrosRestantes = ReqProgramaTejido::where('SalonTejidoId', $salon)
+                ->where('NoTelarId', $telar)
+                ->orderBy('FechaInicio', 'asc')
+                ->get();
+
+            if ($registrosRestantes->count() == 0) {
+                DB::commit();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Registro eliminado correctamente',
+                ]);
+            }
+
+            // Deshabilitar temporalmente el observer
+            \App\Models\ReqProgramaTejido::unsetEventDispatcher();
+
+            // Recalcular fechas para los registros restantes
+            $updates = [];
+            $detalles = [];
+            $lastFin = null;
+            $now = now();
+            $totalRegistros = $registrosRestantes->count();
+
+            foreach ($registrosRestantes as $i => $registroItem) {
+                // Duración original usando las fechas del registro
+                $inicio = $registroItem->FechaInicio ? \Carbon\Carbon::parse($registroItem->FechaInicio) : null;
+                $fin = $registroItem->FechaFinal ? \Carbon\Carbon::parse($registroItem->FechaFinal) : null;
+
+                if (!$inicio || !$fin) {
+                    throw new \RuntimeException("El registro {$registroItem->Id} debe tener FechaInicio y FechaFinal completas.");
+                }
+
+                // Calcular duración usando diff()
+                $duracion = $inicio->diff($fin);
+
+                // Asignar nuevo FechaInicio
+                if ($i == 0) {
+                    $nuevoInicio = $fechaInicioOriginal->copy();
+                } else {
+                    if (!$lastFin) {
+                        throw new \RuntimeException("Error: lastFin es null para el registro en posición {$i}");
+                    }
+                    $nuevoInicio = $lastFin->copy();
+                }
+
+                // Calcula el nuevo Fin sumando la duración original
+                $nuevoFin = (clone $nuevoInicio)->add($duracion);
+
+                // Preparar actualización
+                $updates[$registroItem->Id] = [
+                    'FechaInicio' => $nuevoInicio->format('Y-m-d H:i:s'),
+                    'FechaFinal' => $nuevoFin->format('Y-m-d H:i:s'),
+                    'EnProceso' => $i == 0 ? 1 : 0,
+                    'Ultimo' => $i == ($totalRegistros - 1) ? '1' : '0',
+                    'UpdatedAt' => $now,
+                ];
+
+                $detalles[] = [
+                    'Id' => $registroItem->Id,
+                    'NoTelar' => $registroItem->NoTelarId,
+                    'Posicion' => $i,
+                    'FechaInicio_nueva' => $updates[$registroItem->Id]['FechaInicio'],
+                    'FechaFinal_nueva' => $updates[$registroItem->Id]['FechaFinal'],
+                    'EnProceso_nuevo' => $updates[$registroItem->Id]['EnProceso'],
+                    'Ultimo_nuevo' => $updates[$registroItem->Id]['Ultimo'],
+                ];
+
+                $lastFin = $nuevoFin;
+            }
+
+            // Ejecutar actualizaciones en batch
+            foreach ($updates as $idUpdate => $data) {
+                DB::table('ReqProgramaTejido')
+                    ->where('Id', $idUpdate)
+                    ->update($data);
+            }
+
+            DB::commit();
+
+            // Re-habilitar el observer después del commit
+            \App\Models\ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+
+            // Regenerar líneas diarias para los registros actualizados
+            $idsActualizados = array_column($detalles, 'Id');
+            $observer = new \App\Observers\ReqProgramaTejidoObserver();
+            foreach ($idsActualizados as $idActualizado) {
+                $registroActualizado = ReqProgramaTejido::find($idActualizado);
+                if ($registroActualizado) {
+                    $observer->saved($registroActualizado);
+                }
+            }
+
+            Log::info('ProgramaTejido.destroy - Registro eliminado exitosamente', [
+                'RegistroId' => $registroId,
+                'Salon' => $salon,
+                'Telar' => $telar,
+                'EraUltimo' => $esUltimo,
+                'TotalRegistrosActualizados' => count($detalles),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Registro eliminado correctamente',
+                'cascaded_records' => count($detalles),
+                'detalles' => $detalles,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            // Asegurar que el observer se re-habilite incluso en caso de error
+            \App\Models\ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+
+            Log::error('ProgramaTejido.destroy - Error al eliminar registro', [
+                'RegistroId' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
             $codigo = $e instanceof \RuntimeException ? 422 : 500;
             return response()->json([
                 'success' => false,
@@ -1261,6 +1438,7 @@ class ProgramaTejidoController extends Controller
             $salon = $registro->SalonTejidoId;
             $telar = $registro->NoTelarId;
 
+            // Obtener todos los registros del telar ordenados por FechaInicio
             $registros = ReqProgramaTejido::where('SalonTejidoId', $salon)
                 ->where('NoTelarId', $telar)
                 ->orderBy('FechaInicio', 'asc')
@@ -1271,11 +1449,21 @@ class ProgramaTejidoController extends Controller
                 throw new \RuntimeException('Se requieren al menos dos registros para reordenar la prioridad.');
             }
 
+            // Extraer la fecha de INICIO del primer registro ANTES de cualquier cambio
+            $primerRegistro = $registros->first();
+            $fechaInicioOriginal = $primerRegistro->FechaInicio ? \Carbon\Carbon::parse($primerRegistro->FechaInicio) : null;
+
+            if (!$fechaInicioOriginal) {
+                throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
+            }
+
+            // Encontrar el índice del registro a mover
             $indiceActual = $registros->search(fn ($item) => $item->Id === $registro->Id);
             if ($indiceActual === false) {
                 throw new \RuntimeException('No se encontró el registro a reordenar dentro del telar.');
             }
 
+            // Calcular el índice destino
             $indiceDestino = $direccion === 'up' ? $indiceActual - 1 : $indiceActual + 1;
             if ($indiceDestino < 0) {
                 throw new \RuntimeException('Este registro ya es el primero en la secuencia.');
@@ -1284,108 +1472,120 @@ class ProgramaTejidoController extends Controller
                 throw new \RuntimeException('Este registro ya es el último en la secuencia.');
             }
 
-            $datos = [];
-            foreach ($registros as $item) {
-                $inicio = $item->FechaInicio ? \Carbon\Carbon::parse($item->FechaInicio) : null;
-                $fin = $item->FechaFinal ? \Carbon\Carbon::parse($item->FechaFinal) : null;
-                $duracion = null;
-
-                if ($inicio && $fin) {
-                    $duracion = $inicio->diffInSeconds($fin, false);
-                    if ($duracion < 0) {
-                        $duracion = 0;
-                    }
-                }
-
-                $datos[] = [
-                    'model' => $item,
-                    'inicio' => $inicio,
-                    'fin' => $fin,
-                    'duracion' => $duracion,
-                ];
+            // Intercambiar los registros (igual que en el código viejo)
+            if ($direccion === 'up' && $indiceActual > 0) {
+                $temp = $registros[$indiceActual];
+                $registros[$indiceActual] = $registros[$indiceActual - 1];
+                $registros[$indiceActual - 1] = $temp;
+            } elseif ($direccion === 'down' && $indiceActual < ($registros->count() - 1)) {
+                $temp = $registros[$indiceActual];
+                $registros[$indiceActual] = $registros[$indiceActual + 1];
+                $registros[$indiceActual + 1] = $temp;
             }
 
-            $primerInicio = $datos[0]['inicio'] ? $datos[0]['inicio']->copy() : null;
+            // Reindexar la colección
+            $registros = $registros->values();
 
-            $temp = $datos[$indiceActual];
-            $datos[$indiceActual] = $datos[$indiceDestino];
-            $datos[$indiceDestino] = $temp;
+            // Deshabilitar temporalmente el observer para evitar procesamiento en cada save()
+            \App\Models\ReqProgramaTejido::unsetEventDispatcher();
 
-            $indiceRecalculo = min($indiceActual, $indiceDestino);
-
-            if ($indiceRecalculo > 0 && !$datos[$indiceRecalculo - 1]['fin']) {
-                throw new \RuntimeException('El registro anterior no tiene FechaFinal definida; no se puede recalcular la secuencia.');
-            }
-
-            foreach (array_slice($datos, $indiceRecalculo) as $segmento) {
-                if (!$segmento['inicio'] || !$segmento['fin']) {
-                    throw new \RuntimeException('Existen registros sin fechas completas. Complete FechaInicio y FechaFinal antes de cambiar la prioridad.');
-                }
-            }
-
+            // Preparar actualizaciones en batch
+            $updates = [];
             $detalles = [];
-            $total = count($datos);
+            $lastFin = null;
+            $now = now();
 
-            for ($i = $indiceRecalculo; $i < $total; $i++) {
-                $segmento =& $datos[$i];
-                $modelo = $segmento['model'];
+            foreach ($registros as $i => $registroItem) {
+                // Duración original usando las fechas del registro
+                $inicio = $registroItem->FechaInicio ? \Carbon\Carbon::parse($registroItem->FechaInicio) : null;
+                $fin = $registroItem->FechaFinal ? \Carbon\Carbon::parse($registroItem->FechaFinal) : null;
 
-                $inicioAnterior = $segmento['inicio'] ? $segmento['inicio']->copy()->format('Y-m-d H:i:s') : null;
-                $finAnterior = $segmento['fin'] ? $segmento['fin']->copy()->format('Y-m-d H:i:s') : null;
+                if (!$inicio || !$fin) {
+                    throw new \RuntimeException("El registro {$registroItem->Id} debe tener FechaInicio y FechaFinal completas.");
+                }
 
-                if ($i === 0) {
-                    $nuevoInicio = $primerInicio ? $primerInicio->copy() : ($segmento['inicio'] ? $segmento['inicio']->copy() : null);
+                // Calcular duración usando diff()
+                $duracion = $inicio->diff($fin);
+
+                // Asignar nuevo FechaInicio
+                if ($i == 0) {
+                    $nuevoInicio = $fechaInicioOriginal->copy();
                 } else {
-                    $prevFin = $datos[$i - 1]['fin'];
-                    $nuevoInicio = $prevFin ? $prevFin->copy() : null;
-                    if (!$nuevoInicio && $segmento['inicio']) {
-                        $nuevoInicio = $segmento['inicio']->copy();
+                    if (!$lastFin) {
+                        throw new \RuntimeException("Error: lastFin es null para el registro en posición {$i}");
                     }
+                    $nuevoInicio = $lastFin->copy();
                 }
 
-                $nuevoFin = null;
-                if ($nuevoInicio && $segmento['duracion'] !== null) {
-                    $nuevoFin = $nuevoInicio->copy()->addSeconds($segmento['duracion']);
-                } elseif ($segmento['fin']) {
-                    $nuevoFin = $segmento['fin']->copy();
-                }
+                // Calcula el nuevo Fin sumando la duración original
+                $nuevoFin = (clone $nuevoInicio)->add($duracion);
 
-                $segmento['inicio'] = $nuevoInicio ? $nuevoInicio->copy() : null;
-                $segmento['fin'] = $nuevoFin ? $nuevoFin->copy() : null;
+                // Preparar actualización
+                $updates[$registroItem->Id] = [
+                    'FechaInicio' => $nuevoInicio->format('Y-m-d H:i:s'),
+                    'FechaFinal' => $nuevoFin->format('Y-m-d H:i:s'),
+                    'EnProceso' => $i == 0 ? 1 : 0,
+                    'Ultimo' => $i == ($registros->count() - 1) ? '1' : '0',
+                    'UpdatedAt' => $now,
+                ];
 
-                $modelo->FechaInicio = $segmento['inicio'] ? $segmento['inicio']->format('Y-m-d H:i:s') : null;
-                $modelo->FechaFinal = $segmento['fin'] ? $segmento['fin']->format('Y-m-d H:i:s') : null;
-                $modelo->Ultimo = ($i === $total - 1) ? 1 : 0;
-                $modelo->UpdatedAt = now();
-                $modelo->save();
-
-                $datos[$i]['fin'] = $segmento['fin'];
-
-                if ($inicioAnterior !== $modelo->FechaInicio || $finAnterior !== $modelo->FechaFinal) {
                     $detalles[] = [
-                        'Id' => $modelo->Id,
-                        'NoTelar' => $modelo->NoTelarId,
-                        'FechaInicio_anterior' => $inicioAnterior,
-                        'FechaInicio_nueva' => $modelo->FechaInicio,
-                        'FechaFinal_anterior' => $finAnterior,
-                        'FechaFinal_nueva' => $modelo->FechaFinal,
-                    ];
-                }
+                    'Id' => $registroItem->Id,
+                    'NoTelar' => $registroItem->NoTelarId,
+                        'Posicion' => $i,
+                    'FechaInicio_nueva' => $updates[$registroItem->Id]['FechaInicio'],
+                    'FechaFinal_nueva' => $updates[$registroItem->Id]['FechaFinal'],
+                    'EnProceso_nuevo' => $updates[$registroItem->Id]['EnProceso'],
+                    'Ultimo_nuevo' => $updates[$registroItem->Id]['Ultimo'],
+                ];
+
+                $lastFin = $nuevoFin;
+            }
+
+            // Ejecutar actualizaciones en batch usando queries directas (más rápido que save() individual)
+            foreach ($updates as $id => $data) {
+                DB::table('ReqProgramaTejido')
+                    ->where('Id', $id)
+                    ->update($data);
             }
 
             DB::commit();
+
+            // Re-habilitar el observer después del commit
+            \App\Models\ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+
+            // Regenerar líneas diarias solo para los registros actualizados (fuera de transacción)
+            // Hacerlo después del commit para no bloquear la respuesta
+            $idsActualizados = array_column($detalles, 'Id');
+            $observer = new \App\Observers\ReqProgramaTejidoObserver();
+            foreach ($idsActualizados as $idActualizado) {
+                $registroActualizado = ReqProgramaTejido::find($idActualizado);
+                if ($registroActualizado) {
+                    // Disparar el observer manualmente solo una vez por registro
+                    $observer->saved($registroActualizado);
+                }
+            }
 
             Log::info('ProgramaTejido.moverPrioridad - Reordenamiento exitoso', [
                 'RegistroId' => $registro->Id,
                 'Salon' => $salon,
                 'Telar' => $telar,
                 'Direccion' => $direccion,
-                'detalles' => $detalles,
+                'TotalRegistrosActualizados' => count($detalles),
             ]);
 
-            return ['detalles' => $detalles];
+            return [
+                'success' => true,
+                'cascaded_records' => count($detalles),
+                'detalles' => $detalles,
+                'registro_id' => $registro->Id,
+                'direccion' => $direccion,
+            ];
         } catch (\Throwable $e) {
             DB::rollBack();
+
+            // Asegurar que el observer se re-habilite incluso en caso de error
+            \App\Models\ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
 
             Log::error('ProgramaTejido.moverPrioridad - Error en reordenamiento', [
                 'RegistroId' => $registro->Id ?? null,
