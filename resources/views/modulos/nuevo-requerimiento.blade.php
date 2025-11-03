@@ -5,31 +5,115 @@
 @endphp
 @section('page-title', $isEditTitle ? 'Editar Requerimiento' : 'Nuevo Requerimiento')
 
-@section('content')
-    <div class="container mx-auto">
-        <div id="telar-navbar" class="fixed top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-lg z-40 transition-all duration-300">
-            <div class="container mx-auto px-4 py-3">
-                <div class="flex flex-wrap justify-center gap-2 max-w-8xl mx-auto">
-                    @php
-                        $__telares = (isset($editMode) && $editMode) ? ($telaresEdit ?? []) : ($telaresOrdenados ?? []);
+@section('navbar-right')
+    @php
+        $__listaTelares = (isset($editMode) && $editMode) ? ($telaresEdit ?? []) : ($telaresOrdenados ?? []);
+    @endphp
+    @if(count($__listaTelares) > 0)
+    <div class="relative">
+        <!-- Dropdown de Telares -->
+        <button type="button" id="btnDropdownTelares" 
+                class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+            <span class="font-medium">Telares</span>
+            <svg class="w-4 h-4 transition-transform" id="iconDropdown" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </button>
 
-                        // Ordenar los telares por secuencia (no por número de telar)
-                        // Los telares deben aparecer en el orden: 201, 203, 205, 207, 209, 211, 210, 215, 208, 213, 206, 214, 204, 202, 299, 301, 303, 305, 307, 309, 311, 310, 313, 308, 315, 306, 317, 304, 319, 302, 300, 320, 318, 316, 314, 312
-                        $secuenciaCorrecta = [201, 203, 205, 207, 209, 211, 210, 215, 208, 213, 206, 214, 204, 202, 299, 301, 303, 305, 307, 309, 311, 310, 313, 308, 315, 306, 317, 304, 319, 302, 300, 320, 318, 316, 314, 312];
-
-                        $telaresOrdenados = collect($__telares)->sortBy(function($telar) use ($secuenciaCorrecta) {
-                            $posicion = array_search((int)$telar, $secuenciaCorrecta);
-                            return $posicion !== false ? $posicion : 999; // Si no está en la secuencia, ponerlo al final
-                        })->values()->all();
-                    @endphp
-                    @foreach($telaresOrdenados as $index => $telar)
-                        <button onclick="scrollToTelar({{ $telar }})" class="telar-nav-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 border-2 border-gray-300 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:border-blue-400 hover:text-blue-800 shadow-sm hover:shadow-md" data-telar="{{ $telar }}" title="Telar {{ $telar }}">
-                            {{ $telar }}
-                        </button>
-                    @endforeach
-                </div>
+        <!-- Menu Dropdown -->
+        <div id="menuDropdownTelares" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-y-auto z-50">
+            <div class="py-2">
+                <button type="button" onclick="irATelar('')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                    <span class="font-medium">Todos los telares</span>
+                </button>
+                <div class="border-t border-gray-200 my-1"></div>
+                @foreach($__listaTelares as $t)
+                    <button type="button" onclick="irATelar('{{ $t }}')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        Telar <span class="font-semibold">{{ $t }}</span>
+                    </button>
+                @endforeach
             </div>
-                    </div>
+        </div>
+    </div>
+    @endif
+@endsection
+
+@section('content')
+    <style>
+        /* Encabezado compacto con franja vertical y solo No. de Telar */
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
+        .telar-section > .bg-gray-100 {
+            position: relative;
+            background: #fff !important;
+        }
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700::before,
+        .telar-section > .bg-gray-100::before {
+            content: "";
+            position: absolute; left: 0; top: 0; bottom: 0; width: 8px;
+            display: block;
+        }
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700::before {
+            background: linear-gradient(to bottom, #2563eb, #1d4ed8);
+        }
+        .telar-section > .bg-gray-100::before {
+            background: linear-gradient(to bottom, #9ca3af, #6b7280);
+        }
+        
+        /* Transformar el header del componente en una columna izquierda fija */
+        .telar-section{ position: relative; }
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
+        .telar-section > .bg-gray-100{
+            display:flex !important; flex-direction: column !important; align-items:center; justify-content:space-between;
+            position:absolute; left:0; top:0; bottom:0; width:110px; padding:8px 6px !important;
+            border-right:1px solid #e5e7eb;
+            background: transparent;
+        }
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700{ background: linear-gradient(to bottom, #2563eb, #1d4ed8) !important; }
+        .telar-section > .bg-gray-100{ background: linear-gradient(to bottom, #9ca3af, #6b7280) !important; }
+        
+        /* Restyle del contenedor con el número del telar */
+        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .text-center,
+        .telar-section > .bg-gray-100 .text-center{
+            color:#fff; text-shadow: 0 1px 1px rgba(0,0,0,.2);
+        }
+        
+        /* Número más grande y con padding */
+        .telar-section h2 { 
+            color: #ffffff !important; 
+            font-size: 2.5rem !important;
+            padding: 12px !important;
+            line-height: 1 !important;
+            font-weight: 800 !important;
+        }
+        
+        /* Desplazar el contenido para dejar espacio a la columna izquierda */
+        .telar-section > .p-6{ margin-left: 112px; }
+        
+        @media (max-width: 640px){
+            .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
+            .telar-section > .bg-gray-100{ width:92px; }
+            .telar-section > .p-6{ margin-left: 96px; }
+        }
+
+        /* Etiqueta "SIG. ORDEN" en la columna lateral */
+        .telar-section .col-label {
+            position: absolute;
+            left: 0; right: 0;
+            color: #fff;
+            font-size: 14px;
+            letter-spacing: .08em;
+            text-align: center;
+            pointer-events: none;
+            opacity: .95;
+            font-weight: 700;
+            top: 50%; 
+            transform: translateY(-50%);
+        }
+    </style>
+    <div class="container mx-auto">
+        <script>
+            window.ACTUALIZAR_CANTIDAD_URL = @json($actualizarCantidadUrl ?? url('/modulo-nuevo-requerimiento/actualizar-cantidad'));
+        </script>
 
         <!-- Lista de Requerimientos en Proceso -->
         <div class="space-y-6">
@@ -52,6 +136,52 @@
                             'Fin_Tejido' => '-',
                         ];
                         $ordenSig = null;
+                        // Completar calibres desde Programa Tejido para mostrar todas las combinaciones
+                        try {
+                            $tipoSalon = ($tipo === 'itema') ? 'ITEMA' : 'JACQUARD';
+                            $salones = $tipoSalon === 'ITEMA' ? ['ITEMA','SMIT'] : [$tipoSalon];
+                            $telarNum = (int) $telar;
+                            $q = DB::table('ReqProgramaTejido')
+                                  ->whereIn('SalonTejidoId', $salones)
+                                  ->where('NoTelarId', $telarNum)
+                                  ->where('EnProceso', 1);
+                            if ($tipoSalon === 'ITEMA' && !$q->exists()) {
+                                $telarDb = 100 + ($telarNum % 100);
+                                $q = DB::table('ReqProgramaTejido')
+                                      ->whereIn('SalonTejidoId', $salones)
+                                      ->where('NoTelarId', $telarDb)
+                                      ->where('EnProceso', 1);
+                            }
+                            $pt = $q->select([
+                                'CalibreTrama as CALIBRE_TRA',
+                                'FibraTrama as FIBRA_TRA',
+                                'CodColorTrama as CODIGO_COLOR_TRAMA',
+                                'ColorTrama as COLOR_TRAMA',
+                                'NombreCC1 as COLOR_C1',
+                                'NombreCC2 as COLOR_C2',
+                                'NombreCC3 as COLOR_C3',
+                                'NombreCC4 as COLOR_C4',
+                                'NombreCC5 as COLOR_C5',
+                                'CalibreComb12 as CALIBRE_C1',
+                                'CalibreComb22 as CALIBRE_C2',
+                                'CalibreComb32 as CALIBRE_C3',
+                                'CalibreComb42 as CALIBRE_C4',
+                                'CalibreComb52 as CALIBRE_C5',
+                                'FibraComb1 as FIBRA_C1',
+                                'FibraComb2 as FIBRA_C2',
+                                'FibraComb3 as FIBRA_C3',
+                                'FibraComb4 as FIBRA_C4',
+                                'FibraComb5 as FIBRA_C5',
+                                'CodColorComb1 as CODIGO_COLOR_C1',
+                                'CodColorComb2 as CODIGO_COLOR_C2',
+                                'CodColorComb3 as CODIGO_COLOR_C3',
+                                'CodColorComb4 as CODIGO_COLOR_C4',
+                                'CodColorComb5 as CODIGO_COLOR_C5',
+                            ])->first();
+                            if ($pt) {
+                                foreach ($pt as $k => $v) { $telarData->{$k} = $v; }
+                            }
+                        } catch (\Exception $e) {}
                     } else {
                         $info = $datosPorTelar[$telar] ?? null;
                         $telarData = $info['telarData'] ?? null;
@@ -60,12 +190,26 @@
                     }
                 @endphp
             <div id="telar-{{ $telar }}" class="telar-section bg-white rounded-lg shadow-lg  border border-gray-200 overflow-hidden" data-telar="{{ $telar }}" data-salon="{{ $tipo === 'itema' ? 'ITEMA' : 'JACQUARD' }}" data-orden="{{ $telarData->Orden_Prod ?? '' }}" data-producto="{{ $telarData->Nombre_Producto ?? '' }}">
-                <div class="{{ $tipo === 'itema' ? 'bg-green-700' : 'bg-blue-700' }} px-4 py-4 border-t-4 border-orange-400">
-                    <h2 class="text-xl font-bold text-white text-center">
-                        PRODUCCIÓN EN PROCESO TELAR {{ strtoupper($tipo) }}
-                        <span class="inline-block bg-red-600 text-white px-3 py-1 rounded-lg ml-2 font-bold text-xl">{{ $telar }}</span>
-                    </h2>
+                <div class="{{ $tipo === 'itema' ? 'bg-gray-100' : 'bg-gradient-to-r from-blue-600 to-blue-700' }} px-4 py-4">
+                    <!-- Número del telar arriba -->
+                    <div class="text-center w-full mt-1">
+                        <h2 class="text-4xl font-extrabold text-white">{{ $telar }}</h2>
                     </div>
+                    @if($ordenSig)
+                        <div class="col-label">SIG. ORDEN</div>
+                    @endif
+                    <!-- Botón Nuevo Requerimiento abajo -->
+                    <div class="w-full mt-auto">
+                        <button type="button" onclick="agregarNuevoRequerimiento(this); return false;"
+                                 class="w-full flex flex-col items-center justify-center gap-0.5 px-2 py-2 bg-white/95 text-blue-700 hover:bg-white shadow-sm rounded-md transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8m4-4H8m12 0a8 8 0 11-16 0 8 8 0 0116 0z"/>
+                            </svg>
+                            <span class="text-[10px] leading-3 font-semibold">Nuevo</span>
+                            <span class="text-[10px] leading-3 font-semibold">Requerimiento</span>
+                        </button>
+                    </div>
+                </div>
 
                 <div class="p-6">
                     <div class="grid grid-cols-3 lg:grid-cols-3 gap-6 mb-6">
@@ -92,19 +236,19 @@
                         <!-- Columna derecha -->
                         <div class="space-y-3">
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">No Flog (FlogsId):</span>
+                                <span class="text-sm font-semibold text-gray-600">No Flog:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Id_Flog ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Cliente (CustName):</span>
+                                <span class="text-sm font-semibold text-gray-600">Cliente:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Cliente ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Tamaño (InventSizeId):</span>
+                                <span class="text-sm font-semibold text-gray-600">Tamaño:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->InventSizeId ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Artículo (ItemId + NombreProducto):</span>
+                                <span class="text-sm font-semibold text-gray-600">Artículo:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ ($telarData->ItemId ?? '-') . ' ' . ($telarData->Nombre_Producto ?? '-') }}</span>
                             </div>
                         </div>
@@ -112,33 +256,26 @@
                         <!-- Columna adicional -->
                         <div class="space-y-3">
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Pedido (TotalPedido):</span>
+                                <span class="text-sm font-semibold text-gray-600">Pedido:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Saldos ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Producción (Produccion):</span>
+                                <span class="text-sm font-semibold text-gray-600">Producción:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Produccion ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Inicio (FechaInicio):</span>
+                                <span class="text-sm font-semibold text-gray-600">Inicio:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Inicio_Tejido ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Fin (FechaFinal):</span>
+                                <span class="text-sm font-semibold text-gray-600">Fin:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $telarData->Fin_Tejido ?? '-' }}</span>
                         </div>
                         </div>
                         </div>
 
-                    <!-- Botones de acción -->
-                    <div class="flex justify-end mb-4 relative z-10">
-                        <button onclick="agregarNuevoRequerimiento()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-md">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                            </svg>
-                            Nuevo Requerimiento
-                        </button>
-                    </div>
+                    <!-- Línea separadora gris -->
+                    <div class="w-full h-px bg-gray-300 my-4" aria-hidden="true"></div>
 
                     <!-- Tabla de detalles -->
                     <div class=" rounded-lg overflow-hidden relative z-10">
@@ -149,12 +286,21 @@
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Fibra</th>
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Cod Color</th>
                                     <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Nombre Color</th>
-                                    <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Cantidad (Conos)</th>
+                                    <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Cantidad</th>
                                 </tr>
                             </thead>
                             <tbody class="">
                                 @if(isset($editMode) && $editMode)
-                                    @php $items = ($consumosPorTelar[$telar]['items'] ?? []); @endphp
+                                    @php 
+                                        $items = ($consumosPorTelar[$telar]['items'] ?? []);
+                                        // Calibres existentes en la edición para evitar duplicar filas de combinaciones
+                                        $calibresExist = [];
+                                        foreach ($items as $ei) {
+                                            if ($ei['calibre'] !== null) {
+                                                $calibresExist[number_format((float)$ei['calibre'], 2)] = true;
+                                            }
+                                        }
+                                    @endphp
                                     @foreach($items as $index => $it)
                                         <tr class="{{ $index % 2 === 0 ? 'bg-white' : 'bg-gray-50' }} hover:bg-blue-50" data-consumo-id="{{ $it['id'] }}">
                                             <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $it['calibre'] !== null ? number_format($it['calibre'], 2) : '-' }}</td>
@@ -204,8 +350,56 @@
                                         </td>
                                     </tr>
                                 @endif
-                                @if(isset($telarData->CALIBRE_C2) && $telarData->CALIBRE_C2 !== null && $telarData->CALIBRE_C2 != 0)
+                                @if(isset($editMode) && $editMode && isset($telarData->CALIBRE_TRA) && $telarData->CALIBRE_TRA !== null && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_TRA, 2)])))
+                                <tr class="bg-white hover:bg-blue-50">
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_TRA, 2) }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_TRA ?? '-' }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_TRAMA ?? '-' }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_TRAMA ?? '-' }}</td>
+                                    <td class="px-4 py-1">
+                                        <div class="flex items-center justify-center relative">
+                                            <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
+                                                <span class="quantity-display text-md font-semibold">0</span>
+                                            </button>
+                                            <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                                <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                                    <div class="flex space-x-1 min-w-max">
+                                                        @for($i = 0; $i <= 100; $i++)
+                                                            <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $i == 0 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}" data-value="{{ $i }}">{{ $i }}</span>
+                                                        @endfor
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endif
+                                @if(isset($telarData->CALIBRE_C1) && $telarData->CALIBRE_C1 !== null && $telarData->CALIBRE_C1 != 0 && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_C1, 2)])))
                                 <tr class="bg-gray-50 hover:bg-blue-50">
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C1, 2) }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C1 ?? '-' }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C1 ?? '-' }}</td>
+                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->COLOR_C1 ?? '-' }}</td>
+                                    <td class="px-4 py-1">
+                                        <div class="flex items-center justify-center relative">
+                                            <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
+                                                <span class="quantity-display text-md font-semibold">0</span>
+                                            </button>
+                                            <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                                <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                                    <div class="flex space-x-1 min-w-max">
+                                                        @for($i = 0; $i <= 100; $i++)
+                                                            <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $i == 0 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}" data-value="{{ $i }}">{{ $i }}</span>
+                                                        @endfor
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endif
+                                @if(isset($telarData->CALIBRE_C2) && $telarData->CALIBRE_C2 !== null && $telarData->CALIBRE_C2 != 0 && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_C2, 2)])))
+                                <tr class="bg-white hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C2, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C2 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C2 ?? '-' }}</td>
@@ -228,8 +422,8 @@
                                     </td>
                                 </tr>
                                 @endif
-                                @if(isset($telarData->CALIBRE_C3) && $telarData->CALIBRE_C3 !== null && $telarData->CALIBRE_C3 != 0)
-                                <tr class="bg-white hover:bg-blue-50">
+                                @if(isset($telarData->CALIBRE_C3) && $telarData->CALIBRE_C3 !== null && $telarData->CALIBRE_C3 != 0 && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_C3, 2)])))
+                                <tr class="bg-gray-50 hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C3, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C3 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C3 ?? '-' }}</td>
@@ -252,8 +446,8 @@
                                     </td>
                                 </tr>
                                 @endif
-                                @if(isset($telarData->CALIBRE_C4) && $telarData->CALIBRE_C4 !== null && $telarData->CALIBRE_C4 != 0)
-                                <tr class="bg-gray-200 hover:bg-blue-50">
+                                @if(isset($telarData->CALIBRE_C4) && $telarData->CALIBRE_C4 !== null && $telarData->CALIBRE_C4 != 0 && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_C4, 2)])))
+                                <tr class="bg-white hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C4, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C4 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C4 ?? '-' }}</td>
@@ -276,8 +470,8 @@
                                     </td>
                                 </tr>
                                 @endif
-                                @if(isset($telarData->CALIBRE_C5) && $telarData->CALIBRE_C5 !== null && $telarData->CALIBRE_C5 != 0)
-                                <tr class="bg-white hover:bg-blue-50">
+                                @if(isset($telarData->CALIBRE_C5) && $telarData->CALIBRE_C5 !== null && $telarData->CALIBRE_C5 != 0 && (!isset($calibresExist) || empty($calibresExist[number_format($telarData->CALIBRE_C5, 2)])))
+                                <tr class="bg-gray-50 hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ number_format($telarData->CALIBRE_C5, 2) }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->FIBRA_C5 ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $telarData->CODIGO_COLOR_C5 ?? '-' }}</td>
@@ -386,7 +580,7 @@
                         <button type="button" onclick="cerrarModal()" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
                             Cancelar
                         </button>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                        <button type="button" onclick="agregarCampo()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
                             Agregar
                         </button>
                     </div>
@@ -821,17 +1015,24 @@
         }
 
         // Función para agregar nuevo requerimiento
-        function agregarNuevoRequerimiento() {
-            console.log('Función agregarNuevoRequerimiento llamada');
+        // Guarda el telar donde se hizo clic para insertar ahí la fila nueva
+        let __telarTarget = null;
+
+        function agregarNuevoRequerimiento(btn) {
+            // Registrar telar origen del click
+            try {
+                __telarTarget = btn ? btn.closest('.telar-section') : null;
+            } catch (_) { __telarTarget = null; }
+            // console.log('Función agregarNuevoRequerimiento llamada');
             // Verificar si estamos en modo edición (con folio en query)
             const params = new URLSearchParams(window.location.search);
             const folioQuery = params.get('folio');
 
             if (folioQuery) {
-                console.log('Modo edición detectado');
+                // console.log('Modo edición detectado');
                 // Modo edición: permitir agregar sin verificar "En Proceso"
                 const modal = document.getElementById('modal-nuevo-requerimiento');
-                console.log('Modal encontrado:', modal);
+                // console.log('Modal encontrado:', modal);
                 modal.classList.remove('hidden');
                 document.getElementById('form-nuevo-requerimiento').reset();
                 document.getElementById('modal-cantidad').value = 0;
@@ -839,7 +1040,7 @@
             }
 
             // Modo creación: verificar si hay En Proceso
-            console.log('Modo creación detectado');
+            // console.log('Modo creación detectado');
             fetch('/modulo-nuevo-requerimiento/en-proceso')
                 .then(r => r.json())
                 .then(data => {
@@ -861,9 +1062,9 @@
                         return;
                     }
 
-                    console.log('Abriendo modal');
+                    // console.log('Abriendo modal');
                     const modal = document.getElementById('modal-nuevo-requerimiento');
-                    console.log('Modal encontrado:', modal);
+                    // console.log('Modal encontrado:', modal);
                     modal.classList.remove('hidden');
                     document.getElementById('form-nuevo-requerimiento').reset();
                     document.getElementById('modal-cantidad').value = 0;
@@ -883,10 +1084,61 @@
             modal.classList.add('hidden');
         }
 
+        // Agrega una fila nueva desde el modal
+        function agregarCampo(){
+            const articuloEl = document.getElementById('modal-articulo');
+            const fibraEl = document.getElementById('modal-fibra');
+            const codColorEl = document.getElementById('modal-cod-color');
+            const nombreColorEl = document.getElementById('modal-nombre-color');
+            const cantidadEl = document.getElementById('modal-cantidad');
+
+            if (!articuloEl || !fibraEl || !codColorEl || !nombreColorEl || !cantidadEl) {
+                showToast('Faltan campos del modal', 'error');
+                return;
+            }
+
+            const articulo = articuloEl.value?.trim();
+            const fibra = fibraEl.value?.trim();
+            const codColor = codColorEl.value?.trim();
+            const nombreColor = nombreColorEl.value?.trim();
+            const cantidad = parseInt(cantidadEl.value ?? '0', 10) || 0;
+
+            // Validaciones básicas del modal
+            if (articulo === '' || isNaN(parseFloat(articulo))) {
+                showToast('Ingrese un artículo válido (número)', 'warning');
+                return;
+            }
+            if (fibra === '' || codColor === '' || nombreColor === '') {
+                showToast('Complete fibra, código y color', 'warning');
+                return;
+            }
+
+            agregarFilaATabla({
+                articulo: articulo,
+                fibra: fibra,
+                codColor: codColor,
+                nombreColor: nombreColor,
+                cantidad: cantidad
+            });
+
+            cerrarModal();
+            showToast('Nuevo requerimiento agregado exitosamente', 'success');
+            // Intentar autoguardado (utiliza la misma rutina existente)
+            scheduleGuardarRequerimientos();
+        }
+
         // Función para agregar la nueva fila a la tabla
         function agregarFilaATabla(datos) {
-            // Buscar la tabla del telar actualmente visible
-            const telarActivo = document.querySelector('.telar-section:not(.hidden)') || document.querySelector('.telar-section');
+            // Insertar en el telar donde se abrió el modal; si no, usar activo por navbar; si no, primero
+            let telarActivo = __telarTarget;
+            if (!telarActivo) {
+                const activeBtn = document.querySelector('#telar-navbar .telar-nav-btn.bg-blue-600');
+                if (activeBtn) {
+                    const telarNum = activeBtn.getAttribute('data-telar');
+                    telarActivo = document.getElementById(`telar-${telarNum}`);
+                }
+            }
+            if (!telarActivo) telarActivo = document.querySelector('.telar-section');
             if (!telarActivo) return;
 
             const tbody = telarActivo.querySelector('tbody');
@@ -926,6 +1178,9 @@
 
             // Agregar event listeners a los nuevos elementos
             agregarEventListenersANuevaFila(nuevaFila);
+
+            // Limpiar el telar target para evitar “pegar” en el mismo por error
+            __telarTarget = null;
         }
 
         // Función para agregar event listeners a una nueva fila
@@ -950,15 +1205,13 @@
                     this.classList.add('bg-blue-500', 'text-white');
 
                     // Actualizar el texto mostrado
-                    quantityDisplay.textContent = selectedValue;
+                    if (quantityDisplay) quantityDisplay.textContent = selectedValue;
 
                     // Verificar si es un consumo existente (tiene ID)
                     const consumoId = row.getAttribute('data-consumo-id');
                     if (consumoId) {
-                        // Actualizar directamente en la BD
                         actualizarCantidadEnBD(consumoId, selectedValue);
                     } else {
-                        // Mostrar toast para nuevos requerimientos
                         showToast(`Cantidad actualizada a ${selectedValue} conos`);
                     }
 
@@ -979,9 +1232,9 @@
                         const editBtn = row.querySelector('.edit-quantity-btn');
                         const display = row.querySelector('.quantity-display');
 
-                        editContainer.classList.add('hidden');
-                        editBtn.classList.remove('hidden');
-                        display.classList.remove('hidden');
+                        if (editContainer) editContainer.classList.add('hidden');
+                        if (editBtn) editBtn.classList.remove('hidden');
+                        if (display) display.classList.remove('hidden');
                     }, 500);
 
                     // Guardado automático
@@ -1131,7 +1384,7 @@
         function actualizarCantidadEnBD(consumoId, cantidad) {
             console.log('Enviando actualización:', { id: consumoId, cantidad: cantidad });
 
-            fetch('/modulo-nuevo-requerimiento/actualizar-cantidad', {
+            fetch(window.ACTUALIZAR_CANTIDAD_URL || '/modulo-nuevo-requerimiento/actualizar-cantidad', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1153,12 +1406,128 @@
                 } else {
                     showToast(data.message || 'Error al actualizar cantidad', 'error');
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('Error al actualizar cantidad', 'error');
-            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error al actualizar cantidad', 'error');
+        });
         }
+
+        // Manejador delegado (captura) para asegurar selección y cierre del editor
+        document.addEventListener('click', function(e){
+            const opt = e.target.closest('.number-option');
+            if(!opt) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const container = opt.closest('.number-scroll-container');
+            if(!container) return;
+            const allOptions = container.querySelectorAll('.number-option');
+            const row = opt.closest('tr');
+            const quantityDisplay = row?.querySelector('.quantity-display');
+            const selectedValue = opt.getAttribute('data-value');
+            allOptions.forEach(o=>{ o.classList.remove('bg-blue-500','text-white'); o.classList.add('bg-gray-100','text-gray-700'); });
+            opt.classList.remove('bg-gray-100','text-gray-700');
+            opt.classList.add('bg-blue-500','text-white');
+            if (quantityDisplay) quantityDisplay.textContent = selectedValue;
+            const consumoId = row?.getAttribute('data-consumo-id');
+            if (consumoId) {
+                actualizarCantidadEnBD(consumoId, selectedValue);
+            } else {
+                showToast(`Cantidad actualizada a ${selectedValue} conos`);
+            }
+            const editContainer = row?.querySelector('.quantity-edit-container');
+            const editBtn = row?.querySelector('.edit-quantity-btn');
+            const display = row?.querySelector('.quantity-display');
+            if (editContainer) editContainer.classList.add('hidden');
+            if (editBtn) editBtn.classList.remove('hidden');
+            if (display) display.classList.remove('hidden');
+        }, true);
+
+        // Dropdown y navegación tipo Jacquard
+        (function(){
+            const btnDropdown = document.getElementById('btnDropdownTelares');
+            const menuDropdown = document.getElementById('menuDropdownTelares');
+            const iconDropdown = document.getElementById('iconDropdown');
+
+            btnDropdown?.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isHidden = menuDropdown.classList.contains('hidden');
+                if (isHidden) {
+                    menuDropdown.classList.remove('hidden');
+                    if (iconDropdown) iconDropdown.style.transform = 'rotate(180deg)';
+                } else {
+                    menuDropdown.classList.add('hidden');
+                    if (iconDropdown) iconDropdown.style.transform = 'rotate(0deg)';
+                }
+            });
+
+            // Cerrar dropdown al hacer clic fuera
+            document.addEventListener('click', function(e) {
+                if (btnDropdown && !btnDropdown.contains(e.target) && menuDropdown && !menuDropdown.contains(e.target)) {
+                    menuDropdown.classList.add('hidden');
+                    if (iconDropdown) iconDropdown.style.transform = 'rotate(0deg)';
+                }
+            });
+
+            // Auto-enfocar si viene ?telar=### o hash #telar-###
+            window.addEventListener('DOMContentLoaded', function(){
+                const url = new URL(location.href);
+                let t = url.searchParams.get('telar');
+                if(!t && location.hash.startsWith('#telar-')){
+                    t = location.hash.replace('#telar-', '');
+                }
+                if(t){
+                    setTimeout(() => irATelar(t), 500);
+                }
+            });
+        })();
+
+        // Scroll suave a un telar específico y actualización de URL/hash
+        (function(){
+          function getScrollable(node){
+            let n = node ? node.parentElement : null;
+            while (n && n !== document.body) {
+              const cs = getComputedStyle(n);
+              const oy = cs.overflowY;
+              if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight) return n;
+              n = n.parentElement;
+            }
+            return document.scrollingElement || document.documentElement;
+          }
+          window.irATelar = function(noTelar){
+            // Cerrar dropdown si existe
+            const menu = document.getElementById('menuDropdownTelares');
+            const icon = document.getElementById('iconDropdown');
+            if (menu) menu.classList.add('hidden');
+            if (icon) icon.style.transform = 'rotate(0deg)';
+
+            // Mostrar todos por si hay filtro
+            document.querySelectorAll('[id^="telar-"]').forEach(el => el.classList.remove('hidden'));
+            if (!noTelar) {
+              const u0 = new URL(location.href); u0.search = ''; u0.hash = ''; history.replaceState(null,'',u0.toString());
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              return;
+            }
+
+            const el = document.getElementById('telar-'+noTelar);
+            if (!el) return;
+
+            const sticky = document.querySelector('nav.sticky, nav.fixed, .sticky.top-0, .fixed.top-16');
+            const stickyH = sticky ? sticky.getBoundingClientRect().height : 0;
+            const extra = -50; // espacio adicional
+
+            const scroller = getScrollable(el);
+            const scRect = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : { top: 0 };
+            const tRect = el.getBoundingClientRect();
+            const current = scroller.scrollTop || window.pageYOffset || document.documentElement.scrollTop || 0;
+            const targetTop = tRect.top - scRect.top + current - stickyH - extra;
+
+            if (scroller.scrollTo) scroller.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+            else window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+
+            const url = new URL(location.href); url.search = ''; url.hash = 'telar-'+noTelar; history.replaceState(null,'',url.toString());
+          }
+        })();
     </script>
 
     <style>
@@ -1171,4 +1540,3 @@
         }
     </style>
 @endsection
-

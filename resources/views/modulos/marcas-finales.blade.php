@@ -131,7 +131,7 @@
                                             </button>
 
                                             <!-- Editor (se rellena on-demand) -->
-                                            <div class="mf-editor hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2 w-36"
+                                            <div class="mf-editor hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-9999 bg-white border border-gray-300 rounded-lg shadow-lg p-2 w-36"
                                                  data-built="0" role="dialog" aria-modal="true">
                                                 <div class="mf-scroll overflow-x-auto scrollbar-hide min-w-max"></div>
                                             </div>
