@@ -123,7 +123,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'PesoGRM2'        => $this->parseInteger($this->getValue($row, [
                                         'Peso (gr/m²)','Peso GRM2','peso grm2','peso_grm2',
                                         'Peso    (gr / m²)','peso gr m 2','peso_gr_m_2'
-                                    ])),
+                ])),
                 'DiasEficiencia'  => $this->parseFloat($this->getValue($row, ['Días Ef.','Dias Ef.','Días Eficiencia','Dias Eficiencia','dias_eficiencia'])),
 
                 /* ===== TÍTULOS SIMILARES ===== */
@@ -137,7 +137,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'StdHrsEfect'     => $this->parseFloat(
                                         $this->findFirstColumnContaining($row, ['std','hr','efectivo']) ??
                                         $this->getValue($row, ['Std/Hr Efectivo','STD Hrs Efect','std_hrs_efect'])
-                                    ),
+                ),
 
                 /* ===== FECHAS (DATETIME) ===== */
                 'FechaInicio'     => $this->parseDateWithLogging($this->getValue($row, ['Inicio','Fecha Inicio','fecha inicio','fecha_inicio']), 'FechaInicio'),
@@ -395,7 +395,7 @@ private function parseDate($value): ?string
                 'd/m/Y H:i:s','d-m-Y H:i:s','d/m/Y H:i','d-m-Y H:i',
                 'Y-m-d H:i:s','Y-m-d H:i','Y/m/d H:i:s','Y/m/d H:i',
                 'd/m/Y','d-m-Y','Y-m-d','Y/m/d',
-            ];
+        ];
             foreach ($formatos as $fmt) {
             try {
                 $c = Carbon::createFromFormat($fmt, $s);
@@ -462,7 +462,7 @@ private function parseDate($value): ?string
 
                 $str = sprintf('%04d-%s-%02d %02d:%02d:%02d', $y, $mes, $d, $h, $i, $s2);
                 return $this->esFechaValida($str) ? $str : null;
-    }
+            }
 
     private function mesNumero(string $nombre): ?string
     {
@@ -476,7 +476,7 @@ private function parseDate($value): ?string
             'june'=>'06','july'=>'07','august'=>'08','aug'=>'08','september'=>'09','october'=>'10','november'=>'11','december'=>'12','dec'=>'12',
         ];
         return $meses[$nombre] ?? null;
-    }
+		}
 
     private function esFechaValida(string $fecha): bool
     {
@@ -653,7 +653,9 @@ private function parseDate($value): ?string
 
     /**
      * Busca en ReqModelosCodificados por SalonTejidoId + TamanoClave
-     * y actualiza los campos BLANCOS (base): CalibreRizo, CalibrePie, CalibreTrama
+     * y actualiza los campos BLANCOS (base):
+     * - CalibreRizo, CalibrePie, CalibreTrama
+     * - CalibreComb1, CalibreComb2, CalibreComb3, CalibreComb4, CalibreComb5
      *
      * NOTA: Los campos verdes (*2) vienen del Excel y NO se sobrescriben
      */
@@ -700,6 +702,11 @@ private function parseDate($value): ?string
                     'calibre_rizo' => $modelo->CalibreRizo,
                     'calibre_pie' => $modelo->CalibrePie,
                     'calibre_trama' => $modelo->CalibreTrama,
+                    'calibre_comb1' => $modelo->CalibreComb1,
+                    'calibre_comb2' => $modelo->CalibreComb2,
+                    'calibre_comb3' => $modelo->CalibreComb3,
+                    'calibre_comb4' => $modelo->CalibreComb4,
+                    'calibre_comb5' => $modelo->CalibreComb5,
                 ]);
 
                 // Actualizar campos BLANCOS (base) con valores de modelos codificados
@@ -708,6 +715,13 @@ private function parseDate($value): ?string
                 $data['CalibrePie'] = $modelo->CalibrePie;
                 $data['CalibreTrama'] = $modelo->CalibreTrama;
 
+                // Actualizar campos Comb base (1-5) desde modelos codificados
+                $data['CalibreComb1'] = $modelo->CalibreComb1;
+                $data['CalibreComb2'] = $modelo->CalibreComb2;
+                $data['CalibreComb3'] = $modelo->CalibreComb3;
+                $data['CalibreComb4'] = $modelo->CalibreComb4;
+                $data['CalibreComb5'] = $modelo->CalibreComb5;
+
                 Log::info('Campos blancos (base) actualizados desde ReqModelosCodificados', [
                     'row_num' => $this->rowCounter,
                     'salon_id' => $salonId,
@@ -715,9 +729,19 @@ private function parseDate($value): ?string
                     'calibre_rizo' => $data['CalibreRizo'],
                     'calibre_pie' => $data['CalibrePie'],
                     'calibre_trama' => $data['CalibreTrama'],
+                    'calibre_comb1' => $data['CalibreComb1'],
+                    'calibre_comb2' => $data['CalibreComb2'],
+                    'calibre_comb3' => $data['CalibreComb3'],
+                    'calibre_comb4' => $data['CalibreComb4'],
+                    'calibre_comb5' => $data['CalibreComb5'],
                     'calibre_rizo2' => $data['CalibreRizo2'], // Mantiene valor del Excel
                     'calibre_pie2' => $data['CalibrePie2'],   // Mantiene valor del Excel
                     'calibre_trama2' => $data['CalibreTrama2'], // Mantiene valor del Excel
+                    'calibre_comb12' => $data['CalibreComb12'], // Mantiene valor del Excel
+                    'calibre_comb22' => $data['CalibreComb22'], // Mantiene valor del Excel
+                    'calibre_comb32' => $data['CalibreComb32'], // Mantiene valor del Excel
+                    'calibre_comb42' => $data['CalibreComb42'], // Mantiene valor del Excel
+                    'calibre_comb52' => $data['CalibreComb52'], // Mantiene valor del Excel
                 ]);
             } else {
                 Log::info('No se encontró registro en ReqModelosCodificados', [

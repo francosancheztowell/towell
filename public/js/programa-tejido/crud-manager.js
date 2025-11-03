@@ -180,6 +180,19 @@ window.ProgramaTejidoCRUD = {
         // Verificar si hay cambio de hilo en alguno de los telares
         const tieneCambioHilo = telares.some(t => t.cambio_hilo === 1) ? 1 : 0;
 
+        // Campos base (rosas) que DEBEN guardarse desde ReqModelosCodificados
+        // Estos son los campos que no tienen input visible pero se guardan en la misma columna
+        const camposBase = {
+            CalibreRizo: datosModelo?.CalibreRizo ?? null,
+            CalibrePie: datosModelo?.CalibrePie ?? null,
+            CalibreTrama: datosModelo?.CalibreTrama ?? null,
+            CalibreComb1: datosModelo?.CalibreComb1 ?? null,
+            CalibreComb2: datosModelo?.CalibreComb2 ?? null,
+            CalibreComb3: datosModelo?.CalibreComb3 ?? null,
+            CalibreComb4: datosModelo?.CalibreComb4 ?? null,
+            CalibreComb5: datosModelo?.CalibreComb5 ?? null
+        };
+
         // Construir payload completo
         const payload = {
             salon_tejido_id: salon,
@@ -191,6 +204,8 @@ window.ProgramaTejidoCRUD = {
             telares,
             ...datosModelo,
             ...datosFormulario,
+            // Asegurar que los campos base (rosas) se guarden explícitamente
+            ...camposBase,
             TotalPedido: totalPedido,
             SaldoPedido: totalPedido,
             FechaInicio: primerTelar?.fecha_inicio || null,

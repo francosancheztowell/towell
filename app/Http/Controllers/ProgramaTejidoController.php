@@ -452,23 +452,23 @@ class ProgramaTejidoController extends Controller
                 // Campos que vienen del formulario y se deben guardar (solo los que existen en la tabla)
                 $camposFormulario = [
                     // Campos básicos del formulario
-                    'CuentaRizo', 'CalibreRizo', 'InventSizeId', 'NombreProyecto', 'NombreProducto',
+                    'CuentaRizo', 'CalibreRizo', 'CalibreRizo2', 'InventSizeId', 'NombreProyecto', 'NombreProducto',
 
                     // Campos adicionales
                     'Ancho', 'EficienciaSTD', 'VelocidadSTD', 'Maquina',
 
                     // Campos de Trama
-                    'CodColorTrama', 'ColorTrama', 'CalibreTrama', 'FibraTrama',
+                    'CodColorTrama', 'ColorTrama', 'CalibreTrama', 'CalibreTrama2', 'FibraTrama',
 
-                    // Combinaciones C1-C5 - SOLO las columnas reales existentes
-                    'CalibreComb12', 'FibraComb1', 'CodColorComb1', 'NombreCC1',
-                    'CalibreComb22', 'FibraComb2', 'CodColorComb2', 'NombreCC2',
-                    'CalibreComb32', 'FibraComb3', 'CodColorComb3', 'NombreCC3',
-                    'CalibreComb42', 'FibraComb4', 'CodColorComb4', 'NombreCC4',
-                    'CalibreComb52', 'FibraComb5', 'CodColorComb5', 'NombreCC5',
+                    // Combinaciones C1-C5 - Campos base (rosas) y campos *2 (verdes)
+                    'CalibreComb1', 'CalibreComb12', 'FibraComb1', 'CodColorComb1', 'NombreCC1',
+                    'CalibreComb2', 'CalibreComb22', 'FibraComb2', 'CodColorComb2', 'NombreCC2',
+                    'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorComb3', 'NombreCC3',
+                    'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorComb4', 'NombreCC4',
+                    'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorComb5', 'NombreCC5',
 
                     // Pie
-                    'CalibrePie', 'CuentaPie', 'FibraPie', 'CodColorCtaPie', 'NombreCPie',
+                    'CalibrePie', 'CalibrePie2', 'CuentaPie', 'FibraPie', 'CodColorCtaPie', 'NombreCPie',
 
                     // Medidas y especificaciones
                     'AnchoToalla', 'PesoCrudo', 'Peine', 'MedidaPlano', 'NoTiras', 'Luchaje',
@@ -491,7 +491,7 @@ class ProgramaTejidoController extends Controller
                         $valor = $request->input($campo);
 
                         // Tipado
-                        if (in_array($campo, ['CalibreRizo', 'CalibreTrama', 'CalibreComb12', 'CalibreComb22', 'CalibreComb32', 'CalibreComb42', 'CalibreComb52', 'CalibrePie', 'EficienciaSTD', 'VelocidadSTD'])) {
+                        if (in_array($campo, ['CalibreRizo', 'CalibreRizo2', 'CalibreTrama', 'CalibreTrama2', 'CalibreComb1', 'CalibreComb12', 'CalibreComb2', 'CalibreComb22', 'CalibreComb3', 'CalibreComb32', 'CalibreComb4', 'CalibreComb42', 'CalibreComb5', 'CalibreComb52', 'CalibrePie', 'CalibrePie2', 'EficienciaSTD', 'VelocidadSTD'])) {
                             $valor = is_numeric($valor) ? (float)$valor : null;
                         } elseif (in_array($campo, ['Peine', 'PesoCrudo', 'AnchoToalla', 'MedidaPlano', 'Ancho', 'NoTiras', 'Luchaje'])) {
                             $valor = is_numeric($valor) ? (int)$valor : null;
