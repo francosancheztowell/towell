@@ -4,7 +4,7 @@
 
 @section('navbar-right')
     <!-- Botones de acción para Cortes de Eficiencia -->
-    <div class="flex items-center gap-1">
+    <div class="flex items-center gap-1 hidden">
         <button id="btn-nuevo" onclick="nuevoCorte()" class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors" title="Nuevo">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -75,81 +75,66 @@
             </div>
         </div>
 
-    <!-- Mensaje inicial -->
-    <div id="mensaje-inicial" class="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center mb-6">
-        <div class="flex flex-col items-center">
-            <i class="fas fa-clipboard-list text-6xl text-blue-400 mb-4"></i>
-            <h3 class="text-xl font-semibold text-gray-800 mb-2">Cortes de Eficiencia</h3>
-            <p class="text-gray-600 mb-4">Haz clic en "Nuevo" para comenzar un nuevo corte de eficiencia</p>
-            <div class="text-sm text-gray-500">
-                <p>• Selecciona el turno correspondiente</p>
-                <p>• Completa los datos de RPM para cada telar</p>
-                <p>• Guarda el corte cuando hayas terminado</p>
-            </div>
-        </div>
-    </div>
+    <!-- Mensaje inicial (eliminado - se muestra directamente la tabla) -->
+    <div id="mensaje-inicial" class="hidden"></div>
 
     <!-- Main Data Table Section - Compacta (Inicialmente oculta) -->
-    <div id="segunda-tabla" class="bg-white shadow-sm rounded-lg overflow-hidden mb-6 hidden -mt-4">
-        <div class="table-container">
-            <table class="min-w-full border-collapse border border-gray-300">
-                <thead class="bg-gray-50 sticky top-0 z-10">
+    <div id="segunda-tabla" class="bg-white shadow overflow-hidden mb-6 hidden -mt-4" style="max-width: 100%;">
+        <div class="overflow-x-auto">
+            <div class="overflow-y-auto" style="max-height: 80vh;">
+                <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-blue-500 text-white">
                     <tr>
-                        <th class="border border-gray-300 px-1 py-2 text-left text-xs font-semibold text-gray-700 w-16">Telar</th>
-                        <th class="border border-gray-300 px-0 py-2 text-center text-xs font-semibold text-gray-700 w-10">RPM STD</th>
-                        <th class="border border-gray-300 px-0 py-2 text-center text-xs font-semibold text-gray-700 w-10">Eficiencia STD</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 80px;">Telar</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 100px;">RPM STD</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 120px;">Eficiencia STD</th>
 
                         <!-- Horario 1 -->
-                        <th colspan="3" class="border border-gray-300 px-2 py-2 text-center text-xs font-semibold text-gray-700 bg-blue-100">Horario 1</th>
+                        <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa;">Horario 1</th>
 
                         <!-- Horario 2 -->
-                        <th colspan="3" class="border border-gray-300 px-2 py-2 text-center text-xs font-semibold text-gray-700 bg-green-100">Horario 2</th>
+                        <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80;">Horario 2</th>
 
                         <!-- Horario 3 -->
-                        <th colspan="3" class="border border-gray-300 px-2 py-2 text-center text-xs font-semibold text-gray-700 bg-yellow-100">Horario 3</th>
+                        <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-yellow-400" style="position: sticky; top: 0; z-index: 30; background-color: #fbbf24;">Horario 3</th>
                     </tr>
                     <tr>
-                        <th class="border border-gray-300 px-1 py-2 text-xs font-medium text-gray-600 w-16"></th>
-                        <th class="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600"></th>
-                        <th class="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600"></th>
+                        <th class="px-4 py-3 text-xs font-medium text-white" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6;"></th>
+                        <th class="px-4 py-3 text-xs font-medium text-white" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6;"></th>
+                        <th class="px-4 py-3 text-xs font-medium text-white" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6;"></th>
 
                         <!-- Horario 1 subheaders -->
-                        <th class="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600 bg-blue-50">RPM</th>
-                        <th class="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600 bg-blue-50">Eficiencia</th>
-                        <th class="border border-gray-300 px-0 py-2 text-xs font-medium text-gray-600 bg-blue-50 w-10">Obs</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa; min-width: 100px;">RPM</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa; min-width: 100px;">Eficiencia</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa; min-width: 80px;">Obs</th>
 
                         <!-- Horario 2 subheaders -->
-                        <th class="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600 bg-green-50">RPM</th>
-                        <th class="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600 bg-green-50">Eficiencia</th>
-                        <th class="border border-gray-300 px-0 py-2 text-xs font-medium text-gray-600 bg-green-50 w-10">Obs</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80; min-width: 100px;">RPM</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80; min-width: 100px;">Eficiencia</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80; min-width: 80px;">Obs</th>
 
                         <!-- Horario 3 subheaders -->
-                        <th class="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600 bg-yellow-50">RPM</th>
-                        <th class="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600 bg-yellow-50">Eficiencia</th>
-                        <th class="border border-gray-300 px-0 py-2 text-xs font-medium text-gray-600 bg-yellow-50 w-10">Obs</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-yellow-400" style="position: sticky; top: 0; z-index: 30; background-color: #fbbf24; min-width: 100px;">RPM</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-yellow-400" style="position: sticky; top: 0; z-index: 30; background-color: #fbbf24; min-width: 100px;">Eficiencia</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-yellow-400" style="position: sticky; top: 0; z-index: 30; background-color: #fbbf24; min-width: 80px;">Obs</th>
                     </tr>
                 </thead>
-                <tbody id="telares-body">
+                <tbody id="telares-body" class="bg-white divide-y divide-gray-100">
                     <!-- Telares 201-215 -->
                     @for($i = 201; $i <= 215; $i++)
-                    <tr class="hover:bg-gray-50">
-                        <td class="border border-gray-300 px-1 py-2 text-center text-sm font-semibold w-16">{{ $i }}</td>
-                        <td class="border border-gray-300 px-0 py-2 w-10">
-                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-sm bg-blue-50 text-center" placeholder="RPM" data-telar="{{ $i }}" data-field="rpm_std" readonly>
+                    <tr class="hover:bg-blue-50">
+                        <td class="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">{{ $i }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                            <input type="text" class="w-full px-2 py-1 border border-gray-200 rounded text-sm bg-gray-50 text-center" placeholder="RPM" data-telar="{{ $i }}" data-field="rpm_std" readonly>
                         </td>
-                        <td class="border border-gray-300 px-0 py-2 w-10">
-                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-sm bg-green-50 text-center" placeholder="Eficiencia" data-telar="{{ $i }}" data-field="eficiencia_std" readonly>
+                        <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                            <input type="text" class="w-full px-2 py-1 border border-gray-200 rounded text-sm bg-gray-50 text-center" placeholder="Eficiencia" data-telar="{{ $i }}" data-field="eficiencia_std" readonly>
                         </td>
 
                         <!-- Horario 1 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h1_rpm_display_{{ $i }}">0</span>
-                                <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleRpmEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                            <div class="flex items-center justify-center relative">
+                                <span class="rpm-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors" id="h1_rpm_display_{{ $i }}" onclick="toggleRpmEdit(this)">0</span>
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -161,14 +146,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-sm text-gray-900 font-medium" id="h1_efic_display_{{ $i }}">0%</span>
-                                <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleEficEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                        <td class="border border-gray-300 px-1 py-2"><div class="flex items-center justify-center relative"><span class="efic-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors" id="h1_efic_display_{{ $i }}" onclick="toggleEficEdit(this)">0%</span>
                                 <div class="efic-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -186,13 +164,7 @@
 
                         <!-- Horario 2 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h2_rpm_display_{{ $i }}">0</span>
-                                <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-green-600 transition-colors" onclick="toggleRpmEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                            <div class="flex items-center justify-center relative"><span class="rpm-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors" id="h2_rpm_display_{{ $i }}" onclick="toggleRpmEdit(this)">0</span>
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -204,14 +176,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-sm text-gray-900 font-medium" id="h2_efic_display_{{ $i }}">0%</span>
-                                <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-green-600 transition-colors" onclick="toggleEficEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                        <td class="border border-gray-300 px-1 py-2"><div class="flex items-center justify-center relative"><span class="efic-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors" id="h2_efic_display_{{ $i }}" onclick="toggleEficEdit(this)">0%</span>
                                 <div class="efic-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -229,13 +194,7 @@
 
                         <!-- Horario 3 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h3_rpm_display_{{ $i }}">0</span>
-                                <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-yellow-600 transition-colors" onclick="toggleRpmEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                            <div class="flex items-center justify-center relative"><span class="rpm-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors" id="h3_rpm_display_{{ $i }}" onclick="toggleRpmEdit(this)">0</span>
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -247,14 +206,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-sm text-gray-900 font-medium" id="h3_efic_display_{{ $i }}">0%</span>
-                                <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-yellow-600 transition-colors" onclick="toggleEficEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                        <td class="border border-gray-300 px-1 py-2"><div class="flex items-center justify-center relative"><span class="efic-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors" id="h3_efic_display_{{ $i }}" onclick="toggleEficEdit(this)">0%</span>
                                 <div class="efic-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -285,13 +237,8 @@
 
                         <!-- Horario 1 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h1_rpm_display_{{ $i }}">0</span>
-                                <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleRpmEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                            <div class="flex items-center justify-center relative">
+                                <span class="rpm-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors" id="h1_rpm_display_{{ $i }}" onclick="toggleRpmEdit(this)">0</span>
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -303,14 +250,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-sm text-gray-900 font-medium" id="h1_efic_display_{{ $i }}">0%</span>
-                                <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-blue-600 transition-colors" onclick="toggleEficEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                        <td class="border border-gray-300 px-1 py-2"><div class="flex items-center justify-center relative"><span class="efic-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors" id="h1_efic_display_{{ $i }}" onclick="toggleEficEdit(this)">0%</span>
                                 <div class="efic-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -328,13 +268,7 @@
 
                         <!-- Horario 2 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h2_rpm_display_{{ $i }}">0</span>
-                                <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-green-600 transition-colors" onclick="toggleRpmEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                            <div class="flex items-center justify-center relative"><span class="rpm-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors" id="h2_rpm_display_{{ $i }}" onclick="toggleRpmEdit(this)">0</span>
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -346,14 +280,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-sm text-gray-900 font-medium" id="h2_efic_display_{{ $i }}">0%</span>
-                                <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-green-600 transition-colors" onclick="toggleEficEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                        <td class="border border-gray-300 px-1 py-2"><div class="flex items-center justify-center relative"><span class="efic-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors" id="h2_efic_display_{{ $i }}" onclick="toggleEficEdit(this)">0%</span>
                                 <div class="efic-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -371,13 +298,7 @@
 
                         <!-- Horario 3 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="rpm-display text-sm text-gray-900 font-medium" id="h3_rpm_display_{{ $i }}">0</span>
-                                <button class="edit-rpm-btn ml-1 p-1 text-gray-500 hover:text-yellow-600 transition-colors" onclick="toggleRpmEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                            <div class="flex items-center justify-center relative"><span class="rpm-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors" id="h3_rpm_display_{{ $i }}" onclick="toggleRpmEdit(this)">0</span>
                                 <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -389,14 +310,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-between relative">
-                                <span class="efic-display text-sm text-gray-900 font-medium" id="h3_efic_display_{{ $i }}">0%</span>
-                                <button class="edit-efic-btn ml-1 p-1 text-gray-500 hover:text-yellow-600 transition-colors" onclick="toggleEficEdit(this)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                        <td class="border border-gray-300 px-1 py-2"><div class="flex items-center justify-center relative"><span class="efic-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors" id="h3_efic_display_{{ $i }}" onclick="toggleEficEdit(this)">0%</span>
                                 <div class="efic-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
                                         <div class="flex space-x-1 min-w-max">
@@ -415,6 +329,7 @@
                     @endfor
                 </tbody>
             </table>
+        </div>
         </div>
     </div>
 
@@ -442,17 +357,16 @@
         }
     }
 
-    function toggleRpmEdit(button) {
-        const container = button.nextElementSibling;
-        const display = button.previousElementSibling;
-
+    function toggleRpmEdit(display) {
+        const container = display.parentElement.querySelector('.rpm-edit-container');
+        
         if (container.classList.contains('hidden')) {
             // Cerrar todos los editores abiertos primero
             closeAllEditors();
 
             // Si el display está en 0, inicializar con valor STD
             if (display.textContent === '0') {
-                const telar = button.closest('tr').querySelector('td:first-child').textContent;
+                const telar = display.closest('tr').querySelector('td:first-child').textContent;
                 const rpmStdInput = document.querySelector(`input[data-telar="${telar}"][data-field="rpm_std"]`);
                 if (rpmStdInput && rpmStdInput.value) {
                     const rpmStd = parseFloat(rpmStdInput.value) || 0;
@@ -462,8 +376,7 @@
 
             // Mostrar editor actual
             container.classList.remove('hidden');
-            button.classList.add('hidden');
-            display.classList.add('hidden');
+            display.classList.add('bg-gray-100');
 
             // Inicializar el modal con el valor actual y centrar el scroll
             setTimeout(() => {
@@ -471,7 +384,7 @@
 
                 // Si el valor es 0, inicializar con el valor STD
                 if (currentValue === 0) {
-                    const telar = button.closest('tr').querySelector('td:first-child').textContent;
+                    const telar = display.closest('tr').querySelector('td:first-child').textContent;
                     const rpmStdInput = document.querySelector(`input[data-telar="${telar}"][data-field="rpm_std"]`);
                     if (rpmStdInput && rpmStdInput.value) {
                         const rpmStd = parseFloat(rpmStdInput.value) || 0;
@@ -524,14 +437,12 @@
         } else {
             // Ocultar editor
             container.classList.add('hidden');
-            button.classList.remove('hidden');
-            display.classList.remove('hidden');
+            display.classList.remove('bg-gray-100');
         }
     }
 
-    function toggleEficEdit(button) {
-        const container = button.nextElementSibling;
-        const display = button.previousElementSibling;
+    function toggleEficEdit(display) {
+        const container = display.parentElement.querySelector('.efic-edit-container');
 
         if (container.classList.contains('hidden')) {
             // Cerrar todos los editores abiertos primero
@@ -539,7 +450,7 @@
 
             // Si el display está en 0%, inicializar con valor STD
             if (display.textContent === '0%') {
-                const telar = button.closest('tr').querySelector('td:first-child').textContent;
+                const telar = display.closest('tr').querySelector('td:first-child').textContent;
                 const eficienciaStdInput = document.querySelector(`input[data-telar="${telar}"][data-field="eficiencia_std"]`);
                 if (eficienciaStdInput && eficienciaStdInput.value) {
                     const eficienciaStd = parseFloat(eficienciaStdInput.value.replace('%', '')) || 0;
@@ -550,8 +461,7 @@
 
             // Mostrar editor actual
             container.classList.remove('hidden');
-            button.classList.add('hidden');
-            display.classList.add('hidden');
+            display.classList.add('bg-gray-100');
 
             // Inicializar el modal con el valor actual y centrar el scroll
             setTimeout(() => {
@@ -559,7 +469,7 @@
 
                 // Si el valor es 0, inicializar con el valor STD
                 if (currentValue === 0) {
-                    const telar = button.closest('tr').querySelector('td:first-child').textContent;
+                    const telar = display.closest('tr').querySelector('td:first-child').textContent;
                     const eficStdInput = document.querySelector(`input[data-telar="${telar}"][data-field="eficiencia_std"]`);
                     if (eficStdInput && eficStdInput.value) {
                         const eficStd = parseFloat(eficStdInput.value.replace('%', '')) || 0;
@@ -609,21 +519,19 @@
         } else {
             // Ocultar editor
             container.classList.add('hidden');
-            button.classList.remove('hidden');
-            display.classList.remove('hidden');
+            display.classList.remove('bg-gray-100');
         }
     }
 
     function closeAllEditors() {
         document.querySelectorAll('.rpm-edit-container, .efic-edit-container').forEach(container => {
             if (!container.classList.contains('hidden')) {
-                const button = container.previousElementSibling;
-                const display = button.previousElementSibling;
-
                 container.classList.add('hidden');
-                button.classList.remove('hidden');
-                display.classList.remove('hidden');
             }
+        });
+        
+        document.querySelectorAll('.rpm-display, .efic-display').forEach(display => {
+            display.classList.remove('bg-gray-100');
         });
     }
 
@@ -668,11 +576,11 @@
         // Cargar datos de telares desde la base de datos
         cargarDatosTelares();
 
-        // Deshabilitar botones inicialmente
-        disableActionButtons();
-
-        // Mostrar mensaje inicial y ocultar tabla
-        mostrarMensajeInicial();
+        // Modo captura por defecto: mostrar tabla y generar folio sin pulsar "+"
+        mostrarSegundaTablaSinHeader();
+        if (typeof generarNuevoFolio === 'function') {
+            generarNuevoFolio();
+        }
 
         // Event listeners para los números de RPM y Eficiencia
         document.querySelectorAll('.number-option').forEach(option => {
@@ -729,8 +637,7 @@
                 // Ocultar el editor después de seleccionar
                 setTimeout(() => {
                     editContainer.classList.add('hidden');
-                    button.classList.remove('hidden');
-                    display.classList.remove('hidden');
+                    display.classList.remove('bg-gray-100');
                 }, 500);
             });
         });
@@ -738,9 +645,9 @@
         // Cerrar editores al hacer clic fuera de ellos
         document.addEventListener('click', function(event) {
             const isInsideEditor = event.target.closest('.rpm-edit-container, .efic-edit-container');
-            const isEditButton = event.target.closest('.edit-rpm-btn, .edit-efic-btn');
+            const isDisplaySpan = event.target.closest('.rpm-display, .efic-display');
 
-            if (!isInsideEditor && !isEditButton) {
+            if (!isInsideEditor && !isDisplaySpan) {
                 closeAllEditors();
             }
         });
@@ -905,19 +812,11 @@
                 // Cerrar loading
                 Swal.close();
 
-                // Mostrar segunda tabla con animación (sin header)
+                // Mostrar segunda tabla directamente sin animación
                 mostrarSegundaTablaSinHeader();
 
                 // Habilitar botones
                 enableActionButtons();
-
-                Swal.fire({
-                    title: 'Folio Generado',
-                    text: `Folio: ${data.folio}`,
-                    icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
 
             } else {
                 throw new Error(data.message || 'Error al generar folio');
@@ -935,11 +834,12 @@
     }
 
     function mostrarMensajeInicial() {
+        // Ya no mostrar el mensaje inicial - dejar la página limpia
         const mensajeInicial = document.getElementById('mensaje-inicial');
         const segundaTabla = document.getElementById('segunda-tabla');
         const headerSection = document.getElementById('header-section');
 
-        mensajeInicial.classList.remove('hidden');
+        mensajeInicial.classList.add('hidden');
         segundaTabla.classList.add('hidden');
         headerSection.classList.add('hidden');
     }
@@ -1274,14 +1174,15 @@
 </script>
 
 <style>
-    /* Estilos adicionales para la tabla */
-    .border-collapse {
-        border-collapse: collapse;
+    /* Estilos para la tabla */
+    table {
+        border-collapse: separate;
+        border-spacing: 0;
     }
 
     /* Hover effect para las filas */
     tbody tr:hover {
-        background-color: #f9fafb;
+        background-color: #eff6ff !important;
     }
 
     /* Estilos para los inputs en la tabla */
@@ -1292,14 +1193,14 @@
     tbody input:focus {
         border-color: #3b82f6;
         box-shadow: 0 0 0 1px #3b82f6;
+        outline: none;
     }
 
     /* Estilos para headers sticky */
     thead th {
-        background-color: #f9fafb !important;
         position: sticky;
         top: 0;
-        z-index: 10;
+        z-index: 30;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
@@ -1322,30 +1223,26 @@
         padding-right: 20px !important;
     }
 
-    /* Asegurar que el contenedor tenga scroll vertical */
-    .table-container {
-        max-height: 80vh;
-        overflow-y: auto;
-        overflow-x: auto;
-    }
-
-    /* Mejorar la apariencia del scroll */
-    .table-container::-webkit-scrollbar {
+    /* Estilos para el scroll */
+    .overflow-x-auto::-webkit-scrollbar,
+    .overflow-y-auto::-webkit-scrollbar {
         width: 8px;
         height: 8px;
     }
 
-    .table-container::-webkit-scrollbar-track {
+    .overflow-x-auto::-webkit-scrollbar-track,
+    .overflow-y-auto::-webkit-scrollbar-track {
         background: #f1f1f1;
-        border-radius: 4px;
     }
 
-    .table-container::-webkit-scrollbar-thumb {
+    .overflow-x-auto::-webkit-scrollbar-thumb,
+    .overflow-y-auto::-webkit-scrollbar-thumb {
         background: #c1c1c1;
         border-radius: 4px;
     }
 
-    .table-container::-webkit-scrollbar-thumb:hover {
+    .overflow-x-auto::-webkit-scrollbar-thumb:hover,
+    .overflow-y-auto::-webkit-scrollbar-thumb:hover {
         background: #a8a8a8;
     }
 
@@ -1358,16 +1255,31 @@
         display: none;
     }
 
-    /* Estilos para botones de edición */
-    .edit-rpm-btn, .edit-efic-btn {
+    /* Estilos para los displays clickeables */
+    .rpm-display, .efic-display {
         transition: all 0.2s ease;
     }
 
-    .edit-rpm-btn:hover, .edit-efic-btn:hover {
-        transform: scale(1.1);
+    /* Hover específico por horario ya está en las clases inline hover:bg-blue-100, hover:bg-green-100, hover:bg-yellow-100 */
+    
+    .rpm-display.editing, .efic-display.editing {
+        background-color: #e5e7eb !important;
     }
 </style>
 
 @endsection
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
