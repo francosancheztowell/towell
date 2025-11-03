@@ -339,6 +339,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Autocompletar clave con buscar-detalle-modelo
                 const input = document.getElementById('swal-clave');
                 const suggest = document.getElementById('swal-clave-suggest');
+
+                // Autocompletar clave modelo si tenemos itemid e inventsizeid
+                if (input && itemid && inventsizeid && (!input.value || input.value.trim() === '')) {
+                    const claveAuto = (inventsizeid + itemid).toUpperCase().replace(/[\s\-_]+/g, '');
+                    input.value = claveAuto;
+                }
                 let timer = null;
                 const renderSuggest = (items) => {
                     if (!items || items.length === 0) { suggest.classList.add('hidden'); suggest.innerHTML=''; return; }
@@ -372,18 +378,64 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 input.addEventListener('blur', () => setTimeout(()=>suggest.classList.add('hidden'), 150));
             },
-            preConfirm: () => {
+            preConfirm: async () => {
                 const salon = (document.getElementById('swal-salon') || {}).value || '';
                 const clave = (document.getElementById('swal-clave') || {}).value || '';
-                if (!salon) { Swal.showValidationMessage('Seleccione un salón'); return false; }
-                return { salon, clave };
+
+                if (!salon) {
+                    Swal.showValidationMessage('Seleccione un salón');
+                    return false;
+                }
+
+                // Validar que el modelo existe en ReqModelosCodificados
+                try {
+                    Swal.showLoading();
+
+                    // Construir URL de búsqueda con todos los parámetros disponibles
+                    const searchUrl = new URL('{{ route("planeacion.buscar-detalle-modelo") }}', window.location.origin);
+
+                    // Prioridad 1: Si tenemos clave del input, usarla como concatena
+                    if (clave && clave.trim() !== '') {
+                        searchUrl.searchParams.set('concatena', clave.trim());
+                    }
+
+                    // Prioridad 2: Si tenemos itemid e inventsizeid, usarlos
+                    if (itemid && inventsizeid) {
+                        searchUrl.searchParams.set('itemid', itemid);
+                        searchUrl.searchParams.set('inventsizeid', inventsizeid);
+                        // También construir concatena si no viene del input
+                        if (!clave || clave.trim() === '') {
+                            searchUrl.searchParams.set('concatena', (inventsizeid + itemid).toUpperCase().replace(/[\s\-_]+/g, ''));
+                        }
+                    }
+
+                    // Siempre incluir el salón para filtrar
+                    searchUrl.searchParams.set('salon_tejido_id', salon);
+
+                    const response = await fetch(searchUrl.toString());
+                    const data = await response.json();
+
+                    if (response.status === 404 || (data && data.error)) {
+                        Swal.hideLoading();
+                        Swal.showValidationMessage('El modelo no existe en Modelos para el salón seleccionado');
+                        return false;
+                    }
+
+                    // Si llegamos aquí, el modelo existe
+                    Swal.hideLoading();
+                    return { salon, clave };
+                } catch (error) {
+                    Swal.hideLoading();
+                    Swal.showValidationMessage('Error al validar el modelo. Por favor, intente nuevamente.');
+                    return false;
+                }
             }
         });
 
         if (!swalRes.isConfirmed) return;
         const { salon, clave } = swalRes.value || { salon:'', clave:'' };
 
-        // Redirigir con parámetros
+        // Redirigir con parámetros (solo si llegamos aquí, significa que el modelo existe)
         const url = new URL('{{ route("programa-tejido.altas-especiales.nuevo") }}', window.location.origin);
         url.searchParams.set('idflog', idflog);
         if (itemid)       url.searchParams.set('itemid', itemid);

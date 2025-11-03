@@ -298,13 +298,15 @@ class ComprasEspecialesController extends Controller
     /**
      * GET /planeacion/buscar-detalle-modelo
      * Lee de dbo.ReqModelosCodificados usando itemid + inventsizeid.
+     * Ahora también acepta salon_tejido_id para filtrar por salón.
      */
     public function buscarDetalleModelo(Request $request)
     {
         try {
-            $itemid       = trim((string) $request->query('itemid', ''));         // p.ej. 7290
-            $inventsizeid = trim((string) $request->query('inventsizeid', ''));   // p.ej. MB
-            $concatena    = trim((string) $request->query('concatena', ''));      // p.ej. MB7290
+            $itemid        = trim((string) $request->query('itemid', ''));         // p.ej. 7290
+            $inventsizeid  = trim((string) $request->query('inventsizeid', ''));   // p.ej. MB
+            $concatena     = trim((string) $request->query('concatena', ''));      // p.ej. MB7290
+            $salonTejidoId = trim((string) $request->query('salon_tejido_id', '')); // p.ej. JACQUARD
 
             // Normalizador para comparar de forma robusta (sin espacios, guiones ni underscores, todo en mayúsculas)
             $normalize = function (?string $s): string {
@@ -320,37 +322,43 @@ class ComprasEspecialesController extends Controller
                 $cand = $normalize($inventsizeid . $itemid); // Tamaño primero, luego Clave (MB + 7290 => MB7290)
             }
 
-            // Atajo a la tabla
-            $baseTable = DB::table('dbo.ReqModelosCodificados');
+            // Función helper para construir query base con filtro de salón si existe
+            $buildQuery = function() use ($salonTejidoId) {
+                $query = DB::table('dbo.ReqModelosCodificados');
+                if ($salonTejidoId !== '') {
+                    $query->where('SalonTejidoId', $salonTejidoId);
+                }
+                return $query;
+            };
 
-            // 1) Intento principal: match exacto por ItemId + InventSizeId
+            // 1) Intento principal: match exacto por ItemId + InventSizeId (+ SalonTejidoId si viene)
             if ($itemid !== '' && $inventsizeid !== '') {
-                $row = (clone $baseTable)
+                $row = $buildQuery()
                     ->where('ItemId', $itemid)
                     ->where('InventSizeId', $inventsizeid)
                     ->first();
                 if ($row) return response()->json($row);
             }
 
-            // 2) Intento: columna TamanoClave (si tu tabla la trae; en tu schema sí existe)
+            // 2) Intento: columna TamanoClave (+ SalonTejidoId si viene)
             if ($cand !== '') {
-                $row = (clone $baseTable)
+                $row = $buildQuery()
                     ->whereRaw("REPLACE(REPLACE(REPLACE(UPPER(ISNULL(TamanoClave,'')),' ',''),'-',''),'_','') = ?", [$cand])
                     ->first();
                 if ($row) return response()->json($row);
             }
 
-            // 3) Intento: concatenación en runtime InventSizeId + ItemId
+            // 3) Intento: concatenación en runtime InventSizeId + ItemId (+ SalonTejidoId si viene)
             if ($cand !== '') {
-                $row = (clone $baseTable)
+                $row = $buildQuery()
                     ->whereRaw("REPLACE(REPLACE(REPLACE(UPPER(ISNULL(InventSizeId,''))+UPPER(ISNULL(ItemId,'')),' ',''),'-',''),'_','') = ?", [$cand])
                     ->first();
                 if ($row) return response()->json($row);
             }
 
-            // 4) Intento: orden inverso (ItemId + InventSizeId), por si el origen los arma al revés
+            // 4) Intento: orden inverso (ItemId + InventSizeId), por si el origen los arma al revés (+ SalonTejidoId si viene)
             if ($cand !== '') {
-                $row = (clone $baseTable)
+                $row = $buildQuery()
                     ->whereRaw("REPLACE(REPLACE(REPLACE(UPPER(ISNULL(ItemId,''))+UPPER(ISNULL(InventSizeId,'')),' ',''),'-',''),'_','') = ?", [$cand])
                     ->first();
                 if ($row) return response()->json($row);
