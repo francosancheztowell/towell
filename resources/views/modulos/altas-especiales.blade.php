@@ -57,6 +57,11 @@
                             @foreach($registros as $r)
                                 <tr class="select-row cursor-pointer even:bg-gray-50 hover:bg-blue-50 transition-colors"
                                     data-id="{{ $r['FlogsId'] ?? '' }}"
+                                    data-idflog="{{ $r['FlogsId'] ?? '' }}"
+                                    data-itemid="{{ $r['ItemId'] ?? '' }}"
+                                    data-inventsizeid="{{ $r['InventSizeId'] ?? '' }}"
+                                    data-cantidad="{{ isset($r['Cantidad']) ? (float)$r['Cantidad'] : '' }}"
+                                    data-tipohilo="{{ $r['TipoHilo'] ?? '' }}"
                                     data-flog="{{ strtolower($r['FlogsId'] ?? '') }}"
                                     data-estado="{{ strtolower($r['Estado'] ?? '') }}"
                                     data-proyecto="{{ strtolower($r['NombreProyecto'] ?? '') }}"
@@ -272,6 +277,24 @@ document.addEventListener('DOMContentLoaded', function () {
         if (current) btnProgramar.classList.remove('hidden');
         else btnProgramar.classList.add('hidden');
     }
+
+    btnProgramar.onclick = () => {
+        if (!current) return;
+        const idflog       = current.dataset.idflog || '';
+        const itemid       = current.dataset.itemid || '';
+        const inventsizeid = current.dataset.inventsizeid || '';
+        const cantidad     = current.dataset.cantidad || '';
+        const tipohilo     = current.dataset.tipohilo || '';
+
+        const url = new URL('{{ route("programa-tejido.altas-especiales.nuevo") }}', window.location.origin);
+        url.searchParams.set('idflog', idflog);
+        if (itemid)       url.searchParams.set('itemid', itemid);
+        if (inventsizeid) url.searchParams.set('inventsizeid', inventsizeid);
+        if (cantidad)     url.searchParams.set('cantidad', cantidad);
+        if (tipohilo)     url.searchParams.set('tipohilo', tipohilo);
+
+        window.location.href = url.toString();
+    };
 
     document.querySelectorAll('tr.select-row').forEach(row => {
         row.addEventListener('click', () => {

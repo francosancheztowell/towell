@@ -21,7 +21,7 @@ window.ProgramaTejidoForm = {
      * @param {Object} registro - Registro a editar (opcional)
      */
     async init(modoEdicion = false, registro = null) {
-        console.log('🚀 Inicializando formulario de Programa de Tejido...');
+        console.log(' Inicializando formulario de Programa de Tejido...');
 
         this.state.modoEdicion = modoEdicion;
         if (registro) {
@@ -43,7 +43,7 @@ window.ProgramaTejidoForm = {
             setTimeout(() => this.cargarDatosEdicion(registro), 500);
         }
 
-        console.log('✅ Formulario inicializado correctamente');
+        console.log(' Formulario inicializado correctamente');
     },
 
     /**
@@ -700,12 +700,12 @@ window.ProgramaTejidoForm = {
             const denominador = (parte1 + parte2) / velocidad;
             const stdToaHra = (noTiras * 60) / denominador;
 
-            console.log('📊 Cálculo fecha final:', { cantidad, stdToaHra, eficiencia, velocidad });
+            console.log(' Cálculo fecha final:', { cantidad, stdToaHra, eficiencia, velocidad });
 
             // Calcular horas necesarias
             const horasProd = cantidad / (stdToaHra * eficiencia);
 
-            console.log('⏰ Horas necesarias:', horasProd);
+            console.log(' Horas necesarias:', horasProd);
 
             // Calcular fecha final sumando horas al calendario
             const fechaFinal = CalendarioManager.sumarHorasCalendario(fechaInicio, horasProd, calendario);
@@ -717,7 +717,7 @@ window.ProgramaTejidoForm = {
             }
 
         } catch (error) {
-            console.error('❌ Error al calcular fecha final:', error);
+            console.error(' Error al calcular fecha final:', error);
         }
     },
 

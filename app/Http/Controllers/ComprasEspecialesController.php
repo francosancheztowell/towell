@@ -285,4 +285,89 @@ class ComprasEspecialesController extends Controller
             })
             ->values();
     }
+
+    /**
+     * GET /planeacion/programa-tejido/altas-especiales/nuevo
+     * Carga la vista de Altas Especiales (formulario).
+     */
+    public function nuevo(Request $request)
+    {
+        $prefill = [
+            'idflog'       => $request->query('idflog') ?? $request->query('IDFLOG'),
+            'itemid'       => $request->query('itemid') ?? $request->query('ITEMID'),
+            'inventsizeid' => $request->query('inventsizeid') ?? $request->query('INVENTSIZEID'),
+            'cantidad'     => $request->query('cantidad') ?? $request->query('CANTIDAD'),
+            'tipohilo'     => $request->query('tipohilo') ?? $request->query('TIPOHILO'),
+        ];
+        return view('modulos.programa-tejido-nuevo.altas', compact('prefill'));
+    }
+
+    /**
+     * GET /planeacion/buscar-detalle-modelo
+     * Lee de dbo.ReqModelosCodificados usando itemid + inventsizeid.
+     */
+    public function buscarDetalleModelo(Request $request)
+    {
+        try {
+            $itemid       = trim((string) $request->query('itemid', ''));         // p.ej. 7290
+            $inventsizeid = trim((string) $request->query('inventsizeid', ''));   // p.ej. MB
+            $concatena    = trim((string) $request->query('concatena', ''));      // p.ej. MB7290
+
+            // Normalizador para comparar de forma robusta (sin espacios, guiones ni underscores, todo en mayúsculas)
+            $normalize = function (?string $s): string {
+                $s = $s ?? '';
+                $s = strtoupper($s);
+                $s = preg_replace('/[\s\-_]+/', '', $s);
+                return $s;
+            };
+
+            // Si no viene "concatena", lo intentamos construir como Tamano + Clave
+            $cand = $normalize($concatena);
+            if ($cand === '' && ($inventsizeid !== '' || $itemid !== '')) {
+                $cand = $normalize($inventsizeid . $itemid); // Tamaño primero, luego Clave (MB + 7290 => MB7290)
+            }
+
+            // Atajo a la tabla
+            $baseTable = DB::table('dbo.ReqModelosCodificados');
+
+            // 1) Intento principal: match exacto por ItemId + InventSizeId
+            if ($itemid !== '' && $inventsizeid !== '') {
+                $row = (clone $baseTable)
+                    ->where('ItemId', $itemid)
+                    ->where('InventSizeId', $inventsizeid)
+                    ->first();
+                if ($row) return response()->json($row);
+            }
+
+            // 2) Intento: columna TamanoClave (si tu tabla la trae; en tu schema sí existe)
+            if ($cand !== '') {
+                $row = (clone $baseTable)
+                    ->whereRaw("REPLACE(REPLACE(REPLACE(UPPER(ISNULL(TamanoClave,'')),' ',''),'-',''),'_','') = ?", [$cand])
+                    ->first();
+                if ($row) return response()->json($row);
+            }
+
+            // 3) Intento: concatenación en runtime InventSizeId + ItemId
+            if ($cand !== '') {
+                $row = (clone $baseTable)
+                    ->whereRaw("REPLACE(REPLACE(REPLACE(UPPER(ISNULL(InventSizeId,''))+UPPER(ISNULL(ItemId,'')),' ',''),'-',''),'_','') = ?", [$cand])
+                    ->first();
+                if ($row) return response()->json($row);
+            }
+
+            // 4) Intento: orden inverso (ItemId + InventSizeId), por si el origen los arma al revés
+            if ($cand !== '') {
+                $row = (clone $baseTable)
+                    ->whereRaw("REPLACE(REPLACE(REPLACE(UPPER(ISNULL(ItemId,''))+UPPER(ISNULL(InventSizeId,'')),' ',''),'-',''),'_','') = ?", [$cand])
+                    ->first();
+                if ($row) return response()->json($row);
+            }
+
+            return response()->json(['error' => 'No encontrado'], 404);
+        } catch (\Throwable $e) {
+            Log::error('buscarDetalleModelo', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['error' => 'Error interno'], 500);
+        }
+    }
+
 }
