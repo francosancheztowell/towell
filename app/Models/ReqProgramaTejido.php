@@ -114,6 +114,15 @@ class ReqProgramaTejido extends Model
         'FibraPie',
         'FechaInicio',
         'FechaFinal',
+        // Nuevos campos agregados en tabla
+        'CalibreRizo2',
+        'CalibrePie2',
+        'CalibreTrama2',
+        'CalibreComb1',
+        'CalibreComb2',
+        'CalibreComb3',
+        'CalibreComb4',
+        'CalibreComb5',
     ];
 
     protected $casts = [
@@ -169,6 +178,15 @@ class ReqProgramaTejido extends Model
         'CreatedAt' => 'datetime',
         'UpdatedAt' => 'datetime',
         'RowNum' => 'integer',
+        // Nuevos campos: SQL Server real/float -> PHP float
+        'CalibreRizo2' => 'float',
+        'CalibrePie2' => 'float',
+        'CalibreTrama2' => 'float',
+        'CalibreComb1' => 'float',
+        'CalibreComb2' => 'float',
+        'CalibreComb3' => 'float',
+        'CalibreComb4' => 'float',
+        'CalibreComb5' => 'float',
     ];
 
     /**

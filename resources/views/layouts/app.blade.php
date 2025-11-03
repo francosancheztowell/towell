@@ -2,8 +2,19 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#0f4c81">
+
+    <!-- iOS: hace que al "Añadir a pantalla de inicio" abra como app -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Producción">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
     <title>@yield('title', 'TOWELL S.A DE C.V')</title>
 
   <!-- Preload -->
@@ -20,6 +31,14 @@
     }
     @keyframes loading{0%{background-position:200% 0}100%{background-position:-200% 0}}
     .module-grid img{will-change:transform;backface-visibility:hidden}
+
+    /* PWA: Safe area insets para notches en iOS */
+    :root {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
     </style>
 
   <!-- CSS/JS base -->
@@ -614,5 +633,20 @@
         </script>
 
   <script src="{{ asset('js/simple-click-sounds.js') }}"></script>
+
+  <!-- Service Worker Registration para PWA -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js")
+          .then(registration => {
+            console.log("Service Worker registrado exitosamente:", registration.scope);
+          })
+          .catch(error => {
+            console.log("Error al registrar Service Worker:", error);
+          });
+      });
+    }
+  </script>
     </body>
     </html>

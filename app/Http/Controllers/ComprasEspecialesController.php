@@ -17,14 +17,14 @@ class ComprasEspecialesController extends Controller
         try {
             $filtros   = $this->gestionarFiltros($request);
 
-            // 1) Consulta base (NO toallas) - respeta tu lógica original
+            // 1) Consulta base (excluye batas)
             $normales  = $this->obtenerRegistrosNormales($filtros);
 
-            // 2) Consulta especial (SOLO toallas 10..19, texto exacto)
-            $toallas   = $this->obtenerRegistrosToallas($filtros);
+            // 2) Consulta de batas (solo 10..19)
+            $batas     = $this->obtenerRegistrosBatas($filtros);
 
-            // 3) Merge para la tabla (con sanitización de ItemTypeId)
-            $registros = $this->formatearRegistros($normales, $toallas);
+            // 3) Fusionar para la vista (sin conflictos)
+            $registros = $this->formatearRegistros($normales, $batas);
 
             return view('modulos.altas-especiales', compact('registros'));
         } catch (\Throwable $e) {
@@ -77,9 +77,6 @@ class ComprasEspecialesController extends Controller
             $query->where($campo, 'LIKE', '%' . $val . '%');
         }
     }
-
-    /* -------------------- Utilidades de SELECT -------------------- */
-
     /** Estado como texto (4 = Aprobado por finanzas). */
     private function exprEstadoNombre(): \Illuminate\Database\Query\Expression
     {
@@ -94,14 +91,12 @@ class ComprasEspecialesController extends Controller
     /* ------------------------- Consultas ------------------------- */
 
     /**
-     * 1) Consulta BASE (NO toallas) — misma lógica:
+     * 1) Consulta BASE (NO batas) — misma lógica:
      *    - EstadoFlog = 4
      *    - TipoPedido = 1 ó 3
      *    - DataAreaId = 'PRO'
      *    - EstadoLinea = 0
-     *    - PorEntregar != 0
      *    - EXCLUIR ItemTypeId 10–19
-     *    - Blindaje textual adicional: NOT (LEN=2 AND LIKE '1[0-9]')
      */
     private function obtenerRegistrosNormales(array $filtros): Collection
     {
@@ -122,7 +117,7 @@ class ComprasEspecialesController extends Controller
                 DB::raw('MAX(l.INVENTSIZEID)     as InventSizeId'),
                 DB::raw('MAX(l.TIPOHILOID)       as TipoHilo'),
                 DB::raw('MAX(l.VALORAGREGADO)    as ValorAgregado'),
-                DB::raw('MAX(l.FECHACANCELACION) as FechaCancelacion'),
+                DB::raw('MIN(CAST(l.FECHACANCELACION AS DATE)) as FechaCancelacion'),
                 DB::raw('SUM(l.PORENTREGAR)      as Cantidad'),
                 DB::raw('MAX(l.ITEMTYPEID)       as ItemTypeId')
             )
@@ -130,14 +125,8 @@ class ComprasEspecialesController extends Controller
             ->whereIn('f.TIPOPEDIDO', [1, 3])
             ->where('f.DATAAREAID', 'PRO')
             ->where('l.ESTADOLINEA', 0)
-            ->where('l.PORENTREGAR', '!=', 0)
-            // EXCLUIR 10..19 (texto exacto)
-            ->whereRaw("NOT (LEN(l.ITEMTYPEID) = 2 AND l.ITEMTYPEID LIKE '1[0-9]')")
-            // Por si alguien lo guardó como número, excluye también numéricamente
-            ->where(function ($w) {
-                $w->where('l.ITEMTYPEID', '<', 10)
-                  ->orWhere('l.ITEMTYPEID', '>', 19);
-            });
+            // EXCLUIR 10..19 (compatibilidad versiones: usar ISNUMERIC + CAST)
+            ->whereRaw("NOT (ISNUMERIC(l.ITEMTYPEID) = 1 AND CAST(l.ITEMTYPEID AS INT) BETWEEN 10 AND 19)");
 
         // Filtros dinámicos (mapeo de esta consulta)
         $this->aplicarFiltros($q, $filtros, $this->mapeoNormales());
@@ -148,10 +137,12 @@ class ComprasEspecialesController extends Controller
     }
 
     /**
-     * 2) Consulta ESPECIAL (SOLO toallas 10–19) con BOM.
-     *    Filtro textual estricto: LEN = 2 y LIKE '1[0-9]' (evita 01, 1, 010, etc.).
+     * 2) Consulta Batas (SOLO ItemTypeId 10–19) con datos de BOMID
+     *    - TwFlogsItemLine.EstadoLinea = 0
+     *    - TwFlogsItemLine.ItemTypeId BETWEEN 10 AND 19 (numérico)
+     *    - Campos principales provienen de TWFLOGBOMID según mapeo entregado
      */
-    private function obtenerRegistrosToallas(array $filtros): Collection
+    private function obtenerRegistrosBatas(array $filtros): Collection
     {
         $q = DB::connection('sqlsrv_ti')
             ->table('TI_PRO.dbo.TWFLOGSITEMLINE as l')
@@ -174,30 +165,33 @@ class ComprasEspecialesController extends Controller
                 'b.INVENTSIZEID as InventSizeId',
                 'b.TIPOHILOID as TipoHilo',
                 'l.VALORAGREGADO as ValorAgregado',
-                'b.FECHACANCELACION as FechaCancelacion',
-                DB::raw('SUM(l.PORENTREGAR * b.BOMQTY) as Cantidad'),
+                DB::raw('MIN(CAST(l.FECHACANCELACION AS DATE)) as FechaCancelacion'),
+                DB::raw('SUM(b.CONSUMOTOTAL) as Cantidad'),
                 'l.ITEMTYPEID as ItemTypeId'
             )
-            // SOLO 10..19 (texto exacto: 10,11,...,19)
-            ->whereRaw("LEN(l.ITEMTYPEID) = 2 AND l.ITEMTYPEID LIKE '1[0-9]'")
-            // Filtros fuertes
+            // SOLO 10..19 (compatibilidad versiones)
+            ->whereRaw('ISNUMERIC(l.ITEMTYPEID) = 1 AND CAST(l.ITEMTYPEID AS INT) BETWEEN 10 AND 19')
+            // Filtros base fuertes
             ->where('f.ESTADOFLOG', 4)
             ->whereIn('f.TIPOPEDIDO', [1, 3])
             ->where('f.DATAAREAID', 'PRO')
             ->where('l.ESTADOLINEA', 0)
             ->where('l.PORENTREGAR', '!=', 0);
 
-        // Filtros dinámicos (mapeo de esta consulta)
-        $this->aplicarFiltros($q, $filtros, $this->mapeoToallas());
+        // Filtros dinámicos según mapeo de batas
+        $this->aplicarFiltros($q, $filtros, $this->mapeoBatas());
 
         return $q->groupBy(
                 'f.IDFLOG','f.ESTADOFLOG','f.NAMEPROYECT','f.CUSTNAME','c.CATEGORIACALIDAD',
                 'b.ANCHO','b.LARGO','b.ITEMID','b.ITEMNAME','b.INVENTSIZEID','b.TIPOHILOID',
-                'l.VALORAGREGADO','b.FECHACANCELACION','l.ITEMTYPEID'
+                'l.VALORAGREGADO','l.ITEMTYPEID'
             )
-            ->orderBy('b.FECHACANCELACION','asc')
+            ->orderBy(DB::raw('MIN(CONVERT(date, l.FECHACANCELACION))'),'asc')
             ->get();
     }
+
+
+
 
     /* ------------------ Mapeos para filtros ------------------ */
 
@@ -220,7 +214,7 @@ class ComprasEspecialesController extends Controller
         ];
     }
 
-    private function mapeoToallas(): array
+    private function mapeoBatas(): array
     {
         return [
             'FlogsId'          => 'f.IDFLOG',
@@ -235,7 +229,7 @@ class ComprasEspecialesController extends Controller
             'InventSizeId'     => 'b.INVENTSIZEID',
             'TipoHilo'         => 'b.TIPOHILOID',
             'ValorAgregado'    => 'l.VALORAGREGADO',
-            'FechaCancelacion' => 'b.FECHACANCELACION',
+            'FechaCancelacion' => 'l.FECHACANCELACION',
         ];
     }
 
@@ -245,22 +239,21 @@ class ComprasEspecialesController extends Controller
     {
         return $normales->merge($toallas)
             ->map(function ($r) {
-                // Sanitiza ItemTypeId solo para presentación:
-                // si viene "01" (o "0x"), no lo mostramos.
                 $tipo = null;
                 $esBata = '';
                 if (isset($r->ItemTypeId)) {
                     $val = (string)$r->ItemTypeId;
                     $tipoNumerico = (int)$val;
 
-                    // Marcar como "bata" si está entre 10 y 19
+                    // En esta vista NO mostramos toallas (10..19)
                     if ($tipoNumerico >= 10 && $tipoNumerico <= 19) {
-                        $esBata = 'bata';
-                    }
-
-                    // Oculta 0x (01, 02, ..., 09). Deja visible otros (10..19, etc.)
-                    if (!preg_match('/^0\d$/', $val)) {
-                        $tipo = $val;
+                        $tipo = null;      // ocultar 10..19
+                        $esBata = 'bata';  // marcar tipo bata
+                    } else {
+                        // Oculta 0x (01, 02, ..., 09). Deja visible otros
+                        if (!preg_match('/^0\d$/', $val)) {
+                            $tipo = $val;
+                        }
                     }
                 }
 
@@ -279,8 +272,8 @@ class ComprasEspecialesController extends Controller
                     'ValorAgregado'    => $r->ValorAgregado ?? '',
                     'FechaCancelacion' => $r->FechaCancelacion ?? null,
                     'Cantidad'         => (float) ($r->Cantidad ?? 0),
-                    'ItemTypeId'       => $tipo, // ← limpio para la vista
-                    'EsBata'           => $esBata, // ← marca si es bata (10-19) o vacío
+                    'ItemTypeId'       => $tipo,
+                    'EsBata'           => $esBata,
                 ];
             })
             ->values();

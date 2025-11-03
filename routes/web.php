@@ -45,6 +45,9 @@ Route::get('/test-404', function () {
     abort(404);
 });
 
+// Ruta offline para PWA
+Route::view('/offline', 'offline')->name('offline');
+
 // ============================================
 // RUTAS PARA MÓDULOS SIN AUTENTICACIÓN
 // ============================================

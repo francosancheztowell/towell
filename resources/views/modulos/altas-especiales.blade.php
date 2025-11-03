@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', function () {
         else btnProgramar.classList.add('hidden');
     }
 
-    btnProgramar.onclick = () => {
+    btnProgramar.onclick = async () => {
         if (!current) return;
         const idflog       = current.dataset.idflog || '';
         const itemid       = current.dataset.itemid || '';
@@ -286,13 +286,112 @@ document.addEventListener('DOMContentLoaded', function () {
         const cantidad     = current.dataset.cantidad || '';
         const tipohilo     = current.dataset.tipohilo || '';
 
+        // HTML del modal (SweetAlert2)
+        const html = `
+            <div class="text-left text-sm">
+                <div class="mb-3">
+                    <div class="font-semibold text-gray-700 mb-1">Datos seleccionados</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <div class="text-xs text-gray-500">Tamaño</div>
+                            <div class="p-2 border rounded bg-gray-50" id="swal-tamano">${inventsizeid || ''}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">Artículo</div>
+                            <div class="p-2 border rounded bg-gray-50" id="swal-articulo">${itemid || ''}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Salón</label>
+                    <select id="swal-salon" class="w-full px-2 py-2 border rounded focus:ring-1 focus:ring-blue-500">
+                        <option value="">Cargando salones...</option>
+                    </select>
+                </div>
+
+                <div class="mb-1 relative">
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Clave modelo</label>
+                    <input id="swal-clave" type="text" placeholder="Escriba la clave..." class="w-full px-2 py-2 border rounded focus:ring-1 focus:ring-blue-500" autocomplete="off" />
+                    <div id="swal-clave-suggest" class="absolute left-0 right-0 mt-1 bg-white border rounded shadow-lg hidden max-h-48 overflow-y-auto z-50"></div>
+                </div>
+            </div>
+        `;
+
+        const swalRes = await Swal.fire({
+            title: 'Programar alta',
+            html,
+            width: 700,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Continuar',
+            cancelButtonText: 'Cancelar',
+            didOpen: async () => {
+                // Cargar salones (lista fija solicitada)
+                const sel = document.getElementById('swal-salon');
+                sel.innerHTML = `
+                    <option value="">Seleccione salón...</option>
+                    <option value="SMIT">SMIT</option>
+                    <option value="JACQUARD">JACQUARD</option>
+                    <option value="SULZER">SULZER</option>
+                `;
+
+                // Autocompletar clave con buscar-detalle-modelo
+                const input = document.getElementById('swal-clave');
+                const suggest = document.getElementById('swal-clave-suggest');
+                let timer = null;
+                const renderSuggest = (items) => {
+                    if (!items || items.length === 0) { suggest.classList.add('hidden'); suggest.innerHTML=''; return; }
+                    suggest.innerHTML = items.map(it => `<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm" data-item="${(it.ItemId||'').toString().replace(/"/g,'&quot;')}">${(it.TamanoClave || (it.InventSizeId||'') + (it.ItemId||'')).toString()} — ${it.Nombre || it.ItemName || ''}</div>`).join('');
+                    suggest.classList.remove('hidden');
+                    Array.from(suggest.children).forEach(div => {
+                        div.addEventListener('click', () => {
+                            input.value = div.getAttribute('data-item') || '';
+                            suggest.classList.add('hidden');
+                        });
+                    });
+                };
+                const doFetch = async (q) => {
+                    try {
+                        const url = new URL('{{ route("planeacion.buscar-detalle-modelo") }}', window.location.origin);
+                        if (q) url.searchParams.set('itemid', q);
+                        if ("${inventsizeid}") url.searchParams.set('inventsizeid', "${inventsizeid}");
+                        url.searchParams.set('concatena', `${"${inventsizeid}"}${q||''}`);
+                        const r = await fetch(url.toString());
+                        if (!r.ok) { renderSuggest([]); return; }
+                        const data = await r.json();
+                        const arr = Array.isArray(data) ? data : (data && !data.error ? [data] : []);
+                        renderSuggest(arr);
+                    } catch (e) { renderSuggest([]); }
+                };
+                input.addEventListener('input', () => {
+                    clearTimeout(timer);
+                    const val = input.value.trim();
+                    if (val.length < 1) { renderSuggest([]); return; }
+                    timer = setTimeout(() => doFetch(val), 250);
+                });
+                input.addEventListener('blur', () => setTimeout(()=>suggest.classList.add('hidden'), 150));
+            },
+            preConfirm: () => {
+                const salon = (document.getElementById('swal-salon') || {}).value || '';
+                const clave = (document.getElementById('swal-clave') || {}).value || '';
+                if (!salon) { Swal.showValidationMessage('Seleccione un salón'); return false; }
+                return { salon, clave };
+            }
+        });
+
+        if (!swalRes.isConfirmed) return;
+        const { salon, clave } = swalRes.value || { salon:'', clave:'' };
+
+        // Redirigir con parámetros
         const url = new URL('{{ route("programa-tejido.altas-especiales.nuevo") }}', window.location.origin);
         url.searchParams.set('idflog', idflog);
         if (itemid)       url.searchParams.set('itemid', itemid);
         if (inventsizeid) url.searchParams.set('inventsizeid', inventsizeid);
         if (cantidad)     url.searchParams.set('cantidad', cantidad);
         if (tipohilo)     url.searchParams.set('tipohilo', tipohilo);
-
+        if (salon)        url.searchParams.set('salon', salon);
+        if (clave)        url.searchParams.set('clavemodelo', clave);
         window.location.href = url.toString();
     };
 
