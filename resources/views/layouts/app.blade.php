@@ -2,7 +2,6 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- PWA Manifest -->
@@ -14,6 +13,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Producción">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+    <!-- Android/Chrome: Ocultar barra de navegación -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Producción">
+
+    <!-- Prevenir zoom y mostrar en pantalla completa -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
     <title>@yield('title', 'TOWELL S.A DE C.V')</title>
 
@@ -32,12 +38,44 @@
     @keyframes loading{0%{background-position:200% 0}100%{background-position:-200% 0}}
     .module-grid img{will-change:transform;backface-visibility:hidden}
 
-    /* PWA: Safe area insets para notches en iOS */
+    /* PWA: Safe area insets para notches en iOS y ocultar barra Chrome */
+    html {
+      height: 100%;
+      height: -webkit-fill-available;
+      overflow-x: hidden;
+    }
+
+    body {
+      min-height: 100%;
+      min-height: -webkit-fill-available;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      /* Forzar altura completa para ocultar barra de Chrome */
+      position: relative;
+    }
+
     :root {
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
+    }
+
+    /* Ocultar barra de direcciones en Chrome Android cuando está en modo PWA */
+    @media all and (display-mode: fullscreen) {
+      html, body {
+        height: 100vh;
+        height: -webkit-fill-available;
+        overflow: hidden;
+      }
+    }
+
+    /* Forzar pantalla completa en modo standalone */
+    @media all and (display-mode: standalone) {
+      html, body {
+        height: 100vh;
+        height: -webkit-fill-available;
+      }
     }
     </style>
 
@@ -647,6 +685,49 @@
           });
       });
     }
+
+    // Ocultar barra de direcciones de Chrome al hacer scroll
+    (function() {
+      let lastScrollTop = 0;
+      let ticking = false;
+
+      function hideChromeBar() {
+        if (ticking) return;
+        ticking = true;
+
+        requestAnimationFrame(function() {
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+          // Si el usuario hace scroll hacia abajo, ocultar barra
+          if (scrollTop > lastScrollTop && scrollTop > 10) {
+            // Forzar altura completa para ocultar barra
+            document.documentElement.style.height = '100vh';
+            document.documentElement.style.height = '-webkit-fill-available';
+          }
+
+          lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+          ticking = false;
+        });
+      }
+
+      // Escuchar eventos de scroll y touch
+      window.addEventListener('scroll', hideChromeBar, { passive: true });
+      window.addEventListener('touchmove', hideChromeBar, { passive: true });
+
+      // Forzar altura completa al cargar
+      window.addEventListener('load', function() {
+        document.documentElement.style.height = '100vh';
+        document.documentElement.style.height = '-webkit-fill-available';
+        setTimeout(function() {
+          window.scrollTo(0, 1);
+        }, 100);
+      });
+
+      // Prevenir que aparezca la barra al hacer zoom
+      document.addEventListener('gesturestart', function(e) {
+        e.preventDefault();
+      });
+    })();
   </script>
     </body>
     </html>

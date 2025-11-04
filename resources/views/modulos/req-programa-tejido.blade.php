@@ -6,6 +6,10 @@
 <a href="{{ route('programa-tejido.altas-especiales') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 mr-2" title="Altas Especiales">
     Altas Especiales
 </a>
+<a href="{{ route('programa-tejido.alta-pronosticos') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 mr-2" title="Alta de Pronósticos">
+    <i class="fa-solid fa-chart-line mr-2"></i>
+    Alta de Pronósticos
+</a>
 <button id="btn-editar-programa" type="button" class="inline-flex items-center justify-center w-9 h-9 text-base rounded-full text-white bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar" aria-label="Editar" disabled>
     <i class="fa-solid fa-pen-to-square"></i>
 </button>

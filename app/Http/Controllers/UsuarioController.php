@@ -261,7 +261,7 @@ class UsuarioController extends Controller
         $idusuario = $usuarioActual->idusuario;
 
         // Ejemplo de serie: '909' (Utilería) → listar nietos nivel 3 con Dependencia = 909
-        $ordenPadre = (int) $serie;
+        $ordenPadre = (string) $serie;
         $moduloPadre = SYSRoles::where('orden', $ordenPadre)->first();
         if (!$moduloPadre) {
             return redirect('/configuracion')->with('error', 'Módulo de configuración no encontrado');
@@ -272,7 +272,7 @@ class UsuarioController extends Controller
                 ->where('SYSUsuariosRoles.idusuario', $idusuario)
                 ->where('SYSUsuariosRoles.acceso', true)
                 ->where('r.Nivel', 3)
-                ->where('r.Dependencia', $ordenPadre)
+                ->whereRaw("CAST(r.Dependencia AS VARCHAR) = ?", [$ordenPadre])
                 ->select('r.idrol', 'r.orden', 'r.modulo', 'r.imagen', 'r.Nivel', 'r.Dependencia',
                         'SYSUsuariosRoles.acceso as usuario_acceso',
                         'SYSUsuariosRoles.crear as usuario_crear',

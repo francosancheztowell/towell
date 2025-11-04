@@ -9,6 +9,8 @@ use App\Http\Controllers\CatalagoVelocidadController;
 use App\Http\Controllers\CortesEficienciaController;
 use App\Http\Controllers\ProgramaTejidoController;
 use App\Http\Controllers\RequerimientoController;
+use App\Http\Controllers\SecuenciaInvTelasController;
+use App\Http\Controllers\SecuenciaInvTramaController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TelaresController;
@@ -452,6 +454,23 @@ Route::middleware(['auth'])->group(function () {
     // MÓDULO TEJIDO (200)
     // ============================================
     Route::prefix('tejido')->name('tejido.')->group(function () {
+        // Configurar - Muestra submódulos nieto (nivel 3) con Dependencia = 205
+        Route::get('/configurar', function() {
+            return app(UsuarioController::class)->showSubModulosConfiguracion('205');
+        })->name('configurar');
+
+        // Secuencia Inv Telas
+        Route::get('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'index'])->name('secuencia-inv-telas.index');
+        Route::post('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'store'])->name('secuencia-inv-telas.store');
+        Route::put('/secuencia-inv-telas/{id}', [SecuenciaInvTelasController::class, 'update'])->name('secuencia-inv-telas.update');
+        Route::delete('/secuencia-inv-telas/{id}', [SecuenciaInvTelasController::class, 'destroy'])->name('secuencia-inv-telas.destroy');
+
+        // Secuencia Inv Trama
+        Route::get('/secuencia-inv-trama', [SecuenciaInvTramaController::class, 'index'])->name('secuencia-inv-trama.index');
+        Route::post('/secuencia-inv-trama', [SecuenciaInvTramaController::class, 'store'])->name('secuencia-inv-trama.store');
+        Route::put('/secuencia-inv-trama/{id}', [SecuenciaInvTramaController::class, 'update'])->name('secuencia-inv-trama.update');
+        Route::delete('/secuencia-inv-trama/{id}', [SecuenciaInvTramaController::class, 'destroy'])->name('secuencia-inv-trama.destroy');
+
         // Inventario de Telas
         Route::get('/inventario-telas', function () {
         return view('modulos/tejido/inventario-telas');
