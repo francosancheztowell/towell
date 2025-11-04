@@ -51,6 +51,17 @@
                 </select>
             </div>
 
+            <!-- Hora -->
+            <div class="flex items-center space-x-2">
+                <span class="text-sm font-medium text-gray-700">Hora:</span>
+                <div class="relative">
+                    <input type="text" id="hora-actual" class="px-8 py-2 text-sm border border-gray-300 rounded bg-white text-gray-700 cursor-pointer w-24 text-center font-mono" readonly onclick="actualizarYGuardarHora()" title="Click para actualizar y guardar hora en TejEficiencia">
+                    <svg class="w-4 h-4 absolute left-2 top-1/2 transform -translate-y-1/2 text-blue-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+
             <!-- Usuario -->
             <div class="flex items-center space-x-2">
                 <span class="text-sm font-medium text-gray-700">Usuario:</span>
@@ -120,112 +131,53 @@
                     </tr>
                 </thead>
                 <tbody id="telares-body" class="bg-white divide-y divide-gray-100">
-                    <!-- Telares 201-215 -->
-                    @for($i = 201; $i <= 215; $i++)
+                    <!-- Telares (orden según InvSecuenciaCorteEf) -->
+                    @foreach($telares ?? [] as $i)
                     <tr class="hover:bg-blue-50">
                         <td class="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">{{ $i }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                            <input type="text" class="w-full px-2 py-1 border border-gray-200 rounded text-sm bg-gray-50 text-center" placeholder="RPM" data-telar="{{ $i }}" data-field="rpm_std" readonly>
+                            <input type="text" class="w-full px-2 py-1 border border-gray-200 rounded text-sm bg-gray-100 text-gray-600 text-center cursor-not-allowed" placeholder="Cargando..." data-telar="{{ $i }}" data-field="rpm_std" readonly>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                            <input type="text" class="w-full px-2 py-1 border border-gray-200 rounded text-sm bg-gray-50 text-center" placeholder="Eficiencia" data-telar="{{ $i }}" data-field="eficiencia_std" readonly>
+                            <input type="text" class="w-full px-2 py-1 border border-gray-200 rounded text-sm bg-gray-100 text-gray-600 text-center cursor-not-allowed" placeholder="Cargando..." data-telar="{{ $i }}" data-field="eficiencia_std" readonly>
                         </td>
 
                         <!-- Horario 1 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-center relative">
-                                <span class="rpm-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors" id="h1_rpm_display_{{ $i }}" onclick="toggleRpmEdit(this)">0</span>
-                                <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
-                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
-                                        <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 500; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="rpm">{{ $j }}</span>
-                                            @endfor
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="1" data-type="rpm">0</span>
                         </td>
-                        <td class="border border-gray-300 px-1 py-2"><div class="flex items-center justify-center relative"><span class="efic-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors" id="h1_efic_display_{{ $i }}" onclick="toggleEficEdit(this)">0%</span>
-                                <div class="efic-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
-                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
-                                        <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 100; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-blue-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="1" data-type="eficiencia">{{ $j }}</span>
-                                            @endfor
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <td class="border border-gray-300 px-1 py-2">
+                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="1" data-type="eficiencia">0%</span>
                         </td>
                         <td class="border border-gray-300 px-0 py-2 w-10 text-center">
-                            <input type="checkbox" class="w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" data-telar="{{ $i }}" data-horario="1" onclick="abrirModalObservaciones(this)">
+                            <input type="checkbox" class="obs-checkbox w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" data-telar="{{ $i }}" data-horario="1">
                         </td>
 
                         <!-- Horario 2 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-center relative"><span class="rpm-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors" id="h2_rpm_display_{{ $i }}" onclick="toggleRpmEdit(this)">0</span>
-                                <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
-                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
-                                        <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 500; $j++)
-                                                <span class="number-option inline-block w-6 h-6 text-center leading-6 text-sm font-medium cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="rpm">{{ $j }}</span>
-                                            @endfor
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="2" data-type="rpm">0</span>
                         </td>
-                        <td class="border border-gray-300 px-1 py-2"><div class="flex items-center justify-center relative"><span class="efic-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors" id="h2_efic_display_{{ $i }}" onclick="toggleEficEdit(this)">0%</span>
-                                <div class="efic-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
-                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
-                                        <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 100; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="2" data-type="eficiencia">{{ $j }}</span>
-                                            @endfor
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <td class="border border-gray-300 px-1 py-2">
+                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="2" data-type="eficiencia">0%</span>
                         </td>
                         <td class="border border-gray-300 px-0 py-2 w-10 text-center">
-                            <input type="checkbox" class="w-3 h-3 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500" data-telar="{{ $i }}" data-horario="2" onclick="abrirModalObservaciones(this)">
+                            <input type="checkbox" class="obs-checkbox w-3 h-3 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500" data-telar="{{ $i }}" data-horario="2">
                         </td>
 
                         <!-- Horario 3 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <div class="flex items-center justify-center relative"><span class="rpm-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors" id="h3_rpm_display_{{ $i }}" onclick="toggleRpmEdit(this)">0</span>
-                                <div class="rpm-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
-                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
-                                        <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 500; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="rpm">{{ $j }}</span>
-                                            @endfor
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="3" data-type="rpm">0</span>
                         </td>
-                        <td class="border border-gray-300 px-1 py-2"><div class="flex items-center justify-center relative"><span class="efic-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors" id="h3_efic_display_{{ $i }}" onclick="toggleEficEdit(this)">0%</span>
-                                <div class="efic-edit-container hidden absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
-                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-32" style="scrollbar-width: none; -ms-overflow-style: none;">
-                                        <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 100; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-base font-medium cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}" data-telar="{{ $i }}" data-horario="3" data-type="eficiencia">{{ $j }}</span>
-                                            @endfor
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <td class="border border-gray-300 px-1 py-2">
+                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="3" data-type="eficiencia">0%</span>
                         </td>
                         <td class="border border-gray-300 px-0 py-2 w-10 text-center">
-                            <input type="checkbox" class="w-3 h-3 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500" data-telar="{{ $i }}" data-horario="3" onclick="abrirModalObservaciones(this)">
+                            <input type="checkbox" class="obs-checkbox w-3 h-3 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500" data-telar="{{ $i }}" data-horario="3">
                         </td>
                     </tr>
-                    @endfor
+                    @endforeach
 
-                    <!-- Telares 299-320 -->
-                    @for($i = 299; $i <= 320; $i++)
+                    {{--
                     <tr class="hover:bg-gray-50">
                         <td class="border border-gray-300 px-1 py-2 text-center text-sm font-semibold w-16">{{ $i }}</td>
                         <td class="border border-gray-300 px-0 py-2 w-10">
@@ -327,6 +279,7 @@
                         </td>
                     </tr>
                     @endfor
+                    --}}
                 </tbody>
             </table>
         </div>
@@ -341,321 +294,337 @@
     // Variables globales
     let currentFolio = null;
     let isEditing = false;
-    let currentCheckbox = null;
     let observaciones = {}; // Almacenar observaciones por telar-horario
+    let activeModal = null; // Modal activo para evitar múltiples abiertos
 
-    // Funciones para editores de RPM y Eficiencia
-    function inicializarValor(telar, horario, tipo, valor) {
-        const display = document.getElementById(`h${horario}_${tipo === 'rpm' ? 'rpm' : 'efic'}_display_${telar}`);
-        if (display) {
-            if (tipo === 'rpm') {
-                display.textContent = valor;
-            } else {
-                // Para eficiencia, mantener el mismo formato que RPM (valor directo)
-                display.textContent = valor + '%';
-            }
-        }
+    // Cache de elementos DOM
+    const elements = {
+        folio: null,
+        fecha: null,
+        turno: null,
+        hora: null,
+        usuario: null,
+        noEmpleado: null,
+        status: null,
+        segundaTabla: null,
+        headerSection: null
+    };
+
+    // Inicializar cache de elementos
+    function initElements() {
+        elements.folio = document.getElementById('folio');
+        elements.fecha = document.getElementById('fecha');
+        elements.turno = document.getElementById('turno');
+        elements.hora = document.getElementById('hora-actual');
+        elements.usuario = document.getElementById('usuario');
+        elements.noEmpleado = document.getElementById('noEmpleado');
+        elements.status = document.getElementById('status');
+        elements.segundaTabla = document.getElementById('segunda-tabla');
+        elements.headerSection = document.getElementById('header-section');
     }
 
-    function toggleRpmEdit(display) {
-        const container = display.parentElement.querySelector('.rpm-edit-container');
+    // Función optimizada para abrir editor de valores con SweetAlert2
+    async function abrirEditorValor(display) {
+        if (activeModal) return; // Evitar múltiples modales
+
+        const telar = display.dataset.telar;
+        const horario = parseInt(display.dataset.horario);
+        const tipo = display.dataset.type;
         
-        if (container.classList.contains('hidden')) {
-            // Cerrar todos los editores abiertos primero
-            closeAllEditors();
-
-            // Si el display está en 0, inicializar con valor STD
-            if (display.textContent === '0') {
-                const telar = display.closest('tr').querySelector('td:first-child').textContent;
-                const rpmStdInput = document.querySelector(`input[data-telar="${telar}"][data-field="rpm_std"]`);
-                if (rpmStdInput && rpmStdInput.value) {
-                    const rpmStd = parseFloat(rpmStdInput.value) || 0;
-                    display.textContent = rpmStd;
-                }
-            }
-
-            // Mostrar editor actual
-            container.classList.remove('hidden');
-            display.classList.add('bg-gray-100');
-
-            // Inicializar el modal con el valor actual y centrar el scroll
-            setTimeout(() => {
-                const currentValue = parseInt(display.textContent) || 0;
-
-                // Si el valor es 0, inicializar con el valor STD
-                if (currentValue === 0) {
-                    const telar = display.closest('tr').querySelector('td:first-child').textContent;
-                    const rpmStdInput = document.querySelector(`input[data-telar="${telar}"][data-field="rpm_std"]`);
-                    if (rpmStdInput && rpmStdInput.value) {
-                        const rpmStd = parseFloat(rpmStdInput.value) || 0;
-                        display.textContent = rpmStd;
-
-                        // Buscar el valor exacto
-                        const exactValue = Math.round(rpmStd);
-                        const exactOption = container.querySelector(`span[data-value="${exactValue}"]`);
-
-                        if (exactOption) {
-                            exactOption.classList.remove('bg-gray-100', 'text-gray-700');
-                            exactOption.classList.add('bg-blue-500', 'text-white');
-
-                            // Centrar el scroll en el número exacto
-                            const scrollContainer = container.querySelector('.number-scroll-container');
-                            const containerWidth = scrollContainer.offsetWidth;
-                            const optionLeft = exactOption.offsetLeft;
-                            const optionWidth = exactOption.offsetWidth;
-                            const scrollLeft = optionLeft - (containerWidth / 2) + (optionWidth / 2);
-
-                            scrollContainer.scrollTo({
-                                left: scrollLeft,
-                                behavior: 'smooth'
-                            });
-                        }
-                    }
-                } else {
-                    // Si ya tiene un valor, buscar el valor exacto
-                    const exactValue = Math.round(currentValue);
-                    const exactOption = container.querySelector(`span[data-value="${exactValue}"]`);
-
-                    if (exactOption) {
-                        exactOption.classList.remove('bg-gray-100', 'text-gray-700');
-                        exactOption.classList.add('bg-blue-500', 'text-white');
-
-                        // Centrar el scroll en el número exacto
-                        const scrollContainer = container.querySelector('.number-scroll-container');
-                        const containerWidth = scrollContainer.offsetWidth;
-                        const optionLeft = exactOption.offsetLeft;
-                        const optionWidth = exactOption.offsetWidth;
-                        const scrollLeft = optionLeft - (containerWidth / 2) + (optionWidth / 2);
-
-                        scrollContainer.scrollTo({
-                            left: scrollLeft,
-                            behavior: 'smooth'
-                        });
-                    }
-                }
-            }, 50);
-        } else {
-            // Ocultar editor
-            container.classList.add('hidden');
-            display.classList.remove('bg-gray-100');
+        // Obtener valor actual
+        let currentValue = tipo === 'rpm' 
+            ? parseInt(display.textContent) || 0
+            : parseInt(display.textContent.replace('%', '')) || 0;
+        
+        // Si es 0, obtener valor predeterminado según horario
+        if (currentValue === 0) {
+            currentValue = obtenerValorPredeterminado(telar, horario, tipo);
         }
-    }
 
-    function toggleEficEdit(display) {
-        const container = display.parentElement.querySelector('.efic-edit-container');
+        const maxValue = tipo === 'rpm' ? 500 : 100;
+        const horarioColors = ['blue', 'green', 'yellow'];
+        const color = horarioColors[parseInt(horario) - 1];
 
-        if (container.classList.contains('hidden')) {
-            // Cerrar todos los editores abiertos primero
-            closeAllEditors();
+        activeModal = true;
 
-            // Si el display está en 0%, inicializar con valor STD
-            if (display.textContent === '0%') {
-                const telar = display.closest('tr').querySelector('td:first-child').textContent;
-                const eficienciaStdInput = document.querySelector(`input[data-telar="${telar}"][data-field="eficiencia_std"]`);
-                if (eficienciaStdInput && eficienciaStdInput.value) {
-                    const eficienciaStd = parseFloat(eficienciaStdInput.value.replace('%', '')) || 0;
-                    const eficienciaStdInt = Math.round(eficienciaStd * 100); // 0.77 -> 77
-                    display.textContent = eficienciaStdInt + '%';
-                }
-            }
-
-            // Mostrar editor actual
-            container.classList.remove('hidden');
-            display.classList.add('bg-gray-100');
-
-            // Inicializar el modal con el valor actual y centrar el scroll
-            setTimeout(() => {
-                const currentValue = parseInt(display.textContent.replace('%', '')) || 0;
-
-                // Si el valor es 0, inicializar con el valor STD
-                if (currentValue === 0) {
-                    const telar = display.closest('tr').querySelector('td:first-child').textContent;
-                    const eficStdInput = document.querySelector(`input[data-telar="${telar}"][data-field="eficiencia_std"]`);
-                    if (eficStdInput && eficStdInput.value) {
-                        const eficStd = parseFloat(eficStdInput.value.replace('%', '')) || 0;
-                        const eficStdInt = Math.round(eficStd * 100); // 0.77 -> 77
-                        display.textContent = eficStdInt + '%';
-
-                        // Buscar el valor exacto en el modal - convertir decimal a entero
-                        const exactOption = container.querySelector(`span[data-value="${eficStdInt}"]`);
-                        if (exactOption) {
-                            exactOption.classList.remove('bg-gray-100', 'text-gray-700');
-                            exactOption.classList.add('bg-blue-500', 'text-white');
-
-                            // Centrar el scroll
-                            const scrollContainer = container.querySelector('.number-scroll-container');
-                            const containerWidth = scrollContainer.offsetWidth;
-                            const optionLeft = exactOption.offsetLeft;
-                            const optionWidth = exactOption.offsetWidth;
-                            const scrollLeft = optionLeft - (containerWidth / 2) + (optionWidth / 2);
-
-                            scrollContainer.scrollTo({
-                                left: scrollLeft,
-                                behavior: 'smooth'
-                            });
-                        }
+        const result = await Swal.fire({
+            title: `${tipo === 'rpm' ? 'RPM' : 'Eficiencia'} - Telar ${telar}`,
+            html: `
+                <div class="text-left mb-3">
+                    <p class="text-sm text-gray-600">
+                        <strong>Horario ${horario}</strong>
+                    </p>
+                </div>
+                <div class="mb-3">
+                    <input type="number" id="valor-input" class="w-full px-4 py-2 text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-${color}-500 text-center" 
+                           value="${currentValue}" min="0" max="${maxValue}" step="1">
+                </div>
+                <div class="text-xs text-gray-500">
+                    Rango: 0 - ${maxValue}
+                </div>
+            `,
+            width: '400px',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fas fa-check mr-1"></i> Aplicar',
+            cancelButtonText: '<i class="fas fa-times mr-1"></i> Cancelar',
+            confirmButtonColor: color === 'blue' ? '#2563eb' : (color === 'green' ? '#22c55e' : '#eab308'),
+            cancelButtonColor: '#6b7280',
+            focusConfirm: false,
+            didOpen: () => {
+                const input = document.getElementById('valor-input');
+                input.focus();
+                input.select();
+                
+                // Enter para confirmar
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        Swal.clickConfirm();
                     }
-                } else {
-                    // Si ya tiene un valor, buscar el valor exacto en el modal
-                    const exactOption = container.querySelector(`span[data-value="${currentValue}"]`);
-                    if (exactOption) {
-                        exactOption.classList.remove('bg-gray-100', 'text-gray-700');
-                        exactOption.classList.add('bg-blue-500', 'text-white');
-
-                        // Centrar el scroll
-                        const scrollContainer = container.querySelector('.number-scroll-container');
-                        const containerWidth = scrollContainer.offsetWidth;
-                        const optionLeft = exactOption.offsetLeft;
-                        const optionWidth = exactOption.offsetWidth;
-                        const scrollLeft = optionLeft - (containerWidth / 2) + (optionWidth / 2);
-
-                        scrollContainer.scrollTo({
-                            left: scrollLeft,
-                            behavior: 'smooth'
-                        });
-                    }
-                }
-            }, 50);
-        } else {
-            // Ocultar editor
-            container.classList.add('hidden');
-            display.classList.remove('bg-gray-100');
-        }
-    }
-
-    function closeAllEditors() {
-        document.querySelectorAll('.rpm-edit-container, .efic-edit-container').forEach(container => {
-            if (!container.classList.contains('hidden')) {
-                container.classList.add('hidden');
+                });
+            },
+            preConfirm: () => {
+                const input = document.getElementById('valor-input');
+                let valor = parseInt(input.value) || 0;
+                
+                // Validar rango
+                if (valor < 0) valor = 0;
+                if (valor > maxValue) valor = maxValue;
+                
+                return valor;
             }
         });
-        
-        document.querySelectorAll('.rpm-display, .efic-display').forEach(display => {
-            display.classList.remove('bg-gray-100');
-        });
+
+        activeModal = null;
+
+        if (result.isConfirmed) {
+            const nuevoValor = result.value;
+            
+            // Actualizar display
+            display.textContent = tipo === 'rpm' ? nuevoValor : `${nuevoValor}%`;
+            
+            // Propagar valor a siguientes horarios si están en 0
+            propagarValor(telar, parseInt(horario), tipo, nuevoValor);
+        }
     }
 
-    function propagarValor(telar, horario, tipo, valor) {
-        // Si es Horario 1, propagar a Horario 2 y 3 (solo si están en 0)
+    // Obtener valor predeterminado según horario
+    function obtenerValorPredeterminado(telar, horario, tipo) {
+        let valor = 0;
+        
         if (horario === 1) {
-            // Verificar si Horario 2 está en 0
-            const displayH2 = document.getElementById(`h2_${tipo === 'rpm' ? 'rpm' : 'efic'}_display_${telar}`);
-            if (displayH2 && (displayH2.textContent === '0' || displayH2.textContent === '0%')) {
-                inicializarValor(telar, 2, tipo, valor);
+            // Horario 1: usar valores STD
+            const stdInput = document.querySelector(`input[data-telar="${telar}"][data-field="${tipo === 'rpm' ? 'rpm_std' : 'eficiencia_std'}"]`);
+            if (stdInput && stdInput.value) {
+                const stdValue = parseFloat(stdInput.value.replace('%', '')) || 0;
+                valor = tipo === 'rpm' ? Math.round(stdValue) : Math.round(stdValue);
             }
-
-            // Verificar si Horario 3 está en 0
-            const displayH3 = document.getElementById(`h3_${tipo === 'rpm' ? 'rpm' : 'efic'}_display_${telar}`);
-            if (displayH3 && (displayH3.textContent === '0' || displayH3.textContent === '0%')) {
-                inicializarValor(telar, 3, tipo, valor);
+        } else if (horario === 2) {
+            // Horario 2: usar valores del Horario 1
+            const horario1Display = document.querySelector(`span.valor-display[data-telar="${telar}"][data-horario="1"][data-type="${tipo}"]`);
+            if (horario1Display) {
+                const horario1Value = tipo === 'rpm' 
+                    ? parseInt(horario1Display.textContent) || 0
+                    : parseInt(horario1Display.textContent.replace('%', '')) || 0;
+                if (horario1Value > 0) {
+                    valor = horario1Value;
+                }
+            }
+        } else if (horario === 3) {
+            // Horario 3: usar valores del Horario 2
+            const horario2Display = document.querySelector(`span.valor-display[data-telar="${telar}"][data-horario="2"][data-type="${tipo}"]`);
+            if (horario2Display) {
+                const horario2Value = tipo === 'rpm' 
+                    ? parseInt(horario2Display.textContent) || 0
+                    : parseInt(horario2Display.textContent.replace('%', '')) || 0;
+                if (horario2Value > 0) {
+                    valor = horario2Value;
+                }
             }
         }
-        // Si es Horario 2, propagar a Horario 3 (solo si está en 0)
-        else if (horario === 2) {
-            // Verificar si Horario 3 está en 0
-            const displayH3 = document.getElementById(`h3_${tipo === 'rpm' ? 'rpm' : 'efic'}_display_${telar}`);
-            if (displayH3 && (displayH3.textContent === '0' || displayH3.textContent === '0%')) {
-                inicializarValor(telar, 3, tipo, valor);
-            }
-        }
-        // Horario 3 no propaga a nadie
+        
+        return valor;
     }
 
-    // Inicialización
+    // Propagar valor a horarios siguientes
+    function propagarValor(telar, horario, tipo, valor) {
+        const horariosSiguientes = horario === 1 ? [2, 3] : horario === 2 ? [3] : [];
+        const suffix = tipo === 'rpm' ? '' : '%';
+        
+        horariosSiguientes.forEach(h => {
+            const display = document.querySelector(`span.valor-display[data-telar="${telar}"][data-horario="${h}"][data-type="${tipo}"]`);
+            if (display && (display.textContent === '0' || display.textContent === '0%')) {
+                display.textContent = valor + suffix;
+            }
+        });
+    }
+
+    // Funciones para manejo de hora
+    function actualizarHora() {
+        const ahora = new Date();
+        const hora = ahora.getHours().toString().padStart(2, '0');
+        const minutos = ahora.getMinutes().toString().padStart(2, '0');
+        const horaFormateada = `${hora}:${minutos}`;
+        
+        if (elements.hora) {
+            elements.hora.value = horaFormateada;
+        }
+        
+        return horaFormateada;
+    }
+
+    async function actualizarYGuardarHora() {
+        const horaFormateada = actualizarHora();
+        const turno = elements.turno ? elements.turno.value : '';
+        const folio = elements.folio ? elements.folio.value : '';
+        
+        // Determinar horario basado en la hora actual
+        const horaActual = parseInt(horaFormateada.split(':')[0]);
+        let horario = 1;
+        
+        if (horaActual >= 6 && horaActual < 14) {
+            horario = 1;
+            console.log(`🌅 HORARIO 1 (06:00-14:00) - Hora registrada: ${horaFormateada}`);
+        } else if (horaActual >= 14 && horaActual < 22) {
+            horario = 2;
+            console.log(`☀️ HORARIO 2 (14:00-22:00) - Hora registrada: ${horaFormateada}`);
+        } else {
+            horario = 3;
+            console.log(`🌙 HORARIO 3 (22:00-06:00) - Hora registrada: ${horaFormateada}`);
+        }
+
+        // Guardar en tabla TejEficiencia si hay folio
+        if (folio && currentFolio) {
+            try {
+                const response = await fetch('/modulo-cortes-de-eficiencia/guardar-hora', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        folio: folio,
+                        turno: turno,
+                        horario: horario,
+                        hora: horaFormateada,
+                        fecha: elements.fecha ? elements.fecha.value : new Date().toISOString().split('T')[0]
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log(`✅ Hora guardada en TejEficiencia: ${horaFormateada} - Horario ${horario}`);
+                    
+                    Swal.fire({
+                        title: 'Hora guardada',
+                        html: `
+                            <div class="text-center">
+                                <div class="text-2xl mb-2">${horario === 1 ? '🌅' : horario === 2 ? '☀️' : '🌙'}</div>
+                                <p class="font-mono text-lg">${horaFormateada}</p>
+                                <p class="text-sm text-gray-600">Horario ${horario} - Folio ${folio}</p>
+                            </div>
+                        `,
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: 'top-end'
+                    });
+                } else {
+                    throw new Error(data.message || 'Error al guardar hora');
+                }
+            } catch (error) {
+                console.error('❌ Error al guardar hora:', error);
+                
+                Swal.fire({
+                    title: 'Hora actualizada',
+                    html: `
+                        <div class="text-center">
+                            <div class="text-2xl mb-2">${horario === 1 ? '🌅' : horario === 2 ? '☀️' : '🌙'}</div>
+                            <p class="font-mono text-lg">${horaFormateada}</p>
+                            <p class="text-sm text-gray-600">Horario ${horario}</p>
+                            <p class="text-xs text-red-500 mt-1">No guardado en BD</p>
+                        </div>
+                    `,
+                    icon: 'warning',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+            }
+        } else {
+            // Solo mostrar actualización sin guardar
+            Swal.fire({
+                title: 'Hora actualizada',
+                html: `
+                    <div class="text-center">
+                        <div class="text-2xl mb-2">${horario === 1 ? '🌅' : horario === 2 ? '☀️' : '🌙'}</div>
+                        <p class="font-mono text-lg">${horaFormateada}</p>
+                        <p class="text-sm text-gray-600">Horario ${horario}</p>
+                    </div>
+                `,
+                icon: 'info',
+                timer: 1500,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end'
+            });
+        }
+    }
+
+    function inicializarHora() {
+        const horaFormateada = actualizarHora();
+        console.log(`🕐 Hora inicial: ${horaFormateada}`);
+    }
+
+    // Inicialización optimizada
     document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar cache de elementos
+        initElements();
+
         // Establecer fecha actual
-        document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+        elements.fecha.value = new Date().toISOString().split('T')[0];
+
+        // Inicializar hora actual
+        inicializarHora();
 
         // Cargar datos del usuario actual (simulado)
-        document.getElementById('usuario').value = 'Usuario Actual';
-        document.getElementById('noEmpleado').value = '12345';
+        elements.usuario.value = 'Usuario Actual';
+        elements.noEmpleado.value = '12345';
 
-        // Obtener turno actual
-        cargarTurnoActual();
-
-        // Cargar datos de telares desde la base de datos
-        cargarDatosTelares();
-
-        // Modo captura por defecto: mostrar tabla y generar folio sin pulsar "+"
-        mostrarSegundaTablaSinHeader();
-        if (typeof generarNuevoFolio === 'function') {
+        // Obtener turno actual y cargar datos de telares en paralelo
+        Promise.all([
+            cargarTurnoActual(),
+            cargarDatosTelares()
+        ]).then(() => {
+            // Modo captura por defecto: mostrar tabla y generar folio sin pulsar "+"
+            mostrarSegundaTablaSinHeader();
             generarNuevoFolio();
-        }
-
-        // Event listeners para los números de RPM y Eficiencia
-        document.querySelectorAll('.number-option').forEach(option => {
-            option.addEventListener('click', function() {
-                const telar = this.getAttribute('data-telar');
-                const horario = parseInt(this.getAttribute('data-horario'));
-                const tipo = this.getAttribute('data-type');
-                const valor = parseInt(this.getAttribute('data-value'));
-
-                const container = this.closest('.number-scroll-container');
-                const allOptions = container.querySelectorAll('.number-option');
-                const editContainer = this.closest('.rpm-edit-container, .efic-edit-container');
-                const button = editContainer.previousElementSibling;
-                const display = button.previousElementSibling;
-
-                // Remover selección anterior
-                allOptions.forEach(opt => {
-                    opt.classList.remove('bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'text-white');
-                    opt.classList.add('bg-gray-100', 'text-gray-700');
-                });
-
-                // Seleccionar opción actual con color según horario
-                this.classList.remove('bg-gray-100', 'text-gray-700');
-                if (horario === 1) {
-                    this.classList.add('bg-blue-500', 'text-white');
-                } else if (horario === 2) {
-                    this.classList.add('bg-green-500', 'text-white');
-                } else if (horario === 3) {
-                    this.classList.add('bg-yellow-500', 'text-white');
-                }
-
-                // Actualizar display
-                if (tipo === 'rpm') {
-                    display.textContent = valor;
-                } else {
-                    // Para eficiencia, mantener el mismo formato que RPM (valor directo)
-                    display.textContent = valor + '%';
-                }
-
-                // Propagar valor
-                propagarValor(telar, horario, tipo, valor);
-
-                // Centrar el número seleccionado
-                const containerWidth = container.offsetWidth;
-                const optionLeft = this.offsetLeft;
-                const optionWidth = this.offsetWidth;
-                const scrollLeft = optionLeft - (containerWidth / 2) + (optionWidth / 2);
-
-                container.scrollTo({
-                    left: scrollLeft,
-                    behavior: 'smooth'
-                });
-
-                // Ocultar el editor después de seleccionar
-                setTimeout(() => {
-                    editContainer.classList.add('hidden');
-                    display.classList.remove('bg-gray-100');
-                }, 500);
-            });
+        }).catch(error => {
+            // Aún mostrar la tabla aunque falle la carga de datos
+            mostrarSegundaTablaSinHeader();
+            generarNuevoFolio();
         });
 
-        // Cerrar editores al hacer clic fuera de ellos
-        document.addEventListener('click', function(event) {
-            const isInsideEditor = event.target.closest('.rpm-edit-container, .efic-edit-container');
-            const isDisplaySpan = event.target.closest('.rpm-display, .efic-display');
+        // Delegación de eventos para clicks en displays de valores (MUY IMPORTANTE PARA RENDIMIENTO)
+        document.getElementById('telares-body').addEventListener('click', function(e) {
+            const display = e.target.closest('.valor-display');
+            if (display) {
+                abrirEditorValor(display);
+            }
 
-            if (!isInsideEditor && !isDisplaySpan) {
-                closeAllEditors();
+            // Manejar clicks en checkboxes de observaciones
+            const checkbox = e.target.closest('.obs-checkbox');
+            if (checkbox) {
+                abrirModalObservaciones(checkbox);
             }
         });
 
         // Auto-guardar cuando se cambie el folio
-        const folioElement = document.getElementById('folio');
-        if (folioElement) {
-            folioElement.addEventListener('blur', function() {
+        if (elements.folio) {
+            elements.folio.addEventListener('blur', function() {
                 if (this.value && !currentFolio) {
                     currentFolio = this.value;
                     enableActionButtons();
@@ -663,8 +632,9 @@
             });
         }
 
-        // Detectar cambios en los inputs para habilitar edición
-        document.querySelectorAll('#telares-body input').forEach(input => {
+        // Detectar cambios para habilitar edición (solo en inputs de STD)
+        const stdInputs = document.querySelectorAll('input[data-field="rpm_std"], input[data-field="eficiencia_std"]');
+        stdInputs.forEach(input => {
             input.addEventListener('input', function() {
                 if (currentFolio && !isEditing) {
                     isEditing = true;
@@ -686,9 +656,6 @@
 
             if (data.success) {
                 document.getElementById('turno').value = data.turno;
-                console.log('Turno actual cargado:', data.turno, data.descripcion);
-            } else {
-                console.error('Error al cargar turno:', data.message);
             }
 
         } catch (error) {
@@ -698,49 +665,105 @@
 
     async function cargarDatosTelares() {
         try {
-            const response = await fetch('/modulo-cortes-de-eficiencia/datos-telares', {
+            console.log('🔄 Iniciando carga de datos de programa tejido...');
+            
+            const response = await fetch('/modulo-cortes-de-eficiencia/datos-programa-tejido', {
                 method: 'GET',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
                 }
             });
 
-            const data = await response.json();
+            console.log('📡 Respuesta del servidor:', response.status);
 
-            if (data.success) {
-                // Llenar los campos de RPM STD y Eficiencia STD con los datos de la base de datos
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('📊 Datos recibidos:', data);
+
+            if (data.success && data.telares && Array.isArray(data.telares)) {
+                let telaresActualizados = 0;
+                
                 data.telares.forEach(telar => {
-                    const telarNumero = telar.NoTelarId;
+                    console.log('🏭 Procesando telar:', telar);
+                    const telarNumero = telar.NoTelar || telar.noTelar || telar.telar;
+
+                    if (!telarNumero) {
+                        console.warn('⚠️ Telar sin número identificador:', telar);
+                        return;
+                    }
 
                     // Buscar y llenar campos RPM STD
                     const rpmInput = document.querySelector(`input[data-telar="${telarNumero}"][data-field="rpm_std"]`);
                     if (rpmInput) {
-                        rpmInput.value = telar.VelocidadStd || '';
+                        const rpmValue = telar.VelocidadSTD || telar.VelocidadStd || telar.RPM || telar.rpm || 0;
+                        rpmInput.value = rpmValue;
+                        rpmInput.placeholder = '';
+                        console.log(`✅ RPM STD actualizado para telar ${telarNumero}: ${rpmValue}`);
+                    } else {
+                        console.warn(`⚠️ No se encontró input RPM para telar ${telarNumero}`);
                     }
 
                     // Buscar y llenar campos Eficiencia STD
                     const eficienciaInput = document.querySelector(`input[data-telar="${telarNumero}"][data-field="eficiencia_std"]`);
                     if (eficienciaInput) {
-                        const eficiencia = telar.EficienciaStd || '';
-                        // Formatear como porcentaje de dos dígitos
-                        if (eficiencia && !isNaN(eficiencia)) {
-                            eficienciaInput.value = parseFloat(eficiencia).toFixed(2) + '%';
+                        const eficienciaValue = telar.EficienciaSTD || telar.EficienciaStd || telar.Eficiencia || telar.eficiencia || 0;
+                        const eficiencia = parseFloat(eficienciaValue);
+                        
+                        if (!isNaN(eficiencia) && eficiencia > 0) {
+                            // Si viene como decimal (0.75), convertir a porcentaje
+                            const eficienciaFinal = eficiencia > 1 ? eficiencia : eficiencia * 100;
+                            eficienciaInput.value = eficienciaFinal.toFixed(0) + '%';
+                            eficienciaInput.placeholder = '';
+                            {{-- console.log(`✅ Eficiencia STD actualizada para telar ${telarNumero}: ${eficienciaFinal}%`); --}}
                         } else {
-                            eficienciaInput.value = '';
+                            eficienciaInput.value = '0%';
+                            eficienciaInput.placeholder = '';
+                            {{-- console.log(`⚠️ Eficiencia inválida para telar ${telarNumero}: ${eficienciaValue}`); --}}
                         }
+                    } else {
+                        console.warn(`⚠️ No se encontró input Eficiencia para telar ${telarNumero}`);
                     }
 
-                    // NO inicializar automáticamente - dejar en 0 hasta que el usuario haga clic
-                    // Los valores STD se muestran solo en los campos de RPM STD y Eficiencia STD
+                    telaresActualizados++;
                 });
 
-                console.log('Datos de telares cargados:', data.telares.length, 'telares');
+                console.log(`✅ Datos de programa tejido cargados: ${telaresActualizados}/${data.telares.length} telares actualizados`);
+                
+                // Actualizar placeholders para campos no encontrados
+                const inputsSinDatos = document.querySelectorAll('input[data-field="rpm_std"][placeholder="Cargando..."], input[data-field="eficiencia_std"][placeholder="Cargando..."]');
+                inputsSinDatos.forEach(input => {
+                    input.placeholder = 'Sin datos';
+                });
+                
             } else {
-                console.error('Error al cargar datos de telares:', data.message);
+                throw new Error(data.message || 'Respuesta inválida del servidor');
             }
 
         } catch (error) {
-            console.error('Error al cargar datos de telares:', error);
+            console.error('❌ Error al cargar datos de programa tejido:', error);
+            
+            // Mostrar error en placeholders
+            const todosLosInputs = document.querySelectorAll('input[data-field="rpm_std"], input[data-field="eficiencia_std"]');
+            todosLosInputs.forEach(input => {
+                input.placeholder = 'Error al cargar';
+                input.title = `Error: ${error.message}`;
+            });
+            
+            // Mostrar alerta al usuario
+            Swal.fire({
+                title: 'Error al cargar datos',
+                text: `No se pudieron cargar los datos de programa tejido: ${error.message}`,
+                icon: 'error',
+                toast: true,
+                position: 'top-end',
+                timer: 5000,
+                showConfirmButton: false
+            });
         }
     }
 
@@ -805,6 +828,9 @@
                 document.getElementById('turno').value = data.turno;
                 document.getElementById('status').value = 'En Proceso';
                 disableStatusField(); // Asegurar que esté deshabilitado
+                
+                // Actualizar hora al generar nuevo folio
+                actualizarHora();
 
                 currentFolio = data.folio;
                 isEditing = true;
@@ -833,92 +859,14 @@
         }
     }
 
-    function mostrarMensajeInicial() {
-        // Ya no mostrar el mensaje inicial - dejar la página limpia
-        const mensajeInicial = document.getElementById('mensaje-inicial');
-        const segundaTabla = document.getElementById('segunda-tabla');
-        const headerSection = document.getElementById('header-section');
-
-        mensajeInicial.classList.add('hidden');
-        segundaTabla.classList.add('hidden');
-        headerSection.classList.add('hidden');
-    }
-
-    function ocultarMensajeInicial() {
-        const mensajeInicial = document.getElementById('mensaje-inicial');
-        mensajeInicial.classList.add('hidden');
-    }
-
-    function mostrarHeaderSection() {
-        const headerSection = document.getElementById('header-section');
-        headerSection.classList.remove('hidden');
-    }
-
-    function ocultarHeaderSection() {
-        const headerSection = document.getElementById('header-section');
-        headerSection.classList.add('hidden');
-    }
-
-    function mostrarSegundaTabla() {
-        const segundaTabla = document.getElementById('segunda-tabla');
-
-        // Ocultar mensaje inicial y mostrar header
-        ocultarMensajeInicial();
-        mostrarHeaderSection();
-
-        // Remover clase hidden y agregar animación
-        segundaTabla.classList.remove('hidden');
-
-        // Aplicar animación de deslizamiento
-        segundaTabla.style.transform = 'translateY(-20px)';
-        segundaTabla.style.opacity = '0';
-        segundaTabla.style.transition = 'all 0.5s ease-in-out';
-
-        // Forzar reflow
-        segundaTabla.offsetHeight;
-
-        // Aplicar estado final
-        segundaTabla.style.transform = 'translateY(0)';
-        segundaTabla.style.opacity = '1';
-    }
-
     function mostrarSegundaTablaSinHeader() {
-        const segundaTabla = document.getElementById('segunda-tabla');
-
-        // Ocultar mensaje inicial (sin mostrar header)
-        ocultarMensajeInicial();
-
-        // Remover clase hidden y agregar animación
-        segundaTabla.classList.remove('hidden');
-
-        // Aplicar animación de deslizamiento
-        segundaTabla.style.transform = 'translateY(-20px)';
-        segundaTabla.style.opacity = '0';
-        segundaTabla.style.transition = 'all 0.5s ease-in-out';
-
-        // Forzar reflow
-        segundaTabla.offsetHeight;
-
-        // Aplicar estado final
-        segundaTabla.style.transform = 'translateY(0)';
-        segundaTabla.style.opacity = '1';
-    }
-
-    function ocultarSegundaTabla() {
-        const segundaTabla = document.getElementById('segunda-tabla');
-
-        // Aplicar animación de salida
-        segundaTabla.style.transform = 'translateY(-20px)';
-        segundaTabla.style.opacity = '0';
-
-        // Después de la animación, ocultar y mostrar mensaje inicial
-        setTimeout(() => {
-            segundaTabla.classList.add('hidden');
-            segundaTabla.style.transform = '';
-            segundaTabla.style.opacity = '';
-            // No mostrar header section (mantener oculto)
-            mostrarMensajeInicial();
-        }, 500);
+        if (!elements.segundaTabla) return;
+        
+        elements.segundaTabla.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            elements.segundaTabla.style.transform = 'translateY(0)';
+            elements.segundaTabla.style.opacity = '1';
+        });
     }
 
     function editarCorte() {
@@ -1066,111 +1014,113 @@
     }
 
     function enableActionButtons() {
-        document.getElementById('btn-editar').disabled = false;
-        document.getElementById('btn-finalizar').disabled = false;
-
-        document.getElementById('btn-editar').className = 'inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium';
-        document.getElementById('btn-finalizar').className = 'inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors text-sm font-medium';
+        const btnEditar = document.getElementById('btn-editar');
+        const btnFinalizar = document.getElementById('btn-finalizar');
+        
+        if (btnEditar) {
+            btnEditar.disabled = false;
+            btnEditar.className = 'inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium';
+        }
+        if (btnFinalizar) {
+            btnFinalizar.disabled = false;
+            btnFinalizar.className = 'inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors text-sm font-medium';
+        }
     }
 
     function enableStatusField() {
-        const statusField = document.getElementById('status');
-        statusField.disabled = false;
-        statusField.className = 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
+        if (elements.status) {
+            elements.status.disabled = false;
+            elements.status.className = 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
+        }
     }
 
     function disableStatusField() {
-        const statusField = document.getElementById('status');
-        statusField.disabled = true;
-        statusField.className = 'w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 cursor-not-allowed';
+        if (elements.status) {
+            elements.status.disabled = true;
+            elements.status.className = 'w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 cursor-not-allowed';
+        }
     }
 
     function disableActionButtons() {
-        document.getElementById('btn-editar').disabled = true;
-        document.getElementById('btn-finalizar').disabled = true;
-
-        document.getElementById('btn-editar').className = 'inline-flex items-center px-4 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed';
-        document.getElementById('btn-finalizar').className = 'inline-flex items-center px-4 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed';
+        const btnEditar = document.getElementById('btn-editar');
+        const btnFinalizar = document.getElementById('btn-finalizar');
+        
+        if (btnEditar) {
+            btnEditar.disabled = true;
+            btnEditar.className = 'inline-flex items-center px-4 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed';
+        }
+        if (btnFinalizar) {
+            btnFinalizar.disabled = true;
+            btnFinalizar.className = 'inline-flex items-center px-4 py-2 bg-gray-400 text-gray-200 rounded-lg transition-colors text-sm font-medium cursor-not-allowed';
+        }
     }
 
 
-    // Funciones para el modal de observaciones con SweetAlert2
-    function abrirModalObservaciones(checkbox) {
-        currentCheckbox = checkbox;
-        const telar = checkbox.getAttribute('data-telar');
-        const horario = checkbox.getAttribute('data-horario');
-
-        // Cargar observaciones existentes si las hay
+    // Modal de observaciones optimizado
+    async function abrirModalObservaciones(checkbox) {
+        const telar = checkbox.dataset.telar;
+        const horario = checkbox.dataset.horario;
         const key = `${telar}-${horario}`;
         const observacionExistente = observaciones[key] || '';
 
-        // Mostrar SweetAlert2 con textarea
-        Swal.fire({
+        const result = await Swal.fire({
             title: 'Observaciones',
             html: `
                 <div class="text-left mb-4">
                     <p class="text-sm text-gray-600 mb-2">
-                        <i class="fas fa-industry mr-1"></i> Telar: <strong>${telar}</strong>
-                    </p>
-                    <p class="text-sm text-gray-600">
-                        <i class="fas fa-clock mr-1"></i> Horario: <strong>${horario}</strong>
+                        Telar: <strong>${telar}</strong> | Horario: <strong>${horario}</strong>
                     </p>
                 </div>
                 <textarea id="swal-textarea" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows="4" placeholder="Escriba sus observaciones aquí...">${observacionExistente}</textarea>
             `,
             width: '500px',
             showCancelButton: true,
-            confirmButtonText: '<i class="fas fa-save mr-1"></i> Guardar',
-            cancelButtonText: '<i class="fas fa-times mr-1"></i> Cancelar',
+            confirmButtonText: 'Guardar',
+            cancelButtonText: 'Cancelar',
             confirmButtonColor: '#2563eb',
             cancelButtonColor: '#6b7280',
-            allowOutsideClick: false,
-            allowEscapeKey: true,
             focusConfirm: false,
+            didOpen: () => {
+                const textarea = document.getElementById('swal-textarea');
+                if (textarea) {
+                    textarea.focus();
+                    textarea.select();
+                }
+            },
             preConfirm: () => {
                 const textarea = document.getElementById('swal-textarea');
-                const observacion = textarea ? textarea.value : '';
-
-                // Guardar observación
-                const key = `${telar}-${horario}`;
-                observaciones[key] = observacion;
-
-                // Marcar checkbox si hay observación
-                currentCheckbox.checked = observacion.trim() !== '';
-
-                return observacion;
+                return textarea ? textarea.value : '';
             }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Mostrar confirmación de guardado
-                Swal.fire({
-                    title: 'Observación Guardada',
-                    html: `
-                        <div class="text-center">
-                            <i class="fas fa-check-circle text-green-500 text-4xl mb-3"></i>
-                            <p class="text-gray-600">Observación guardada para:</p>
-                            <p class="font-semibold">Telar ${telar} - Horario ${horario}</p>
-                        </div>
-                    `,
-                    icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false,
-                    toast: true,
-                    position: 'top-end'
-                });
-            }
-            currentCheckbox = null;
         });
 
-        // Focus en el textarea después de que se muestre el modal
-        setTimeout(() => {
-            const textarea = document.getElementById('swal-textarea');
-            if (textarea) {
-                textarea.focus();
-                textarea.select();
-            }
-        }, 100);
+        if (result.isConfirmed) {
+            observaciones[key] = result.value;
+            checkbox.checked = result.value.trim() !== '';
+            
+            // Toast de confirmación breve
+            Swal.fire({
+                title: 'Guardado',
+                text: `Telar ${telar} - Horario ${horario}`,
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end'
+            });
+        }
     }
+
+    // Función para recargar datos manualmente (para testing)
+    async function recargarDatosTelares() {
+        console.log('🔄 Recargando datos manualmente...');
+        await cargarDatosTelares();
+    }
+
+    // Hacer funciones globales para testing
+    window.actualizarHora = actualizarHora;
+    window.actualizarYGuardarHora = actualizarYGuardarHora;
+    window.recargarDatosTelares = recargarDatosTelares;
+    window.cargarDatosTelares = cargarDatosTelares;
 </script>
 
 <style>
@@ -1268,9 +1218,6 @@
 </style>
 
 @endsection
-
-
-
 
 
 

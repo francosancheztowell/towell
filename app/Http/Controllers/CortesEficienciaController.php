@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Helpers\TurnoHelper;
+use App\Models\InvSecuenciaCorteEf;
+use App\Models\TejEficienciaLine;
 
 class CortesEficienciaController extends Controller
 {
@@ -15,7 +17,12 @@ class CortesEficienciaController extends Controller
      */
     public function index()
     {
-        return view('modulos.cortes-eficiencia');
+        // Obtener orden de telares desde InvSecuenciaCorteEf
+        $telares = InvSecuenciaCorteEf::orderBy('Orden', 'asc')
+            ->pluck('NoTelarId')
+            ->toArray();
+
+        return view('modulos.cortes-eficiencia', compact('telares'));
     }
 
     /**
@@ -58,55 +65,23 @@ class CortesEficienciaController extends Controller
     public function getDatosTelares()
     {
         try {
-            // Build ordered loom list similar to nuevo-requerimiento
-            $jacquard = DB::table('InvSecuenciaTrama')
-                ->where('TipoTelar', 'JACQUARD')
-                ->orderBy('Secuencia', 'asc')
-                ->pluck('NoTelar')
-                ->toArray();
+            // 1) Ordenar telares según InvSecuenciaCorteEf
+            $secuencia = InvSecuenciaCorteEf::orderBy('Orden', 'asc')->get(['NoTelarId']);
 
-            $itema = DB::table('InvSecuenciaTrama')
-                ->where('TipoTelar', 'ITEMA')
-                ->orderBy('Secuencia', 'asc')
-                ->pluck('NoTelar')
-                ->toArray();
-
-            // In DB ITEMA are 1xx; UI shows 3xx
-            $itemaDb = array_map(function ($t) { return 100 + ((int)$t % 100); }, $itema);
-
-            $rows = DB::table('ReqProgramaTejido')
-                ->select(['NoTelarId','VelocidadStd','EficienciaStd'])
-                ->whereIn('SalonTejidoId', ['JACQUARD','ITEMA','SMIT'])
-                ->where(function($q) use ($jacquard, $itemaDb) {
-                    if (!empty($jacquard)) { $q->orWhereIn('NoTelarId', $jacquard); }
-                    if (!empty($itemaDb))  { $q->orWhereIn('NoTelarId', $itemaDb); }
-                })
-                ->get();
-
-            $std = [];
-            foreach ($rows as $r) {
-                $std[(int)$r->NoTelarId] = [
-                    'rpm' => $r->VelocidadStd,
-                    'ef'  => $r->EficienciaStd,
-                ];
-            }
-
+            // 2) Para cada telar, buscar el último registro en TejEficienciaLine (si existe)
             $list = [];
-            foreach ($jacquard as $t) {
-                $s = $std[(int)$t] ?? null;
+            foreach ($secuencia as $row) {
+                $noTelar = (int)$row->NoTelarId;
+                $lastLine = TejEficienciaLine::where('NoTelarId', $noTelar)
+                    ->orderBy('Date', 'desc')
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
                 $list[] = [
-                    'NoTelarId'     => (int)$t,
-                    'VelocidadStd'  => $s['rpm'] ?? null,
-                    'EficienciaStd' => $s['ef']  ?? null,
-                ];
-            }
-            foreach ($itema as $t) {
-                $dbNo = 100 + ((int)$t % 100);
-                $s = $std[$dbNo] ?? null;
-                $list[] = [
-                    'NoTelarId'     => (int)$t,
-                    'VelocidadStd'  => $s['rpm'] ?? null,
-                    'EficienciaStd' => $s['ef']  ?? null,
+                    'NoTelarId'     => $noTelar,
+                    // Mantener nombres esperados por el frontend
+                    'VelocidadStd'  => $lastLine->VelocidadSD ?? null,
+                    'EficienciaStd' => $lastLine->EficienciaSTD ?? null,
                 ];
             }
 
@@ -352,6 +327,112 @@ class CortesEficienciaController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener el corte de eficiencia: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener datos de programa tejido para cortes de eficiencia
+     */
+    public function getDatosProgramaTejido()
+    {
+        try {
+            // Obtener telares del orden de corte
+            $telaresOrden = InvSecuenciaCorteEf::orderBy('Orden', 'asc')
+                ->pluck('NoTelarId')
+                ->toArray();
+
+            // Obtener datos de ReqProgramaTejido para telares en proceso
+            $telares = \App\Models\ReqProgramaTejido::whereIn('NoTelarId', $telaresOrden)
+                ->where('EnProceso', 1)
+                ->select('NoTelarId', 'VelocidadSTD', 'EficienciaSTD')
+                ->get()
+                ->map(function ($telar) {
+                    return [
+                        'NoTelar' => $telar->NoTelarId,
+                        'VelocidadSTD' => $telar->VelocidadSTD ?? 0,
+                        'EficienciaSTD' => $telar->EficienciaSTD ?? 0
+                    ];
+                });
+
+            Log::info('Datos de programa tejido obtenidos', [
+                'telares_solicitados' => $telaresOrden,
+                'telares_encontrados' => $telares->pluck('NoTelar')->toArray(),
+                'total_telares' => $telares->count()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'telares' => $telares
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al obtener datos de programa tejido: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos de programa tejido: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Guardar hora en tabla TejEficiencia
+     */
+    public function guardarHora(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'folio' => 'required|string',
+                'turno' => 'required|integer',
+                'horario' => 'required|integer|min:1|max:3',
+                'hora' => 'required|string',
+                'fecha' => 'required|date'
+            ]);
+
+            // Buscar si ya existe el registro
+            $registro = DB::table('TejEficiencia')
+                ->where('Folio', $validated['folio'])
+                ->where('Turno', $validated['turno'])
+                ->where('Horario', $validated['horario'])
+                ->first();
+
+            $datos = [
+                'Folio' => $validated['folio'],
+                'Turno' => $validated['turno'],
+                'Horario' => $validated['horario'],
+                'Hora' => $validated['hora'],
+                'Fecha' => $validated['fecha'],
+                'UpdatedAt' => now()
+            ];
+
+            if ($registro) {
+                // Actualizar registro existente
+                DB::table('TejEficiencia')
+                    ->where('id', $registro->id)
+                    ->update($datos);
+
+                Log::info('Hora actualizada en TejEficiencia', $datos);
+            } else {
+                // Crear nuevo registro
+                $datos['CreatedAt'] = now();
+                DB::table('TejEficiencia')->insert($datos);
+
+                Log::info('Hora guardada en TejEficiencia', $datos);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Hora guardada exitosamente',
+                'data' => $datos
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al guardar hora en TejEficiencia: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar hora: ' . $e->getMessage()
             ], 500);
         }
     }
