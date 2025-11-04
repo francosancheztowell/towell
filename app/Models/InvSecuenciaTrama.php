@@ -24,3 +24,4 @@ class InvSecuenciaTrama extends Model
 }
 
 
+

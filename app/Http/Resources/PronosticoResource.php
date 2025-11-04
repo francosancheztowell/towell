@@ -41,3 +41,4 @@ class PronosticoResource extends JsonResource
 }
 
 
+

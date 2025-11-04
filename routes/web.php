@@ -561,6 +561,10 @@ Route::middleware(['auth'])->group(function () {
         // Altas especiales
         Route::get('/planeacion/programa-tejido/altas-especiales', [\App\Http\Controllers\ComprasEspecialesController::class, 'index'])->name('programa-tejido.altas-especiales');
 
+        // Alta de pronósticos
+        Route::get('/planeacion/programa-tejido/alta-pronosticos', [\App\Http\Controllers\PronosticosController::class, 'index'])->name('programa-tejido.alta-pronosticos');
+        Route::get('/pronosticos', [\App\Http\Controllers\PronosticosController::class, 'get'])->name('pronosticos.get');
+
         // Nueva ruta para crear/editar programa de tejido
         Route::get('/planeacion/programa-tejido/nuevo', function() {
         return view('modulos.programa-tejido-nuevo.create');
