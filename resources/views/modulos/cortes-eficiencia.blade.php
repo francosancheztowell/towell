@@ -483,13 +483,10 @@
         
         if (horaActual >= 6 && horaActual < 14) {
             horario = 1;
-            console.log(`🌅 HORARIO 1 (06:00-14:00) - Hora registrada: ${horaFormateada}`);
         } else if (horaActual >= 14 && horaActual < 22) {
             horario = 2;
-            console.log(`☀️ HORARIO 2 (14:00-22:00) - Hora registrada: ${horaFormateada}`);
         } else {
             horario = 3;
-            console.log(`🌙 HORARIO 3 (22:00-06:00) - Hora registrada: ${horaFormateada}`);
         }
 
         // Guardar en tabla TejEficiencia si hay folio
@@ -514,8 +511,6 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    console.log(`✅ Hora guardada en TejEficiencia: ${horaFormateada} - Horario ${horario}`);
-                    
                     Swal.fire({
                         title: 'Hora guardada',
                         html: `
@@ -535,8 +530,6 @@
                     throw new Error(data.message || 'Error al guardar hora');
                 }
             } catch (error) {
-                console.error('❌ Error al guardar hora:', error);
-                
                 Swal.fire({
                     title: 'Hora actualizada',
                     html: `
@@ -576,7 +569,6 @@
 
     function inicializarHora() {
         const horaFormateada = actualizarHora();
-        console.log(`🕐 Hora inicial: ${horaFormateada}`);
     }
 
     // Inicialización optimizada
@@ -659,14 +651,12 @@
             }
 
         } catch (error) {
-            console.error('Error al cargar información del turno:', error);
+            // Error silencioso para información del turno
         }
     }
 
     async function cargarDatosTelares() {
         try {
-            console.log('🔄 Iniciando carga de datos de programa tejido...');
-            
             const response = await fetch('/modulo-cortes-de-eficiencia/datos-programa-tejido', {
                 method: 'GET',
                 headers: {
@@ -676,24 +666,19 @@
                 }
             });
 
-            console.log('📡 Respuesta del servidor:', response.status);
-
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const data = await response.json();
-            console.log('📊 Datos recibidos:', data);
 
             if (data.success && data.telares && Array.isArray(data.telares)) {
                 let telaresActualizados = 0;
                 
                 data.telares.forEach(telar => {
-                    console.log('🏭 Procesando telar:', telar);
                     const telarNumero = telar.NoTelar || telar.noTelar || telar.telar;
 
                     if (!telarNumero) {
-                        console.warn('⚠️ Telar sin número identificador:', telar);
                         return;
                     }
 
@@ -703,9 +688,6 @@
                         const rpmValue = telar.VelocidadSTD || telar.VelocidadStd || telar.RPM || telar.rpm || 0;
                         rpmInput.value = rpmValue;
                         rpmInput.placeholder = '';
-                        console.log(`✅ RPM STD actualizado para telar ${telarNumero}: ${rpmValue}`);
-                    } else {
-                        console.warn(`⚠️ No se encontró input RPM para telar ${telarNumero}`);
                     }
 
                     // Buscar y llenar campos Eficiencia STD
@@ -725,15 +707,11 @@
                             eficienciaInput.placeholder = '';
                             {{-- console.log(`⚠️ Eficiencia inválida para telar ${telarNumero}: ${eficienciaValue}`); --}}
                         }
-                    } else {
-                        console.warn(`⚠️ No se encontró input Eficiencia para telar ${telarNumero}`);
                     }
 
                     telaresActualizados++;
                 });
 
-                console.log(`✅ Datos de programa tejido cargados: ${telaresActualizados}/${data.telares.length} telares actualizados`);
-                
                 // Actualizar placeholders para campos no encontrados
                 const inputsSinDatos = document.querySelectorAll('input[data-field="rpm_std"][placeholder="Cargando..."], input[data-field="eficiencia_std"][placeholder="Cargando..."]');
                 inputsSinDatos.forEach(input => {
@@ -745,8 +723,6 @@
             }
 
         } catch (error) {
-            console.error('❌ Error al cargar datos de programa tejido:', error);
-            
             // Mostrar error en placeholders
             const todosLosInputs = document.querySelectorAll('input[data-field="rpm_std"], input[data-field="eficiencia_std"]');
             todosLosInputs.forEach(input => {
@@ -769,9 +745,6 @@
 
     // Funciones de botones de acción
     async function nuevoCorte() {
-        console.log('Función nuevoCorte llamada');
-        console.log('isEditing:', isEditing);
-
         if (isEditing) {
             Swal.fire({
                 title: '¿Guardar cambios?',
@@ -788,13 +761,11 @@
                 }
             });
         } else {
-            console.log('Llamando a generarNuevoFolio');
             generarNuevoFolio();
         }
     }
 
     async function generarNuevoFolio() {
-        console.log('Función generarNuevoFolio llamada');
         try {
             // Mostrar loading
             Swal.fire({
@@ -807,7 +778,6 @@
                 }
             });
 
-            console.log('Haciendo petición a /modulo-cortes-de-eficiencia/generar-folio');
             // Hacer petición para generar folio
             const response = await fetch('/modulo-cortes-de-eficiencia/generar-folio', {
                 method: 'GET',
@@ -816,9 +786,7 @@
                 }
             });
 
-            console.log('Respuesta recibida:', response);
             const data = await response.json();
-            console.log('Datos recibidos:', data);
 
             if (data.success) {
                 // Llenar formulario con datos generados
@@ -849,7 +817,6 @@
             }
 
         } catch (error) {
-            console.error('Error en generarNuevoFolio:', error);
             Swal.close();
             Swal.fire({
                 title: 'Error',
@@ -1112,7 +1079,6 @@
 
     // Función para recargar datos manualmente (para testing)
     async function recargarDatosTelares() {
-        console.log('🔄 Recargando datos manualmente...');
         await cargarDatosTelares();
     }
 
