@@ -58,25 +58,59 @@ class CortesEficienciaController extends Controller
     public function getDatosTelares()
     {
         try {
-            // Obtener datos de telares desde ReqProgramaTejido
-            $telares = DB::table('ReqProgramaTejido')
-                ->select([
-                    'NoTelarId',
-                    'VelocidadStd',
-                    'EficienciaStd'
-                ])
-                ->whereIn('NoTelarId', array_merge(range(201, 215), range(299, 320)))
-                ->orderBy('NoTelarId')
+            // Build ordered loom list similar to nuevo-requerimiento
+            $jacquard = DB::table('InvSecuenciaTrama')
+                ->where('TipoTelar', 'JACQUARD')
+                ->orderBy('Secuencia', 'asc')
+                ->pluck('NoTelar')
+                ->toArray();
+
+            $itema = DB::table('InvSecuenciaTrama')
+                ->where('TipoTelar', 'ITEMA')
+                ->orderBy('Secuencia', 'asc')
+                ->pluck('NoTelar')
+                ->toArray();
+
+            // In DB ITEMA are 1xx; UI shows 3xx
+            $itemaDb = array_map(function ($t) { return 100 + ((int)$t % 100); }, $itema);
+
+            $rows = DB::table('ReqProgramaTejido')
+                ->select(['NoTelarId','VelocidadStd','EficienciaStd'])
+                ->whereIn('SalonTejidoId', ['JACQUARD','ITEMA','SMIT'])
+                ->where(function($q) use ($jacquard, $itemaDb) {
+                    if (!empty($jacquard)) { $q->orWhereIn('NoTelarId', $jacquard); }
+                    if (!empty($itemaDb))  { $q->orWhereIn('NoTelarId', $itemaDb); }
+                })
                 ->get();
 
-            Log::info('Datos de telares obtenidos', [
-                'total_telares' => $telares->count()
-            ]);
+            $std = [];
+            foreach ($rows as $r) {
+                $std[(int)$r->NoTelarId] = [
+                    'rpm' => $r->VelocidadStd,
+                    'ef'  => $r->EficienciaStd,
+                ];
+            }
 
-            return response()->json([
-                'success' => true,
-                'telares' => $telares
-            ]);
+            $list = [];
+            foreach ($jacquard as $t) {
+                $s = $std[(int)$t] ?? null;
+                $list[] = [
+                    'NoTelarId'     => (int)$t,
+                    'VelocidadStd'  => $s['rpm'] ?? null,
+                    'EficienciaStd' => $s['ef']  ?? null,
+                ];
+            }
+            foreach ($itema as $t) {
+                $dbNo = 100 + ((int)$t % 100);
+                $s = $std[$dbNo] ?? null;
+                $list[] = [
+                    'NoTelarId'     => (int)$t,
+                    'VelocidadStd'  => $s['rpm'] ?? null,
+                    'EficienciaStd' => $s['ef']  ?? null,
+                ];
+            }
+
+            return response()->json(['success' => true, 'telares' => $list]);
 
         } catch (\Exception $e) {
             Log::error('Error al obtener datos de telares: ' . $e->getMessage());
@@ -322,4 +356,3 @@ class CortesEficienciaController extends Controller
         }
     }
 }
-
