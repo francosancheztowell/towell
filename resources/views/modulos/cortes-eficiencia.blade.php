@@ -183,10 +183,8 @@
                                 </button>
                                 <div class="valor-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-64" style="scrollbar-width: none; -ms-overflow-style: none;">
-                                        <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 500; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}">{{ $j }}</span>
-                                            @endfor
+                                        <div class="number-options-flex flex space-x-1 min-w-max">
+                                            <!-- Opciones generadas dinámicamente -->
                                         </div>
                                     </div>
                                 </div>
@@ -199,10 +197,8 @@
                                 </button>
                                 <div class="valor-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
-                                        <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 100; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}">{{ $j }}</span>
-                                            @endfor
+                                        <div class="number-options-flex flex space-x-1 min-w-max">
+                                            <!-- Opciones generadas dinámicamente -->
                                         </div>
                                     </div>
                                 </div>
@@ -220,10 +216,8 @@
                                 </button>
                                 <div class="valor-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-64" style="scrollbar-width: none; -ms-overflow-style: none;">
-                                        <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 500; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}">{{ $j }}</span>
-                                            @endfor
+                                        <div class="number-options-flex flex space-x-1 min-w-max">
+                                            <!-- Opciones generadas dinámicamente -->
                                         </div>
                                     </div>
                                 </div>
@@ -236,10 +230,8 @@
                                 </button>
                                 <div class="valor-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
-                                        <div class="flex space-x-1 min-w-max">
-                                            @for($j = 0; $j <= 100; $j++)
-                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}">{{ $j }}</span>
-                                            @endfor
+                                        <div class="number-options-flex flex space-x-1 min-w-max">
+                                            <!-- Opciones generadas dinámicamente -->
                                         </div>
                                     </div>
                                 </div>
@@ -464,9 +456,6 @@
         const tipo = btn.getAttribute('data-type');
         
         if (selector.classList.contains('hidden')) {
-            // Mostrar selector
-            selector.classList.remove('hidden');
-            
             // Obtener valor actual y pre-seleccionarlo
             const currentText = btn.querySelector('.valor-display-text').textContent;
             const currentValue = tipo === 'rpm' ? parseInt(currentText) || 0 : parseInt(currentText.replace('%', '')) || 0;
@@ -474,8 +463,11 @@
             // Si es 0, usar valor predeterminado
             const finalValue = currentValue === 0 ? obtenerValorPredeterminado(telar, horario, tipo) : currentValue;
             
-            // Resaltar la opción actual
-            highlightCurrentOption(selector, finalValue);
+            // Generar opciones dinámicamente
+            generateNumberOptions(selector, tipo, horario, finalValue);
+            
+            // Mostrar selector
+            selector.classList.remove('hidden');
             
             // Scroll al valor actual
             scrollToCurrentValue(selector, finalValue);
@@ -488,6 +480,121 @@
     function closeAllValorSelectors() {
         document.querySelectorAll('.valor-edit-container').forEach(container => {
             container.classList.add('hidden');
+            
+            // Opcional: limpiar opciones para liberar memoria (solo para RPM que tiene 500+ opciones)
+            const optionsContainer = container.querySelector('.number-options-flex');
+            if (optionsContainer && optionsContainer.children.length > 100) {
+                // Solo mantener opciones si son pocas (eficiencia), limpiar si son muchas (RPM)
+                setTimeout(() => {
+                    if (container.classList.contains('hidden')) {
+                        optionsContainer.innerHTML = '';
+                    }
+                }, 5000); // Limpiar después de 5 segundos si sigue cerrado
+            }
+        });
+    }
+
+    function generateNumberOptions(selector, tipo, horario, currentValue) {
+        const optionsContainer = selector.querySelector('.number-options-flex');
+        
+        // Si ya tiene opciones, no regenerar (cache)
+        if (optionsContainer.children.length > 0) {
+            highlightCurrentOption(selector, currentValue);
+            return;
+        }
+        
+        const maxValue = tipo === 'rpm' ? 500 : 100;
+        const hoverClass = horario === 1 ? 'hover:bg-blue-100' : 
+                          horario === 2 ? 'hover:bg-green-100' : 'hover:bg-yellow-100';
+        
+        // Renderizado optimizado: solo crear opciones visibles inicialmente
+        const viewportWidth = 300; // Ancho estimado del viewport del selector
+        const optionWidth = 36; // w-8 + spacing
+        const visibleOptions = Math.ceil(viewportWidth / optionWidth);
+        const bufferOptions = 20; // Opciones extra para scroll suave
+        
+        // Calcular rango inicial basado en currentValue
+        const startRange = Math.max(0, currentValue - Math.floor(visibleOptions / 2) - bufferOptions);
+        const endRange = Math.min(maxValue + 1, startRange + visibleOptions + (bufferOptions * 2));
+        
+        const fragment = document.createDocumentFragment();
+        
+        // Crear opciones en el rango visible
+        for (let i = startRange; i < endRange; i++) {
+            const option = document.createElement('span');
+            option.className = `number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer ${hoverClass} rounded transition-colors bg-gray-100 text-gray-700`;
+            option.setAttribute('data-value', i.toString());
+            option.textContent = i.toString();
+            
+            // Highlight si es el valor actual
+            if (i === currentValue) {
+                option.classList.remove('bg-gray-100', 'text-gray-700');
+                option.classList.add('bg-blue-500', 'text-white');
+            }
+            
+            fragment.appendChild(option);
+        }
+        
+        // Agregar placeholders para mantener el scroll correcto
+        if (startRange > 0) {
+            const startPlaceholder = document.createElement('div');
+            startPlaceholder.className = 'inline-block';
+            startPlaceholder.style.width = `${startRange * optionWidth}px`;
+            startPlaceholder.style.height = '32px';
+            optionsContainer.appendChild(startPlaceholder);
+        }
+        
+        optionsContainer.appendChild(fragment);
+        
+        if (endRange < maxValue + 1) {
+            const endPlaceholder = document.createElement('div');
+            endPlaceholder.className = 'inline-block';
+            endPlaceholder.style.width = `${(maxValue + 1 - endRange) * optionWidth}px`;
+            endPlaceholder.style.height = '32px';
+            optionsContainer.appendChild(endPlaceholder);
+        }
+        
+        // Configurar lazy loading para el resto de opciones si es necesario
+        setupLazyOptionLoading(selector, tipo, horario, maxValue, optionWidth, hoverClass);
+    }
+
+    function setupLazyOptionLoading(selector, tipo, horario, maxValue, optionWidth, hoverClass) {
+        const scrollContainer = selector.querySelector('.number-scroll-container');
+        const optionsContainer = selector.querySelector('.number-options-flex');
+        
+        let isLoading = false;
+        
+        scrollContainer.addEventListener('scroll', () => {
+            if (isLoading) return;
+            
+            const scrollLeft = scrollContainer.scrollLeft;
+            const scrollWidth = scrollContainer.scrollWidth;
+            const clientWidth = scrollContainer.clientWidth;
+            
+            // Si está cerca del final, cargar más opciones
+            if (scrollLeft + clientWidth > scrollWidth - 100) {
+                isLoading = true;
+                
+                // Generar más opciones si es necesario
+                const currentOptions = optionsContainer.querySelectorAll('.number-option').length;
+                if (currentOptions < maxValue + 1) {
+                    const fragment = document.createDocumentFragment();
+                    const start = currentOptions;
+                    const end = Math.min(start + 50, maxValue + 1);
+                    
+                    for (let i = start; i < end; i++) {
+                        const option = document.createElement('span');
+                        option.className = `number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer ${hoverClass} rounded transition-colors bg-gray-100 text-gray-700`;
+                        option.setAttribute('data-value', i.toString());
+                        option.textContent = i.toString();
+                        fragment.appendChild(option);
+                    }
+                    
+                    optionsContainer.appendChild(fragment);
+                }
+                
+                isLoading = false;
+            }
         });
     }
 
@@ -515,35 +622,55 @@
     }
 
     function highlightCurrentOption(selector, value) {
-        // Remover highlight previo
-        selector.querySelectorAll('.number-option').forEach(opt => {
-            opt.classList.remove('bg-blue-500', 'text-white');
-            opt.classList.add('bg-gray-100', 'text-gray-700');
+        // Usar requestAnimationFrame para evitar bloqueo si hay muchas opciones
+        requestAnimationFrame(() => {
+            // Remover highlight previo
+            selector.querySelectorAll('.number-option').forEach(opt => {
+                opt.classList.remove('bg-blue-500', 'text-white');
+                opt.classList.add('bg-gray-100', 'text-gray-700');
+            });
+            
+            // Highlight opción actual
+            const currentOption = selector.querySelector(`[data-value="${value}"]`);
+            if (currentOption) {
+                currentOption.classList.remove('bg-gray-100', 'text-gray-700');
+                currentOption.classList.add('bg-blue-500', 'text-white');
+            }
         });
-        
-        // Highlight opción actual
-        const currentOption = selector.querySelector(`[data-value="${value}"]`);
-        if (currentOption) {
-            currentOption.classList.remove('bg-gray-100', 'text-gray-700');
-            currentOption.classList.add('bg-blue-500', 'text-white');
-        }
     }
 
     function scrollToCurrentValue(selector, value) {
         const scrollContainer = selector.querySelector('.number-scroll-container');
-        const option = selector.querySelector(`[data-value="${value}"]`);
         
-        if (scrollContainer && option) {
-            const containerWidth = scrollContainer.clientWidth;
-            const optionLeft = option.offsetLeft;
-            const optionWidth = option.clientWidth;
-            
-            // Calcular posición de scroll para centrar la opción
-            const scrollLeft = optionLeft - (containerWidth / 2) + (optionWidth / 2);
-            
-            scrollContainer.scrollTo({
-                left: Math.max(0, scrollLeft),
-                behavior: 'smooth'
+        if (scrollContainer) {
+            // Usar requestAnimationFrame para un scroll más suave
+            requestAnimationFrame(() => {
+                const option = selector.querySelector(`[data-value="${value}"]`);
+                
+                if (option) {
+                    const containerWidth = scrollContainer.clientWidth;
+                    const optionLeft = option.offsetLeft;
+                    const optionWidth = option.clientWidth;
+                    
+                    // Calcular posición de scroll para centrar la opción
+                    const scrollLeft = optionLeft - (containerWidth / 2) + (optionWidth / 2);
+                    
+                    scrollContainer.scrollTo({
+                        left: Math.max(0, scrollLeft),
+                        behavior: 'smooth'
+                    });
+                } else {
+                    // Si no existe la opción, calcular posición estimada
+                    const optionWidth = 36; // w-8 + spacing estimado
+                    const estimatedLeft = value * optionWidth;
+                    const containerWidth = scrollContainer.clientWidth;
+                    const scrollLeft = estimatedLeft - (containerWidth / 2);
+                    
+                    scrollContainer.scrollTo({
+                        left: Math.max(0, scrollLeft),
+                        behavior: 'smooth'
+                    });
+                }
             });
         }
     }
