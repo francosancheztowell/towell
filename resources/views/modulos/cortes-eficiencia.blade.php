@@ -144,10 +144,32 @@
 
                         <!-- Horario 1 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="1" data-type="rpm">0</span>
+                            <div class="relative">
+                                <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $i }}" data-horario="1" data-type="rpm">
+                                    <span class="valor-display-text">0</span>
+                                </button>
+                                <div class="valor-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-64" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                        <div class="number-options-flex flex space-x-1 min-w-max">
+                                            <!-- Opciones generadas dinámicamente -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                         <td class="border border-gray-300 px-1 py-2">
-                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="1" data-type="eficiencia">0%</span>
+                            <div class="relative">
+                                <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer hover:bg-blue-100 px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $i }}" data-horario="1" data-type="eficiencia">
+                                    <span class="valor-display-text">0%</span>
+                                </button>
+                                <div class="valor-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                        <div class="number-options-flex flex space-x-1 min-w-max">
+                                            <!-- Opciones generadas dinámicamente -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                         <td class="border border-gray-300 px-0 py-2 w-10 text-center">
                             <input type="checkbox" class="obs-checkbox w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" data-telar="{{ $i }}" data-horario="1">
@@ -155,10 +177,36 @@
 
                         <!-- Horario 2 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="2" data-type="rpm">0</span>
+                            <div class="relative">
+                                <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $i }}" data-horario="2" data-type="rpm">
+                                    <span class="valor-display-text">0</span>
+                                </button>
+                                <div class="valor-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-64" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                        <div class="flex space-x-1 min-w-max">
+                                            @for($j = 0; $j <= 500; $j++)
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}">{{ $j }}</span>
+                                            @endfor
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                         <td class="border border-gray-300 px-1 py-2">
-                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="2" data-type="eficiencia">0%</span>
+                            <div class="relative">
+                                <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer hover:bg-green-100 px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $i }}" data-horario="2" data-type="eficiencia">
+                                    <span class="valor-display-text">0%</span>
+                                </button>
+                                <div class="valor-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                        <div class="flex space-x-1 min-w-max">
+                                            @for($j = 0; $j <= 100; $j++)
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-green-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}">{{ $j }}</span>
+                                            @endfor
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                         <td class="border border-gray-300 px-0 py-2 w-10 text-center">
                             <input type="checkbox" class="obs-checkbox w-3 h-3 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500" data-telar="{{ $i }}" data-horario="2">
@@ -166,10 +214,36 @@
 
                         <!-- Horario 3 -->
                         <td class="border border-gray-300 px-1 py-2">
-                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="3" data-type="rpm">0</span>
+                            <div class="relative">
+                                <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $i }}" data-horario="3" data-type="rpm">
+                                    <span class="valor-display-text">0</span>
+                                </button>
+                                <div class="valor-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-64" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                        <div class="flex space-x-1 min-w-max">
+                                            @for($j = 0; $j <= 500; $j++)
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}">{{ $j }}</span>
+                                            @endfor
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                         <td class="border border-gray-300 px-1 py-2">
-                            <span class="valor-display text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors" data-telar="{{ $i }}" data-horario="3" data-type="eficiencia">0%</span>
+                            <div class="relative">
+                                <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer hover:bg-yellow-100 px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $i }}" data-horario="3" data-type="eficiencia">
+                                    <span class="valor-display-text">0%</span>
+                                </button>
+                                <div class="valor-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                    <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                        <div class="flex space-x-1 min-w-max">
+                                            @for($j = 0; $j <= 100; $j++)
+                                                <span class="number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-yellow-100 rounded transition-colors bg-gray-100 text-gray-700" data-value="{{ $j }}">{{ $j }}</span>
+                                            @endfor
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                         <td class="border border-gray-300 px-0 py-2 w-10 text-center">
                             <input type="checkbox" class="obs-checkbox w-3 h-3 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500" data-telar="{{ $i }}" data-horario="3">
@@ -286,6 +360,8 @@
         </div>
     </div>
 
+    <!-- El selector grande ha sido reemplazado por selectores inline en cada celda -->
+
 </div>
 
 
@@ -323,89 +399,7 @@
         elements.headerSection = document.getElementById('header-section');
     }
 
-    // Función optimizada para abrir editor de valores con SweetAlert2
-    async function abrirEditorValor(display) {
-        if (activeModal) return; // Evitar múltiples modales
-
-        const telar = display.dataset.telar;
-        const horario = parseInt(display.dataset.horario);
-        const tipo = display.dataset.type;
-        
-        // Obtener valor actual
-        let currentValue = tipo === 'rpm' 
-            ? parseInt(display.textContent) || 0
-            : parseInt(display.textContent.replace('%', '')) || 0;
-        
-        // Si es 0, obtener valor predeterminado según horario
-        if (currentValue === 0) {
-            currentValue = obtenerValorPredeterminado(telar, horario, tipo);
-        }
-
-        const maxValue = tipo === 'rpm' ? 500 : 100;
-        const horarioColors = ['blue', 'green', 'yellow'];
-        const color = horarioColors[parseInt(horario) - 1];
-
-        activeModal = true;
-
-        const result = await Swal.fire({
-            title: `${tipo === 'rpm' ? 'RPM' : 'Eficiencia'} - Telar ${telar}`,
-            html: `
-                <div class="text-left mb-3">
-                    <p class="text-sm text-gray-600">
-                        <strong>Horario ${horario}</strong>
-                    </p>
-                </div>
-                <div class="mb-3">
-                    <input type="number" id="valor-input" class="w-full px-4 py-2 text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-${color}-500 text-center" 
-                           value="${currentValue}" min="0" max="${maxValue}" step="1">
-                </div>
-                <div class="text-xs text-gray-500">
-                    Rango: 0 - ${maxValue}
-                </div>
-            `,
-            width: '400px',
-            showCancelButton: true,
-            confirmButtonText: '<i class="fas fa-check mr-1"></i> Aplicar',
-            cancelButtonText: '<i class="fas fa-times mr-1"></i> Cancelar',
-            confirmButtonColor: color === 'blue' ? '#2563eb' : (color === 'green' ? '#22c55e' : '#eab308'),
-            cancelButtonColor: '#6b7280',
-            focusConfirm: false,
-            didOpen: () => {
-                const input = document.getElementById('valor-input');
-                input.focus();
-                input.select();
-                
-                // Enter para confirmar
-                input.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        Swal.clickConfirm();
-                    }
-                });
-            },
-            preConfirm: () => {
-                const input = document.getElementById('valor-input');
-                let valor = parseInt(input.value) || 0;
-                
-                // Validar rango
-                if (valor < 0) valor = 0;
-                if (valor > maxValue) valor = maxValue;
-                
-                return valor;
-            }
-        });
-
-        activeModal = null;
-
-        if (result.isConfirmed) {
-            const nuevoValor = result.value;
-            
-            // Actualizar display
-            display.textContent = tipo === 'rpm' ? nuevoValor : `${nuevoValor}%`;
-            
-            // Propagar valor a siguientes horarios si están en 0
-            propagarValor(telar, parseInt(horario), tipo, nuevoValor);
-        }
-    }
+    // Las funciones del selector grande han sido reemplazadas por selectores inline
 
     // Obtener valor predeterminado según horario
     function obtenerValorPredeterminado(telar, horario, tipo) {
@@ -420,7 +414,7 @@
             }
         } else if (horario === 2) {
             // Horario 2: usar valores del Horario 1
-            const horario1Display = document.querySelector(`span.valor-display[data-telar="${telar}"][data-horario="1"][data-type="${tipo}"]`);
+            const horario1Display = document.querySelector(`button[data-telar="${telar}"][data-horario="1"][data-type="${tipo}"] .valor-display-text`);
             if (horario1Display) {
                 const horario1Value = tipo === 'rpm' 
                     ? parseInt(horario1Display.textContent) || 0
@@ -431,7 +425,7 @@
             }
         } else if (horario === 3) {
             // Horario 3: usar valores del Horario 2
-            const horario2Display = document.querySelector(`span.valor-display[data-telar="${telar}"][data-horario="2"][data-type="${tipo}"]`);
+            const horario2Display = document.querySelector(`button[data-telar="${telar}"][data-horario="2"][data-type="${tipo}"] .valor-display-text`);
             if (horario2Display) {
                 const horario2Value = tipo === 'rpm' 
                     ? parseInt(horario2Display.textContent) || 0
@@ -451,11 +445,107 @@
         const suffix = tipo === 'rpm' ? '' : '%';
         
         horariosSiguientes.forEach(h => {
-            const display = document.querySelector(`span.valor-display[data-telar="${telar}"][data-horario="${h}"][data-type="${tipo}"]`);
+            const display = document.querySelector(`button[data-telar="${telar}"][data-horario="${h}"][data-type="${tipo}"] .valor-display-text`);
             if (display && (display.textContent === '0' || display.textContent === '0%')) {
                 display.textContent = valor + suffix;
             }
         });
+    }
+
+    // Funciones para manejo de selectores de valores
+    function toggleValorSelector(btn) {
+        // Cerrar todos los otros selectores primero
+        closeAllValorSelectors();
+        
+        const container = btn.parentElement;
+        const selector = container.querySelector('.valor-edit-container');
+        const telar = btn.getAttribute('data-telar');
+        const horario = btn.getAttribute('data-horario');
+        const tipo = btn.getAttribute('data-type');
+        
+        if (selector.classList.contains('hidden')) {
+            // Mostrar selector
+            selector.classList.remove('hidden');
+            
+            // Obtener valor actual y pre-seleccionarlo
+            const currentText = btn.querySelector('.valor-display-text').textContent;
+            const currentValue = tipo === 'rpm' ? parseInt(currentText) || 0 : parseInt(currentText.replace('%', '')) || 0;
+            
+            // Si es 0, usar valor predeterminado
+            const finalValue = currentValue === 0 ? obtenerValorPredeterminado(telar, horario, tipo) : currentValue;
+            
+            // Resaltar la opción actual
+            highlightCurrentOption(selector, finalValue);
+            
+            // Scroll al valor actual
+            scrollToCurrentValue(selector, finalValue);
+        } else {
+            // Ocultar selector
+            selector.classList.add('hidden');
+        }
+    }
+
+    function closeAllValorSelectors() {
+        document.querySelectorAll('.valor-edit-container').forEach(container => {
+            container.classList.add('hidden');
+        });
+    }
+
+    function selectNumberOption(option) {
+        const value = parseInt(option.getAttribute('data-value'));
+        const container = option.closest('.valor-edit-container');
+        const btn = container.parentElement.querySelector('.valor-display-btn');
+        const telar = btn.getAttribute('data-telar');
+        const horario = parseInt(btn.getAttribute('data-horario'));
+        const tipo = btn.getAttribute('data-type');
+        
+        // Actualizar el display
+        const displayText = btn.querySelector('.valor-display-text');
+        displayText.textContent = tipo === 'rpm' ? value.toString() : value + '%';
+        
+        // Propagar valor a horarios siguientes si es necesario
+        propagarValor(telar, horario, tipo, value);
+        
+        // Cerrar selector
+        container.classList.add('hidden');
+        
+        // Mostrar feedback visual
+        btn.classList.add('bg-green-100');
+        setTimeout(() => btn.classList.remove('bg-green-100'), 300);
+    }
+
+    function highlightCurrentOption(selector, value) {
+        // Remover highlight previo
+        selector.querySelectorAll('.number-option').forEach(opt => {
+            opt.classList.remove('bg-blue-500', 'text-white');
+            opt.classList.add('bg-gray-100', 'text-gray-700');
+        });
+        
+        // Highlight opción actual
+        const currentOption = selector.querySelector(`[data-value="${value}"]`);
+        if (currentOption) {
+            currentOption.classList.remove('bg-gray-100', 'text-gray-700');
+            currentOption.classList.add('bg-blue-500', 'text-white');
+        }
+    }
+
+    function scrollToCurrentValue(selector, value) {
+        const scrollContainer = selector.querySelector('.number-scroll-container');
+        const option = selector.querySelector(`[data-value="${value}"]`);
+        
+        if (scrollContainer && option) {
+            const containerWidth = scrollContainer.clientWidth;
+            const optionLeft = option.offsetLeft;
+            const optionWidth = option.clientWidth;
+            
+            // Calcular posición de scroll para centrar la opción
+            const scrollLeft = optionLeft - (containerWidth / 2) + (optionWidth / 2);
+            
+            scrollContainer.scrollTo({
+                left: Math.max(0, scrollLeft),
+                behavior: 'smooth'
+            });
+        }
     }
 
     // Funciones para manejo de hora
@@ -600,17 +690,37 @@
             generarNuevoFolio();
         });
 
-        // Delegación de eventos para clicks en displays de valores (MUY IMPORTANTE PARA RENDIMIENTO)
+        // Delegación de eventos para clicks en displays de valores y selectores
         document.getElementById('telares-body').addEventListener('click', function(e) {
-            const display = e.target.closest('.valor-display');
-            if (display) {
-                abrirEditorValor(display);
+            // Manejar clicks en botones de valor para mostrar selector
+            const valorBtn = e.target.closest('.valor-display-btn');
+            if (valorBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleValorSelector(valorBtn);
+                return;
+            }
+
+            // Manejar clicks en opciones de números
+            const numberOption = e.target.closest('.number-option');
+            if (numberOption) {
+                e.preventDefault();
+                e.stopPropagation();
+                selectNumberOption(numberOption);
+                return;
             }
 
             // Manejar clicks en checkboxes de observaciones
             const checkbox = e.target.closest('.obs-checkbox');
             if (checkbox) {
                 abrirModalObservaciones(checkbox);
+                return;
+            }
+
+            // Cerrar selectores si se hace click fuera
+            const isInsideSelector = e.target.closest('.valor-edit-container');
+            if (!isInsideSelector) {
+                closeAllValorSelectors();
             }
         });
 
@@ -632,6 +742,23 @@
                     isEditing = true;
                 }
             });
+        });
+
+        // Event listener global para cerrar selectores al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            const isInsideSelector = e.target.closest('.valor-edit-container');
+            const isDisplayBtn = e.target.closest('.valor-display-btn');
+            
+            if (!isInsideSelector && !isDisplayBtn) {
+                closeAllValorSelectors();
+            }
+        });
+
+        // Event listener para tecla Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeAllValorSelectors();
+            }
         });
     });
 
@@ -706,6 +833,28 @@
                             eficienciaInput.value = '0%';
                             eficienciaInput.placeholder = '';
                             {{-- console.log(`⚠️ Eficiencia inválida para telar ${telarNumero}: ${eficienciaValue}`); --}}
+                        }
+                    }
+
+                    // Actualizar displays de valores con datos de la BD si están disponibles
+                    // Esto inicializará los campos con valores predeterminados basados en los STD
+                    for (let h = 1; h <= 3; h++) {
+                        // RPM
+                        const rpmDisplay = document.querySelector(`button[data-telar="${telarNumero}"][data-horario="${h}"][data-type="rpm"] .valor-display-text`);
+                        if (rpmDisplay && rpmDisplay.textContent === '0') {
+                            const defaultRpm = obtenerValorPredeterminado(telarNumero, h, 'rpm');
+                            if (defaultRpm > 0) {
+                                rpmDisplay.textContent = defaultRpm.toString();
+                            }
+                        }
+                        
+                        // Eficiencia
+                        const eficDisplay = document.querySelector(`button[data-telar="${telarNumero}"][data-horario="${h}"][data-type="eficiencia"] .valor-display-text`);
+                        if (eficDisplay && eficDisplay.textContent === '0%') {
+                            const defaultEfic = obtenerValorPredeterminado(telarNumero, h, 'eficiencia');
+                            if (defaultEfic > 0) {
+                                eficDisplay.textContent = defaultEfic + '%';
+                            }
                         }
                     }
 
@@ -1171,20 +1320,51 @@
         display: none;
     }
 
-    /* Estilos para los displays clickeables */
-    .rpm-display, .efic-display {
+    /* Estilos para los selectores de valores */
+    .valor-display-btn {
+        transition: all 0.2s ease;
+        min-width: 60px;
+    }
+
+    .valor-display-btn:hover {
+        transform: scale(1.05);
+    }
+
+    .valor-edit-container {
+        z-index: 1000;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .number-option {
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+    }
+
+    .number-option:hover {
+        transform: scale(1.1);
+    }
+
+    .number-option.selected {
+        background-color: #2563eb !important;
+        color: white !important;
+        transform: scale(1.1);
+    }
+
+    /* Animación suave para mostrar/ocultar selector */
+    .valor-edit-container.hidden {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-100%) scale(0.95);
         transition: all 0.2s ease;
     }
 
-    /* Hover específico por horario ya está en las clases inline hover:bg-blue-100, hover:bg-green-100, hover:bg-yellow-100 */
-    
-    .rpm-display.editing, .efic-display.editing {
-        background-color: #e5e7eb !important;
+    .valor-edit-container:not(.hidden) {
+        opacity: 1;
+        transform: translateX(-50%) translateY(-100%) scale(1);
+        transition: all 0.2s ease;
     }
 </style>
 
 @endsection
-
 
 
 
