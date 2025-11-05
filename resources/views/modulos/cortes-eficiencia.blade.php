@@ -102,37 +102,46 @@
 
                         <!-- Horario 1 -->
                         <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa;">
-                            <div class="flex items-center justify-center gap-2">
-                                <span>Horario 1</span>
-                                <button type="button" title="Tomar hora Horario 1" class="p-1 rounded hover:bg-blue-500 focus:outline-none" onclick="actualizarYGuardarHoraHorario(1)">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                </button>
+                            <div class="flex flex-col items-center justify-center gap-1">
+                                <div class="flex items-center gap-2">
+                                    <span>Horario 1</span>
+                                    <button type="button" title="Tomar hora Horario 1" class="p-1 rounded hover:bg-blue-500 focus:outline-none" onclick="actualizarYGuardarHoraHorario(1)">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <span id="hora-horario-1" class="text-xs opacity-75">--:--</span>
                             </div>
                         </th>
 
                         <!-- Horario 2 -->
                         <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80;">
-                            <div class="flex items-center justify-center gap-2">
-                                <span>Horario 2</span>
-                                <button type="button" title="Tomar hora Horario 2" class="p-1 rounded hover:bg-green-500 focus:outline-none" onclick="actualizarYGuardarHoraHorario(2)">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                </button>
+                            <div class="flex flex-col items-center justify-center gap-1">
+                                <div class="flex items-center gap-2">
+                                    <span>Horario 2</span>
+                                    <button type="button" title="Tomar hora Horario 2" class="p-1 rounded hover:bg-green-500 focus:outline-none" onclick="actualizarYGuardarHoraHorario(2)">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <span id="hora-horario-2" class="text-xs opacity-75">--:--</span>
                             </div>
                         </th>
 
                         <!-- Horario 3 -->
                         <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-yellow-400" style="position: sticky; top: 0; z-index: 30; background-color: #fbbf24;">
-                            <div class="flex items-center justify-center gap-2">
-                                <span>Horario 3</span>
-                                <button type="button" title="Tomar hora Horario 3" class="p-1 rounded hover:bg-yellow-500 focus:outline-none" onclick="actualizarYGuardarHoraHorario(3)">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                </button>
+                            <div class="flex flex-col items-center justify-center gap-1">
+                                <div class="flex items-center gap-2">
+                                    <span>Horario 3</span>
+                                    <button type="button" title="Tomar hora Horario 3" class="p-1 rounded hover:bg-yellow-500 focus:outline-none" onclick="actualizarYGuardarHoraHorario(3)">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <span id="hora-horario-3" class="text-xs opacity-75">--:--</span>
                             </div>
                         </th>
                     </tr>
@@ -455,12 +464,12 @@
 
     // Las funciones del selector grande han sido reemplazadas por selectores inline
 
-    // Obtener valor predeterminado según horario
-    function obtenerValorPredeterminado(telar, horario, tipo) {
+    // Obtener valor del horario anterior cuando se presiona un botón (todos empiezan en blanco)
+    function obtenerValorHorarioAnterior(telar, horario, tipo) {
         let valor = 0;
         
         if (horario === 1) {
-            // Horario 1: usar valores STD
+            // Horario 1: usar valores STD como referencia
             const stdInput = document.querySelector(`input[data-telar="${telar}"][data-field="${tipo === 'rpm' ? 'rpm_std' : 'eficiencia_std'}"]`);
             if (stdInput && stdInput.value) {
                 const stdValue = parseFloat(stdInput.value.replace('%', '')) || 0;
@@ -522,8 +531,8 @@
             const currentText = btn.querySelector('.valor-display-text').textContent;
             const currentValue = tipo === 'rpm' ? parseInt(currentText) || 0 : parseInt(currentText.replace('%', '')) || 0;
             
-            // Si es 0, usar valor predeterminado
-            const finalValue = currentValue === 0 ? obtenerValorPredeterminado(telar, horario, tipo) : currentValue;
+            // Si es 0 (blanco), usar valor del horario anterior como referencia para el selector
+            const finalValue = currentValue === 0 ? obtenerValorHorarioAnterior(telar, horario, tipo) : currentValue;
             
             // Generar opciones dinámicamente
             generateNumberOptions(selector, tipo, horario, finalValue);
@@ -887,6 +896,12 @@
 
             const data = await response.json();
             if (data.success) {
+                // Actualizar la hora en el header del horario correspondiente
+                const horaElement = document.getElementById(`hora-horario-${horario}`);
+                if (horaElement) {
+                    horaElement.textContent = horaFormateada;
+                }
+                
                 Swal.fire({
                     title: 'Hora guardada',
                     text: `Horario ${horario} - ${horaFormateada}`,
@@ -1132,25 +1147,19 @@
                         }
                     }
 
-                    // Actualizar displays de valores con datos de la BD si están disponibles
-                    // Esto inicializará los campos con valores predeterminados basados en los STD
+                    // Todos los horarios empiezan en blanco (0 / 0%)
+                    // Los valores del horario anterior se usarán solo cuando se presione el botón
                     for (let h = 1; h <= 3; h++) {
-                        // RPM
+                        // RPM - siempre empieza en 0
                         const rpmDisplay = document.querySelector(`button[data-telar="${telarNumero}"][data-horario="${h}"][data-type="rpm"] .valor-display-text`);
-                        if (rpmDisplay && rpmDisplay.textContent === '0') {
-                            const defaultRpm = obtenerValorPredeterminado(telarNumero, h, 'rpm');
-                            if (defaultRpm > 0) {
-                                rpmDisplay.textContent = defaultRpm.toString();
-                            }
+                        if (rpmDisplay) {
+                            rpmDisplay.textContent = '0';
                         }
                         
-                        // Eficiencia
+                        // Eficiencia - siempre empieza en 0%
                         const eficDisplay = document.querySelector(`button[data-telar="${telarNumero}"][data-horario="${h}"][data-type="eficiencia"] .valor-display-text`);
-                        if (eficDisplay && eficDisplay.textContent === '0%') {
-                            const defaultEfic = obtenerValorPredeterminado(telarNumero, h, 'eficiencia');
-                            if (defaultEfic > 0) {
-                                eficDisplay.textContent = defaultEfic + '%';
-                            }
+                        if (eficDisplay) {
+                            eficDisplay.textContent = '0%';
                         }
                     }
 
@@ -1337,6 +1346,20 @@
             disableStatusField();
             document.getElementById('usuario').value = info.usuario || '';
             document.getElementById('noEmpleado').value = info.noEmpleado || '';
+
+            // Cargar horarios en los headers
+            if (info.horario_1) {
+                const horaSpan1 = document.getElementById('hora-horario-1');
+                if (horaSpan1) horaSpan1.textContent = info.horario_1;
+            }
+            if (info.horario_2) {
+                const horaSpan2 = document.getElementById('hora-horario-2');
+                if (horaSpan2) horaSpan2.textContent = info.horario_2;
+            }
+            if (info.horario_3) {
+                const horaSpan3 = document.getElementById('hora-horario-3');
+                if (horaSpan3) horaSpan3.textContent = info.horario_3;
+            }
 
             // Fill table values
             if (Array.isArray(info.datos_telares)) {

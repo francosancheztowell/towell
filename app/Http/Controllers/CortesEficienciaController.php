@@ -488,6 +488,9 @@ class CortesEficienciaController extends Controller
                     'status' => $corte->Status,
                     'usuario' => $corte->nombreEmpl,
                     'noEmpleado' => $corte->numero_empleado,
+                    'horario_1' => $corte->HoraHorario1,
+                    'horario_2' => $corte->HoraHorario2,
+                    'horario_3' => $corte->HoraHorario3,
                     'datos_telares' => $lineas
                 ]
             ]);

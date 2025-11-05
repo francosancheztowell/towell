@@ -480,21 +480,8 @@
 
     // Editar corte existente
     function editarCorte(folio) {
-        Swal.fire({
-            title: 'Editar Corte',
-            text: '¿Deseas editar este corte de eficiencia?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Sí, editar',
-            cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Redirigir a la página de edición
-                window.location.href = `/modulo-cortes-de-eficiencia?folio=${folio}`;
-            }
-        });
+        // Redirigir directamente a la página de edición
+        window.location.href = `/modulo-cortes-de-eficiencia?folio=${folio}`;
     }
 
     // Finalizar corte existente
