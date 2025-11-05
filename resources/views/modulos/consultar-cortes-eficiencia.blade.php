@@ -20,14 +20,13 @@
 
         <!-- Lista de Cortes de Eficiencia -->
         <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto" style="max-height: calc(5 * 60px + 48px); overflow-y: auto;">
                 <table class="w-full">
-                    <thead class="bg-gray-50">
+                    <thead class="bg-gray-50 sticky top-0 z-10">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Folio</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Fecha</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Turno</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Horarios</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Usuario</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">No. Empleado</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -44,31 +43,6 @@
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
                                     Turno {{ $corte->Turno }}
-                                </td>
-                                <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
-                                    <div class="flex flex-col space-y-1">
-                                        @if($corte->Horario1)
-                                            <div class="flex items-center space-x-1">
-                                                <span class="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                                                <span class="text-xs">H1: {{ explode('.', $corte->Horario1)[0] }}</span>
-                                            </div>
-                                        @endif
-                                        @if($corte->Horario2)
-                                            <div class="flex items-center space-x-1">
-                                                <span class="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                                                <span class="text-xs">H2: {{ explode('.', $corte->Horario2)[0] }}</span>
-                                            </div>
-                                        @endif
-                                        @if($corte->Horario3)
-                                            <div class="flex items-center space-x-1">
-                                                <span class="inline-block w-2 h-2 bg-yellow-500 rounded-full"></span>
-                                                <span class="text-xs">H3: {{ explode('.', $corte->Horario3)[0] }}</span>
-                                            </div>
-                                        @endif
-                                        @if(!$corte->Horario1 && !$corte->Horario2 && !$corte->Horario3)
-                                            <span class="text-xs text-gray-400">Sin horarios</span>
-                                        @endif
-                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
                                     {{ $corte->nombreEmpl ?? 'N/A' }}
@@ -100,21 +74,6 @@
 
         <!-- Panel de líneas debajo de la tabla principal -->
         <div id="lineas-panel" class="bg-white rounded-lg shadow-lg overflow-hidden hidden">
-            <div class="px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-blue-100">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <div class="bg-blue-500 text-white rounded-full p-2">
-                            <i class="fas fa-file-alt text-sm"></i>
-                        </div>
-                        <div class="text-lg font-semibold text-gray-800">
-                            Folio: <span id="lineas-folio" class="text-blue-600"></span>
-                        </div>
-                    </div>
-                    <button onclick="cerrarLineasPanel()" class="close-btn text-gray-500 hover:text-red-500 transition-all duration-200 p-2 rounded-full hover:bg-red-50">
-                        <i class="fas fa-times text-lg"></i>
-                    </button>
-                </div>
-            </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="bg-gray-50">
@@ -158,6 +117,30 @@
     /* Animaciones suaves */
     .transition-colors {
         transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    /* Estilos para scroll de la tabla principal */
+    .overflow-y-auto::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .overflow-y-auto::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+    }
+    
+    .overflow-y-auto::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    
+    .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+    
+    /* Header sticky para la tabla con scroll */
+    thead.sticky {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     
     /* Estilos para la tabla de líneas */
@@ -356,9 +339,8 @@
         seleccionarFolio(folio);
         
         const panel = document.getElementById('lineas-panel');
-        const folioSpan = document.getElementById('lineas-folio');
         if (!panel) return;
-        folioSpan.textContent = folio;
+        
         renderLineasTabla(folio);
         panel.classList.remove('hidden');
         // Removido el scrollIntoView para evitar que se mueva la pantalla

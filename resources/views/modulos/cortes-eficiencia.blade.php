@@ -1403,18 +1403,28 @@
             document.getElementById('usuario').value = info.usuario || '';
             document.getElementById('noEmpleado').value = info.noEmpleado || '';
 
-            // Cargar horarios en los headers
+            // Cargar horarios en los headers (sin milisegundos)
             if (info.horario_1) {
                 const horaSpan1 = document.getElementById('hora-horario-1');
-                if (horaSpan1) horaSpan1.textContent = info.horario_1;
+                if (horaSpan1) {
+                    // Remover milisegundos si existen (formato: HH:MM:SS.mmm -> HH:MM)
+                    const horaSinMs = info.horario_1.split('.')[0].substring(0, 5);
+                    horaSpan1.textContent = horaSinMs;
+                }
             }
             if (info.horario_2) {
                 const horaSpan2 = document.getElementById('hora-horario-2');
-                if (horaSpan2) horaSpan2.textContent = info.horario_2;
+                if (horaSpan2) {
+                    const horaSinMs = info.horario_2.split('.')[0].substring(0, 5);
+                    horaSpan2.textContent = horaSinMs;
+                }
             }
             if (info.horario_3) {
                 const horaSpan3 = document.getElementById('hora-horario-3');
-                if (horaSpan3) horaSpan3.textContent = info.horario_3;
+                if (horaSpan3) {
+                    const horaSinMs = info.horario_3.split('.')[0].substring(0, 5);
+                    horaSpan3.textContent = horaSinMs;
+                }
             }
 
             // Fill table values
