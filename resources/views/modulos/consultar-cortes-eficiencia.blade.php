@@ -217,11 +217,6 @@
         cursor: not-allowed !important;
         opacity: 0.6;
     }
-    
-    /* Scroll suave para el panel */
-    html {
-        scroll-behavior: smooth;
-    }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
