@@ -74,9 +74,9 @@
 
         <!-- Panel de líneas debajo de la tabla principal -->
         <div id="lineas-panel" class="bg-white rounded-lg shadow-lg overflow-hidden hidden">
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto overflow-y-auto" style="max-height: 400px;">
                 <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50">
+                    <thead class="bg-gray-50 sticky top-0 z-20">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telar</th>
                             <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">RPM STD</th>
@@ -141,6 +141,31 @@
     /* Header sticky para la tabla con scroll */
     thead.sticky {
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Header sticky para tabla de detalles */
+    #lineas-panel thead.sticky {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        background-color: #f9fafb;
+    }
+    
+    /* Scroll personalizado para tabla de detalles */
+    #lineas-panel .overflow-y-auto::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    #lineas-panel .overflow-y-auto::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 3px;
+    }
+    
+    #lineas-panel .overflow-y-auto::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+    }
+    
+    #lineas-panel .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
     }
     
     /* Estilos para la tabla de líneas */
