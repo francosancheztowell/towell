@@ -25,6 +25,16 @@
 
 @section('content')
 <div class="container mx-auto px-4 py-6">
+    <!-- Info del Folio Activo -->
+    <div id="folio-activo-info" class="bg-blue-50 border-l-4 border-blue-500 text-blue-900 p-3 mb-4 flex justify-between items-center hidden">
+        <div class="flex items-center space-x-3">
+            <i class="fas fa-edit text-blue-500"></i>
+            <span id="tipo-edicion" class="font-medium">Nuevo Corte</span>
+            <span class="text-blue-500">|</span>
+            <span>Folio: <span id="folio-activo" class="font-bold"></span></span>
+        </div>
+    </div>
+
     <!-- Header Section (Inicialmente oculta) -->
     <div id="header-section" class="bg-white shadow-sm -mt-4 p-3 hidden" style="display: none !important;">
         <div class="flex items-center space-x-6">
@@ -476,25 +486,44 @@
                 valor = tipo === 'rpm' ? Math.round(stdValue) : Math.round(stdValue);
             }
         } else if (horario === 2) {
-            // Horario 2: usar valores del Horario 1
+            // Horario 2: usar el valor ACTUAL (donde terminó) del Horario 1
             const horario1Display = document.querySelector(`button[data-telar="${telar}"][data-horario="1"][data-type="${tipo}"] .valor-display-text`);
-            if (horario1Display) {
+            if (horario1Display && horario1Display.textContent !== '0' && horario1Display.textContent !== '0%') {
                 const horario1Value = tipo === 'rpm' 
                     ? parseInt(horario1Display.textContent) || 0
                     : parseInt(horario1Display.textContent.replace('%', '')) || 0;
-                if (horario1Value > 0) {
-                    valor = horario1Value;
+                valor = horario1Value;
+            } else {
+                // Si horario 1 está en blanco, usar STD como fallback
+                const stdInput = document.querySelector(`input[data-telar="${telar}"][data-field="${tipo === 'rpm' ? 'rpm_std' : 'eficiencia_std'}"]`);
+                if (stdInput && stdInput.value) {
+                    const stdValue = parseFloat(stdInput.value.replace('%', '')) || 0;
+                    valor = tipo === 'rpm' ? Math.round(stdValue) : Math.round(stdValue);
                 }
             }
         } else if (horario === 3) {
-            // Horario 3: usar valores del Horario 2
+            // Horario 3: usar el valor ACTUAL (donde terminó) del Horario 2
             const horario2Display = document.querySelector(`button[data-telar="${telar}"][data-horario="2"][data-type="${tipo}"] .valor-display-text`);
-            if (horario2Display) {
+            if (horario2Display && horario2Display.textContent !== '0' && horario2Display.textContent !== '0%') {
                 const horario2Value = tipo === 'rpm' 
                     ? parseInt(horario2Display.textContent) || 0
                     : parseInt(horario2Display.textContent.replace('%', '')) || 0;
-                if (horario2Value > 0) {
-                    valor = horario2Value;
+                valor = horario2Value;
+            } else {
+                // Si horario 2 está en blanco, verificar horario 1
+                const horario1Display = document.querySelector(`button[data-telar="${telar}"][data-horario="1"][data-type="${tipo}"] .valor-display-text`);
+                if (horario1Display && horario1Display.textContent !== '0' && horario1Display.textContent !== '0%') {
+                    const horario1Value = tipo === 'rpm' 
+                        ? parseInt(horario1Display.textContent) || 0
+                        : parseInt(horario1Display.textContent.replace('%', '')) || 0;
+                    valor = horario1Value;
+                } else {
+                    // Si ambos están en blanco, usar STD como fallback
+                    const stdInput = document.querySelector(`input[data-telar="${telar}"][data-field="${tipo === 'rpm' ? 'rpm_std' : 'eficiencia_std'}"]`);
+                    if (stdInput && stdInput.value) {
+                        const stdValue = parseFloat(stdInput.value.replace('%', '')) || 0;
+                        valor = tipo === 'rpm' ? Math.round(stdValue) : Math.round(stdValue);
+                    }
                 }
             }
         }
@@ -502,18 +531,7 @@
         return valor;
     }
 
-    // Propagar valor a horarios siguientes
-    function propagarValor(telar, horario, tipo, valor) {
-        const horariosSiguientes = horario === 1 ? [2, 3] : horario === 2 ? [3] : [];
-        const suffix = tipo === 'rpm' ? '' : '%';
-        
-        horariosSiguientes.forEach(h => {
-            const display = document.querySelector(`button[data-telar="${telar}"][data-horario="${h}"][data-type="${tipo}"] .valor-display-text`);
-            if (display && (display.textContent === '0' || display.textContent === '0%')) {
-                display.textContent = valor + suffix;
-            }
-        });
-    }
+    // No propagar valores automáticamente - cada horario se mantiene en blanco hasta que se seleccione
 
     // Funciones para manejo de selectores de valores
     function toggleValorSelector(btn) {
@@ -523,25 +541,34 @@
         const container = btn.parentElement;
         const selector = container.querySelector('.valor-edit-container');
         const telar = btn.getAttribute('data-telar');
-        const horario = btn.getAttribute('data-horario');
+        const horario = parseInt(btn.getAttribute('data-horario'));
         const tipo = btn.getAttribute('data-type');
         
         if (selector.classList.contains('hidden')) {
-            // Obtener valor actual y pre-seleccionarlo
+            // Obtener valor actual del display
             const currentText = btn.querySelector('.valor-display-text').textContent;
             const currentValue = tipo === 'rpm' ? parseInt(currentText) || 0 : parseInt(currentText.replace('%', '')) || 0;
             
-            // Si es 0 (blanco), usar valor del horario anterior como referencia para el selector
-            const finalValue = currentValue === 0 ? obtenerValorHorarioAnterior(telar, horario, tipo) : currentValue;
+            // Determinar el valor inicial del selector:
+            // - Si el campo ya tiene un valor (no es 0), usar ese valor
+            // - Si está en blanco (0), usar el valor del horario anterior
+            let valorInicial;
+            if (currentValue === 0) {
+                // Campo vacío: posicionar selector en el valor del horario anterior
+                valorInicial = obtenerValorHorarioAnterior(telar, horario, tipo);
+            } else {
+                // Campo con valor: posicionar selector en el valor actual
+                valorInicial = currentValue;
+            }
             
             // Generar opciones dinámicamente
-            generateNumberOptions(selector, tipo, horario, finalValue);
+            generateNumberOptions(selector, tipo, horario, valorInicial);
             
             // Mostrar selector
             selector.classList.remove('hidden');
             
-            // Scroll al valor actual
-            scrollToCurrentValue(selector, finalValue);
+            // Scroll al valor inicial
+            scrollToCurrentValue(selector, valorInicial);
         } else {
             // Ocultar selector
             selector.classList.add('hidden');
@@ -677,12 +704,11 @@
         const horario = parseInt(btn.getAttribute('data-horario'));
         const tipo = btn.getAttribute('data-type');
         
-        // Actualizar el display
+        // Actualizar el display con el valor seleccionado
         const displayText = btn.querySelector('.valor-display-text');
         displayText.textContent = tipo === 'rpm' ? value.toString() : value + '%';
         
-        // Propagar valor a horarios siguientes si es necesario
-        propagarValor(telar, horario, tipo, value);
+        // No propagar a horarios siguientes - cada uno se mantiene independiente y en blanco
         
         // Cerrar selector
         container.classList.add('hidden');
@@ -928,6 +954,19 @@
     }
 
     // Inicialización optimizada
+    // Función para mostrar el folio activo
+    function mostrarFolioActivo(folio, tipo = 'Nuevo Corte') {
+        const infoDiv = document.getElementById('folio-activo-info');
+        const folioSpan = document.getElementById('folio-activo');
+        const tipoSpan = document.getElementById('tipo-edicion');
+        
+        if (infoDiv && folioSpan && tipoSpan) {
+            folioSpan.textContent = folio;
+            tipoSpan.textContent = tipo;
+            infoDiv.classList.remove('hidden');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // Inicializar cache de elementos
         initElements();
@@ -938,7 +977,7 @@
         // Inicializar hora actual
         inicializarHora();
 
-        // Cargar datos del usuario actual (simulado)
+        // Cargar datos del usuario actual
         elements.usuario.value = 'Usuario Actual';
         elements.noEmpleado.value = '12345';
 
@@ -1139,11 +1178,9 @@
                             const eficienciaFinal = eficiencia > 1 ? eficiencia : eficiencia * 100;
                             eficienciaInput.value = eficienciaFinal.toFixed(0) + '%';
                             eficienciaInput.placeholder = '';
-                            {{-- console.log(`✅ Eficiencia STD actualizada para telar ${telarNumero}: ${eficienciaFinal}%`); --}}
                         } else {
                             eficienciaInput.value = '0%';
                             eficienciaInput.placeholder = '';
-                            {{-- console.log(`⚠️ Eficiencia inválida para telar ${telarNumero}: ${eficienciaValue}`); --}}
                         }
                     }
 
@@ -1298,6 +1335,9 @@
 
                 // Habilitar botones
                 enableActionButtons();
+                
+                // Mostrar el folio activo
+                mostrarFolioActivo(data.folio, 'Nuevo Corte');
 
             } else {
                 throw new Error(data.message || 'Error al generar folio');
@@ -1362,6 +1402,9 @@
             }
 
             // Fill table values
+            // Mostrar el folio activo como edición
+            mostrarFolioActivo(info.folio, 'Editando Corte');
+
             if (Array.isArray(info.datos_telares)) {
                 info.datos_telares.forEach(telar => {
                     const telarId = telar.NoTelar;
@@ -1561,7 +1604,6 @@
             }
         })
         .catch(error => {
-            console.error('Error:', error);
             Swal.fire({
                 title: 'Error',
                 text: 'Error al guardar el corte de eficiencia: ' + error.message,
@@ -1723,7 +1765,6 @@
                 throw new Error(data.message || 'Error al guardar los datos');
             }
         } catch (error) {
-            console.error('Error:', error);
             Swal.fire({
                 title: 'Error',
                 text: 'Error al guardar los datos: ' + error.message,
@@ -1881,7 +1922,6 @@
             // Validar que haya un folio
             const folio = elements.folio ? elements.folio.value : null;
             if (!folio || folio.trim() === '') {
-                console.warn('No hay folio para guardar');
                 return;
             }
 
@@ -1890,7 +1930,6 @@
             const turno = elements.turno ? elements.turno.value : null;
             
             if (!fecha || !turno) {
-                console.warn('Fecha o turno no especificado');
                 return;
             }
 
@@ -1898,7 +1937,6 @@
             const datosTelares = recopilarDatosTelares();
 
             if (datosTelares.length === 0) {
-                console.warn('No hay datos de telares para guardar');
                 return;
             }
 
@@ -1941,11 +1979,9 @@
                     // Mostrar indicador visual breve de guardado
                     mostrarIndicadorGuardado(isNewRecord ? 'Creado' : 'Actualizado');
                 } else {
-                    console.error('Error al guardar:', data.message);
                     mostrarErrorGuardado(data.message);
                 }
             } catch (error) {
-                console.error('Error en guardado automático:', error);
                 mostrarErrorGuardado(error.message);
             }
         }, 1000); // Esperar 1 segundo después del último cambio

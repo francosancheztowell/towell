@@ -245,13 +245,11 @@
         })->toArray()
     ) !!};
 
-    // Debug: Mostrar datos STD en consola
-    console.log('=== DEBUG: Datos STD en consulta ===');
+    // Datos STD cargados a memoria
     Object.keys(lineasPorFolio).forEach(folio => {
-        console.log(`Folio ${folio}:`);
         lineasPorFolio[folio].forEach(linea => {
             if (linea.RpmStd || linea.EficienciaStd) {
-                console.log(`  Telar ${linea.NoTelarId}: RPM STD=${linea.RpmStd}, Efic STD=${linea.EficienciaStd}`);
+                // Valores cargados para su uso posterior
             }
         });
     });
@@ -267,7 +265,6 @@
         
         // Verificar que los elementos existan
         if (!btnEditar || !btnTerminar) {
-            console.log('Botones no encontrados aún');
             return;
         }
         
@@ -277,21 +274,18 @@
             btnTerminar.disabled = true;
             btnEditar.title = 'Selecciona un folio para editar';
             btnTerminar.title = 'Selecciona un folio para terminar';
-            console.log('Botones deshabilitados - sin selección');
         } else if (statusFolioSeleccionado === 'Finalizado') {
             // Folio finalizado - no se puede editar ni terminar
             btnEditar.disabled = true;
             btnTerminar.disabled = true;
             btnEditar.title = 'No se puede editar un corte finalizado';
             btnTerminar.title = 'Este corte ya está finalizado';
-            console.log('Botones deshabilitados - corte finalizado');
         } else {
             // Folio seleccionado y no finalizado
             btnEditar.disabled = false;
             btnTerminar.disabled = false;
             btnEditar.title = `Editar folio ${folioSeleccionado}`;
             btnTerminar.title = `Terminar corte ${folioSeleccionado}`;
-            console.log(`Botones habilitados para folio: ${folioSeleccionado}`);
         }
     }
 
@@ -306,11 +300,6 @@
         }
         
         rows.forEach((l, index) => {
-            // Debug: Mostrar datos de cada línea
-            if (l.RpmStd || l.EficienciaStd) {
-                console.log(`Renderizando telar ${l.NoTelarId}: RPM STD=${l.RpmStd}, Efic STD=${l.EficienciaStd}`);
-            }
-            
             const tr = document.createElement('tr');
             tr.className = index % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50 hover:bg-gray-100';
             
@@ -394,8 +383,6 @@
         folioSeleccionado = folio;
         statusFolioSeleccionado = status;
         
-        console.log(`Folio seleccionado: ${folio}, Status detectado: "${status}"`);
-        
         // Actualizar estado de los botones con un pequeño delay para asegurar que el DOM esté listo
         setTimeout(() => {
             actualizarEstadoBotones();
@@ -475,7 +462,6 @@
         statusFolioSeleccionado = null;
         limpiarResaltadoSeleccion();
         actualizarEstadoBotones();
-        console.log('Selección limpiada');
     }
 
     // Editar corte existente
@@ -549,8 +535,6 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('Consultar Cortes de Eficiencia cargado - {{ $cortes->count() }} registros');
-        
         // Inicializar estado de botones
         actualizarEstadoBotones();
         
@@ -558,29 +542,9 @@
         document.querySelectorAll('tr[data-folio]').forEach(fila => {
             fila.addEventListener('click', function() {
                 const folio = this.getAttribute('data-folio');
-                console.log(`Click en fila de folio: ${folio}`);
                 toggleLineasPanel(folio);
             });
         });
-        
-        console.log('Event listeners agregados a las filas');
-        
-        // Test de botones después de un segundo
-        setTimeout(() => {
-            console.log('=== TEST DE BOTONES ===');
-            const btnEditar = document.getElementById('btn-editar-folio');
-            const btnTerminar = document.getElementById('btn-terminar-folio');
-            console.log('Botón editar encontrado:', !!btnEditar);
-            console.log('Botón terminar encontrado:', !!btnTerminar);
-            if (btnEditar) console.log('Botón editar deshabilitado:', btnEditar.disabled);
-            if (btnTerminar) console.log('Botón terminar deshabilitado:', btnTerminar.disabled);
-        }, 1000);
     });
-    
-    // Función de debug global para probar selección
-    window.testSeleccion = function(folio) {
-        console.log(`=== TEST MANUAL: Seleccionando folio ${folio} ===`);
-        seleccionarFolio(folio);
-    };
 </script>
 @endsection
