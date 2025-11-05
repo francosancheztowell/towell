@@ -903,6 +903,22 @@
             return;
         }
 
+        // Mostrar alerta de confirmación
+        const confirmacion = await Swal.fire({
+            title: '¿Actualizar hora?',
+            text: `¿Seguro que quieres actualizar la hora del Horario ${horario}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sí, actualizar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (!confirmacion.isConfirmed) {
+            return;
+        }
+
         try {
             const response = await fetch('/modulo-cortes-de-eficiencia/guardar-hora', {
                 method: 'POST',

@@ -104,11 +104,10 @@
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
                         <div class="bg-blue-500 text-white rounded-full p-2">
-                            <i class="fas fa-table text-sm"></i>
+                            <i class="fas fa-file-alt text-sm"></i>
                         </div>
-                        <div>
-                            <div class="text-lg font-semibold text-gray-800">Detalles del Corte</div>
-                            <div class="text-sm text-gray-600">Folio: <span id="lineas-folio" class="font-semibold text-blue-600"></span></div>
+                        <div class="text-lg font-semibold text-gray-800">
+                            Folio: <span id="lineas-folio" class="text-blue-600"></span>
                         </div>
                     </div>
                     <button onclick="cerrarLineasPanel()" class="close-btn text-gray-500 hover:text-red-500 transition-all duration-200 p-2 rounded-full hover:bg-red-50">
