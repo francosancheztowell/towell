@@ -201,61 +201,89 @@
                             <x-action-buttons route="aplicaciones" :showFilters="true" />
                         @endif
 
-          @if(request()->routeIs('catalogos.req-programa-tejido'))
+          @if(request()->routeIs('catalogos.req-programa-tejido') || (request()->is('planeacion/programa-tejido') && !request()->is('*programa-tejido/*/editar') && !request()->is('*programa-tejido/nuevo*')))
             <div class="flex items-center gap-1">
 
               <!-- Controles de columnas -->
-              <div class="flex items-center gap-1 mr-2">
+              <div class="flex items-center gap-2 mr-2">
+                <!-- Grupo 1: Dropdown Agregar + Editar + Eliminar (compacto, solo íconos) -->
+                <div class="flex items-center gap-2 mr-2">
+                  <div class="relative">
+                    <button id="layoutBtnAddMenu" type="button" class="w-9 h-9 flex items-center justify-center rounded-full bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400" title="Agregar" aria-label="Agregar">
+                      <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <div id="layoutAddMenu" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 origin-top-right transform transition ease-out duration-150 scale-95 opacity-0 z-50">
+                      <div class="py-1">
+                        <button type="button" id="menuNuevoRegistro" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                          <i class="fa-solid fa-file-circle-plus text-gray-500"></i>
+                          Nuevo registro
+                        </button>
+                        <a href="{{ route('programa-tejido.altas-especiales') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                          <i class="fa-solid fa-layer-group text-blue-600"></i>
+                          Alta C.E.
+                        </a>
+                        <button type="button" id="menuAltaPronosticos" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                          <i class="fa-solid fa-chart-line text-green-600"></i>
+                          Alta de pronósticos
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <button type="button" id="layoutBtnEditar" class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar" aria-label="Editar" disabled>
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button type="button" id="layoutBtnEliminar" class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar" aria-label="Eliminar" disabled>
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+
+                <!-- Grupo 2: Controles de columnas -->
                 <button type="button" onclick="openPinColumnsModal()"
-                        class="w-9 h-9 flex items-center justify-center text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 rounded-full transition-colors"
+                        class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-colors border-0"
+                        style="border-radius: 50%;"
                         title="Fijar columnas" aria-label="Fijar columnas">
                   <i class="fa-solid fa-thumbtack"></i>
                 </button>
                 <button type="button" onclick="openHideColumnsModal()"
-                        class="w-9 h-9 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full transition-colors"
+                        class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
                         title="Ocultar columnas" aria-label="Ocultar columnas">
                   <i class="fa-solid fa-eye-slash"></i>
                 </button>
                 <button type="button" onclick="resetColumnsSpin()"
-                        class="w-9 h-9 flex items-center justify-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
+                        class="w-9 h-9 flex items-center justify-center rounded-full bg-gray-500 text-white hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors"
                         title="Restablecer columnas" aria-label="Restablecer columnas">
                   <i id="iconResetColumns" class="fa-solid fa-rotate"></i>
                 </button>
+
+                <!-- Grupo 3: Catálogos (icono) -->
+                <a href="/submodulos-nivel3/104" class="w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors" title="Catálogos" aria-label="Catálogos">
+                  <i class="fa-solid fa-database"></i>
+                </a>
               </div>
 
               <!-- Prioridad (solo si hay selección) -->
-              <div id="rowPriorityControls" class="flex items-center gap-1 hidden">
+              <div id="rowPriorityControls" class="flex items-center gap-2 hidden">
                 <!-- Subir (verde) -->
                 <button type="button" onclick="moveRowUp()"
-                        class="w-9 h-9 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full transition-colors"
+                        class="w-9 h-9 flex items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors"
                         title="Subir prioridad" aria-label="Subir prioridad">
                   <i class="fa-solid fa-arrow-up"></i>
                 </button>
                 <!-- Bajar (rojo) -->
                 <button type="button" onclick="moveRowDown()"
-                        class="w-9 h-9 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full transition-colors"
+                        class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
                         title="Bajar prioridad" aria-label="Bajar prioridad">
                   <i class="fa-solid fa-arrow-down"></i>
                 </button>
                     </div>
 
-              <!-- Nuevo (plus-circle) -->
-              <button type="button" onclick="abrirNuevo(); return false;"
-                      class="w-9 h-9 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-colors"
-                      title="Nuevo registro" aria-label="Nuevo registro">
-                <i class="fa-solid fa-circle-plus"></i>
-              </button>
 
-              <!-- Catálogos (grid) -->
-              <a href="/submodulos-nivel3/104"
-                 class="w-9 h-9 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-colors"
-                 title="Catálogos" aria-label="Catálogos">
-                <i class="fa-solid fa-table-cells"></i>
-              </a>
+
+
 
               <!-- Filtros (reactivo) -->
               <button type="button" id="btnFilters"
-                      class="relative w-9 h-9 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-colors"
+                      class="relative w-9 h-9 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
                       title="Filtros" aria-label="Filtros">
                 <i class="fa-solid fa-filter"></i>
                 <!-- Badge con número (solo cuando hay filtros activos) -->
@@ -669,6 +697,134 @@
     window.confirmFilters = confirmFilters;
     window.resetFiltersSpin = resetFiltersSpin;
         </script>
+
+  @stack('scripts')
+  <script>
+    (function(){
+      const btn = document.getElementById('layoutBtnAddMenu');
+      const menu = document.getElementById('layoutAddMenu');
+      if (!btn || !menu) return;
+      const open = () => { menu.classList.remove('hidden'); requestAnimationFrame(()=>{ menu.classList.remove('opacity-0','scale-95'); menu.classList.add('opacity-100','scale-100'); }); };
+      const close = () => { menu.classList.add('opacity-0','scale-95'); menu.classList.remove('opacity-100','scale-100'); setTimeout(()=>menu.classList.add('hidden'), 150); };
+      let shown = false;
+      btn.addEventListener('click', (e)=>{ e.stopPropagation(); shown ? (close(), shown=false) : (open(), shown=true); });
+      document.addEventListener('click', (e)=>{ if (shown && !menu.contains(e.target) && e.target !== btn) { close(); shown=false; } });
+
+      // Nuevo registro: ejecutar función abrirNuevo() si existe, sino navegar
+      const nuevoReg = document.getElementById('menuNuevoRegistro');
+      if (nuevoReg) {
+        nuevoReg.addEventListener('click', () => {
+          close();
+          if (typeof abrirNuevo === 'function') {
+            abrirNuevo();
+          } else {
+            window.location.href = '/planeacion/programa-tejido/nuevo';
+          }
+        });
+      }
+
+      // Alta de pronósticos: abrir modal de selección de meses
+      const altaPron = document.getElementById('menuAltaPronosticos');
+      if (altaPron) {
+        altaPron.addEventListener('click', () => {
+          close();
+          // Modal de selección de meses
+          const now = new Date();
+          const currentYear = now.getFullYear();
+          const currentMonth = now.getMonth() + 1;
+
+          const meses = [];
+          for (let i = -12; i <= 3; i++) {
+            const date = new Date(currentYear, currentMonth + i - 1, 1);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const label = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+            meses.push({ value: `${year}-${month}`, label: label.charAt(0).toUpperCase() + label.slice(1) });
+          }
+
+          const mesesHTML = meses.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
+
+          const html = `
+            <div class="text-left">
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Mes Inicial:</label>
+                <select id="mesInicial" class="w-full border rounded px-3 py-2 text-sm">
+                  ${mesesHTML}
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Mes Final:</label>
+                <select id="mesFinal" class="w-full border rounded px-3 py-2 text-sm">
+                  ${mesesHTML}
+                </select>
+              </div>
+              <p class="text-xs text-gray-500 mt-3">
+                <i class="fa-solid fa-info-circle mr-1"></i>
+                Se mostrarán los pronósticos del rango seleccionado (inclusive).
+              </p>
+            </div>
+          `;
+
+          Swal.fire({
+            title: 'Seleccionar Rango de Meses',
+            html: html,
+            width: 500,
+            showCancelButton: true,
+            confirmButtonText: 'Continuar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#16a34a',
+            cancelButtonColor: '#6b7280',
+            didOpen: () => {
+              const mesActual = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+              document.getElementById('mesInicial').value = mesActual;
+              document.getElementById('mesFinal').value = mesActual;
+            },
+            preConfirm: () => {
+              const mesInicial = document.getElementById('mesInicial').value;
+              const mesFinal = document.getElementById('mesFinal').value;
+
+              if (!mesInicial || !mesFinal) {
+                Swal.showValidationMessage('Por favor seleccione ambos meses');
+                return false;
+              }
+
+              if (mesInicial > mesFinal) {
+                Swal.showValidationMessage('El mes inicial debe ser menor o igual al mes final');
+                return false;
+              }
+
+              const mesesSeleccionados = [];
+              const [yearIni, monthIni] = mesInicial.split('-').map(Number);
+              const [yearFin, monthFin] = mesFinal.split('-').map(Number);
+
+              let currentYear = yearIni;
+              let currentMonth = monthIni;
+
+              while (currentYear < yearFin || (currentYear === yearFin && currentMonth <= monthFin)) {
+                mesesSeleccionados.push(`${currentYear}-${String(currentMonth).padStart(2, '0')}`);
+
+                currentMonth++;
+                if (currentMonth > 12) {
+                  currentMonth = 1;
+                  currentYear++;
+                }
+              }
+
+              return mesesSeleccionados;
+            }
+          }).then((result) => {
+            if (result.isConfirmed && result.value) {
+              const url = new URL('{{ route("programa-tejido.alta-pronosticos") }}', window.location.origin);
+              result.value.forEach(mes => {
+                url.searchParams.append('meses[]', mes);
+              });
+              window.location.href = url.toString();
+            }
+          });
+        });
+      }
+    })();
+  </script>
 
   <script src="{{ asset('js/simple-click-sounds.js') }}"></script>
 

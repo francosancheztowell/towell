@@ -15,11 +15,14 @@ class PronosticosController extends Controller
     /**
      * Vista principal (sin datos). El front pedirá por GET con fetch.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Mes actual para preseleccionar en el front
-        $mesActual = now()->format('Y-m');
-        return view('modulos.alta-pronosticos', compact('mesActual'));
+        // Obtener meses de la URL si existen, sino usar mes actual
+        $meses = $this->parseMeses($request);
+        $mesActual = !empty($meses) ? $meses[0] : now()->format('Y-m');
+        
+        // Pasar meses a la vista para que el front los use
+        return view('modulos.alta-pronosticos', compact('mesActual', 'meses'));
     }
 
     /**
@@ -84,7 +87,30 @@ class PronosticosController extends Controller
 
         return array_values(array_unique($validados));
     }
+
+    /**
+     * GET /planeacion/programa-tejido/pronosticos/nuevo
+     * Carga la vista de Pronósticos (formulario).
+     */
+    public function nuevo(Request $request)
+    {
+        $prefill = [
+            'idflog'       => $request->query('idflog') ?? $request->query('IDFLOG'),
+            'itemid'       => $request->query('itemid') ?? $request->query('ITEMID'),
+            'inventsizeid' => $request->query('inventsizeid') ?? $request->query('INVENTSIZEID'),
+            'cantidad'     => $request->query('cantidad') ?? $request->query('CANTIDAD'),
+            'tipohilo'     => $request->query('tipohilo') ?? $request->query('TIPOHILO'),
+            'salon'        => $request->query('salon') ?? $request->query('SALON'),
+            'clavemodelo'  => $request->query('clavemodelo') ?? $request->query('CLAVEMODELO'),
+            'custname'     => $request->query('custname') ?? $request->query('CUSTNAME'),
+            'estado'       => $request->query('estado') ?? $request->query('ESTADO'),
+            'nombreproyecto' => $request->query('nombreproyecto') ?? $request->query('NOMBREPROYECTO'),
+            'categoriacalidad' => $request->query('categoriacalidad') ?? $request->query('CATEGORIACALIDAD'),
+        ];
+        return view('modulos.programa-tejido-nuevo.pronosticos', compact('prefill'));
+    }
 }
+
 
 
 

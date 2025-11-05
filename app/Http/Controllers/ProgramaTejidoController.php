@@ -471,7 +471,7 @@ class ProgramaTejidoController extends Controller
                     'CalibrePie', 'CalibrePie2', 'CuentaPie', 'FibraPie', 'CodColorCtaPie', 'NombreCPie',
 
                     // Medidas y especificaciones
-                    'AnchoToalla', 'PesoCrudo', 'Peine', 'MedidaPlano', 'NoTiras', 'Luchaje',
+                    'AnchoToalla', 'PesoCrudo', 'Peine', 'MedidaPlano', 'NoTiras', 'Luchaje', 'Rasurado',
 
                     // Pasadas
                     'PasadasTrama', 'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4', 'PasadasComb5',
@@ -497,7 +497,7 @@ class ProgramaTejidoController extends Controller
                             $valor = is_numeric($valor) ? (int)$valor : null;
                         } elseif (in_array($campo, ['TotalPedido', 'Produccion', 'SaldoPedido', 'SaldoMarbete', 'PesoGRM2', 'DiasEficiencia', 'ProdKgDia', 'StdDia', 'ProdKgDia2', 'StdToaHra', 'DiasJornada', 'HorasProd', 'StdHrsEfect', 'Calc4', 'Calc5', 'Calc6'])) {
                             $valor = is_numeric($valor) ? (float)$valor : null;
-                        } elseif (in_array($campo, ['FibraTrama', 'FibraComb1', 'FibraComb2', 'FibraComb3', 'FibraComb4', 'FibraComb5', 'FibraPie', 'FibraRizo', 'CodColorTrama', 'ColorTrama', 'CodColorComb1', 'NombreCC1', 'CodColorComb2', 'NombreCC2', 'CodColorComb3', 'NombreCC3', 'CodColorComb4', 'NombreCC4', 'CodColorComb5', 'NombreCC5', 'CodColorCtaPie', 'NombreCPie', 'InventSizeId', 'NombreProyecto', 'NombreProducto', 'Maquina'])) {
+                        } elseif (in_array($campo, ['FibraTrama', 'FibraComb1', 'FibraComb2', 'FibraComb3', 'FibraComb4', 'FibraComb5', 'FibraPie', 'FibraRizo', 'CodColorTrama', 'ColorTrama', 'CodColorComb1', 'NombreCC1', 'CodColorComb2', 'NombreCC2', 'CodColorComb3', 'NombreCC3', 'CodColorComb4', 'NombreCC4', 'CodColorComb5', 'NombreCC5', 'CodColorCtaPie', 'NombreCPie', 'InventSizeId', 'NombreProyecto', 'NombreProducto', 'Maquina', 'Rasurado'])) {
                             $valor = (string)$valor;
                             // ✅ TRUNCAR VALORES STRING SEGÚN LÍMITES DE BD
                             $valor = StringTruncator::truncate($campo, $valor);
@@ -543,21 +543,28 @@ class ProgramaTejidoController extends Controller
                             $modeloCod = $q->orderByDesc('FechaTejido')->first();
                             if ($modeloCod) {
                                 if (empty($nuevo->NombreProducto) || $nuevo->NombreProducto === 'null') {
-                                    $nuevo->NombreProducto = (string)$modeloCod->Nombre;
+                                    $nuevo->NombreProducto = StringTruncator::truncate('NombreProducto', (string)$modeloCod->Nombre);
                                 }
                                 if (empty($nuevo->NombreProyecto) || $nuevo->NombreProyecto === 'null') {
-                                    $nuevo->NombreProyecto = (string)($modeloCod->NombreProyecto ?? $modeloCod->Descrip ?? $modeloCod->Descripcion ?? '');
+                                    $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', (string)($modeloCod->NombreProyecto ?? $modeloCod->Descrip ?? $modeloCod->Descripcion ?? ''));
                                 }
                                 if (empty($nuevo->MedidaPlano) && !empty($modeloCod->MedidaPlano)) {
                                     $nuevo->MedidaPlano = (int)$modeloCod->MedidaPlano;
                                 }
                                 if (empty($nuevo->NombreCPie) && !empty($modeloCod->NombreCPie)) {
-                                    $nuevo->NombreCPie = (string)$modeloCod->NombreCPie;
+                                    $nuevo->NombreCPie = StringTruncator::truncate('NombreCPie', (string)$modeloCod->NombreCPie);
                                 }
                             }
                         }
                     } catch (\Throwable $e) {
                         Log::warning('Fallback ReqModelosCodificados falló', ['msg' => $e->getMessage()]);
+                    }
+                }
+
+                // Asegurar truncamiento de TODOS los campos string antes de guardar
+                foreach (['NombreProducto', 'NombreProyecto', 'NombreCC1', 'NombreCC2', 'NombreCC3', 'NombreCC4', 'NombreCC5', 'NombreCPie', 'ColorTrama', 'CodColorTrama', 'Maquina', 'FlogsId', 'AplicacionId', 'CalendarioId', 'Observaciones', 'Rasurado'] as $campoString) {
+                    if (isset($nuevo->{$campoString}) && is_string($nuevo->{$campoString})) {
+                        $nuevo->{$campoString} = StringTruncator::truncate($campoString, $nuevo->{$campoString});
                     }
                 }
 
@@ -572,6 +579,14 @@ class ProgramaTejidoController extends Controller
                     'NombreCC2' => $request->input('NombreCC2'),
                     'MedidaPlano' => $request->input('MedidaPlano'),
                     'NombreCPie' => $request->input('NombreCPie'),
+                ]);
+
+                // Log de valores truncados antes de guardar
+                Log::info('ProgramaTejido.store - valores finales antes de guardar', [
+                    'NombreProducto' => $nuevo->NombreProducto,
+                    'NombreProyecto' => $nuevo->NombreProyecto,
+                    'NombreProducto_len' => strlen($nuevo->NombreProducto ?? ''),
+                    'NombreProyecto_len' => strlen($nuevo->NombreProyecto ?? ''),
                 ]);
 
                 $nuevo->CreatedAt = now();

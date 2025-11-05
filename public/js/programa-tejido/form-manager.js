@@ -490,7 +490,8 @@ window.ProgramaTejidoForm = {
         // Llenar campos según mapeo
         Object.entries(ProgramaTejidoConfig.fieldMappings).forEach(([campoDB, campoInput]) => {
             const valor = datos[campoDB];
-            if (valor !== undefined && valor !== null && valor !== '') {
+            // Evitar establecer valores "None" o "null" como strings
+            if (valor !== undefined && valor !== null && valor !== '' && valor !== 'None' && valor !== 'null') {
                 ProgramaTejidoUtils.establecerValorCampo(campoInput, valor, true);
 
                 // Si es calibre-trama, cargar eficiencia y velocidad después
@@ -513,8 +514,16 @@ window.ProgramaTejidoForm = {
         const primerTelarSelect = document.querySelector('#tbodyTelares tr:not(#mensaje-vacio-telares) select');
         const telar = primerTelarSelect?.value;
 
+        console.log('🔍 Verificando eficiencia/velocidad:', { hilo, telar, calibreTrama });
+
         if (hilo && telar && calibreTrama) {
             await this.cargarEficienciaYVelocidad();
+        } else {
+            console.warn('⚠️ Faltan datos para cargar eficiencia/velocidad:', { 
+                hilo: !!hilo, 
+                telar: !!telar, 
+                calibreTrama: !!calibreTrama 
+            });
         }
     },
 
@@ -549,6 +558,9 @@ window.ProgramaTejidoForm = {
             if (eficienciaData.eficiencia !== null) {
                 const eficiencia = parseFloat(eficienciaData.eficiencia).toFixed(2);
                 ProgramaTejidoUtils.establecerValorCampo('eficiencia-std', eficiencia);
+                console.log('✅ Eficiencia cargada:', eficiencia);
+            } else {
+                console.warn('⚠️ Eficiencia no disponible en catálogo');
             }
 
             // Cargar velocidad
@@ -559,6 +571,9 @@ window.ProgramaTejidoForm = {
 
             if (velocidadData.velocidad !== null) {
                 ProgramaTejidoUtils.establecerValorCampo('velocidad-std', velocidadData.velocidad);
+                console.log('✅ Velocidad cargada:', velocidadData.velocidad);
+            } else {
+                console.warn('⚠️ Velocidad no disponible en catálogo');
             }
 
             // Recalcular fechas con los nuevos valores
@@ -650,14 +665,16 @@ window.ProgramaTejidoForm = {
             window.calcularFechaFinalFila?.(fila);
         } else {
             // Lógica de creación
-            this.calcularFechaFinalCreacion(fila);
+            this.calcularFechaFinalCreacion(fila).catch(err => {
+                console.error('Error al calcular fecha final:', err);
+            });
         }
     },
 
     /**
      * Calcular fecha final para modo creación
      */
-    calcularFechaFinalCreacion(fila) {
+    async calcularFechaFinalCreacion(fila) {
         const selectTelar = fila.querySelector('select');
         const inputs = fila.querySelectorAll('input[type="datetime-local"], input[type="number"]');
 
@@ -681,6 +698,26 @@ window.ProgramaTejidoForm = {
             let velocidad = parseFloat(ProgramaTejidoUtils.obtenerValorCampo('velocidad-std'));
             let eficiencia = parseFloat(ProgramaTejidoUtils.obtenerValorCampo('eficiencia-std'));
 
+            // Si velocidad o eficiencia son NaN o 0, intentar cargarlos
+            if (isNaN(velocidad) || velocidad <= 0 || isNaN(eficiencia) || eficiencia <= 0) {
+                console.log('⚠️ Eficiencia o velocidad faltantes, intentando cargar...', { velocidad, eficiencia });
+                // Intentar cargar eficiencia y velocidad
+                if (this.verificarYCargarEficienciaVelocidad) {
+                    await this.verificarYCargarEficienciaVelocidad();
+                    // Esperar un momento para que se carguen los valores
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    // Reintentar obtener los valores
+                    velocidad = parseFloat(ProgramaTejidoUtils.obtenerValorCampo('velocidad-std'));
+                    eficiencia = parseFloat(ProgramaTejidoUtils.obtenerValorCampo('eficiencia-std'));
+                }
+            }
+
+            // Si aún son NaN o 0, no podemos calcular
+            if (isNaN(velocidad) || velocidad <= 0 || isNaN(eficiencia) || eficiencia <= 0) {
+                console.warn('⚠️ No se pudo obtener eficiencia o velocidad válidas', { velocidad, eficiencia });
+                return;
+            }
+
             // Normalizar eficiencia si viene en porcentaje
             if (eficiencia > 1) eficiencia = eficiencia / 100;
 
@@ -690,7 +727,8 @@ window.ProgramaTejidoForm = {
             const luchaje = Number(datosModelo.Luchaje || 0);
             const repeticiones = Number(datosModelo.Repeticiones || 0);
 
-            if (noTiras <= 0 || total <= 0 || luchaje <= 0 || repeticiones <= 0 || velocidad <= 0) {
+            if (noTiras <= 0 || total <= 0 || luchaje <= 0 || repeticiones <= 0) {
+                console.warn('⚠️ Datos del modelo incompletos', { noTiras, total, luchaje, repeticiones });
                 return;
             }
 

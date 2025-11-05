@@ -59,6 +59,7 @@ class StringTruncator
         'NombreCPie'     => null,
         'NombreProducto' => 60,   // Extrapolado de NombreProyecto
         'MedidaPlano'    => null, // Integer
+        'Rasurado'       => 2,    // Límite de 2 caracteres según migración
     ];
 
     /**

@@ -2,24 +2,7 @@
 
 @section('page-title', 'Programa de Tejido')
 
-@section('navbar-right')
-<a href="{{ route('programa-tejido.altas-especiales') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 mr-2" title="Altas Especiales">
-    Altas Especiales
-</a>
-<a href="{{ route('programa-tejido.alta-pronosticos') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 mr-2" title="Alta de Pronósticos">
-    <i class="fa-solid fa-chart-line mr-2"></i>
-    Alta de Pronósticos
-</a>
-<button id="btn-editar-programa" type="button" class="inline-flex items-center justify-center w-9 h-9 text-base rounded-full text-white bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar" aria-label="Editar" disabled>
-    <i class="fa-solid fa-pen-to-square"></i>
-</button>
-<button id="btn-eliminar-programa" type="button" class="inline-flex items-center justify-center w-9 h-9 text-base rounded-full text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed ml-2" title="Eliminar" aria-label="Eliminar" disabled>
-    <i class="fa-solid fa-trash"></i>
-</button>
-@endsection
 
-@section('menu-planeacion')
-@endsection
 
 @section('content')
 <div class="w-full px-0 py-0 ">
@@ -761,66 +744,107 @@ function updatePinnedColumnsPositions() {
 
 // ===== Selección de filas / prioridad =====
 function selectRow(rowElement, rowIndex) {
-	// Toggle si ya estaba seleccionada
-    if (selectedRowIndex === rowIndex && rowElement.classList.contains('bg-blue-500')) {
-		return deselectRow();
+	try {
+		// Toggle si ya estaba seleccionada
+		if (selectedRowIndex === rowIndex && rowElement.classList.contains('bg-blue-500')) {
+			return deselectRow();
+		}
+
+		// Limpiar selección previa
+		$$('.selectable-row').forEach(row => {
+			row.classList.remove('bg-blue-500','text-white');
+			row.classList.add('hover:bg-blue-50');
+			$$('td', row).forEach(td => {
+				td.classList.remove('text-white');
+				td.classList.add('text-gray-700');
+			});
+		});
+
+		// Seleccionar actual
+		rowElement.classList.add('bg-blue-500','text-white');
+		rowElement.classList.remove('hover:bg-blue-50');
+		$$('td', rowElement).forEach(td => {
+			td.classList.add('text-white');
+			td.classList.remove('text-gray-700');
+		});
+
+		selectedRowIndex = rowIndex;
+
+		// Mostrar controles
+		const rpc = $('#rowPriorityControls');
+		if (rpc) rpc.classList.remove('hidden');
+
+		// Cargar detalle de líneas filtradas por ProgramaId
+		if (window.loadReqProgramaTejidoLines) {
+			const id = rowElement.getAttribute('data-id');
+			window.loadReqProgramaTejidoLines({ programa_id: id });
+		}
+
+		// Habilitar botones editar y eliminar (local y layout)
+		const btnEditar = document.getElementById('btn-editar-programa');
+		const btnEditarLayout = document.getElementById('layoutBtnEditar');
+		if (btnEditar) btnEditar.disabled = false;
+		if (btnEditarLayout) {
+			btnEditarLayout.disabled = false;
+			btnEditarLayout.classList.remove('opacity-50', 'cursor-not-allowed');
+		}
+
+		const btnEliminar = document.getElementById('btn-eliminar-programa');
+		const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
+
+		// Verificar si el registro está en proceso (una sola vez)
+		const enProceso = rowElement.querySelector('[data-column="EnProceso"]');
+		const estaEnProceso = enProceso && enProceso.querySelector('input[type="checkbox"]')?.checked;
+
+		if (btnEliminar) {
+			btnEliminar.disabled = estaEnProceso;
+		}
+		if (btnEliminarLayout) {
+			btnEliminarLayout.disabled = estaEnProceso;
+			if (!estaEnProceso) {
+				btnEliminarLayout.classList.remove('opacity-50', 'cursor-not-allowed');
+			} else {
+				btnEliminarLayout.classList.add('opacity-50', 'cursor-not-allowed');
+			}
+		}
+	} catch(e) {
+		console.error('Error en selectRow:', e);
 	}
-
-	// Limpiar selección previa
-	$$('.selectable-row').forEach(row => {
-		row.classList.remove('bg-blue-500','text-white');
-        row.classList.add('hover:bg-blue-50');
-		$$('td', row).forEach(td => {
-			td.classList.remove('text-white');
-			td.classList.add('text-gray-700');
-        });
-    });
-
-	// Seleccionar actual
-	rowElement.classList.add('bg-blue-500','text-white');
-    rowElement.classList.remove('hover:bg-blue-50');
-	$$('td', rowElement).forEach(td => {
-		td.classList.add('text-white');
-		td.classList.remove('text-gray-700');
-	});
-
-    selectedRowIndex = rowIndex;
-
-	// Mostrar controles
-	const rpc = $('#rowPriorityControls');
-	if (rpc) rpc.classList.remove('hidden');
-
-    // Cargar detalle de líneas filtradas por ProgramaId
-    if (window.loadReqProgramaTejidoLines) {
-        const id = rowElement.getAttribute('data-id');
-        window.loadReqProgramaTejidoLines({ programa_id: id });
-    }
-
-    // Habilitar botones editar y eliminar
-    const btnEditar = document.getElementById('btn-editar-programa');
-    if (btnEditar) btnEditar.disabled = false;
-
-    const btnEliminar = document.getElementById('btn-eliminar-programa');
-    if (btnEliminar) {
-        // Verificar si el registro está en proceso
-        const enProceso = rowElement.querySelector('[data-column="EnProceso"]');
-        const estaEnProceso = enProceso && enProceso.querySelector('input[type="checkbox"]')?.checked;
-        btnEliminar.disabled = estaEnProceso;
-    }
 }
 
 function deselectRow() {
-	$$('.selectable-row').forEach(row => {
-		row.classList.remove('bg-blue-500','text-white');
-        row.classList.add('hover:bg-blue-50');
-		$$('td', row).forEach(td => {
-			td.classList.remove('text-white');
-			td.classList.add('text-gray-700');
-        });
-    });
-    selectedRowIndex = -1;
-	const rpc = $('#rowPriorityControls');
-	if (rpc) rpc.classList.add('hidden');
+	try {
+		$$('.selectable-row').forEach(row => {
+			row.classList.remove('bg-blue-500','text-white');
+			row.classList.add('hover:bg-blue-50');
+			$$('td', row).forEach(td => {
+				td.classList.remove('text-white');
+				td.classList.add('text-gray-700');
+			});
+		});
+		selectedRowIndex = -1;
+		const rpc = $('#rowPriorityControls');
+		if (rpc) rpc.classList.add('hidden');
+
+		// Deshabilitar botones editar y eliminar (local y layout)
+		const btnEditar = document.getElementById('btn-editar-programa');
+		const btnEditarLayout = document.getElementById('layoutBtnEditar');
+		if (btnEditar) btnEditar.disabled = true;
+		if (btnEditarLayout) {
+			btnEditarLayout.disabled = true;
+			btnEditarLayout.classList.add('opacity-50', 'cursor-not-allowed');
+		}
+
+		const btnEliminar = document.getElementById('btn-eliminar-programa');
+		const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
+		if (btnEliminar) btnEliminar.disabled = true;
+		if (btnEliminarLayout) {
+			btnEliminarLayout.disabled = true;
+			btnEliminarLayout.classList.add('opacity-50', 'cursor-not-allowed');
+		}
+	} catch(e) {
+		console.error('Error en deselectRow:', e);
+	}
 }
 
 // Función para mostrar/ocultar loading rápido
@@ -1030,6 +1054,32 @@ document.addEventListener('DOMContentLoaded', function() {
 	updateFilterCount();
 	window.addEventListener('resize', () => updatePinnedColumnsPositions());
 
+	// Inicializar botones del layout como deshabilitados
+	const btnEditarLayout = document.getElementById('layoutBtnEditar');
+	const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
+	if (btnEditarLayout) {
+		btnEditarLayout.disabled = true;
+		btnEditarLayout.classList.add('opacity-50', 'cursor-not-allowed');
+		// Conectar event listener
+		btnEditarLayout.addEventListener('click', () => {
+			const selected = $$('.selectable-row')[selectedRowIndex];
+			const id = selected ? selected.getAttribute('data-id') : null;
+			if (!id) return;
+			window.location.href = `/planeacion/programa-tejido/${encodeURIComponent(id)}/editar`;
+		});
+	}
+	if (btnEliminarLayout) {
+		btnEliminarLayout.disabled = true;
+		btnEliminarLayout.classList.add('opacity-50', 'cursor-not-allowed');
+		// Conectar event listener
+		btnEliminarLayout.addEventListener('click', () => {
+			const selected = $$('.selectable-row')[selectedRowIndex];
+			const id = selected ? selected.getAttribute('data-id') : null;
+			if (!id) return;
+			eliminarRegistro(id);
+		});
+	}
+
     const btnEditar = document.getElementById('btn-editar-programa');
     if (btnEditar) {
         btnEditar.addEventListener('click', () => {
@@ -1123,6 +1173,111 @@ window.applyTableFilters = function(values){
         filtered.forEach((r,i) => { r.onclick = () => selectRow(r, i); tb.appendChild(r); });
     }catch(e){}
 }
+
+// Modal para seleccionar rango de meses para Alta de Pronósticos
+document.getElementById('btnAltaPronosticos')?.addEventListener('click', function() {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    // Generar opciones de meses (últimos 12 meses + próximos 3 meses)
+    const meses = [];
+    for (let i = -12; i <= 3; i++) {
+        const date = new Date(currentYear, currentMonth + i - 1, 1);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const label = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        meses.push({ value: `${year}-${month}`, label: label.charAt(0).toUpperCase() + label.slice(1) });
+    }
+
+    const mesesHTML = meses.map(m =>
+        `<option value="${m.value}">${m.label}</option>`
+    ).join('');
+
+    const html = `
+        <div class="text-left">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Mes Inicial:</label>
+                <select id="mesInicial" class="w-full border rounded px-3 py-2 text-sm">
+                    ${mesesHTML}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Mes Final:</label>
+                <select id="mesFinal" class="w-full border rounded px-3 py-2 text-sm">
+                    ${mesesHTML}
+                </select>
+            </div>
+            <p class="text-xs text-gray-500 mt-3">
+                <i class="fa-solid fa-info-circle mr-1"></i>
+                Se mostrarán los pronósticos del rango seleccionado (inclusive).
+            </p>
+        </div>
+    `;
+
+    Swal.fire({
+        title: 'Seleccionar Rango de Meses',
+        html: html,
+        width: 500,
+        showCancelButton: true,
+        confirmButtonText: 'Continuar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#16a34a',
+        cancelButtonColor: '#6b7280',
+        didOpen: () => {
+            // Preseleccionar mes actual
+            const mesActual = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            document.getElementById('mesInicial').value = mesActual;
+            document.getElementById('mesFinal').value = mesActual;
+        },
+        preConfirm: () => {
+            const mesInicial = document.getElementById('mesInicial').value;
+            const mesFinal = document.getElementById('mesFinal').value;
+
+            if (!mesInicial || !mesFinal) {
+                Swal.showValidationMessage('Por favor seleccione ambos meses');
+                return false;
+            }
+
+            // Validar que mes inicial <= mes final
+            if (mesInicial > mesFinal) {
+                Swal.showValidationMessage('El mes inicial debe ser menor o igual al mes final');
+                return false;
+            }
+
+            // Generar lista de meses entre inicial y final
+            const mesesSeleccionados = [];
+            const [yearIni, monthIni] = mesInicial.split('-').map(Number);
+            const [yearFin, monthFin] = mesFinal.split('-').map(Number);
+
+            let currentYear = yearIni;
+            let currentMonth = monthIni;
+
+            while (currentYear < yearFin || (currentYear === yearFin && currentMonth <= monthFin)) {
+                mesesSeleccionados.push(`${currentYear}-${String(currentMonth).padStart(2, '0')}`);
+
+                currentMonth++;
+                if (currentMonth > 12) {
+                    currentMonth = 1;
+                    currentYear++;
+                }
+            }
+
+            return mesesSeleccionados;
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            const meses = result.value;
+            // Construir URL con los meses como parámetros
+            const url = new URL('{{ route("programa-tejido.alta-pronosticos") }}', window.location.origin);
+            meses.forEach(mes => {
+                url.searchParams.append('meses[]', mes);
+            });
+            // Redirigir a la página de alta de pronósticos
+            window.location.href = url.toString();
+        }
+    });
+});
 </script>
 
 @include('components.toast-notification')

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PronosticosService
 {
@@ -11,13 +12,12 @@ class PronosticosService
 
     /**
      * Punto único para obtener ambos: [batas, otros]
-     * @param array $meses ['2025-08','2025-09']
+     * @param array|string $meses ['2025-08','2025-09'] o "2025-08,2025-09"
      * @return array{0: array, 1: array} [batas, otros]
      */
-    public function obtenerPronosticos(array $meses): array
+    public function obtenerPronosticos($meses): array
     {
         $rangos = $this->construirRangos($meses);
-        
         if (empty($rangos)) {
             return [[], []];
         }
@@ -29,26 +29,43 @@ class PronosticosService
     }
 
     /**
-     * Convierte meses a rangos Y-m-d
+     * Convierte meses a rangos Y-m-d. Acepta array o "2025-11,2025-12".
      */
-    private function construirRangos(array $meses): array
+    private function construirRangos($meses): array
     {
+        if (is_string($meses)) {
+            $meses = array_filter(array_map('trim', explode(',', $meses)));
+        }
+        if (!is_array($meses)) return [];
+
         $rangos = [];
-        
         foreach ($meses as $m) {
-            $c = Carbon::createFromFormat('Y-m', $m);
+            try {
+                $c = Carbon::createFromFormat('Y-m', $m);
+            } catch (\Throwable $e) {
+                continue;
+            }
             $rangos[] = [
                 'inicio' => $c->copy()->startOfMonth()->format('Y-m-d'),
                 'fin'    => $c->copy()->endOfMonth()->format('Y-m-d'),
             ];
         }
-
         return $rangos;
+    }
+
+    /** Etiquetas compactas para selects (agrupar por mes para que salgan todos los meses) */
+    private function etiquetasProyectoSql(): array
+    {
+        $mes = "CASE MONTH(l.FECHACANCELACION)\n                WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'\n                WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO'    WHEN 6 THEN 'JUNIO'\n                WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO'  WHEN 9 THEN 'SEPTIEMBRE'\n                WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'\n            END";
+        return [
+            "('Pronóstico del Mes ' + $mes)",
+            "'Aprobado por finanzas'",
+            "'NAC - 1'",
+        ];
     }
 
     /**
      * Otros (no batas): ITEMTYPEID NOT BETWEEN 10 AND 19
-     * Usa Query Builder.
      */
     private function obtenerOtros(array $rangos): array
     {
@@ -61,170 +78,130 @@ class PronosticosService
             }
         };
 
-        $mesAgg = "
-            CASE 
-                WHEN YEAR(MIN(pf.TRANSDATE)) = YEAR(MAX(pf.TRANSDATE))
-                 AND MONTH(MIN(pf.TRANSDATE)) = MONTH(MAX(pf.TRANSDATE))
-                THEN CASE MONTH(MIN(pf.TRANSDATE))
-                    WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
-                    WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO'    WHEN 6 THEN 'JUNIO'
-                    WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO'  WHEN 9 THEN 'SEPTIEMBRE'
-                    WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
-                END
-                ELSE 'VARIOS MESES'
-            END
-        ";
+        // Etiquetas locales basadas en pf.TRANSDATE (agrupar por mes para que salgan todos los meses)
+        $mesPf = "CASE MONTH(pf.TRANSDATE)\n                WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'\n                WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO'    WHEN 6 THEN 'JUNIO'\n                WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO'  WHEN 9 THEN 'SEPTIEMBRE'\n                WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'\n            END";
+        $idFlogExpr = "('RS - ' + $mesPf)";
+        $estadoExpr = "'Aprobado por finanzas'";
+        $catCalExpr = "'NAC - 1'";
 
-        $idflogAgg = "'Pronóstico de ' + $mesAgg";
-        $yearExpr  = 'YEAR(pf.TRANSDATE)';
-        $monthExpr = 'MONTH(pf.TRANSDATE)';
-
-        return DB::connection(self::CONN)
-            ->table('TwPronosticosFlogs as pf')
-            ->where('pf.TIPOPEDIDO', 2)
-            ->where(function ($q) use ($rangoWhere) { 
-                $rangoWhere($q); 
-            })
-            ->where(function ($q) {
-                $q->where('pf.ITEMTYPEID', '<', 10)
-                  ->orWhere('pf.ITEMTYPEID', '>', 19);
-            })
-            ->groupBy(
-                DB::raw($yearExpr),
-                DB::raw($monthExpr),
-                'pf.CUSTNAME',
-                'pf.ITEMID',
-                'pf.INVENTSIZEID'
-            )
-            ->selectRaw("$idflogAgg as IDFLOG")
-            ->addSelect([
-                'pf.CUSTNAME',
-                'pf.ITEMID',
-                'pf.INVENTSIZEID',
-            ])
-            ->selectRaw('MIN(pf.ITEMNAME)      as ITEMNAME')
-            ->selectRaw('MIN(pf.TIPOHILOID)    as TIPOHILOID')
-            ->selectRaw('MIN(pf.RASURADOCRUDO) as RASURADOCRUDO')
-            ->selectRaw('MIN(pf.VALORAGREGADO) as VALORAGREGADO')
-            ->selectRaw('MIN(pf.ANCHO)         as ANCHO')
-            ->selectRaw('SUM(pf.INVENTQTY)     as PORENTREGAR')
-            ->selectRaw('MIN(pf.ITEMTYPEID)    as ITEMTYPEID')
-            ->selectRaw('MIN(pf.CODIGOBARRAS)  as CODIGOBARRAS')
-            ->selectRaw("$yearExpr  as ANIO")
-            ->selectRaw("$monthExpr as MES")
-            ->orderBy(DB::raw($yearExpr))
-            ->orderBy(DB::raw($monthExpr))
-            ->get()
-            ->toArray();
+        try {
+            return DB::connection(self::CONN)
+                ->table('dbo.TwPronosticosFlogs as pf')
+                ->where('pf.TIPOPEDIDO', 2)
+                ->where(function ($q) use ($rangoWhere) { $rangoWhere($q); })
+                ->where(function ($q) {
+                    $q->where('pf.ITEMTYPEID', '<', 10)
+                      ->orWhere('pf.ITEMTYPEID', '>', 19);
+                })
+                ->groupBy(
+                    'pf.CUSTNAME','pf.ANCHO','pf.LARGO','pf.ITEMID','pf.ITEMNAME',
+                    'pf.INVENTSIZEID','pf.TIPOHILOID','pf.VALORAGREGADO',
+                    DB::raw('MONTH(pf.TRANSDATE)')
+                )
+                ->selectRaw("$idFlogExpr as IDFLOG, $estadoExpr as ESTADO, $idFlogExpr as NOMBREPROYECTO, $catCalExpr as CATEGORIACALIDAD")
+                ->addSelect([
+                    'pf.CUSTNAME',
+                    DB::raw('pf.ANCHO as ANCHO'),
+                    DB::raw('pf.LARGO as LARGO'),
+                    'pf.ITEMID',
+                    'pf.ITEMNAME',
+                    'pf.INVENTSIZEID',
+                    DB::raw('pf.TIPOHILOID as TipoHiloId'),
+                    DB::raw('pf.VALORAGREGADO as ValorAgregado'),
+                ])
+                ->selectRaw('MIN(pf.TRANSDATE) as FECHACANCELACION, ROUND(SUM(ISNULL(pf.INVENTQTY,0)), 0) as CANTIDAD, MIN(pf.ITEMTYPEID) as ITEMTYPEID')
+                ->selectRaw('MAX(pf.RASURADOCRUDO) as RASURADOCRUDO')
+                ->orderBy('pf.CUSTNAME')->orderBy('pf.ITEMID')
+                ->get()->toArray();
+        } catch (\Throwable $e) {
+            Log::error('Pronosticos.obtenerOtros', ['msg' => $e->getMessage()]);
+            return [];
+        }
     }
 
-    /**
-     * Batas (ITEMTYPEID BETWEEN 10 AND 19).
-     * Usa SQL crudo con CTEs y bindings.
-     */
+
     private function obtenerBatas(array $rangos): array
     {
-        [$whereFechas, $fechaBindings] = $this->compilarWhereFechas($rangos);
-        
-        $mesAgg = "
-            CASE 
-                WHEN YEAR(MIN(pf.TRANSDATE)) = YEAR(MAX(pf.TRANSDATE))
-                 AND MONTH(MIN(pf.TRANSDATE)) = MONTH(MAX(pf.TRANSDATE))
-                THEN CASE MONTH(MIN(pf.TRANSDATE))
-                    WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
-                    WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO'    WHEN 6 THEN 'JUNIO'
-                    WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO'  WHEN 9 THEN 'SEPTIEMBRE'
-                    WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
-                END
-                ELSE 'VARIOS MESES'
-            END
-        ";
+        [$idFlogExpr, $estadoExpr, $catCalExpr] = $this->etiquetasProyectoSql();
 
-        $idflogAgg = "'Pronóstico de ' + $mesAgg";
+        $rangoL = function ($q) use ($rangos) {
+            foreach ($rangos as $r) {
+                $q->orWhere(function ($sq) use ($r) {
+                    $sq->whereRaw('CAST(l.FECHACANCELACION AS DATE) >= ?', [$r['inicio']])
+                       ->whereRaw('CAST(l.FECHACANCELACION AS DATE) <= ?', [$r['fin']]);
+                });
+            }
+        };
 
-        $sql = <<<SQL
-            WITH PF AS (
-                SELECT *
-                FROM dbo.TwPronosticosFlogs AS pf
-                WHERE ($whereFechas)
-                  AND pf.ITEMTYPEID BETWEEN ? AND ?
-            ),
-            IL_DEDUP AS (
-                SELECT
-                    il.*,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY il.IDFLOG, il.PURCHBARCODE
-                        ORDER BY il.CREATEDDATE DESC
-                    ) AS rn
-                FROM dbo.TWFLOGSITEMLINE AS il
-                WHERE il.IDFLOG LIKE ?
-            )
-            SELECT
-                pf.CUSTNAME,
-                bom.ITEMID,
-                bom.INVENTSIZEID,
-                SUM(CAST(ISNULL(pf.INVENTQTY, 0) AS DECIMAL(18,4)) *
-                    CAST(ISNULL(bom.BOMQTY,   0) AS DECIMAL(18,4))) AS TOTAL_RESULTADO,
-                SUM(CAST(ISNULL(pf.INVENTQTY, 0) AS DECIMAL(18,4))) AS TOTAL_INVENTQTY,
-                SUM(CAST(ISNULL(bom.BOMQTY, 0) AS DECIMAL(18,4)))   AS SUM_BOMQTY,
-                COUNT(*)                                            AS N_FACTORES,
-                CAST(
-                    SUM(CAST(ISNULL(bom.BOMQTY, 0) AS DECIMAL(18,4))) / NULLIF(COUNT(*), 0)
-                    AS DECIMAL(18,4)
-                ) AS PROM_BOMQTY,
-                MIN(bom.ITEMNAME)       AS ITEMNAME,
-                MIN(bom.TIPOHILOID)     AS TIPOHILOID,
-                MIN(bom.RASURADO)       AS RASURADOCRUDO,
-                MIN(pf.VALORAGREGADO)   AS VALORAGREGADO,
-                MIN(bom.ANCHO)          AS ANCHO,
-                MIN(PF.ITEMTYPEID)      AS ITEMTYPEID,
-                MIN(pf.TRANSDATE)       AS FECHA,
-                $idflogAgg              AS IDFLOG
-            FROM PF AS pf
-            JOIN IL_DEDUP AS il
-                ON il.PURCHBARCODE = pf.CODIGOBARRAS
-               AND il.rn = 1
-            JOIN dbo.TWFLOGBOMID AS bom
-                ON bom.IDFLOG    = il.IDFLOG
-               AND bom.REFRECID  = il.RECID
-               AND bom.BIES      = 0
-            GROUP BY
-                pf.CUSTNAME,
-                bom.ITEMID,
-                bom.INVENTSIZEID
-            ORDER BY
-                pf.CUSTNAME,
-                bom.ITEMID,
-                bom.INVENTSIZEID;
-        SQL;
+        $rangoPf = function ($q) use ($rangos) {
+            foreach ($rangos as $r) {
+                $q->orWhere(function ($sq) use ($r) {
+                    $sq->where('pfp.TRANSDATE', '>=', $r['inicio'])
+                       ->where('pfp.TRANSDATE', '<=', $r['fin']);
+                });
+            }
+        };
 
-        $bindings = array_merge(
-            $fechaBindings, // (inicio, fin, inicio, fin, ...)
-            [10, 19],       // BETWEEN ?
-            ['RS%']         // LIKE ?
-        );
-
-        return DB::connection(self::CONN)->select($sql, $bindings);
-    }
-
-    /**
-     * Genera cláusula WHERE (pf.TRANSDATE >= ? AND pf.TRANSDATE <= ?) OR ...
-     * + el arreglo de bindings en el mismo orden.
-     */
-    private function compilarWhereFechas(array $rangos): array
-    {
-        $clauses = [];
-        $bindings = [];
-
-        foreach ($rangos as $r) {
-            $clauses[] = '(pf.TRANSDATE >= ? AND pf.TRANSDATE <= ?)';
-            $bindings[] = $r['inicio'];
-            $bindings[] = $r['fin'];
+        try {
+            return DB::connection(self::CONN)
+                ->table('TI_PRO.dbo.TWFLOGSITEMLINE as l')
+                ->join('TI_PRO.dbo.TWFLOGBOMID as b', function ($j) {
+                    $j->on('b.IdFlog', '=', 'l.IdFlog')
+                      ->on('b.refRecId', '=', 'l.RecId');
+                })
+                ->join('TI_PRO.dbo.TWFLOGSTABLE as f', 'l.IdFlog', '=', 'f.IdFlog')
+                ->join('dbo.TwFlogsItemLine as il', function ($j) {
+                    $j->on('il.IdFlog', '=', 'b.IdFlog')
+                      ->on('il.RecId', '=', 'b.refRecId')
+                      ->where('il.EstadoLinea', 0)
+                      ->where('il.IdFlog', 'RS'); // 'RS' literal
+                })
+                ->join('dbo.TwPronosticosFlogs as pfp', function ($j) use ($rangoPf) {
+                    $j->where('pfp.TIPOPEDIDO', 2)
+                      ->whereRaw('ISNUMERIC(pfp.ITEMTYPEID) = 1 AND (CAST(pfp.ITEMTYPEID AS INT) < 10 OR CAST(pfp.ITEMTYPEID AS INT) > 19)')
+                      // <-- CRUCE CORRECTO: TwFlogsItemLine.CodigoBarras = TwPronosticosFlogs.PurchBarcode
+                      ->whereColumn('il.PurchBarcode', 'pfp.CodigoBarras')
+                      // rango por el mes seleccionado en pfp
+                      ->where(function ($q) use ($rangoPf) { $rangoPf($q); });
+                })
+                ->select(
+                    DB::raw("$idFlogExpr as IDFLOG"),
+                    DB::raw("$estadoExpr as ESTADO"),
+                    DB::raw("$idFlogExpr as NOMBREPROYECTO"),
+                    'f.CUSTNAME as CUSTNAME',
+                    DB::raw("$catCalExpr as CATEGORIACALIDAD"),
+                    'b.ANCHO as ANCHO',
+                    'b.LARGO as LARGO',
+                    'b.ITEMID as ITEMID',
+                    DB::raw('b.ITEMNAME as ITEMNAME'),
+                    'b.INVENTSIZEID as INVENTSIZEID',
+                    'b.TIPOHILOID as TIPOHILOID',
+                    'l.VALORAGREGADO as VALORAGREGADO',
+                    DB::raw('CAST(l.FECHACANCELACION AS DATE) as FECHACANCELACION'),
+                    DB::raw('ROUND(SUM(ISNULL(pfp.INVENTQTY,0) * ISNULL(CAST(b.BomQty AS DECIMAL(18,4)),0)), 0) as CANTIDAD'),
+                    'l.ITEMTYPEID as ITEMTYPEID',
+                    'b.RASURADO as RASURADO'
+                )
+                ->whereRaw('ISNUMERIC(l.ITEMTYPEID) = 1 AND CAST(l.ITEMTYPEID AS INT) BETWEEN 10 AND 19')
+                ->where('l.EstadoLinea', 0)
+                ->where('l.PorEntregar', '!=', 0)
+                ->where(function ($q) use ($rangoL) { $rangoL($q); })
+                ->groupBy(
+                    'f.CUSTNAME', 'b.ANCHO', 'b.LARGO', 'b.ITEMID', 'b.ITEMNAME',
+                    'b.INVENTSIZEID', 'b.TIPOHILOID', 'l.VALORAGREGADO',
+                    DB::raw('CAST(l.FECHACANCELACION AS DATE)'),
+                    DB::raw('MONTH(l.FECHACANCELACION)'),
+                    'l.ITEMTYPEID', 'b.RASURADO'
+                )
+                ->orderBy(DB::raw('CAST(l.FECHACANCELACION AS DATE)'), 'asc')
+                ->get()
+                ->toArray();
+        } catch (\Throwable $e) {
+            Log::error('Pronosticos.obtenerBatas 500', ['msg' => $e->getMessage()]);
+            return [];
         }
-
-        return [implode(' OR ', $clauses), $bindings];
     }
+
+
+
 }
-
-
-

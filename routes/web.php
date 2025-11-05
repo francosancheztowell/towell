@@ -570,7 +570,9 @@ Route::middleware(['auth'])->group(function () {
         return view('modulos.programa-tejido-nuevo.create');
     })->name('programa-tejido.nuevo');
         Route::get('/planeacion/programa-tejido/altas-especiales/nuevo', [\App\Http\Controllers\ComprasEspecialesController::class, 'nuevo'])->name('programa-tejido.altas-especiales.nuevo');
+        Route::get('/planeacion/programa-tejido/pronosticos/nuevo', [\App\Http\Controllers\PronosticosController::class, 'nuevo'])->name('programa-tejido.pronosticos.nuevo');
         Route::get('/planeacion/buscar-detalle-modelo', [\App\Http\Controllers\ComprasEspecialesController::class, 'buscarDetalleModelo'])->name('planeacion.buscar-detalle-modelo');
+        Route::get('/planeacion/buscar-modelos-sugerencias', [\App\Http\Controllers\ComprasEspecialesController::class, 'buscarModelosSugerencias'])->name('planeacion.buscar-modelos-sugerencias');
         Route::post('/planeacion/programa-tejido', [ProgramaTejidoController::class, 'store'])->name('programa-tejido.store');
         Route::get('/planeacion/programa-tejido/{id}/editar', [ProgramaTejidoController::class, 'edit'])->name('programa-tejido.edit');
     Route::put('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'update'])->name('programa-tejido.update');

@@ -166,7 +166,7 @@ window.ProgramaTejidoCRUD = {
             if (salonUpper.includes('SMIT') || salonUpper.includes('SMI')) {
                 maquina = `SMI ${primerTelar.no_telar_id}`;
             } else if (salonUpper.includes('JACQUARD') || salonUpper.includes('JAC')) {
-                maquina = `JACQUARD ${primerTelar.no_telar_id}`;
+                maquina = `JAC ${primerTelar.no_telar_id}`;
             } else {
                 // Fallback: usar el salón + telar
                 maquina = `${salon} ${primerTelar.no_telar_id}`;
