@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class TejEficienciaLine extends Model
 {
-    //
     protected $table = "TejEficienciaLine";
 
     protected $fillable = [
@@ -15,8 +14,8 @@ class TejEficienciaLine extends Model
         "Turno",
         "NoTelarId",
         "SalonTejidoId",
-        "VelocidadSD",
-        "EficienciaSTD", 
+        "RpmStd",
+        "EficienciaStd",
         "RpmR1",
         "EficienciaR1",
         "RpmR2",
@@ -32,7 +31,7 @@ class TejEficienciaLine extends Model
     ];
 
     const CREATED_AT = "created_at";
-    const UPDATED_AT = "upadted_at";
+    const UPDATED_AT = "updated_at";
 
     protected $casts = [
         'Date' => 'date',
@@ -40,5 +39,19 @@ class TejEficienciaLine extends Model
         'updated_at' => 'datetime',
     ];
 
-    
+    /**
+     * Relación con el encabezado de eficiencia
+     */
+    public function tejEficiencia()
+    {
+        return $this->belongsTo(TejEficiencia::class, 'Folio', 'Folio');
+    }
+
+    /**
+     * Relación con el telar
+     */
+    public function telar()
+    {
+        return $this->belongsTo(\App\Models\ReqTelares::class, 'NoTelarId', 'NoTelarId');
+    }
 }

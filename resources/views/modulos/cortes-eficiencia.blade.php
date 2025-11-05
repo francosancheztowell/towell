@@ -97,7 +97,7 @@
                 <thead class="bg-blue-500 text-white">
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 80px;">Telar</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 100px;">RPM STD</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 100px;"> STD</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 120px;">Eficiencia STD</th>
 
                         <!-- Horario 1 -->
@@ -350,6 +350,25 @@
             </table>
         </div>
         </div>
+        <!-- Botón de guardar (COMENTADO) -->
+        {{-- 
+            El botón de guardar está comentado porque ahora el sistema guarda automáticamente.
+            Los datos se guardan automáticamente 1 segundo después de cada cambio en:
+            - Valores de RPM o Eficiencia
+            - Observaciones
+            - Cualquier otro campo de la tabla
+            
+            El guardado usa CREATE para registros nuevos y UPDATE para registros existentes.
+            No es necesario presionar ningún botón para guardar.
+        --}}
+        {{-- <div class="bg-gray-50 px-4 py-3 border-t border-gray-200 flex justify-end">
+            <button id="btn-guardar-tabla" onclick="guardarDatosTabla()" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md shadow-sm transition-colors flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Guardar Datos
+            </button>
+        </div> --}}
     </div>
 
     <!-- El selector grande ha sido reemplazado por selectores inline en cada celda -->
@@ -359,9 +378,25 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    /*
+     * SISTEMA DE GUARDADO AUTOMÁTICO
+     * ================================
+     * Los datos se guardan automáticamente 1 segundo después de cada cambio.
+     * 
+     * Flujo de guardado:
+     * 1. Al crear un nuevo corte (botón +), se genera un folio y se establece isNewRecord = true
+     * 2. Cualquier cambio en la tabla (RPM, Eficiencia, Observaciones) dispara guardarAutomatico()
+     * 3. guardarAutomatico() usa la ruta store que internamente usa updateOrCreate()
+     * 4. Después del primer guardado exitoso, isNewRecord cambia a false
+     * 5. Si se presiona "Editar" en un corte existente, isNewRecord = false desde el inicio
+     * 
+     * No es necesario presionar ningún botón de guardar manualmente.
+     */
+    
     // Variables globales
     let currentFolio = null;
     let isEditing = false;
+    let isNewRecord = true; // Controla si es un registro nuevo (CREATE) o existente (UPDATE)
     let observaciones = {}; // Almacenar observaciones por telar-horario
     let activeModal = null; // Modal activo para evitar múltiples abiertos
 
@@ -619,6 +654,9 @@
         // Mostrar feedback visual
         btn.classList.add('bg-green-100');
         setTimeout(() => btn.classList.remove('bg-green-100'), 300);
+        
+        // Guardar automáticamente después de cambiar el valor
+        guardarAutomatico();
     }
 
     function highlightCurrentOption(selector, value) {
@@ -1022,17 +1060,16 @@
     // Funciones de botones de acción
     async function nuevoCorte() {
         if (isEditing) {
+            // Preguntar si desea crear un nuevo corte (los cambios actuales ya están guardados automáticamente)
             Swal.fire({
-                title: '¿Guardar cambios?',
-                text: 'Hay cambios sin guardar. ¿Desea guardarlos antes de crear un nuevo corte?',
-                icon: 'warning',
+                title: '¿Crear nuevo corte?',
+                text: 'Los datos actuales ya están guardados. ¿Desea crear un nuevo corte?',
+                icon: 'question',
                 showCancelButton: true,
-                confirmButtonText: 'Sí, guardar',
-                cancelButtonText: 'No, descartar'
+                confirmButtonText: 'Sí, crear nuevo',
+                cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    guardarCorte();
-                } else {
                     generarNuevoFolio();
                 }
             });
@@ -1078,6 +1115,7 @@
 
                 currentFolio = data.folio;
                 isEditing = true;
+                isNewRecord = true; // Es un registro nuevo (CREATE)
 
                 // Cerrar loading
                 Swal.close();
@@ -1123,11 +1161,12 @@
         }
 
         isEditing = true;
+        isNewRecord = false; // Cambia a modo UPDATE
         enableActionButtons();
 
         Swal.fire({
             title: 'Modo Edición',
-            text: 'Ahora puedes editar los datos del corte',
+            text: 'Los cambios se guardarán automáticamente',
             icon: 'info',
             timer: 2000,
             showConfirmButton: false
@@ -1177,6 +1216,8 @@
         const fecha = document.getElementById('fecha').value;
         const turno = document.getElementById('turno').value;
         const status = document.getElementById('status').value;
+        const usuario = document.getElementById('usuario').value;
+        const noEmpleado = document.getElementById('noEmpleado').value;
 
         if (!folio || !fecha || !turno) {
             Swal.fire({
@@ -1190,7 +1231,7 @@
         // Recopilar datos de la tabla
         const datosTelares = recopilarDatosTelares();
 
-        // Simular guardado
+        // Mostrar loading
         Swal.fire({
             title: 'Guardando...',
             text: 'Por favor espere',
@@ -1201,40 +1242,218 @@
             }
         });
 
-        setTimeout(() => {
-            currentFolio = folio;
-            isEditing = false;
-
+        // Enviar datos al servidor
+        fetch('{{ route("cortes.eficiencia.store") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                folio: folio,
+                fecha: fecha,
+                turno: turno,
+                status: status,
+                usuario: usuario,
+                noEmpleado: noEmpleado,
+                datos_telares: datosTelares,
+                horario1: document.getElementById('hora-actual').value,
+                horario2: null,
+                horario3: null
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    title: 'Guardado Exitoso',
+                    text: 'El corte de eficiencia ha sido guardado correctamente',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    // Redirigir a la página de consultar cortes
+                    window.location.href = '{{ route("cortes.eficiencia.consultar") }}';
+                });
+            } else {
+                Swal.fire({
+                    title: 'Error',
+                    text: data.message || 'Error al guardar el corte de eficiencia',
+                    icon: 'error'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
             Swal.fire({
-                title: 'Guardado Exitoso',
-                text: 'Los datos del corte han sido guardados',
-                icon: 'success',
-                timer: 2000,
-                showConfirmButton: false
+                title: 'Error',
+                text: 'Error al guardar el corte de eficiencia: ' + error.message,
+                icon: 'error'
             });
-
-            enableActionButtons();
-        }, 1500);
+        });
     }
 
     function recopilarDatosTelares() {
         const datos = [];
-        const inputs = document.querySelectorAll('#telares-body input');
+        const filas = document.querySelectorAll('#telares-body tr');
 
-        inputs.forEach(input => {
-            const telar = input.getAttribute('data-telar');
-            const field = input.getAttribute('data-field');
-            const value = input.value;
+        filas.forEach(fila => {
+            const telar = fila.querySelector('td:first-child')?.textContent?.trim();
+            if (!telar) return;
 
-            if (!datos.find(d => d.telar === telar)) {
-                datos.push({ telar: telar });
-            }
+            // Obtener valores STD desde los inputs
+            const rpmStdInput = fila.querySelector('input[data-telar="' + telar + '"][data-field="rpm_std"]');
+            const eficienciaStdInput = fila.querySelector('input[data-telar="' + telar + '"][data-field="eficiencia_std"]');
+            
+            // Obtener valores de RPM y Eficiencia de cada horario desde los botones
+            const rpmR1Btn = fila.querySelector('button[data-telar="' + telar + '"][data-horario="1"][data-type="rpm"] .valor-display-text');
+            const eficienciaR1Btn = fila.querySelector('button[data-telar="' + telar + '"][data-horario="1"][data-type="eficiencia"] .valor-display-text');
+            const rpmR2Btn = fila.querySelector('button[data-telar="' + telar + '"][data-horario="2"][data-type="rpm"] .valor-display-text');
+            const eficienciaR2Btn = fila.querySelector('button[data-telar="' + telar + '"][data-horario="2"][data-type="eficiencia"] .valor-display-text');
+            const rpmR3Btn = fila.querySelector('button[data-telar="' + telar + '"][data-horario="3"][data-type="rpm"] .valor-display-text');
+            const eficienciaR3Btn = fila.querySelector('button[data-telar="' + telar + '"][data-horario="3"][data-type="eficiencia"] .valor-display-text');
 
-            const index = datos.findIndex(d => d.telar === telar);
-            datos[index][field] = value;
+            // Obtener checkboxes de observaciones
+            const obsR1Checkbox = fila.querySelector('input.obs-checkbox[data-telar="' + telar + '"][data-horario="1"]');
+            const obsR2Checkbox = fila.querySelector('input.obs-checkbox[data-telar="' + telar + '"][data-horario="2"]');
+            const obsR3Checkbox = fila.querySelector('input.obs-checkbox[data-telar="' + telar + '"][data-horario="3"]');
+
+            // Obtener observaciones del objeto observaciones
+            const key1 = `${telar}-1`;
+            const key2 = `${telar}-2`;
+            const key3 = `${telar}-3`;
+
+            // Extraer valores numéricos
+            const rpmStd = rpmStdInput ? (parseFloat(rpmStdInput.value) || null) : null;
+            const eficienciaStd = eficienciaStdInput ? (parseFloat(eficienciaStdInput.value.replace('%', '')) || null) : null;
+            
+            const rpmR1 = rpmR1Btn ? (parseInt(rpmR1Btn.textContent) || null) : null;
+            const eficienciaR1 = eficienciaR1Btn ? (parseFloat(eficienciaR1Btn.textContent.replace('%', '')) || null) : null;
+            const rpmR2 = rpmR2Btn ? (parseInt(rpmR2Btn.textContent) || null) : null;
+            const eficienciaR2 = eficienciaR2Btn ? (parseFloat(eficienciaR2Btn.textContent.replace('%', '')) || null) : null;
+            const rpmR3 = rpmR3Btn ? (parseInt(rpmR3Btn.textContent) || null) : null;
+            const eficienciaR3 = eficienciaR3Btn ? (parseFloat(eficienciaR3Btn.textContent.replace('%', '')) || null) : null;
+
+            // StatusOB3: 1 si el checkbox está marcado (indica que hay comentarios)
+            const statusOB1 = obsR1Checkbox?.checked ? 1 : 0;
+            const statusOB2 = obsR2Checkbox?.checked ? 1 : 0;
+            const statusOB3 = obsR3Checkbox?.checked ? 1 : 0;
+
+            datos.push({
+                NoTelar: parseInt(telar),
+                SalonTejidoId: null,
+                RpmStd: rpmStd,
+                EficienciaStd: eficienciaStd, // Se copiará desde RpmStd en el backend si no existe
+                RpmR1: rpmR1,
+                EficienciaR1: eficienciaR1,
+                RpmR2: rpmR2,
+                EficienciaR2: eficienciaR2,
+                RpmR3: rpmR3,
+                EficienciaR3: eficienciaR3,
+                ObsR1: observaciones[key1] || null,
+                ObsR2: observaciones[key2] || null,
+                ObsR3: observaciones[key3] || null,
+                StatusOB1: statusOB1,
+                StatusOB2: statusOB2,
+                StatusOB3: statusOB3,
+            });
         });
 
         return datos;
+    }
+
+    // Función para guardar datos de la tabla en TejEficienciaLine
+    async function guardarDatosTabla() {
+        // Validar que haya un folio
+        const folio = elements.folio ? elements.folio.value : null;
+        if (!folio || folio.trim() === '') {
+            Swal.fire({
+                title: 'Error',
+                text: 'Por favor, genere un folio antes de guardar',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
+        // Validar fecha y turno
+        const fecha = elements.fecha ? elements.fecha.value : null;
+        const turno = elements.turno ? elements.turno.value : null;
+        
+        if (!fecha || !turno) {
+            Swal.fire({
+                title: 'Error',
+                text: 'Por favor, complete la fecha y el turno',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
+        // Recopilar datos de la tabla
+        const datosTelares = recopilarDatosTelares();
+
+        if (datosTelares.length === 0) {
+            Swal.fire({
+                title: 'Error',
+                text: 'No hay datos para guardar',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
+        // Mostrar loading
+        Swal.fire({
+            title: 'Guardando...',
+            text: 'Por favor espere',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        try {
+            const response = await fetch('/modulo-cortes-de-eficiencia/guardar-tabla', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    folio: folio,
+                    fecha: fecha,
+                    turno: turno,
+                    datos_telares: datosTelares
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                Swal.fire({
+                    title: '¡Guardado exitoso!',
+                    text: `Se guardaron ${datosTelares.length} registros en TejEficienciaLine`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+            } else {
+                throw new Error(data.message || 'Error al guardar los datos');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            Swal.fire({
+                title: 'Error',
+                text: 'Error al guardar los datos: ' + error.message,
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        }
     }
 
     function limpiarFormulario() {
@@ -1244,14 +1463,31 @@
         document.getElementById('status').value = 'Pendiente';
         disableStatusField(); // Asegurar que esté deshabilitado
 
-        // Limpiar tabla
+        // Limpiar tabla y valores de display
         const inputs = document.querySelectorAll('#telares-body input');
         inputs.forEach(input => {
             input.value = '';
         });
+        
+        // Limpiar valores de RPM y Eficiencia en los displays
+        document.querySelectorAll('.valor-display-text').forEach(display => {
+            const btn = display.closest('.valor-display-btn');
+            if (btn && btn.getAttribute('data-type') === 'eficiencia') {
+                display.textContent = '0%';
+            } else {
+                display.textContent = '0';
+            }
+        });
+        
+        // Limpiar checkboxes de observaciones
+        document.querySelectorAll('.obs-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
 
         currentFolio = null;
         isEditing = false;
+        isNewRecord = true; // Resetear a modo CREATE para el próximo corte
+        observaciones = {}; // Limpiar observaciones
         disableActionButtons();
         mostrarMensajeInicial();
     }
@@ -1340,6 +1576,9 @@
             observaciones[key] = result.value;
             checkbox.checked = result.value.trim() !== '';
             
+            // Guardar automáticamente después de agregar observación
+            guardarAutomatico();
+            
             // Toast de confirmación breve
             Swal.fire({
                 title: 'Guardado',
@@ -1353,6 +1592,154 @@
         }
     }
 
+    // Función para guardar automáticamente (CREATE o UPDATE según isNewRecord)
+    let timeoutGuardado = null;
+    async function guardarAutomatico() {
+        // Debounce: esperar 1 segundo después del último cambio antes de guardar
+        if (timeoutGuardado) {
+            clearTimeout(timeoutGuardado);
+        }
+        
+        timeoutGuardado = setTimeout(async () => {
+            // Validar que haya un folio
+            const folio = elements.folio ? elements.folio.value : null;
+            if (!folio || folio.trim() === '') {
+                console.warn('No hay folio para guardar');
+                return;
+            }
+
+            // Validar fecha y turno
+            const fecha = elements.fecha ? elements.fecha.value : null;
+            const turno = elements.turno ? elements.turno.value : null;
+            
+            if (!fecha || !turno) {
+                console.warn('Fecha o turno no especificado');
+                return;
+            }
+
+            // Recopilar datos de la tabla
+            const datosTelares = recopilarDatosTelares();
+
+            if (datosTelares.length === 0) {
+                console.warn('No hay datos de telares para guardar');
+                return;
+            }
+
+            // Obtener usuario y noEmpleado
+            const usuario = elements.usuario ? elements.usuario.value : '';
+            const noEmpleado = elements.noEmpleado ? elements.noEmpleado.value : '';
+            const status = elements.status ? elements.status.value : 'En Proceso';
+
+            try {
+                // El método store del controlador usa updateOrCreate, por lo que maneja tanto CREATE como UPDATE
+                // basándose en si el Folio ya existe en la base de datos
+                const response = await fetch('{{ route("cortes.eficiencia.store") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        folio: folio,
+                        fecha: fecha,
+                        turno: turno,
+                        status: status,
+                        usuario: usuario,
+                        noEmpleado: noEmpleado,
+                        datos_telares: datosTelares,
+                        horario1: null,
+                        horario2: null,
+                        horario3: null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Después del primer guardado exitoso, ya no es un registro nuevo
+                    if (isNewRecord) {
+                        isNewRecord = false;
+                    }
+                    
+                    // Mostrar indicador visual breve de guardado
+                    mostrarIndicadorGuardado(isNewRecord ? 'Creado' : 'Actualizado');
+                } else {
+                    console.error('Error al guardar:', data.message);
+                    mostrarErrorGuardado(data.message);
+                }
+            } catch (error) {
+                console.error('Error en guardado automático:', error);
+                mostrarErrorGuardado(error.message);
+            }
+        }, 1000); // Esperar 1 segundo después del último cambio
+    }
+
+    // Función para mostrar indicador visual de guardado
+    function mostrarIndicadorGuardado(accion = 'Guardado') {
+        // Crear elemento de notificación si no existe
+        let notificacion = document.getElementById('notificacion-guardado');
+        if (!notificacion) {
+            notificacion = document.createElement('div');
+            notificacion.id = 'notificacion-guardado';
+            notificacion.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 transition-opacity duration-300 z-50';
+            notificacion.style.opacity = '0';
+            notificacion.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span id="notificacion-texto">Guardado automáticamente</span>
+            `;
+            document.body.appendChild(notificacion);
+        }
+
+        // Actualizar texto
+        const textoElement = notificacion.querySelector('#notificacion-texto');
+        if (textoElement) {
+            textoElement.textContent = `${accion} automáticamente`;
+        }
+
+        // Mostrar notificación
+        notificacion.style.opacity = '1';
+
+        // Ocultar después de 2 segundos
+        setTimeout(() => {
+            notificacion.style.opacity = '0';
+        }, 2000);
+    }
+
+    // Función para mostrar error en guardado
+    function mostrarErrorGuardado(mensaje) {
+        // Crear elemento de notificación de error si no existe
+        let notificacion = document.getElementById('notificacion-error-guardado');
+        if (!notificacion) {
+            notificacion = document.createElement('div');
+            notificacion.id = 'notificacion-error-guardado';
+            notificacion.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 transition-opacity duration-300 z-50';
+            notificacion.style.opacity = '0';
+            notificacion.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                <span id="notificacion-error-texto">Error al guardar</span>
+            `;
+            document.body.appendChild(notificacion);
+        }
+
+        // Actualizar texto
+        const textoElement = notificacion.querySelector('#notificacion-error-texto');
+        if (textoElement) {
+            textoElement.textContent = `Error: ${mensaje}`;
+        }
+
+        // Mostrar notificación
+        notificacion.style.opacity = '1';
+
+        // Ocultar después de 3 segundos
+        setTimeout(() => {
+            notificacion.style.opacity = '0';
+        }, 3000);
+    }
+
     // Función para recargar datos manualmente (para testing)
     async function recargarDatosTelares() {
         await cargarDatosTelares();
@@ -1363,6 +1750,7 @@
     window.actualizarYGuardarHora = actualizarYGuardarHora;
     window.recargarDatosTelares = recargarDatosTelares;
     window.cargarDatosTelares = cargarDatosTelares;
+    window.guardarAutomatico = guardarAutomatico;
 </script>
 
 <style>
