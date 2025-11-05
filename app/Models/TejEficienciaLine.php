@@ -15,7 +15,7 @@ class TejEficienciaLine extends Model
         "NoTelarId",
         "SalonTejidoId",
         "RpmStd",
-        "EficienciaStd",
+        "EficienciaSTD",
         "RpmR1",
         "EficienciaR1",
         "RpmR2",

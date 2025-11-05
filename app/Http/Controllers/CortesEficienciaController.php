@@ -107,7 +107,7 @@ class CortesEficienciaController extends Controller
                     'NoTelarId'     => $noTelar,
                     // Mantener nombres esperados por el frontend
                     'VelocidadStd'  => $lastLine->RpmStd ?? null,
-                    'EficienciaStd' => $lastLine->EficienciaStd ?? null,
+                    'EficienciaStd' => $lastLine->EficienciaSTD ?? null,
                 ];
             }
 
@@ -247,9 +247,22 @@ class CortesEficienciaController extends Controller
                         continue;
                     }
 
-                    // Obtener RpmStd para copiarlo a EficienciaStd
-                    $rpmStd = $telar['VelocidadStd'] ?? null;
-                    $eficienciaStd = $rpmStd !== null ? $rpmStd : ($telar['EficienciaStd'] ?? null);
+                    // Obtener RpmStd y EficienciaStd
+                    $rpmStd = $telar['RpmStd'] ?? null;
+                    $eficienciaStd = $telar['EficienciaStd'] ?? null;
+                    
+                    Log::info('Guardando datos STD en TejEficienciaLine (store)', [
+                        'NoTelarId' => $telar['NoTelar'],
+                        'RpmStd' => $rpmStd,
+                        'EficienciaSTD' => $eficienciaStd
+                    ]);
+                    
+                    Log::info('Guardando datos STD para telar', [
+                        'NoTelar' => $telar['NoTelar'],
+                        'RpmStd' => $rpmStd,
+                        'EficienciaStd' => $eficienciaStd,
+                        'Folio' => $validated['folio']
+                    ]);
                     
                     // Buscar si ya existe un registro con estos criterios
                     $registroExistente = TejEficienciaLine::where('Folio', $validated['folio'])
@@ -262,7 +275,7 @@ class CortesEficienciaController extends Controller
                         'Date' => $validated['fecha'],
                         'SalonTejidoId' => $telar['SalonTejidoId'] ?? null,
                         'RpmStd' => $rpmStd,
-                        'EficienciaStd' => $eficienciaStd,
+                        'EficienciaSTD' => $eficienciaStd,
                         'RpmR1' => $telar['RpmR1'] ?? null,
                         'EficienciaR1' => $telar['EficienciaR1'] ?? null,
                         'RpmR2' => $telar['RpmR2'] ?? null,
@@ -375,12 +388,42 @@ class CortesEficienciaController extends Controller
     public function finalizar(Request $request, $id)
     {
         try {
-            // Aquí iría la lógica para finalizar el corte
-            Log::info('Finalizando corte de eficiencia', ['id' => $id]);
+            // Buscar el corte por folio
+            $corte = TejEficiencia::where('Folio', $id)->first();
+            
+            if (!$corte) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Corte no encontrado'
+                ], 404);
+            }
+
+            // Verificar que no esté ya finalizado
+            if ($corte->Status === 'Finalizado') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El corte ya está finalizado'
+                ], 400);
+            }
+
+            // Actualizar el status a Finalizado
+            $corte->Status = 'Finalizado';
+            $corte->updated_at = now();
+            $corte->save();
+
+            Log::info('Corte de eficiencia finalizado', [
+                'folio' => $id,
+                'status_anterior' => $corte->getOriginal('Status'),
+                'status_nuevo' => 'Finalizado'
+            ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Corte de eficiencia finalizado exitosamente'
+                'message' => 'Corte de eficiencia finalizado exitosamente',
+                'data' => [
+                    'folio' => $corte->Folio,
+                    'status' => $corte->Status
+                ]
             ]);
 
         } catch (\Exception $e) {
@@ -420,7 +463,7 @@ class CortesEficienciaController extends Controller
                         'NoTelar' => (int) $l->NoTelarId,
                         'SalonTejidoId' => $l->SalonTejidoId,
                         'RpmStd' => $l->RpmStd,
-                        'EficienciaStd' => $l->EficienciaStd,
+                        'EficienciaStd' => $l->EficienciaSTD,
                         'RpmR1' => $l->RpmR1,
                         'EficienciaR1' => $l->EficienciaR1,
                         'RpmR2' => $l->RpmR2,
@@ -475,13 +518,54 @@ class CortesEficienciaController extends Controller
                 ->where('EnProceso', 1)
                 ->select('NoTelarId', 'VelocidadSTD', 'EficienciaSTD')
                 ->get()
-                ->map(function ($telar) {
+                ->map(function ($telar) use ($telaresOrden) {
+                    Log::info('Datos de telar desde ReqProgramaTejido', [
+                        'NoTelarId' => $telar->NoTelarId,
+                        'VelocidadSTD' => $telar->VelocidadSTD,
+                        'EficienciaSTD' => $telar->EficienciaSTD
+                    ]);
+                    
                     return [
                         'NoTelar' => $telar->NoTelarId,
                         'VelocidadSTD' => $telar->VelocidadSTD ?? 0,
                         'EficienciaSTD' => $telar->EficienciaSTD ?? 0
                     ];
                 });
+
+            // Si no se encontraron telares en proceso, intentar obtener los últimos datos disponibles
+            if ($telares->isEmpty()) {
+                Log::warning('No se encontraron telares con EnProceso=1, buscando últimos registros disponibles', [
+                    'telares_solicitados' => $telaresOrden
+                ]);
+                
+                $telares = collect($telaresOrden)->map(function ($telarId) {
+                    $ultimoRegistro = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
+                        ->orderBy('Id', 'desc')
+                        ->select('NoTelarId', 'VelocidadSTD', 'EficienciaSTD')
+                        ->first();
+                    
+                    if ($ultimoRegistro) {
+                        Log::info('Último registro encontrado para telar', [
+                            'NoTelarId' => $ultimoRegistro->NoTelarId,
+                            'VelocidadSTD' => $ultimoRegistro->VelocidadSTD,
+                            'EficienciaSTD' => $ultimoRegistro->EficienciaSTD
+                        ]);
+                        
+                        return [
+                            'NoTelar' => $ultimoRegistro->NoTelarId,
+                            'VelocidadSTD' => $ultimoRegistro->VelocidadSTD ?? 0,
+                            'EficienciaSTD' => $ultimoRegistro->EficienciaSTD ?? 0
+                        ];
+                    }
+                    
+                    Log::warning('No se encontraron datos para telar', ['NoTelarId' => $telarId]);
+                    return [
+                        'NoTelar' => $telarId,
+                        'VelocidadSTD' => 0,
+                        'EficienciaSTD' => 0
+                    ];
+                })->filter();
+            }
 
             Log::info('Datos de programa tejido obtenidos', [
                 'telares_solicitados' => $telaresOrden,
@@ -518,32 +602,39 @@ class CortesEficienciaController extends Controller
                 'fecha' => 'required|date'
             ]);
 
-            // Buscar si ya existe el registro
+            // Determinar el campo de horario correcto según el número
+            $campoHorario = 'Horario' . $validated['horario'];
+
+            // Buscar si ya existe el registro por Folio y Turno
             $registro = DB::table('TejEficiencia')
                 ->where('Folio', $validated['folio'])
                 ->where('Turno', $validated['turno'])
-                ->where('Horario', $validated['horario'])
                 ->first();
 
             $datos = [
                 'Folio' => $validated['folio'],
                 'Turno' => $validated['turno'],
-                'Horario' => $validated['horario'],
-                'Hora' => $validated['hora'],
-                'Fecha' => $validated['fecha'],
-                'UpdatedAt' => now()
+                $campoHorario => $validated['hora'], // Usar Horario1, Horario2 o Horario3
+                'Date' => $validated['fecha'],
+                'updated_at' => now()
             ];
 
             if ($registro) {
-                // Actualizar registro existente
+                // Actualizar registro existente solo actualizando el campo de horario específico
                 DB::table('TejEficiencia')
-                    ->where('id', $registro->id)
-                    ->update($datos);
+                    ->where('Folio', $validated['folio'])
+                    ->where('Turno', $validated['turno'])
+                    ->update([$campoHorario => $validated['hora'], 'updated_at' => now()]);
 
-                Log::info('Hora actualizada en TejEficiencia', $datos);
+                Log::info('Hora actualizada en TejEficiencia', [
+                    'folio' => $validated['folio'],
+                    'turno' => $validated['turno'],
+                    'campo' => $campoHorario,
+                    'hora' => $validated['hora']
+                ]);
             } else {
                 // Crear nuevo registro
-                $datos['CreatedAt'] = now();
+                $datos['created_at'] = now();
                 DB::table('TejEficiencia')->insert($datos);
 
                 Log::info('Hora guardada en TejEficiencia', $datos);
@@ -599,11 +690,15 @@ class CortesEficienciaController extends Controller
                 $registrosGuardados = 0;
 
                 foreach ($validated['datos_telares'] as $telar) {
-                    // Obtener RpmStd para copiarlo a EficienciaStd
+                    // Obtener RpmStd y EficienciaStd independientemente
                     $rpmStd = $telar['RpmStd'] ?? null;
+                    $eficienciaStd = $telar['EficienciaStd'] ?? null;
                     
-                    // Si hay RpmStd, copiarlo a EficienciaStd
-                    $eficienciaStd = $rpmStd !== null ? $rpmStd : ($telar['EficienciaStd'] ?? null);
+                    Log::info('Guardando datos STD en TejEficienciaLine', [
+                        'NoTelarId' => $telar['NoTelar'],
+                        'RpmStd' => $rpmStd,
+                        'EficienciaSTD' => $eficienciaStd
+                    ]);
                     
                     // Buscar si ya existe un registro con estos criterios
                     $registroExistente = TejEficienciaLine::where('Folio', $validated['folio'])
@@ -615,7 +710,7 @@ class CortesEficienciaController extends Controller
                     $datos = [
                         'SalonTejidoId' => $telar['SalonTejidoId'] ?? null,
                         'RpmStd' => $rpmStd,
-                        'EficienciaStd' => $eficienciaStd,
+                        'EficienciaSTD' => $eficienciaStd,
                         'RpmR1' => $telar['RpmR1'] ?? null,
                         'EficienciaR1' => $telar['EficienciaR1'] ?? null,
                         'RpmR2' => $telar['RpmR2'] ?? null,

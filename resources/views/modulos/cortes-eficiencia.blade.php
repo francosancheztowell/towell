@@ -98,7 +98,7 @@
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 80px;">Telar</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 100px;"> STD</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 120px;">Eficiencia STD</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 120px;">% EF STD</th>
 
                         <!-- Horario 1 -->
                         <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa;">
@@ -143,17 +143,17 @@
 
                         <!-- Horario 1 subheaders -->
                         <th class="px-4 py-3 text-xs font-medium text-white bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa; min-width: 100px;">RPM</th>
-                        <th class="px-4 py-3 text-xs font-medium text-white bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa; min-width: 100px;">Eficiencia</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa; min-width: 100px;">% EF</th>
                         <th class="px-4 py-3 text-xs font-medium text-white bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa; min-width: 80px;">Obs</th>
 
                         <!-- Horario 2 subheaders -->
                         <th class="px-4 py-3 text-xs font-medium text-white bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80; min-width: 100px;">RPM</th>
-                        <th class="px-4 py-3 text-xs font-medium text-white bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80; min-width: 100px;">Eficiencia</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80; min-width: 100px;">% EF</th>
                         <th class="px-4 py-3 text-xs font-medium text-white bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80; min-width: 80px;">Obs</th>
 
                         <!-- Horario 3 subheaders -->
                         <th class="px-4 py-3 text-xs font-medium text-white bg-yellow-400" style="position: sticky; top: 0; z-index: 30; background-color: #fbbf24; min-width: 100px;">RPM</th>
-                        <th class="px-4 py-3 text-xs font-medium text-white bg-yellow-400" style="position: sticky; top: 0; z-index: 30; background-color: #fbbf24; min-width: 100px;">Eficiencia</th>
+                        <th class="px-4 py-3 text-xs font-medium text-white bg-yellow-400" style="position: sticky; top: 0; z-index: 30; background-color: #fbbf24; min-width: 100px;">% EF</th>
                         <th class="px-4 py-3 text-xs font-medium text-white bg-yellow-400" style="position: sticky; top: 0; z-index: 30; background-color: #fbbf24; min-width: 80px;">Obs</th>
                     </tr>
                 </thead>
@@ -277,7 +277,7 @@
                             <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-sm bg-blue-50 text-center" placeholder="RPM" data-telar="{{ $i }}" data-field="rpm_std" readonly>
                         </td>
                         <td class="border border-gray-300 px-0 py-2 w-10">
-                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-sm bg-green-50 text-center" placeholder="Eficiencia" data-telar="{{ $i }}" data-field="eficiencia_std" readonly>
+                            <input type="text" class="w-full py-0.5 border border-gray-200 rounded text-sm bg-green-50 text-center" placeholder="% EF" data-telar="{{ $i }}" data-field="eficiencia_std" readonly>
                         </td>
 
                         <!-- Horario 1 -->
@@ -995,16 +995,38 @@
                     currentFolio = this.value;
                     enableActionButtons();
                 }
+                // Guardar automáticamente al cambiar el folio
+                guardarAutomatico();
+            });
+        }
+        
+        // Auto-guardar cuando se cambie el turno
+        if (elements.turno) {
+            elements.turno.addEventListener('change', function() {
+                if (currentFolio) {
+                    guardarAutomatico();
+                }
+            });
+        }
+        
+        // Auto-guardar cuando se cambie la fecha
+        if (elements.fecha) {
+            elements.fecha.addEventListener('change', function() {
+                if (currentFolio) {
+                    guardarAutomatico();
+                }
             });
         }
 
-        // Detectar cambios para habilitar edición (solo en inputs de STD)
+        // Detectar cambios en inputs STD y guardar automáticamente
         const stdInputs = document.querySelectorAll('input[data-field="rpm_std"], input[data-field="eficiencia_std"]');
         stdInputs.forEach(input => {
             input.addEventListener('input', function() {
                 if (currentFolio && !isEditing) {
                     isEditing = true;
                 }
+                // Guardar automáticamente después de cambiar valores STD
+                guardarAutomatico();
             });
         });
 
@@ -1025,23 +1047,13 @@
             }
         });
 
-        // Manejar botón de Atrás: guardar automáticamente antes de salir
+        // Manejar botón de Atrás: solo navegación (el guardado es automático)
         const btnBack = document.getElementById('btn-back');
         if (btnBack) {
             btnBack.addEventListener('click', function(e) {
                 e.preventDefault();
-                // Si hay folio y datos mínimos, guardar; si no, simplemente regresar
-                const folioVal = document.getElementById('folio')?.value || '';
-                const fechaVal = document.getElementById('fecha')?.value || '';
-                const turnoVal = document.getElementById('turno')?.value || '';
-
-                if (folioVal && fechaVal && turnoVal) {
-                    // Reutiliza flujo existente de guardado que redirige a consultar
-                    guardarCorte();
-                } else {
-                    // Fallback si falta información esencial
-                    window.history.back();
-                }
+                // Simplemente navegar hacia atrás, el guardado es automático
+                window.location.href = '/modulo-cortes-de-eficiencia/consultar';
             });
         }
     });
