@@ -23,7 +23,7 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($cortes as $corte)
-                            <tr class="hover:bg-gray-50">
+                            <tr class="hover:bg-gray-50" data-folio="{{ $corte->Folio }}">
                                 <td class="px-4 py-3 text-sm font-semibold text-gray-900 border-r border-gray-200">
                                     {{ $corte->Folio }}
                                 </td>
@@ -151,6 +151,20 @@
         });
     }
 
+    function resaltarFilaSeleccionada(folio) {
+        const rows = document.querySelectorAll('tbody tr[data-folio]');
+        rows.forEach(r => r.classList.remove('bg-blue-50', 'ring-2', 'ring-blue-300'));
+        const row = document.querySelector(`tbody tr[data-folio="${folio}"]`);
+        if (row) {
+            row.classList.add('bg-blue-50', 'ring-2', 'ring-blue-300');
+        }
+    }
+
+    function limpiarResaltadoSeleccion() {
+        const rows = document.querySelectorAll('tbody tr[data-folio]');
+        rows.forEach(r => r.classList.remove('bg-blue-50', 'ring-2', 'ring-blue-300'));
+    }
+
     function toggleLineasPanel(folio) {
         const panel = document.getElementById('lineas-panel');
         const folioSpan = document.getElementById('lineas-folio');
@@ -159,11 +173,13 @@
         renderLineasTabla(folio);
         panel.classList.remove('hidden');
         panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        resaltarFilaSeleccionada(folio);
     }
 
     function cerrarLineasPanel() {
         const panel = document.getElementById('lineas-panel');
         if (panel) panel.classList.add('hidden');
+        limpiarResaltadoSeleccion();
     }
 
     // Editar corte existente

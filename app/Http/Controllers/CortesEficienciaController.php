@@ -40,14 +40,23 @@ class CortesEficienciaController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
 
-            return view('modulos.consultar-cortes-eficiencia', compact('cortes'));
+            // Evitar caché del navegador para esta vista
+            return response()
+                ->view('modulos.consultar-cortes-eficiencia', compact('cortes'))
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
             
         } catch (\Exception $e) {
             Log::error('Error al consultar cortes de eficiencia: ' . $e->getMessage());
             
-            // Si hay error, retornar vista vacía
+            // Si hay error, retornar vista vacía y sin caché
             $cortes = collect([]);
-            return view('modulos.consultar-cortes-eficiencia', compact('cortes'));
+            return response()
+                ->view('modulos.consultar-cortes-eficiencia', compact('cortes'))
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
         }
     }
 
@@ -129,17 +138,17 @@ class CortesEficienciaController extends Controller
                 ], 401);
             }
 
-            // Generar folio único (formato: F + contador de 4 dígitos)
+            // Generar folio único (formato: CE + contador de 4 dígitos)
             // Buscar el último folio existente para generar el siguiente consecutivo
             $ultimoFolio = $this->obtenerUltimoFolio();
 
             $numeroSiguiente = 1;
             if ($ultimoFolio) {
-                // Extraer el número del último folio (ej: F0001 -> 1)
-                $numeroSiguiente = (int) substr($ultimoFolio, 1) + 1;
+                // Extraer el número del último folio (ej: CE0001 -> 1)
+                $numeroSiguiente = (int) substr($ultimoFolio, 2) + 1;
             }
 
-            $folio = 'F' . str_pad($numeroSiguiente, 4, '0', STR_PAD_LEFT);
+            $folio = 'CE' . str_pad($numeroSiguiente, 4, '0', STR_PAD_LEFT);
 
             // Obtener turno actual
             $turno = TurnoHelper::getTurnoActual();
@@ -180,14 +189,14 @@ class CortesEficienciaController extends Controller
     {
         try {
             // Buscar en la tabla TejEficiencia
-            $ultimoFolio = TejEficiencia::where('Folio', 'like', 'F%')
+            $ultimoFolio = TejEficiencia::where('Folio', 'like', 'CE%')
                 ->orderBy('Folio', 'desc')
                 ->value('Folio');
 
             return $ultimoFolio;
 
         } catch (\Exception $e) {
-            Log::warning('No se pudo obtener el último folio, usando F0001 como inicial', [
+            Log::warning('No se pudo obtener el último folio, usando CE0001 como inicial', [
                 'error' => $e->getMessage()
             ]);
             return null;
@@ -390,22 +399,54 @@ class CortesEficienciaController extends Controller
     public function show($id)
     {
         try {
-            // Aquí iría la lógica para obtener el corte de la base de datos
-            // Por ahora retornamos datos de ejemplo
-            $corte = [
-                'id' => $id,
-                'folio' => 'CE001',
-                'fecha' => date('Y-m-d'),
-                'turno' => '1',
-                'status' => 'En Proceso',
-                'usuario' => 'Usuario Actual',
-                'noEmpleado' => '12345',
-                'datos_telares' => []
-            ];
+            // Buscar corte por Folio
+            $corte = TejEficiencia::where('Folio', $id)->first();
+
+            if (!$corte) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Corte no encontrado'
+                ], 404);
+            }
+
+            // Obtener líneas asociadas del mismo Folio, Date y Turno
+            $lineas = TejEficienciaLine::where('Folio', $corte->Folio)
+                ->where('Date', $corte->Date)
+                ->where('Turno', $corte->Turno)
+                ->orderBy('NoTelarId')
+                ->get()
+                ->map(function ($l) {
+                    return [
+                        'NoTelar' => (int) $l->NoTelarId,
+                        'SalonTejidoId' => $l->SalonTejidoId,
+                        'RpmStd' => $l->RpmStd,
+                        'EficienciaStd' => $l->EficienciaStd,
+                        'RpmR1' => $l->RpmR1,
+                        'EficienciaR1' => $l->EficienciaR1,
+                        'RpmR2' => $l->RpmR2,
+                        'EficienciaR2' => $l->EficienciaR2,
+                        'RpmR3' => $l->RpmR3,
+                        'EficienciaR3' => $l->EficienciaR3,
+                        'ObsR1' => $l->ObsR1,
+                        'ObsR2' => $l->ObsR2,
+                        'ObsR3' => $l->ObsR3,
+                        'StatusOB1' => (int) ($l->StatusOB1 ?? 0),
+                        'StatusOB2' => (int) ($l->StatusOB2 ?? 0),
+                        'StatusOB3' => (int) ($l->StatusOB3 ?? 0),
+                    ];
+                });
 
             return response()->json([
                 'success' => true,
-                'data' => $corte
+                'data' => [
+                    'folio' => $corte->Folio,
+                    'fecha' => optional($corte->Date)->format('Y-m-d'),
+                    'turno' => (string) $corte->Turno,
+                    'status' => $corte->Status,
+                    'usuario' => $corte->nombreEmpl,
+                    'noEmpleado' => $corte->numero_empleado,
+                    'datos_telares' => $lineas
+                ]
             ]);
 
         } catch (\Exception $e) {

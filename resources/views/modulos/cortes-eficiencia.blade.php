@@ -31,7 +31,7 @@
             <!-- Folio -->
             <div class="flex items-center space-x-2">
                 <span class="text-sm font-medium text-gray-700">Folio:</span>
-                <input type="text" id="folio" class="px-3 py-2 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed w-20" placeholder="F0001" readonly>
+                <input type="text" id="folio" class="px-3 py-2 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed w-20" placeholder="CE0001" readonly>
             </div>
 
             <!-- Fecha -->
@@ -101,13 +101,40 @@
                         <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 120px;">Eficiencia STD</th>
 
                         <!-- Horario 1 -->
-                        <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa;">Horario 1</th>
+                        <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa;">
+                            <div class="flex items-center justify-center gap-2">
+                                <span>Horario 1</span>
+                                <button type="button" title="Tomar hora Horario 1" class="p-1 rounded hover:bg-blue-500 focus:outline-none" onclick="actualizarYGuardarHoraHorario(1)">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </th>
 
                         <!-- Horario 2 -->
-                        <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80;">Horario 2</th>
+                        <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80;">
+                            <div class="flex items-center justify-center gap-2">
+                                <span>Horario 2</span>
+                                <button type="button" title="Tomar hora Horario 2" class="p-1 rounded hover:bg-green-500 focus:outline-none" onclick="actualizarYGuardarHoraHorario(2)">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </th>
 
                         <!-- Horario 3 -->
-                        <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-yellow-400" style="position: sticky; top: 0; z-index: 30; background-color: #fbbf24;">Horario 3</th>
+                        <th colspan="3" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-yellow-400" style="position: sticky; top: 0; z-index: 30; background-color: #fbbf24;">
+                            <div class="flex items-center justify-center gap-2">
+                                <span>Horario 3</span>
+                                <button type="button" title="Tomar hora Horario 3" class="p-1 rounded hover:bg-yellow-500 focus:outline-none" onclick="actualizarYGuardarHoraHorario(3)">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </th>
                     </tr>
                     <tr>
                         <th class="px-4 py-3 text-xs font-medium text-white" style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6;"></th>
@@ -822,6 +849,65 @@
         }
     }
 
+    // Actualizar y guardar hora para un horario específico desde encabezado
+    async function actualizarYGuardarHoraHorario(horario) {
+        const folio = elements.folio ? elements.folio.value : '';
+        const turno = elements.turno ? elements.turno.value : '';
+        const fecha = elements.fecha ? elements.fecha.value : new Date().toISOString().split('T')[0];
+        const ahora = new Date();
+        const horaFormateada = `${ahora.getHours().toString().padStart(2,'0')}:${ahora.getMinutes().toString().padStart(2,'0')}`;
+
+        if (!folio || !turno) {
+            Swal.fire({
+                title: 'Datos faltantes',
+                text: 'Folio y turno son requeridos para guardar la hora',
+                icon: 'warning',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            return;
+        }
+
+        try {
+            const response = await fetch('/modulo-cortes-de-eficiencia/guardar-hora', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    folio: folio,
+                    turno: turno,
+                    horario: horario,
+                    hora: horaFormateada,
+                    fecha: fecha
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                Swal.fire({
+                    title: 'Hora guardada',
+                    text: `Horario ${horario} - ${horaFormateada}`,
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+            } else {
+                throw new Error(data.message || 'Error al guardar hora');
+            }
+        } catch (error) {
+            Swal.fire({
+                title: 'Error',
+                text: error.message,
+                icon: 'error'
+            });
+        }
+    }
+
     function inicializarHora() {
         const horaFormateada = actualizarHora();
     }
@@ -845,14 +931,27 @@
         Promise.all([
             cargarTurnoActual(),
             cargarDatosTelares()
-        ]).then(() => {
-            // Modo captura por defecto: mostrar tabla y generar folio sin pulsar "+"
+        ]).then(async () => {
+            // Detectar si venimos a editar: ?folio=CE000X
+            const params = new URLSearchParams(window.location.search);
+            const folioParam = params.get('folio');
+
             mostrarSegundaTablaSinHeader();
-            generarNuevoFolio();
-        }).catch(error => {
-            // Aún mostrar la tabla aunque falle la carga de datos
+
+            if (folioParam) {
+                await cargarCorteExistente(folioParam);
+            } else {
+                await generarNuevoFolio();
+            }
+        }).catch(async error => {
             mostrarSegundaTablaSinHeader();
-            generarNuevoFolio();
+            const params = new URLSearchParams(window.location.search);
+            const folioParam = params.get('folio');
+            if (folioParam) {
+                await cargarCorteExistente(folioParam);
+            } else {
+                await generarNuevoFolio();
+            }
         });
 
         // Delegación de eventos para clicks en displays de valores y selectores
@@ -925,6 +1024,26 @@
                 closeAllValorSelectors();
             }
         });
+
+        // Manejar botón de Atrás: guardar automáticamente antes de salir
+        const btnBack = document.getElementById('btn-back');
+        if (btnBack) {
+            btnBack.addEventListener('click', function(e) {
+                e.preventDefault();
+                // Si hay folio y datos mínimos, guardar; si no, simplemente regresar
+                const folioVal = document.getElementById('folio')?.value || '';
+                const fechaVal = document.getElementById('fecha')?.value || '';
+                const turnoVal = document.getElementById('turno')?.value || '';
+
+                if (folioVal && fechaVal && turnoVal) {
+                    // Reutiliza flujo existente de guardado que redirige a consultar
+                    guardarCorte();
+                } else {
+                    // Fallback si falta información esencial
+                    window.history.back();
+                }
+            });
+        }
     });
 
     async function cargarTurnoActual() {
@@ -1036,6 +1155,9 @@
                 throw new Error(data.message || 'Respuesta inválida del servidor');
             }
 
+            // Fallback: completar STD faltantes con últimos valores guardados en TejEficienciaLine
+            await completarStdDesdeHistorial();
+
         } catch (error) {
             // Mostrar error en placeholders
             const todosLosInputs = document.querySelectorAll('input[data-field="rpm_std"], input[data-field="eficiencia_std"]');
@@ -1053,6 +1175,36 @@
                 position: 'top-end',
                 timer: 5000,
                 showConfirmButton: false
+            });
+            // Intentar fallback aún si fallo principal
+            try { await completarStdDesdeHistorial(); } catch (e) {}
+        }
+    }
+
+    // Completar STD faltantes desde último registro guardado (getDatosTelares)
+    async function completarStdDesdeHistorial() {
+        const response = await fetch('/modulo-cortes-de-eficiencia/datos-telares', {
+            method: 'GET',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+        });
+        const data = await response.json();
+        if (data.success && data.telares && Array.isArray(data.telares)) {
+            data.telares.forEach(telar => {
+                const telarNumero = telar.NoTelarId || telar.NoTelar || telar.telar;
+                if (!telarNumero) return;
+                const rpmInput = document.querySelector(`input[data-telar="${telarNumero}"][data-field="rpm_std"]`);
+                const eficInput = document.querySelector(`input[data-telar="${telarNumero}"][data-field="eficiencia_std"]`);
+                if (rpmInput && (!rpmInput.value || rpmInput.value === '' || rpmInput.placeholder === 'Sin datos' || rpmInput.placeholder === 'Error al cargar')) {
+                    const rpmValue = telar.VelocidadStd || telar.RpmStd || 0;
+                    rpmInput.value = rpmValue;
+                    rpmInput.placeholder = '';
+                }
+                if (eficInput && (!eficInput.value || eficInput.value === '' || eficInput.placeholder === 'Sin datos' || eficInput.placeholder === 'Error al cargar')) {
+                    const eVal = telar.EficienciaStd || telar.Eficiencia || 0;
+                    const ePct = parseFloat(eVal);
+                    eficInput.value = isNaN(ePct) ? '0%' : (ePct > 1 ? ePct : ePct * 100).toFixed(0) + '%';
+                    eficInput.placeholder = '';
+                }
             });
         }
     }
@@ -1135,6 +1287,96 @@
             Swal.fire({
                 title: 'Error',
                 text: 'Error al generar el folio: ' + error.message,
+                icon: 'error'
+            });
+        }
+    }
+
+    // Cargar corte existente por folio (modo edición)
+    async function cargarCorteExistente(folio) {
+        try {
+            Swal.fire({
+                title: 'Cargando corte...',
+                text: `Folio ${folio}`,
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            const response = await fetch(`/modulo-cortes-de-eficiencia/${encodeURIComponent(folio)}`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error(data.message || 'No se pudo cargar el corte');
+            }
+
+            const info = data.data;
+            // Set header fields
+            document.getElementById('folio').value = info.folio;
+            document.getElementById('fecha').value = info.fecha || new Date().toISOString().split('T')[0];
+            document.getElementById('turno').value = info.turno || '';
+            document.getElementById('status').value = info.status || 'En Proceso';
+            disableStatusField();
+            document.getElementById('usuario').value = info.usuario || '';
+            document.getElementById('noEmpleado').value = info.noEmpleado || '';
+
+            // Fill table values
+            if (Array.isArray(info.datos_telares)) {
+                info.datos_telares.forEach(telar => {
+                    const telarId = telar.NoTelar;
+                    const rpmStdInput = document.querySelector(`input[data-telar="${telarId}"][data-field="rpm_std"]`);
+                    const eficienciaStdInput = document.querySelector(`input[data-telar="${telarId}"][data-field="eficiencia_std"]`);
+                    if (rpmStdInput) rpmStdInput.value = telar.RpmStd ?? '';
+                    if (eficienciaStdInput) {
+                        const val = telar.EficienciaStd;
+                        eficienciaStdInput.value = (val ?? '') === '' ? '' : `${parseFloat(val).toFixed(0)}%`;
+                    }
+
+                    // Displays por horario
+                    const setDisplay = (h, type, value) => {
+                        const span = document.querySelector(`button[data-telar="${telarId}"][data-horario="${h}"][data-type="${type}"] .valor-display-text`);
+                        if (!span) return;
+                        if (value === null || value === undefined || value === '') return;
+                        span.textContent = type === 'rpm' ? `${parseInt(value)}` : `${parseFloat(value).toFixed(0)}%`;
+                    };
+                    setDisplay(1, 'rpm', telar.RpmR1);
+                    setDisplay(1, 'eficiencia', telar.EficienciaR1);
+                    setDisplay(2, 'rpm', telar.RpmR2);
+                    setDisplay(2, 'eficiencia', telar.EficienciaR2);
+                    setDisplay(3, 'rpm', telar.RpmR3);
+                    setDisplay(3, 'eficiencia', telar.EficienciaR3);
+
+                    // Checkboxes de observaciones
+                    const cb = (h) => document.querySelector(`input.obs-checkbox[data-telar="${telarId}"][data-horario="${h}"]`);
+                    const cb1 = cb(1), cb2 = cb(2), cb3 = cb(3);
+                    if (cb1) cb1.checked = !!(telar.StatusOB1);
+                    if (cb2) cb2.checked = !!(telar.StatusOB2);
+                    if (cb3) cb3.checked = !!(telar.StatusOB3);
+
+                    // Guardar observaciones en memoria
+                    if (telar.ObsR1) observaciones[`${telarId}-1`] = telar.ObsR1;
+                    if (telar.ObsR2) observaciones[`${telarId}-2`] = telar.ObsR2;
+                    if (telar.ObsR3) observaciones[`${telarId}-3`] = telar.ObsR3;
+                });
+            }
+
+            currentFolio = info.folio;
+            isEditing = true;
+            isNewRecord = false; // Muy importante: actualizar, no crear
+            enableActionButtons();
+
+            Swal.close();
+        } catch (error) {
+            Swal.close();
+            Swal.fire({
+                title: 'Error',
+                text: error.message,
                 icon: 'error'
             });
         }
