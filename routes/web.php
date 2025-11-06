@@ -7,6 +7,7 @@ use App\Http\Controllers\CatalagoEficienciaController;
 use App\Http\Controllers\CatalagoTelarController;
 use App\Http\Controllers\CatalagoVelocidadController;
 use App\Http\Controllers\CortesEficienciaController;
+use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\ProgramaTejidoController;
 use App\Http\Controllers\RequerimientoController;
 use App\Http\Controllers\SecuenciaInvTelasController;
@@ -490,6 +491,7 @@ Route::middleware(['auth'])->group(function () {
         // Trama - Nuevo y Consultar Requerimientos
         Route::get('/inventario/trama/nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('inventario.trama.nuevo.requerimiento');
         Route::post('/inventario/trama/nuevo-requerimiento', [NuevoRequerimientoController::class, 'guardarRequerimientos'])->name('inventario.trama.nuevo.requerimiento.store');
+        Route::get('/inventario/trama/nuevo-requerimiento/turno-info', [NuevoRequerimientoController::class, 'getTurnoInfo'])->name('inventario.trama.nuevo.requerimiento.turno.info');
         Route::get('/inventario/trama/consultar-requerimiento', [ConsultarRequerimientoController::class, 'index'])->name('inventario.trama.consultar.requerimiento');
         Route::get('/inventario/trama/consultar-requerimiento/{folio}/resumen', [ConsultarRequerimientoController::class, 'resumen'])->name('inventario.trama.consultar.requerimiento.resumen');
         Route::get('/inventario/trama/nuevo-requerimiento/en-proceso', [NuevoRequerimientoController::class, 'enProcesoInfo'])->name('inventario.trama.nuevo.requerimiento.enproceso');
@@ -614,6 +616,16 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/modulo-marcas-finales/{folio}', [App\Http\Controllers\MarcasFinalesController::class, 'show'])->name('modulo.marcas.finales.show');
     Route::put('/modulo-marcas-finales/{folio}', [App\Http\Controllers\MarcasFinalesController::class, 'update'])->name('modulo.marcas.finales.update');
     Route::post('/modulo-marcas-finales/{folio}/finalizar', [App\Http\Controllers\MarcasFinalesController::class, 'finalizar'])->name('modulo.marcas.finales.finalizar');
+
+    // Rutas para Marcas (Nuevas Marcas Finales y Consultar Marcas Finales)
+    Route::get('/modulo-marcas', [App\Http\Controllers\MarcasController::class, 'index'])->name('marcas.nuevo');
+    Route::get('/modulo-marcas/consultar', [App\Http\Controllers\MarcasController::class, 'consultar'])->name('marcas.consultar');
+    Route::post('/modulo-marcas/generar-folio', [App\Http\Controllers\MarcasController::class, 'generarFolio'])->name('marcas.generar.folio');
+    Route::get('/modulo-marcas/obtener-datos-std', [App\Http\Controllers\MarcasController::class, 'obtenerDatosSTD'])->name('marcas.datos.std');
+    Route::post('/modulo-marcas/store', [App\Http\Controllers\MarcasController::class, 'store'])->name('marcas.store');
+    Route::get('/modulo-marcas/{folio}', [App\Http\Controllers\MarcasController::class, 'show'])->name('marcas.show');
+    Route::put('/modulo-marcas/{folio}', [App\Http\Controllers\MarcasController::class, 'update'])->name('marcas.update');
+    Route::post('/modulo-marcas/{folio}/finalizar', [App\Http\Controllers\MarcasController::class, 'finalizar'])->name('marcas.finalizar');
 
     // Rutas para Cortes de Eficiencia
     Route::get('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'index'])->name('cortes.eficiencia');
