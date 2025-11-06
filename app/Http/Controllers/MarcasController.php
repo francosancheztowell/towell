@@ -246,7 +246,7 @@ class MarcasController extends Controller
         try {
             $folio = $request->input('folio');
             $fecha = $request->input('fecha') ?: now()->toDateString();
-            $turno = $request->input('turno') ?: 1;
+            $turno = $request->input('turno') ?: TurnoHelper::getTurnoActual();
             $status = $request->input('status', 'En Proceso');
             $lineas = $request->input('lineas', []);
 
@@ -404,4 +404,6 @@ class MarcasController extends Controller
             ], 500);
         }
     }
+
+
 }

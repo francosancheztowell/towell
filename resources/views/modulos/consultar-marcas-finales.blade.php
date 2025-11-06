@@ -3,18 +3,18 @@
 @section('content')
 <div class="container mx-auto px-4 py-6">
     <!-- Header -->
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
-        <div class="bg-blue-500 px-6 py-4 border-t-4 border-orange-400">
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-4">
+        <div class="bg-blue-500 px-5 py-3 border-t-4 border-orange-400">
             <div class="flex items-center justify-between">
                 <h1 class="text-2xl font-bold text-white">Marcas Finales</h1>
                 <div class="flex space-x-2">
-                    <a href="{{ route('marcas.nuevo') }}" id="btn-nuevo" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors inline-flex items-center">
+                    <a href="{{ route('marcas.nuevo') }}" id="btn-nuevo" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm rounded-lg transition-colors inline-flex items-center">
                         <i class="fas fa-plus mr-2"></i>Nuevo
                     </a>
-                    <button id="btn-editar-global" onclick="editarMarcaSeleccionada()" disabled class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors inline-flex items-center">
+                    <button id="btn-editar-global" onclick="editarMarcaSeleccionada()" disabled class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 text-sm rounded-lg transition-colors inline-flex items-center">
                         <i class="fas fa-edit mr-2"></i>Editar
                     </button>
-                    <button id="btn-finalizar-global" onclick="finalizarMarcaSeleccionada()" disabled class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors inline-flex items-center">
+                    <button id="btn-finalizar-global" onclick="finalizarMarcaSeleccionada()" disabled class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-sm rounded-lg transition-colors inline-flex items-center">
                         <i class="fas fa-check mr-2"></i>Finalizar
                     </button>
                 </div>
@@ -24,32 +24,32 @@
 
     @if(isset($marcas) && $marcas->count() > 0)
         <!-- Tabla de folios (con scroll interno) -->
-        <div class="bg-white rounded-lg shadow-md mb-6">
+        <div class="bg-white rounded-lg shadow-md mb-4">
             <div class="tabla-scroll">
-                <table class="w-full">
+                <table class="w-full table-compact text-xs">
                     <thead class="bg-gray-50 sticky top-0 z-10">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Folio</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Fecha</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Turno</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Usuario</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Folio</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Fecha</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Turno</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Usuario</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($marcas as $marca)
                         <tr class="hover:bg-gray-50 cursor-pointer {{ isset($ultimoFolio) && $ultimoFolio->Folio == $marca->Folio ? 'fila-seleccionada' : '' }}" onclick="seleccionarMarca('{{ $marca->Folio }}', this)" data-folio="{{ $marca->Folio }}">
-                            <td class="px-4 py-3 text-sm font-semibold text-gray-900 border-r border-gray-200">{{ $marca->Folio }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ \Carbon\Carbon::parse($marca->Date)->format('d/m/Y') }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">Turno {{ $marca->Turno }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ $marca->numero_empleado ?? 'N/A' }}</td>
-                            <td class="px-4 py-3 text-sm">
+                            <td class="px-2 py-2 text-xs font-semibold text-gray-900 border-r border-gray-200">{{ $marca->Folio }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-900 border-r border-gray-200">{{ \Carbon\Carbon::parse($marca->Date)->format('d/m/Y') }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-900 border-r border-gray-200">Turno {{ $marca->Turno }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-900 border-r border-gray-200">{{ $marca->numero_empleado ?? 'N/A' }}</td>
+                            <td class="px-2 py-2 text-xs">
                                 @if($marca->Status == 'Finalizado')
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Finalizado</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-800">Finalizado</span>
                                 @elseif($marca->Status == 'En Proceso')
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">En Proceso</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-800">En Proceso</span>
                                 @else
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">{{ $marca->Status }}</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-800">{{ $marca->Status }}</span>
                                 @endif
                             </td>
                         </tr>
@@ -61,29 +61,29 @@
 
         <!-- Preview / detalle del folio seleccionado -->
         <div id="preview-panel" class="bg-white rounded-lg shadow-md hidden">
-            <div class="bg-gray-50 px-6 py-3 border-b border-gray-200">
+            <div class="bg-gray-50 px-5 py-2.5 border-b border-gray-200">
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 id="preview-folio" class="text-lg font-semibold text-gray-800">Folio: -</h3>
                         <p id="preview-meta" class="text-sm text-gray-600">Fecha: - · Turno: - · Empleado: -</p>
                     </div>
                     <div>
-                        <span id="preview-status" class="inline-flex items-center px-3 py-1 rounded text-sm font-medium bg-gray-100 text-gray-800">-</span>
+                        <span id="preview-status" class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">-</span>
                     </div>
                 </div>
             </div>
 
             <div class="tabla-scroll-preview">
-                <table class="min-w-full text-sm">
+                <table class="min-w-full text-xs table-compact">
                     <thead class="bg-gray-50 sticky top-0 z-20">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telar</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Efic. STD</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Marcas</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Trama</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Pie</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Rizo</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Otros</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Telar</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">Efic. STD</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">Marcas</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">Trama</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">Pie</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">Rizo</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">Otros</th>
                         </tr>
                     </thead>
                     <tbody id="preview-lineas" class="bg-white divide-y divide-gray-200"></tbody>
@@ -105,11 +105,16 @@
 </div>
 
 <style>
-    .tabla-scroll { max-height: 500px; overflow-y: auto; overflow-x: auto; }
+    .tabla-scroll { max-height: 420px; overflow-y: auto; overflow-x: auto; }
     .tabla-scroll-preview { max-height: 360px; overflow-y: auto; overflow-x: auto; }
     .tabla-scroll::-webkit-scrollbar, .tabla-scroll-preview::-webkit-scrollbar { width:8px; height:8px }
     .tabla-scroll::-webkit-scrollbar-thumb, .tabla-scroll-preview::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px }
     .fila-seleccionada { background-color: #e6f0ff !important; border-left: 4px solid #3b82f6 }
+
+    /* Tabla compacta */
+    .table-compact th,
+    .table-compact td { padding: 0.35rem 0.5rem; line-height: 1.1; }
+    .table-compact { font-size: 0.80rem; }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

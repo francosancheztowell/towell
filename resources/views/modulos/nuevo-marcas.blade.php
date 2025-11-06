@@ -3,23 +3,86 @@
 @section('page-title', 'Marcas')
 
 @section('navbar-right')
+    @php
+        // Obtener el usuario actual y sus permisos para el módulo de Marcas Finales
+        $user = Auth::user();
+        $permisosMarcas = null;
+        
+        if ($user) {
+            // Buscar permisos específicos para el módulo de Marcas Finales
+            $permisosMarcas = DB::table('SYSUsuariosRoles')
+                ->join('SYSRoles', 'SYSUsuariosRoles.idrol', '=', 'SYSRoles.idrol')
+                ->where('SYSUsuariosRoles.idusuario', $user->idusuario)
+                ->where('SYSUsuariosRoles.acceso', true)
+                ->where(function($query) {
+                    $query->where('SYSRoles.modulo', 'LIKE', '%Marcas Finales%')
+                          ->orWhere('SYSRoles.modulo', 'LIKE', '%Nuevas Marcas Finales%')
+                          ->orWhere('SYSRoles.modulo', 'LIKE', '%marcas finales%')
+                          ->orWhere('SYSRoles.modulo', 'LIKE', '%nuevas marcas finales%');
+                })
+                ->select('SYSUsuariosRoles.*', 'SYSRoles.modulo')
+                ->first();
+        }
+        
+        // Variables de permisos para usar en la vista
+        $puedeCrear = $permisosMarcas && $permisosMarcas->crear;
+        $puedeModificar = $permisosMarcas && $permisosMarcas->modificar;
+        $puedeEliminar = $permisosMarcas && $permisosMarcas->eliminar;
+        $tieneAcceso = $permisosMarcas && $permisosMarcas->acceso;
+    @endphp
+
     <!-- Botones de acción para Marcas -->
-    <div class="flex items-center gap-1 hidden">
-        <button id="btn-nuevo" onclick="nuevaMarca()" class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors" title="Nuevo">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-        </button>
-        <button id="btn-editar" onclick="editarMarca()" class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors cursor-not-allowed" disabled title="Editar">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-        </button>
-        <button id="btn-finalizar" onclick="finalizarMarca()" class="p-2 text-orange-600 hover:text-orange-800 hover:bg-orange-100 rounded-md transition-colors cursor-not-allowed" disabled title="Finalizar">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-        </button>
+    <div class="flex items-center gap-1">
+        @if($tieneAcceso)
+            @if($puedeCrear)
+                <!-- Botón Nuevo - Solo usuarios con permiso de crear -->
+                <button id="btn-nuevo" onclick="nuevaMarca()" 
+                        class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors" 
+                        title="Nuevo">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                </button>
+            @endif
+
+            @if($puedeModificar)
+                <!-- Botón Editar - Solo usuarios con permiso de modificar -->
+                <button id="btn-editar" onclick="editarMarca()" 
+                        class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors cursor-not-allowed" 
+                        disabled 
+                        title="Editar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                </button>
+            @endif
+
+            @if($puedeEliminar || $puedeModificar)
+                <!-- Botón Finalizar - Solo usuarios con permiso de eliminar o modificar -->
+                <button id="btn-finalizar" onclick="finalizarMarca()" 
+                        class="p-2 text-orange-600 hover:text-orange-800 hover:bg-orange-100 rounded-md transition-colors cursor-not-allowed" 
+                        disabled 
+                        title="Finalizar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </button>
+            @endif
+
+            @if(!$puedeCrear && !$puedeModificar && !$puedeEliminar)
+                <!-- Usuario tiene acceso pero sin permisos de acción -->
+                <div class="text-yellow-600 text-sm px-3 py-2 bg-yellow-50 rounded-md border border-yellow-200">
+                    <i class="fas fa-eye mr-1"></i>
+                    Solo lectura
+                </div>
+            @endif
+        @else
+            <!-- Usuario sin acceso al módulo -->
+            <div class="text-red-500 text-sm px-3 py-2 bg-red-50 rounded-md border border-red-200">
+                <i class="fas fa-lock mr-1"></i>
+                Sin permisos para este módulo
+            </div>
+        @endif
     </div>
 @endsection
 
@@ -77,88 +140,139 @@
                                 <input type="text" class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-50 text-gray-600 text-center cursor-not-allowed" placeholder="..." data-telar="{{ $telar->NoTelarId }}" data-field="porcentaje_efi" readonly>
                             </td>
 
-                            <!-- Marcas (editable) -->
+                            <!-- Marcas (editable según permisos) -->
                             <td class="px-2 py-2 border-r border-gray-200">
                                 <div class="relative">
-                                    <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-purple-50 hover:border-purple-400 transition-colors flex items-center justify-between bg-white shadow-sm" data-telar="{{ $telar->NoTelarId }}" data-type="marcas">
-                                        <span class="valor-display-text text-purple-600 font-semibold">0</span>
-                                        <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </button>
-                                    <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-purple-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
-                                        <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
-                                            <div class="number-options-flex p-2 flex gap-1"></div>
+                                    @if($puedeCrear || $puedeModificar)
+                                        <!-- Usuario con permisos de edición -->
+                                        <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-purple-50 hover:border-purple-400 transition-colors flex items-center justify-between bg-white shadow-sm" data-telar="{{ $telar->NoTelarId }}" data-type="marcas">
+                                            <span class="valor-display-text text-purple-600 font-semibold">0</span>
+                                            <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-purple-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
+                                            <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
+                                                <div class="number-options-flex p-2 flex gap-1"></div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    @else
+                                        <!-- Usuario sin permisos de edición -->
+                                        <div class="w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed flex items-center justify-between">
+                                            <span class="valor-display-text text-gray-500 font-semibold">0</span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v-3m0 0V9m0 3h3m-3 0H9"></path>
+                                            </svg>
+                                        </div>
+                                    @endif
                                 </div>
                             </td>
 
-                            <!-- Trama -->
+                            <!-- Trama (editable según permisos) -->
                             <td class="px-2 py-2 border-r border-gray-200">
                                 <div class="relative">
-                                    <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-blue-50 hover:border-blue-400 transition-colors flex items-center justify-between bg-white shadow-sm" data-telar="{{ $telar->NoTelarId }}" data-type="trama">
-                                        <span class="valor-display-text text-blue-600 font-semibold">0</span>
-                                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </button>
-                                    <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-blue-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
-                                        <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
-                                            <div class="number-options-flex p-2 flex gap-1"></div>
+                                    @if($puedeCrear || $puedeModificar)
+                                        <!-- Usuario con permisos de edición -->
+                                        <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-blue-50 hover:border-blue-400 transition-colors flex items-center justify-between bg-white shadow-sm" data-telar="{{ $telar->NoTelarId }}" data-type="trama">
+                                            <span class="valor-display-text text-blue-600 font-semibold">0</span>
+                                            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-blue-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
+                                            <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
+                                                <div class="number-options-flex p-2 flex gap-1"></div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    @else
+                                        <!-- Usuario sin permisos de edición -->
+                                        <div class="w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed flex items-center justify-between">
+                                            <span class="valor-display-text text-gray-500 font-semibold">0</span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v-3m0 0V9m0 3h3m-3 0H9"></path>
+                                            </svg>
+                                        </div>
+                                    @endif
                                 </div>
                             </td>
 
-                            <!-- Pie -->
+                            <!-- Pie (editable según permisos) -->
                             <td class="px-2 py-2 border-r border-gray-200">
                                 <div class="relative">
-                                    <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-green-50 hover:border-green-400 transition-colors flex items-center justify-between bg-white shadow-sm" data-telar="{{ $telar->NoTelarId }}" data-type="pie">
-                                        <span class="valor-display-text text-green-600 font-semibold">0</span>
-                                        <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </button>
-                                    <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-green-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
-                                        <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
-                                            <div class="number-options-flex p-2 flex gap-1"></div>
+                                    @if($puedeCrear || $puedeModificar)
+                                        <!-- Usuario con permisos de edición -->
+                                        <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-green-50 hover:border-green-400 transition-colors flex items-center justify-between bg-white shadow-sm" data-telar="{{ $telar->NoTelarId }}" data-type="pie">
+                                            <span class="valor-display-text text-green-600 font-semibold">0</span>
+                                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-green-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
+                                            <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
+                                                <div class="number-options-flex p-2 flex gap-1"></div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    @else
+                                        <!-- Usuario sin permisos de edición -->
+                                        <div class="w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed flex items-center justify-between">
+                                            <span class="valor-display-text text-gray-500 font-semibold">0</span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v-3m0 0V9m0 3h3m-3 0H9"></path>
+                                            </svg>
+                                        </div>
+                                    @endif
                                 </div>
                             </td>
 
                             <!-- Rizo -->
                             <td class="px-2 py-2 border-r border-gray-200">
                                 <div class="relative">
-                                    <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-yellow-50 hover:border-yellow-400 transition-colors flex items-center justify-between bg-white shadow-sm" data-telar="{{ $telar->NoTelarId }}" data-type="rizo">
-                                        <span class="valor-display-text text-yellow-600 font-semibold">0</span>
-                                        <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </button>
-                                    <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-yellow-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
-                                        <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
-                                            <div class="number-options-flex p-2 flex gap-1"></div>
+                                    @if($puedeCrear || $puedeModificar)
+                                        <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-yellow-50 hover:border-yellow-400 transition-colors flex items-center justify-between bg-white shadow-sm" data-telar="{{ $telar->NoTelarId }}" data-type="rizo">
+                                            <span class="valor-display-text text-yellow-600 font-semibold">0</span>
+                                            <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-yellow-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
+                                            <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
+                                                <div class="number-options-flex p-2 flex gap-1"></div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    @else
+                                        <div class="w-full px-3 py-2 border border-gray-200 rounded text-sm font-medium text-gray-500 bg-gray-50 flex items-center justify-between cursor-not-allowed" style="opacity: 0.6;">
+                                            <span class="valor-display-text text-gray-400 font-semibold">0</span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    @endif
                                 </div>
                             </td>
 
                             <!-- Otros -->
                             <td class="px-2 py-2">
                                 <div class="relative">
-                                    <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-red-50 hover:border-red-400 transition-colors flex items-center justify-between bg-white shadow-sm" data-telar="{{ $telar->NoTelarId }}" data-type="otros">
-                                        <span class="valor-display-text text-red-600 font-semibold">0</span>
-                                        <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </button>
-                                    <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-red-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
-                                        <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
-                                            <div class="number-options-flex p-2 flex gap-1"></div>
+                                    @if($puedeCrear || $puedeModificar)
+                                        <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-red-50 hover:border-red-400 transition-colors flex items-center justify-between bg-white shadow-sm" data-telar="{{ $telar->NoTelarId }}" data-type="otros">
+                                            <span class="valor-display-text text-red-600 font-semibold">0</span>
+                                            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-red-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
+                                            <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
+                                                <div class="number-options-flex p-2 flex gap-1"></div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    @else
+                                        <div class="w-full px-3 py-2 border border-gray-200 rounded text-sm font-medium text-gray-500 bg-gray-50 flex items-center justify-between cursor-not-allowed" style="opacity: 0.6;">
+                                            <span class="valor-display-text text-gray-400 font-semibold">0</span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -624,8 +738,20 @@
                 if (folioInfo) {
                     folioInfo.classList.remove('hidden');
                     // Usar el mismo turno calculado anteriormente, no volver a calcularlo
-                    document.getElementById('tipo-edicion').textContent = 'Nueva Marca';
-                    document.getElementById('folio-activo').textContent = data.folio;
+                    const tipoEdicionElement = document.getElementById('tipo-edicion');
+                    const folioActivoElement = document.getElementById('folio-activo');
+                    
+                    if (tipoEdicionElement) {
+                        tipoEdicionElement.textContent = 'Nueva Marca';
+                    } else {
+                        console.error('Elemento tipo-edicion no encontrado en nueva marca');
+                    }
+                    
+                    if (folioActivoElement) {
+                        folioActivoElement.textContent = data.folio;
+                    } else {
+                        console.error('Elemento folio-activo no encontrado en nueva marca');
+                    }
                     // Agregar info del turno
                     const turnoInfo = document.createElement('span');
                     turnoInfo.className = 'text-purple-500';
@@ -763,8 +889,20 @@
                     folioInfo.classList.remove('hidden');
                     // Al editar, usar siempre el turno guardado en la marca existente
                     const turnoActual = data.marca.Turno;
-                    document.getElementById('tipo-edición').textContent = 'Editando Marca';
-                    document.getElementById('folio-activo').textContent = folio;
+                    const tipoEdicionElement = document.getElementById('tipo-edicion');
+                    const folioActivoElement = document.getElementById('folio-activo');
+                    
+                    if (tipoEdicionElement) {
+                        tipoEdicionElement.textContent = 'Editando Marca';
+                    } else {
+                        console.error('Elemento tipo-edicion no encontrado');
+                    }
+                    
+                    if (folioActivoElement) {
+                        folioActivoElement.textContent = folio;
+                    } else {
+                        console.error('Elemento folio-activo no encontrado');
+                    }
                     // Agregar info del turno
                     const turnoInfo = document.createElement('span');
                     turnoInfo.className = 'text-purple-500';
@@ -782,17 +920,43 @@
                 if (data.lineas) {
                     data.lineas.forEach(linea => {
                         // Actualizar valores en la tabla
+                        // Actualizar valores en la tabla con validación de elementos
                         const marcasBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="marcas"] .valor-display-text`);
                         const tramaBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="trama"] .valor-display-text`);
                         const pieBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="pie"] .valor-display-text`);
                         const rizoBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="rizo"] .valor-display-text`);
                         const otrosBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="otros"] .valor-display-text`);
                         
-                        if (marcasBtn) marcasBtn.textContent = linea.Marcas || 0;
-                        if (tramaBtn) tramaBtn.textContent = linea.Trama || 0;
-                        if (pieBtn) pieBtn.textContent = linea.Pie || 0;
-                        if (rizoBtn) rizoBtn.textContent = linea.Rizo || 0;
-                        if (otrosBtn) otrosBtn.textContent = linea.Otros || 0;
+                        // Validar que los elementos existan antes de asignar valores
+                        if (marcasBtn) {
+                            marcasBtn.textContent = linea.Marcas || 0;
+                        } else {
+                            console.warn(`Elemento marcas no encontrado para telar ${linea.NoTelarId}`);
+                        }
+                        
+                        if (tramaBtn) {
+                            tramaBtn.textContent = linea.Trama || 0;
+                        } else {
+                            console.warn(`Elemento trama no encontrado para telar ${linea.NoTelarId}`);
+                        }
+                        
+                        if (pieBtn) {
+                            pieBtn.textContent = linea.Pie || 0;
+                        } else {
+                            console.warn(`Elemento pie no encontrado para telar ${linea.NoTelarId}`);
+                        }
+                        
+                        if (rizoBtn) {
+                            rizoBtn.textContent = linea.Rizo || 0;
+                        } else {
+                            console.warn(`Elemento rizo no encontrado para telar ${linea.NoTelarId}`);
+                        }
+                        
+                        if (otrosBtn) {
+                            otrosBtn.textContent = linea.Otros || 0;
+                        } else {
+                            console.warn(`Elemento otros no encontrado para telar ${linea.NoTelarId}`);
+                        }
                     });
                 }
             }
