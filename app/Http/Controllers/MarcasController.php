@@ -109,12 +109,14 @@ class MarcasController extends Controller
                 ->value('Folio');
 
             if ($ultimoFolio) {
-                // Extraer el número del folio (asumiendo formato MR0001)
-                $numero = intval(substr($ultimoFolio, 2)) + 1;
-                $nuevoFolio = 'MR' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+                // Extraer los dígitos del folio y continuar la secuencia
+                $soloDigitos = preg_replace('/\D/', '', $ultimoFolio);
+                $numero = intval($soloDigitos) + 1;
+                // Nuevo prefijo solicitado: FM
+                $nuevoFolio = 'FM' . str_pad($numero, 4, '0', STR_PAD_LEFT);
             } else {
                 // Primer folio
-                $nuevoFolio = 'MR0001';
+                $nuevoFolio = 'FM0001';
             }
 
             return response()->json([
@@ -192,13 +194,14 @@ class MarcasController extends Controller
                     try {
                         $eficiencia = DB::table('ReqProgramaTejido')
                             ->where('NoTelarId', $noTelar)
-                            ->orderBy('FechaModificacion', 'desc')
+                            ->orderBy('FechaInicio', 'desc')
                             ->first();
                     } catch (\Exception $e) {
                         Log::warning("Error al buscar eficiencia para telar {$noTelar}: " . $e->getMessage());
                     }
 
-                    $porcentajeEfi = $eficiencia ? ($eficiencia->Eficiencia ?? 0) : 0;
+                    // Usar EficienciaSTD cuando exista
+                    $porcentajeEfi = $eficiencia ? ($eficiencia->EficienciaSTD ?? $eficiencia->Eficiencia ?? 0) : 0;
 
                     Log::info("Telar {$noTelar} - Salón: {$row->SalonId} - Eficiencia: {$porcentajeEfi}");
 
@@ -240,8 +243,8 @@ class MarcasController extends Controller
     {
         try {
             $folio = $request->input('folio');
-            $fecha = $request->input('fecha');
-            $turno = $request->input('turno');
+            $fecha = $request->input('fecha') ?: now()->toDateString();
+            $turno = $request->input('turno') ?: 1;
             $status = $request->input('status', 'En Proceso');
             $lineas = $request->input('lineas', []);
 
@@ -263,13 +266,15 @@ class MarcasController extends Controller
             } else {
                 // Crear nuevo registro
                 DB::table('TejMarcas')->insert([
-                    'Folio' => $folio,
-                    'Date' => $fecha,
-                    'Turno' => $turno,
-                    'Status' => $status,
-                    'idusuario' => $usuario->idusuario,
-                    'created_at' => now(),
-                    'updated_at' => now()
+                    'Folio'           => $folio,
+                    'Date'            => $fecha,
+                    'Turno'           => $turno,
+                    'Status'          => $status,
+                    // columnas existentes según el modelo TejMarcas
+                    'numero_empleado' => $usuario->numero_empleado ?? null,
+                    'nombreEmpl'      => $usuario->nombre ?? null,
+                    'created_at'      => now(),
+                    'updated_at'      => now()
                 ]);
             }
 
@@ -277,17 +282,29 @@ class MarcasController extends Controller
             DB::table('TejMarcasLine')->where('Folio', $folio)->delete();
 
             foreach ($lineas as $linea) {
+                $noTelar = $linea['NoTelarId'];
+
+                // Obtener salón y eficiencia estándar desde ReqProgramaTejido (último registro por telar)
+                $std = DB::table('ReqProgramaTejido')
+                    ->where('NoTelarId', $noTelar)
+                    ->orderBy('FechaInicio', 'desc')
+                    ->select('SalonTejidoId', 'EficienciaSTD')
+                    ->first();
+
                 DB::table('TejMarcasLine')->insert([
-                    'Folio' => $folio,
-                    'NoTelarId' => $linea['NoTelarId'],
-                    'PorcentajeEfi' => $linea['PorcentajeEfi'] ?? null,
-                    'Trama' => $linea['Trama'] ?? 0,
-                    'Pie' => $linea['Pie'] ?? 0,
-                    'Rizo' => $linea['Rizo'] ?? 0,
-                    'Otros' => $linea['Otros'] ?? 0,
-                    'Marcas' => $linea['Marcas'] ?? 0,
-                    'created_at' => now(),
-                    'updated_at' => now()
+                    'Folio'          => $folio,
+                    'Date'           => $fecha,
+                    'Turno'          => $turno,
+                    'SalonTejidoId'  => $std->SalonTejidoId ?? null,
+                    'NoTelarId'      => $noTelar,
+                    'Eficiencia'     => $std->EficienciaSTD ?? null,
+                    'Marcas'         => $linea['Marcas'] ?? 0,
+                    'Trama'          => $linea['Trama'] ?? 0,
+                    'Pie'            => $linea['Pie'] ?? 0,
+                    'Rizo'           => $linea['Rizo'] ?? 0,
+                    'Otros'          => $linea['Otros'] ?? 0,
+                    'created_at'     => now(),
+                    'updated_at'     => now()
                 ]);
             }
 
