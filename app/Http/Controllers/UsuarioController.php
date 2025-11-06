@@ -460,7 +460,7 @@ class UsuarioController extends Controller
             // Módulos de Tejido (orden 52) - ESTRUCTURA JERÁRQUICA
             'Inv Telas' => '/tejido/inventario-telas',
             'Cortes de Eficiencia' => '/submodulos-nivel3/206',  // ✅ Usar URL automática para nietos
-            'Marcas Finales- Cortes de Eficiencia' => '/tejido/inventario/marcas-finales',
+            'Marcas Finales- Cortes de Eficiencia' => '/submodulos-nivel3/202',  // ✅ Usar URL automática para nietos
             'Inv Trama' => '/submodulos-nivel3/203',  // ✅ Usar URL automática para nietos
             'Producción Reenconado Cabezuela' => '/tejido/produccion-reenconado',
             'Configurar' => '/tejido/configurar',
@@ -468,6 +468,14 @@ class UsuarioController extends Controller
             // Nietos de Cortes de Eficiencia (nivel 3) - orden 206-1, 206-2 - ESTRUCTURA JERÁRQUICA
             'Nuevos cortes de eficiencia' => '/modulo-cortes-de-eficiencia',
             'Consultar eficiencia' => '/modulo-cortes-de-eficiencia/consultar',
+
+            // Nietos de Marcas Finales (nivel 3) - orden 202-1, 202-2 - ESTRUCTURA JERÁRQUICA
+            'Nuevas Marcas Finales' => '/modulo-marcas',
+            'Nuevas marcas finales' => '/modulo-marcas',
+            'nuevas marcas finales' => '/modulo-marcas',
+            'Consultar Marcas Finales' => '/modulo-marcas/consultar',
+            'Consultar marcas finales' => '/modulo-marcas/consultar',
+            'consultar marcas finales' => '/modulo-marcas/consultar',
 
             // Nietos de Inv Trama (nivel 3) - orden 203-1, 203-2 - ESTRUCTURA JERÁRQUICA
             'Nuevo requerimiento' => '/tejido/inventario/trama/nuevo-requerimiento',
@@ -531,9 +539,19 @@ class UsuarioController extends Controller
         }
 
         // Si existe en el mapeo específico, usarlo (PRIORIDAD ABSOLUTA)
+        // Primero buscar coincidencia exacta
         if (isset($rutasSubModulos[$nombreModulo])) {
-            Log::info('Ruta encontrada en mapeo: ' . $rutasSubModulos[$nombreModulo]);
+            Log::info('Ruta encontrada en mapeo (coincidencia exacta): ' . $rutasSubModulos[$nombreModulo]);
             return $rutasSubModulos[$nombreModulo];
+        }
+        
+        // Si no hay coincidencia exacta, buscar insensible a mayúsculas
+        $nombreModuloLower = strtolower(trim($nombreModulo));
+        foreach ($rutasSubModulos as $key => $ruta) {
+            if (strtolower(trim($key)) === $nombreModuloLower) {
+                Log::info('Ruta encontrada en mapeo (coincidencia insensible): ' . $ruta);
+                return $ruta;
+            }
         }
 
         // Verificación especial para catálogos (cualquier variación)
@@ -592,10 +610,15 @@ class UsuarioController extends Controller
 
             $subModulos = [];
             foreach ($subModulosDB as $moduloDB) {
+                $rutaGenerada = $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden);
+                
+                // Log temporal para debugging
+                Log::info("Módulo Nivel 3 cargado: {$moduloDB->modulo} (orden: {$moduloDB->orden}) -> Ruta: {$rutaGenerada}");
+                
                 $subModulos[] = [
                     'nombre' => $moduloDB->modulo,
                     'imagen' => $moduloDB->imagen ?? 'default.png',
-                    'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden),
+                    'ruta' => $rutaGenerada,
                     'ruta_tipo' => 'url',
                     'orden' => $moduloDB->orden,
                     'nivel' => $moduloDB->Nivel,
