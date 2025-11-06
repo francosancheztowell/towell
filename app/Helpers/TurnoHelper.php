@@ -47,7 +47,7 @@ class TurnoHelper
             case '1':
                 return '6:30 AM - 2:30 PM';
             case '2':
-                return '2:30 PM - :30 PM';
+                return '2:30 PM - 10:30 PM';
             case '3':
                 return '10:30 PM - 6:30 AM';
             default:

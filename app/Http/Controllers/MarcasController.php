@@ -16,6 +16,13 @@ class MarcasController extends Controller
     public function index(Request $request)
     {
         try {
+            // Permisos: solo permitir acceso a creación si el usuario tiene permiso de crear
+            $permisos = $this->getPermisosMarcas();
+            if (!$permisos || !$permisos->acceso || !$permisos->crear) {
+                // Si no tiene permiso para crear, redirigir a la vista de consulta con mensaje
+                return redirect()->route('marcas.consultar')
+                    ->with('error', 'No tienes permisos para crear nuevas marcas');
+            }
             Log::info('Cargando vista de nuevas marcas');
 
             // Si viene con un folio específico para editar, permitirlo aunque haya otros en proceso
@@ -77,6 +84,8 @@ class MarcasController extends Controller
     public function consultar()
     {
         try {
+            // Obtener permisos para condicionar botones en la vista
+            $permisos = $this->getPermisosMarcas();
             // Obtener todas las marcas (folios en proceso primero, luego por fecha descendente)
             $marcas = DB::table('TejMarcas')
                 ->select('Folio', 'Date', 'Turno', 'numero_empleado', 'Status')
@@ -87,13 +96,14 @@ class MarcasController extends Controller
             // Obtener el último folio creado (el más reciente, o el en proceso si existe)
             $ultimoFolio = $marcas->first();
 
-            return view('modulos.consultar-marcas-finales', compact('marcas', 'ultimoFolio'));
+            return view('modulos.consultar-marcas-finales', compact('marcas', 'ultimoFolio', 'permisos'));
         } catch (\Exception $e) {
             Log::error('Error al consultar marcas: ' . $e->getMessage());
             // Devolver vista con colección vacía para no romper la UI
             $marcas = collect([]);
             $ultimoFolio = null;
-            return view('modulos.consultar-marcas-finales', compact('marcas', 'ultimoFolio'));
+            $permisos = $this->getPermisosMarcas();
+            return view('modulos.consultar-marcas-finales', compact('marcas', 'ultimoFolio', 'permisos'));
         }
     }
 
@@ -104,6 +114,13 @@ class MarcasController extends Controller
     {
         try {
             $usuario = Auth::user();
+            $permisos = $this->getPermisosMarcas();
+            if (!$permisos || !$permisos->acceso || !$permisos->crear) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autorizado para generar folios'
+                ], 403);
+            }
             
             // Obtener el último folio de la tabla TejMarcas
             $ultimoFolio = DB::table('TejMarcas')
@@ -252,8 +269,31 @@ class MarcasController extends Controller
 
             $usuario = Auth::user();
 
-            // Verificar si ya existe el registro
+            $permisos = $this->getPermisosMarcas();
+            if (!$permisos || !$permisos->acceso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso no autorizado'
+                ], 403);
+            }
+
+            // Determinar si es creación o actualización
             $existe = DB::table('TejMarcas')->where('Folio', $folio)->exists();
+            if (!$existe && (!$permisos->crear)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autorizado para crear marcas'
+                ], 403);
+            }
+            if ($existe && (!$permisos->modificar)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autorizado para modificar marcas'
+                ], 403);
+            }
+
+            // Verificar si ya existe el registro
+            // $existe ya determinado arriba
 
             if ($existe) {
                 // Actualizar registro existente
@@ -377,6 +417,13 @@ class MarcasController extends Controller
     public function finalizar($folio)
     {
         try {
+            $permisos = $this->getPermisosMarcas();
+            if (!$permisos || !$permisos->acceso || (!$permisos->eliminar && !$permisos->modificar)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autorizado para finalizar'
+                ], 403);
+            }
             $actualizado = DB::table('TejMarcas')
                 ->where('Folio', $folio)
                 ->update([
@@ -405,5 +452,24 @@ class MarcasController extends Controller
         }
     }
 
-
+    /**
+     * Obtener permisos del módulo Marcas Finales para el usuario autenticado
+     */
+    private function getPermisosMarcas()
+    {
+        $user = Auth::user();
+        if (!$user) return null;
+        return DB::table('SYSUsuariosRoles')
+            ->join('SYSRoles', 'SYSUsuariosRoles.idrol', '=', 'SYSRoles.idrol')
+            ->where('SYSUsuariosRoles.idusuario', $user->idusuario)
+            ->where('SYSUsuariosRoles.acceso', true)
+            ->where(function($query) {
+                $query->where('SYSRoles.modulo', 'LIKE', '%Marcas Finales%')
+                      ->orWhere('SYSRoles.modulo', 'LIKE', '%Nuevas Marcas Finales%')
+                      ->orWhere('SYSRoles.modulo', 'LIKE', '%marcas finales%')
+                      ->orWhere('SYSRoles.modulo', 'LIKE', '%nuevas marcas finales%');
+            })
+            ->select('SYSUsuariosRoles.*', 'SYSRoles.modulo')
+            ->first();
+    }
 }

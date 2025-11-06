@@ -8,13 +8,40 @@
             <div class="flex items-center justify-between">
                 <h1 class="text-2xl font-bold text-white">Marcas Finales</h1>
                 <div class="flex space-x-2">
-                    <a href="{{ route('marcas.nuevo') }}" id="btn-nuevo" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm rounded-lg transition-colors inline-flex items-center">
-                        <i class="fas fa-plus mr-2"></i>Nuevo
-                    </a>
-                    <button id="btn-editar-global" onclick="editarMarcaSeleccionada()" disabled class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 text-sm rounded-lg transition-colors inline-flex items-center">
+                    @php
+                        $user = Auth::user();
+                        $permisosMarcas = null;
+                        if ($user) {
+                            $permisosMarcas = DB::table('SYSUsuariosRoles')
+                                ->join('SYSRoles', 'SYSUsuariosRoles.idrol', '=', 'SYSRoles.idrol')
+                                ->where('SYSUsuariosRoles.idusuario', $user->idusuario)
+                                ->where('SYSUsuariosRoles.acceso', true)
+                                ->where(function($query) {
+                                    $query->where('SYSRoles.modulo', 'LIKE', '%Marcas Finales%')
+                                          ->orWhere('SYSRoles.modulo', 'LIKE', '%Nuevas Marcas Finales%')
+                                          ->orWhere('SYSRoles.modulo', 'LIKE', '%marcas finales%')
+                                          ->orWhere('SYSRoles.modulo', 'LIKE', '%nuevas marcas finales%');
+                                })
+                                ->select('SYSUsuariosRoles.*', 'SYSRoles.modulo')
+                                ->first();
+                        }
+                        $puedeCrear = $permisosMarcas && $permisosMarcas->crear;
+                        $puedeModificar = $permisosMarcas && $permisosMarcas->modificar;
+                    @endphp
+
+                    @if($puedeCrear)
+                        <a href="{{ route('marcas.nuevo') }}" id="btn-nuevo" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm rounded-lg transition-colors inline-flex items-center">
+                            <i class="fas fa-plus mr-2"></i>Nuevo
+                        </a>
+                    @else
+                        <button id="btn-nuevo" disabled class="bg-gray-200 text-gray-500 px-3 py-1.5 text-sm rounded-lg inline-flex items-center cursor-not-allowed">
+                            <i class="fas fa-lock mr-2"></i>Nuevo
+                        </button>
+                    @endif
+                    <button id="btn-editar-global" onclick="editarMarcaSeleccionada()" disabled class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 text-sm rounded-lg transition-colors inline-flex items-center {{ $puedeModificar ? '' : 'opacity-50 cursor-not-allowed' }}" {{ $puedeModificar ? '' : 'disabled' }}>
                         <i class="fas fa-edit mr-2"></i>Editar
                     </button>
-                    <button id="btn-finalizar-global" onclick="finalizarMarcaSeleccionada()" disabled class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-sm rounded-lg transition-colors inline-flex items-center">
+                    <button id="btn-finalizar-global" onclick="finalizarMarcaSeleccionada()" disabled class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-sm rounded-lg transition-colors inline-flex items-center {{ ($puedeModificar || ($permisosMarcas && $permisosMarcas->eliminar)) ? '' : 'opacity-50 cursor-not-allowed' }}" {{ ($puedeModificar || ($permisosMarcas && $permisosMarcas->eliminar)) ? '' : 'disabled' }}>
                         <i class="fas fa-check mr-2"></i>Finalizar
                     </button>
                 </div>

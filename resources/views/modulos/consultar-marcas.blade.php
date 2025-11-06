@@ -20,8 +20,8 @@
 
         <!-- Lista de Marcas -->
         <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-            <div class="overflow-x-auto" style="max-height: 360px; overflow-y: auto;">
-                <table class="w-full table-compact text-xs">
+            <div class="overflow-x-auto scroll-area" style="max-height: 35vh; overflow-y: auto;">
+                <table class="w-full table-compact text-xs whitespace-nowrap">
                     <thead class="bg-gray-50 sticky top-0 z-10">
                         <tr>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Folio</th>
@@ -70,8 +70,8 @@
 
         <!-- Panel de líneas debajo de la tabla principal -->
         <div id="lineas-panel" class="bg-white rounded-lg shadow-lg overflow-hidden hidden">
-            <div class="overflow-x-auto overflow-y-auto" style="max-height: 360px;">
-                <table class="min-w-full text-xs table-compact">
+            <div class="overflow-x-auto overflow-y-auto scroll-area-lines" style="max-height: 45vh;">
+                <table class="min-w-full text-xs table-compact whitespace-nowrap">
                     <thead class="bg-gray-50 sticky top-0 z-20">
                         <tr>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Telar</th>
@@ -114,6 +114,13 @@
     .table-compact th,
     .table-compact td { padding: 0.35rem 0.5rem; line-height: 1.1; }
     .table-compact { font-size: 0.80rem; }
+
+    /* Evitar scroll chaining entre áreas */
+    .scroll-area,
+    .scroll-area-lines {
+        overscroll-behavior: contain;
+        overscroll-behavior-y: contain;
+    }
     
     /* Animaciones suaves */
     .transition-colors {
