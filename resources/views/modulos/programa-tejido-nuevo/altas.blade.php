@@ -722,7 +722,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (salonSelect && salonSelect.value && salonSelect.value !== '') {
             if (window.ProgramaTejidoForm && window.ProgramaTejidoForm.actualizarBotonesTelar) {
                 window.ProgramaTejidoForm.actualizarBotonesTelar(true);
-                        console.log('✅ Botones de telar habilitados');
+                        console.log('Botones de telar habilitados');
                     }
                 }
             };

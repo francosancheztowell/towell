@@ -30,10 +30,13 @@
                 <table class="w-full divide-y divide-gray-200 text-xs leading-tight" id="tablaPronosticos" style="table-layout: fixed; width: 100%;">
                     <thead class="bg-blue-500 text-white sticky top-0 z-10">
                         <tr>
-                            <th class="px-1 py-2 text-left font-semibold whitespace-nowrap cursor-pointer hover:bg-blue-600" style="width: 5%;" onclick="toggleSort('flog')">
+                            <th class="px-1 py-2 text-left font-semibold whitespace-nowrap cursor-pointer hover:bg-blue-600" style="width: 12%;" onclick="toggleSort('flog')">
                                 Flog <i id="sortIcon-flog" class="fa-solid fa-sort ml-1 text-xs"></i>
                             </th>
-                            <th class="px-1 py-2 text-left font-semibold whitespace-nowrap hidden">Proyecto</th>
+
+                            <th class="px-1 py-2 text-left font-semibold whitespace-nowrap cursor-pointer hover:bg-blue-600" style="width: 10%;" onclick="toggleSort('proyecto')">
+                                Proyecto <i id="sortIcon-proyecto" class="fa-solid fa-sort ml-1 text-xs"></i>
+                            </th>
                             <th class="px-1 py-2 text-left font-semibold whitespace-nowrap cursor-pointer hover:bg-blue-600" style="width: 8%;" onclick="toggleSort('cliente')">
                                 Cliente <i id="sortIcon-cliente" class="fa-solid fa-sort-up ml-1 text-xs"></i>
                             </th>
@@ -64,11 +67,11 @@
                             <th class="px-1 py-2 text-left font-semibold whitespace-nowrap cursor-pointer hover:bg-blue-600" style="width: 7%;" onclick="toggleSort('valoragregado')">
                                 V.Agreg. <i id="sortIcon-valoragregado" class="fa-solid fa-sort ml-1 text-xs"></i>
                             </th>
-                            <th class="px-1 py-2 text-left font-semibold whitespace-nowrap cursor-pointer hover:bg-blue-600" style="width: 7%;" onclick="toggleSort('cancelacion')">
-                                Cancelación <i id="sortIcon-cancelacion" class="fa-solid fa-sort ml-1 text-xs"></i>
-                            </th>
                             <th class="px-1 py-2 text-right font-semibold whitespace-nowrap cursor-pointer hover:bg-blue-600" style="width: 6%;" onclick="toggleSort('cantidad')">
                                 Cantidad <i id="sortIcon-cantidad" class="fa-solid fa-sort ml-1 text-xs"></i>
+                            </th>
+                            <th class="px-1 py-2 text-left font-semibold whitespace-nowrap cursor-pointer hover:bg-blue-600" style="width: 7%;" onclick="toggleSort('cancelacion')">
+                                Cancelación <i id="sortIcon-cancelacion" class="fa-solid fa-sort ml-1 text-xs"></i>
                             </th>
                         </tr>
                     </thead>
@@ -126,6 +129,7 @@
         @endif
 
         try {
+            console.log('🔍 Iniciando carga de pronósticos...', params.toString());
             const res = await fetch(`{{ route('pronosticos.get') }}?` + params.toString(), {
                 headers: {
                     'Accept': 'application/json',
@@ -134,21 +138,29 @@
                 method: 'GET',
             });
 
-            const data = await res.json();
+            console.log('📡 Respuesta recibida:', res.status, res.statusText);
 
             if (!res.ok) {
+                const errorText = await res.text();
+                console.error('❌ Error en respuesta:', res.status, errorText);
                 pintar([], []);
                 hideLoading();
                 return;
             }
 
+            const data = await res.json();
+            console.log('✅ Datos recibidos:', {
+                otros: data.otros?.length || 0,
+                batas: data.batas?.length || 0
+            });
+
             pintar(data.otros ?? [], data.batas ?? []);
             hideLoading();
 
         } catch (err) {
+            console.error('💥 Error al cargar pronósticos:', err);
             pintar([], []);
             hideLoading();
-            console.error(err);
         }
     }
 
@@ -172,35 +184,6 @@
         return d;
     }
 
-    function getTipoArticulo(itemTypeId) {
-        if (!itemTypeId) return '';
-        const tipo = parseInt(itemTypeId);
-        if (tipo >= 10 && tipo <= 19) {
-            return 'Bata';
-        }
-        return 'Otro';
-    }
-
-    function tdTipo(item) {
-        const d = document.createElement('td');
-        d.className = 'px-1 py-2 whitespace-nowrap';
-
-        const tipo = item.ITEMTYPEID ? parseInt(item.ITEMTYPEID) : null;
-        const esBata = tipo >= 10 && tipo <= 19;
-
-        if (esBata) {
-            d.innerHTML = `
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">
-                    Bata
-                </span>
-            `;
-        } else {
-            d.textContent = 'Otro';
-            d.className += ' text-gray-700';
-        }
-
-        return d;
-    }
 
     function getCantidad(item) {
         // Ambas consultas (batas y otros) ahora retornan CANTIDAD
@@ -248,7 +231,7 @@
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.className = 'px-6 py-10 text-center';
-            td.colSpan = 15;
+            td.colSpan = 17;
             td.innerHTML = `
                 <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -281,50 +264,48 @@
             // 1. ID FLOG
             tr.appendChild(td(x.IDFLOG ?? ''));
 
-            // 2. Proyecto (oculto)
-            const proyectoCell = td(x.NOMBREPROYECTO ?? '');
-            proyectoCell.classList.add('hidden');
-            tr.appendChild(proyectoCell);
+            // 3. Proyecto
+            tr.appendChild(td(x.NOMBREPROYECTO ?? ''));
 
-            // 3. Cliente
+            // 4. Cliente
             tr.appendChild(td(x.CUSTNAME ?? ''));
 
-            // 4. Calidad
+            // 5. Calidad
             tr.appendChild(td(x.CATEGORIACALIDAD ?? ''));
 
-            // 5. Ancho
+            // 6. Ancho
             tr.appendChild(td(x.ANCHO, true));
 
-            // 6. Largo
+            // 7. Largo
             tr.appendChild(td(x.LARGO, true));
 
-            // 7. Artículo
+            // 8. Artículo
             tr.appendChild(td(x.ITEMID ?? ''));
 
-            // 8. Nombre
+            // 9. Nombre
             tr.appendChild(td(x.ITEMNAME ?? ''));
 
-            // 9. Tamaño
+            // 10. Tamaño
             tr.appendChild(td(x.INVENTSIZEID ?? ''));
 
-            // 10. Razurado
+            // 11. Razurado
             // Para registros normales: usar RASURADOCRUDO, para batas: usar RASURADO
             const razuradoValor = formatRazurado(x.RASURADOCRUDO ?? x.RASURADO);
             tr.appendChild(td(razuradoValor));
 
-            // 11. Tipo Hilo
+            // 12. Tipo Hilo
             tr.appendChild(td(x.TIPOHILOID ?? ''));
 
-            // 12. Valor Agregado
+            // 13. Valor Agregado
             tr.appendChild(td(x.VALORAGREGADO ?? ''));
-
-            // 13. Fecha Cancel
-            const fechaCancel = x.FECHACANCELACION ? new Date(x.FECHACANCELACION).toLocaleDateString('es-ES') : '';
-            tr.appendChild(td(fechaCancel));
 
             // 14. Cantidad (sin decimales)
             const cantidad = getCantidad(x);
             tr.appendChild(td(cantidad, true, true, 0));
+
+            // 15. Fecha Cancel
+            const fechaCancel = x.FECHACANCELACION ? new Date(x.FECHACANCELACION).toLocaleDateString('es-ES') : '';
+            tr.appendChild(td(fechaCancel));
 
             tablaBody.appendChild(tr);
         });
@@ -358,12 +339,8 @@
         // Cambiar texto a blanco en todas las celdas
         const cells = rowElement.querySelectorAll('td');
         cells.forEach(cell => {
-            // No cambiar el color del badge, solo el texto normal
-            const badge = cell.querySelector('span.bg-blue-100');
-            if (!badge) {
-                cell.classList.remove('text-gray-700');
-                cell.classList.add('text-white');
-            }
+            cell.classList.remove('text-gray-700');
+            cell.classList.add('text-white');
         });
 
         // Habilitar botón Programar
@@ -401,19 +378,20 @@
         const cells = row.querySelectorAll('td');
         const indexMap = {
             'flog': 0,
-            'proyecto': 1,
-            'cliente': 2,
-            'calidad': 3,
-            'ancho': 4,
-            'largo': 5,
-            'articulo': 6,
-            'nombre': 7,
-            'tamano': 8,
-            'razurado': 9,
-            'tipohilo': 10,
-            'valoragregado': 11,
-            'cancelacion': 12,
+            'estado': 1,
+            'proyecto': 2,
+            'cliente': 3,
+            'calidad': 4,
+            'ancho': 5,
+            'largo': 6,
+            'articulo': 7,
+            'nombre': 8,
+            'tamano': 9,
+            'razurado': 10,
+            'tipohilo': 11,
+            'valoragregado': 12,
             'cantidad': 13,
+            'cancelacion': 14,
         };
 
         const index = indexMap[column];
@@ -445,7 +423,7 @@
 
     // Función para actualizar los iconos de ordenamiento
     function updateSortIcons(activeColumn) {
-        const columns = ['flog', 'cliente', 'calidad', 'ancho', 'largo', 'articulo', 'nombre', 'tamano', 'razurado', 'tipohilo', 'valoragregado', 'cancelacion', 'cantidad'];
+        const columns = ['flog', 'estado', 'proyecto', 'cliente', 'calidad', 'ancho', 'largo', 'articulo', 'nombre', 'tamano', 'razurado', 'tipohilo', 'valoragregado', 'cantidad', 'cancelacion'];
 
         columns.forEach(col => {
             const icon = document.getElementById(`sortIcon-${col}`);
@@ -480,6 +458,8 @@
             // Mapear columnas a propiedades del objeto
             const columnMap = {
                 'flog': 'IDFLOG',
+                'estado': 'ESTADO',
+                'proyecto': 'NOMBREPROYECTO',
                 'cliente': 'CUSTNAME',
                 'calidad': 'CATEGORIACALIDAD',
                 'ancho': 'ANCHO',
@@ -540,6 +520,8 @@
         // Botón Programar
         if (btnProgramar) {
             btnProgramar.onclick = async () => {
+                console.log('Botón programar clickeado, selectedRowData:', selectedRowData);
+
                 if (!selectedRowData) {
                     Swal.fire({
                         icon: 'warning',
@@ -552,6 +534,8 @@
 
                 const tamano = selectedRowData.INVENTSIZEID || '';
                 const articulo = selectedRowData.ITEMID || '';
+
+                console.log('Datos extraídos:', { tamano, articulo, selectedRowData });
 
                 // HTML del modal
                 const html = `
@@ -821,8 +805,12 @@
                     }
                 });
 
+                console.log('swalRes:', swalRes);
+
                 if (swalRes.isConfirmed && swalRes.value) {
                     const { salon, claveModelo, tamano, articulo, datos } = swalRes.value;
+
+                    console.log('Redirigiendo con datos:', { salon, claveModelo, tamano, articulo, datos });
 
                     // Redirigir con parámetros
                     const url = new URL('{{ route("programa-tejido.pronosticos.nuevo") }}', window.location.origin);
@@ -839,6 +827,12 @@
                     if (datos?.CATEGORIACALIDAD) url.searchParams.set('categoriacalidad', datos.CATEGORIACALIDAD);
 
                     window.location.href = url.toString();
+                } else {
+                    console.log('No se confirmó o no hay valor:', {
+                        isConfirmed: swalRes.isConfirmed,
+                        value: swalRes.value,
+                        dismiss: swalRes.dismiss
+                    });
                 }
             };
         }
@@ -849,6 +843,8 @@
         // Mapeo de columnas para filtros
         const columnasFiltros = {
             'flog': 'Flog',
+            'estado': 'Estado',
+            'proyecto': 'Proyecto',
             'cliente': 'Cliente',
             'calidad': 'Calidad',
             'ancho': 'Ancho',
@@ -866,6 +862,8 @@
         // Mapeo de columnas a propiedades del objeto
         const columnMap = {
             'flog': 'IDFLOG',
+            'estado': 'ESTADO',
+            'proyecto': 'NOMBREPROYECTO',
             'cliente': 'CUSTNAME',
             'calidad': 'CATEGORIACALIDAD',
             'ancho': 'ANCHO',

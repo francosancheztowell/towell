@@ -563,6 +563,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Alta de pronósticos
         Route::get('/planeacion/programa-tejido/alta-pronosticos', [\App\Http\Controllers\PronosticosController::class, 'index'])->name('programa-tejido.alta-pronosticos');
+        Route::post('/pronosticos/sincronizar', [\App\Http\Controllers\PronosticosController::class, 'sincronizar'])->name('pronosticos.sincronizar');
         Route::get('/pronosticos', [\App\Http\Controllers\PronosticosController::class, 'get'])->name('pronosticos.get');
 
         // Nueva ruta para crear/editar programa de tejido
