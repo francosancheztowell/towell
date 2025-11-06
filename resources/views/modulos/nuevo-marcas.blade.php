@@ -25,6 +25,16 @@
 
 @section('content')
 <div class="container mx-auto px-4 py-6">
+    <!-- Campos ocultos para el formulario -->
+    <div class="hidden">
+        <input type="hidden" id="folio" name="folio">
+        <input type="hidden" id="fecha" name="fecha">
+        <input type="hidden" id="turno" name="turno">
+        <input type="hidden" id="status" name="status">
+        <input type="hidden" id="usuario" name="usuario">
+        <input type="hidden" id="noEmpleado" name="noEmpleado">
+    </div>
+
     <!-- Info del Folio Activo -->
     <div id="folio-activo-info" class="bg-purple-50 border-l-4 border-purple-500 text-purple-900 p-3 mb-4 hidden">
         <div class="flex items-center space-x-3">
@@ -67,9 +77,21 @@
                                 <input type="text" class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-50 text-gray-600 text-center cursor-not-allowed" placeholder="..." data-telar="{{ $telar->NoTelarId }}" data-field="porcentaje_efi" readonly>
                             </td>
 
-                            <!-- Marcas (calculado automáticamente) -->
-                            <td class="px-4 py-3 text-center border-r border-gray-200 bg-purple-50">
-                                <div class="marcas-display font-bold text-lg text-purple-700" data-telar="{{ $telar->NoTelarId }}">0</div>
+                            <!-- Marcas (editable) -->
+                            <td class="px-2 py-2 border-r border-gray-200">
+                                <div class="relative">
+                                    <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-purple-50 hover:border-purple-400 transition-colors flex items-center justify-between bg-white shadow-sm" data-telar="{{ $telar->NoTelarId }}" data-type="marcas">
+                                        <span class="valor-display-text text-purple-600 font-semibold">0</span>
+                                        <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </button>
+                                    <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-purple-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
+                                        <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
+                                            <div class="number-options-flex p-2 flex gap-1"></div>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
 
                             <!-- Trama -->
@@ -155,15 +177,22 @@
      * SISTEMA DE GUARDADO AUTOMÁTICO PARA MARCAS
      * ============================================
      * Los datos se guardan automáticamente 1 segundo después de cada cambio.
-     * 
+     * El turno se determina automáticamente basado en la hora actual:
+     * - Turno 1: 6:30 AM - 2:30 PM
+     * - Turno 2: 2:30 PM - 10:30 PM
+     * - Turno 3: 10:30 PM - 6:30 AM
+     *
+     * Campos editables con rangos específicos:
+     * - Marcas: 100-250
+     * - Trama, Pie, Rizo, Otros: 1-100
+     *
      * Flujo de guardado:
-     * 1. Al crear una nueva marca (botón +), se genera un folio y se establece isNewRecord = true
-     * 2. Cualquier cambio en la tabla (Trama, Pie, Rizo, Otros) dispara guardarAutomatico()
+     * 1. Al crear una nueva marca (botón +), se genera un folio y se determina el turno automáticamente
+     * 2. Cualquier cambio en la tabla (Marcas, Trama, Pie, Rizo, Otros) dispara guardarAutomatico()
      * 3. guardarAutomatico() usa la ruta store que internamente usa updateOrCreate()
-     * 4. Marcas se calcula automáticamente como: Trama + Pie + Rizo + Otros
-     * 5. Después del primer guardado exitoso, isNewRecord cambia a false
-     * 6. Si se presiona "Editar" en una marca existente, isNewRecord = false desde el inicio
-     * 
+     * 4. Después del primer guardado exitoso, isNewRecord cambia a false
+     * 5. Si se presiona "Editar" en una marca existente, mantiene el turno original
+     *
      * No es necesario presionar ningún botón de guardar manualmente.
      */
     
@@ -194,6 +223,34 @@
         elements.status = document.getElementById('status');
         elements.segundaTabla = document.getElementById('segunda-tabla');
         elements.headerSection = document.getElementById('header-section');
+    }
+
+    // Función para determinar el turno actual basado en la hora
+    function determinarTurnoActual() {
+        const ahora = new Date();
+        const hora = ahora.getHours();
+        const minutos = ahora.getMinutes();
+        const tiempoActual = hora * 60 + minutos; // Convertir a minutos desde medianoche
+
+        // Turno 1: 6:30 AM - 2:30 PM (6:30 = 390 minutos, 2:30 PM = 870 minutos)
+        // Turno 2: 2:30 PM - 10:30 PM (2:30 PM = 870 minutos, 10:30 PM = 1350 minutos)
+        // Turno 3: 10:30 PM - 6:30 AM (10:30 PM = 1350 minutos hasta 6:30 AM = 390 minutos del día siguiente)
+
+        // Debug: mostrar información en consola
+        console.log(`Hora actual: ${hora}:${minutos.toString().padStart(2, '0')}`);
+        console.log(`Tiempo en minutos: ${tiempoActual}`);
+
+        let turnoCalculado;
+        if (tiempoActual >= 390 && tiempoActual < 870) {
+            turnoCalculado = 1; // Turno 1: 6:30 AM - 2:30 PM
+        } else if (tiempoActual >= 870 && tiempoActual < 1350) {
+            turnoCalculado = 2; // Turno 2: 2:30 PM - 10:30 PM
+        } else {
+            turnoCalculado = 3; // Turno 3: 10:30 PM - 6:30 AM (incluye madrugada)
+        }
+
+        console.log(`Turno calculado: ${turnoCalculado}`);
+        return turnoCalculado;
     }
 
     // Funciones para manejo de selectores de valores
@@ -243,48 +300,75 @@
 
     function generateNumberOptions(selector, tipo, currentValue) {
         const optionsContainer = selector.querySelector('.number-options-flex');
-        
+
         // Si ya tiene opciones, no regenerar (cache)
         if (optionsContainer.children.length > 0) {
             highlightCurrentOption(selector, currentValue);
             return;
         }
-        
-        // Rango de valores: 100 a 250 para marcas
-        const minValue = 85;
-        const maxValue = 250;
-        const hoverClass = tipo === 'trama' ? 'hover:bg-blue-100' : 
-                          tipo === 'pie' ? 'hover:bg-green-100' : 
-                          tipo === 'rizo' ? 'hover:bg-yellow-100' : 'hover:bg-red-100';
-        
+
+        // Definir rangos según el tipo de campo
+        let minValue, maxValue, hoverClass;
+        switch(tipo) {
+            case 'marcas':
+                minValue = 100;
+                maxValue = 250;
+                hoverClass = 'hover:bg-purple-100';
+                break;
+            case 'trama':
+                minValue = 1;
+                maxValue = 100;
+                hoverClass = 'hover:bg-blue-100';
+                break;
+            case 'pie':
+                minValue = 1;
+                maxValue = 100;
+                hoverClass = 'hover:bg-green-100';
+                break;
+            case 'rizo':
+                minValue = 1;
+                maxValue = 100;
+                hoverClass = 'hover:bg-yellow-100';
+                break;
+            case 'otros':
+                minValue = 1;
+                maxValue = 100;
+                hoverClass = 'hover:bg-red-100';
+                break;
+            default:
+                minValue = 1;
+                maxValue = 100;
+                hoverClass = 'hover:bg-gray-100';
+        }
+
         // Renderizado optimizado: solo crear opciones visibles inicialmente
         const viewportWidth = 300; // Ancho estimado del viewport del selector
         const optionWidth = 36; // w-8 + spacing
         const visibleOptions = Math.ceil(viewportWidth / optionWidth);
         const bufferOptions = 20; // Opciones extra para scroll suave
-        
+
         // Calcular rango inicial basado en currentValue
         const startRange = Math.max(minValue, currentValue - Math.floor(visibleOptions / 2) - bufferOptions);
         const endRange = Math.min(maxValue + 1, startRange + visibleOptions + (bufferOptions * 2));
-        
+
         const fragment = document.createDocumentFragment();
-        
-        // Crear opciones en el rango visible (de minValue a maxValue)
+
+        // Crear opciones en el rango visible
         for (let i = startRange; i < endRange; i++) {
             const option = document.createElement('span');
             option.className = `number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer ${hoverClass} rounded transition-colors bg-gray-100 text-gray-700`;
             option.setAttribute('data-value', i.toString());
             option.textContent = i.toString();
-            
+
             // Highlight si es el valor actual
             if (i === currentValue) {
                 option.classList.remove('bg-gray-100', 'text-gray-700');
                 option.classList.add('bg-purple-500', 'text-white');
             }
-            
+
             fragment.appendChild(option);
         }
-        
+
         // Agregar placeholders para mantener el scroll correcto
         if (startRange > minValue) {
             const startPlaceholder = document.createElement('div');
@@ -293,9 +377,9 @@
             startPlaceholder.style.height = '32px';
             optionsContainer.appendChild(startPlaceholder);
         }
-        
+
         optionsContainer.appendChild(fragment);
-        
+
         if (endRange < maxValue + 1) {
             const endPlaceholder = document.createElement('div');
             endPlaceholder.className = 'inline-block';
@@ -303,7 +387,7 @@
             endPlaceholder.style.height = '32px';
             optionsContainer.appendChild(endPlaceholder);
         }
-        
+
         // Configurar lazy loading para el resto de opciones si es necesario
         setupLazyOptionLoading(selector, tipo, maxValue, optionWidth, hoverClass);
     }
@@ -311,6 +395,16 @@
     function setupLazyOptionLoading(selector, tipo, maxValue, optionWidth, hoverClass) {
         const scrollContainer = selector.querySelector('.number-scroll-container');
         const optionsContainer = selector.querySelector('.number-options-flex');
+        
+        // Definir minValue según el tipo
+        let minValue;
+        switch(tipo) {
+            case 'marcas':
+                minValue = 100;
+                break;
+            default:
+                minValue = 1;
+        }
         
         let isLoading = false;
         
@@ -362,8 +456,8 @@
         // Cerrar selector
         selector.classList.add('hidden');
         
-        // Actualizar marcas totales
-        actualizarMarcasTotales(telar);
+        // Actualizar display de marcas totales (removido - ahora es editable)
+        // actualizarMarcasTotales(telar);
         
         // Guardar automáticamente
         guardarAutomatico();
@@ -398,22 +492,7 @@
         }, 10);
     }
 
-    function actualizarMarcasTotales(telar) {
-        // Obtener valores de cada columna para el telar
-        const trama = parseInt(document.querySelector(`button[data-telar="${telar}"][data-type="trama"] .valor-display-text`)?.textContent) || 0;
-        const pie = parseInt(document.querySelector(`button[data-telar="${telar}"][data-type="pie"] .valor-display-text`)?.textContent) || 0;
-        const rizo = parseInt(document.querySelector(`button[data-telar="${telar}"][data-type="rizo"] .valor-display-text`)?.textContent) || 0;
-        const otros = parseInt(document.querySelector(`button[data-telar="${telar}"][data-type="otros"] .valor-display-text`)?.textContent) || 0;
-        
-        // Calcular total de marcas
-        const marcasTotales = trama + pie + rizo + otros;
-        
-        // Actualizar display de marcas totales
-        const marcasDisplay = document.querySelector(`.marcas-display[data-telar="${telar}"]`);
-        if (marcasDisplay) {
-            marcasDisplay.textContent = marcasTotales;
-        }
-    }
+
 
     let guardarTimeout = null;
     function guardarAutomatico() {
@@ -446,7 +525,7 @@
             const pie = parseInt(row.querySelector(`button[data-telar="${telar}"][data-type="pie"] .valor-display-text`)?.textContent) || 0;
             const rizo = parseInt(row.querySelector(`button[data-telar="${telar}"][data-type="rizo"] .valor-display-text`)?.textContent) || 0;
             const otros = parseInt(row.querySelector(`button[data-telar="${telar}"][data-type="otros"] .valor-display-text`)?.textContent) || 0;
-            const marcas = trama + pie + rizo + otros;
+            const marcas = parseInt(row.querySelector(`button[data-telar="${telar}"][data-type="marcas"] .valor-display-text`)?.textContent) || 0;
             
             datos.push({
                 NoTelarId: telar,
@@ -459,6 +538,16 @@
             });
         });
         
+        // Debug: mostrar datos que se van a enviar
+        const datosEnvio = {
+            folio: currentFolio,
+            fecha: elements.fecha?.value,
+            turno: elements.turno?.value,
+            status: elements.status?.value,
+            lineas: datos
+        };
+        console.log('Datos enviando al backend:', datosEnvio);
+        
         // Enviar al backend
         fetch('/modulo-marcas/store', {
             method: 'POST',
@@ -467,13 +556,7 @@
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({
-                folio: currentFolio,
-                fecha: elements.fecha?.value,
-                turno: elements.turno?.value,
-                status: elements.status?.value,
-                lineas: datos
-            })
+            body: JSON.stringify(datosEnvio)
         })
         .then(response => response.json())
         .then(data => {
@@ -512,9 +595,26 @@
                 isNewRecord = true;
                 isEditing = true;
                 
+                // Determinar turno automáticamente basado en la hora actual
+                const turnoActual = determinarTurnoActual();
+                
+                // Debug: verificar si los elementos existen
+                console.log('Elementos encontrados:', {
+                    folio: !!elements.folio,
+                    fecha: !!elements.fecha,
+                    turno: !!elements.turno,
+                    status: !!elements.status
+                });
+                
                 // Actualizar UI
                 if (elements.folio) elements.folio.value = data.folio;
                 if (elements.fecha) elements.fecha.value = new Date().toISOString().split('T')[0];
+                if (elements.turno) {
+                    elements.turno.value = turnoActual;
+                    console.log('Campo turno actualizado a:', turnoActual);
+                } else {
+                    console.log('Campo turno no encontrado en el DOM');
+                }
                 if (elements.status) elements.status.value = 'En Proceso';
                 if (elements.usuario) elements.usuario.value = data.usuario || '';
                 if (elements.noEmpleado) elements.noEmpleado.value = data.numero_empleado || '';
@@ -523,13 +623,23 @@
                 const folioInfo = document.getElementById('folio-activo-info');
                 if (folioInfo) {
                     folioInfo.classList.remove('hidden');
+                    // Usar el mismo turno calculado anteriormente, no volver a calcularlo
+                    document.getElementById('tipo-edicion').textContent = 'Nueva Marca';
                     document.getElementById('folio-activo').textContent = data.folio;
+                    // Agregar info del turno
+                    const turnoInfo = document.createElement('span');
+                    turnoInfo.className = 'text-purple-500';
+                    turnoInfo.textContent = ' | Turno: ' + turnoActual;
+                    const folioElement = document.getElementById('folio-activo');
+                    if (folioElement && folioElement.nextSibling) {
+                        folioElement.parentNode.insertBefore(turnoInfo, folioElement.nextSibling);
+                    }
                 }
                 
                 // Mostrar secciones
                 if (elements.headerSection) elements.headerSection.style.display = 'block';
                 
-                console.log('Folio generado correctamente: ' + data.folio);
+                console.log('Folio generado correctamente: ' + data.folio + ' - Turno: ' + turnoActual);
             }
         })
         .catch(error => {
@@ -640,14 +750,29 @@
                 // Cargar datos en UI
                 if (elements.folio) elements.folio.value = data.marca.Folio;
                 if (elements.fecha) elements.fecha.value = data.marca.Date;
-                if (elements.turno) elements.turno.value = data.marca.Turno;
+                if (elements.turno) {
+                    // Al editar una marca existente, SIEMPRE mantener el turno original guardado
+                    // No determinar automáticamente el turno al editar
+                    elements.turno.value = data.marca.Turno;
+                }
                 if (elements.status) elements.status.value = data.marca.Status;
                 
                 // Mostrar info del folio
                 const folioInfo = document.getElementById('folio-activo-info');
                 if (folioInfo) {
                     folioInfo.classList.remove('hidden');
+                    // Al editar, usar siempre el turno guardado en la marca existente
+                    const turnoActual = data.marca.Turno;
+                    document.getElementById('tipo-edición').textContent = 'Editando Marca';
                     document.getElementById('folio-activo').textContent = folio;
+                    // Agregar info del turno
+                    const turnoInfo = document.createElement('span');
+                    turnoInfo.className = 'text-purple-500';
+                    turnoInfo.textContent = ' | Turno: ' + turnoActual;
+                    const folioElement = document.getElementById('folio-activo');
+                    if (folioElement && folioElement.nextSibling) {
+                        folioElement.parentNode.insertBefore(turnoInfo, folioElement.nextSibling);
+                    }
                 }
                 
                 // Mostrar secciones
@@ -657,18 +782,17 @@
                 if (data.lineas) {
                     data.lineas.forEach(linea => {
                         // Actualizar valores en la tabla
+                        const marcasBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="marcas"] .valor-display-text`);
                         const tramaBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="trama"] .valor-display-text`);
                         const pieBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="pie"] .valor-display-text`);
                         const rizoBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="rizo"] .valor-display-text`);
                         const otrosBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="otros"] .valor-display-text`);
                         
+                        if (marcasBtn) marcasBtn.textContent = linea.Marcas || 0;
                         if (tramaBtn) tramaBtn.textContent = linea.Trama || 0;
                         if (pieBtn) pieBtn.textContent = linea.Pie || 0;
                         if (rizoBtn) rizoBtn.textContent = linea.Rizo || 0;
                         if (otrosBtn) otrosBtn.textContent = linea.Otros || 0;
-                        
-                        // Actualizar marcas totales
-                        actualizarMarcasTotales(linea.NoTelarId);
                     });
                 }
             }

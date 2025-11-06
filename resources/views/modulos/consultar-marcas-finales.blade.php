@@ -38,7 +38,7 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($marcas as $marca)
-                        <tr class="hover:bg-gray-50 cursor-pointer" onclick="seleccionarMarca('{{ $marca->Folio }}', this)">
+                        <tr class="hover:bg-gray-50 cursor-pointer {{ isset($ultimoFolio) && $ultimoFolio->Folio == $marca->Folio ? 'fila-seleccionada' : '' }}" onclick="seleccionarMarca('{{ $marca->Folio }}', this)" data-folio="{{ $marca->Folio }}">
                             <td class="px-4 py-3 text-sm font-semibold text-gray-900 border-r border-gray-200">{{ $marca->Folio }}</td>
                             <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ \Carbon\Carbon::parse($marca->Date)->format('d/m/Y') }}</td>
                             <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">Turno {{ $marca->Turno }}</td>
@@ -115,21 +115,113 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     let marcaSeleccionada = null;
+    let statusSeleccionado = null;
 
     function seleccionarMarca(folio, row) {
+        // Remover selección anterior
         document.querySelectorAll('tbody tr').forEach(tr => tr.classList.remove('fila-seleccionada'));
         row.classList.add('fila-seleccionada');
 
         marcaSeleccionada = folio;
-        document.getElementById('btn-editar-global').disabled = false;
-        document.getElementById('btn-finalizar-global').disabled = false;
 
-        fetch(`/modulo-marcas/${folio}`, { headers: { 'Accept': 'application/json' } })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) return;
-                mostrarDetalles(data.marca, data.lineas || data.marca.marcas_line || []);
-            }).catch(err => console.error(err));
+        // Cargar detalles con timeout para evitar bloqueos
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
+
+        fetch(`/modulo-marcas/${folio}`, {
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal
+        })
+        .then(r => {
+            clearTimeout(timeoutId);
+            if (!r.ok) {
+                throw new Error(`HTTP error! status: ${r.status}`);
+            }
+            return r.json();
+        })
+        .then(data => {
+            if (!data.success) {
+                console.warn('La API no devolvió success:', data);
+                return;
+            }
+
+            // Guardar el status del folio seleccionado
+            statusSeleccionado = data.marca.Status;
+
+            // Configurar botones según el status
+            configurarBotonesSegunStatus(statusSeleccionado);
+
+            mostrarDetalles(data.marca, data.lineas || data.marca.marcas_line || []);
+        })
+        .catch(err => {
+            if (err.name === 'AbortError') {
+                console.error('La solicitud fue cancelada por timeout');
+            } else {
+                console.error('Error al cargar detalles del folio:', err);
+            }
+            // Mostrar mensaje de error pero no bloquear la UI
+            Swal.fire({
+                icon: 'warning',
+                title: 'Error al cargar detalles',
+                text: 'No se pudieron cargar los detalles del folio, pero puedes continuar navegando.',
+                confirmButtonText: 'Entendido'
+            });
+        });
+    }
+
+    function configurarBotonesSegunStatus(status) {
+        const btnNuevo = document.getElementById('btn-nuevo');
+        const btnEditar = document.getElementById('btn-editar-global');
+        const btnFinalizar = document.getElementById('btn-finalizar-global');
+
+        if (status === 'Finalizado') {
+            // Folio finalizado: deshabilitar Nuevo y Editar
+            btnNuevo.disabled = true;
+            btnNuevo.classList.add('opacity-50', 'cursor-not-allowed');
+            btnEditar.disabled = true;
+            btnEditar.classList.add('opacity-50', 'cursor-not-allowed');
+            btnFinalizar.disabled = true;
+            btnFinalizar.classList.add('opacity-50', 'cursor-not-allowed');
+        } else if (status === 'En Proceso') {
+            // Folio en proceso: deshabilitar solo Nuevo
+            btnNuevo.disabled = true;
+            btnNuevo.classList.add('opacity-50', 'cursor-not-allowed');
+            btnEditar.disabled = false;
+            btnEditar.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnFinalizar.disabled = false;
+            btnFinalizar.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+            // Otro status: habilitar todos
+            btnNuevo.disabled = false;
+            btnNuevo.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnEditar.disabled = false;
+            btnEditar.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnFinalizar.disabled = false;
+            btnFinalizar.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    function limpiarSeleccion() {
+        marcaSeleccionada = null;
+        statusSeleccionado = null;
+
+        // Remover selección visual
+        document.querySelectorAll('tbody tr').forEach(tr => tr.classList.remove('fila-seleccionada'));
+
+        // Resetear botones
+        const btnNuevo = document.getElementById('btn-nuevo');
+        const btnEditar = document.getElementById('btn-editar-global');
+        const btnFinalizar = document.getElementById('btn-finalizar-global');
+
+        btnNuevo.disabled = false;
+        btnNuevo.classList.remove('opacity-50', 'cursor-not-allowed');
+        btnEditar.disabled = true;
+        btnEditar.classList.add('opacity-50', 'cursor-not-allowed');
+        btnFinalizar.disabled = true;
+        btnFinalizar.classList.add('opacity-50', 'cursor-not-allowed');
+
+        // Ocultar panel de detalles
+        document.getElementById('preview-panel').classList.add('hidden');
     }
 
     function mostrarDetalles(marca, lineas) {
@@ -199,8 +291,25 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('btn-editar-global').disabled = true;
-        document.getElementById('btn-finalizar-global').disabled = true;
+        // Inicializar estado de botones (sin selección)
+        limpiarSeleccion();
+
+        // Si hay un último folio, seleccionarlo automáticamente después de que la página cargue completamente
+        @if(isset($ultimoFolio))
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const ultimoFolio = '{{ $ultimoFolio->Folio }}';
+                const filaUltimo = document.querySelector(`tr[data-folio="${ultimoFolio}"]`);
+                if (filaUltimo) {
+                    try {
+                        seleccionarMarca(ultimoFolio, filaUltimo);
+                    } catch (error) {
+                        console.error('Error al seleccionar folio automáticamente:', error);
+                    }
+                }
+            }, 200);
+        });
+        @endif
     });
 </script>
 

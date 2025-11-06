@@ -13,11 +13,30 @@ class MarcasController extends Controller
     /**
      * Mostrar la vista de nuevas marcas (nuevo-marcas.blade.php)
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
             Log::info('Cargando vista de nuevas marcas');
-            
+
+            // Si viene con un folio específico para editar, permitirlo aunque haya otros en proceso
+            if ($request->has('folio')) {
+                Log::info('Cargando folio específico para editar: ' . $request->folio);
+                // Aquí no redirigimos, permitimos cargar la vista con el folio específico
+            } else {
+                // Verificar si hay algún folio en proceso solo si no viene con folio específico
+                $folioEnProceso = DB::table('TejMarcas')
+                    ->where('Status', 'En Proceso')
+                    ->orderBy('Date', 'desc')
+                    ->first();
+
+                // Si hay un folio en proceso, redirigir automáticamente a editarlo
+                if ($folioEnProceso) {
+                    Log::info('Redirigiendo a folio en proceso desde nuevo: ' . $folioEnProceso->Folio);
+                    return redirect()->route('marcas.nuevo', ['folio' => $folioEnProceso->Folio])
+                        ->with('warning', 'Hay un folio en proceso. Se ha redirigido automáticamente para continuar editándolo.');
+                }
+            }
+
             // Intentar primero con InvSecuenciaMarcas, si falla usar InvSecuenciaTelares
             try {
                 $telares = DB::table('InvSecuenciaMarcas')
@@ -44,10 +63,10 @@ class MarcasController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al cargar vista de marcas: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
-            
+
             // Si hay error con las tablas, intentar con array vacío
             $telares = collect([]);
-            
+
             return view('modulos.nuevo-marcas', compact('telares'));
         }
     }
@@ -58,18 +77,23 @@ class MarcasController extends Controller
     public function consultar()
     {
         try {
-            // Obtener todas las marcas (ordenadas por fecha descendente)
+            // Obtener todas las marcas (folios en proceso primero, luego por fecha descendente)
             $marcas = DB::table('TejMarcas')
                 ->select('Folio', 'Date', 'Turno', 'numero_empleado', 'Status')
+                ->orderByRaw("CASE WHEN Status = 'En Proceso' THEN 0 ELSE 1 END")
                 ->orderByDesc('Date')
                 ->get();
 
-            return view('modulos.consultar-marcas-finales', compact('marcas'));
+            // Obtener el último folio creado (el más reciente, o el en proceso si existe)
+            $ultimoFolio = $marcas->first();
+
+            return view('modulos.consultar-marcas-finales', compact('marcas', 'ultimoFolio'));
         } catch (\Exception $e) {
             Log::error('Error al consultar marcas: ' . $e->getMessage());
             // Devolver vista con colección vacía para no romper la UI
             $marcas = collect([]);
-            return view('modulos.consultar-marcas-finales', compact('marcas'));
+            $ultimoFolio = null;
+            return view('modulos.consultar-marcas-finales', compact('marcas', 'ultimoFolio'));
         }
     }
 
