@@ -112,7 +112,9 @@
     </style>
     <div class="container mx-auto">
         <script>
-            window.ACTUALIZAR_CANTIDAD_URL = @json($actualizarCantidadUrl ?? url('/modulo-nuevo-requerimiento/actualizar-cantidad'));
+            window.GUARDAR_REQ_URL = @json(route('tejido.inventario.trama.nuevo.requerimiento.store'));
+            window.TURNO_INFO_URL = @json(route('tejido.inventario.trama.nuevo.requerimiento.turno.info'));
+            window.ACTUALIZAR_CANTIDAD_URL = @json(route('tejido.inventario.trama.nuevo.requerimiento.actualizar.cantidad'));
         </script>
 
         <!-- Lista de Requerimientos en Proceso -->
@@ -335,7 +337,7 @@
                                         <td class="px-4 py-1">
                                             <div class="flex items-center justify-center relative">
                                                 <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                                                    <span class="quantity-display text-md font-semibold">0</span>
+                                                    <span class="quantity-display text-md font-semibold">-</span>
                                                 </button>
                                                 <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                     <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -359,7 +361,7 @@
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-center relative">
                                             <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                                                <span class="quantity-display text-md font-semibold">0</span>
+                                                <span class="quantity-display text-md font-semibold">-</span>
                                             </button>
                                             <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -383,7 +385,7 @@
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-center relative">
                                             <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                                                <span class="quantity-display text-md font-semibold">0</span>
+                                                <span class="quantity-display text-md font-semibold">-</span>
                                             </button>
                                             <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -407,7 +409,7 @@
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-center">
                                             <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                                                <span class="quantity-display text-md font-semibold">0</span>
+                                                <span class="quantity-display text-md font-semibold">-</span>
                                             </button>
                                             <div class="quantity-edit-container hidden relative w-20">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -431,7 +433,7 @@
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-center">
                                             <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                                                <span class="quantity-display text-md font-semibold">0</span>
+                                                <span class="quantity-display text-md font-semibold">-</span>
                                             </button>
                                             <div class="quantity-edit-container hidden relative w-20">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -455,7 +457,7 @@
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-center relative">
                                             <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                                                <span class="quantity-display text-md font-semibold">0</span>
+                                                <span class="quantity-display text-md font-semibold">-</span>
                                             </button>
                                             <div class="quantity-edit-container hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -479,7 +481,7 @@
                                     <td class="px-4 py-1">
                                         <div class="flex items-center justify-center relative">
                                             <button class="edit-quantity-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2" onclick="toggleQuantityEdit(this)">
-                                                <span class="quantity-display text-md font-semibold">0</span>
+                                                <span class="quantity-display text-md font-semibold">-</span>
                                             </button>
                                             <div class="quantity-edit-container hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -769,7 +771,7 @@
                     this.classList.add('bg-blue-500', 'text-white');
 
                     // Actualizar el texto mostrado
-                    quantityDisplay.textContent = selectedValue;
+                    quantityDisplay.textContent = selectedValue === '0' ? '-' : selectedValue;
 
                     // Verificar si es un consumo existente (tiene ID)
                     const consumoId = row.getAttribute('data-consumo-id');
@@ -864,7 +866,7 @@
                 // En modo edición, mantener turno y folio de TejTrama
                 return;
             }
-            fetch('/modulo-nuevo-requerimiento/turno-info')
+            fetch(window.TURNO_INFO_URL)
                 .then(response => response.json())
                 .then(data => {
                     const desc = descripcionTurno(data.turno);
@@ -893,9 +895,13 @@
             showToast(`Editando folio ${folio}`, 'info');
         }
 
+        // Variables globales para controlar el estado
+        window.registrosCreados = false;
+        window.folioActual = null;
+
         // Cargar folio desde el servidor y guardar automáticamente si no hay En Proceso
         function cargarFolioYAutoGuardar() {
-            fetch('/modulo-nuevo-requerimiento/turno-info')
+            fetch(window.TURNO_INFO_URL)
                 .then(r => r.json())
                 .then(data => {
                     const hasQueryFolio = new URLSearchParams(window.location.search).has('folio');
@@ -933,8 +939,9 @@
                 section.querySelectorAll('tbody tr').forEach(row => {
                     const q = row.querySelector('.quantity-display');
                     if (!q) return;
-                    const cantidad = parseInt(q.textContent);
-                    // Forzar guardado incluso con cantidad = 0
+                    const cantidadTexto = q.textContent.trim();
+                    // En autoguardado inicial, incluir TODAS las filas (incluso las vacías)
+                    const cantidad = cantidadTexto === '-' ? 0 : parseInt(cantidadTexto);
                     const celdas = row.querySelectorAll('td');
                     if (celdas.length < 4) return;
                     // Artículo (calibre) puede venir como '-' => enviar null
@@ -964,7 +971,8 @@
                 });
             });
 
-            fetch('/modulo-nuevo-requerimiento/guardar', {
+            // Siempre crear folio inicial, aunque no haya consumos
+            fetch(window.GUARDAR_REQ_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -983,13 +991,14 @@
                     }
                     const isEditMode = !!folioQuery;
                     if (isEditMode) {
-                        showToast(`Cambios editados. Folio: ${data.folio}`, 'success');
-                        // Redirigir a consultar tras breve espera
-                        setTimeout(() => {
-                            window.location.href = `{{ route('tejido.inventario.trama.consultar.requerimiento') }}?folio=${encodeURIComponent(data.folio)}`;
-                        }, 600);
+                        showToast(`Cambios guardados. Folio: ${data.folio}`, 'success');
                     } else {
-                        showToast(`Folio creado: ${data.folio}`, 'success');
+                        showToast(`Registros creados. Folio: ${data.folio}`, 'success');
+                        // Marcar que los registros fueron creados y guardar el folio
+                        window.registrosCreados = true;
+                        window.folioActual = data.folio;
+                        // Obtener los IDs de los registros creados sin recargar la página
+                        obtenerIdsRegistros();
                     }
                 } else {
                     showToast(data.message || 'No se pudo crear folio', data.message ? 'warning' : 'error');
@@ -997,6 +1006,70 @@
             })
             .catch(() => {
                 showToast('No se pudo crear folio', 'error');
+            });
+        }
+
+        // Función para obtener IDs de registros creados sin recargar la página
+        function obtenerIdsRegistros() {
+            if (!window.folioActual) {
+                console.error('No hay folio actual para obtener IDs');
+                return;
+            }
+
+            // Hacer petición para obtener los registros del folio actual
+            fetch(`/modulo-consultar-requerimiento/${encodeURIComponent(window.folioActual)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.consumos) {
+                        // Asignar IDs a las filas correspondientes
+                        asignarIdsAFilas(data.consumos);
+                        showToast('IDs de registros obtenidos correctamente', 'success');
+                    } else {
+                        console.error('Error al obtener registros:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al obtener IDs de registros:', error);
+                });
+        }
+
+        // Función para asignar IDs a las filas de la tabla
+        function asignarIdsAFilas(consumos) {
+            document.querySelectorAll('.telar-section').forEach(section => {
+                const telarId = section.getAttribute('data-telar');
+                
+                section.querySelectorAll('tbody tr').forEach(row => {
+                    const celdas = row.querySelectorAll('td');
+                    if (celdas.length < 4) return;
+
+                    // Obtener datos de la fila
+                    const articuloTexto = celdas[0].textContent.trim();
+                    const calibre = parseFloat(articuloTexto.replace(',', '.'));
+                    const calibreValor = isNaN(calibre) ? null : calibre;
+                    
+                    const fibraTxt = celdas[1].textContent.trim();
+                    const codTxt = celdas[2].textContent.trim();
+                    const colorTxt = celdas[3].textContent.trim();
+                    
+                    const fibraNorm = (!fibraTxt || fibraTxt === '-') ? null : fibraTxt;
+                    const codNorm = (!codTxt || codTxt === '-') ? null : codTxt;
+                    const colorNorm = (!colorTxt || colorTxt === '-') ? null : colorTxt;
+
+                    // Buscar el consumo correspondiente
+                    const consumoCorrespondiente = consumos.find(c => 
+                        String(c.NoTelarId) === String(telarId) &&
+                        ((c.CalibreTrama === null && calibreValor === null) || 
+                         (c.CalibreTrama !== null && calibreValor !== null && Math.abs(parseFloat(c.CalibreTrama) - calibreValor) < 0.01)) &&
+                        ((c.FibraTrama === null && fibraNorm === null) || c.FibraTrama === fibraNorm) &&
+                        ((c.CodColorTrama === null && codNorm === null) || c.CodColorTrama === codNorm) &&
+                        ((c.ColorTrama === null && colorNorm === null) || c.ColorTrama === colorNorm)
+                    );
+
+                    if (consumoCorrespondiente) {
+                        row.setAttribute('data-consumo-id', consumoCorrespondiente.Id);
+                        console.log(`ID ${consumoCorrespondiente.Id} asignado a fila del telar ${telarId}`);
+                    }
+                });
             });
         }
 
@@ -1205,7 +1278,7 @@
                     this.classList.add('bg-blue-500', 'text-white');
 
                     // Actualizar el texto mostrado
-                    if (quantityDisplay) quantityDisplay.textContent = selectedValue;
+                    if (quantityDisplay) quantityDisplay.textContent = selectedValue === '0' ? '-' : selectedValue;
 
                     // Verificar si es un consumo existente (tiene ID)
                     const consumoId = row.getAttribute('data-consumo-id');
@@ -1247,44 +1320,47 @@
         function guardarRequerimientos() {
             const consumos = [];
 
-            // Recopilar datos de todas las filas con cantidad > 0
-            document.querySelectorAll('tr').forEach(row => {
-                const quantityDisplay = row.querySelector('.quantity-display');
-                if (quantityDisplay) {
-                    const cantidad = parseInt(quantityDisplay.textContent);
-                    if (cantidad > 0) {
-                        // Obtener datos de la fila
-                        const celdas = row.querySelectorAll('td');
-                        if (celdas.length >= 4) {
-                            const telarSection = row.closest('[id^="telar-"]');
-                            const telarId = telarSection ? telarSection.id.replace('telar-', '') : '';
-                            const salon = telarSection ? (telarSection.getAttribute('data-salon') || (telarId >= 300 ? 'ITEMA' : 'JACQUARD')) : (telarId >= 300 ? 'ITEMA' : 'JACQUARD');
-                            const orden = telarSection ? (telarSection.getAttribute('data-orden') || '') : '';
-                            const producto = telarSection ? (telarSection.getAttribute('data-producto') || '') : '';
-                            // Normalizar calibre como número (punto decimal)
-                            const articuloTexto = celdas[0].textContent.trim();
-                            const calibreParsed = parseFloat(articuloTexto.replace(',', '.'));
-                            const calibreValor = isNaN(calibreParsed) ? null : calibreParsed;
-                            consumos.push({
-                                telar: telarId,
-                                salon: salon,
-                                orden: orden,
-                                calibre: calibreValor,
-                                producto: producto,
-                                fibra: celdas[1].textContent.trim(),
-                                cod_color: celdas[2].textContent.trim(),
-                                color: celdas[3].textContent.trim(),
-                                cantidad: cantidad,
-                                fecha_inicio: new Date().toISOString().split('T')[0], // Fecha actual
-                                fecha_final: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 7 días después
-                            });
-                        }
-                    }
-                }
+            // Recopilar datos de todas las filas (incluso cantidad = 0), normalizando como en autoGuardarRequerimientos
+            document.querySelectorAll('.telar-section').forEach(section => {
+                const telarId = section.getAttribute('data-telar');
+                const salon = section.getAttribute('data-salon');
+                const orden = section.getAttribute('data-orden') || '';
+                const producto = section.getAttribute('data-producto') || '';
+                section.querySelectorAll('tbody tr').forEach(row => {
+                    const q = row.querySelector('.quantity-display');
+                    if (!q) return;
+                    const cantidadTexto = q.textContent.trim();
+                    // Incluir todas las filas, incluso las vacías (con cantidad 0)
+                    const cantidad = cantidadTexto === '-' ? 0 : parseInt(cantidadTexto);
+                    const celdas = row.querySelectorAll('td');
+                    if (celdas.length < 4) return;
+                    const articuloTexto = celdas[0].textContent.trim();
+                    const calibre = parseFloat(articuloTexto.replace(',', '.'));
+                    const calibreValor = isNaN(calibre) ? null : calibre;
+                    const fibraTxt = celdas[1].textContent.trim();
+                    const codTxt = celdas[2].textContent.trim();
+                    const colorTxt = celdas[3].textContent.trim();
+                    const fibraNorm = (!fibraTxt || fibraTxt === '-') ? null : fibraTxt;
+                    const codNorm = (!codTxt || codTxt === '-') ? null : codTxt;
+                    const colorNorm = (!colorTxt || colorTxt === '-') ? null : colorTxt;
+                    consumos.push({
+                        telar: telarId,
+                        salon: salon,
+                        orden: orden,
+                        calibre: calibreValor,
+                        producto: producto,
+                        fibra: fibraNorm,
+                        cod_color: codNorm,
+                        color: colorNorm,
+                        cantidad: cantidad,
+                        fecha_inicio: new Date().toISOString().split('T')[0],
+                        fecha_final: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                    });
+                });
             });
 
             if (consumos.length === 0) {
-                showToast('No hay cantidades para editar', 'warning');
+                showToast('No hay filas para guardar', 'warning');
                 return;
             }
 
@@ -1294,7 +1370,7 @@
 
             if (isEditMode) {
                 // Guardar directamente sin confirmación en modo edición
-                fetch('/modulo-nuevo-requerimiento/guardar', {
+                fetch(window.GUARDAR_REQ_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1331,7 +1407,7 @@
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (!result.isConfirmed) return;
-                fetch('/modulo-nuevo-requerimiento/guardar', {
+                fetch(window.GUARDAR_REQ_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1428,12 +1504,25 @@
             allOptions.forEach(o=>{ o.classList.remove('bg-blue-500','text-white'); o.classList.add('bg-gray-100','text-gray-700'); });
             opt.classList.remove('bg-gray-100','text-gray-700');
             opt.classList.add('bg-blue-500','text-white');
-            if (quantityDisplay) quantityDisplay.textContent = selectedValue;
+            if (quantityDisplay) quantityDisplay.textContent = selectedValue === '0' ? '-' : selectedValue;
             const consumoId = row?.getAttribute('data-consumo-id');
             if (consumoId) {
                 actualizarCantidadEnBD(consumoId, selectedValue);
             } else {
-                showToast(`Cantidad actualizada a ${selectedValue} conos`);
+                // Si no hay ID y los registros no han sido creados, crearlos primero
+                if (!window.registrosCreados) {
+                    showToast('Creando registros iniciales...', 'info');
+                    // Ejecutar autoguardado para crear todos los registros
+                    autoGuardarRequerimientos();
+                    return;
+                }
+                
+                // Si los registros ya fueron creados pero esta fila no tiene ID, intentar obtenerlos de nuevo
+                if (window.registrosCreados && !row.getAttribute('data-consumo-id')) {
+                    showToast('Obteniendo ID del registro...', 'info');
+                    obtenerIdsRegistros();
+                    return;
+                }
             }
             const editContainer = row?.querySelector('.quantity-edit-container');
             const editBtn = row?.querySelector('.edit-quantity-btn');

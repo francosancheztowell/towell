@@ -79,11 +79,8 @@ class NuevoRequerimientoController extends Controller
         // Verificar si hay un folio "En Proceso" en TejTrama
         $folioEnProceso = TejTrama::where('Status', 'En Proceso')->first();
 
-        if ($folioEnProceso) {
-            // Si hay un folio en proceso, redirigir a consultar requerimiento
-            return redirect()->route('tejido.inventario.trama.consultar.requerimiento')
-                ->with('info', 'Ya existe un requerimiento en proceso. Folio: ' . $folioEnProceso->Folio);
-        }
+        // CAMBIO: No redirigir automáticamente, permitir crear nuevo requerimiento
+        // El usuario puede continuar con el existente desde "Consultar Requerimiento"
 
         // Cargar datos desde ReqProgramaTejido para mostrar información de telares
         $datosPorTelar = [];

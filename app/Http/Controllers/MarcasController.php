@@ -58,40 +58,18 @@ class MarcasController extends Controller
     public function consultar()
     {
         try {
-            // Obtener todas las marcas ordenadas por fecha descendente
-            // Ajustar según el nombre real de tu tabla y modelo
+            // Obtener todas las marcas (ordenadas por fecha descendente)
             $marcas = DB::table('TejMarcas')
-                ->leftJoin('SYSUsuario', 'TejMarcas.idusuario', '=', 'SYSUsuario.idusuario')
-                ->select('TejMarcas.*', 'SYSUsuario.nombre as nombreEmpl', 'SYSUsuario.numero_empleado')
-                ->orderBy('TejMarcas.Date', 'desc')
-                ->orderBy('TejMarcas.created_at', 'desc')
+                ->select('Folio', 'Date', 'Turno', 'numero_empleado', 'Status')
+                ->orderByDesc('Date')
                 ->get();
 
-            // Cargar líneas para cada marca
-            foreach ($marcas as $marca) {
-                $marca->lineas = DB::table('TejMarcasLine')
-                    ->where('Folio', $marca->Folio)
-                    ->orderBy('NoTelarId')
-                    ->get();
-            }
-
-            // Evitar caché del navegador para esta vista
-            return response()
-                ->view('modulos.consultar-marcas', compact('marcas'))
-                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-                ->header('Pragma', 'no-cache')
-                ->header('Expires', '0');
-            
+            return view('modulos.consultar-marcas-finales', compact('marcas'));
         } catch (\Exception $e) {
             Log::error('Error al consultar marcas: ' . $e->getMessage());
-            
-            // Si hay error, retornar vista vacía y sin caché
+            // Devolver vista con colección vacía para no romper la UI
             $marcas = collect([]);
-            return response()
-                ->view('modulos.consultar-marcas', compact('marcas'))
-                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-                ->header('Pragma', 'no-cache')
-                ->header('Expires', '0');
+            return view('modulos.consultar-marcas-finales', compact('marcas'));
         }
     }
 
@@ -201,7 +179,7 @@ class MarcasController extends Controller
                     }
 
                     // Usar EficienciaSTD cuando exista
-                    $porcentajeEfi = $eficiencia ? ($eficiencia->EficienciaSTD ?? $eficiencia->Eficiencia ?? 0) : 0;
+                    $porcentajeEfi = $eficiencia ? number_format(($eficiencia -> EficienciaSTD ?? $eficiencia -> EficienciaSTD ?? 0) *100, 0) :0;
 
                     Log::info("Telar {$noTelar} - Salón: {$row->SalonId} - Eficiencia: {$porcentajeEfi}");
 

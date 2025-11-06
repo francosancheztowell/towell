@@ -47,7 +47,7 @@
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #9333ea; min-width: 100px;">Telar</th>
                             <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #9333ea; min-width: 100px;">Salón</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #9333ea; min-width: 100px;">%Efi</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style="position: sticky; top: 0; z-index: 30; background-color: #9333ea; min-width: 100px;">% Efi</th>
                             <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-purple-600" style="position: sticky; top: 0; z-index: 30; background-color: #7c3aed; min-width: 120px;">Marcas</th>
                             <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-blue-400" style="position: sticky; top: 0; z-index: 30; background-color: #60a5fa; min-width: 100px;">Trama</th>
                             <th class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider bg-green-400" style="position: sticky; top: 0; z-index: 30; background-color: #4ade80; min-width: 100px;">Pie</th>
@@ -251,7 +251,7 @@
         }
         
         // Rango de valores: 100 a 250 para marcas
-        const minValue = 100;
+        const minValue = 85;
         const maxValue = 250;
         const hoverClass = tipo === 'trama' ? 'hover:bg-blue-100' : 
                           tipo === 'pie' ? 'hover:bg-green-100' : 
