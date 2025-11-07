@@ -333,13 +333,17 @@ class MarcasController extends Controller
                     ->select('SalonTejidoId', 'EficienciaSTD')
                     ->first();
 
+                // Determinar eficiencia a guardar: usar porcentaje enviado si viene, si no usar STD
+                $efiPercent = isset($linea['PorcentajeEfi']) ? intval($linea['PorcentajeEfi']) : null;
+                $efiDecimal = $efiPercent !== null ? ($efiPercent / 100) : ($std->EficienciaSTD ?? null);
+
                 DB::table('TejMarcasLine')->insert([
                     'Folio'          => $folio,
                     'Date'           => $fecha,
                     'Turno'          => $turno,
                     'SalonTejidoId'  => $std->SalonTejidoId ?? null,
                     'NoTelarId'      => $noTelar,
-                    'Eficiencia'     => $std->EficienciaSTD ?? null,
+                    'Eficiencia'     => $efiDecimal,
                     'Marcas'         => $linea['Marcas'] ?? 0,
                     'Trama'          => $linea['Trama'] ?? 0,
                     'Pie'            => $linea['Pie'] ?? 0,

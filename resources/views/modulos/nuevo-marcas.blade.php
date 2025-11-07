@@ -137,7 +137,31 @@
                                 <input type="text" class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-50 text-gray-600 text-center cursor-not-allowed" value="{{ $telar->SalonId ?? '-' }}" data-telar="{{ $telar->NoTelarId }}" data-field="salon" readonly>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap text-center border-r border-gray-200">
-                                <input type="text" class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-50 text-gray-600 text-center cursor-not-allowed" placeholder="..." data-telar="{{ $telar->NoTelarId }}" data-field="porcentaje_efi" readonly>
+                                <div class="relative">
+                                    @if($puedeCrear || $puedeModificar)
+                                        <!-- % Eficiencia editable como selector -->
+                                        <button type="button" class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900 hover:bg-indigo-50 hover:border-indigo-400 transition-colors flex items-center justify-between bg-white shadow-sm"
+                                            data-telar="{{ $telar->NoTelarId }}" data-type="efi">
+                                            <span class="valor-display-text text-indigo-600 font-semibold">-</span>
+                                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-indigo-300 rounded-lg shadow-xl z-50" style="transform: translateX(-50%);">
+                                            <div class="number-scroll-container overflow-x-auto scrollbar-hide" style="max-width: 300px;">
+                                                <div class="number-options-flex p-2 flex gap-1"></div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <!-- % Eficiencia solo lectura -->
+                                        <div class="w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed flex items-center justify-between">
+                                            <span class="valor-display-text text-gray-500 font-semibold">-</span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v-3m0 0V9m0 3h3m-3 0H9"></path>
+                                            </svg>
+                                        </div>
+                                    @endif
+                                </div>
                             </td>
 
                             <!-- Marcas (editable según permisos) -->
@@ -429,6 +453,11 @@
                 maxValue = 250;
                 hoverClass = 'hover:bg-purple-100';
                 break;
+            case 'efi':
+                minValue = 0;
+                maxValue = 100;
+                hoverClass = 'hover:bg-indigo-100';
+                break;
             case 'trama':
                 minValue = 1;
                 maxValue = 100;
@@ -503,7 +532,7 @@
         }
 
         // Configurar lazy loading para el resto de opciones si es necesario
-        setupLazyOptionLoading(selector, tipo, maxValue, optionWidth, hoverClass);
+    setupLazyOptionLoading(selector, tipo, maxValue, optionWidth, hoverClass);
     }
 
     function setupLazyOptionLoading(selector, tipo, maxValue, optionWidth, hoverClass) {
@@ -515,6 +544,9 @@
         switch(tipo) {
             case 'marcas':
                 minValue = 100;
+                break;
+            case 'efi':
+                minValue = 0;
                 break;
             default:
                 minValue = 1;
@@ -565,7 +597,11 @@
         const tipo = btn.getAttribute('data-type');
         
         // Actualizar el display
-        displayText.textContent = value;
+        if (tipo === 'efi') {
+            displayText.textContent = `${value}%`;
+        } else {
+            displayText.textContent = value;
+        }
         
         // Cerrar selector
         selector.classList.add('hidden');
@@ -634,7 +670,8 @@
             if (!telarCell) return;
             
             const telar = telarCell.textContent.trim();
-            const porcentajeEfi = row.querySelector(`input[data-telar="${telar}"][data-field="porcentaje_efi"]`)?.value || '';
+            const porcentajeEfiText = row.querySelector(`button[data-telar="${telar}"][data-type="efi"] .valor-display-text`)?.textContent || '';
+            const porcentajeEfi = parseInt((porcentajeEfiText || '').toString().replace('%','')) || 0;
             const trama = parseInt(row.querySelector(`button[data-telar="${telar}"][data-type="trama"] .valor-display-text`)?.textContent) || 0;
             const pie = parseInt(row.querySelector(`button[data-telar="${telar}"][data-type="pie"] .valor-display-text`)?.textContent) || 0;
             const rizo = parseInt(row.querySelector(`button[data-telar="${telar}"][data-type="rizo"] .valor-display-text`)?.textContent) || 0;
@@ -794,9 +831,9 @@
                     }
                     
                     // Actualizar %Efi
-                    const efiInput = document.querySelector(`input[data-telar="${item.telar}"][data-field="porcentaje_efi"]`);
-                    if (efiInput) {
-                        efiInput.value = item.porcentaje_efi ? item.porcentaje_efi + '%' : '-';
+                    const efiDisplay = document.querySelector(`button[data-telar="${item.telar}"][data-type="efi"] .valor-display-text`) || document.querySelector(`[data-telar="${item.telar}"][data-type="efi"] .valor-display-text`);
+                    if (efiDisplay) {
+                        efiDisplay.textContent = (item.porcentaje_efi !== null && item.porcentaje_efi !== undefined) ? (item.porcentaje_efi + '%') : '-';
                     }
                 });
                 
@@ -921,6 +958,7 @@
                     data.lineas.forEach(linea => {
                         // Actualizar valores en la tabla
                         // Actualizar valores en la tabla con validación de elementos
+                        const efiBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="efi"] .valor-display-text`);
                         const marcasBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="marcas"] .valor-display-text`);
                         const tramaBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="trama"] .valor-display-text`);
                         const pieBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="pie"] .valor-display-text`);
@@ -928,6 +966,12 @@
                         const otrosBtn = document.querySelector(`button[data-telar="${linea.NoTelarId}"][data-type="otros"] .valor-display-text`);
                         
                         // Validar que los elementos existan antes de asignar valores
+                        if (efiBtn) {
+                            const efVal = (typeof linea.Eficiencia === 'number') ? Math.round(linea.Eficiencia * 100) : (parseInt(linea.Eficiencia || linea.EficienciaSTD || linea.EficienciaStd) || 0);
+                            efiBtn.textContent = efVal ? `${efVal}%` : '-';
+                        } else {
+                            console.warn(`Elemento %Efi no encontrado para telar ${linea.NoTelarId}`);
+                        }
                         if (marcasBtn) {
                             marcasBtn.textContent = linea.Marcas || 0;
                         } else {

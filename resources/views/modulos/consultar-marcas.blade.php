@@ -7,7 +7,7 @@
 
     @if($marcas->count() > 0)
         <!-- Botones de Acción -->
-        <div class="mb-4 flex justify-start space-x-2">
+        <div class="mb-2 flex justify-start space-x-2">
             <button id="btn-editar-folio" onclick="editarFolioSeleccionado()" disabled class="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200">
                 <i class="fas fa-edit mr-2"></i>
                 Editar Folio
@@ -19,9 +19,9 @@
         </div>
 
         <!-- Lista de Marcas -->
-        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-            <div class="overflow-x-auto scroll-area" style="max-height: 35vh; overflow-y: auto;">
-                <table class="w-full table-compact text-xs whitespace-nowrap">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-3">
+            <div class="overflow-x-auto scroll-area" style="max-height: 24vh; overflow-y: auto;">
+                <table class="w-full text-xs table-compact-y">
                     <thead class="bg-gray-50 sticky top-0 z-10">
                         <tr>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Folio</th>
@@ -69,8 +69,8 @@
         </div>
 
         <!-- Panel de líneas debajo de la tabla principal -->
-        <div id="lineas-panel" class="bg-white rounded-lg shadow-lg overflow-hidden hidden">
-            <div class="overflow-x-auto overflow-y-auto scroll-area-lines" style="max-height: 45vh;">
+        <div id="lineas-panel" class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="overflow-x-auto overflow-y-auto scroll-area-lines" style="max-height: 36vh;">
                 <table class="min-w-full text-xs table-compact whitespace-nowrap">
                     <thead class="bg-gray-50 sticky top-0 z-20">
                         <tr>
@@ -114,6 +114,16 @@
     .table-compact th,
     .table-compact td { padding: 0.35rem 0.5rem; line-height: 1.1; }
     .table-compact { font-size: 0.80rem; }
+
+    /* Compacta alto sin estrechar (solo para la principal) */
+    .table-compact-y th,
+    .table-compact-y td {
+        padding-top: 0.20rem;
+        padding-bottom: 0.20rem;
+        padding-left: 0.9rem;  /* mantener ancho visual */
+        padding-right: 0.9rem; /* mantener ancho visual */
+        line-height: 1.15;
+    }
 
     /* Evitar scroll chaining entre áreas */
     .scroll-area,
@@ -303,21 +313,21 @@
             };
             
             tr.innerHTML = `
-                <td class="px-2 py-1.5 font-semibold text-gray-900">
+                <td class="px-2 py-1 font-semibold text-gray-900">
                     <div class="flex items-center">
                         <div class="bg-purple-100 text-purple-800 rounded-full px-2 py-1 text-xs font-medium">
                             ${l.NoTelarId ?? '-'}
                         </div>
                     </div>
                 </td>
-                <td class="px-2 py-1.5 text-center">${formatValue(l.PorcentajeEfi, '%')}</td>
-                <td class="px-2 py-1.5 text-center">
-                    <span class="text-purple-600 font-bold text-base">${formatValue(l.Marcas)}</span>
+                <td class="px-2 py-1 text-center">${formatValue(l.PorcentajeEfi, '%')}</td>
+                <td class="px-2 py-1 text-center">
+                    <span class="text-purple-600 font-bold text-sm">${formatValue(l.Marcas)}</span>
                 </td>
-                <td class="px-2 py-1.5 text-center text-blue-600">${formatValue(l.Trama)}</td>
-                <td class="px-2 py-1.5 text-center text-green-600">${formatValue(l.Pie)}</td>
-                <td class="px-2 py-1.5 text-center text-yellow-600">${formatValue(l.Rizo)}</td>
-                <td class="px-2 py-1.5 text-center text-red-600">${formatValue(l.Otros)}</td>
+                <td class="px-2 py-1 text-center text-blue-600">${formatValue(l.Trama)}</td>
+                <td class="px-2 py-1 text-center text-green-600">${formatValue(l.Pie)}</td>
+                <td class="px-2 py-1 text-center text-yellow-600">${formatValue(l.Rizo)}</td>
+                <td class="px-2 py-1 text-center text-red-600">${formatValue(l.Otros)}</td>
             `;
             cont.appendChild(tr);
         });
@@ -511,6 +521,15 @@
                 toggleLineasPanel(folio);
             });
         });
+
+        // Seleccionar automáticamente el primer folio para mostrar ambas tablas sin necesidad de scroll adicional
+        const firstRow = document.querySelector('tr[data-folio]');
+        if (firstRow) {
+            const folio = firstRow.getAttribute('data-folio');
+            toggleLineasPanel(folio);
+            // Asegurar foco visual
+            firstRow.classList.add('fila-seleccionada');
+        }
     });
 </script>
 @endsection
