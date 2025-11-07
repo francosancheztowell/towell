@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 use App\Models\TejProduccionReenconado;
 use Illuminate\Support\Facades\Auth;
 use App\Helpers\FolioHelper;
+use App\Helpers\TurnoHelper;
 
 class ProduccionReenconadoCabezuelaController extends Controller
 {
@@ -186,19 +187,48 @@ class ProduccionReenconadoCabezuelaController extends Controller
     public function generarFolio(Request $request)
     {
         try {
+            $user = Auth::user();
+            
             // No consumir la secuencia al abrir modal: devolver folio sugerido (lectura)
             $folio = FolioHelper::obtenerFolioSugerido('Reenconado', 4);
-            $user = Auth::user();
+            
+            // Si no hay folio sugerido, generar uno temporal
+            if (empty($folio)) {
+                $folio = 'CE0001'; // Folio por defecto si no existe la secuencia
+            }
+            
+            $turno = TurnoHelper::getTurnoActual();
+            
+            Log::info('Generando folio para modal', [
+                'folio' => $folio,
+                'turno' => $turno,
+                'usuario' => $user->nombre ?? '',
+                'numero_empleado' => $user->numero_empleado ?? '',
+            ]);
+            
             return response()->json([
                 'success' => true,
                 'folio' => $folio,
-                'usuario' => $user->nombre ?? null,
-                'numero_empleado' => $user->numero_empleado ?? null,
+                'turno' => $turno,
+                'usuario' => $user->nombre ?? '',
+                'numero_empleado' => $user->numero_empleado ?? '',
                 'fecha' => date('Y-m-d'),
             ]);
         } catch (\Throwable $e) {
-            Log::error('Generar folio endpoint fallo', ['exception' => $e]);
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            Log::error('Generar folio endpoint fallo', [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false, 
+                'message' => $e->getMessage(),
+                'folio' => 'TEMP-' . time(),
+                'turno' => '1',
+                'usuario' => '',
+                'numero_empleado' => '',
+                'fecha' => date('Y-m-d'),
+            ], 200); // Devolver 200 para que el frontend procese el fallback
         }
     }
 }
