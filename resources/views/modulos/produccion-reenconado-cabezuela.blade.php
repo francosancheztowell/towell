@@ -7,7 +7,7 @@ Producción Reenconado Cabezuela
 
 @push('styles')
 <style>
-  .table-capture thead th{ position: sticky; top: 0; background:#f8fafc; z-index:5; border-bottom:2px solid #e5e7eb;}
+    .table-capture thead th{ position: sticky; top: 0; z-index:5; border-bottom:2px solid #e5e7eb;}
   .table-capture input, .table-capture select { min-width: 110px; }
   .table-capture .w-sm { width: 90px; }
   .table-capture .w-xs { width: 72px; }
@@ -32,9 +32,18 @@ Producción Reenconado Cabezuela
 
         <div class="flex items-center justify-between mb-3">
                 <div></div>
-                <div>
-                        <button type="button" id="btn-nuevo" class="btn btn-primary">
+                <div class="flex gap-2">
+                        <button type="button" id="btn-reporte" class="btn btn-primary bg-amber-300">
+                                <i class="fa fa-file-alt"></i> Reporte
+                        </button>
+                        <button type="button" id="btn-nuevo" class="btn btn-primary bg-green-400">
                                 <i class="fa fa-plus"></i> Nuevo
+                        </button>
+                        <button type="button" id="btn-modificar" class="btn btn-primary bg-amber-400">
+                                <i class="fa fa-edit"></i> Modificar
+                        </button>
+                        <button type="button" id="btn-eliminar" class="btn btn-primary bg-red-400">
+                                <i class="fa fa-trash"></i> Eliminar
                         </button>
                 </div>
         </div>
@@ -42,23 +51,21 @@ Producción Reenconado Cabezuela
         <div class="table-responsive rounded shadow-sm bg-white">
                 <table class="table table-sm table-bordered align-middle mb-0 table-capture" id="tabla-registros">
                         <thead>
-                                <tr class="text-center align-middle">
-                                        <th class="w-sm">Folio</th>
-                                        <th class="w-sm">Fecha</th>
-                                        <th class="w-xs">Turno</th>
-                                        <th class="w-sm">Operador</th>
-                                        <th class="w-lg">Nombre</th>
-                                        <th class="w-xs">Calibre</th>
-                                        <th class="w-sm">Fibra</th>
-                                        <th class="w-sm">Cod color</th>
-                                        <th class="w-lg">Nombre color</th>
-                                        <th class="w-sm">Cantidad</th>
-                                        <th class="w-xs">Conos</th>
-                                        <th class="w-sm">Tiempo (hrs)</th>
-                                        <th class="w-sm">Eficiencia</th>
-                                        <th class="w-lg">Obs</th>
-                                        <th class="w-xs">Acciones</th>
-                                </tr>
+                <tr class="text-center align-middle">
+                    <th class="w-sm bg-blue-400">Folio</th>
+                    <th class="w-sm bg-blue-400">Fecha</th>
+                    <th class="w-xs bg-blue-400">Turno</th>
+                    <th class="w-lg bg-blue-400">Nombre</th>
+                    <th class="w-xs bg-blue-400">Calibre</th>
+                    <th class="w-sm bg-blue-400">Fibra</th>
+                    <th class="w-sm bg-blue-400">Cod color</th>
+                    <th class="w-lg bg-blue-400">Nombre color</th>
+                    <th class="w-sm bg-blue-400">Cantidad</th>
+                    <th class="w-xs bg-blue-400">Conos</th>
+                    <th class="w-sm bg-blue-400">Tiempo (hrs)</th>
+                    <th class="w-sm bg-blue-400">Eficiencia</th>
+                    <th class="w-lg bg-blue-400">Obs</th>
+                </tr>
                         </thead>
                         <tbody id="rows-body">
                                 @forelse($registros as $r)
@@ -66,7 +73,6 @@ Producción Reenconado Cabezuela
                                                 <td>{{ $r->Folio }}</td>
                                                 <td>{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}</td>
                                                 <td class="text-center">{{ $r->Turno }}</td>
-                                                <td>{{ $r->numero_empleado }}</td>
                                                 <td>{{ $r->nombreEmpl }}</td>
                                                 <td class="text-end">{{ is_null($r->Calibre) ? '' : number_format($r->Calibre, 2) }}</td>
                                                 <td>{{ $r->FibraTrama }}</td>
@@ -77,13 +83,9 @@ Producción Reenconado Cabezuela
                                                 <td class="text-end">{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2) }}</td>
                                                 <td class="text-end">{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2) }}</td>
                                                 <td>{{ $r->Obs }}</td>
-                                                <td class="text-center">
-                                                        <button class="btn btn-outline-secondary btn-sm" disabled title="Editar (próximamente)"><i class="fa fa-pen"></i></button>
-                                                        <button class="btn btn-outline-danger btn-sm" disabled title="Eliminar (próximamente)"><i class="fa fa-trash"></i></button>
-                                                </td>
                                         </tr>
                                 @empty
-                                        <tr><td colspan="15" class="text-center text-muted">Sin registros</td></tr>
+                                        <tr><td colspan="13" class="text-center text-muted">Sin registros</td></tr>
                                 @endforelse
                         </tbody>
                 </table>
