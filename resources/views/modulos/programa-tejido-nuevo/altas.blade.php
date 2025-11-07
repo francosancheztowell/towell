@@ -564,6 +564,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 console.log('✅ idflog-input encontrado, estableciendo valor:', Q.idflog);
                 setVal('idflog-input', Q.idflog, false); // No disparar eventos aún
+                // Deshabilitar el input si viene desde la URL
+                input.disabled = true;
+                input.classList.add('bg-gray-100');
+                input.classList.remove('bg-white');
             };
 
             // Intentar inmediatamente y con delays
@@ -644,16 +648,42 @@ document.addEventListener('DOMContentLoaded', function() {
             if (Q.idflog) {
                 if (idflogInput && idflogInput.value === Q.idflog) {
                     console.log('✅ idflog establecido correctamente:', Q.idflog);
+                    // Deshabilitar el input si viene desde la URL
+                    idflogInput.disabled = true;
+                    idflogInput.classList.add('bg-gray-100');
+                    idflogInput.classList.remove('bg-white');
+                    // Cargar descripción desde idflog si está disponible
+                    if (window.ProgramaTejidoForm && window.ProgramaTejidoForm.cargarDescripcionPorIdFlog) {
+                        window.ProgramaTejidoForm.cargarDescripcionPorIdFlog(Q.idflog);
+                    }
                 } else {
                     console.warn('⚠️ idflog-input no se estableció correctamente, reintentando...');
                     setVal('idflog-input', Q.idflog, false, true); // force=true
+                    // Deshabilitar el input si viene desde la URL
+                    if (idflogInput) {
+                        idflogInput.disabled = true;
+                        idflogInput.classList.add('bg-gray-100');
+                        idflogInput.classList.remove('bg-white');
+                    }
                     // Reintentar después de un delay adicional
                     setTimeout(() => {
                         const idflogInput2 = document.getElementById('idflog-input');
                         if (idflogInput2 && idflogInput2.value !== Q.idflog) {
                             setVal('idflog-input', Q.idflog, false, true); // force=true
+                            // Deshabilitar el input si viene desde la URL
+                            idflogInput2.disabled = true;
+                            idflogInput2.classList.add('bg-gray-100');
+                            idflogInput2.classList.remove('bg-white');
                         } else if (idflogInput2 && idflogInput2.value === Q.idflog) {
                             console.log('✅ idflog establecido correctamente en reintento:', Q.idflog);
+                            // Deshabilitar el input si viene desde la URL
+                            idflogInput2.disabled = true;
+                            idflogInput2.classList.add('bg-gray-100');
+                            idflogInput2.classList.remove('bg-white');
+                            // Cargar descripción desde idflog si está disponible
+                            if (window.ProgramaTejidoForm && window.ProgramaTejidoForm.cargarDescripcionPorIdFlog) {
+                                window.ProgramaTejidoForm.cargarDescripcionPorIdFlog(Q.idflog);
+                            }
                         }
                     }, 500);
                 }
@@ -678,6 +708,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         const descripcion = Q.nombreproyecto || Q.descripcion;
                         setVal('descripcion', descripcion, false, true); // force=true
                         console.log('✅ Descripción establecida desde URL:', descripcion);
+                    } else if (Q.idflog) {
+                        // Si hay idflog pero no hay descripción aún, intentar cargarla desde el idflog
+                        setTimeout(() => {
+                            if (window.ProgramaTejidoForm && window.ProgramaTejidoForm.cargarDescripcionPorIdFlog) {
+                                window.ProgramaTejidoForm.cargarDescripcionPorIdFlog(Q.idflog);
+                            }
+                        }, 300);
                     }
                 } else {
                     console.log('✅ Descripción ya establecida:', descripcionEl.value);

@@ -592,29 +592,50 @@ class ReqProgramaTejidoObserver
                 return null;
             }
 
-            // Intentar obtener N1 y N2 de diferentes formas
-            // Primero intentar campos directos N1 y N2
+            // Obtener N1 y N2 del modelo ReqMatrizHilos
+            // Priorizar N1 y N2, usar Calibre/Calibre2 como fallback solo si N1/N2 no tienen valores válidos
             $n1 = null;
             $n2 = null;
 
-            if (isset($matrizHilo->N1) && isset($matrizHilo->N2)) {
-                $n1 = (float) ($matrizHilo->N1 ?? 0);
-                $n2 = (float) ($matrizHilo->N2 ?? 0);
-                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando N1 y N2 directos', [
-                    'N1' => $n1,
-                    'N2' => $n2,
-                ]);
+            // Intentar obtener N1 y N2 directamente del modelo
+            if ($matrizHilo->N1 !== null && $matrizHilo->N1 !== '' && is_numeric($matrizHilo->N1)) {
+                $n1 = (float) $matrizHilo->N1;
+            }
+
+            if ($matrizHilo->N2 !== null && $matrizHilo->N2 !== '' && is_numeric($matrizHilo->N2)) {
+                $n2 = (float) $matrizHilo->N2;
+            }
+
+            // Si N1 o N2 no están disponibles, usar Calibre y Calibre2 como fallback
+            if ($n1 === null || $n1 <= 0) {
+                if ($matrizHilo->Calibre !== null && $matrizHilo->Calibre !== '' && is_numeric($matrizHilo->Calibre)) {
+                    $n1 = (float) $matrizHilo->Calibre;
+                    Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando Calibre como N1 (fallback)', [
+                        'Hilo' => $hilo,
+                        'Calibre' => $matrizHilo->Calibre,
+                        'N1' => $n1,
+                    ]);
+                }
             } else {
-                // Fallback: usar Calibre y Calibre2
-                $n1 = (float) ($matrizHilo->Calibre ?? 0);
-                $n2 = (float) ($matrizHilo->Calibre2 ?? 0);
-                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando Calibre y Calibre2', [
+                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando N1 directo del modelo', [
                     'Hilo' => $hilo,
-                    'Calibre' => $matrizHilo->Calibre,
-                    'Calibre2' => $matrizHilo->Calibre2,
                     'N1' => $n1,
+                ]);
+            }
+
+            if ($n2 === null || $n2 <= 0) {
+                if ($matrizHilo->Calibre2 !== null && $matrizHilo->Calibre2 !== '' && is_numeric($matrizHilo->Calibre2)) {
+                    $n2 = (float) $matrizHilo->Calibre2;
+                    Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando Calibre2 como N2 (fallback)', [
+                        'Hilo' => $hilo,
+                        'Calibre2' => $matrizHilo->Calibre2,
+                        'N2' => $n2,
+                    ]);
+                }
+            } else {
+                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando N2 directo del modelo', [
+                    'Hilo' => $hilo,
                     'N2' => $n2,
-                    'matrizHilo_attributes' => $matrizHilo->getAttributes(),
                 ]);
             }
 

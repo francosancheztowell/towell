@@ -269,6 +269,21 @@ Producción Reenconado Cabezuela
                     document.getElementById('f_nombreEmpl').value = data.usuario || '';
                     document.getElementById('f_numero_empleado').value = data.numero_empleado || '';
                 }
+
+                // Cargar descripción desde idflog si viene en la URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const idflog = urlParams.get('idflog');
+                if(idflog){
+                    try{
+                        const descUrl = `/programa-tejido/descripcion-by-idflog/${encodeURIComponent(idflog)}`;
+                        const descResponse = await axios.get(descUrl);
+                        if(descResponse.data && descResponse.data.nombreProyecto){
+                            document.getElementById('f_Obs').value = descResponse.data.nombreProyecto;
+                        }
+                    }catch(e){
+                        console.warn('No se pudo cargar descripción desde idflog:', e);
+                    }
+                }
             }catch(e){ console.error(e); }
         });
 })();

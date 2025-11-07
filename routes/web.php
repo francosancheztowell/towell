@@ -534,15 +534,15 @@ Route::middleware(['auth'])->group(function () {
     // MÓDULO PRODUCCIÓN URD ENGOMADO
     // ============================================
     Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () {
-        Route::get('/reservar-programar', function () {
-            // Obtener datos de inventario de telares para la vista
-            $inventarioTelares = \App\Models\TejInventarioTelares::where('status', 'Activo')
-                ->orderBy('no_telar')
-                ->orderBy('tipo')
-                ->get();
-
-            return view('modulos.programa_urd_eng.reservar-programar', compact('inventarioTelares'));
-        })->name('reservar.programar');
+        Route::get('/reservar-programar', [\App\Http\Controllers\ReservarProgramarController::class, 'index'])->name('reservar.programar');
+        Route::post('/inventario-telares', [\App\Http\Controllers\ReservarProgramarController::class, 'getInventarioTelares'])->name('inventario.telares');
+        Route::get('/inventario-disponible', [\App\Http\Controllers\InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible.get');
+        Route::post('/inventario-disponible', [\App\Http\Controllers\InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible');
+        Route::post('/programar-telar', [\App\Http\Controllers\ReservarProgramarController::class, 'programarTelar'])->name('programar.telar');
+        Route::post('/reservar-inventario', [\App\Http\Controllers\InvTelasReservadasController::class, 'reservar'])->name('reservar.inventario');
+        Route::get('/column-options', [\App\Http\Controllers\ReservarProgramarController::class, 'getColumnOptions'])->name('column.options');
+        Route::get('/reservas/{noTelar}', [\App\Http\Controllers\InvTelasReservadasController::class, 'porTelar'])->name('reservas.porTelar');
+        Route::post('/reservas/cancelar', [\App\Http\Controllers\InvTelasReservadasController::class, 'cancelar'])->name('reservas.cancelar');
     });
 
     // ============================================
