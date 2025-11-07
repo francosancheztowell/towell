@@ -125,7 +125,7 @@ class SSYSFoliosSecuencia extends Model
             $row = DB::table($table)->where($c['pref'], $prefijo)->lockForUpdate()->first();
             if (!$row) {
                 // Crear configuración por defecto si no existe (consecutivo = 0)
-                DB::table($table)->insert([$c['mod'] => 'REENCONADO', $c['pref'] => $prefijo, $c['con'] => 0]);
+                DB::table($table)->insert([$c['mod'] => 'Reenconado', $c['pref'] => $prefijo, $c['con'] => 0]);
                 $row = DB::table($table)->where($c['pref'], $prefijo)->lockForUpdate()->first();
                 if (!$row) {
                     throw new \RuntimeException("No fue posible crear/obtener la configuración de folio para prefijo='{$prefijo}'");
