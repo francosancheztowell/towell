@@ -111,15 +111,31 @@ function isStandaloneMode() {
 // ------------------------------
 async function enableFullscreen() {
     try {
-        // iOS Safari no soporta Fullscreen API en PWA
+        // Verificar si ya está en fullscreen (múltiples formas de verificar)
+        const isAlreadyFullscreen = document.fullscreenElement ||
+                                     document.webkitFullscreenElement ||
+                                     document.mozFullScreenElement ||
+                                     document.msFullscreenElement;
+
+        if (isAlreadyFullscreen) {
+            return; // Ya está en fullscreen, no hacer nada
+        }
+
         const el = document.documentElement;
-        const request = el.requestFullscreen || el.webkitRequestFullscreen;
-        if (!document.fullscreenElement && request) {
+        const request = el.requestFullscreen ||
+                       el.webkitRequestFullscreen ||
+                       el.mozRequestFullScreen ||
+                       el.msRequestFullscreen;
+
+        if (request) {
             await request.call(el);
             console.log('[PWA] Fullscreen activado');
         }
     } catch (e) {
-        console.warn('[PWA] No se pudo entrar a fullscreen:', e);
+        // Silenciar errores si el usuario canceló o no está permitido
+        if (e.name !== 'NotAllowedError' && e.name !== 'TypeError') {
+            console.warn('[PWA] No se pudo entrar a fullscreen:', e);
+        }
     }
 }
 
@@ -135,66 +151,60 @@ async function exitFullscreen() {
     }
 }
 
-// Intento automático de fullscreen en el PRIMER gesto del usuario (solo modo PWA)
-// No fuerza nada solo cuando la app está instalada/standalone.
-function attachFullscreenGestureWhenReady() {
-    const el = document.documentElement;
-    const requestFullscreen = el.requestFullscreen || el.webkitRequestFullscreen;
-    if (!requestFullscreen) return; // navegador no soportado
+// Intento automático de fullscreen SOLO UNA VEZ al iniciar la PWA
+// Solo cuando la app está instalada/standalone y aún no está en fullscreen
+(function initFullscreenOnce() {
+    // Verificar si ya está en fullscreen o si ya se intentó activar en esta sesión
+    const FULLSCREEN_ATTEMPTED_KEY = 'pwa_fullscreen_attempted';
+    const sessionAttempted = sessionStorage.getItem(FULLSCREEN_ATTEMPTED_KEY);
 
-    let gestureAttached = false;
-    const attachGesture = () => {
-        if (gestureAttached) return;
-        gestureAttached = true;
-
-        let used = false;
-        const onceHandler = () => {
-            if (used) return;
-            used = true;
-            cleanup();
-            enableFullscreen();
-        };
-
-        const events = ['pointerup', 'click', 'touchend'];
-        const cleanup = () => {
-            events.forEach(evt => document.removeEventListener(evt, onceHandler, true));
-        };
-
-        events.forEach(evt => document.addEventListener(evt, onceHandler, true));
-    };
-
-    const queries = ['(display-mode: standalone)', '(display-mode: fullscreen)'];
-
-    if (isStandaloneMode()) {
-        attachGesture();
+    // Si ya está en fullscreen, no hacer nada
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
         return;
     }
 
-    queries.forEach(query => {
-        const mq = window.matchMedia(query);
-        if (mq.matches) {
-            attachGesture();
-        } else {
-            const listener = (event) => {
-                if (!event.matches) return;
-                if (mq.removeEventListener) {
-                    mq.removeEventListener('change', listener);
-                } else {
-                    mq.removeListener(listener);
-                }
-                attachGesture();
-            };
+    // Si ya se intentó en esta sesión, no volver a intentar
+    if (sessionAttempted === 'true') {
+        return;
+    }
 
-            if (mq.addEventListener) {
-                mq.addEventListener('change', listener);
-            } else {
-                mq.addListener(listener);
-            }
+    // Solo activar si estamos en modo standalone/PWA
+    if (!isStandaloneMode()) {
+        return;
+    }
+
+    const el = document.documentElement;
+    const requestFullscreen = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!requestFullscreen) {
+        return; // navegador no soportado
+    }
+
+    // Esperar a que la página esté completamente cargada
+    const attemptFullscreen = () => {
+        // Verificar nuevamente que no esté ya en fullscreen
+        if (document.fullscreenElement || document.webkitFullscreenElement) {
+            return;
         }
-    });
-}
 
-attachFullscreenGestureWhenReady();
+        // Marcar que se intentó en esta sesión
+        sessionStorage.setItem(FULLSCREEN_ATTEMPTED_KEY, 'true');
+
+        // Intentar activar fullscreen una sola vez
+        enableFullscreen().catch(() => {
+            // Si falla, no volver a intentar
+            console.log('[PWA] Fullscreen no disponible o rechazado por el usuario');
+        });
+    };
+
+    // Intentar después de un pequeño delay para asegurar que la página está lista
+    if (document.readyState === 'complete') {
+        setTimeout(attemptFullscreen, 500);
+    } else {
+        window.addEventListener('load', () => {
+            setTimeout(attemptFullscreen, 500);
+        }, { once: true });
+    }
+})();
 
 // ------------------------------
 // Botón de instalar (opcional)
