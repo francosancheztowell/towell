@@ -47,9 +47,29 @@ class TurnoHelper
             case '1':
                 return '6:30 AM - 2:30 PM';
             case '2':
-                return '2:30 PM - :30 PM';
+                return '2:30 PM - 10:30 PM';
             case '3':
                 return '10:30 PM - 6:30 AM';
+            default:
+                return 'Turno no válido';
+        }
+    }
+
+    /**
+     * Obtiene la descripción del turno en formato "Turno X"
+     *
+     * @param string $turno
+     * @return string
+     */
+    public static function getTurnoFormato(string $turno): string
+    {
+        switch ($turno) {
+            case '1':
+                return 'Turno 1';
+            case '2':
+                return 'Turno 2';
+            case '3':
+                return 'Turno 3';
             default:
                 return 'Turno no válido';
         }

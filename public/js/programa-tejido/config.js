@@ -10,6 +10,8 @@ window.ProgramaTejidoConfig = {
         ultimaFechaFinalTelar: '/programa-tejido/ultima-fecha-final-telar',
         hilos: '/programa-tejido/hilos-options',
         flogsId: '/programa-tejido/flogs-id-options',
+        flogsIdFromTwFlogs: '/programa-tejido/flogs-id-from-twflogs',
+        descripcionByIdFlog: '/programa-tejido/descripcion-by-idflog',
         calendarioId: '/programa-tejido/calendario-id-options',
         aplicacionId: '/programa-tejido/aplicacion-id-options',
         datosRelacionados: '/programa-tejido/datos-relacionados',

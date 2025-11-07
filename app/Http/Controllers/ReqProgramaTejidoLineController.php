@@ -50,6 +50,8 @@ class ReqProgramaTejidoLineController extends Controller
             'Combina5'   => ['nullable', 'numeric'],
             'Pie'        => ['nullable', 'numeric'],
             'Rizo'       => ['nullable', 'numeric'],
+            'MtsRizo'    => ['nullable', 'numeric'],
+            'MtsPie'     => ['nullable', 'numeric'],
         ]);
 
         $created = ReqProgramaTejidoLine::create($data);
@@ -89,6 +91,8 @@ class ReqProgramaTejidoLineController extends Controller
             'Combina5'   => ['nullable', 'numeric'],
             'Pie'        => ['nullable', 'numeric'],
             'Rizo'       => ['nullable', 'numeric'],
+            'MtsRizo'    => ['nullable', 'numeric'],
+            'MtsPie'     => ['nullable', 'numeric'],
         ]);
 
         $row->fill($data);

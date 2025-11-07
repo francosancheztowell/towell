@@ -2,10 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\PronosticoResource;
 use App\Services\PronosticosService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -26,7 +24,7 @@ class PronosticosController extends Controller
 
     /**
      * GET /pronosticos?meses[]=YYYY-MM&meses[]=YYYY-MM
-     * Sincroniza (guarda en ReqPronosticos) y luego lee desde ReqPronosticos.
+     * Obtiene datos directamente desde las consultas (sin guardar en ReqPronosticos).
      */
     public function get(Request $request)
     {
@@ -38,45 +36,8 @@ class PronosticosController extends Controller
             $meses = $this->parseMeses($request);
             Log::info('GET /pronosticos - Meses', ['meses' => $meses]);
 
-            if (!empty($meses)) {
-                $this->service->obtenerPronosticos($meses);
-            }
-
-            // Leer desde ProdTowel ordenado por FlogsId
-            $registros = DB::connection('sqlsrv')
-                ->table('dbo.ReqPronosticos')
-                ->orderBy('FlogsId')
-                ->get();
-
-            $batas = [];
-            $otros = [];
-
-            foreach ($registros as $reg) {
-                $itemTypeId = $reg->ItemTypeId ?? 0;
-                $esBata = is_numeric($itemTypeId) && (int)$itemTypeId >= 10 && (int)$itemTypeId <= 19;
-
-                $item = (object)[
-                    'IDFLOG'           => $reg->FlogsId ?? null,
-                    'ESTADO'           => $reg->Estado ?? null,
-                    'NOMBREPROYECTO'   => $reg->NombreProyecto ?? null,
-                    'CUSTNAME'         => $reg->CustName ?? null,
-                    'CATEGORIACALIDAD' => $reg->CategoriaCalidad ?? 'NAC - 1',
-                    'ANCHO'            => $reg->Ancho ?? null,
-                    'LARGO'            => $reg->Largo ?? null,
-                    'ITEMID'           => $reg->ItemId ?? null,
-                    'ITEMNAME'         => $reg->ItemName ?? null,
-                    'INVENTSIZEID'     => $reg->InventSizeId ?? null,
-                    'TIPOHILOID'       => $reg->TipoHilo ?? null,
-                    'VALORAGREGADO'    => $reg->ValorAgregado ?? null,
-                    'FECHACANCELACION' => $reg->FechaCancelacion ?? null,
-                    'CANTIDAD'         => $reg->Cantidad ?? 0,
-                    'ITEMTYPEID'       => $reg->ItemTypeId ?? null,
-                    'RASURADO'         => $reg->Rasurado ?? null,
-                    'RASURADOCRUDO'    => $reg->Rasurado ?? null, // Para compatibilidad con el frontend
-                ];
-
-                if ($esBata) $batas[] = $item; else $otros[] = $item;
-            }
+            // Obtener datos directamente desde las consultas (sin guardar en ReqPronosticos)
+            [$batas, $otros] = $this->service->obtenerPronosticos($meses);
 
             Log::info('GET /pronosticos - OK', [
                 'batas' => count($batas),
@@ -84,8 +45,8 @@ class PronosticosController extends Controller
             ]);
 
             return response()->json([
-                'batas' => PronosticoResource::collection(collect($batas)),
-                'otros' => PronosticoResource::collection(collect($otros)),
+                'otros' => $otros,
+                'batas' => $batas,
             ]);
 
         } catch (ValidationException $e) {
@@ -157,10 +118,10 @@ class PronosticosController extends Controller
         ];
 
         Log::info('PronosticosController.nuevo - Retornando vista', [
-            'vista' => 'modulos.programa-tejido-nuevo.altas',
+            'vista' => 'modulos.programa-tejido-nuevo.pronosticos',
             'prefill' => $prefill,
         ]);
 
-        return view('modulos.programa-tejido-nuevo.altas', compact('prefill'));
+        return view('modulos.programa-tejido-nuevo.pronosticos', compact('prefill'));
     }
 }

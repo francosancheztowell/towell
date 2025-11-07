@@ -9,26 +9,9 @@ use Illuminate\Support\Facades\Log;
 class PronosticosService
 {
     private const CONN = 'sqlsrv_ti';   // TI_PRO
-    private const CONN_PROD = 'sqlsrv'; // ProdTowel (ReqPronosticos)
-
-    // LÍMITES ACTUALES EN DB (tras tu ALTER):
-    private const DB_LIMITS = [
-        'FlogsId'          => 120,
-        'Estado'           => 60,
-        'NombreProyecto'   => 400,
-        'CustName'         => 400,
-        'CategoriaCalidad' => 60,
-        'ItemId'           => 120,
-        'ItemName'         => 400,
-        'InventSizeId'     => 20,
-        'TipoHilo'         => 120,
-        'ValorAgregado'    => 400,
-        'ItemTypeId'       => 20,
-        'Rasurado'         => 50,
-    ];
 
     /**
-     * Punto único para obtener ambos y guardar en ReqPronosticos
+     * Punto único para obtener ambos (sin guardar en ReqPronosticos)
      * @param array|string $meses ['2025-08','2025-09'] o "2025-08,2025-09"
      * @return array{0: array, 1: array}
      */
@@ -40,7 +23,8 @@ class PronosticosService
         $batas = $this->obtenerBatas($rangos);
         $otros = $this->obtenerOtros($rangos);
 
-        $this->guardarEnReqPronosticos($batas, $otros, $rangos);
+        // Ya no se guarda en ReqPronosticos
+        // $this->guardarEnReqPronosticos($batas, $otros, $rangos);
 
         return [$batas, $otros];
     }
@@ -201,183 +185,5 @@ class PronosticosService
             ]);
             return [];
         }
-    }
-
-    /**
-     * Guarda en dbo.ReqPronosticos (ProdTowel).
-     * Elimina los meses seleccionados y luego inserta.
-     */
-    private function guardarEnReqPronosticos(array $batas, array $otros, array $rangos = []): void
-    {
-        try {
-            $registros = [];
-
-            foreach ($batas as $item) $registros[] = $this->transformarARegPronostico($item);
-            foreach ($otros as $item) $registros[] = $this->transformarARegPronostico($item);
-
-            // Borrar por rangos (FechaCancelacion es DATE)
-            if (!empty($rangos)) {
-                DB::connection(self::CONN_PROD)->transaction(function () use ($rangos) {
-                    foreach ($rangos as $r) {
-                        DB::connection(self::CONN_PROD)
-                            ->table('dbo.ReqPronosticos')
-                            ->whereBetween('FechaCancelacion', [$r['inicio'], $r['fin']])
-                            ->delete();
-                    }
-                });
-            }
-
-            // Insertar 1x1 para registro fino de errores
-            $insertados = 0;
-            $fallidos = 0;
-
-            foreach ($registros as $i => $registro) {
-                try {
-                    $registroLimpio = $this->validarYLimpiarRegistro($registro);
-                    DB::connection(self::CONN_PROD)
-                        ->table('dbo.ReqPronosticos')
-                        ->insert($registroLimpio);
-                    $insertados++;
-                } catch (\Throwable $e) {
-                    $fallidos++;
-                    if ($fallidos <= 10) {
-                        Log::error('Pronosticos.guardarEnReqPronosticos - Fila fallida', [
-                            'index' => $i,
-                            'error' => $e->getMessage(),
-                            'registro' => $registro,
-                        ]);
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::error('Pronosticos.guardarEnReqPronosticos', [
-                'msg' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    // ==== Helpers de limpieza/transformación =================================
-
-    private function validarYLimpiarRegistro(array $registro): array
-    {
-        $L = self::DB_LIMITS;
-        $out = [];
-
-        foreach ($registro as $campo => $valor) {
-            if (isset($L[$campo])) {
-                if ($valor === null || $valor === '') { $out[$campo] = null; continue; }
-
-                $str = (string)$valor;
-                if (function_exists('mb_convert_encoding')) {
-                    $str = mb_convert_encoding($str, 'UTF-8', 'UTF-8');
-                }
-                $str = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $str);
-                $str = str_replace(
-                    ["\xC2\xA0","\xE2\x80\x80","\xE2\x80\x81","\xE2\x80\x82","\xE2\x80\x83","\xE2\x80\x84","\xE2\x80\x85","\xE2\x80\x86","\xE2\x80\x87","\xE2\x80\x88","\xE2\x80\x89","\xE2\x80\x8A","\xE2\x80\xAF"],
-                    ' ',
-                    $str
-                );
-                $str = trim(preg_replace('/[\s\t]+/', ' ', $str));
-
-                // Truncar exactamente al límite de la DB
-                if (mb_strlen($str, 'UTF-8') > $L[$campo]) {
-                    $str = mb_substr($str, 0, $L[$campo], 'UTF-8');
-                }
-                $out[$campo] = ($str === '') ? null : $str;
-
-            } elseif (in_array($campo, ['Ancho','Largo','Cantidad'], true)) {
-                $out[$campo] = $this->toNumber($valor);
-            } elseif ($campo === 'FechaCancelacion') {
-                $out[$campo] = $this->toDateYmd($valor);
-            } else {
-                $out[$campo] = $valor;
-            }
-        }
-
-        if (array_key_exists('ItemTypeId', $out) && $out['ItemTypeId'] === '') {
-            $out['ItemTypeId'] = null;
-        }
-
-        return $out;
-    }
-
-    private function transformarARegPronostico($item): array
-    {
-        $o = is_array($item) ? (object)$item : $item;
-        $L = self::DB_LIMITS;
-
-        $t = function ($v, $max) {
-            if ($v === null || $v === '') return null;
-            $s = (string)$v;
-            if (function_exists('mb_convert_encoding')) $s = mb_convert_encoding($s,'UTF-8','UTF-8');
-            $s = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $s);
-            $s = str_replace(
-                ["\xC2\xA0","\xE2\x80\x80","\xE2\x80\x81","\xE2\x80\x82","\xE2\x80\x83","\xE2\x80\x84","\xE2\x80\x85","\xE2\x80\x86","\xE2\x80\x87","\xE2\x80\x88","\xE2\x80\x89","\xE2\x80\x8A","\xE2\x80\xAF"],
-                ' ',
-                $s
-            );
-            $s = trim(preg_replace('/[\s\t]+/', ' ', $s));
-            if (mb_strlen($s, 'UTF-8') > $max) $s = mb_substr($s, 0, $max, 'UTF-8');
-            return $s === '' ? null : $s;
-        };
-
-        // Usar RASURADOCRUDO si existe, sino RASURADO
-        $rasuradoValor = $o->RASURADOCRUDO ?? $o->RASURADO ?? null;
-
-        return [
-            'FlogsId'          => $t($o->IDFLOG           ?? null, $L['FlogsId']),
-            'Estado'           => $t($o->ESTADO           ?? null, $L['Estado']),
-            'NombreProyecto'   => $t($o->NOMBREPROYECTO   ?? null, $L['NombreProyecto']),
-            'CustName'         => $t($o->CUSTNAME         ?? null, $L['CustName']),
-            'CategoriaCalidad' => $t($o->CATEGORIACALIDAD ?? 'NAC - 1', $L['CategoriaCalidad']),
-            'Ancho'            => $this->toNumber($o->ANCHO   ?? null),
-            'Largo'            => $this->toNumber($o->LARGO   ?? null),
-            'ItemId'           => $t($o->ITEMID           ?? null, $L['ItemId']),
-            'ItemName'         => $t($o->ITEMNAME         ?? null, $L['ItemName']),
-            'InventSizeId'     => $t($o->INVENTSIZEID     ?? null, $L['InventSizeId']),
-            'TipoHilo'         => $t($o->TIPOHILOID       ?? null, $L['TipoHilo']),
-            'ValorAgregado'    => $t($o->VALORAGREGADO    ?? null, $L['ValorAgregado']),
-            'FechaCancelacion' => $this->toDateYmd($o->FECHACANCELACION ?? null),
-            'Cantidad'         => $this->toNumber($o->CANTIDAD ?? 0),
-            'ItemTypeId'       => $t($o->ITEMTYPEID       ?? null, $L['ItemTypeId']),
-            'Rasurado'         => $t($rasuradoValor, $L['Rasurado']),
-        ];
-    }
-
-    private function toNumber($v): ?float
-    {
-        // Si ya es null, retornar null
-        if ($v === null) return null;
-
-        // Si ya es numérico (int, float), convertirlo directamente a float
-        if (is_numeric($v)) {
-            return (float)$v;
-        }
-
-        // Si es string, intentar limpiarlo y convertir
-        $s = trim((string)$v);
-        if ($s === '' || $s === '.' || $s === '.000000000000') return null;
-
-        // Remover caracteres no numéricos excepto punto y signo negativo
-        $s = preg_replace('/[^0-9\.\-]/', '', $s);
-
-        if ($s === '' || $s === '.' || $s === '-') return null;
-
-        // Verificar si es numérico después de limpiar
-        if (is_numeric($s)) {
-            return (float)$s;
-        }
-
-        return null;
-        // Mantener decimales originales ya que es tipo real (float) en DB
-    }
-
-    private function toDateYmd($v): ?string
-    {
-        if ($v === null || $v === '') return null;
-        $s = (string)$v;
-        if (strpos($s, ' ') !== false) $s = explode(' ', $s)[0];
-        // Se espera 'YYYY-MM-DD' porque la columna es DATE
-        return $s;
     }
 }

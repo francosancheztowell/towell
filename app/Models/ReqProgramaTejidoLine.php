@@ -42,6 +42,8 @@ class ReqProgramaTejidoLine extends Model
         'Combina5',
         'Pie',
         'Rizo',
+        'MtsRizo',
+        'MtsPie',
     ];
 
     /**
@@ -62,6 +64,8 @@ class ReqProgramaTejidoLine extends Model
         'Combina5'   => 'float',
         'Pie'        => 'float',
         'Rizo'       => 'float',
+        'MtsRizo'    => 'float',
+        'MtsPie'     => 'float',
     ];
 }
 

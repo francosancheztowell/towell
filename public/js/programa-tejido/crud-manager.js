@@ -123,7 +123,8 @@ window.ProgramaTejidoCRUD = {
      * Validar formulario antes de guardar
      */
     validarFormulario() {
-        const salon = ProgramaTejidoUtils.obtenerValorCampo('salon-select');
+        const salon = ProgramaTejidoUtils.obtenerValorCampo('salon-select') ||
+                      ProgramaTejidoUtils.obtenerValorCampo('salon-input');
         const telares = TelarManager.obtenerDatosTelares();
 
         if (!salon) {
@@ -142,10 +143,19 @@ window.ProgramaTejidoCRUD = {
      * Construir payload para guardar
      */
     construirPayload() {
-        const salon = ProgramaTejidoUtils.obtenerValorCampo('salon-select');
+        // Buscar salón en select o input (para modo pronósticos)
+        const salon = ProgramaTejidoUtils.obtenerValorCampo('salon-select') ||
+                      ProgramaTejidoUtils.obtenerValorCampo('salon-input');
+        console.log('🏢 Salón obtenido:', salon, {
+            'salon-select': ProgramaTejidoUtils.obtenerValorCampo('salon-select'),
+            'salon-input': ProgramaTejidoUtils.obtenerValorCampo('salon-input')
+        });
         const tamanoClave = ProgramaTejidoUtils.obtenerValorCampo('clave-modelo-input');
         const hilo = ProgramaTejidoUtils.obtenerValorCampo('hilo-select');
-        const idflog = ProgramaTejidoUtils.obtenerValorCampo('idflog-select');
+        // Buscar IdFlog en select o input (para modo edición)
+        const idflog = ProgramaTejidoUtils.obtenerValorCampo('idflog-select') ||
+                       ProgramaTejidoUtils.obtenerValorCampo('idflog-input');
+        console.log('📋 Campos principales:', { salon, tamanoClave, hilo, idflog });
         const calendarioId = ProgramaTejidoUtils.obtenerValorCampo('calendario-select');
         const aplicacionId = ProgramaTejidoUtils.obtenerValorCampo('aplicacion-select');
 
@@ -193,6 +203,26 @@ window.ProgramaTejidoCRUD = {
             CalibreComb5: datosModelo?.CalibreComb5 ?? null
         };
 
+        // Obtener descripción (NombreProyecto) desde el campo descripcion
+        const descripcion = ProgramaTejidoUtils.obtenerValorCampo('descripcion') || null;
+
+        // Obtener ancho explícitamente del campo oculto o del modelo
+        const ancho = ProgramaTejidoUtils.obtenerValorCampo('ancho') || 
+                      datosModelo?.AnchoToalla || 
+                      datosFormulario?.AnchoToalla || 
+                      null;
+        console.log('📏 Ancho obtenido:', ancho, {
+            'campo-ancho': ProgramaTejidoUtils.obtenerValorCampo('ancho'),
+            'modelo-AnchoToalla': datosModelo?.AnchoToalla,
+            'formulario-AnchoToalla': datosFormulario?.AnchoToalla
+        });
+
+        // Verificar cambio de hilo con más detalle
+        console.log('🧵 Verificando cambio de hilo:', {
+            telares: telares.map(t => ({ no_telar_id: t.no_telar_id, cambio_hilo: t.cambio_hilo })),
+            tieneCambioHilo
+        });
+
         // Construir payload completo
         const payload = {
             salon_tejido_id: salon,
@@ -212,13 +242,18 @@ window.ProgramaTejidoCRUD = {
             FechaFinal: ultimoTelar?.fecha_final || null,
             // Generar Maquina automáticamente
             Maquina: maquina,
-            // CambioHilo al nivel principal
-            CambioHilo: tieneCambioHilo,
             // Mapeos especiales
             NombreProducto: datosModelo?.Nombre || datosFormulario?.Nombre || null,
+            NombreProyecto: descripcion || datosFormulario?.NombreProyecto || null,
             PasadasTrama: datosModelo?.Total || null,
             Observaciones: datosModelo?.Obs ?? null
         };
+
+        // Agregar campos críticos al final para asegurar que tengan prioridad
+        // CambioHilo al nivel principal - asegurar que sea 0 o 1
+        payload.CambioHilo = tieneCambioHilo;
+        // Ancho explícitamente incluido (convertir a número si existe)
+        payload.AnchoToalla = ancho ? Number(ancho) : null;
 
         // Calcular fórmulas si es posible
         const formulas = this.calcularFormulas(datosModelo, totalPedido, primerTelar, ultimoTelar);
@@ -242,12 +277,17 @@ window.ProgramaTejidoCRUD = {
         const formulas = window.calcularFormulasActuales?.(tr) || {};
 
         const payload = {
-            fecha_fin: finEl?.value || null
+            fecha_fin: finEl?.value || null,
+            // Incluir IdFlog y descripción siempre
+            idflog: ProgramaTejidoUtils.obtenerValorCampo('idflog-input') || null,
+            nombre_proyecto: ProgramaTejidoUtils.obtenerValorCampo('descripcion') || null
         };
 
         // Agregar campos habilitados
         const camposActualizables = [
             { id: 'cantidad-input', field: 'cantidad', converter: v => Number(v || 0) },
+            { id: 'idflog-input', field: 'idflog', converter: v => v || null },
+            { id: 'descripcion', field: 'nombre_proyecto', converter: v => v || null },
             { id: 'calibre-trama', field: 'calibre_trama', converter: v => v !== '' ? Number(v) : null },
             { id: 'calibre-c1', field: 'calibre_c1', converter: v => v !== '' ? Number(v) : null },
             { id: 'calibre-c2', field: 'calibre_c2', converter: v => v !== '' ? Number(v) : null },
@@ -274,11 +314,19 @@ window.ProgramaTejidoCRUD = {
 
         // Solo agregar campos habilitados al payload
         camposActualizables.forEach(({ id, field, converter }) => {
+            // IdFlog y descripción ya están en el payload, saltarlos aquí
+            if (id === 'idflog-input' || id === 'descripcion') {
+                return; // Ya están incluidos arriba
+            }
+
             if (ProgramaTejidoUtils.esCampoHabilitado(id)) {
                 const valor = ProgramaTejidoUtils.obtenerValorCampo(id);
                 payload[field] = converter(valor);
             }
         });
+
+        // Log para depuración
+        console.log('📦 Payload de actualización:', payload);
 
         // Agregar fórmulas calculadas
         if (formulas) {
@@ -332,13 +380,29 @@ window.ProgramaTejidoCRUD = {
         // Recopilar valores
         campos.forEach(campoId => {
             const elemento = document.getElementById(campoId);
-            if (elemento && elemento.value !== '') {
-                const nombreDB = mapeoInverso[campoId];
-                if (nombreDB) {
-                    datos[nombreDB] = elemento.value;
+            // Para campos numéricos como 'ancho', incluir incluso si está vacío (puede venir del modelo)
+            if (elemento) {
+                const valor = elemento.value;
+                // Incluir el valor si no está vacío, o si es un campo numérico que puede venir del modelo
+                if (valor !== '' || campoId === 'ancho') {
+                    const nombreDB = mapeoInverso[campoId];
+                    if (nombreDB) {
+                        // Convertir a número si es un campo numérico
+                        if (campoId === 'ancho' && valor !== '') {
+                            datos[nombreDB] = Number(valor) || null;
+                        } else if (valor !== '') {
+                            datos[nombreDB] = valor;
+                        }
+                    }
                 }
             }
         });
+
+        // Mapeo especial para descripcion -> NombreProyecto (modo edición)
+        const descripcionEl = document.getElementById('descripcion');
+        if (descripcionEl && descripcionEl.value !== '') {
+            datos['NombreProyecto'] = descripcionEl.value;
+        }
 
         console.log('📦 Datos recopilados del formulario:', datos);
         return datos;

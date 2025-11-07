@@ -40,6 +40,9 @@ class ProgramaTejidoController extends Controller
         $data = $request->validate([
             'cantidad' => ['nullable','numeric','min:0'],
             'fecha_fin' => ['nullable','string'],
+            'idflog' => ['nullable','string'], // FlogsId
+            'nombre_proyecto' => ['nullable','string'], // NombreProyecto
+            'aplicacion_id' => ['nullable','string'], // AplicacionId
             'nombre_color_1' => ['nullable','string'], // NombreCC1
             'nombre_color_2' => ['nullable','string'], // NombreCC2
             'nombre_color_3' => ['nullable','string'], // NombreCC3
@@ -189,6 +192,54 @@ class ProgramaTejidoController extends Controller
         if (array_key_exists('cod_color_5', $data)) { $registro->CodColorComb3 = $data['cod_color_5']; }
         if (array_key_exists('cod_color_6', $data)) { $registro->CodColorComb5 = $data['cod_color_6']; }
 
+        // Aplicación
+        if (array_key_exists('aplicacion_id', $data)) {
+            $aplicacionId = $data['aplicacion_id'];
+            // Si viene "NA" o está vacío, establecer como null
+            $registro->AplicacionId = ($aplicacionId === 'NA' || $aplicacionId === '' || $aplicacionId === null) ? null : $aplicacionId;
+        }
+
+        // IdFlog
+        if (array_key_exists('idflog', $data)) {
+            $registro->FlogsId = $data['idflog'] ?: null;
+            Log::info('UPDATE - IdFlog actualizado', [
+                'Id' => $registro->Id,
+                'FlogsId_anterior' => $registro->getOriginal('FlogsId'),
+                'FlogsId_nuevo' => $data['idflog']
+            ]);
+
+            // Calcular TipoPedido basado en los dos primeros caracteres del FlogsId
+            if ($data['idflog'] && strlen($data['idflog']) >= 2) {
+                $prefijo = strtoupper(substr($data['idflog'], 0, 2));
+                // Guardar directamente el prefijo (RS, CE, etc.)
+                $registro->TipoPedido = $prefijo;
+                Log::info('UPDATE - TipoPedido calculado desde FlogsId', [
+                    'Id' => $registro->Id,
+                    'flogsId' => $data['idflog'],
+                    'prefijo' => $prefijo,
+                    'tipoPedido' => $prefijo
+                ]);
+            }
+        }
+
+        // NombreProyecto (descripción)
+        if (array_key_exists('nombre_proyecto', $data)) {
+            $registro->NombreProyecto = $data['nombre_proyecto'] ?: null;
+            Log::info('UPDATE - NombreProyecto actualizado', [
+                'Id' => $registro->Id,
+                'NombreProyecto_anterior' => $registro->getOriginal('NombreProyecto'),
+                'NombreProyecto_nuevo' => $data['nombre_proyecto']
+            ]);
+        }
+
+        // Log de todos los datos recibidos
+        Log::info('UPDATE - Datos recibidos en request', [
+            'Id' => $registro->Id,
+            'idflog' => $request->input('idflog'),
+            'nombre_proyecto' => $request->input('nombre_proyecto'),
+            'data_keys' => array_keys($data)
+        ]);
+
         // ✅ Actualizar FechaFinal si fue calculado en el frontend
         $fechaFinalCambiada = false;
         if (array_key_exists('fecha_fin', $data) && !empty($data['fecha_fin'])) {
@@ -320,6 +371,19 @@ class ProgramaTejidoController extends Controller
             $calendarioId = $request->input('calendario_id');
             $aplicacionId = $request->input('aplicacion_id');
 
+            // Calcular TipoPedido basado en los dos primeros caracteres del FlogsId
+            $tipoPedido = null;
+            if ($flogsId && strlen($flogsId) >= 2) {
+                $prefijo = strtoupper(substr($flogsId, 0, 2));
+                // Guardar directamente el prefijo (RS, CE, etc.)
+                $tipoPedido = $prefijo;
+                Log::info('TipoPedido calculado desde FlogsId', [
+                    'flogsId' => $flogsId,
+                    'prefijo' => $prefijo,
+                    'tipoPedido' => $tipoPedido
+                ]);
+            }
+
             // Log de payload recibido (claves principales + tamaño)
             Log::info('ProgramaTejido.store - payload recibido', [
                 'keys' => array_keys($request->all()),
@@ -443,6 +507,14 @@ class ProgramaTejidoController extends Controller
                 // CambioHilo: no establecer aquí, se maneja arriba con la detección del registro anterior
                 // Solo establecer CambioHilo = 0 por defecto
                 $nuevo->CambioHilo = 0;
+
+                // TipoPedido: calcular desde FlogsId si no viene en el request
+                if ($tipoPedido !== null) {
+                    $nuevo->TipoPedido = $tipoPedido;
+                } elseif ($request->has('TipoPedido') && $request->input('TipoPedido') !== null && $request->input('TipoPedido') !== '') {
+                    // Si viene en el request, usar ese valor (puede ser string como "CE" o "RS")
+                    $nuevo->TipoPedido = (string)$request->input('TipoPedido');
+                }
 
                 // Maquina: usar el valor del payload principal si existe
                 if ($request->has('Maquina') && $request->input('Maquina') !== null) {
@@ -735,6 +807,79 @@ class ProgramaTejidoController extends Controller
             ->values();
 
         return response()->json($opciones);
+    }
+
+    /**
+     * Obtener opciones de FlogsId desde TwFlogsTable con filtros específicos
+     * Filtros:
+     * - EstadoFlog = 4 o 5
+     * - TipoPedido = 1, 2 o 3
+     * - DATAAREAID = "PRO"
+     */
+    public function getFlogsIdFromTwFlogsTable()
+    {
+        try {
+            $database = 'sqlsrv_ti';
+            $opciones = DB::connection($database)
+                ->table('dbo.TwFlogsTable as f')
+                ->select('f.IDFLOG')
+                ->whereIn('f.ESTADOFLOG', [4, 5])
+                ->whereIn('f.TIPOPEDIDO', [1, 2, 3])
+                ->where('f.DATAAREAID', 'PRO')
+                ->whereNotNull('f.IDFLOG')
+                ->distinct()
+                ->orderBy('f.IDFLOG')
+                ->get()
+                ->pluck('IDFLOG')
+                ->filter()
+                ->values();
+
+            return response()->json($opciones);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener FlogsId desde TwFlogsTable', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Error al cargar opciones de FlogsId: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener descripción (NombreProyecto) desde TwFlogsTable por IdFlog
+     */
+    public function getDescripcionByIdFlog($idflog)
+    {
+        try {
+            $database = 'sqlsrv_ti';
+            $resultado = DB::connection($database)
+                ->table('dbo.TwFlogsTable as f')
+                ->select('f.NAMEPROYECT as NombreProyecto')
+                ->where('f.IDFLOG', $idflog)
+                ->first();
+
+            if ($resultado) {
+                return response()->json([
+                    'nombreProyecto' => $resultado->NombreProyecto ?? ''
+                ]);
+            }
+
+            return response()->json([
+                'nombreProyecto' => ''
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener descripción por IdFlog', [
+                'idflog' => $idflog,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'nombreProyecto' => ''
+            ], 500);
+        }
     }
 
     /**

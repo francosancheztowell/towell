@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\ReqProgramaTejido;
 use App\Models\ReqProgramaTejidoLine;
 use App\Models\ReqAplicaciones;
+use App\Models\ReqMatrizHilos;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\Log;
@@ -239,6 +240,10 @@ class ReqProgramaTejidoObserver
                         $aplicacionValor = $factorAplicacion * $kilosDia;
                     }
 
+                    // Calcular MtsRizo y MtsPie según las fórmulas
+                    $mtsRizo = $this->calcularMtsRizo($programa, $rizo);
+                    $mtsPie = $this->calcularMtsPie($programa, $pie);
+
                     // Crear registro en ReqProgramaTejidoLine
                     $line = ReqProgramaTejidoLine::create([
                         'ProgramaId' => (int) $programa->Id,
@@ -254,6 +259,8 @@ class ReqProgramaTejidoObserver
                         'Combina5' => $combinacion5 !== null ? round($combinacion5, 4) : null,
                         'Pie' => $pie !== null ? round($pie, 4) : null,
                         'Rizo' => $rizo !== null ? round($rizo, 4) : null,
+                        'MtsRizo' => $mtsRizo !== null ? round($mtsRizo, 4) : null,
+                        'MtsPie' => $mtsPie !== null ? round($mtsPie, 4) : null,
                     ]);
                     $creadas++;
 
@@ -275,6 +282,8 @@ class ReqProgramaTejidoObserver
                         'Combina5' => $combinacion5,
                         'Pie' => $pie,
                         'Rizo' => $rizo,
+                        'MtsRizo' => $mtsRizo !== null ? round($mtsRizo, 4) : null,
+                        'MtsPie' => $mtsPie !== null ? round($mtsPie, 4) : null,
                     ]);
 
                     // Adicional: loguear exactamente lo que quedó en la fila guardada (atributos insertados)
@@ -530,6 +539,148 @@ class ReqProgramaTejidoObserver
         }
 
         return $formulas;
+    }
+
+    /**
+     * Calcula MtsRizo según la fórmula:
+     * MtsRizo = ((ValorRizo1 + ValorRizo2) / ReqProgramaTejido.CuentaRizo) * Constante3
+     * Donde:
+     * - ValorRizo1 = ((ReqMatrizHilos.N1 * (ReqProgramaTejidoLine.Rizo * Constante1)) / Constante2) / 2
+     * - ValorRizo2 = ((ReqMatrizHilos.N2 * (ReqProgramaTejidoLine.Rizo * Constante1)) / Constante2) / 2
+     * - Constante1 = 1000, Constante2 = 0.59, Constante3 = 1.0162
+     * - N1 y N2 se obtienen de ReqMatrizHilos donde Hilo = ReqProgramaTejido.Hilo (asumiendo N1=Calibre, N2=Calibre2)
+     */
+    private function calcularMtsRizo(ReqProgramaTejido $programa, ?float $rizo): ?float
+    {
+        try {
+            // Constantes
+            $constante1 = 1000;
+            $constante2 = 0.59;
+            $constante3 = 1.0162;
+
+            // Validar que Rizo y CuentaRizo existan
+            if ($rizo === null || $rizo <= 0) {
+                return null;
+            }
+
+            $cuentaRizo = $this->resolveField($programa, ['CuentaRizo', 'Cuenta_Rizo'], 'float');
+            if ($cuentaRizo <= 0) {
+                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - CuentaRizo inválido', [
+                    'CuentaRizo' => $cuentaRizo,
+                ]);
+                return null;
+            }
+
+            // Obtener Hilo del programa (puede estar en FibraRizo)
+            $hilo = $this->resolveField($programa, ['FibraRizo', 'Hilo', 'FibraRizo'], 'string');
+            if (empty($hilo)) {
+                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Hilo no encontrado', [
+                    'ProgramaId' => $programa->Id,
+                    'FibraRizo' => $programa->FibraRizo ?? null,
+                ]);
+                return null;
+            }
+
+            // Buscar N1 y N2 en ReqMatrizHilos
+            // Intentar primero con Calibre/Calibre2, luego con N1/N2 directamente
+            $matrizHilo = ReqMatrizHilos::where('Hilo', $hilo)->first();
+            if (!$matrizHilo) {
+                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - No se encontró registro en ReqMatrizHilos', [
+                    'Hilo' => $hilo,
+                    'ProgramaId' => $programa->Id,
+                ]);
+                return null;
+            }
+
+            // Intentar obtener N1 y N2 de diferentes formas
+            // Primero intentar campos directos N1 y N2
+            $n1 = null;
+            $n2 = null;
+
+            if (isset($matrizHilo->N1) && isset($matrizHilo->N2)) {
+                $n1 = (float) ($matrizHilo->N1 ?? 0);
+                $n2 = (float) ($matrizHilo->N2 ?? 0);
+                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando N1 y N2 directos', [
+                    'N1' => $n1,
+                    'N2' => $n2,
+                ]);
+            } else {
+                // Fallback: usar Calibre y Calibre2
+                $n1 = (float) ($matrizHilo->Calibre ?? 0);
+                $n2 = (float) ($matrizHilo->Calibre2 ?? 0);
+                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando Calibre y Calibre2', [
+                    'Hilo' => $hilo,
+                    'Calibre' => $matrizHilo->Calibre,
+                    'Calibre2' => $matrizHilo->Calibre2,
+                    'N1' => $n1,
+                    'N2' => $n2,
+                    'matrizHilo_attributes' => $matrizHilo->getAttributes(),
+                ]);
+            }
+
+            if ($n1 <= 0 || $n2 <= 0) {
+                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - N1 o N2 inválidos', [
+                    'Hilo' => $hilo,
+                    'N1' => $n1,
+                    'N2' => $n2,
+                    'matrizHilo_id' => $matrizHilo->id ?? null,
+                    'matrizHilo_attributes' => $matrizHilo->getAttributes(),
+                ]);
+                return null;
+            }
+
+            // Calcular ValorRizo1 y ValorRizo2
+            $valorRizo1 = (($n1 * ($rizo * $constante1)) / $constante2) / 2;
+            $valorRizo2 = (($n2 * ($rizo * $constante1)) / $constante2) / 2;
+
+            // Calcular MtsRizo
+            $mtsRizo = (($valorRizo1 + $valorRizo2) / $cuentaRizo) * $constante3;
+
+            return $mtsRizo > 0 ? $mtsRizo : null;
+        } catch (\Throwable $e) {
+            Log::warning('ReqProgramaTejidoObserver: Error al calcular MtsRizo', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Calcula MtsPie según la fórmula:
+     * MtsPie = (((ReqProgramaTejido.CalibrePie * (ReqProgramaTejidoLine.Pie * Constante1)) / Constante2) / ReqProgramaTejido.CuentaPie) * Constante3
+     * Donde:
+     * - Constante1 = 1000, Constante2 = 0.59, Constante3 = 1.0162
+     */
+    private function calcularMtsPie(ReqProgramaTejido $programa, ?float $pie): ?float
+    {
+        try {
+            // Constantes
+            $constante1 = 1000;
+            $constante2 = 0.59;
+            $constante3 = 1.0162;
+
+            // Validar que Pie exista
+            if ($pie === null || $pie <= 0) {
+                return null;
+            }
+
+            $calibrePie = $this->resolveField($programa, ['CalibrePie', 'CalibrePie2'], 'float');
+            $cuentaPie = $this->resolveField($programa, ['CuentaPie', 'Cuenta_Pie'], 'float');
+
+            if ($calibrePie <= 0 || $cuentaPie <= 0) {
+                Log::debug('ReqProgramaTejidoObserver: calcularMtsPie - Valores insuficientes', [
+                    'CalibrePie' => $calibrePie,
+                    'CuentaPie' => $cuentaPie,
+                ]);
+                return null;
+            }
+
+            // Calcular MtsPie
+            $mtsPie = (((($calibrePie * ($pie * $constante1)) / $constante2) / $cuentaPie) * $constante3);
+
+            return $mtsPie > 0 ? $mtsPie : null;
+        } catch (\Throwable $e) {
+            Log::warning('ReqProgramaTejidoObserver: Error al calcular MtsPie', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 
     /**

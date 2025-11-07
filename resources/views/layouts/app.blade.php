@@ -42,16 +42,27 @@
     html {
       height: 100%;
       height: -webkit-fill-available;
+      overflow: hidden;
       overflow-x: hidden;
+      overflow-y: hidden;
+      position: fixed;
+      width: 100%;
     }
 
     body {
       min-height: 100%;
       min-height: -webkit-fill-available;
+      max-height: 100vh;
+      max-height: -webkit-fill-available;
+      overflow: hidden;
       overflow-x: hidden;
+      overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
       /* Forzar altura completa para ocultar barra de Chrome */
-      position: relative;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      left: 0;
     }
 
     :root {
@@ -67,12 +78,34 @@
         height: 100vh;
         height: -webkit-fill-available;
         overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: hidden;
+        position: fixed;
+        width: 100%;
       }
     }
 
     /* Forzar pantalla completa en modo standalone */
     @media all and (display-mode: standalone) {
       html, body {
+        height: 100vh;
+        height: -webkit-fill-available;
+        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: hidden;
+        position: fixed;
+        width: 100%;
+      }
+    }
+
+    /* Prevenir scroll en tablets y móviles */
+    @media (max-width: 1024px) {
+      html, body {
+        overflow: hidden !important;
+        overflow-x: hidden !important;
+        overflow-y: hidden !important;
+        position: fixed;
+        width: 100%;
         height: 100vh;
         height: -webkit-fill-available;
       }
@@ -151,7 +184,7 @@
         })();
     </script>
 
-    <body class="min-h-screen flex flex-col overflow-x-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative">
+    <body class="min-h-screen flex flex-col overflow-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative" style="touch-action: pan-y pinch-zoom;">
         @include('layouts.globalLoader')
 
   <!-- NAVBAR -->
@@ -404,7 +437,7 @@
 
   <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">@csrf</form>
 
-        <main class="overflow-x-hidden max-w-full">
+        <main class="overflow-x-hidden overflow-y-auto max-w-full flex-1" style="height: calc(100vh - 64px); max-height: calc(100vh - 64px);">
             @yield('content')
         </main>
 
@@ -882,6 +915,61 @@
       // Prevenir que aparezca la barra al hacer zoom
       document.addEventListener('gesturestart', function(e) {
         e.preventDefault();
+      });
+    })();
+
+    // Prevenir scroll en body/html - especialmente en tablets
+    (function() {
+      // Prevenir scroll en el body
+      document.body.addEventListener('touchmove', function(e) {
+        // Permitir scroll solo en elementos con overflow-y-auto o scroll
+        const target = e.target;
+        const scrollable = target.closest('.overflow-y-auto, .overflow-auto, [style*="overflow-y"], [style*="overflow: auto"]');
+        if (!scrollable) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      // Prevenir scroll con rueda del mouse en body
+      document.body.addEventListener('wheel', function(e) {
+        const target = e.target;
+        const scrollable = target.closest('.overflow-y-auto, .overflow-auto, [style*="overflow-y"], [style*="overflow: auto"]');
+        if (!scrollable) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      // Prevenir scroll con teclado (flechas, espacio, etc.)
+      document.addEventListener('keydown', function(e) {
+        // Permitir scroll solo si el foco está en un elemento scrollable
+        const activeElement = document.activeElement;
+        const scrollable = activeElement && (
+          activeElement.classList.contains('overflow-y-auto') ||
+          activeElement.classList.contains('overflow-auto') ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'SELECT' ||
+          activeElement.isContentEditable
+        );
+
+        if (!scrollable && (
+          e.key === 'ArrowDown' || e.key === 'ArrowUp' ||
+          e.key === 'PageDown' || e.key === 'PageUp' ||
+          (e.key === ' ' && !activeElement.tagName.match(/INPUT|TEXTAREA|BUTTON/))
+        )) {
+          e.preventDefault();
+        }
+      });
+
+      // Forzar posición fija al cargar
+      window.addEventListener('load', function() {
+        document.documentElement.style.position = 'fixed';
+        document.documentElement.style.width = '100%';
+        document.documentElement.style.height = '100%';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        document.body.style.height = '100%';
+        document.body.style.top = '0';
+        document.body.style.left = '0';
       });
     })();
   </script>

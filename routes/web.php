@@ -589,6 +589,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/programa-tejido/salon-options', [ProgramaTejidoController::class, 'getSalonTejidoOptions']);
     Route::get('/programa-tejido/tamano-clave-by-salon', [ProgramaTejidoController::class, 'getTamanoClaveBySalon']);
     Route::get('/programa-tejido/flogs-id-options', [ProgramaTejidoController::class, 'getFlogsIdOptions']);
+    Route::get('/programa-tejido/flogs-id-from-twflogs', [ProgramaTejidoController::class, 'getFlogsIdFromTwFlogsTable']);
+    Route::get('/programa-tejido/descripcion-by-idflog/{idflog}', [ProgramaTejidoController::class, 'getDescripcionByIdFlog']);
     Route::get('/programa-tejido/calendario-id-options', [ProgramaTejidoController::class, 'getCalendarioIdOptions']);
     Route::get('/programa-tejido/aplicacion-id-options', [ProgramaTejidoController::class, 'getAplicacionIdOptions']);
     Route::post('/programa-tejido/datos-relacionados', [ProgramaTejidoController::class, 'getDatosRelacionados']);
