@@ -7,56 +7,56 @@
 
     @if($marcas->count() > 0)
         <!-- Botones de Acción -->
-        <div class="mb-6 flex justify-start space-x-3">
-            <button id="btn-editar-folio" onclick="editarFolioSeleccionado()" disabled class="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200">
+        <div class="mb-2 flex justify-start space-x-2">
+            <button id="btn-editar-folio" onclick="editarFolioSeleccionado()" disabled class="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200">
                 <i class="fas fa-edit mr-2"></i>
                 Editar Folio
             </button>
-            <button id="btn-terminar-folio" onclick="terminarFolioSeleccionado()" disabled class="px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200">
+            <button id="btn-terminar-folio" onclick="terminarFolioSeleccionado()" disabled class="px-3 py-1.5 text-sm bg-green-500 text-white rounded-lg shadow hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200">
                 <i class="fas fa-check mr-2"></i>
                 Terminar Marca
             </button>
         </div>
 
         <!-- Lista de Marcas -->
-        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-            <div class="overflow-x-auto" style="max-height: calc(5 * 60px + 48px); overflow-y: auto;">
-                <table class="w-full">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-3">
+            <div class="overflow-x-auto scroll-area" style="max-height: 24vh; overflow-y: auto;">
+                <table class="w-full text-xs table-compact-y">
                     <thead class="bg-gray-50 sticky top-0 z-10">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Folio</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Fecha</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Turno</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Usuario</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Folio</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Fecha</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Turno</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Usuario</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($marcas as $marca)
                             <tr class="hover:bg-blue-50 cursor-pointer transition-colors duration-200" data-folio="{{ $marca->Folio }}" onclick="toggleLineasPanel('{{ $marca->Folio }}')">
-                                <td class="px-4 py-3 text-sm font-semibold text-gray-900 border-r border-gray-200">
+                                <td class="px-2 py-2 text-xs font-semibold text-gray-900 border-r border-gray-200">
                                     {{ $marca->Folio }}
                                 </td>
-                                <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                                <td class="px-2 py-2 text-xs text-gray-900 border-r border-gray-200">
                                     {{ \Carbon\Carbon::parse($marca->Date)->format('d/m/Y') }}
                                 </td>
-                                <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                                <td class="px-2 py-2 text-xs text-gray-900 border-r border-gray-200">
                                     Turno {{ $marca->Turno }}
                                 </td>
-                                <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                                <td class="px-2 py-2 text-xs text-gray-900 border-r border-gray-200">
                                     {{ $marca->nombreEmpl ?? 'N/A' }}
                                 </td>
-                                <td class="px-4 py-3 text-sm">
+                                <td class="px-2 py-2 text-xs">
                                     @if($marca->Status == 'Finalizado')
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-800">
                                             Finalizado
                                         </span>
                                     @elseif($marca->Status == 'En Proceso')
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-800">
                                             En Proceso
                                         </span>
                                     @else
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-800">
                                             {{ $marca->Status }}
                                         </span>
                                     @endif
@@ -69,18 +69,18 @@
         </div>
 
         <!-- Panel de líneas debajo de la tabla principal -->
-        <div id="lineas-panel" class="bg-white rounded-lg shadow-lg overflow-hidden hidden">
-            <div class="overflow-x-auto overflow-y-auto" style="max-height: 400px;">
-                <table class="min-w-full text-sm">
+        <div id="lineas-panel" class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="overflow-x-auto overflow-y-auto scroll-area-lines" style="max-height: 36vh;">
+                <table class="min-w-full text-xs table-compact whitespace-nowrap">
                     <thead class="bg-gray-50 sticky top-0 z-20">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telar</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">%Efi</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-purple-500 uppercase tracking-wider">Marcas</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-blue-500 uppercase tracking-wider">Trama</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-green-500 uppercase tracking-wider">Pie</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-yellow-500 uppercase tracking-wider">Rizo</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-red-500 uppercase tracking-wider">Otros</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Telar</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">%Efi</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-purple-500 uppercase tracking-wider">Marcas</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-blue-500 uppercase tracking-wider">Trama</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-green-500 uppercase tracking-wider">Pie</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-yellow-500 uppercase tracking-wider">Rizo</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-red-500 uppercase tracking-wider">Otros</th>
                         </tr>
                     </thead>
                     <tbody id="lineas-tbody" class="bg-white divide-y divide-gray-200"></tbody>
@@ -108,6 +108,28 @@
     .cursor-pointer:hover {
         transform: translateY(-1px);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Tabla compacta */
+    .table-compact th,
+    .table-compact td { padding: 0.35rem 0.5rem; line-height: 1.1; }
+    .table-compact { font-size: 0.80rem; }
+
+    /* Compacta alto sin estrechar (solo para la principal) */
+    .table-compact-y th,
+    .table-compact-y td {
+        padding-top: 0.20rem;
+        padding-bottom: 0.20rem;
+        padding-left: 0.9rem;  /* mantener ancho visual */
+        padding-right: 0.9rem; /* mantener ancho visual */
+        line-height: 1.15;
+    }
+
+    /* Evitar scroll chaining entre áreas */
+    .scroll-area,
+    .scroll-area-lines {
+        overscroll-behavior: contain;
+        overscroll-behavior-y: contain;
     }
     
     /* Animaciones suaves */
@@ -291,21 +313,21 @@
             };
             
             tr.innerHTML = `
-                <td class="px-4 py-3 font-semibold text-gray-900">
+                <td class="px-2 py-1 font-semibold text-gray-900">
                     <div class="flex items-center">
                         <div class="bg-purple-100 text-purple-800 rounded-full px-2 py-1 text-xs font-medium">
                             ${l.NoTelarId ?? '-'}
                         </div>
                     </div>
                 </td>
-                <td class="px-4 py-3 text-center">${formatValue(l.PorcentajeEfi, '%')}</td>
-                <td class="px-4 py-3 text-center">
-                    <span class="text-purple-600 font-bold text-base">${formatValue(l.Marcas)}</span>
+                <td class="px-2 py-1 text-center">${formatValue(l.PorcentajeEfi, '%')}</td>
+                <td class="px-2 py-1 text-center">
+                    <span class="text-purple-600 font-bold text-sm">${formatValue(l.Marcas)}</span>
                 </td>
-                <td class="px-4 py-3 text-center text-blue-600">${formatValue(l.Trama)}</td>
-                <td class="px-4 py-3 text-center text-green-600">${formatValue(l.Pie)}</td>
-                <td class="px-4 py-3 text-center text-yellow-600">${formatValue(l.Rizo)}</td>
-                <td class="px-4 py-3 text-center text-red-600">${formatValue(l.Otros)}</td>
+                <td class="px-2 py-1 text-center text-blue-600">${formatValue(l.Trama)}</td>
+                <td class="px-2 py-1 text-center text-green-600">${formatValue(l.Pie)}</td>
+                <td class="px-2 py-1 text-center text-yellow-600">${formatValue(l.Rizo)}</td>
+                <td class="px-2 py-1 text-center text-red-600">${formatValue(l.Otros)}</td>
             `;
             cont.appendChild(tr);
         });
@@ -499,6 +521,15 @@
                 toggleLineasPanel(folio);
             });
         });
+
+        // Seleccionar automáticamente el primer folio para mostrar ambas tablas sin necesidad de scroll adicional
+        const firstRow = document.querySelector('tr[data-folio]');
+        if (firstRow) {
+            const folio = firstRow.getAttribute('data-folio');
+            toggleLineasPanel(folio);
+            // Asegurar foco visual
+            firstRow.classList.add('fila-seleccionada');
+        }
     });
 </script>
 @endsection

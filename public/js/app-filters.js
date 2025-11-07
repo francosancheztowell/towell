@@ -263,3 +263,4 @@ window.resetFiltersSpin = resetFiltersSpin;
 window.removeFilterChip = removeFilterChip;
 
 
+

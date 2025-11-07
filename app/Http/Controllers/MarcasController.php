@@ -13,11 +13,37 @@ class MarcasController extends Controller
     /**
      * Mostrar la vista de nuevas marcas (nuevo-marcas.blade.php)
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
+            // Permisos: solo permitir acceso a creación si el usuario tiene permiso de crear
+            $permisos = $this->getPermisosMarcas();
+            if (!$permisos || !$permisos->acceso || !$permisos->crear) {
+                // Si no tiene permiso para crear, redirigir a la vista de consulta con mensaje
+                return redirect()->route('marcas.consultar')
+                    ->with('error', 'No tienes permisos para crear nuevas marcas');
+            }
             Log::info('Cargando vista de nuevas marcas');
-            
+
+            // Si viene con un folio específico para editar, permitirlo aunque haya otros en proceso
+            if ($request->has('folio')) {
+                Log::info('Cargando folio específico para editar: ' . $request->folio);
+                // Aquí no redirigimos, permitimos cargar la vista con el folio específico
+            } else {
+                // Verificar si hay algún folio en proceso solo si no viene con folio específico
+                $folioEnProceso = DB::table('TejMarcas')
+                    ->where('Status', 'En Proceso')
+                    ->orderBy('Date', 'desc')
+                    ->first();
+
+                // Si hay un folio en proceso, redirigir automáticamente a editarlo
+                if ($folioEnProceso) {
+                    Log::info('Redirigiendo a folio en proceso desde nuevo: ' . $folioEnProceso->Folio);
+                    return redirect()->route('marcas.nuevo', ['folio' => $folioEnProceso->Folio])
+                        ->with('warning', 'Hay un folio en proceso. Se ha redirigido automáticamente para continuar editándolo.');
+                }
+            }
+
             // Intentar primero con InvSecuenciaMarcas, si falla usar InvSecuenciaTelares
             try {
                 $telares = DB::table('InvSecuenciaMarcas')
@@ -44,10 +70,10 @@ class MarcasController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al cargar vista de marcas: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
-            
+
             // Si hay error con las tablas, intentar con array vacío
             $telares = collect([]);
-            
+
             return view('modulos.nuevo-marcas', compact('telares'));
         }
     }
@@ -58,40 +84,26 @@ class MarcasController extends Controller
     public function consultar()
     {
         try {
-            // Obtener todas las marcas ordenadas por fecha descendente
-            // Ajustar según el nombre real de tu tabla y modelo
+            // Obtener permisos para condicionar botones en la vista
+            $permisos = $this->getPermisosMarcas();
+            // Obtener todas las marcas (folios en proceso primero, luego por fecha descendente)
             $marcas = DB::table('TejMarcas')
-                ->leftJoin('SYSUsuario', 'TejMarcas.idusuario', '=', 'SYSUsuario.idusuario')
-                ->select('TejMarcas.*', 'SYSUsuario.nombre as nombreEmpl', 'SYSUsuario.numero_empleado')
-                ->orderBy('TejMarcas.Date', 'desc')
-                ->orderBy('TejMarcas.created_at', 'desc')
+                ->select('Folio', 'Date', 'Turno', 'numero_empleado', 'Status')
+                ->orderByRaw("CASE WHEN Status = 'En Proceso' THEN 0 ELSE 1 END")
+                ->orderByDesc('Date')
                 ->get();
 
-            // Cargar líneas para cada marca
-            foreach ($marcas as $marca) {
-                $marca->lineas = DB::table('TejMarcasLine')
-                    ->where('Folio', $marca->Folio)
-                    ->orderBy('NoTelarId')
-                    ->get();
-            }
+            // Obtener el último folio creado (el más reciente, o el en proceso si existe)
+            $ultimoFolio = $marcas->first();
 
-            // Evitar caché del navegador para esta vista
-            return response()
-                ->view('modulos.consultar-marcas', compact('marcas'))
-                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-                ->header('Pragma', 'no-cache')
-                ->header('Expires', '0');
-            
+            return view('modulos.consultar-marcas-finales', compact('marcas', 'ultimoFolio', 'permisos'));
         } catch (\Exception $e) {
             Log::error('Error al consultar marcas: ' . $e->getMessage());
-            
-            // Si hay error, retornar vista vacía y sin caché
+            // Devolver vista con colección vacía para no romper la UI
             $marcas = collect([]);
-            return response()
-                ->view('modulos.consultar-marcas', compact('marcas'))
-                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-                ->header('Pragma', 'no-cache')
-                ->header('Expires', '0');
+            $ultimoFolio = null;
+            $permisos = $this->getPermisosMarcas();
+            return view('modulos.consultar-marcas-finales', compact('marcas', 'ultimoFolio', 'permisos'));
         }
     }
 
@@ -102,6 +114,13 @@ class MarcasController extends Controller
     {
         try {
             $usuario = Auth::user();
+            $permisos = $this->getPermisosMarcas();
+            if (!$permisos || !$permisos->acceso || !$permisos->crear) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autorizado para generar folios'
+                ], 403);
+            }
             
             // Obtener el último folio de la tabla TejMarcas
             $ultimoFolio = DB::table('TejMarcas')
@@ -201,7 +220,7 @@ class MarcasController extends Controller
                     }
 
                     // Usar EficienciaSTD cuando exista
-                    $porcentajeEfi = $eficiencia ? ($eficiencia->EficienciaSTD ?? $eficiencia->Eficiencia ?? 0) : 0;
+                    $porcentajeEfi = $eficiencia ? number_format(($eficiencia -> EficienciaSTD ?? $eficiencia -> EficienciaSTD ?? 0) *100, 0) :0;
 
                     Log::info("Telar {$noTelar} - Salón: {$row->SalonId} - Eficiencia: {$porcentajeEfi}");
 
@@ -244,14 +263,37 @@ class MarcasController extends Controller
         try {
             $folio = $request->input('folio');
             $fecha = $request->input('fecha') ?: now()->toDateString();
-            $turno = $request->input('turno') ?: 1;
+            $turno = $request->input('turno') ?: TurnoHelper::getTurnoActual();
             $status = $request->input('status', 'En Proceso');
             $lineas = $request->input('lineas', []);
 
             $usuario = Auth::user();
 
-            // Verificar si ya existe el registro
+            $permisos = $this->getPermisosMarcas();
+            if (!$permisos || !$permisos->acceso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso no autorizado'
+                ], 403);
+            }
+
+            // Determinar si es creación o actualización
             $existe = DB::table('TejMarcas')->where('Folio', $folio)->exists();
+            if (!$existe && (!$permisos->crear)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autorizado para crear marcas'
+                ], 403);
+            }
+            if ($existe && (!$permisos->modificar)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autorizado para modificar marcas'
+                ], 403);
+            }
+
+            // Verificar si ya existe el registro
+            // $existe ya determinado arriba
 
             if ($existe) {
                 // Actualizar registro existente
@@ -291,13 +333,17 @@ class MarcasController extends Controller
                     ->select('SalonTejidoId', 'EficienciaSTD')
                     ->first();
 
+                // Determinar eficiencia a guardar: usar porcentaje enviado si viene, si no usar STD
+                $efiPercent = isset($linea['PorcentajeEfi']) ? intval($linea['PorcentajeEfi']) : null;
+                $efiDecimal = $efiPercent !== null ? ($efiPercent / 100) : ($std->EficienciaSTD ?? null);
+
                 DB::table('TejMarcasLine')->insert([
                     'Folio'          => $folio,
                     'Date'           => $fecha,
                     'Turno'          => $turno,
                     'SalonTejidoId'  => $std->SalonTejidoId ?? null,
                     'NoTelarId'      => $noTelar,
-                    'Eficiencia'     => $std->EficienciaSTD ?? null,
+                    'Eficiencia'     => $efiDecimal,
                     'Marcas'         => $linea['Marcas'] ?? 0,
                     'Trama'          => $linea['Trama'] ?? 0,
                     'Pie'            => $linea['Pie'] ?? 0,
@@ -375,6 +421,13 @@ class MarcasController extends Controller
     public function finalizar($folio)
     {
         try {
+            $permisos = $this->getPermisosMarcas();
+            if (!$permisos || !$permisos->acceso || (!$permisos->eliminar && !$permisos->modificar)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autorizado para finalizar'
+                ], 403);
+            }
             $actualizado = DB::table('TejMarcas')
                 ->where('Folio', $folio)
                 ->update([
@@ -401,5 +454,26 @@ class MarcasController extends Controller
                 'message' => 'Error al finalizar marca'
             ], 500);
         }
+    }
+
+    /**
+     * Obtener permisos del módulo Marcas Finales para el usuario autenticado
+     */
+    private function getPermisosMarcas()
+    {
+        $user = Auth::user();
+        if (!$user) return null;
+        return DB::table('SYSUsuariosRoles')
+            ->join('SYSRoles', 'SYSUsuariosRoles.idrol', '=', 'SYSRoles.idrol')
+            ->where('SYSUsuariosRoles.idusuario', $user->idusuario)
+            ->where('SYSUsuariosRoles.acceso', true)
+            ->where(function($query) {
+                $query->where('SYSRoles.modulo', 'LIKE', '%Marcas Finales%')
+                      ->orWhere('SYSRoles.modulo', 'LIKE', '%Nuevas Marcas Finales%')
+                      ->orWhere('SYSRoles.modulo', 'LIKE', '%marcas finales%')
+                      ->orWhere('SYSRoles.modulo', 'LIKE', '%nuevas marcas finales%');
+            })
+            ->select('SYSUsuariosRoles.*', 'SYSRoles.modulo')
+            ->first();
     }
 }
