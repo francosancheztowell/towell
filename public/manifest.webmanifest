@@ -1,20 +1,19 @@
+
 {
-  "name": "Mi App de Producción",
-  "short_name": "Producción",
-  "description": "Programa de Altas Especiales",
-  "start_url": "/?source=pwa",
-  "scope": "/",
-  "display": "fullscreen",
-  "orientation": "portrait",
-  "background_color": "#0f4c81",
-  "theme_color": "#0f4c81",
-  "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
-}
-
-
-
-
+    "id": "/?source=pwa",
+    "name": "Produccion Towell",
+    "short_name": "Producción",
+    "description": "Produccion Towell",
+    "start_url": "/?source=pwa",
+    "scope": "/",
+    "display": "standalone",
+    "display_override": ["standalone", "fullscreen", "minimal-ui"],
+    "orientation": "portrait",
+    "background_color": "#0f4c81",
+    "theme_color": "#0f4c81",
+    "icons": [
+      { "src": "/images/fotosTowell/TOWELLIN.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+      { "src": "/images/fotosTowell/TOWELLIN.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+      { "src": "/images/fotosTowell/TOWELLIN.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ]
+  }

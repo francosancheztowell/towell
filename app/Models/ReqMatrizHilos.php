@@ -15,11 +15,15 @@ class ReqMatrizHilos extends Model
         'CalibreAX',
         'Fibra',
         'CodColor',
-        'NombreColor'
+        'NombreColor',
+        'N1',
+        'N2',
     ];
 
     protected $casts = [
         'Calibre' => 'decimal:4',
         'Calibre2' => 'decimal:4',
+        'N1' => 'decimal:4',
+        'N2' => 'decimal:4',
     ];
 }

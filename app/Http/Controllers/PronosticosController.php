@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\PronosticoResource;
 use App\Services\PronosticosService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -17,33 +16,37 @@ class PronosticosController extends Controller
      */
     public function index(Request $request)
     {
-        // Obtener meses de la URL si existen, sino usar mes actual
         $meses = $this->parseMeses($request);
         $mesActual = !empty($meses) ? $meses[0] : now()->format('Y-m');
-        
-        // Pasar meses a la vista para que el front los use
+
         return view('modulos.alta-pronosticos', compact('mesActual', 'meses'));
     }
 
     /**
      * GET /pronosticos?meses[]=YYYY-MM&meses[]=YYYY-MM
-     * Devuelve JSON con {batas:[], otros:[]}
+     * Obtiene datos directamente desde las consultas (sin guardar en ReqPronosticos).
      */
     public function get(Request $request)
     {
         try {
-            $meses = $this->parseMeses($request);
-            
-            if (empty($meses)) {
-                return response()->json(['batas' => [], 'otros' => []]);
-            }
+            Log::info('GET /pronosticos - Inicio', [
+                'query' => $request->query(),
+            ]);
 
+            $meses = $this->parseMeses($request);
+            Log::info('GET /pronosticos - Meses', ['meses' => $meses]);
+
+            // Obtener datos directamente desde las consultas (sin guardar en ReqPronosticos)
             [$batas, $otros] = $this->service->obtenerPronosticos($meses);
 
-            // Opcional: envolver en Resource para consistencia
+            Log::info('GET /pronosticos - OK', [
+                'batas' => count($batas),
+                'otros' => count($otros),
+            ]);
+
             return response()->json([
-                'batas' => PronosticoResource::collection(collect($batas)),
-                'otros' => PronosticoResource::collection(collect($otros)),
+                'otros' => $otros,
+                'batas' => $batas,
             ]);
 
         } catch (ValidationException $e) {
@@ -53,9 +56,13 @@ class PronosticosController extends Controller
             ], 422);
 
         } catch (\Throwable $e) {
-            Log::error('GET /pronosticos error', ['ex' => $e]);
+            Log::error('GET /pronosticos - Error', [
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
             return response()->json([
-                'message' => 'Ocurrió un error al generar los pronósticos.',
+                'message' => 'Ocurrió un error al obtener los pronósticos.',
             ], 500);
         }
     }
@@ -68,15 +75,13 @@ class PronosticosController extends Controller
     private function parseMeses(Request $request): array
     {
         $meses = $request->query('meses', []);
-        
+
         if (is_string($meses)) {
-            // Soporta lista separada por comas
             $meses = array_filter(array_map('trim', explode(',', $meses)));
         }
 
         $validados = [];
         foreach ($meses as $m) {
-            // Valida formato YYYY-MM
             if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $m)) {
                 throw ValidationException::withMessages([
                     'meses' => ["El valor \"$m\" no tiene formato YYYY-MM."],
@@ -90,27 +95,33 @@ class PronosticosController extends Controller
 
     /**
      * GET /planeacion/programa-tejido/pronosticos/nuevo
-     * Carga la vista de Pronósticos (formulario).
      */
     public function nuevo(Request $request)
     {
+        Log::info('PronosticosController.nuevo - Método llamado', [
+            'url' => $request->fullUrl(),
+            'query' => $request->query(),
+        ]);
+
         $prefill = [
-            'idflog'       => $request->query('idflog') ?? $request->query('IDFLOG'),
-            'itemid'       => $request->query('itemid') ?? $request->query('ITEMID'),
-            'inventsizeid' => $request->query('inventsizeid') ?? $request->query('INVENTSIZEID'),
-            'cantidad'     => $request->query('cantidad') ?? $request->query('CANTIDAD'),
-            'tipohilo'     => $request->query('tipohilo') ?? $request->query('TIPOHILO'),
-            'salon'        => $request->query('salon') ?? $request->query('SALON'),
-            'clavemodelo'  => $request->query('clavemodelo') ?? $request->query('CLAVEMODELO'),
-            'custname'     => $request->query('custname') ?? $request->query('CUSTNAME'),
-            'estado'       => $request->query('estado') ?? $request->query('ESTADO'),
-            'nombreproyecto' => $request->query('nombreproyecto') ?? $request->query('NOMBREPROYECTO'),
-            'categoriacalidad' => $request->query('categoriacalidad') ?? $request->query('CATEGORIACALIDAD'),
+            'idflog'          => $request->query('idflog') ?? $request->query('IDFLOG'),
+            'itemid'          => $request->query('itemid') ?? $request->query('ITEMID'),
+            'inventsizeid'    => $request->query('inventsizeid') ?? $request->query('INVENTSIZEID'),
+            'cantidad'        => $request->query('cantidad') ?? $request->query('CANTIDAD'),
+            'tipohilo'        => $request->query('tipohilo') ?? $request->query('TIPOHILO'),
+            'salon'           => $request->query('salon') ?? $request->query('SALON'),
+            'clavemodelo'     => $request->query('clavemodelo') ?? $request->query('CLAVEMODELO'),
+            'custname'        => $request->query('custname') ?? $request->query('CUSTNAME'),
+            'estado'          => $request->query('estado') ?? $request->query('ESTADO'),
+            'nombreproyecto'  => $request->query('nombreproyecto') ?? $request->query('NOMBREPROYECTO'),
+            'categoriacalidad'=> $request->query('categoriacalidad') ?? $request->query('CATEGORIACALIDAD'),
         ];
+
+        Log::info('PronosticosController.nuevo - Retornando vista', [
+            'vista' => 'modulos.programa-tejido-nuevo.pronosticos',
+            'prefill' => $prefill,
+        ]);
+
         return view('modulos.programa-tejido-nuevo.pronosticos', compact('prefill'));
     }
 }
-
-
-
-

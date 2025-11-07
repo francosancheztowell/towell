@@ -18,30 +18,26 @@ use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 
 class CodificacionController extends Controller
 {
-    /** Vista principal */
+    /** Vista principal - Optimizado para rendimiento */
     public function index()
     {
         try {
-            // Intentar obtener datos sin orderBy primero para verificar si hay datos
-            $codificaciones = ReqModelosCodificados::get();
-
-            if ($codificaciones->isEmpty()) {
-                return view('catalagos.catalogoCodificacion', [
-                    'codificaciones' => collect(),
-                    'mensaje' => 'No se encontraron registros de codificación disponibles'
-                ]);
-            }
-
-            // Si hay datos, intentar ordenar por Id, si falla usar otra columna
+            // Una sola consulta optimizada: usar TamanoClave (primary key indexada) o intentar Id
+            // TamanoClave es más rápido porque es la primary key
             try {
+                // Intentar primero con Id si existe (puede ser más reciente)
                 $codificaciones = ReqModelosCodificados::orderBy('Id', 'desc')->get();
             } catch (\Exception $e) {
-                // Si falla el orderBy por Id, usar TamanoClave como alternativa
+                // Si falla, usar TamanoClave (primary key, indexada, más rápido)
                 $codificaciones = ReqModelosCodificados::orderBy('TamanoClave', 'desc')->get();
             }
 
             return view('catalagos.catalogoCodificacion', compact('codificaciones'));
         } catch (\Exception $e) {
+            Log::error('Error en CodificacionController::index', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return view('catalagos.catalogoCodificacion', [
                 'codificaciones' => collect(),
                 'error' => 'Error al cargar los datos: ' . $e->getMessage()
@@ -60,33 +56,31 @@ class CodificacionController extends Controller
         return view('catalagos.codificacion-form', compact('codificacion'));
     }
 
-    /** API: todos */
+    /** API: todos - Optimizado para rendimiento */
     public function getAll(): JsonResponse
     {
         try {
-            $codificaciones = ReqModelosCodificados::get();
-
-            if ($codificaciones->isEmpty()) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                    'mensaje' => 'No se encontraron registros de codificación disponibles'
-                ]);
-            }
-
-            // Intentar ordenar por Id, si falla usar TamanoClave
+            // Una sola consulta optimizada: usar TamanoClave (primary key indexada) o intentar Id
             try {
                 $codificaciones = ReqModelosCodificados::orderBy('Id', 'desc')->get();
             } catch (\Exception $e) {
+                // Si falla, usar TamanoClave (primary key, indexada, más rápido)
                 $codificaciones = ReqModelosCodificados::orderBy('TamanoClave', 'desc')->get();
             }
 
-            return response()->json(['success' => true, 'data' => $codificaciones]);
+            return response()->json([
+                'success' => true,
+                'data' => $codificaciones,
+                'total' => $codificaciones->count()
+            ]);
         } catch (\Exception $e) {
+            Log::error('Error en CodificacionController::getAll', [
+                'error' => $e->getMessage()
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => 'Error al cargar los datos: ' . $e->getMessage()
-            ]);
+            ], 500);
         }
     }
 

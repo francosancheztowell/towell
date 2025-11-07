@@ -43,9 +43,7 @@
                         title="Seleccionar cuenta RIZO"
                         onclick="abrirModalSeleccion('{{ $telar->Telar }}', 'rizo', '{{ $telar->Cuenta ?? '' }}', '{{ $telar->Calibre_Rizo ?? '' }}', '{{ $telar->Fibra_Rizo ?? '' }}')"
                     >
-                        <svg class="w-4 h-4 md:w-3 md:h-3 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                        </svg>
+                        <i class="fas fa-chevron-right text-sm"></i>
                     </button>
                 </div>
                 <div class="flex items-center md:justify-start lg:justify-between">
@@ -61,9 +59,7 @@
                         title="Seleccionar cuenta PIE"
                         onclick="abrirModalSeleccion('{{ $telar->Telar }}', 'pie', '{{ $telar->Cuenta_Pie ?? '' }}', '{{ $telar->Calibre_Pie ?? '' }}', '{{ $telar->Fibra_Pie ?? '' }}')"
                     >
-                        <svg class="w-4 h-4 md:w-3 md:h-3 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                        </svg>
+                        <i class="fas fa-chevron-right text-sm"></i>
                     </button>
                 </div>
             </div>
@@ -139,16 +135,14 @@
 </div>
 
 <!-- Modal de Selección -->
-<div id="modalSeleccion" class="fixed inset-0 bg-black/40 bg-opacity-60 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center">
+<div id="modalSeleccion" class="fixed inset-0 bg-black/40 bg-opacity-60 overflow-y-auto h-full w-full hidden z-50">
     <div class="relative mx-auto p-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white transform transition-all">
         <!-- Header del Modal con gradiente -->
         <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-xl">
             <div class="flex items-center justify-between">
                 <h3 class="text-xl font-bold" id="modalTitulo">Telar JACQUARD SULZER <span id="modalTelarNumero" class="text-yellow-300"></span></h3>
                 <button type="button" onclick="cerrarModalSeleccion()" class="text-white hover:text-gray-200 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
         </div>
@@ -505,7 +499,9 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
         document.getElementById('fibraSiguiente').textContent = window.modalData.datosSiguiente.fibra;
 
         // Mostrar modal
-        document.getElementById('modalSeleccion').classList.remove('hidden');
+        const modal = document.getElementById('modalSeleccion');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex', 'items-center', 'justify-center');
 
         // Limpiar selección anterior y seleccionar por defecto "Producción en Proceso"
         document.querySelectorAll('input[name="seleccion"]').forEach(radio => {
@@ -519,7 +515,9 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
 
 // Función para cerrar el modal
 function cerrarModalSeleccion() {
-    document.getElementById('modalSeleccion').classList.add('hidden');
+    const modal = document.getElementById('modalSeleccion');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex', 'items-center', 'justify-center');
     window.modalData = {
         telarId: null,
         tipo: null,

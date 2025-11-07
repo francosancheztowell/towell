@@ -9,6 +9,8 @@ window.ProgramaTejidoForm = {
         datosModeloActual: {},
         contadorFilasTelar: 0,
         sugerenciasClaveModelo: [],
+        sugerenciasIdFlog: [],
+        todasOpcionesIdFlog: [],
         cacheSalones: new Map(),
         cacheClaveModelo: new Map(),
         modoEdicion: false,
@@ -148,7 +150,12 @@ window.ProgramaTejidoForm = {
             const opciones = await ProgramaTejidoUtils.fetchConCSRF(ProgramaTejidoConfig.api.aplicacionId, {
                 method: 'GET'
             });
-            this.llenarSelect('aplicacion-select', opciones, 'Seleccione aplicación...');
+            // Agregar opción "NA" si no existe
+            const opcionesConNA = Array.isArray(opciones) ? [...opciones] : [];
+            if (!opcionesConNA.includes('NA')) {
+                opcionesConNA.push('NA');
+            }
+            this.llenarSelect('aplicacion-select', opcionesConNA, 'Seleccione aplicación...');
         } catch (error) {
             console.error('Error al cargar aplicaciones:', error);
         }
@@ -182,6 +189,12 @@ window.ProgramaTejidoForm = {
 
         // Clave Modelo (con autocompletado)
         this.configurarAutocompletadoClaveModelo();
+
+        // IdFlog (con autocompletado - verificar si existe el input)
+        const idflogInput = document.getElementById('idflog-input');
+        if (idflogInput) {
+            this.configurarAutocompletadoIdFlog();
+        }
 
         // Hilo
         const hiloSelect = document.getElementById('hilo-select');
@@ -361,6 +374,183 @@ window.ProgramaTejidoForm = {
     },
 
     /**
+     * Configurar autocompletado para IdFlog
+     */
+    configurarAutocompletadoIdFlog() {
+        const input = document.getElementById('idflog-input');
+        const container = document.getElementById('idflog-suggestions');
+        if (!input || !container) return;
+
+        // Input con debounce
+        const buscarConDebounce = ProgramaTejidoUtils.debounce((valor) => {
+            if (valor.length >= 2) {
+                this.cargarOpcionesIdFlog(valor);
+            } else {
+                container.classList.add('hidden');
+            }
+        }, ProgramaTejidoConfig.ui.autocompletadoDelay || 300);
+
+        input.addEventListener('input', (e) => buscarConDebounce(e.target.value));
+
+        // Focus - cargar opciones si no están cargadas o mostrar si existen
+        input.addEventListener('focus', async () => {
+            if (this.state.sugerenciasIdFlog && this.state.sugerenciasIdFlog.length > 0) {
+                // Si ya hay sugerencias cargadas, mostrarlas
+                this.mostrarSugerenciasIdFlog(this.state.sugerenciasIdFlog);
+            } else {
+                // Cargar todas las opciones inicialmente
+                await this.cargarOpcionesIdFlog('');
+            }
+        });
+
+        // Enter - ocultar sugerencias
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                container.classList.add('hidden');
+            }
+        });
+
+        // Click fuera - ocultar sugerencias (usar setTimeout para permitir clicks en sugerencias)
+        document.addEventListener('click', (e) => {
+            setTimeout(() => {
+                if (!input.contains(e.target) && !container.contains(e.target)) {
+                    container.classList.add('hidden');
+                }
+            }, 200);
+        });
+
+        // Change event - cargar descripción cuando cambia el IdFlog
+        input.addEventListener('change', () => {
+            const valor = input.value.trim();
+            if (valor) {
+                input.classList.add(...ProgramaTejidoConfig.ui.clasesInputSeleccionado.split(' '));
+                // Cargar descripción cuando cambia el IdFlog
+                this.cargarDescripcionPorIdFlog(valor);
+            } else {
+                input.classList.remove(...ProgramaTejidoConfig.ui.clasesInputSeleccionado.split(' '));
+                // Limpiar descripción si se borra el IdFlog
+                const descripcionEl = document.getElementById('descripcion');
+                if (descripcionEl) {
+                    descripcionEl.value = '';
+                }
+            }
+        });
+    },
+
+    /**
+     * Cargar opciones de IdFlog desde TwFlogsTable con filtro
+     */
+    async cargarOpcionesIdFlog(search = '') {
+        try {
+            console.log('🔍 Cargando opciones IdFlog, búsqueda:', search);
+
+            // Si no hay búsqueda y ya tenemos opciones cargadas, usar esas
+            if (!search && this.state.sugerenciasIdFlog && this.state.sugerenciasIdFlog.length > 0) {
+                this.mostrarSugerenciasIdFlog(this.state.sugerenciasIdFlog);
+                return;
+            }
+
+            const response = await ProgramaTejidoUtils.fetchConCSRF(
+                ProgramaTejidoConfig.api.flogsIdFromTwFlogs,
+                { method: 'GET' }
+            );
+
+            console.log('📦 Respuesta del endpoint:', response);
+
+            // Asegurar que response es un array
+            const opciones = Array.isArray(response) ? response : [];
+
+            // Si no hay búsqueda, guardar todas las opciones para uso futuro
+            if (!search) {
+                this.state.todasOpcionesIdFlog = opciones;
+            }
+
+            // Filtrar opciones localmente si hay búsqueda
+            let opcionesFiltradas = opciones;
+            if (search && search.length >= 2) {
+                const searchLower = search.toLowerCase();
+                // Si tenemos todas las opciones guardadas, filtrar desde ahí
+                const opcionesBase = this.state.todasOpcionesIdFlog || opciones;
+                opcionesFiltradas = opcionesBase.filter(opcion =>
+                    opcion && String(opcion).toLowerCase().includes(searchLower)
+                );
+            }
+
+            console.log('✅ Opciones filtradas:', opcionesFiltradas.length);
+            this.state.sugerenciasIdFlog = opcionesFiltradas;
+            this.mostrarSugerenciasIdFlog(opcionesFiltradas);
+        } catch (error) {
+            console.error('❌ Error al cargar IdFlog:', error);
+            const container = document.getElementById('idflog-suggestions');
+            if (container) {
+                container.classList.add('hidden');
+            }
+        }
+    },
+
+    /**
+     * Mostrar sugerencias de IdFlog
+     */
+    mostrarSugerenciasIdFlog(sugerencias) {
+        const container = document.getElementById('idflog-suggestions');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        if (sugerencias.length === 0) {
+            const div = document.createElement('div');
+            div.className = 'px-2 py-1 text-gray-500 text-xs italic';
+            div.textContent = 'No se encontraron coincidencias';
+            container.appendChild(div);
+            container.classList.remove('hidden');
+            return;
+        }
+
+        sugerencias.forEach(sugerencia => {
+            const div = document.createElement('div');
+            div.className = 'px-2 py-1 hover:bg-blue-100 cursor-pointer text-xs';
+            div.textContent = sugerencia;
+            div.addEventListener('click', () => {
+                const input = document.getElementById('idflog-input');
+                if (input) {
+                    input.value = sugerencia;
+                    input.classList.add(...ProgramaTejidoConfig.ui.clasesInputSeleccionado.split(' '));
+                    container.classList.add('hidden');
+                    // Cargar descripción cuando se selecciona un IdFlog
+                    this.cargarDescripcionPorIdFlog(sugerencia);
+                }
+            });
+            container.appendChild(div);
+        });
+
+        container.classList.remove('hidden');
+    },
+
+    /**
+     * Cargar descripción (NombreProyecto) por IdFlog
+     */
+    async cargarDescripcionPorIdFlog(idflog) {
+        if (!idflog || idflog.trim() === '') {
+            return;
+        }
+
+        try {
+            const response = await ProgramaTejidoUtils.fetchConCSRF(
+                `${ProgramaTejidoConfig.api.descripcionByIdFlog}/${encodeURIComponent(idflog)}`,
+                { method: 'GET' }
+            );
+
+            const descripcionEl = document.getElementById('descripcion');
+            if (descripcionEl && response.nombreProyecto) {
+                descripcionEl.value = response.nombreProyecto;
+            }
+        } catch (error) {
+            console.error('Error al cargar descripción por IdFlog:', error);
+        }
+    },
+
+    /**
      * Handler para cambio de salón
      */
     async onSalonChange(salonTejidoId) {
@@ -519,10 +709,10 @@ window.ProgramaTejidoForm = {
         if (hilo && telar && calibreTrama) {
             await this.cargarEficienciaYVelocidad();
         } else {
-            console.warn('⚠️ Faltan datos para cargar eficiencia/velocidad:', { 
-                hilo: !!hilo, 
-                telar: !!telar, 
-                calibreTrama: !!calibreTrama 
+            console.warn('⚠️ Faltan datos para cargar eficiencia/velocidad:', {
+                hilo: !!hilo,
+                telar: !!telar,
+                calibreTrama: !!calibreTrama
             });
         }
     },
@@ -770,7 +960,8 @@ window.ProgramaTejidoForm = {
             ProgramaTejidoUtils.establecerValorCampo('salon-select', registro.SalonTejidoId);
         }
         if (registro.TamanoClave) {
-            ProgramaTejidoUtils.establecerValorCampo('clave-modelo-input', registro.TamanoClave);
+            // En edición, mantener deshabilitado el campo clave-modelo
+            ProgramaTejidoUtils.establecerValorCampo('clave-modelo-input', registro.TamanoClave, false);
         }
         if (registro.FlogsId) {
             ProgramaTejidoUtils.establecerValorCampo('idflog-select', registro.FlogsId);

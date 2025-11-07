@@ -29,7 +29,7 @@
                                 </td>
                                 <td class="px-2 py-1 font-medium text-gray-800 w-24">Aplicación</td>
                                 <td class="px-2 py-1">
-                                    <input type="text" id="aplicacion-input" value="{{ $registro->AplicacionId ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100">
+                                    <input type="text" id="aplicacion-input" disabled value="{{ $registro->AplicacionId ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100">
                                 </td>
                                 <td class="px-2 py-1 font-medium text-gray-800 w-24">Calibre Trama</td>
                                 <td class="px-2 py-1"><input type="text" id="calibre-trama" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CalibreTrama ?? '' }}"></td>
@@ -100,8 +100,9 @@
                             <!-- Fila 6: IdFlog, Calibre Pie, Hilos C1-C3-C5 -->
                             <tr>
                                 <td class="px-2 py-1 font-medium text-gray-800">IdFlog</td>
-                                <td class="px-2 py-1">
-                                    <input type="text" id="idflog-input" value="{{ $registro->FlogsId ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100">
+                                <td class="px-2 py-1 relative">
+                                    <input type="text" id="idflog-input" value="{{ $registro->FlogsId ?? '' }}" placeholder="Escriba para buscar..." class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-white">
+                                    <div id="idflog-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-b shadow-lg hidden max-h-40 overflow-y-auto"></div>
                                 </td>
                                 <td class="px-2 py-1 font-medium text-gray-800">Calibre Pie</td>
                                 <td class="px-2 py-1"><input type="text" id="calibre-pie" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" disabled value="{{ $registro->CalibrePie ?? '' }}"></td>
@@ -205,7 +206,7 @@
             </div>
 
             {{-- SECCIÓN: MÉTRICAS --}}
-            <div class="mt-3" id="seccion-metricas">
+            <div class="mt-3 hidden" id="seccion-metricas">
                 <div class="overflow-x-auto">
                     <table class="w-full text-xs border border-gray-300">
                         <thead>

@@ -24,17 +24,12 @@
 @props([
     'action' => '/login',
     'method' => 'POST',
-    'title' => 'Acceso por ID',
-    'subtitle' => 'Ingresa tu identificador único',
     'errors' => [],
     'successMessage' => null
 ])
 
 <div class="login-form-container">
-    <div class="mb-6">
-        <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $title }}</h2>
-        <p class="text-slate-600">{{ $subtitle }}</p>
-    </div>
+
 
     <!-- Mostrar errores de sesión -->
     @if (session('error'))
@@ -112,15 +107,7 @@
         </x-action-button>
     </form>
 
-    <!-- Enlace de soporte -->
-    <div class="text-center mt-6">
-        <p class="text-slate-600 text-sm">
-            ¿Problemas para acceder?
-            <a href="#" class="text-blue-600 no-underline font-medium hover:underline">
-                Contactar soporte
-            </a>
-        </p>
-    </div>
+
 </div>
 
 <script>

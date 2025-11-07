@@ -17,6 +17,9 @@
                         <th class="px-2 py-1 text-right text-xs font-semibold">Combinación 5</th>
                         <th class="px-2 py-1 text-right text-xs font-semibold">Rizo</th>
                         <th class="px-2 py-1 text-right text-xs font-semibold">Pie</th>
+                        <th class="px-2 py-1 text-right text-xs font-semibold">Mts/Pie</th>
+                        <th class="px-2 py-1 text-right text-xs font-semibold">Mts/Rizo</th>
+
                     </tr>
                 </thead>
                 <tbody id="reqpt-line-body" class=" divide-y divide-gray-100 bg-white">
@@ -35,13 +38,13 @@ async function loadReqProgramaTejidoLines(params = {}) {
 
     const qs = new URLSearchParams(params).toString();
     const url = '/planeacion/req-programa-tejido-line' + (qs ? ('?' + qs) : '');
-    body.innerHTML = `<tr><td colspan="12" class="px-3 py-4 text-center text-sm text-gray-500">Cargando...</td></tr>`;
+    body.innerHTML = `<tr><td colspan="14" class="px-3 py-4 text-center text-sm text-gray-500">Cargando...</td></tr>`;
     wrap.classList.remove('hidden');
 
     try {
         const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
         if (!r.ok) {
-            body.innerHTML = `<tr><td colspan="12" class="px-3 py-6">
+            body.innerHTML = `<tr><td colspan="14" class="px-3 py-6">
                 <div class="max-w-xl mx-auto  text-blue-800 rounded-md p-4 text-sm text-center">
                     <div class="font-semibold mb-1">No se pudo cargar el detalle</div>
                     <div>Intenta nuevamente más tarde.</div>
@@ -55,7 +58,7 @@ async function loadReqProgramaTejidoLines(params = {}) {
         const items = page?.data ?? page; // paginate.data o arreglo
 
         if (!Array.isArray(items) || items.length === 0) {
-            body.innerHTML = `<tr><td colspan="12" class="px-3 py-6 text-center text-sm text-gray-500">Sin líneas registradas</td></tr>`;
+            body.innerHTML = `<tr><td colspan="14" class="px-3 py-6 text-center text-sm text-gray-500">Sin líneas registradas</td></tr>`;
             meta && (meta.textContent = '0 registros');
             return;
         }
@@ -75,14 +78,16 @@ async function loadReqProgramaTejidoLines(params = {}) {
                     <td class="px-2 py-1 text-xs text-right">${f(it.Combina3)}</td>
                     <td class="px-2 py-1 text-xs text-right">${f(it.Combina4)}</td>
                     <td class="px-2 py-1 text-xs text-right">${f(it.Combina5)}</td>
-                    <td class="px-2 py-1 text-xs text-right">${f(it.Pie)}</td>
                     <td class="px-2 py-1 text-xs text-right">${f(it.Rizo)}</td>
+                    <td class="px-2 py-1 text-xs text-right">${f(it.Pie)}</td>
+                    <td class="px-2 py-1 text-xs text-right">${f(it.MtsPie)}</td>
+                    <td class="px-2 py-1 text-xs text-right">${f(it.MtsRizo)}</td>
                 </tr>`;
         }).join('');
         body.innerHTML = rows;
         meta && (meta.textContent = `${items.length} registro(s)`);
     } catch(e) {
-        body.innerHTML = `<tr><td colspan="12" class="px-3 py-6">
+        body.innerHTML = `<tr><td colspan="14" class="px-3 py-6">
             <div class="max-w-xl mx-auto  text-red-700 rounded-md p-4 text-sm text-center">
                 <div class="font-semibold mb-1">No se pudo cargar el detalle</div>
                 <div>Por favor verifica tu conexión e inténtalo de nuevo.</div>

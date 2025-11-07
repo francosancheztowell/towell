@@ -1,160 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <x-layout-head />
+    <x-layout-styles />
+    <x-layout-scripts />
+</head>
 
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.webmanifest">
-    <meta name="theme-color" content="#0f4c81">
-
-    <!-- iOS: hace que al "Añadir a pantalla de inicio" abra como app -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Producción">
-    <link rel="apple-touch-icon" href="/icons/icon-192.png">
-
-    <!-- Android/Chrome: Ocultar barra de navegación -->
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Producción">
-
-    <!-- Prevenir zoom y mostrar en pantalla completa -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-
-    <title>@yield('title', 'TOWELL S.A DE C.V')</title>
-
-  <!-- Preload -->
-    <link rel="preload" as="image" href="{{ asset('images/fondosTowell/logo.png') }}">
-    @if(file_exists(public_path('images/fotos_usuarios/TOWELLIN.png')))
-    <link rel="preload" as="image" href="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}">
-    @endif
-
-  <!-- Optimización imágenes -->
-    <style>
-    img[loading="lazy"]{
-      background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);
-      background-size:200% 100%;animation:loading 1.5s infinite
-    }
-    @keyframes loading{0%{background-position:200% 0}100%{background-position:-200% 0}}
-    .module-grid img{will-change:transform;backface-visibility:hidden}
-
-    /* PWA: Safe area insets para notches en iOS y ocultar barra Chrome */
-    html {
-      height: 100%;
-      height: -webkit-fill-available;
-      overflow-x: hidden;
-    }
-
-    body {
-      min-height: 100%;
-      min-height: -webkit-fill-available;
-      overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
-      /* Forzar altura completa para ocultar barra de Chrome */
-      position: relative;
-    }
-
-    :root {
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
-    }
-
-    /* Ocultar barra de direcciones en Chrome Android cuando está en modo PWA */
-    @media all and (display-mode: fullscreen) {
-      html, body {
-        height: 100vh;
-        height: -webkit-fill-available;
-        overflow: hidden;
-      }
-    }
-
-    /* Forzar pantalla completa en modo standalone */
-    @media all and (display-mode: standalone) {
-      html, body {
-        height: 100vh;
-        height: -webkit-fill-available;
-      }
-    }
-    </style>
-
-  <!-- CSS/JS base -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script>
-        window.axios = axios;
-    window.axios.defaults.headers.common['X-Requested-With']='XMLHttpRequest';
-    const _csrf = document.head.querySelector('meta[name="csrf-token"]');
-    if(_csrf){ window.axios.defaults.headers.common['X-CSRF-TOKEN'] = _csrf.content; }
-    </script>
-
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <!-- Bootstrap JS (bundle con Popper) para modales, tooltips, etc. -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-
-  <!-- Limpieza SW antiguos -->
-    <script>
-    (function(){
-      if(!('serviceWorker' in navigator)) return;
-      async function cleanup(){ try{
-        const regs=await navigator.serviceWorker.getRegistrations();
-        for(const r of regs) await r.unregister();
-        if('caches'in window){ for(const n of await caches.keys()) await caches.delete(n); }
-        if(navigator.serviceWorker.controller){
-          navigator.serviceWorker.controller.postMessage({action:'skipWaiting'});
-        }
-      }catch(e){}}
-      cleanup();
-      window.addEventListener('load',cleanup);
-      document.addEventListener('visibilitychange',()=>{ if(!document.hidden) cleanup(); });
-        })();
-    </script>
-
-  <!-- Tailwind extra -->
-    <script>
-    tailwind.config={ theme:{ extend:{} } }
-    </script>
-
-    <style>
-    @keyframes ripple{0%{width:0;height:0}100%{width:300px;height:300px}}
-    .ripple-effect:active::before{animation:ripple .6s ease-out}
-    @keyframes spin360{to{transform:rotate(360deg)}}
-    .spin-1s{animation:spin360 .9s linear 1;transform-origin:50% 50%}
-    .animate-fade-in{animation:fadeIn .18s ease-out both}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-    </style>
-
-  @stack('styles') @push('styles')
-    </head>
-
-<!-- Optimización navegación simple -->
-    <script>
-  (function(){
-    const path=location.pathname, prev=sessionStorage.getItem('lastNavbarPath');
-    document.documentElement.setAttribute('data-navbar-loaded', prev===path ? 'true' : 'false');
-    sessionStorage.setItem('lastNavbarPath', path);
-    document.addEventListener('click',e=>{
-      const link=e.target.closest('a[href]'); if(!link||link.target==='_blank') return;
-      if(link.hostname!==location.hostname) return;
-    });
-    window.addEventListener('pageshow',()=>{});
-        })();
-    </script>
-
-    <body class="min-h-screen flex flex-col overflow-x-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative">
-        @include('layouts.globalLoader')
+<body class="min-h-screen flex flex-col overflow-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative" style="touch-action: pan-y pinch-zoom;">
+    <x-global-loader />
 
   <!-- NAVBAR -->
         <nav class="bg-white sticky top-0 z-50">
@@ -164,12 +17,10 @@
         <div class="flex items-center gap-2 md:gap-3">
             <button id="btn-back" class="opacity-0 invisible pointer-events-none w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-blue-200 hover:bg-blue-400 text-black rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
                 title="Volver atrás" aria-label="Volver atrás">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-                    </svg>
+                    <i class="fas fa-chevron-left text-lg md:text-xl"></i>
             </button>
 
-                    <a href="/produccionProceso" class="flex items-center">
+                    <a href="{{ route('produccion.index') }}" class="flex items-center">
                             <img src="{{ asset('images/fondosTowell/logo.png') }}" alt="Logo Towell" class="h-10 md:h-12">
                         </a>
                     </div>
@@ -220,7 +71,7 @@
                           <i class="fa-solid fa-file-circle-plus text-gray-500"></i>
                           Nuevo registro
                         </button>
-                        <a href="{{ route('programa-tejido.altas-especiales') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                        <a href="{{ route('programa-tejido.altas-especiales') }}" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
                           <i class="fa-solid fa-layer-group text-blue-600"></i>
                           Alta C.E.
                         </a>
@@ -258,7 +109,7 @@
                 </button>
 
                 <!-- Grupo 3: Catálogos (icono) -->
-                <a href="/submodulos-nivel3/104" class="w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors" title="Catálogos" aria-label="Catálogos">
+                <a href="{{ route('submodulos.nivel3', '104') }}" class="w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors" title="Catálogos" aria-label="Catálogos">
                   <i class="fa-solid fa-database"></i>
                 </a>
               </div>
@@ -279,10 +130,6 @@
                 </button>
                     </div>
 
-
-
-
-
               <!-- Filtros (reactivo) -->
               <button type="button" id="btnFilters"
                       class="relative w-9 h-9 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
@@ -298,37 +145,27 @@
                         @yield('navbar-right')
 
           @if(!request()->routeIs('catalogos.req-programa-tejido'))
-            <button href="{{ route('planeacion.telares.falla') }}"
+            <a href="{{ route('planeacion.catalogos.telares.falla') }}"
                     class="bg-yellow-400 hover:bg-yellow-500 flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                            </svg>
-                            Paro
-                        </button>
+              <i class="fas fa-exclamation-triangle"></i>
+              Paro
+            </a>
           @endif
 
                         @if (Route::currentRouteName() === 'produccion.index')
             <button id="logout-btn"
                     class="flex items-center gap-1 px-2 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-700 rounded-lg transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                </svg>
-                                Salir
-                            </button>
+                <i class="fas fa-sign-out-alt"></i>
+                Salir
+            </button>
                         @endif
 
                         @if(isset($tieneConfiguracion) && $tieneConfiguracion)
             <a href="{{ route('configuracion.index') }}"
                class="w-10 h-10 bg-blue-100 hover:bg-blue-200 rounded-full flex items-center justify-center text-blue-800 hover:text-blue-900 transition-all duration-200 shadow-sm hover:shadow-md"
                title="Configuración">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                </svg>
-                            </a>
+                <i class="fas fa-cog"></i>
+            </a>
                         @endif
 
           <!-- Usuario -->
@@ -374,29 +211,21 @@
                 <div class="space-y-2 text-sm">
                     @if(isset($usuario->area) && $usuario->area)
                     <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                        </svg>
+                        <i class="fas fa-building text-gray-400 flex-shrink-0"></i>
                         <span class="text-gray-600 truncate">{{ $usuario->area }}</span>
                     </div>
                     @endif
 
                     @if(isset($usuario->turno) && $usuario->turno)
                     <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <i class="fas fa-clock text-gray-400 flex-shrink-0"></i>
                         <span class="text-gray-600">Turno {{ $usuario->turno }}</span>
                     </div>
                     @endif
 
                     @if(isset($usuario->correo) && $usuario->correo)
                     <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
+                        <i class="fas fa-envelope text-gray-400 flex-shrink-0"></i>
                         <span class="text-gray-600 truncate">{{ $usuario->correo }}</span>
                     </div>
                     @endif
@@ -406,7 +235,7 @@
 
   <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">@csrf</form>
 
-        <main class="overflow-x-hidden max-w-full">
+        <main class="overflow-x-hidden overflow-y-auto max-w-full flex-1" style="height: calc(100vh - 64px); max-height: calc(100vh - 64px);">
             @yield('content')
         </main>
 
@@ -416,9 +245,7 @@
       <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
         <h3 class="font-semibold text-gray-800">Filtros por columnas</h3>
         <button class="p-2 rounded-md hover:bg-gray-100" onclick="closeFilterModal()" aria-label="Cerrar">
-          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
+          <i class="fas fa-times text-gray-600"></i>
         </button>
       </div>
 
@@ -447,10 +274,7 @@
         <button id="btnResetFilters"
                 class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all"
                 onclick="resetFiltersSpin()" title="Restablecer">
-          <svg id="iconReset" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M4 4v6h6M20 20v-6h-6M20 9a7 7 0 10-3.29 5.98"/>
-          </svg>
+          <i id="iconReset" class="fas fa-redo w-4 h-4"></i>
           Restablecer
         </button>
 
@@ -465,427 +289,22 @@
   </div>
 
   <!-- ====== Scripts ====== -->
-        <script>
-    // Logout modal
-    (function(){
-      const btn = document.getElementById('logout-btn');
-      if(!btn) return;
-      btn.addEventListener('click', function(e){
-        e.preventDefault();
-        Swal.fire({
-          title:'¿Confirma cerrar sesión?',icon:'warning',
-          showCancelButton:true,confirmButtonColor:'#3085d6',cancelButtonColor:'#d33',
-          confirmButtonText:'Sí, salir',cancelButtonText:'Cancelar'
-        }).then(res=>{ if(res.isConfirmed) document.getElementById('logout-form').submit(); });
-      });
-    })();
-
-    // Botón atrás
-    document.addEventListener('DOMContentLoaded', function(){
-      const btnBack = document.getElementById('btn-back');
-      const homePath = '/produccionProceso';
-      if(btnBack && location.pathname !== homePath){
-        btnBack.classList.remove('opacity-0','invisible','pointer-events-none');
-        btnBack.classList.add('flex','opacity-100','visible');
-        btnBack.addEventListener('click', function(){
-          if (history.length > 1 && document.referrer){ history.back(); }
-          else { location.href = homePath; }
-        });
-      }
-      // Loader off
-      const loader = document.getElementById('globalLoader');
-      if(loader) loader.style.display='none';
-    });
-
-    // Menú usuario compacto
-    (function(){
-      const btn = document.getElementById('btn-user-avatar');
-      const modal = document.getElementById('user-modal');
-      let open=false;
-      function show(e){ e&&e.stopPropagation(); modal.classList.remove('opacity-0','invisible','scale-95'); modal.classList.add('opacity-100','visible','scale-100'); open=true; }
-      function hide(){ modal.classList.remove('opacity-100','visible','scale-100'); modal.classList.add('opacity-0','invisible','scale-95'); open=false; }
-      if(btn && modal){
-        btn.addEventListener('click',e=> open ? hide() : show(e));
-        document.addEventListener('click',e=>{ if(open && !modal.contains(e.target) && !btn.contains(e.target)) hide(); });
-        document.addEventListener('keydown',e=>{ if(e.key==='Escape' && open) hide(); });
-      }
-    })();
-
-    // Persistencia UI simple
-    window.addEventListener('pageshow', function(){
-                if (sessionStorage.getItem('forceReload')) {
-                    sessionStorage.removeItem('forceReload');
-                    location.reload();
-                }
-            });
-
-    // Toastr base
-            toastr.options = {
-      closeButton:true, debug:false, newestOnTop:true, progressBar:true,
-      positionClass:"toast-top-right", preventDuplicates:false, showDuration:"300",
-      hideDuration:"1000", timeOut:"5000", extendedTimeOut:"1000",
-      showEasing:"swing", hideEasing:"linear", showMethod:"fadeIn", hideMethod:"fadeOut"
-    };
-
-    // ====== Filtros reactivos ======
-    let filtersState = { active:false, count:0, values:{} };
-
-    const $btnFilters = document.getElementById('btnFilters');
-    if($btnFilters){
-      $btnFilters.addEventListener('click', function(){
-        openFilterModal();
-      });
-    }
-
-    function openFilterModal(){
-      const m = document.getElementById('filtersModal'); if(!m) return;
-      // Poblar select y chips desde headers/estado
-      try{
-        const sel = document.getElementById('f_col_select');
-        const list = document.getElementById('f_list');
-        const inp = document.getElementById('f_col_value');
-        if(sel){
-          sel.innerHTML = '';
-          const headers = Array.from(document.querySelectorAll('#mainTable thead th'))
-            .filter(th => th && th.offsetParent !== null);
-          const optDefault = document.createElement('option'); optDefault.value=''; optDefault.textContent='Selecciona una columna…'; sel.appendChild(optDefault);
-          headers.forEach(th => {
-            const key = th.getAttribute('data-column') || '';
-            const label = (th.textContent || '').trim();
-            if(!key||!label) return;
-            const opt=document.createElement('option'); opt.value=key; opt.textContent=label; sel.appendChild(opt);
-          });
-        }
-        if(list){ list.innerHTML=''; }
-        if(filtersState && filtersState.values){
-          Object.entries(filtersState.values).forEach(([col,val])=> addFilterChip(col,val));
-        }
-        if(inp){ inp.value=''; }
-      }catch(e){}
-      m.classList.remove('hidden'); m.classList.add('flex');
-    }
-    function closeFilterModal(){
-      const m = document.getElementById('filtersModal'); if(!m) return;
-      m.classList.remove('flex'); m.classList.add('hidden');
-    }
-    function confirmFilters(){
-      // Leer chips agregados
-      const chips = Array.from(document.querySelectorAll('#f_list .f-chip'));
-      const values = {};
-      chips.forEach(ch => { const col=ch.getAttribute('data-col'); const val=ch.getAttribute('data-val')||''; if(col&&val!==''){ values[col]=val; } });
-      const count = Object.keys(values).length;
-      filtersState.values = values;
-      applyFilters(count);
-      // Delegar al módulo si expone filtrado real
-      if(typeof window.applyTableFilters === 'function'){
-        try{ window.applyTableFilters(values); }catch(e){}
-      } else { filterMainTable(values); }
-      closeFilterModal();
-    }
-    function applyFilters(count){
-      filtersState.active = count>0;
-      filtersState.count  = count;
-      updateFilterUI();
-    }
-    function clearFilters(){
-      filtersState = {active:false,count:0,values:{}};
-      updateFilterUI();
-      // limpiar UI compacta
-      const list=document.getElementById('f_list'); if(list) list.innerHTML='';
-      const inp=document.getElementById('f_col_value'); if(inp) inp.value='';
-      const sel=document.getElementById('f_col_select'); if(sel) sel.selectedIndex=0;
-      // Resetear tabla si el módulo expone la función
-      if(typeof window.applyTableFilters === 'function'){
-        try{ window.applyTableFilters({}); }catch(e){}
-      }
-    }
-    // Helpers chips
-    function addFilterChip(col, value){
-      const list = document.getElementById('f_list'); if(!list) return;
-      const existing = list.querySelector(`.f-chip[data-col="${CSS.escape(col)}"]`);
-      if(existing){ existing.setAttribute('data-val', value); existing.querySelector('.f-chip-text').textContent = `${getColumnLabel(col)}: ${value}`; return; }
-      const chip = document.createElement('div');
-      chip.className = 'f-chip inline-flex items-center gap-2 px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs border border-blue-200';
-      chip.setAttribute('data-col', col); chip.setAttribute('data-val', value);
-      chip.innerHTML = `
-        <span class="f-chip-text">${getColumnLabel(col)}: ${value}</span>
-        <button type="button" class="p-1 text-blue-600 hover:text-blue-800" aria-label="Quitar" onclick="removeFilterChip('${col}')">
-          <i class="fa-solid fa-xmark"></i>
-        </button>`;
-      list.appendChild(chip);
-    }
-    function removeFilterChip(col){
-      const list = document.getElementById('f_list'); if(!list) return;
-      const chip = list.querySelector(`.f-chip[data-col="${CSS.escape(col)}"]`);
-      if(chip) list.removeChild(chip);
-      const values = currentFiltersFromChips();
-      const count = Object.keys(values).length;
-      filtersState.values = values; applyFilters(count);
-      if(typeof window.applyTableFilters === 'function'){
-        try{ window.applyTableFilters(values); }catch(e){}
-      } else { filterMainTable(values); }
-    }
-    function getColumnLabel(col){
-      const th = document.querySelector(`#mainTable thead th[data-column="${CSS.escape(col)}"]`);
-      return th ? (th.textContent||'').trim() : col;
-    }
-    function currentFiltersFromChips(){
-      const chips = Array.from(document.querySelectorAll('#f_list .f-chip'));
-      const values = {};
-      chips.forEach(ch => { const col=ch.getAttribute('data-col'); const val=ch.getAttribute('data-val')||''; if(col&&val!==''){ values[col]=val; } });
-      return values;
-    }
-    (function(){
-      const btn = document.getElementById('f_add_btn');
-      if(btn){ btn.addEventListener('click', function(){
-        const sel=document.getElementById('f_col_select'); const inp=document.getElementById('f_col_value');
-        const col = sel ? sel.value : ''; const val = inp ? (inp.value||'').trim() : '';
-        if(!col || val==='') return; addFilterChip(col, val); if(inp) inp.value='';
-        const values = currentFiltersFromChips();
-        const count = Object.keys(values).length;
-        filtersState.values = values; applyFilters(count);
-        if(typeof window.applyTableFilters === 'function'){
-          try{ window.applyTableFilters(values); }catch(e){}
-        }
-      }); }
-    })();
-    function updateFilterUI(){
-      const badge= document.getElementById('filterCount');
-      const btn  = document.getElementById('btnFilters');
-      if(!badge||!btn) return;
-      if(filtersState.active){
-        badge.textContent = String(filtersState.count);
-        badge.classList.remove('hidden');
-        btn.classList.add('bg-blue-50','ring-1','ring-blue-300');
-      }else{
-        badge.classList.add('hidden');
-        btn.classList.remove('bg-blue-50','ring-1','ring-blue-300');
-      }
-    }
-    function resetFiltersSpin(){
-      const icon=document.getElementById('iconReset'); if(!icon) return;
-      icon.classList.add('spin-1s'); setTimeout(()=>icon.classList.remove('spin-1s'),900);
-      clearFilters();
-    }
-    // Filtro local de respaldo por columnas sobre #mainTable
-    function filterMainTable(values){
-      try{
-        const tb = document.querySelector('#mainTable tbody'); if(!tb) return;
-        if(!window.layoutFilterBaseRows || !Array.isArray(window.layoutFilterBaseRows) || window.layoutFilterBaseRows.length===0){
-          window.layoutFilterBaseRows = Array.from(tb.querySelectorAll('tr.selectable-row'));
-        }
-        const base = window.layoutFilterBaseRows;
-        const entries = Object.entries(values||{});
-        const filtered = entries.length ? base.filter(tr => {
-          return entries.every(([col,val])=>{
-            const cell = tr.querySelector(`[data-column="${CSS.escape(col)}"]`);
-            return cell ? (cell.textContent||'').toLowerCase().includes(String(val).toLowerCase()) : false;
-          });
-        }) : base.slice();
-        tb.innerHTML='';
-        filtered.forEach(tr=> tb.appendChild(tr));
-      }catch(e){}
-    }
-    // Giro para Restablecer Columnas
-    function resetColumnsSpin(){
-      const icon=document.getElementById('iconResetColumns');
-      if(icon){ icon.classList.add('spin-1s'); setTimeout(()=>icon.classList.remove('spin-1s'),900); }
-      if(typeof resetColumnVisibility==='function') resetColumnVisibility();
-    }
-    // Exponer si ocupas desde Blade/otros scripts
-    window.openFilterModal = openFilterModal;
-    window.applyFilters   = applyFilters;
-    window.clearFilters   = clearFilters;
-    window.confirmFilters = confirmFilters;
-    window.resetFiltersSpin = resetFiltersSpin;
-        </script>
+    <script src="{{ asset('js/app-core.js') }}"></script>
+    <script src="{{ asset('js/app-filters.js') }}"></script>
 
   @stack('scripts')
-  <script>
-    (function(){
-      const btn = document.getElementById('layoutBtnAddMenu');
-      const menu = document.getElementById('layoutAddMenu');
-      if (!btn || !menu) return;
-      const open = () => { menu.classList.remove('hidden'); requestAnimationFrame(()=>{ menu.classList.remove('opacity-0','scale-95'); menu.classList.add('opacity-100','scale-100'); }); };
-      const close = () => { menu.classList.add('opacity-0','scale-95'); menu.classList.remove('opacity-100','scale-100'); setTimeout(()=>menu.classList.add('hidden'), 150); };
-      let shown = false;
-      btn.addEventListener('click', (e)=>{ e.stopPropagation(); shown ? (close(), shown=false) : (open(), shown=true); });
-      document.addEventListener('click', (e)=>{ if (shown && !menu.contains(e.target) && e.target !== btn) { close(); shown=false; } });
 
-      // Nuevo registro: ejecutar función abrirNuevo() si existe, sino navegar
-      const nuevoReg = document.getElementById('menuNuevoRegistro');
-      if (nuevoReg) {
-        nuevoReg.addEventListener('click', () => {
-          close();
-          if (typeof abrirNuevo === 'function') {
-            abrirNuevo();
-          } else {
-            window.location.href = '/planeacion/programa-tejido/nuevo';
-          }
-        });
-      }
-
-      // Alta de pronósticos: abrir modal de selección de meses
-      const altaPron = document.getElementById('menuAltaPronosticos');
-      if (altaPron) {
-        altaPron.addEventListener('click', () => {
-          close();
-          // Modal de selección de meses
-          const now = new Date();
-          const currentYear = now.getFullYear();
-          const currentMonth = now.getMonth() + 1;
-
-          const meses = [];
-          for (let i = -12; i <= 3; i++) {
-            const date = new Date(currentYear, currentMonth + i - 1, 1);
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const label = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-            meses.push({ value: `${year}-${month}`, label: label.charAt(0).toUpperCase() + label.slice(1) });
-          }
-
-          const mesesHTML = meses.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
-
-          const html = `
-            <div class="text-left">
-              <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Mes Inicial:</label>
-                <select id="mesInicial" class="w-full border rounded px-3 py-2 text-sm">
-                  ${mesesHTML}
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Mes Final:</label>
-                <select id="mesFinal" class="w-full border rounded px-3 py-2 text-sm">
-                  ${mesesHTML}
-                </select>
-              </div>
-              <p class="text-xs text-gray-500 mt-3">
-                <i class="fa-solid fa-info-circle mr-1"></i>
-                Se mostrarán los pronósticos del rango seleccionado (inclusive).
-              </p>
-            </div>
-          `;
-
-          Swal.fire({
-            title: 'Seleccionar Rango de Meses',
-            html: html,
-            width: 500,
-            showCancelButton: true,
-            confirmButtonText: 'Continuar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#16a34a',
-            cancelButtonColor: '#6b7280',
-            didOpen: () => {
-              const mesActual = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-              document.getElementById('mesInicial').value = mesActual;
-              document.getElementById('mesFinal').value = mesActual;
-            },
-            preConfirm: () => {
-              const mesInicial = document.getElementById('mesInicial').value;
-              const mesFinal = document.getElementById('mesFinal').value;
-
-              if (!mesInicial || !mesFinal) {
-                Swal.showValidationMessage('Por favor seleccione ambos meses');
-                return false;
-              }
-
-              if (mesInicial > mesFinal) {
-                Swal.showValidationMessage('El mes inicial debe ser menor o igual al mes final');
-                return false;
-              }
-
-              const mesesSeleccionados = [];
-              const [yearIni, monthIni] = mesInicial.split('-').map(Number);
-              const [yearFin, monthFin] = mesFinal.split('-').map(Number);
-
-              let currentYear = yearIni;
-              let currentMonth = monthIni;
-
-              while (currentYear < yearFin || (currentYear === yearFin && currentMonth <= monthFin)) {
-                mesesSeleccionados.push(`${currentYear}-${String(currentMonth).padStart(2, '0')}`);
-
-                currentMonth++;
-                if (currentMonth > 12) {
-                  currentMonth = 1;
-                  currentYear++;
-                }
-              }
-
-              return mesesSeleccionados;
-            }
-          }).then((result) => {
-            if (result.isConfirmed && result.value) {
-              const url = new URL('{{ route("programa-tejido.alta-pronosticos") }}', window.location.origin);
-              result.value.forEach(mes => {
-                url.searchParams.append('meses[]', mes);
-              });
-              window.location.href = url.toString();
-            }
-          });
-        });
-      }
-    })();
-  </script>
+  <!-- Scripts específicos -->
+  @if(request()->routeIs('catalogos.req-programa-tejido') || (request()->is('planeacion/programa-tejido') && !request()->is('*programa-tejido/*/editar') && !request()->is('*programa-tejido/nuevo*')))
+    <script src="{{ asset('js/programa-tejido-menu.js') }}"></script>
+  @endif
 
   <script src="{{ asset('js/simple-click-sounds.js') }}"></script>
+  <script src="{{ asset('js/app-pwa.js') }}"></script>
 
-  <!-- Service Worker Registration para PWA -->
   <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js")
-          .then(registration => {
-            console.log("Service Worker registrado exitosamente:", registration.scope);
-          })
-          .catch(error => {
-            console.log("Error al registrar Service Worker:", error);
-          });
-      });
-    }
-
-    // Ocultar barra de direcciones de Chrome al hacer scroll
-    (function() {
-      let lastScrollTop = 0;
-      let ticking = false;
-
-      function hideChromeBar() {
-        if (ticking) return;
-        ticking = true;
-
-        requestAnimationFrame(function() {
-          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-          // Si el usuario hace scroll hacia abajo, ocultar barra
-          if (scrollTop > lastScrollTop && scrollTop > 10) {
-            // Forzar altura completa para ocultar barra
-            document.documentElement.style.height = '100vh';
-            document.documentElement.style.height = '-webkit-fill-available';
-          }
-
-          lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
-          ticking = false;
-        });
-      }
-
-      // Escuchar eventos de scroll y touch
-      window.addEventListener('scroll', hideChromeBar, { passive: true });
-      window.addEventListener('touchmove', hideChromeBar, { passive: true });
-
-      // Forzar altura completa al cargar
-      window.addEventListener('load', function() {
-        document.documentElement.style.height = '100vh';
-        document.documentElement.style.height = '-webkit-fill-available';
-        setTimeout(function() {
-          window.scrollTo(0, 1);
-        }, 100);
-      });
-
-      // Prevenir que aparezca la barra al hacer zoom
-      document.addEventListener('gesturestart', function(e) {
-        e.preventDefault();
-      });
-    })();
+    // Exponer función resetColumnsSpin globalmente
+    window.resetColumnsSpin = resetColumnsSpin;
   </script>
     </body>
     </html>

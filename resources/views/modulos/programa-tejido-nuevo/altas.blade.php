@@ -25,9 +25,7 @@
                                 <tr>
                                     <td class="px-2 py-1 font-medium text-gray-800 w-24">Salon</td>
                                     <td class="px-2 py-1">
-                                        <select id="salon-select" class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-white">
-                                            <option value="">Seleccione salon...</option>
-                                        </select>
+                                        <input type="text" id="salon-input" placeholder="Ingrese salon" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100">
                                     </td>
                                     <td class="px-2 py-1 font-medium text-gray-800 w-24">Aplicación</td>
                                     <td class="px-2 py-1">
@@ -109,10 +107,9 @@
                             <!-- Fila 6: IdFlog, Calibre Pie, Hilos C1-C3-C5 -->
                                 <tr>
                                     <td class="px-2 py-1 font-medium text-gray-800">IdFlog</td>
-                                    <td class="px-2 py-1">
-                                        <select id="idflog-select" class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-white">
-                                            <option value="">Seleccione IdFlog...</option>
-                                        </select>
+                                    <td class="px-2 py-1 relative">
+                                        <input type="text" id="idflog-input" placeholder="Escriba para buscar..." class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-white">
+                                        <div id="idflog-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-b shadow-lg hidden max-h-40 overflow-y-auto"></div>
                                     </td>
                                     <td class="px-2 py-1 font-medium text-gray-800">Calibre Pie</td>
                                 <td class="px-2 py-1"><input disabled type="text" id="calibre-pie" placeholder="Ingrese calibre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
@@ -451,8 +448,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (data.SalonTejidoId || Q.salon) {
             const salonValue = data.SalonTejidoId || Q.salon;
             // Solo establecer si no estaba ya establecido o si viene del modelo encontrado
-            if (!camposYaEstablecidos.has('salon-select') || data.SalonTejidoId) {
-                ensureOption('salon-select', salonValue, true);
+            if (!camposYaEstablecidos.has('salon-input') || data.SalonTejidoId) {
+                setVal('salon-input', salonValue, false, true);
             }
 
             // Habilitar botones de telar cuando se establece el salón
@@ -552,28 +549,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Marcar que estamos en modo prefill para evitar limpiezas
         window._prefillMode = true;
 
-        // Primero establecer los selects que dependen de catálogo (SIN disparar eventos)
+        // Primero establecer los campos que dependen de catálogo (SIN disparar eventos)
         // Hacerlo en orden: idflog, hilo, salon (salon al final porque puede disparar eventos)
         if (Q.idflog) {
-            console.log('📝 Estableciendo idflog-select con valor:', Q.idflog);
-            // Intentar múltiples veces para asegurar que el select esté listo
+            console.log('📝 Estableciendo idflog-input con valor:', Q.idflog);
+            // Intentar múltiples veces para asegurar que el input esté listo
             const establecerIdflog = () => {
-                const sel = document.getElementById('idflog-select');
-                if (!sel) {
-                    console.warn('⚠️ idflog-select no encontrado, reintentando...');
+                const input = document.getElementById('idflog-input');
+                if (!input) {
+                    console.warn('⚠️ idflog-input no encontrado, reintentando...');
                     setTimeout(establecerIdflog, 100);
                     return;
                 }
 
-                // Verificar si el select ya tiene opciones cargadas
-                if (sel.options.length <= 1) {
-                    console.warn('⚠️ idflog-select aún no tiene opciones, esperando...');
-                    setTimeout(establecerIdflog, 200);
-                    return;
-                }
-
-                console.log('✅ idflog-select encontrado, estableciendo valor:', Q.idflog);
-                ensureOption('idflog-select', Q.idflog, true, true); // skipEvent = true
+                console.log('✅ idflog-input encontrado, estableciendo valor:', Q.idflog);
+                setVal('idflog-input', Q.idflog, false); // No disparar eventos aún
             };
 
             // Intentar inmediatamente y con delays
@@ -632,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (Q.salon) {
             // Asegurar que el modo prefill esté activo antes de establecer el salón
             window._prefillMode = true;
-            ensureOption('salon-select', Q.salon, true, true); // skipEvent = true para evitar limpiarFormulario
+            setVal('salon-input', Q.salon, false); // No disparar eventos aún
             // Actualizar el state del salón para que esté disponible para las búsquedas
             if (window.ProgramaTejidoForm) {
                 window.ProgramaTejidoForm.state.salonSeleccionado = Q.salon;
@@ -650,19 +640,19 @@ document.addEventListener('DOMContentLoaded', function() {
             // window._prefillMode = false; // Quitar el flag después de establecer todo
 
             // Verificar que idflog se estableció correctamente (con múltiples reintentos)
-            const idflogSel = document.getElementById('idflog-select');
+            const idflogInput = document.getElementById('idflog-input');
             if (Q.idflog) {
-                if (idflogSel && idflogSel.value === Q.idflog) {
+                if (idflogInput && idflogInput.value === Q.idflog) {
                     console.log('✅ idflog establecido correctamente:', Q.idflog);
                 } else {
-                    console.warn('⚠️ idflog-select no se estableció correctamente, reintentando...');
-                    ensureOption('idflog-select', Q.idflog, true, true);
+                    console.warn('⚠️ idflog-input no se estableció correctamente, reintentando...');
+                    setVal('idflog-input', Q.idflog, false, true); // force=true
                     // Reintentar después de un delay adicional
                     setTimeout(() => {
-                        const idflogSel2 = document.getElementById('idflog-select');
-                        if (idflogSel2 && idflogSel2.value !== Q.idflog) {
-                            ensureOption('idflog-select', Q.idflog, true, true);
-                        } else if (idflogSel2 && idflogSel2.value === Q.idflog) {
+                        const idflogInput2 = document.getElementById('idflog-input');
+                        if (idflogInput2 && idflogInput2.value !== Q.idflog) {
+                            setVal('idflog-input', Q.idflog, false, true); // force=true
+                        } else if (idflogInput2 && idflogInput2.value === Q.idflog) {
                             console.log('✅ idflog establecido correctamente en reintento:', Q.idflog);
                         }
                     }, 500);
@@ -698,10 +688,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Verificar que el salón se estableció correctamente
-            const salonSelect = document.getElementById('salon-select');
-            if (Q.salon && salonSelect && salonSelect.value !== Q.salon) {
-                console.warn('⚠️ salon-select no se estableció correctamente, reintentando...');
-                ensureOption('salon-select', Q.salon, true, true);
+            const salonInput = document.getElementById('salon-input');
+            if (Q.salon && salonInput && salonInput.value !== Q.salon) {
+                console.warn('⚠️ salon-input no se estableció correctamente, reintentando...');
+                setVal('salon-input', Q.salon, false, true); // force=true
                 if (window.ProgramaTejidoForm) {
                     window.ProgramaTejidoForm.state.salonSeleccionado = Q.salon;
                     // Cargar telares del salón
@@ -709,7 +699,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         window.ProgramaTejidoForm.cargarTelaresPorSalon(Q.salon);
                     }
                 }
-            } else if (Q.salon && salonSelect && salonSelect.value === Q.salon) {
+            } else if (Q.salon && salonInput && salonInput.value === Q.salon) {
                 // Asegurar que los telares se carguen si el salón ya está establecido
                 if (window.ProgramaTejidoForm && window.ProgramaTejidoForm.cargarTelaresPorSalon) {
                     window.ProgramaTejidoForm.cargarTelaresPorSalon(Q.salon);
@@ -718,11 +708,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Habilitar botones de telar si tenemos salón seleccionado
             const habilitarBotonesTelar = () => {
-        const salonSelect = document.getElementById('salon-select');
-        if (salonSelect && salonSelect.value && salonSelect.value !== '') {
+        const salonInput = document.getElementById('salon-input');
+        if (salonInput && salonInput.value && salonInput.value !== '') {
             if (window.ProgramaTejidoForm && window.ProgramaTejidoForm.actualizarBotonesTelar) {
                 window.ProgramaTejidoForm.actualizarBotonesTelar(true);
-                        console.log('✅ Botones de telar habilitados');
+                        console.log('Botones de telar habilitados');
                     }
                 }
             };
@@ -769,7 +759,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         return;
                     }
                     // Si los campos ya fueron establecidos desde URL, no limpiarlos
-                    const camposProtegidos = ['clave-modelo-input', 'tamano', 'idflog-select', 'salon-select', 'hilo-select', 'descripcion'];
+                    const camposProtegidos = ['clave-modelo-input', 'tamano', 'idflog-input', 'salon-input', 'hilo-select', 'descripcion'];
                     const hayCamposProtegidos = camposProtegidos.some(id => {
                         const el = document.getElementById(id);
                         return el && camposYaEstablecidos.has(id) && el.value && el.value !== '' && el.value !== 'None' && el.value !== 'null';
@@ -814,9 +804,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (window._prefillMode) {
                         console.log('🛡️ Modo prefill activo, cargando telares sin limpiar formulario');
                         this.state.salonSeleccionado = salonTejidoId;
-                        const salonSelect = document.getElementById('salon-select');
-                        if (salonSelect && salonTejidoId) {
-                            salonSelect.classList.add(...ProgramaTejidoConfig.ui.clasesInputSeleccionado.split(' '));
+                        const salonInput = document.getElementById('salon-input');
+                        if (salonInput && salonTejidoId) {
+                            salonInput.classList.add(...ProgramaTejidoConfig.ui.clasesInputSeleccionado.split(' '));
                         }
                         if (salonTejidoId) {
                             await this.cargarTelaresPorSalon(salonTejidoId);
@@ -838,11 +828,11 @@ document.addEventListener('DOMContentLoaded', function() {
             interceptarLimpiarFormulario();
 
             // Agregar listener al salón para habilitar botones cuando cambie manualmente
-    const salonSelect = document.getElementById('salon-select');
-    if (salonSelect) {
-        salonSelect.addEventListener('change', () => {
+    const salonInput = document.getElementById('salon-input');
+    if (salonInput) {
+        salonInput.addEventListener('input', () => {
                     setTimeout(() => {
-                        if (salonSelect.value && salonSelect.value !== '') {
+                        if (salonInput.value && salonInput.value !== '') {
                             if (window.ProgramaTejidoForm && window.ProgramaTejidoForm.actualizarBotonesTelar) {
                                 window.ProgramaTejidoForm.actualizarBotonesTelar(true);
                                 console.log('✅ Botones de telar habilitados (cambio manual de salón)');
@@ -894,7 +884,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Intentar interceptar en cada intento
                 interceptarLimpiarFormulario();
 
-                if (tries > 20 || (ready() && document.getElementById('idflog-select'))) {
+                if (tries > 20 || (ready() && document.getElementById('idflog-input') && document.getElementById('salon-input'))) {
                     clearInterval(iv);
                     prefill();
                 }

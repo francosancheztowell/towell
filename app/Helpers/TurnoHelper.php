@@ -56,6 +56,26 @@ class TurnoHelper
     }
 
     /**
+     * Obtiene la descripción del turno en formato "Turno X"
+     *
+     * @param string $turno
+     * @return string
+     */
+    public static function getTurnoFormato(string $turno): string
+    {
+        switch ($turno) {
+            case '1':
+                return 'Turno 1';
+            case '2':
+                return 'Turno 2';
+            case '3':
+                return 'Turno 3';
+            default:
+                return 'Turno no válido';
+        }
+    }
+
+    /**
      * Genera un folio único basado en fecha y turno
      *
      * @return string

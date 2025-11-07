@@ -32,7 +32,7 @@
           <div class="mt-20">
             <h1 class="text-white text-5xl font-bold leading-tight mb-6">Bienvenido</h1>
             <p class="text-xl text-white/90 leading-relaxed">
-              Accede a tu cuenta de forma rápida y segura con nuestro sistema de autenticación dual
+              Accede a tu cuenta de forma rápida y segura
             </p>
           </div>
         </div>
@@ -71,18 +71,12 @@
         <!-- Formulario de ID Usuario -->
         <div id="user-form" class="block">
           <x-login-form
-            title="Acceso por ID"
-            subtitle="Ingresa tu identificador único"
             :errors="$errors ?? []"
           />
         </div>
 
         <!-- Formulario de QR -->
         <div id="qr-form" class="hidden">
-          <div class="mb-6">
-            <h2 class="text-2xl font-bold text-slate-900 mb-2">Acceso por QR</h2>
-            <p class="text-slate-600">Escanea tu código QR para acceder</p>
-          </div>
 
           <button type="button" onclick="openQRScanner()"
                   class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center text-lg">
