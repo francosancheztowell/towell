@@ -372,6 +372,33 @@
             if (editContainer) editContainer.classList.add('hidden');
             if (editBtn) editBtn.classList.remove('hidden');
         }, true);
+
+        // Guardado automático al inicio si estamos en modo nuevo y hay datos
+        const params = new URLSearchParams(window.location.search);
+        const folioQuery = params.get('folio') || '';
+        if (!folioQuery) {
+            // Modo nuevo: esperar un momento para que la página cargue completamente
+            setTimeout(() => {
+                const consumos = buildConsumosPayload();
+                // Solo guardar si hay consumos con calibres (filas con datos)
+                const tieneConsumos = consumos.some(c => c.calibre !== null && c.calibre !== undefined);
+                if (tieneConsumos) {
+                    // Mostrar alerta de que se está guardando y luego guardar con alerta
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Guardando requerimientos',
+                        text: 'Se están guardando los requerimientos automáticamente...',
+                        timer: 1000,
+                        timerProgressBar: true,
+                        showConfirmButton: false,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
+                    }).then(() => {
+                        autoGuardarRequerimientos(true); // true = mostrar alerta al finalizar
+                    });
+                }
+            }, 1000);
+        }
     });
 
     // --- Toast
@@ -472,7 +499,7 @@
         return consumos;
     }
 
-    function autoGuardarRequerimientos(){
+    function autoGuardarRequerimientos(mostrarAlerta = false){
             const params = new URLSearchParams(window.location.search);
             const folioQuery = params.get('folio') || '';
         const consumos = buildConsumosPayload();
@@ -491,12 +518,45 @@
                     sessionStorage.setItem('folioGuardado', folioQuery);
                     sessionStorage.setItem('folioGuardadoTimestamp', Date.now().toString());
                 }
-                showToast(folioQuery ? `Cambios editados. Folio: ${data.folio}` : `Folio creado: ${data.folio}`, 'success');
+                // Si es guardado automático al inicio, mostrar alerta más visible
+                if (mostrarAlerta) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Guardado exitoso!',
+                        text: `Folio creado: ${data.folio}`,
+                        timer: 3000,
+                        timerProgressBar: true,
+                        showConfirmButton: true,
+                        confirmButtonText: 'Aceptar'
+                    });
+                } else {
+                    showToast(folioQuery ? `Cambios editados. Folio: ${data.folio}` : `Folio creado: ${data.folio}`, 'success');
+                }
                     } else {
-                showToast(data.message || 'No se pudo crear folio', data.message ? 'warning' : 'error');
+                if (mostrarAlerta) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error al guardar',
+                        text: data.message || 'No se pudo crear el folio',
+                        confirmButtonText: 'Aceptar'
+                    });
+                } else {
+                    showToast(data.message || 'No se pudo crear folio', data.message ? 'warning' : 'error');
+                }
             }
         })
-        .catch(() => showToast('No se pudo crear folio', 'error'));
+        .catch(() => {
+            if (mostrarAlerta) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al guardar',
+                    text: 'No se pudo crear el folio',
+                    confirmButtonText: 'Aceptar'
+                });
+            } else {
+                showToast('No se pudo crear folio', 'error');
+            }
+        });
     }
 
         let _guardarTimeout = null;
