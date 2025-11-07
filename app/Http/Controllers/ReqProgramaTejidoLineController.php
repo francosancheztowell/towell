@@ -6,54 +6,84 @@ namespace App\Http\Controllers;
 use App\Models\ReqProgramaTejidoLine;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Validation\Rule;
 
 class ReqProgramaTejidoLineController extends Controller
 {
-    /**
-     * Listar registros (paginado opcional)
-     */
+    /* -------------------- Reglas compartidas -------------------- */
+    private function rules(bool $isUpdate = false): array
+    {
+        $base = [
+            'Fecha'      => ['nullable','date'],
+            'Cantidad'   => ['nullable','numeric'],
+            'Kilos'      => ['nullable','numeric'],
+            'Aplicacion' => ['nullable','numeric'],
+            'Trama'      => ['nullable','numeric'],
+            'Combina1'   => ['nullable','numeric'],
+            'Combina2'   => ['nullable','numeric'],
+            'Combina3'   => ['nullable','numeric'],
+            'Combina4'   => ['nullable','numeric'],
+            'Combina5'   => ['nullable','numeric'],
+            'Pie'        => ['nullable','numeric'],
+            'Rizo'       => ['nullable','numeric'],
+            'MtsRizo'    => ['nullable','numeric'],
+            'MtsPie'     => ['nullable','numeric'],
+        ];
+
+        $progRule = ['integer','exists:ReqProgramaTejido,Id'];
+        $base['ProgramaId'] = $isUpdate ? array_merge(['sometimes'], $progRule) : array_merge(['required'], $progRule);
+
+        return $base;
+    }
+
+    private function sanitize(array $data): array
+    {
+        foreach ([
+            'Cantidad','Kilos','Aplicacion','Trama',
+            'Combina1','Combina2','Combina3','Combina4','Combina5',
+            'Pie','Rizo','MtsRizo','MtsPie'
+        ] as $k) {
+            if (array_key_exists($k, $data) && $data[$k] === '') {
+                $data[$k] = null;
+            }
+        }
+        return $data;
+    }
+
+    /* -------------------- Index (con filtros) -------------------- */
     public function index(Request $request): JsonResponse
     {
-        $perPage = (int)($request->query('per_page', 25));
-        $query = ReqProgramaTejidoLine::query()->orderBy('Fecha');
+        $perPage = max(1, min((int)$request->query('per_page', 25), 500));
 
-        // Filtros opcionales
+        $q = ReqProgramaTejidoLine::query();
+
         if ($request->filled('programa_id')) {
-            $query->where('ProgramaId', (int) $request->query('programa_id'));
+            $q->programa((int)$request->query('programa_id'));
         }
         if ($request->filled('fecha')) {
-            $query->whereDate('Fecha', $request->query('fecha'));
+            $q->onDate((string)$request->query('fecha'));
         }
+        if ($request->filled('desde') && $request->filled('hasta')) {
+            $q->between((string)$request->query('desde'), (string)$request->query('hasta'));
+        }
+
+        // Orden seguro (whitelist)
+        $sort = (string)$request->query('sort', 'Fecha');
+        $dir  = strtolower((string)$request->query('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+        if (!in_array($sort, ['Fecha','Id','ProgramaId'], true)) {
+            $sort = 'Fecha';
+        }
+        $q->orderBy($sort, $dir)->orderBy('Id', 'asc');
 
         return response()->json([
             'success' => true,
-            'data'    => $query->paginate($perPage),
+            'data'    => $q->paginate($perPage),
         ]);
     }
 
-    /**
-     * Crear un registro
-     */
+    /* -------------------- Store -------------------- */
     public function store(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'Fecha'      => ['nullable', 'date'],
-            'Cantidad'   => ['nullable', 'numeric'],
-            'Kilos'      => ['nullable', 'numeric'],
-            'Aplicacion' => ['nullable', 'numeric'],
-            'Trama'      => ['nullable', 'numeric'],
-            'Combina1'   => ['nullable', 'numeric'],
-            'Combina2'   => ['nullable', 'numeric'],
-            'Combina3'   => ['nullable', 'numeric'],
-            'Combina4'   => ['nullable', 'numeric'],
-            'Combina5'   => ['nullable', 'numeric'],
-            'Pie'        => ['nullable', 'numeric'],
-            'Rizo'       => ['nullable', 'numeric'],
-            'MtsRizo'    => ['nullable', 'numeric'],
-            'MtsPie'     => ['nullable', 'numeric'],
-        ]);
-
+        $data = $this->sanitize($request->validate($this->rules(false)));
         $created = ReqProgramaTejidoLine::create($data);
 
         return response()->json([
@@ -62,54 +92,30 @@ class ReqProgramaTejidoLineController extends Controller
         ], 201);
     }
 
-    /**
-     * Mostrar un registro
-     */
+    /* -------------------- Show -------------------- */
     public function show(int $id): JsonResponse
     {
         $row = ReqProgramaTejidoLine::findOrFail($id);
         return response()->json(['success' => true, 'data' => $row]);
     }
 
-    /**
-     * Actualizar un registro
-     */
+    /* -------------------- Update -------------------- */
     public function update(Request $request, int $id): JsonResponse
     {
-        $row = ReqProgramaTejidoLine::findOrFail($id);
+        $row  = ReqProgramaTejidoLine::findOrFail($id);
+        $data = $this->sanitize($request->validate($this->rules(true)));
 
-        $data = $request->validate([
-            'Fecha'      => ['nullable', 'date'],
-            'Cantidad'   => ['nullable', 'numeric'],
-            'Kilos'      => ['nullable', 'numeric'],
-            'Aplicacion' => ['nullable', 'numeric'],
-            'Trama'      => ['nullable', 'numeric'],
-            'Combina1'   => ['nullable', 'numeric'],
-            'Combina2'   => ['nullable', 'numeric'],
-            'Combina3'   => ['nullable', 'numeric'],
-            'Combina4'   => ['nullable', 'numeric'],
-            'Combina5'   => ['nullable', 'numeric'],
-            'Pie'        => ['nullable', 'numeric'],
-            'Rizo'       => ['nullable', 'numeric'],
-            'MtsRizo'    => ['nullable', 'numeric'],
-            'MtsPie'     => ['nullable', 'numeric'],
-        ]);
-
-        $row->fill($data);
-        $row->save();
+        $row->fill($data)->save();
 
         return response()->json(['success' => true, 'data' => $row]);
     }
 
-    /**
-     * Eliminar un registro
-     */
+    /* -------------------- Destroy -------------------- */
     public function destroy(int $id): JsonResponse
     {
         $row = ReqProgramaTejidoLine::findOrFail($id);
         $row->delete();
+
         return response()->json(['success' => true]);
     }
 }
-
-

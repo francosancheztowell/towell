@@ -5,29 +5,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class ReqProgramaTejidoLine extends Model
 {
     use HasFactory;
 
-    /**
-     * Nombre de la tabla (incluye mayúsculas exactas para SQL Server)
-     */
     protected $table = 'ReqProgramaTejidoLine';
-
-    /**
-     * Clave primaria personalizada
-     */
     protected $primaryKey = 'Id';
-
-    /**
-     * La tabla no tiene timestamps
-     */
     public $timestamps = false;
+    public $incrementing = true;
+    protected $keyType = 'int';
 
-    /**
-     * Atributos asignables en masa
-     */
     protected $fillable = [
         'ProgramaId',
         'Fecha',
@@ -46,13 +35,10 @@ class ReqProgramaTejidoLine extends Model
         'MtsPie',
     ];
 
-    /**
-     * Casts de tipos de datos
-     */
     protected $casts = [
         'Id'         => 'integer',
         'ProgramaId' => 'integer',
-        'Fecha'      => 'date',
+        'Fecha'      => 'date:Y-m-d',
         'Cantidad'   => 'float',
         'Kilos'      => 'float',
         'Aplicacion' => 'float',
@@ -67,6 +53,40 @@ class ReqProgramaTejidoLine extends Model
         'MtsRizo'    => 'float',
         'MtsPie'     => 'float',
     ];
+
+    /* ---------- Relaciones ---------- */
+    public function programa()
+    {
+        return $this->belongsTo(ReqProgramaTejido::class, 'ProgramaId', 'Id');
+    }
+
+    /* ---------- Scopes útiles ---------- */
+    public function scopePrograma(Builder $q, int $programaId): Builder
+    {
+        return $q->where('ProgramaId', $programaId);
+    }
+
+    public function scopeOnDate(Builder $q, string $date): Builder
+    {
+        return $q->whereDate('Fecha', $date);
+    }
+
+    public function scopeBetween(Builder $q, string $from, string $to): Builder
+    {
+        return $q->whereBetween('Fecha', [$from, $to]);
+    }
+
+    /* ---------- Normalizador de numéricos vacíos -> null ---------- */
+    public function setAttribute($key, $value)
+    {
+        static $numeric = [
+            'Cantidad','Kilos','Aplicacion','Trama',
+            'Combina1','Combina2','Combina3','Combina4','Combina5',
+            'Pie','Rizo','MtsRizo','MtsPie',
+        ];
+        if (in_array($key, $numeric, true) && ($value === '' || $value === 'null')) {
+            $value = null;
+        }
+        return parent::setAttribute($key, $value);
+    }
 }
-
-

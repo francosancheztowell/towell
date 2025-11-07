@@ -459,9 +459,10 @@ class UsuarioController extends Controller
 
             // Módulos de Tejido (orden 52) - ESTRUCTURA JERÁRQUICA
             'Inv Telas' => '/tejido/inventario-telas',
-            'Cortes de Eficiencia' => '/submodulos-nivel3/206',  // ✅ Usar URL automática para nietos
-            'Marcas Finales- Cortes de Eficiencia' => '/submodulos-nivel3/202',  // ✅ Usar URL automática para nietos
-            'Inv Trama' => '/submodulos-nivel3/203',  // ✅ Usar URL automática para nietos
+            'Cortes de Eficiencia' => '/tejido/cortes-eficiencia',  // ✅ Nueva ruta descriptiva
+            'Marcas Finales- Cortes de Eficiencia' => '/tejido/marcas-finales',  // ✅ Nueva ruta descriptiva
+            'Marcas Finales' => '/tejido/marcas-finales',  // ✅ Nueva ruta descriptiva
+            'Inv Trama' => '/tejido/inventario',  // ✅ Nueva ruta descriptiva
             'Producción Reenconado Cabezuela' => '/tejido/produccion-reenconado',
             'Configurar' => '/tejido/configurar',
 
@@ -544,7 +545,7 @@ class UsuarioController extends Controller
             Log::info('Ruta encontrada en mapeo (coincidencia exacta): ' . $rutasSubModulos[$nombreModulo]);
             return $rutasSubModulos[$nombreModulo];
         }
-        
+
         // Si no hay coincidencia exacta, buscar insensible a mayúsculas
         $nombreModuloLower = strtolower(trim($nombreModulo));
         foreach ($rutasSubModulos as $key => $ruta) {
@@ -569,8 +570,18 @@ class UsuarioController extends Controller
             ->exists();
 
         if ($tieneNietos) {
-            Log::info('Módulo tiene nietos, redirigiendo a: /submodulos-nivel3/' . $orden);
-            return '/submodulos-nivel3/' . $orden;
+            // Mapeo de IDs conocidos a rutas descriptivas
+            $rutasDescriptivas = [
+                '202' => '/tejido/marcas-finales',
+                '203' => '/tejido/inventario',
+                '206' => '/tejido/cortes-eficiencia',
+                '909' => '/configuracion/utileria',
+            ];
+
+            // Si tiene una ruta descriptiva, usarla; sino usar la genérica
+            $ruta = $rutasDescriptivas[$orden] ?? '/submodulos-nivel3/' . $orden;
+            Log::info('Módulo tiene nietos, redirigiendo a: ' . $ruta);
+            return $ruta;
         }
 
         // TERCERO: Verificar si el orden contiene separador de nivel 3 (guión o guión bajo)
@@ -579,7 +590,18 @@ class UsuarioController extends Controller
         if ($posSeparador !== false) {
             // Extraer el código del módulo padre (ej: de "201-1" o "201_1" extraer "201")
             $moduloPadre = substr($orden, 0, $posSeparador);
-            return '/submodulos-nivel3/' . $moduloPadre;
+
+            // Mapeo de IDs conocidos a rutas descriptivas
+            $rutasDescriptivas = [
+                '202' => '/tejido/marcas-finales',
+                '203' => '/tejido/inventario',
+                '206' => '/tejido/cortes-eficiencia',
+                '909' => '/configuracion/utileria',
+            ];
+
+            // Si tiene una ruta descriptiva, usarla; sino usar la genérica
+            $ruta = $rutasDescriptivas[$moduloPadre] ?? '/submodulos-nivel3/' . $moduloPadre;
+            return $ruta;
         }
 
         // CUARTO: Ruta genérica por defecto
@@ -611,10 +633,10 @@ class UsuarioController extends Controller
             $subModulos = [];
             foreach ($subModulosDB as $moduloDB) {
                 $rutaGenerada = $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden);
-                
+
                 // Log temporal para debugging
                 Log::info("Módulo Nivel 3 cargado: {$moduloDB->modulo} (orden: {$moduloDB->orden}) -> Ruta: {$rutaGenerada}");
-                
+
                 $subModulos[] = [
                     'nombre' => $moduloDB->modulo,
                     'imagen' => $moduloDB->imagen ?? 'default.png',

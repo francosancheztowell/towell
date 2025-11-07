@@ -7,7 +7,6 @@ use App\Http\Controllers\CatalagoEficienciaController;
 use App\Http\Controllers\CatalagoTelarController;
 use App\Http\Controllers\CatalagoVelocidadController;
 use App\Http\Controllers\CortesEficienciaController;
-use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\ProgramaTejidoController;
 use App\Http\Controllers\RequerimientoController;
 use App\Http\Controllers\SecuenciaInvTelasController;
@@ -21,6 +20,7 @@ use App\Http\Controllers\AplicacionesController;
 use App\Http\Controllers\NuevoRequerimientoController;
 use App\Http\Controllers\ConsultarRequerimientoController;
 use App\Http\Controllers\CodificacionController;
+use App\Http\Controllers\InventarioTelaresController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
 
@@ -354,6 +354,28 @@ Route::middleware(['auth'])->group(function () {
 
     // RUTAS PARA SUB-MÓDULOS
     Route::get('/submodulos/{modulo}', [UsuarioController::class, 'showSubModulos'])->name('submodulos.show');
+
+    // Redirects específicos ANTES de la ruta genérica (importante: orden de evaluación)
+    Route::redirect('/submodulos-nivel3/202', '/tejido/marcas-finales', 301);
+    Route::redirect('/submodulos-nivel3/203', '/tejido/inventario', 301);
+    Route::redirect('/submodulos-nivel3/206', '/tejido/cortes-eficiencia', 301);
+    Route::redirect('/submodulos-nivel3/909', '/configuracion/utileria', 301);
+
+    // Rutas específicas con nombres descriptivos (reemplazan submodulos-nivel3/{id})
+    // Estas rutas llaman directamente al método del controlador con el ID específico
+    Route::get('/tejido/marcas-finales', fn() => app(UsuarioController::class)->showSubModulosNivel3('202'))
+        ->name('tejido.marcas.finales');
+
+    Route::get('/tejido/inventario', fn() => app(UsuarioController::class)->showSubModulosNivel3('203'))
+        ->name('tejido.inventario');
+
+    Route::get('/tejido/cortes-eficiencia', fn() => app(UsuarioController::class)->showSubModulosNivel3('206'))
+        ->name('tejido.cortes.eficiencia');
+
+    Route::get('/configuracion/utileria', fn() => app(UsuarioController::class)->showSubModulosNivel3('909'))
+        ->name('configuracion.utileria');
+
+    // Ruta genérica para compatibilidad (solo para otros IDs no especificados arriba)
     Route::get('/submodulos-nivel3/{moduloPadre}', [UsuarioController::class, 'showSubModulosNivel3'])->name('submodulos.nivel3');
 
     // API para precarga de submódulos (AJAX)
@@ -364,13 +386,7 @@ Route::middleware(['auth'])->group(function () {
     // ============================================
     Route::prefix('planeacion')->name('planeacion.')->group(function () {
         // Submódulos de Planeación
-        Route::get('/programa-tejido', function() {
-            $registros = \App\Models\ReqProgramaTejido::orderBy('SalonTejidoId')
-                ->orderBy('NoTelarId')
-                ->orderBy('FechaInicio', 'asc')
-                ->get();
-            return view('modulos.req-programa-tejido', compact('registros'));
-        })->name('catalogos.req-programa-tejido');
+        Route::get('/programa-tejido', [ProgramaTejidoController::class, 'index'])->name('programa-tejido.index');
 
         // Catálogos con estructura jerárquica
         Route::prefix('catalogos')->name('catalogos.')->group(function () {
@@ -385,7 +401,6 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/matriz-hilos', [App\Http\Controllers\MatrizHilosController::class, 'index'])->name('matriz-hilos');
             // Rutas para Codificación de Modelos (orden específico primero)
             Route::get('/codificacion-modelos', [CodificacionController::class, 'index'])->name('codificacion-modelos');
-            Route::get('/test-codificacion', function() { return 'Test route works!'; });
             Route::get('/codificacion-modelos/create', [CodificacionController::class, 'create'])->name('codificacion.create');
             Route::get('/codificacion-modelos/get-all', [CodificacionController::class, 'getAll'])->name('codificacion.get-all');
             Route::get('/codificacion-modelos/estadisticas', [CodificacionController::class, 'estadisticas'])->name('codificacion.estadisticas');
@@ -496,6 +511,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/inventario/trama/consultar-requerimiento/{folio}/resumen', [ConsultarRequerimientoController::class, 'resumen'])->name('inventario.trama.consultar.requerimiento.resumen');
         Route::get('/inventario/trama/nuevo-requerimiento/en-proceso', [NuevoRequerimientoController::class, 'enProcesoInfo'])->name('inventario.trama.nuevo.requerimiento.enproceso');
         Route::post('/inventario/trama/nuevo-requerimiento/actualizar-cantidad', [NuevoRequerimientoController::class, 'actualizarCantidad'])->name('inventario.trama.nuevo.requerimiento.actualizar.cantidad');
+
+        // Producción Reenconado
+        Route::get('/produccion-reenconado', function() {
+            return view('modulos/tejido/produccion-reenconado');
+        })->name('produccion.reenconado');
     });
 
     // ============================================
@@ -512,10 +532,6 @@ Route::middleware(['auth'])->group(function () {
             return view('modulos.programa_urd_eng.reservar-programar', compact('inventarioTelares'));
         })->name('reservar.programar');
     });
-
-    // Rutas para configuración - fuera del middleware temporalmente
-    Route::get('/configuracion/cargar-planeacion', [App\Http\Controllers\ConfiguracionController::class, 'cargarPlaneacion']);
-    Route::post('/configuracion/cargar-planeacion/upload', [App\Http\Controllers\ConfiguracionController::class, 'procesarExcel'])->middleware('web');
 
     // ============================================
     // MÓDULO CONFIGURACIÓN (900)
@@ -534,17 +550,30 @@ Route::middleware(['auth'])->group(function () {
 
         // Utilería
         Route::prefix('utileria')->name('utileria.')->group(function () {
-            Route::get('/modulos', [ModulosController::class, 'index'])->name('modulos');
-            Route::get('/modulos/create', [ModulosController::class, 'create'])->name('modulos.create');
-            Route::post('/modulos', [ModulosController::class, 'store'])->name('modulos.store');
-            Route::get('/modulos/{id}/edit', [ModulosController::class, 'edit'])->name('modulos.edit');
-            Route::put('/modulos/{id}', [ModulosController::class, 'update'])->name('modulos.update');
-            Route::delete('/modulos/{id}', [ModulosController::class, 'destroy'])->name('modulos.destroy');
-            Route::post('/modulos/{id}/toggle-acceso', [ModulosController::class, 'toggleAcceso'])->name('modulos.toggle.acceso');
-            Route::post('/modulos/{id}/toggle-permiso', [ModulosController::class, 'togglePermiso'])->name('modulos.toggle.permiso');
+            Route::get('/', function() {
+                return app(UsuarioController::class)->showSubModulosNivel3('909');
+            })->name('index');
+
+            Route::prefix('modulos')->name('modulos.')->controller(ModulosController::class)->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::get('/create', 'create')->name('create');
+                Route::post('/', 'store')->name('store');
+                Route::get('/{id}/edit', 'edit')->whereNumber('id')->name('edit');
+                Route::put('/{id}', 'update')->whereNumber('id')->name('update');
+                Route::delete('/{id}', 'destroy')->whereNumber('id')->name('destroy');
+                Route::post('/{id}/toggle-acceso', 'toggleAcceso')->whereNumber('id')->name('toggle.acceso');
+                Route::post('/{id}/toggle-permiso', 'togglePermiso')->whereNumber('id')->name('toggle.permiso');
+                Route::get('/{modulo}/duplicar', 'duplicar')->whereNumber('modulo')->name('duplicar');
+            });
+
+            Route::get('/api/modulos/nivel/{nivel}', [ModulosController::class, 'getModulosPorNivel'])
+                ->whereNumber('nivel')->name('api.modulos.nivel');
+            Route::get('/api/modulos/submodulos/{dependencia}', [ModulosController::class, 'getSubmodulos'])
+                ->whereNumber('dependencia')->name('api.modulos.submodulos');
         });
 
-            // (movido fuera - esta línea estaba mal ubicada)
+        Route::get('/cargar-planeacion', [App\Http\Controllers\ConfiguracionController::class, 'cargarPlaneacion'])->name('cargar.planeacion');
+        Route::post('/cargar-planeacion/upload', [App\Http\Controllers\ConfiguracionController::class, 'procesarExcel'])->name('cargar.planeacion.upload');
     });
 
     // ============================================
@@ -552,13 +581,7 @@ Route::middleware(['auth'])->group(function () {
     // ============================================
 
     // Rutas directas de catálogos
-    Route::get('/planeacion/programa-tejido', function() {
-        $registros = \App\Models\ReqProgramaTejido::orderBy('SalonTejidoId')
-            ->orderBy('NoTelarId')
-            ->orderBy('FechaInicio', 'asc')
-            ->get();
-        return view('modulos.req-programa-tejido', compact('registros'));
-    })->name('catalogos.req-programa-tejido');
+    Route::get('/planeacion/programa-tejido', [ProgramaTejidoController::class, 'index'])->name('catalogos.req-programa-tejido');
 
         // Altas especiales
         Route::get('/planeacion/programa-tejido/altas-especiales', [\App\Http\Controllers\ComprasEspecialesController::class, 'index'])->name('programa-tejido.altas-especiales');
@@ -608,12 +631,8 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/planeacion/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');
     Route::get('/planeacion/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones.index');
 
-    // Rutas directas de tejido
-    Route::get('/tejido/inventario-telas', function () {
-        return view('modulos/tejido/inventario-telas');
-    })->name('tejido.inventario.telas');
-    Route::get('/tejido/inventario-telas/jacquard', [TelaresController::class, 'inventarioJacquard'])->name('tejido.inventario.jacquard');
-    Route::get('/tejido/inventario-telas/itema', [TelaresController::class, 'inventarioItema'])->name('tejido.inventario.itema');
+    // Rutas legacy de tejido (mantener por compatibilidad, pero ya están dentro del grupo tejido arriba)
+    // Estas rutas están duplicadas - las de arriba dentro del grupo tejido tienen prioridad
     Route::get('/modulo-marcas-finales', [App\Http\Controllers\MarcasFinalesController::class, 'index'])->name('modulo.marcas.finales');
     Route::post('/modulo-marcas-finales', [App\Http\Controllers\MarcasFinalesController::class, 'store'])->name('modulo.marcas.finales.store');
     Route::get('/modulo-marcas-finales/{folio}', [App\Http\Controllers\MarcasFinalesController::class, 'show'])->name('modulo.marcas.finales.show');
@@ -663,91 +682,11 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/modulo-cargar-catálogos', function () {
         return view('modulos/cargar-catalogos');
     })->name('catalogos.index');
-    // Route::post('/catalogos/upload', [ExcelImportacionesController::class, 'uploadCatalogos'])->name('catalogos.upload');
 
-    // API para obtener datos del proceso actual
-    Route::get('/api/telares/proceso-actual/{telarId}', function ($telarId) {
-        // Determinar el tipo de salón según el telar
-        $tipoSalon = null;
-
-        // Verificar si es telar Jacquard (200-215)
-        if ($telarId >= 200 && $telarId <= 215) {
-            $tipoSalon = 'JACQUARD';
-        }
-        // Verificar si es telar Itema (299-320)
-        elseif ($telarId >= 299 && $telarId <= 320) {
-            $tipoSalon = 'ITEMA';
-        }
-
-        if (!$tipoSalon) {
-            return response()->json(['error' => 'Tipo de telar no reconocido'], 400);
-        }
-
-        $procesoActual = \Illuminate\Support\Facades\DB::table('ReqProgramaTejido')
-            ->where('SalonTejidoId', $tipoSalon)
-            ->where('NoTelarId', $telarId)
-            ->where('EnProceso', 1)
-            ->select([
-                'CuentaRizo as Cuenta',
-                'CalibreRizo as Calibre_Rizo',
-                'FibraRizo as Fibra_Rizo',
-                'CuentaPie as Cuenta_Pie',
-                'CalibrePie as Calibre_Pie',
-                'FibraPie as Fibra_Pie'
-            ])
-            ->first();
-
-        return response()->json($procesoActual ?: null);
-    });
-
-    // API para obtener datos de la siguiente orden
-    Route::get('/api/telares/siguiente-orden/{telarId}', function ($telarId) {
-        // Determinar el tipo de salón según el telar
-        $tipoSalon = null;
-
-        // Verificar si es telar Jacquard (200-215)
-        if ($telarId >= 200 && $telarId <= 215) {
-            $tipoSalon = 'JACQUARD';
-        }
-        // Verificar si es telar Itema (299-320)
-        elseif ($telarId >= 299 && $telarId <= 320) {
-            $tipoSalon = 'ITEMA';
-        }
-
-        if (!$tipoSalon) {
-            return response()->json(['error' => 'Tipo de telar no reconocido'], 400);
-        }
-
-        // Obtener datos del telar en proceso para obtener FechaInicio
-        $telarEnProceso = \Illuminate\Support\Facades\DB::table('ReqProgramaTejido')
-            ->where('SalonTejidoId', $tipoSalon)
-            ->where('NoTelarId', $telarId)
-            ->where('EnProceso', 1)
-            ->select('FechaInicio')
-            ->first();
-
-        if (!$telarEnProceso) {
-            return response()->json(['error' => 'Telar no encontrado en proceso'], 404);
-        }
-
-        // Obtener siguiente orden
-        $siguienteOrden = \Illuminate\Support\Facades\DB::table('ReqProgramaTejido')
-            ->where('SalonTejidoId', $tipoSalon)
-            ->where('NoTelarId', $telarId)
-            ->where('EnProceso', 0)
-            ->where('FechaInicio', '>', $telarEnProceso->FechaInicio)
-            ->select([
-                'CuentaRizo as Cuenta',
-                'CalibreRizo as Calibre_Rizo',
-                'FibraRizo as Fibra_Rizo',
-                'CuentaPie as Cuenta_Pie',
-                'CalibrePie as Calibre_Pie',
-                'FibraPie as Fibra_Pie'
-            ])
-            ->orderBy('FechaInicio')
-            ->first();
-
-        return response()->json($siguienteOrden ?: null);
+    // API para obtener datos de telares
+    Route::prefix('api/telares')->controller(TelaresController::class)->group(function () {
+        Route::get('/proceso-actual/{telarId}', 'procesoActual')->whereNumber('telarId');
+        Route::get('/siguiente-orden/{telarId}', 'siguienteOrden')->whereNumber('telarId');
     });
 
     // ============================================
@@ -773,17 +712,11 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/modulo-urdido', function () {
         return view('modulos/urdido');
     });
-    //Route::get('/urdido/programar-requerimientos', function () {
-    //    return view('modulos/urdido/programar-requerimientos');
-    //});
     Route::get('ingresar-folio', [UrdidoController::class, 'cargarOrdenesPendientesUrd'])->name('ingresarFolio');
     Route::post('/urdido/prioridad/mover', [UrdidoController::class, 'mover'])->name('urdido.prioridad.mover');
-    // Route::post('/engomado/prioridad/mover', [EngomadoController::class, 'mover'])->name('engomado.prioridad.mover');
-    Route::post('orden-trabajo', [UrdidoController::class, 'cargarDatosUrdido'])->name('produccion.ordenTrabajo');
+    Route::post('/orden-trabajo', [UrdidoController::class, 'cargarDatosUrdido'])->name('produccion.ordenTrabajo');
     Route::post('/urdido/autoguardar', [UrdidoController::class, 'autoguardar'])->name('urdido.autoguardar');
     Route::post('/urdido/finalizar', [UrdidoController::class, 'finalizarUrdido'])->name('urdido.finalizar');
-    // Route::post('/engomado/autoguardar', [EngomadoController::class, 'autoguardar'])->name('engomado.autoguardar');
-    // Route::post('/engomado/finalizar', [EngomadoController::class, 'finalizarEngomado'])->name('engomado.finalizar');
     Route::get('/imprimir-orden-llena-urd/{folio}', [UrdidoController::class, 'imprimirOrdenUrdido'])->name('imprimir.orden.urdido');
     Route::get('/imprimir-papeletas-pequenias/{folio}', [UrdidoController::class, 'imprimirPapeletas'])->name('imprimir.orden.papeletas');
 
@@ -791,14 +724,6 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/modulo-engomado', function () {
         return view('modulos/engomado');
     });
-    //Route::get('/engomado/programar-requerimientos', function () {
-    //    return view('modulos/engomado/programar-requerimientos');
-    //});
-    // Route::get('/ingresar-folio-engomado', [EngomadoController::class, 'cargarOrdenesPendientesEng'])->name('ingresarFolioEngomado');
-    // Route::post('/orden-trabajo-engomado', [EngomadoController::class, 'cargarDatosEngomado'])->name('produccion.ordenTrabajoEngomado');
-    // Route::post('/guardar-y-finalizar-engomado', [EngomadoController::class, 'guardarYFinalizar'])->name('ordenEngomado.guardarYFinalizar');
-    // Route::get('/imprimir-orden/{folio}', [EngomadoController::class, 'imprimirOrdenUE'])->name('imprimir.orden');
-    // Route::get('/imprimir-papeletas-llenas/{folio}', [EngomadoController::class, 'imprimirPapeletasEngomado'])->name('imprimir.papeletas.engomado');
     Route::get('/folio-pantalla/{folio}', function ($folio) {
         return view('modulos.programar_requerimientos.FolioEnPantalla')->with('folio', $folio);
     })->name('folio.pantalla');
@@ -840,44 +765,24 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::post('/inventario/seleccion', [RequerimientoController::class, 'step3Store'])->name('inventario.step3.store');
 
     // Módulo Edición Urdido-Engomado
-    //Route::get('/modulo-edicion-urdido-engomado', function () {
-    //    return view('/modulos/edicion_urdido_engomado/edicion-urdido-engomado-folio');
-    //})->name('ingresarFolioEdicion');
     Route::get('/orden-trabajo-editar', [UrdidoController::class, 'cargarDatosOrdenUrdEng'])->name('update.ordenTrabajo');
     Route::post('/tejido/actualizarUrdidoEngomado', [UrdidoController::class, 'ordenToActualizar'])->name('orden.produccion.update');
     Route::post('/reservar-inventario', [RequerimientoController::class, 'BTNreservar'])->name('reservar.inventario');
 
     // Módulo Configuración
     Route::get('/modulo-configuracion', [UsuarioController::class, 'showConfiguracion'])->name('configuracion.index');
-    Route::get('/configuracion/parametros', function () { return view('modulos/configuracion/parametros'); });
-    Route::get('/configuracion/base-datos', function () { return view('modulos/configuracion/base-datos'); });
-    Route::get('/configuracion/bd-pro-productivo', function () { return view('modulos/configuracion/bd-pro-productivo'); });
-    Route::get('/configuracion/bd-pro-pruebas', function () { return view('modulos/configuracion/bd-pro-pruebas'); });
-    Route::get('/configuracion/bd-tow-productivo', function () { return view('modulos/configuracion/bd-tow-productivo'); });
-    Route::get('/configuracion/bd-tow-pruebas', function () { return view('modulos/configuracion/bd-tow-pruebas'); });
-    Route::get('/configuracion/ambiente', function () { return view('modulos/configuracion/ambiente'); });
+    //Route::get('/configuracion/parametros', function () { return view('modulos/configuracion/parametros'); });
+    //Route::get('/configuracion/base-datos', function () { return view('modulos/configuracion/base-datos'); });
+    //Route::get('/configuracion/bd-pro-productivo', function () { return view('modulos/configuracion/bd-pro-productivo'); });
+    //Route::get('/configuracion/bd-pro-pruebas', function () { return view('modulos/configuracion/bd-pro-pruebas'); });
+    //Route::get('/configuracion/bd-tow-productivo', function () { return view('modulos/configuracion/bd-tow-productivo'); });
+    //Route::get('/configuracion/bd-tow-pruebas', function () { return view('modulos/configuracion/bd-tow-pruebas'); });
+    //Route::get('/configuracion/ambiente', function () { return view('modulos/configuracion/ambiente'); });
     Route::get('/configuracion/cargar-orden-produccion', function () { return view('modulos/configuracion/cargar-orden-produccion'); });
-    // Ruta movida al controlador ConfiguracionController
-
-    // Ruta temporal
-    Route::get('/urdido/urdidoTemporal', function () {
-        return view('modulos/urdido/urdidoTemporal');
-    });
-
-    // ============================================
-    // RUTAS ADICIONALES NECESARIAS
-    // ============================================
 
     // Información individual de telares
     Route::get('/tejido/jacquard-sulzer/{telar}', [TelaresController::class, 'mostrarTelarSulzer'])->name('tejido.mostrarTelarSulzer');
     Route::get('/ordenes-programadas-dinamica/{telar}', [TelaresController::class, 'obtenerOrdenesProgramadas'])->name('ordenes.programadas');
-
-    // Rutas adicionales de planeación
-    // Route::get('/planeacion/tipo-movimientos/{id}', [PlaneacionController::class, 'obtenerPorTejNum']);
-    // Route::put('/tejido-en-proceso/{num_registro}', [PlaneacionController::class, 'update'])->name('tejido_scheduling.update');
-    // Route::get('/buscar-modelos', [PlaneacionController::class, 'buscarModelos'])->name('modelos.buscar');
-    // Route::get('/modelos-por-clave', [PlaneacionController::class, 'obtenerModelosPorClave'])->name('modelos.porClave');
-    // Route::get('/modelo/detalle', [PlaneacionController::class, 'buscarDetalleModelo'])->name('modelos.detalle');
 
     // Rutas adicionales de módulos
     Route::get('/modulos/{modulo}/duplicar', [ModulosController::class, 'duplicar'])->name('modulos.duplicar');
@@ -886,81 +791,12 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/api/modulos/nivel/{nivel}', [ModulosController::class, 'getModulosPorNivel'])->name('api.modulos.nivel');
     Route::get('/api/modulos/submodulos/{dependencia}', [ModulosController::class, 'getSubmodulos'])->name('api.modulos.submodulos');
 
-    //Rutas para inventario de telares
-    Route::get('/inventario-telares', function (\Illuminate\Http\Request $request) {
-        try {
-            $inventario = \App\Models\TejInventarioTelares::orderBy('created_at', 'desc')->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $inventario
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener inventario: ' . $e->getMessage()
-            ], 500);
-        }
-    })->name('inventario-telares.get');
-
-    Route::post('/inventario-telares/guardar', function (\Illuminate\Http\Request $request) {
-        try {
-            $validated = $request->validate([
-                'no_telar' => 'required|string|max:20',
-                'tipo' => 'required|string|max:20',
-                'cuenta' => 'required|string|max:20',
-                'calibre' => 'nullable',
-                'fecha' => 'required|date',
-                'turno' => 'required|integer|min:1|max:3',
-                'salon' => 'required|string|max:50',
-                'hilo' => 'nullable|string|max:50',
-                'no_orden' => 'nullable|string|max:50',
-            ]);
-
-            // Solo una selección activa por telar+tipo (entre los 7 días de la vista): upsert por no_telar+tipo
-            $existente = \App\Models\TejInventarioTelares::where('no_telar', $validated['no_telar'])
-                ->where('tipo', $validated['tipo'])
-                ->where('status', 'Activo')
-                ->first();
-
-            if ($existente) {
-                $existente->cuenta = $validated['cuenta'];
-                $existente->calibre = $validated['calibre'];
-                $existente->fecha = $validated['fecha'];
-                $existente->turno = $validated['turno'];
-                $existente->salon = $validated['salon'];
-                $existente->hilo = $validated['hilo'] ?? $existente->hilo;
-                $existente->no_orden = $validated['no_orden'] ?? $existente->no_orden;
-                $existente->save();
-                $registro = $existente;
-            } else {
-                $registro = \App\Models\TejInventarioTelares::create([
-                    'no_telar' => $validated['no_telar'],
-                    'status' => 'Activo',
-                    'tipo' => $validated['tipo'],
-                    'cuenta' => $validated['cuenta'],
-                    'calibre' => $validated['calibre'],
-                    'fecha' => $validated['fecha'],
-                    'turno' => $validated['turno'],
-                    'tipo_atado' => 'Normal',
-                    'salon' => $validated['salon'],
-                    'hilo' => $validated['hilo'] ?? null,
-                    'no_orden' => $validated['no_orden'] ?? null,
-                ]);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Guardado con éxito',
-                'data' => $registro,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al guardar: ' . $e->getMessage()
-            ], 500);
-        }
-    })->name('inventario-telares.guardar');
+    // Rutas para inventario de telares
+    Route::controller(InventarioTelaresController::class)
+        ->prefix('inventario-telares')->name('inventario-telares.')->group(function () {
+            Route::get('/', 'index')->name('get');
+            Route::post('/guardar', 'store')->name('guardar');
+        });
 
     // RUTAS DE MÓDULOS (MOVIDAS A MÓDULOS ORGANIZADOS)
 });

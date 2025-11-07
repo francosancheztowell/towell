@@ -37,6 +37,15 @@
 
     $tipoNombre = $tipos[$tipo] ?? $tipos['jacquard'];
     $isActive = $telar->en_proceso ?? false;
+
+    // Verificar si hay datos de orden siguiente (cualquier campo relevante)
+    $tieneOrdenSig = $ordenSig && (
+        !empty($ordenSig->Orden_Prod) ||
+        !empty($ordenSig->Nombre_Producto) ||
+        !empty($ordenSig->Cuenta) ||
+        !empty($ordenSig->Cuenta_Pie) ||
+        !empty($ordenSig->Inicio_Tejido)
+    );
 @endphp
 
 <div class="telar-section bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
@@ -122,19 +131,37 @@
                     <div class="flex items-start">
                         <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Rizo:</span>
                         <span class="text-sm font-semibold text-gray-900 ml-2">
-                            {{ ($telar->Cuenta ?? '') . ($telar->Calibre_Rizo ? ' - ' . $telar->Calibre_Rizo : '') . ($telar->Fibra_Rizo ? ' - ' . $telar->Fibra_Rizo : '') }}
+                            @php
+                                $cuentaRizo = $telar->Cuenta ?? '';
+                                $calibreRizo = $telar->Calibre_Rizo ? number_format((float)$telar->Calibre_Rizo, 2, '.', '') : '';
+                                $fibraRizo = $telar->Fibra_Rizo ?? '';
+                                $rizoCompleto = $cuentaRizo . ($calibreRizo ? ' - ' . $calibreRizo : '') . ($fibraRizo ? ' - ' . $fibraRizo : '');
+                            @endphp
+                            {{ $rizoCompleto ?: '-' }}
                         </span>
                     </div>
                     <div class="flex items-start">
                         <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Pie:</span>
                         <span class="text-sm font-semibold text-gray-900 ml-2">
-                            {{ ($telar->Cuenta_Pie ?? '') . ($telar->Calibre_Pie ? ' - ' . $telar->Calibre_Pie : '') . ($telar->Fibra_Pie ? ' - ' . $telar->Fibra_Pie : '') }}
+                            @php
+                                $cuentaPie = $telar->Cuenta_Pie ?? '';
+                                $calibrePie = $telar->Calibre_Pie ? number_format((float)$telar->Calibre_Pie, 2, '.', '') : '';
+                                $fibraPie = $telar->Fibra_Pie ?? '';
+                                $pieCompleto = $cuentaPie . ($calibrePie ? ' - ' . $calibrePie : '') . ($fibraPie ? ' - ' . $fibraPie : '');
+                            @endphp
+                            {{ $pieCompleto ?: '-' }}
                         </span>
                     </div>
                     <div class="flex items-start">
                         <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Trama:</span>
                         <span class="text-sm font-semibold text-gray-900 ml-2">
-                            {{ ($telar->CALIBRE_TRA ?? '') . ($telar->COLOR_TRAMA ? ' - ' . $telar->COLOR_TRAMA : '') }}
+                            @php
+                                $calibreTrama = $telar->CALIBRE_TRA ?? null;
+                                $calibreFormateado = $calibreTrama ? number_format((float)$calibreTrama, 2, '.', '') : '';
+                                $colorTrama = $telar->COLOR_TRAMA ?? '';
+                                $tramaCompleto = $calibreFormateado . ($colorTrama ? ' - ' . $colorTrama : '');
+                            @endphp
+                            {{ $tramaCompleto ?: '-' }}
                         </span>
                     </div>
                     <div class="flex items-start">
@@ -203,7 +230,7 @@
                 </div>
             </div>
 
-            @if($ordenSig && ($ordenSig->Orden_Prod || $ordenSig->Nombre_Producto))
+            @if($tieneOrdenSig)
                 <!-- Sección SIGUIENTE ORDEN con datos -->
                 <div class="p-3">
                     <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -213,10 +240,6 @@
                                 <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Orden:</span>
                                 <span class="text-sm font-semibold text-gray-900 ml-2">{{ $ordenSig->Orden_Prod ?? '-' }}</span>
                             </div>
-                            <!-- <div class="flex items-start">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Artículo:</span>
-                                <span class="text-sm font-semibold text-gray-900 ml-2">{{ ($ordenSig->ItemId ?? '') . ' - ' . ($ordenSig->Tamano_AX ?? '') }}</span>
-                            </div> -->
                             <div class="flex items-start">
                                 <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Producto:</span>
                                 <span class="text-sm font-semibold text-gray-900 ml-2">{{ $ordenSig->Nombre_Producto ?? '-' }}</span>
@@ -228,13 +251,25 @@
                             <div class="flex items-start">
                                 <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Rizo:</span>
                                 <span class="text-sm font-semibold text-gray-900 ml-2">
-                                    {{ ($ordenSig->Cuenta ?? '') . ($ordenSig->Calibre_Rizo ? ' - ' . $ordenSig->Calibre_Rizo : '') . ($ordenSig->Fibra_Rizo ? ' - ' . $ordenSig->Fibra_Rizo : '') }}
+                                    @php
+                                        $cuentaRizoSig = $ordenSig->Cuenta ?? '';
+                                        $calibreRizoSig = $ordenSig->Calibre_Rizo ? number_format((float)$ordenSig->Calibre_Rizo, 2, '.', '') : '';
+                                        $fibraRizoSig = $ordenSig->Fibra_Rizo ?? '';
+                                        $rizoCompletoSig = $cuentaRizoSig . ($calibreRizoSig ? ' - ' . $calibreRizoSig : '') . ($fibraRizoSig ? ' - ' . $fibraRizoSig : '');
+                                    @endphp
+                                    {{ $rizoCompletoSig ?: '-' }}
                                 </span>
                             </div>
                             <div class="flex items-start">
                                 <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Pie:</span>
                                 <span class="text-sm font-semibold text-gray-900 ml-2">
-                                    {{ ($ordenSig->Cuenta_Pie ?? '') . ($ordenSig->Calibre_Pie ? ' - ' . $ordenSig->Calibre_Pie : '') . ($ordenSig->Fibra_Pie ? ' - ' . $ordenSig->Fibra_Pie : '') }}
+                                    @php
+                                        $cuentaPieSig = $ordenSig->Cuenta_Pie ?? '';
+                                        $calibrePieSig = $ordenSig->Calibre_Pie ? number_format((float)$ordenSig->Calibre_Pie, 2, '.', '') : '';
+                                        $fibraPieSig = $ordenSig->Fibra_Pie ?? '';
+                                        $pieCompletoSig = $cuentaPieSig . ($calibrePieSig ? ' - ' . $calibrePieSig : '') . ($fibraPieSig ? ' - ' . $fibraPieSig : '');
+                                    @endphp
+                                    {{ $pieCompletoSig ?: '-' }}
                                 </span>
                             </div>
                         </div>
@@ -264,9 +299,7 @@
                     <div class="flex items-center justify-center">
                         <div class="text-center">
                             <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 mb-3">
-                                <svg class="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
+                                <i class="fas fa-exclamation-triangle text-orange-600 text-2xl"></i>
                             </div>
                             <h3 class="text-sm font-medium text-gray-900 mb-1">Sin siguiente orden programada</h3>
                             <p class="text-xs text-gray-500">No hay órdenes futuras programadas para este telar</p>
@@ -293,9 +326,7 @@
             <div class="flex items-center justify-center py-6">
                 <div class="text-center">
                     <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-3">
-                        <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <i class="fas fa-clock text-blue-600 text-2xl"></i>
                     </div>
                     <h3 class="text-lg font-medium text-gray-900 mb-1">Telar {{ $telar->Telar }}</h3>
                     <p class="text-sm text-gray-500 mb-2">Sin proceso activo</p>
@@ -305,4 +336,3 @@
         </div>
     @endif
 </div>
-
