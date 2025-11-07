@@ -1,7 +1,9 @@
-const CACHE = "pwa-v1";
+const CACHE = "pwa-v4";
 const ASSETS = [
   "/", "/offline",
-  "/manifest.webmanifest", "/images/fotosTowell/TOWELLIN.png"
+  "/manifest.webmanifest",
+  "/js/app-pwa.js",
+  "/images/fotosTowell/TOWELLIN.png"
 ];
 
 self.addEventListener("install", (e) => {
@@ -38,14 +40,42 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const req = e.request;
-  if (req.method !== "GET") return;
+  const url = new URL(req.url);
 
-  // API calls: Network-first strategy
-  if (req.url.includes("/api/") || req.url.includes("/planeacion/") || req.url.includes("/buscar")) {
+  // NO interceptar peticiones que no son GET (POST, PUT, DELETE, etc.)
+  // Estas requieren CSRF tokens y deben ir directo al servidor
+  if (req.method !== "GET") {
+    return; // Dejar pasar sin interceptar
+  }
+
+  // NO cachear peticiones que requieren autenticación o tienen headers especiales
+  if (req.headers.get('Authorization') ||
+      req.headers.get('X-CSRF-TOKEN') ||
+      req.headers.get('X-Requested-With')) {
+    return; // Dejar pasar sin interceptar
+  }
+
+  // NO cachear rutas de autenticación o que modifican estado
+  const noCachePaths = [
+    '/login', '/logout', '/register', '/auth',
+    '/guardar', '/eliminar', '/editar', '/crear',
+    '/api/auth', '/sanctum'
+  ];
+  if (noCachePaths.some(path => url.pathname.includes(path))) {
+    return; // Dejar pasar sin interceptar
+  }
+
+  // API calls: Network-first strategy (solo GET)
+  if (url.pathname.includes("/api/") ||
+      url.pathname.includes("/planeacion/") ||
+      url.pathname.includes("/buscar")) {
     e.respondWith(
       fetch(req).then(res => {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(req, clone));
+        // Solo cachear si es exitosa y no requiere autenticación
+        if (res.ok && res.status !== 419 && res.status !== 401 && res.status !== 403) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(req, clone));
+        }
         return res;
       }).catch(() => caches.match(req))
     );
@@ -57,8 +87,11 @@ self.addEventListener("fetch", (e) => {
     caches.match(req).then(cached =>
       cached ||
       fetch(req).then(res => {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(req, clone));
+        // Solo cachear assets estáticos exitosos
+        if (res.ok && res.status !== 419) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(req, clone));
+        }
         return res;
       }).catch(() => caches.match("/offline"))
     )

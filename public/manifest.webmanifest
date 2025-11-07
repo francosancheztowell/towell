@@ -6,7 +6,7 @@
     "description": "Produccion Towell",
     "start_url": "/?source=pwa",
     "scope": "/",
-    "display": "fullscreen",
+    "display": "standalone",
     "display_override": ["fullscreen", "standalone", "minimal-ui"],
     "orientation": "portrait",
     "background_color": "#0f4c81",

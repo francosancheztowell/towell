@@ -5,7 +5,7 @@
 
 @if(!$simple)
     <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <meta name="theme-color" content="#0f4c81">
 
     <!-- iOS: hace que al "Añadir a pantalla de inicio" abra como app -->
