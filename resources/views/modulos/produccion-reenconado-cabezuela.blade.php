@@ -13,6 +13,7 @@ Producción Reenconado Cabezuela
     .table-capture .w-xs { width: 72px; }
     .table-capture .w-lg { min-width: 160px; }
     .table-capture td, .table-capture th { padding: 0.5rem 0.75rem; }
+    #tabla-registros tr.selected { background-color: #bfdbfe !important; }
 </style>
 @endpush
 
@@ -34,8 +35,26 @@ Producción Reenconado Cabezuela
         <div class="flex items-center justify-between mb-3">
                 <div></div>
                 <div class="flex gap-2">
+                        <button type="button" id="btn-reporte" class="px-4 py-2 rounded bg-purple-500 text-white shadow hover:bg-green-600 transition font-medium">
+                                <i class="fa fa-plus"></i> Reporte
+                        </button>
+                </div>
+
+                <div class="flex gap-2">
                         <button type="button" id="btn-nuevo" class="px-4 py-2 rounded bg-green-500 text-white shadow hover:bg-green-600 transition font-medium">
-                                <i class="fa fa-plus"></i> Nuevo Registro
+                                <i class="fa fa-plus"></i> Nuevo
+                        </button>
+                </div>
+
+                <div class="flex gap-2">
+                        <button type="button" id="btn-editar" class="px-4 py-2 rounded bg-amber-500 text-white shadow hover:bg-green-600 transition font-medium">
+                                <i class="fa fa-plus"></i> Editar
+                        </button>
+                </div>
+
+                <div class="flex gap-2">
+                        <button type="button" id="btn-eliminar" class="px-4 py-2 rounded bg-red-500 text-white shadow hover:bg-green-600 transition font-medium">
+                                <i class="fa fa-plus"></i> Eliminar
                         </button>
                 </div>
         </div>
@@ -44,7 +63,6 @@ Producción Reenconado Cabezuela
                 <table class="min-w-full table-capture text-sm" id="tabla-registros">
                         <thead class="text-white">
                 <tr class="text-center align-middle">
-                    <th class="w-xs bg-blue-500 whitespace-nowrap">Acciones</th>
                     <th class="w-sm bg-blue-500 whitespace-nowrap">Folio</th>
                     <th class="w-sm bg-blue-500 whitespace-nowrap">Fecha</th>
                     <th class="w-xs bg-blue-500 whitespace-nowrap">Turno</th>
@@ -62,7 +80,21 @@ Producción Reenconado Cabezuela
                         </thead>
                         <tbody id="rows-body" class="text-gray-800">
                                 @forelse($registros as $r)
-                                        <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50">
+                                        <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50" 
+                                            data-folio="{{ $r->Folio }}"
+                                            data-date="{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}"
+                                            data-turno="{{ $r->Turno }}"
+                                            data-numero_empleado="{{ $r->numero_empleado }}"
+                                            data-nombreempl="{{ $r->nombreEmpl }}"
+                                            data-calibre="{{ is_null($r->Calibre) ? '' : number_format($r->Calibre, 2, '.', '') }}"
+                                            data-fibratrama="{{ $r->FibraTrama }}"
+                                            data-codcolor="{{ $r->CodColor }}"
+                                            data-color="{{ $r->Color }}"
+                                            data-cantidad="{{ is_null($r->Cantidad) ? '' : number_format($r->Cantidad, 2, '.', '') }}"
+                                            data-conos="{{ $r->Conos }}"
+                                            data-horas="{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2, '.', '') }}"
+                                            data-eficiencia="{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2, '.', '') }}"
+                                            data-obs="{{ $r->Obs }}">
                                                 <td class="whitespace-nowrap">{{ $r->Folio }}</td>
                                                 <td class="whitespace-nowrap">{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}</td>
                                                 <td class="text-center whitespace-nowrap">{{ $r->Turno }}</td>
@@ -90,7 +122,7 @@ Producción Reenconado Cabezuela
     <div class="fixed inset-0 bg-black/50" data-close="1"></div>
     <div class="relative bg-white w-[95vw] max-w-6xl max-h-[85vh] overflow-y-auto rounded shadow-lg">
             <div class="sticky top-0 bg-gradient-to-r from-blue-500 to-blue-600 text-white border-b flex items-center justify-between p-4">
-                <h5 class="text-xl font-semibold"><i class="fa fa-plus-circle mr-2"></i>Nuevo Registro de Producción</h5>
+                <h5 class="text-xl font-semibold" id="modal-title"><i class="fa fa-plus-circle mr-2"></i>Nuevo Registro de Producción</h5>
                 <button type="button" id="btn-cerrar-modal" class="p-2 hover:bg-white/20 rounded transition" aria-label="Close">
                     <i class="fa fa-times text-xl"></i>
                 </button>
@@ -196,17 +228,37 @@ Producción Reenconado Cabezuela
 <script>
 (function(){
     const nuevoBtn = document.getElementById('btn-nuevo');
+    const editarBtn = document.getElementById('btn-editar');
+    const eliminarBtn = document.getElementById('btn-eliminar');
     const saveBtn = document.getElementById('btn-guardar-nuevo');
     const tbody = document.getElementById('rows-body');
     const modalEl = document.getElementById('modalNuevo');
     const modalBackdrop = modalEl.querySelector('[data-close="1"]');
     const modalCloseBtn = document.getElementById('btn-cerrar-modal');
     const modalCancelBtn = document.getElementById('btn-cancelar-modal');
+    const modalTitle = document.getElementById('modal-title');
+
+    let selectedRow = null;
+    let mode = 'create'; // 'create' | 'edit'
 
     function rowHtml(r){
         const nf = (v, d=2) => (v===null||v===undefined||v==='') ? '' : Number(v).toFixed(d);
         return `
-            <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50">
+            <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50" 
+                data-folio="${r.Folio??''}"
+                data-date="${r.Date??''}"
+                data-turno="${r.Turno??''}"
+                data-numero_empleado="${r.numero_empleado??''}"
+                data-nombreempl="${r.nombreEmpl??''}"
+                data-calibre="${r.Calibre??''}"
+                data-fibratrama="${r.FibraTrama??''}"
+                data-codcolor="${r.CodColor??''}"
+                data-color="${r.Color??''}"
+                data-cantidad="${r.Cantidad??''}"
+                data-conos="${r.Conos??''}"
+                data-horas="${r.Horas??''}"
+                data-eficiencia="${r.Eficiencia??''}"
+                data-obs="${r.Obs??''}">
                 <td class="whitespace-nowrap">${r.Folio??''}</td>
                 <td class="whitespace-nowrap">${r.Date??''}</td>
                 <td class="text-center whitespace-nowrap">${r.Turno??''}</td>
@@ -264,10 +316,24 @@ Producción Reenconado Cabezuela
             Obs: document.getElementById('f_Obs').value || null,
         };
 
-        // Validación básica
-        if (!record.Date) {
-            toastr.warning('La fecha es requerida');
-            return;
+        // Validación básica: todos requeridos
+        const requiredFields = [
+            ['Date','La fecha es requerida'],
+            ['Turno','El turno es requerido'],
+            ['numero_empleado','El número de empleado es requerido'],
+            ['nombreEmpl','El nombre es requerido'],
+            ['Calibre','El calibre es requerido'],
+            ['FibraTrama','La fibra es requerida'],
+            ['CodColor','El código de color es requerido'],
+            ['Color','El color es requerido'],
+            ['Cantidad','La cantidad es requerida'],
+            ['Conos','Los conos son requeridos'],
+            ['Horas','Las horas son requeridas'],
+            ['Eficiencia','La eficiencia es requerida'],
+            ['Obs','Las observaciones son requeridas'],
+        ];
+        for(const [key, msg] of requiredFields){
+            if(!record[key] && record[key] !== 0){ toastr.warning(msg); return; }
         }
 
         // Deshabilitar botón mientras guarda
@@ -275,14 +341,62 @@ Producción Reenconado Cabezuela
         saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>Guardando...';
 
         try{
-            const url = `{{ route('tejido.produccion.reenconado.store') }}`;
-            const {data} = await axios.post(url, { modal: 1, record });
-            if(data && data.success){
-                tbody.insertAdjacentHTML('afterbegin', rowHtml(data.data));
-                hideModal();
-                toastr.success('Registro guardado exitosamente');
-            }else{
-                toastr.error('No se pudo guardar el registro');
+            if(mode === 'edit' && record.Folio){
+                const url = `{{ route('tejido.produccion.reenconado.update', ['folio' => '__F__']) }}`.replace('__F__', encodeURIComponent(record.Folio));
+                const {data} = await axios.put(url, { record });
+                if(data && data.success){
+                    // actualizar fila seleccionada
+                    if(selectedRow){
+                        const updated = data.data;
+                        // actualizar celdas visibles
+                        const cells = selectedRow.querySelectorAll('td');
+                        const nf = (v, d=2) => (v===null||v===undefined||v==='') ? '' : Number(v).toFixed(d);
+                        cells[0].textContent = updated.Folio ?? '';
+                        cells[1].textContent = updated.Date ?? '';
+                        cells[2].textContent = updated.Turno ?? '';
+                        cells[3].textContent = updated.nombreEmpl ?? '';
+                        cells[4].textContent = nf(updated.Calibre);
+                        cells[5].textContent = updated.FibraTrama ?? '';
+                        cells[6].textContent = updated.CodColor ?? '';
+                        cells[7].textContent = updated.Color ?? '';
+                        cells[8].textContent = nf(updated.Cantidad);
+                        cells[9].textContent = updated.Conos ?? '';
+                        cells[10].textContent = nf(updated.Horas);
+                        cells[11].textContent = nf(updated.Eficiencia);
+                        cells[12].textContent = updated.Obs ?? '';
+
+                        // actualizar data-* atributos
+                        selectedRow.dataset.folio = updated.Folio ?? '';
+                        selectedRow.dataset.date = updated.Date ?? '';
+                        selectedRow.dataset.turno = updated.Turno ?? '';
+                        selectedRow.dataset.numero_empleado = updated.numero_empleado ?? '';
+                        selectedRow.dataset.nombreempl = updated.nombreEmpl ?? '';
+                        selectedRow.dataset.calibre = updated.Calibre ?? '';
+                        selectedRow.dataset.fibratrama = updated.FibraTrama ?? '';
+                        selectedRow.dataset.codcolor = updated.CodColor ?? '';
+                        selectedRow.dataset.color = updated.Color ?? '';
+                        selectedRow.dataset.cantidad = updated.Cantidad ?? '';
+                        selectedRow.dataset.conos = updated.Conos ?? '';
+                        selectedRow.dataset.horas = updated.Horas ?? '';
+                        selectedRow.dataset.eficiencia = updated.Eficiencia ?? '';
+                        selectedRow.dataset.obs = updated.Obs ?? '';
+                    }
+                    hideModal();
+                    toastr.success('Registro actualizado');
+                } else {
+                    toastr.error('No se pudo actualizar');
+                }
+            } else {
+                const url = `{{ route('tejido.produccion.reenconado.store') }}`;
+                const {data} = await axios.post(url, { modal: 1, record });
+                if(data && data.success){
+                    tbody.insertAdjacentHTML('afterbegin', rowHtml(data.data));
+                    bindRowClicks();
+                    hideModal();
+                    toastr.success('Registro guardado exitosamente');
+                }else{
+                    toastr.error('No se pudo guardar el registro');
+                }
             }
         }catch(e){
             console.error('Error al guardar:', e);
@@ -295,15 +409,30 @@ Producción Reenconado Cabezuela
         }
     }
 
+    function updateActionButtons(){
+        const hasSelection = !!selectedRow;
+        editarBtn.disabled = !hasSelection;
+        eliminarBtn.disabled = !hasSelection;
+        editarBtn.classList.toggle('opacity-50', !hasSelection);
+        editarBtn.classList.toggle('cursor-not-allowed', !hasSelection);
+        eliminarBtn.classList.toggle('opacity-50', !hasSelection);
+        eliminarBtn.classList.toggle('cursor-not-allowed', !hasSelection);
+    }
+
+    updateActionButtons();
+
     nuevoBtn.addEventListener('click', async () => {
+        mode = 'create';
+        if(selectedRow){ selectedRow.classList.remove('selected'); selectedRow = null; updateActionButtons(); }
         // Primero mostrar el modal
         showModal();
+        modalTitle.innerHTML = '<i class="fa fa-plus-circle mr-2"></i>Nuevo Registro de Producción';
         
         try {
             const url = `{{ route('tejido.produccion.reenconado.generar-folio') }}`;
             const {data} = await axios.post(url);
             
-            console.log('Datos recibidos del backend:', data);
+            {{-- console.log('Datos recibidos del backend:', data); --}}
             
             if(data && data.success){
                 document.getElementById('f_Folio').value = data.folio || '';
@@ -312,13 +441,13 @@ Producción Reenconado Cabezuela
                 document.getElementById('f_nombreEmpl').value = data.usuario || '';
                 document.getElementById('f_numero_empleado').value = data.numero_empleado || '';
                 
-                console.log('Campos rellenados:', {
+                {{-- console.log('Campos rellenados:', {
                     folio: document.getElementById('f_Folio').value,
                     fecha: document.getElementById('f_Date').value,
                     turno: document.getElementById('f_Turno').value,
                     nombre: document.getElementById('f_nombreEmpl').value,
                     numero: document.getElementById('f_numero_empleado').value
-                });
+                }); --}}
             } else {
                 // Fallback si falla la llamada
                 document.getElementById('f_Folio').value = `TEMP-${Date.now()}`;
@@ -341,6 +470,67 @@ Producción Reenconado Cabezuela
     modalBackdrop.addEventListener('click', hideModal);
     modalCloseBtn.addEventListener('click', hideModal);
     modalCancelBtn.addEventListener('click', hideModal);
+
+    function bindRowClicks(){
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(row => {
+            row.addEventListener('click', () => {
+                if(selectedRow){ selectedRow.classList.remove('selected'); }
+                selectedRow = row;
+                row.classList.add('selected');
+                updateActionButtons();
+            });
+        });
+    }
+
+    bindRowClicks();
+
+    editarBtn.addEventListener('click', () => {
+        if(!selectedRow){ toastr.info('Selecciona un registro'); return; }
+        mode = 'edit';
+        // abrir modal primero (limpia campos)
+        showModal();
+        // cargar valores del selectedRow al modal
+        document.getElementById('f_Folio').value = selectedRow.dataset.folio || '';
+        document.getElementById('f_Date').value = selectedRow.dataset.date || '';
+        document.getElementById('f_Turno').value = selectedRow.dataset.turno || '';
+        document.getElementById('f_numero_empleado').value = selectedRow.dataset.numero_empleado || '';
+        document.getElementById('f_nombreEmpl').value = selectedRow.dataset.nombreempl || '';
+        document.getElementById('f_Calibre').value = selectedRow.dataset.calibre || '';
+        document.getElementById('f_FibraTrama').value = selectedRow.dataset.fibratrama || '';
+        document.getElementById('f_CodColor').value = selectedRow.dataset.codcolor || '';
+        document.getElementById('f_Color').value = selectedRow.dataset.color || '';
+        document.getElementById('f_Cantidad').value = selectedRow.dataset.cantidad || '';
+        document.getElementById('f_Conos').value = selectedRow.dataset.conos || '';
+        document.getElementById('f_Horas').value = selectedRow.dataset.horas || '';
+        document.getElementById('f_Eficiencia').value = selectedRow.dataset.eficiencia || '';
+        document.getElementById('f_Obs').value = selectedRow.dataset.obs || '';
+        modalTitle.innerHTML = `<i class="fa fa-edit mr-2"></i>Editar Registro · Folio ${selectedRow.dataset.folio || ''}`;
+    });
+
+    eliminarBtn.addEventListener('click', async () => {
+        if(!selectedRow){ toastr.info('Selecciona un registro'); return; }
+        const folio = selectedRow.dataset.folio;
+        if(!folio){ toastr.error('Folio inválido'); return; }
+        if(!confirm(`¿Eliminar folio ${folio}?`)) return;
+        try{
+            const url = `{{ route('tejido.produccion.reenconado.destroy', ['folio' => '__F__']) }}`.replace('__F__', encodeURIComponent(folio));
+            const {data} = await axios.delete(url);
+            if(data && data.success){
+                selectedRow.remove();
+                selectedRow = null;
+                mode = 'create';
+                updateActionButtons();
+                toastr.success('Registro eliminado');
+            } else {
+                toastr.error('No se pudo eliminar');
+            }
+        }catch(e){
+            console.error('Error al eliminar:', e);
+            const msg = e?.response?.data?.message || 'Error al eliminar el registro';
+            toastr.error(msg);
+        }
+    });
 })();
 </script>
 @endsection

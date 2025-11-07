@@ -491,6 +491,10 @@ Route::middleware(['auth'])->group(function () {
             ->name('produccion.reenconado.store');
         Route::post('/produccion-reenconado/generar-folio', [ProduccionReenconadoCabezuelaController::class, 'generarFolio'])
             ->name('produccion.reenconado.generar-folio');
+        Route::put('/produccion-reenconado/{folio}', [ProduccionReenconadoCabezuelaController::class, 'update'])
+            ->name('produccion.reenconado.update');
+        Route::delete('/produccion-reenconado/{folio}', [ProduccionReenconadoCabezuelaController::class, 'destroy'])
+            ->name('produccion.reenconado.destroy');
 
         // Secuencia Inv Telas
         Route::get('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'index'])->name('secuencia-inv-telas.index');
