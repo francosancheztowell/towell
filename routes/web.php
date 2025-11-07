@@ -19,6 +19,7 @@ use App\Http\Controllers\UrdidoController;
 use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\AplicacionesController;
 use App\Http\Controllers\NuevoRequerimientoController;
+use App\Http\Controllers\ProduccionReenconadoCabezuelaController;
 use App\Http\Controllers\ConsultarRequerimientoController;
 use App\Http\Controllers\CodificacionController;
 use App\Models\SYSRoles;
@@ -352,6 +353,14 @@ Route::middleware(['auth'])->group(function () {
     // RUTA PRINCIPAL
     Route::get('/produccionProceso', [UsuarioController::class, 'index'])->name('produccion.index');
 
+    // ============================================
+    // PRODUCCIÓN » REENCONADO CABEZUELA
+    // ============================================
+    Route::get('/produccion/reenconado-cabezuela', [ProduccionReenconadoCabezuelaController::class, 'index'])
+        ->name('produccion.reenconado_cabezuela');
+    Route::post('/produccion/reenconado-cabezuela', [ProduccionReenconadoCabezuelaController::class, 'store'])
+        ->name('produccion.reenconado_cabezuela.store');
+
     // RUTAS PARA SUB-MÓDULOS
     Route::get('/submodulos/{modulo}', [UsuarioController::class, 'showSubModulos'])->name('submodulos.show');
     Route::get('/submodulos-nivel3/{moduloPadre}', [UsuarioController::class, 'showSubModulosNivel3'])->name('submodulos.nivel3');
@@ -459,6 +468,14 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/configurar', function() {
             return app(UsuarioController::class)->showSubModulosConfiguracion('205');
         })->name('configurar');
+
+        // Producción » Reenconado Cabezuela (alias dentro de /tejido)
+        Route::get('/produccion-reenconado', [ProduccionReenconadoCabezuelaController::class, 'index'])
+            ->name('produccion.reenconado');
+        Route::post('/produccion-reenconado', [ProduccionReenconadoCabezuelaController::class, 'store'])
+            ->name('produccion.reenconado.store');
+        Route::post('/produccion-reenconado/generar-folio', [ProduccionReenconadoCabezuelaController::class, 'generarFolio'])
+            ->name('produccion.reenconado.generar-folio');
 
         // Secuencia Inv Telas
         Route::get('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'index'])->name('secuencia-inv-telas.index');
