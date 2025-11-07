@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use App\Models\TejProduccionReenconado;
-use App\Models\SSYSFoliosSecuencia;
 use Illuminate\Support\Facades\Auth;
+use App\Helpers\FolioHelper;
 
 class ProduccionReenconadoCabezuelaController extends Controller
 {
@@ -52,12 +52,11 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 return back()->withErrors($validator)->withInput();
             }
 
-            // Si no viene folio, generarlo a partir del prefijo 'RE' incrementando el consecutivo
+            // Si no viene folio, generarlo a partir del prefijo 'CE' incrementando el consecutivo
             $folioGenerado = null;
             try {
                 if (empty($data['Folio'])) {
-                    $nf = \App\Models\SSYSFoliosSecuencia::nextFolioByPrefijo('CE', 4); // CE0001
-                    $folioGenerado = $nf['folio'] ?? null;
+                    $folioGenerado = FolioHelper::obtenerSiguienteFolio('Reenconado', 4);
                 }
             } catch (\Throwable $e) {
                 Log::error('Generar folio (modal) fallo', ['exception' => $e]);
@@ -184,18 +183,15 @@ class ProduccionReenconadoCabezuelaController extends Controller
             ->with('success', 'Registros guardados correctamente: '.count($validatedRows));
     }
 
-    /**
-     * Genera y reserva un nuevo folio (prefijo 'RE') y devuelve también
-     * datos del usuario autenticado para precargar el modal.
-     */
     public function generarFolio(Request $request)
     {
         try {
-            $next = \App\Models\SSYSFoliosSecuencia::nextFolioByPrefijo('CE', 4);
+            // No consumir la secuencia al abrir modal: devolver folio sugerido (lectura)
+            $folio = FolioHelper::obtenerFolioSugerido('Reenconado', 4);
             $user = Auth::user();
             return response()->json([
                 'success' => true,
-                'folio' => $next['folio'] ?? null,
+                'folio' => $folio,
                 'usuario' => $user->nombre ?? null,
                 'numero_empleado' => $user->numero_empleado ?? null,
                 'fecha' => date('Y-m-d'),
