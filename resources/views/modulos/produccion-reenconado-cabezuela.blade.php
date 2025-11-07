@@ -14,7 +14,16 @@ Producción Reenconado Cabezuela
     .table-capture .w-lg { min-width: 160px; }
     .table-capture td, .table-capture th { padding: 0.5rem 0.75rem; }
     #tabla-registros tr.selected { background-color: #bfdbfe !important; }
+    /* Mantener header visible incluso con teclado móvil */
+    /* Header siempre visible incluso con teclado: absoluto dentro del modal relativo */
+    .modal-header { position: absolute; top: 0; left: 0; right: 0; z-index: 30; }
+    .modal-scroll { max-height: 85vh; overflow-y: auto; scroll-padding-top: 72px; padding-top: 72px; padding-bottom: 28px; }
+    .modal-scroll input, .modal-scroll textarea, .modal-scroll select { scroll-margin-top: 72px; }
 </style>
+@endpush
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 @endpush
 
 @section('content')
@@ -32,31 +41,21 @@ Producción Reenconado Cabezuela
                 </div>
         @endif
 
-        <div class="flex items-center justify-between mb-3">
-                <div></div>
-                <div class="flex gap-2">
-                        <button type="button" id="btn-reporte" class="px-4 py-2 rounded bg-purple-500 text-white shadow hover:bg-green-600 transition font-medium">
-                                <i class="fa fa-plus"></i> Reporte
-                        </button>
-                </div>
-
-                <div class="flex gap-2">
-                        <button type="button" id="btn-nuevo" class="px-4 py-2 rounded bg-green-500 text-white shadow hover:bg-green-600 transition font-medium">
-                                <i class="fa fa-plus"></i> Nuevo
-                        </button>
-                </div>
-
-                <div class="flex gap-2">
-                        <button type="button" id="btn-editar" class="px-4 py-2 rounded bg-amber-500 text-white shadow hover:bg-green-600 transition font-medium">
-                                <i class="fa fa-plus"></i> Editar
-                        </button>
-                </div>
-
-                <div class="flex gap-2">
-                        <button type="button" id="btn-eliminar" class="px-4 py-2 rounded bg-red-500 text-white shadow hover:bg-green-600 transition font-medium">
-                                <i class="fa fa-plus"></i> Eliminar
-                        </button>
-                </div>
+        <div class="flex items-center justify-end mb-3">
+            <div class="flex items-center gap-2">
+                <button type="button" id="btn-reporte" class="px-3 py-2 rounded bg-purple-500 text-white shadow hover:bg-purple-600 transition font-medium">
+                    <i class="fa fa-file"></i> Reporte
+                </button>
+                <button type="button" id="btn-nuevo" class="px-3 py-2 rounded bg-green-600 text-white shadow hover:bg-green-700 transition font-medium">
+                    <i class="fa fa-plus"></i> Nuevo
+                </button>
+                <button type="button" id="btn-editar" class="px-3 py-2 rounded bg-amber-500 text-white shadow hover:bg-amber-600 transition font-medium">
+                    <i class="fa fa-pen"></i> Editar
+                </button>
+                <button type="button" id="btn-eliminar" class="px-3 py-2 rounded bg-red-600 text-white shadow hover:bg-red-700 transition font-medium">
+                    <i class="fa fa-trash"></i> Eliminar
+                </button>
+            </div>
         </div>
 
         <div class="overflow-x-auto rounded shadow bg-white">
@@ -120,14 +119,22 @@ Producción Reenconado Cabezuela
 <!-- Modal Nuevo (Tailwind) -->
 <div id="modalNuevo" class="fixed inset-0 z-50 hidden items-center justify-center">
     <div class="fixed inset-0 bg-black/50" data-close="1"></div>
-    <div class="relative bg-white w-[95vw] max-w-6xl max-h-[85vh] overflow-y-auto rounded shadow-lg">
-            <div class="sticky top-0 bg-gradient-to-r from-blue-500 to-blue-600 text-white border-b flex items-center justify-between p-4">
-                <h5 class="text-xl font-semibold" id="modal-title"><i class="fa fa-plus-circle mr-2"></i>Nuevo Registro de Producción</h5>
-                <button type="button" id="btn-cerrar-modal" class="p-2 hover:bg-white/20 rounded transition" aria-label="Close">
-                    <i class="fa fa-times text-xl"></i>
-                </button>
+    <div class="relative bg-white w-[95vw] max-w-6xl rounded shadow-lg">
+            <div class="modal-header bg-gradient-to-r from-blue-500 to-blue-600 text-white border-b flex items-center justify-between p-3">
+                <h5 class="text-lg md:text-xl font-semibold" id="modal-title"><i class="fa fa-plus-circle mr-2"></i>Nuevo Registro de Producción</h5>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-3 py-1.5 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium transition" id="btn-cancelar-modal">
+                        <i class="fa fa-times mr-1"></i>Cancelar
+                    </button>
+                    <button type="button" class="px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 font-medium transition shadow-md" id="btn-guardar-nuevo">
+                        <i class="fa fa-save mr-1"></i>Guardar
+                    </button>
+                    <button type="button" id="btn-cerrar-modal" class="p-2 hover:bg-white/20 rounded transition" aria-label="Close" title="Cerrar">
+                        <i class="fa fa-times text-lg"></i>
+                    </button>
+                </div>
             </div>
-            <div class="p-4">
+            <div class="p-4 modal-scroll">
                 <div class="grid grid-cols-12 gap-4">
                     <!-- Sección: Información General -->
                     <div class="col-span-12">
@@ -147,9 +154,9 @@ Producción Reenconado Cabezuela
                     <div class="col-span-6 md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
                         <select class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Turno">
-                            <option value="1">1 (6:30 - 14:30)</option>
-                            <option value="2">2 (14:30 - 22:30)</option>
-                            <option value="3">3 (22:30 - 6:30)</option>
+                            <option value="1">1 </option>
+                            <option value="2">2 </option>
+                            <option value="3">3 </option>
                         </select>
                     </div>
                     <div class="col-span-6 md:col-span-3">
@@ -210,18 +217,11 @@ Producción Reenconado Cabezuela
                     </div>
                     <div class="col-span-12">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-                        <textarea class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Obs" rows="2"></textarea>
+                        <textarea class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-8" id="f_Obs" rows="2"></textarea>
                     </div>
                 </div>
             </div>
-            <div class="p-4 bg-gray-50 border-t flex justify-end gap-3">
-                <button type="button" class="px-5 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium transition" id="btn-cancelar-modal">
-                    <i class="fa fa-times mr-2"></i>Cancelar
-                </button>
-                <button type="button" class="px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 font-medium transition shadow-md" id="btn-guardar-nuevo">
-                    <i class="fa fa-save mr-2"></i>Guardar Registro
-                </button>
-            </div>
+            <!-- Footer eliminado: botones están en el header para que siempre sean visibles -->
     </div>
     </div>
 
@@ -279,7 +279,7 @@ Producción Reenconado Cabezuela
         modalEl.querySelectorAll('input, textarea, select').forEach(i=> i.value='');
         modalEl.classList.remove('hidden');
         modalEl.classList.add('flex');
-        setTimeout(()=> document.getElementById('f_Date')?.focus(), 100);
+        setTimeout(()=> document.getElementById('f_Calibre')?.focus(), 100);
     }
 
     function hideModal(){
@@ -393,6 +393,9 @@ Producción Reenconado Cabezuela
                     tbody.insertAdjacentHTML('afterbegin', rowHtml(data.data));
                     bindRowClicks();
                     hideModal();
+                    toastr.options.timeOut = 1200;
+                    toastr.options.extendedTimeOut = 600;
+                    toastr.options.progressBar = true;
                     toastr.success('Registro guardado exitosamente');
                 }else{
                     toastr.error('No se pudo guardar el registro');
@@ -471,6 +474,17 @@ Producción Reenconado Cabezuela
     modalCloseBtn.addEventListener('click', hideModal);
     modalCancelBtn.addEventListener('click', hideModal);
 
+    // Evitar salto de línea en Observaciones con Enter y cerrar teclado
+    const obsEl = document.getElementById('f_Obs');
+    if (obsEl) {
+        obsEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                obsEl.blur();
+            }
+        });
+    }
+
     function bindRowClicks(){
         const rows = tbody.querySelectorAll('tr');
         rows.forEach(row => {
@@ -512,7 +526,19 @@ Producción Reenconado Cabezuela
         if(!selectedRow){ toastr.info('Selecciona un registro'); return; }
         const folio = selectedRow.dataset.folio;
         if(!folio){ toastr.error('Folio inválido'); return; }
-        if(!confirm(`¿Eliminar folio ${folio}?`)) return;
+
+        const result = await Swal.fire({
+            title: `¿Eliminar folio ${folio}?`,
+            text: 'Esta acción no se puede deshacer',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#6b7280'
+        });
+        if(!result.isConfirmed) return;
+
         try{
             const url = `{{ route('tejido.produccion.reenconado.destroy', ['folio' => '__F__']) }}`.replace('__F__', encodeURIComponent(folio));
             const {data} = await axios.delete(url);
@@ -521,14 +547,14 @@ Producción Reenconado Cabezuela
                 selectedRow = null;
                 mode = 'create';
                 updateActionButtons();
-                toastr.success('Registro eliminado');
+                Swal.fire({ icon:'success', title:'Eliminado', text:'Registro eliminado' });
             } else {
-                toastr.error('No se pudo eliminar');
+                Swal.fire({ icon:'error', title:'Error', text:'No se pudo eliminar' });
             }
         }catch(e){
             console.error('Error al eliminar:', e);
             const msg = e?.response?.data?.message || 'Error al eliminar el registro';
-            toastr.error(msg);
+            Swal.fire({ icon:'error', title:'Error', text: msg });
         }
     });
 })();
