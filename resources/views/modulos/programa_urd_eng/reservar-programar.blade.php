@@ -198,49 +198,6 @@
     }
 </style>
 
-{{-- ========== Modal Filtros ========== --}}
-<div id="filterModal" class="fixed inset-0 bg-gray-600/50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-3xl shadow-lg rounded-lg bg-white">
-        <div class="mt-3">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-medium text-gray-900">Filtrar Tablas</h3>
-                <button id="btnCloseFilters" class="text-gray-400 hover:text-gray-600" title="Cerrar">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-
-            <div id="filterFormContainer" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Tabla a filtrar:</label>
-                    <select id="tableSelector" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        <option value="telares" selected>Programación de Requerimientos</option>
-                        <option value="inventario">Inventario Disponible</option>
-                    </select>
-                </div>
-
-                <div id="filtersInputContainer"></div>
-
-                <button type="button" id="btnAddFilter"
-                        class="w-full px-4 py-2 border-2 border-dashed border-gray-300 text-gray-600 rounded-lg hover:border-purple-500 hover:text-purple-600 transition-colors text-sm font-medium">
-                    Agregar otro filtro
-                </button>
-            </div>
-
-            <div class="mt-6 flex justify-end gap-3">
-                <button type="button" id="btnCancelFilters"
-                        class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
-                    Cancelar
-                </button>
-                <button type="button" id="btnApplyFilters"
-                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-                    Aplicar Filtros
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 
 {{-- ========== Scripts ========== --}}
 <script>
@@ -257,7 +214,7 @@ const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
 /* -------------------- Estado -------------------- */
 const state = {
-    filters: [],
+    filters: { telares: [], inventario: [] },
     selectedTelar: null,
     columns: { telares: [], inventario: [] },
     sort: { column: null, direction: 'asc' },
@@ -500,75 +457,179 @@ const selection = {
 
 /* -------------------- Filtros -------------------- */
 const filters = {
-    async addRow() {
-        const type = $('#tableSelector').value;
-        if (!state.columns[type]?.length) {
-            const data = await api.get(`${API.columnOptions}?table_type=${type}`);
-            state.columns[type] = data.columns || [];
-        }
-        const wrap = document.createElement('div');
-        wrap.className = 'filter-row p-4 border border-gray-200 rounded-lg bg-gray-50';
-        const idx = Date.now();
-        wrap.dataset.filterIndex = idx;
-        wrap.innerHTML = `
-        <div class="flex items-center gap-3">
-            <div class="flex-1">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Columna</label>
-                <select class="filter-column w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option value="">Selecciona una columna...</option>
-                ${state.columns[type].map(c=>`<option value="${c.field}">${c.label}</option>`).join('')}
-                </select>
-            </div>
-            <div class="flex-1">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Valor</label>
-                <input type="text" class="filter-value w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Escribe el valor...">
-            </div>
-            <div class="pt-6">
-              <button type="button" class="btn-remove-filter px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                <i class="fa-solid fa-times w-4 h-4"></i>
-                </button>
-            </div>
-          </div>`;
-        wrap.querySelector('.btn-remove-filter').addEventListener('click', ()=>{
-            wrap.remove();
-            state.filters = state.filters.filter(f=>f.index!==idx);
-            filters.updateBadge();
-        });
-        $('#filtersInputContainer').appendChild(wrap);
-        state.filters.push({ table:type, column:'', value:'', index:idx });
-        this.updateBadge();
-    },
+    currentType: 'telares',
+    currentFilters: [],
 
     updateBadge() {
-        const badge = $('#filterCount'); if(!badge) return;
-        const n = $$('.filter-row').length;
-        badge.textContent = n; badge.classList.toggle('hidden', n===0);
+        const badge = $('#filterCount');
+        if (badge) {
+            const total = state.filters.telares.length + state.filters.inventario.length;
+            badge.textContent = total;
+            badge.classList.toggle('hidden', total === 0);
+        }
     },
 
-    async apply() {
-        const type = $('#tableSelector').value;
-        const list = $$('.filter-row').map(r=>{
-            const c = r.querySelector('.filter-column')?.value?.trim() || '';
-            const v = r.querySelector('.filter-value')?.value?.trim() || '';
-            return c && v ? { columna:c, valor:v } : null;
-        }).filter(Boolean);
+    rowHTML(type, idx, col = '', val = '') {
+        const cols = (state.columns[type] || []).map(c =>
+            `<option value="${c.field}" ${c.field === col ? 'selected' : ''}>${c.label}</option>`
+        ).join('');
+        return `
+            <div class="filter-row" data-idx="${idx}" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:15px;padding:15px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb">
+                <div style="flex:1">
+                    <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#374151">Columna</label>
+                    <select class="filter-col" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+                        <option value="">Selecciona...</option>${cols}
+                    </select>
+                </div>
+                <div style="flex:1">
+                    <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#374151">Valor</label>
+                    <input type="text" class="filter-val" value="${val}" placeholder="Valor..." style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+                </div>
+                <div style="padding-top:28px">
+                    <button type="button" class="btn-rm" style="padding:8px 12px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer">
+                        <i class="fa-solid fa-times"></i>
+                    </button>
+                </div>
+            </div>`;
+    },
 
-        if (!list.length) { Swal.fire('Aviso','Agrega al menos un filtro','warning'); return; }
+    async loadColumns() {
+        if (!state.columns.telares.length) {
+            const d = await api.get(`${API.columnOptions}?table_type=telares`);
+            state.columns.telares = d.columns || [];
+        }
+        if (!state.columns.inventario.length) {
+            const d = await api.get(`${API.columnOptions}?table_type=inventario`);
+            state.columns.inventario = d.columns || [];
+        }
+    },
 
-        const loader = type==='telares' ? '#loaderTelares' : '#loaderInventario';
+    bindEvents(type) {
+        const container = document.getElementById('swalFilterContainer');
+        if (!container) return;
+
+        // Eliminar listeners previos y agregar nuevos
+        const removeBtns = container.querySelectorAll('.btn-rm');
+        removeBtns.forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+        });
+
+        // Eliminar filtros
+        container.querySelectorAll('.btn-rm').forEach(btn => {
+            btn.onclick = (e) => {
+                const row = e.target.closest('.filter-row');
+                if (row) {
+                    const idx = parseInt(row.dataset.idx);
+                    filters.currentFilters = filters.currentFilters.filter(f => f.idx !== idx);
+                    row.remove();
+                }
+            };
+        });
+
+        // Cambiar tabla - reemplazar evento
+        const tableSel = document.getElementById('swalTableSel');
+        if (tableSel) {
+            const currentVal = tableSel.value;
+            const newSel = tableSel.cloneNode(true);
+            tableSel.parentNode.replaceChild(newSel, tableSel);
+            newSel.value = currentVal; // Restaurar valor
+            newSel.onchange = (e) => {
+                const newType = e.target.value;
+                filters.currentType = newType;
+                filters.currentFilters = state.filters[newType] || [];
+                if (filters.currentFilters.length === 0) {
+                    filters.currentFilters = [{ table: newType, column: '', value: '', idx: Date.now() }];
+                }
+                const html = filters.currentFilters.map(f => filters.rowHTML(newType, f.idx, f.column, f.value)).join('');
+                document.getElementById('swalFilters').innerHTML = html;
+                filters.bindEvents(newType);
+            };
+        }
+
+        // Agregar filtro - reemplazar evento
+        const addBtn = document.getElementById('swalAdd');
+        if (addBtn) {
+            const newBtn = addBtn.cloneNode(true);
+            addBtn.parentNode.replaceChild(newBtn, addBtn);
+            newBtn.onclick = () => {
+                const idx = Date.now();
+                const html = filters.rowHTML(type, idx);
+                document.getElementById('swalFilters').insertAdjacentHTML('beforeend', html);
+                filters.currentFilters.push({ table: type, column: '', value: '', idx });
+                filters.bindEvents(type);
+            };
+        }
+    },
+
+    async openModal() {
+        await filters.loadColumns();
+        filters.currentType = 'telares';
+        // Cargar filtros guardados para telares
+        filters.currentFilters = state.filters.telares || [];
+        if (filters.currentFilters.length === 0) {
+            filters.currentFilters = [{ table: 'telares', column: '', value: '', idx: Date.now() }];
+        }
+
+        const html = `
+            <div id="swalFilterContainer" style="text-align:left">
+                <div style="margin-bottom:20px">
+                    <label style="display:block;font-size:14px;font-weight:600;margin-bottom:8px;color:#374151">Tabla:</label>
+                    <select id="swalTableSel" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+                        <option value="telares" selected>Programación de Requerimientos</option>
+                        <option value="inventario">Inventario Disponible</option>
+                    </select>
+                </div>
+                <div id="swalFilters" style="max-height:400px;overflow-y:auto;margin-bottom:15px">
+                    ${filters.currentFilters.map(f => filters.rowHTML('telares', f.idx, f.column, f.value)).join('')}
+                </div>
+                <button type="button" id="swalAdd" style="width:100%;padding:10px;border:2px dashed #d1d5db;background:transparent;color:#6b7280;border-radius:6px;cursor:pointer;font-size:14px;font-weight:500;margin-top:10px">
+                    <i class="fa-solid fa-plus" style="margin-right:5px"></i> Agregar filtro
+                </button>
+            </div>`;
+
+        const result = await Swal.fire({
+            title: 'Filtrar Tablas',
+            html,
+            width: '700px',
+            showCancelButton: true,
+            confirmButtonText: 'Aplicar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#9333ea',
+            cancelButtonColor: '#6b7280',
+            didOpen: () => {
+                filters.bindEvents(filters.currentType);
+            },
+            preConfirm: () => {
+                const rows = document.querySelectorAll('#swalFilters .filter-row');
+                const list = Array.from(rows).map(row => {
+                    const col = row.querySelector('.filter-col')?.value?.trim() || '';
+                    const val = row.querySelector('.filter-val')?.value?.trim() || '';
+                    return col && val ? { columna: col, valor: val } : null;
+                }).filter(Boolean);
+                if (!list.length) {
+                    Swal.showValidationMessage('Agrega al menos un filtro válido');
+                    return false;
+                }
+                return { type: filters.currentType, filters: list };
+            }
+        });
+
+        if (result.isConfirmed && result.value) {
+            await filters.apply(result.value.type, result.value.filters);
+        }
+    },
+
+    async apply(type, list) {
+        const loader = type === 'telares' ? '#loaderTelares' : '#loaderInventario';
         show($(loader));
         try {
-            const url = type==='telares' ? API.inventarioTelares : API.inventarioDisponible;
-            const { data } = await api.post(url, { filtros:list });
-            if (type==='telares') {
-                render.telares(data);
-            } else {
-                render.inventario(data);
-            }
-            // Guardar filtros aplicados
-            state.filters = list.map((f, i) => ({ table: type, column: f.columna, value: f.valor, index: i }));
+            const url = type === 'telares' ? API.inventarioTelares : API.inventarioDisponible;
+            const { data } = await api.post(url, { filtros: list });
+            type === 'telares' ? render.telares(data) : render.inventario(data);
+            // Guardar filtros por tipo de tabla
+            state.filters[type] = list.map((f, i) => ({ table: type, column: f.columna, value: f.valor, idx: Date.now() + i }));
             filters.updateBadge();
-            $('#filterModal').classList.add('hidden');
             Swal.fire({toast:true,position:'top-end',icon:'success',title:`${list.length} filtro(s) aplicados`,showConfirmButton:false,timer:2000});
         } catch(e) {
             Swal.fire('Error', e.message||'Error al aplicar filtros','error');
@@ -578,16 +639,34 @@ const filters = {
     },
 
     async reset() {
+        const confirm = await Swal.fire({
+            title: '¿Restablecer filtros?',
+            text: 'Se restablecerán todas las tablas',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, restablecer',
+            cancelButtonText: 'Cancelar'
+        });
+        if (!confirm.isConfirmed) return;
+
         show($('#loaderTelares'));
+        show($('#loaderInventario'));
         try {
-            const { data } = await api.post(API.inventarioTelares, { filtros: [] });
-            render.telares(data);
-            $('#filtersInputContainer').innerHTML = '';
-            this.updateBadge();
+            const [telaresRes, inventarioRes] = await Promise.all([
+                api.post(API.inventarioTelares, { filtros: [] }),
+                api.get(API.inventarioDisponibleGet)
+            ]);
+            render.telares(telaresRes.data);
+            render.inventario(inventarioRes.data || []);
+            state.filters = { telares: [], inventario: [] };
+            filters.updateBadge();
             Swal.fire({toast:true,position:'top-end',icon:'success',title:'Filtros restablecidos',showConfirmButton:false,timer:1500});
         } catch(e) {
-            Swal.fire('Error', e.message||'Error al restablecer filtros','error');
-        } finally { hide($('#loaderTelares')); }
+            Swal.fire('Error', e.message||'Error al restablecer','error');
+        } finally {
+            hide($('#loaderTelares'));
+            hide($('#loaderInventario'));
+        }
     }
 };
 
@@ -638,8 +717,8 @@ const actions = {
 
         if (piezasDisponibles.length === 0) {
             Swal.fire('Info','No hay piezas disponibles para reservar (todas ya están reservadas)','info');
-            return;
-        }
+        return;
+    }
 
         const ok = await Swal.fire({
             title:'¿Reservar piezas?',
@@ -731,18 +810,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
     });
 
     // botones top bar
-    $('#btnOpenFilters')?.addEventListener('click', async ()=>{
-        if (!state.columns.telares.length) { const d=await api.get(`${API.columnOptions}?table_type=telares`); state.columns.telares = d.columns || []; }
-        if (!state.columns.inventario.length) { const d=await api.get(`${API.columnOptions}?table_type=inventario`); state.columns.inventario = d.columns || []; }
-        if (!$('#filtersInputContainer').children.length) await filters.addRow();
-        show($('#filterModal'));
-    });
+    $('#btnOpenFilters')?.addEventListener('click', ()=>filters.openModal());
     $('#btnResetFilters')?.addEventListener('click', filters.reset);
-    $('#btnAddFilter')?.addEventListener('click', filters.addRow);
-    $('#btnApplyFilters')?.addEventListener('click', filters.apply);
-    $('#btnCancelFilters')?.addEventListener('click', ()=>hide($('#filterModal')));
-    $('#btnCloseFilters')?.addEventListener('click', ()=>hide($('#filterModal')));
-    $('#filterModal')?.addEventListener('click', (e)=>{ if(e.target===e.currentTarget) hide($('#filterModal')); });
 
     // acciones
     $('#btnProgramar')?.addEventListener('click', actions.programar);

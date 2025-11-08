@@ -27,7 +27,8 @@ class InvTelasReservadasController extends Controller
                     'filtros' => ['array'],
                     'filtros.*.columna' => ['required','string', Rule::in([
                         'ItemId','ConfigId','InventSizeId','InventColorId','InventLocationId',
-                        'InventBatchId','WMSLocationId','InventSerialId','Tipo'
+                        'InventBatchId','WMSLocationId','InventSerialId','Tipo',
+                        'InventQty','Metros','ProdDate','NoTelarId'
                     ])],
                     'filtros.*.valor'   => ['required','string'],
                 ]);
@@ -52,8 +53,19 @@ class InvTelasReservadasController extends Controller
                 $reservadasMap[$r['key']] = $r['NoTelarId'];
             }
 
+            // Separar filtros de NoTelarId (se aplica después)
+            $filtrosTiPro = [];
+            $filtroNoTelarId = null;
+            foreach ($filtros as $f) {
+                if ($f['columna'] === 'NoTelarId') {
+                    $filtroNoTelarId = trim($f['valor'] ?? '');
+                } else {
+                    $filtrosTiPro[] = $f;
+                }
+            }
+
             // 2) Traer disponible desde TI-PRO
-            $rows = $this->queryDisponibleFromTiPro($filtros);
+            $rows = $this->queryDisponibleFromTiPro($filtrosTiPro);
 
             // 3) Mostrar todas las piezas (disponibles y reservadas) con NoTelarId si existe
             $filtrado = [];
@@ -61,6 +73,25 @@ class InvTelasReservadasController extends Controller
                 $key = $this->dimKey($row);
                 // Si está reservado, agregar el NoTelarId; si no, null
                 $row->NoTelarId = $reservadasMap[$key] ?? null;
+
+                // Aplicar filtro de NoTelarId si existe
+                if ($filtroNoTelarId !== null && $filtroNoTelarId !== '') {
+                    $filtroVal = strtolower(trim($filtroNoTelarId));
+                    $noTelarStr = (string)($row->NoTelarId ?? '');
+
+                    // Si el filtro es "null", "vacío", "vacio" o "disponible", mostrar solo los disponibles (sin telar)
+                    if (in_array($filtroVal, ['null', 'vacío', 'vacio', 'disponible', ''])) {
+                        if ($row->NoTelarId !== null && $row->NoTelarId !== '') {
+                            continue; // Tiene telar asignado, saltar
+                        }
+                    } else {
+                        // Filtrar por coincidencia parcial
+                        if (stripos($noTelarStr, $filtroNoTelarId) === false) {
+                            continue; // No coincide, saltar esta fila
+                        }
+                    }
+                }
+
                 $filtrado[] = $row;
             }
 
@@ -231,16 +262,16 @@ WHERE s.DATAAREAID = 'PRO'
 ";
         $params = [];
 
-        // Filtros simples (LIKE case-insensitive)
+        // Filtros
         foreach ($filtros as $f) {
             $col = $f['columna'] ?? null;
             $val = trim($f['valor'] ?? '');
             if (!$col || $val === '') continue;
 
-            // Solo se permite filtrar columnas proyectadas
             $allowed = [
                 'ItemId','ConfigId','InventSizeId','InventColorId','InventLocationId',
-                'InventBatchId','WMSLocationId','InventSerialId','Tipo'
+                'InventBatchId','WMSLocationId','InventSerialId','Tipo',
+                'InventQty','Metros','ProdDate'
             ];
             if (!in_array($col, $allowed, true)) continue;
 
@@ -248,6 +279,26 @@ WHERE s.DATAAREAID = 'PRO'
                 $sql .= " AND (CASE WHEN s.ItemId LIKE '%JU-ENG-RI%' THEN 'Rizo'
                                     WHEN s.ItemId LIKE '%JU-ENG-PI%' THEN 'Pie' ELSE NULL END) LIKE ? ";
                 $params[] = '%'.mb_strtolower($val,'UTF-8').'%';
+            } elseif ($col === 'ProdDate') {
+                // Filtro de fecha
+                try {
+                    $date = \Carbon\Carbon::parse($val)->format('Y-m-d');
+                    $sql .= " AND CAST(ser.ProdDate AS DATE) = ? ";
+                    $params[] = $date;
+                } catch (\Throwable $e) {
+                    // Si no se puede parsear, usar LIKE
+                    $sql .= " AND CAST(ser.ProdDate AS NVARCHAR(20)) LIKE ? ";
+                    $params[] = '%'.$val.'%';
+                }
+            } elseif (in_array($col, ['InventQty', 'Metros'])) {
+                // Filtros numéricos
+                if (is_numeric($val)) {
+                    $sql .= " AND CAST(ISNULL(".($col === 'InventQty' ? 's.PhysicalInvent' : 'ser.TwMts').", 0) AS DECIMAL(18,4)) = ? ";
+                    $params[] = (float)$val;
+                } else {
+                    $sql .= " AND CAST(ISNULL(".($col === 'InventQty' ? 's.PhysicalInvent' : 'ser.TwMts').", 0) AS NVARCHAR(50)) LIKE ? ";
+                    $params[] = '%'.$val.'%';
+                }
             } else {
                 $sql .= " AND LOWER(CAST($col AS NVARCHAR(100))) LIKE ? ";
                 $params[] = '%'.mb_strtolower($val,'UTF-8').'%';
