@@ -21,4 +21,12 @@ class TelTelaresOperador extends Model
         'nombreEmpl',
         'NoTelarId',
     ];
+
+    /**
+     * Clave usada para el route model binding.
+     */
+    public function getRouteKeyName()
+    {
+        return 'numero_empleado';
+    }
 }

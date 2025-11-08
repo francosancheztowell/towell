@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TelTelaresOperador;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class TelTelaresOperadorController extends Controller
 {
@@ -85,11 +86,23 @@ class TelTelaresOperadorController extends Controller
             'NoTelarId'  => ['nullable', 'string', 'max:10'],
         ]);
 
-        // Si cambia la PK, Eloquent lo maneja porque no es incrementing
-        $telTelaresOperador->update($data);
+        $originalKey = $telTelaresOperador->getKey();
 
-        return redirect()
-            ->route('tel-telares-operador.index')
+        try {
+            DB::transaction(function () use ($telTelaresOperador, $data, $originalKey) {
+                // Si la PK cambia, actualizar manualmente con where por clave original
+                if ($data['numero_empleado'] !== $originalKey) {
+                    TelTelaresOperador::where($telTelaresOperador->getKeyName(), $originalKey)
+                        ->update($data);
+                } else {
+                    $telTelaresOperador->update($data);
+                }
+            });
+        } catch (\Throwable $e) {
+            return back()->withErrors('Error al actualizar: ' . $e->getMessage())->withInput();
+        }
+
+        return redirect()->route('tel-telares-operador.index')
             ->with('success', 'Operador actualizado correctamente.');
     }
 
@@ -98,10 +111,13 @@ class TelTelaresOperadorController extends Controller
      */
     public function destroy(TelTelaresOperador $telTelaresOperador)
     {
-        $telTelaresOperador->delete();
+        try {
+            $telTelaresOperador->delete();
+        } catch (\Throwable $e) {
+            return back()->withErrors('No se puede eliminar el operador: ' . $e->getMessage());
+        }
 
-        return redirect()
-            ->route('tel-telares-operador.index')
+        return redirect()->route('tel-telares-operador.index')
             ->with('success', 'Operador eliminado correctamente.');
     }
 }
