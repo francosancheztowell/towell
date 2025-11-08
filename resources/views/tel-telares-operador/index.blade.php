@@ -27,8 +27,22 @@ Telares por Operador
         </script>
     @endif
 
-    <div class="flex items-center justify-between mb-3">
-        <button onclick="openModal('createModal')" class="px-3 py-2 rounded bg-green-600 text-white">Nuevo Operador</button>
+    <div class="flex items-center justify-end mb-3">
+        <div class="flex items-center gap-2 md:gap-3">
+            <button onclick="openModal('createModal')" class="px-3 py-2 rounded bg-green-600 text-white">
+                <i class="fa-solid fa-plus mr-1.5"></i> Nuevo Operador
+            </button>
+            <button id="btn-top-edit" type="button"
+                class="px-3 py-2 rounded bg-amber-600 text-white opacity-50 cursor-not-allowed"
+                onclick="handleTopEdit()" disabled>
+                <i class="fa-solid fa-pen-to-square mr-1.5"></i> Editar Operador
+            </button>
+            <button id="btn-top-delete" type="button"
+                class="px-3 py-2 rounded bg-red-600 text-white opacity-50 cursor-not-allowed"
+                onclick="handleTopDelete()" disabled>
+                <i class="fa-solid fa-trash mr-1.5"></i> Eliminar Operador
+            </button>
+        </div>
     </div>
 
     <div class="overflow-x-auto bg-white rounded shadow">
@@ -38,31 +52,20 @@ Telares por Operador
                     <th class="px-3 py-2 text-left">Número</th>
                     <th class="px-3 py-2 text-left">Nombre</th>
                     <th class="px-3 py-2 text-left">No. Telar</th>
-                    <th class="px-3 py-2 text-right">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($items as $it)
-                    <tr class="odd:bg-white even:bg-gray-50">
-                        <td class="px-3 py-2">{{ $it->numero_empleado }}</td>
-                        <td class="px-3 py-2">{{ $it->nombreEmpl }}</td>
-                        <td class="px-3 py-2">{{ $it->NoTelarId }}</td>
-                        <td class="px-3 py-2 text-right">
-                            <button
-                                class="px-2 py-1 rounded bg-amber-500 text-white"
-                                data-key="{{ $it->getRouteKey() }}"
-                                data-numero="{{ $it->numero_empleado }}"
-                                data-nombre="{{ $it->nombreEmpl }}"
-                                data-telar="{{ $it->NoTelarId }}"
-                                onclick="openEditModalFromBtn(this)">
-                                Editar
-                            </button>
-                            <form id="deleteForm-{{ $it->getRouteKey() }}" action="{{ route('tel-telares-operador.destroy', $it) }}" method="POST" class="inline">
-                                @csrf
-                                @method('DELETE')
-                                <button type="button" onclick="deleteOperator('{{ $it->getRouteKey() }}')" class="px-2 py-1 rounded bg-red-600 text-white">Eliminar</button>
-                            </form>
-                        </td>
+                    <tr class="odd:bg-white even:bg-gray-50 cursor-pointer transition-colors duration-150 hover:bg-blue-50"
+                        data-key="{{ $it->getRouteKey() }}"
+                        data-numero="{{ e($it->numero_empleado) }}"
+                        data-nombre="{{ e($it->nombreEmpl) }}"
+                        data-telar="{{ e($it->NoTelarId) }}"
+                        onclick="selectRow(this)"
+                        aria-selected="false">
+                        <td class="px-3 py-2 align-middle">{{ $it->numero_empleado }}</td>
+                        <td class="px-3 py-2 align-middle">{{ $it->nombreEmpl }}</td>
+                        <td class="px-3 py-2 align-middle">{{ $it->NoTelarId }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="4" class="px-3 py-3 text-center text-gray-500">Sin registros</td></tr>
@@ -72,6 +75,12 @@ Telares por Operador
     </div>
 
     <div class="mt-3">{{ $items->links() }}</div>
+
+    <!-- Formulario global oculto para eliminar -->
+    <form id="globalDeleteForm" action="#" method="POST" class="hidden">
+        @csrf
+        @method('DELETE')
+    </form>
 
     <!-- Modal para Nuevo Operador -->
     <div id="createModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
@@ -137,11 +146,106 @@ Telares por Operador
     </div>
 
     </div>
+    </div>
 </div>
+
+<style>
+    /* Suaviza transiciones de listas */
+    tbody tr { transition: background-color .15s ease, box-shadow .15s ease; }
+
+    /* Hover más visible (fallback adicional al hover de clases) */
+    tbody tr:hover { background-color: #eff6ff; }
+
+    /* Estado seleccionado con borde lateral e indicador */
+    tbody tr[aria-selected="true"] {
+        background-color: #dbeafe; /* azul suave */
+        box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.35);
+    }
+    tbody tr[aria-selected="true"] td:first-child {
+        border-left: 4px solid #3b82f6; /* blue-600 */
+    }
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     const updateUrl = '{{ route("tel-telares-operador.update", ["telTelaresOperador" => "PLACEHOLDER"]) }}';
+    const destroyUrl = '{{ route("tel-telares-operador.destroy", ["telTelaresOperador" => "PLACEHOLDER"]) }}';
+
+    let selectedRow = null;
+    let selectedKey = null;
+
+    function updateTopButtonsState() {
+        const btnEdit = document.getElementById('btn-top-edit');
+        const btnDelete = document.getElementById('btn-top-delete');
+        const hasSelection = !!selectedKey;
+        [btnEdit, btnDelete].forEach(btn => {
+            if (!btn) return;
+            if (hasSelection) {
+                btn.removeAttribute('disabled');
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btn.setAttribute('disabled', 'disabled');
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        });
+    }
+
+    function clearSelection() {
+        if (selectedRow) {
+            selectedRow.classList.remove('bg-blue-50', 'ring', 'ring-blue-300');
+            selectedRow.setAttribute('aria-selected', 'false');
+        }
+        selectedRow = null;
+        selectedKey = null;
+        updateTopButtonsState();
+    }
+
+    function selectRow(row) {
+        if (selectedRow === row) {
+            // Toggle deselección
+            clearSelection();
+            return;
+        }
+        // Quitar selección previa
+        if (selectedRow) {
+            selectedRow.classList.remove('bg-blue-50', 'ring', 'ring-blue-300');
+            selectedRow.setAttribute('aria-selected', 'false');
+        }
+        // Seleccionar actual
+        selectedRow = row;
+        selectedKey = row.dataset.key || null;
+        row.classList.add('bg-blue-50', 'ring', 'ring-blue-300');
+        row.setAttribute('aria-selected', 'true');
+        updateTopButtonsState();
+    }
+
+    function handleTopEdit() {
+        if (!selectedRow || !selectedKey) return;
+        const numero = selectedRow.dataset.numero || '';
+        const nombre = selectedRow.dataset.nombre || '';
+        const telar = selectedRow.dataset.telar || '';
+        openEditModal(selectedKey, numero, nombre, telar);
+    }
+
+    function handleTopDelete() {
+        if (!selectedKey) return;
+        Swal.fire({
+            title: '¿Estás seguro?',
+            text: '¿Quieres eliminar este operador?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.getElementById('globalDeleteForm');
+                form.action = destroyUrl.replace('PLACEHOLDER', encodeURIComponent(selectedKey));
+                form.submit();
+            }
+        });
+    }
     function openModal(modalId) {
         document.getElementById(modalId).classList.remove('hidden');
     }
@@ -184,5 +288,8 @@ Telares por Operador
             event.target.classList.add('hidden');
         }
     }
+
+    // Estado inicial
+    updateTopButtonsState();
 </script>
 @endsection
