@@ -20,6 +20,8 @@ class TelTelaresOperador extends Model
         'numero_empleado',
         'nombreEmpl',
         'NoTelarId',
+        'Turno',
+        'SalonTejidoId',
     ];
 
     /**

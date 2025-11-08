@@ -50,7 +50,9 @@ class TelTelaresOperadorController extends Controller
         $data = $request->validate([
             'numero_empleado' => ['required', 'string', 'max:30', 'unique:TelTelaresOperador,numero_empleado'],
             'nombreEmpl'      => ['required', 'string', 'max:150'],
-            'NoTelarId'       => ['nullable', 'string', 'max:10'],
+            'NoTelarId'       => ['required', 'string', 'max:10'],
+            'Turno'           => ['required', 'integer', 'in:1,2,3'],
+            'SalonTejidoId'   => ['required', 'string', 'max:10'],
         ]);
 
         TelTelaresOperador::create($data);
@@ -82,8 +84,10 @@ class TelTelaresOperadorController extends Controller
                 Rule::unique('TelTelaresOperador', 'numero_empleado')
                     ->ignore($telTelaresOperador->getKey(), $telTelaresOperador->getKeyName()),
             ],
-            'nombreEmpl' => ['required', 'string', 'max:150'],
-            'NoTelarId'  => ['nullable', 'string', 'max:10'],
+            'nombreEmpl'    => ['required', 'string', 'max:150'],
+            'NoTelarId'     => ['required', 'string', 'max:10'],
+            'Turno'         => ['required', 'integer', 'in:1,2,3'],
+            'SalonTejidoId' => ['required', 'string', 'max:10'],
         ]);
 
         $originalKey = $telTelaresOperador->getKey();

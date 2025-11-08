@@ -52,6 +52,8 @@ Telares por Operador
                     <th class="px-3 py-2 text-left">Número</th>
                     <th class="px-3 py-2 text-left">Nombre</th>
                     <th class="px-3 py-2 text-left">No. Telar</th>
+                    <th class="px-3 py-2 text-left">Turno</th>
+                    <th class="px-3 py-2 text-left">Salón</th>
                 </tr>
             </thead>
             <tbody>
@@ -61,14 +63,18 @@ Telares por Operador
                         data-numero="{{ e($it->numero_empleado) }}"
                         data-nombre="{{ e($it->nombreEmpl) }}"
                         data-telar="{{ e($it->NoTelarId) }}"
+                        data-turno="{{ e($it->Turno) }}"
+                        data-salon="{{ e($it->SalonTejidoId) }}"
                         onclick="selectRow(this)"
                         aria-selected="false">
                         <td class="px-3 py-2 align-middle">{{ $it->numero_empleado }}</td>
                         <td class="px-3 py-2 align-middle">{{ $it->nombreEmpl }}</td>
                         <td class="px-3 py-2 align-middle">{{ $it->NoTelarId }}</td>
+                        <td class="px-3 py-2 align-middle">{{ $it->Turno }}</td>
+                        <td class="px-3 py-2 align-middle">{{ $it->SalonTejidoId }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" class="px-3 py-3 text-center text-gray-500">Sin registros</td></tr>
+                    <tr><td colspan="5" class="px-3 py-3 text-center text-gray-500">Sin registros</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -92,17 +98,32 @@ Telares por Operador
                 @endif
                 <form action="{{ route('tel-telares-operador.store') }}" method="POST">
                     @csrf
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium">Número Empleado</label>
-                        <input type="text" name="numero_empleado" class="w-full px-3 py-2 border rounded" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium">Nombre</label>
-                        <input type="text" name="nombreEmpl" class="w-full px-3 py-2 border rounded" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium">No. Telar</label>
-                        <input type="text" name="NoTelarId" class="w-full px-3 py-2 border rounded" required>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium">Número Empleado</label>
+                            <input type="text" name="numero_empleado" class="w-full px-3 py-2 border rounded" required>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium">Nombre</label>
+                            <input type="text" name="nombreEmpl" class="w-full px-3 py-2 border rounded" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">No. Telar</label>
+                            <input type="text" name="NoTelarId" class="w-full px-3 py-2 border rounded" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Turno</label>
+                            <select name="Turno" class="w-full px-3 py-2 border rounded" required>
+                                <option value="" disabled selected>Selecciona turno</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Salón Tejido Id</label>
+                            <input type="text" name="SalonTejidoId" class="w-full px-3 py-2 border rounded" required>
+                        </div>
                     </div>
                     <div class="flex justify-end">
                         <button type="button" onclick="closeModal('createModal')" class="px-4 py-2 bg-gray-500 text-white rounded mr-2">Cancelar</button>
@@ -124,17 +145,31 @@ Telares por Operador
                 <form id="editForm" action="" method="POST">
                     @csrf
                     @method('PUT')
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium">Número Empleado</label>
-                        <input type="text" id="editNumero" name="numero_empleado" class="w-full px-3 py-2 border rounded" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium">Nombre</label>
-                        <input type="text" id="editNombre" name="nombreEmpl" class="w-full px-3 py-2 border rounded" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium">No. Telar</label>
-                        <input type="text" id="editTelar" name="NoTelarId" class="w-full px-3 py-2 border rounded" required>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium">Número Empleado</label>
+                            <input type="text" id="editNumero" name="numero_empleado" class="w-full px-3 py-2 border rounded" required>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium">Nombre</label>
+                            <input type="text" id="editNombre" name="nombreEmpl" class="w-full px-3 py-2 border rounded" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">No. Telar</label>
+                            <input type="text" id="editTelar" name="NoTelarId" class="w-full px-3 py-2 border rounded" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Turno</label>
+                            <select id="editTurno" name="Turno" class="w-full px-3 py-2 border rounded" required>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Salón Tejido Id</label>
+                            <input type="text" id="editSalon" name="SalonTejidoId" class="w-full px-3 py-2 border rounded" required>
+                        </div>
                     </div>
                     <div class="flex justify-end">
                         <button type="button" onclick="closeModal('editModal')" class="px-4 py-2 bg-gray-500 text-white rounded mr-2">Cancelar</button>
@@ -224,7 +259,9 @@ Telares por Operador
         const numero = selectedRow.dataset.numero || '';
         const nombre = selectedRow.dataset.nombre || '';
         const telar = selectedRow.dataset.telar || '';
-        openEditModal(selectedKey, numero, nombre, telar);
+        const turno = selectedRow.dataset.turno || '';
+        const salon = selectedRow.dataset.salon || '';
+        openEditModal(selectedKey, numero, nombre, telar, turno, salon);
     }
 
     function handleTopDelete() {
@@ -252,10 +289,14 @@ Telares por Operador
     function closeModal(modalId) {
         document.getElementById(modalId).classList.add('hidden');
     }
-    function openEditModal(key, numero, nombre, telar) {
+    function openEditModal(key, numero, nombre, telar, turno = '', salon = '') {
         document.getElementById('editNumero').value = numero;
         document.getElementById('editNombre').value = nombre;
         document.getElementById('editTelar').value = telar;
+        const turnoSelect = document.getElementById('editTurno');
+        if (turnoSelect) turnoSelect.value = String(turno || '');
+        const salonInput = document.getElementById('editSalon');
+        if (salonInput) salonInput.value = salon || '';
         document.getElementById('editForm').action = updateUrl.replace('PLACEHOLDER', encodeURIComponent(key));
         openModal('editModal');
     }
@@ -264,7 +305,9 @@ Telares por Operador
         const numero = btn.dataset.numero || '';
         const nombre = btn.dataset.nombre || '';
         const telar = btn.dataset.telar || '';
-        openEditModal(key, numero, nombre, telar);
+        const turno = btn.dataset.turno || '';
+        const salon = btn.dataset.salon || '';
+        openEditModal(key, numero, nombre, telar, turno, salon);
     }
     function deleteOperator(key) {
         Swal.fire({

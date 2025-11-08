@@ -30,7 +30,20 @@ Nuevo Operador
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">No. Telar</label>
-                <input type="text" name="NoTelarId" value="{{ old('NoTelarId') }}" class="w-full border rounded px-3 py-2">
+                <input type="text" name="NoTelarId" value="{{ old('NoTelarId') }}" class="w-full border rounded px-3 py-2" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Turno</label>
+                <select name="Turno" class="w-full border rounded px-3 py-2" required>
+                    <option value="" disabled {{ old('Turno') ? '' : 'selected' }}>Selecciona turno</option>
+                    <option value="1" {{ old('Turno') == '1' ? 'selected' : '' }}>1</option>
+                    <option value="2" {{ old('Turno') == '2' ? 'selected' : '' }}>2</option>
+                    <option value="3" {{ old('Turno') == '3' ? 'selected' : '' }}>3</option>
+                </select>
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium mb-1">Salón Tejido Id</label>
+                <input type="text" name="SalonTejidoId" value="{{ old('SalonTejidoId') }}" class="w-full border rounded px-3 py-2" required>
             </div>
         </div>
         <div class="flex justify-end gap-2 mt-4">
@@ -40,4 +53,3 @@ Nuevo Operador
     </form>
 </div>
 @endsection
-
