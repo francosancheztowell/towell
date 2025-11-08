@@ -128,16 +128,15 @@ class ReservarProgramarController extends Controller
         $inventario = [
             ['field' => 'ItemId',           'label' => 'Artículo'],
             ['field' => 'Tipo',             'label' => 'Tipo'],
-            ['field' => 'InventQty',        'label' => 'Cantidad'],
-            ['field' => 'ConfigId',         'label' => 'Config'],
-            ['field' => 'InventSizeId',     'label' => 'Talla'],
-            ['field' => 'InventColorId',    'label' => 'Color'],
-            ['field' => 'InventLocationId', 'label' => 'Almacén'],
+            ['field' => 'ConfigId',         'label' => 'Fibra'],
+            ['field' => 'InventSizeId',     'label' => 'Cuenta'],
+            ['field' => 'InventColorId',    'label' => 'Cod Color'],
             ['field' => 'InventBatchId',    'label' => 'Lote'],
             ['field' => 'WMSLocationId',    'label' => 'Localidad'],
-            ['field' => 'InventSerialId',   'label' => 'Serial'],
-            ['field' => 'Metros',           'label' => 'Metros'],
+            ['field' => 'InventSerialId',   'label' => 'Num. Julio'],
             ['field' => 'ProdDate',         'label' => 'Fecha'],
+            ['field' => 'Metros',           'label' => 'Metros'],
+            ['field' => 'InventQty',        'label' => 'Kilos'],
             ['field' => 'NoTelarId',        'label' => 'Telar'],
         ];
 

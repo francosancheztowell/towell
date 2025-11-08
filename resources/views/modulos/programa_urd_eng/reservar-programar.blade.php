@@ -4,6 +4,18 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
+    <button type="button" id="btnProgramar"
+            class="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center justify-center"
+            title="Programar">
+        <i class="fa-solid fa-play w-4 h-4 mr-1"></i>
+        Programar
+	</button>
+    <button type="button" id="btnReservar"
+            class="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex items-center justify-center"
+            title="Reservar">
+        <i class="fa-solid fa-check w-4 h-4 mr-1"></i>
+        Reservar
+    </button>
     <button type="button" id="btnResetFilters"
             class="px-3 py-2 text-yellow-500 hover:text-yellow-600 rounded-lg transition-colors flex items-center justify-center"
             title="Restablecer filtros">
@@ -81,7 +93,8 @@
                                             @endphp
                                     <tr class="selectable-row hover:bg-blue-50 cursor-pointer {{ $baseBg }}"
                                         data-base-bg="{{ $baseBg }}"
-                                        data-telar="{{ $t['no_telar'] ?? '' }}">
+                                        data-telar="{{ $t['no_telar'] ?? '' }}"
+                                        data-cuenta="{{ $t['cuenta'] ?? '' }}">
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap font-bold">{{ $t['no_telar'] ?? '' }}</td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">
                                             <span class="px-2 py-0.5 rounded text-xs font-medium {{ $tipoClass }}">{{ $t['tipo'] ?? '-' }}</span>
@@ -138,24 +151,23 @@
                     <table id="inventarioTable" class="w-full divide-y divide-gray-200">
                         <thead class="bg-gray-100 text-gray-900 sticky top-0 z-20">
                             <tr>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Artículo</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Tipo</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Cantidad</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Config</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Talla</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Color</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Almacén</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Lote</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Localidad</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Serial</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Metros</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Fecha</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap">Telar</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Artículo</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Tipo</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Fibra</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Cuenta</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Cod Color</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Lote</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Localidad</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Num. Julio</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Fecha</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Metros</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Kilos</th>
+                                <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap">Telar</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
                             <tr>
-                                <td colspan="13" class="px-4 py-8 text-center text-sm text-gray-500">
+                                <td colspan="12" class="px-4 py-8 text-center text-sm text-gray-500">
                                     <i class="fa-solid fa-box-open w-12 h-12 text-gray-400 mb-2"></i>
                                     No hay datos de inventario disponible por el momento
                                 </td>
@@ -219,7 +231,9 @@ const state = {
     columns: { telares: [], inventario: [] },
     sort: { column: null, direction: 'asc' },
     telaresData: @json($inventarioTelares ?? []),
+    telaresDataOriginal: @json($inventarioTelares ?? []), // Datos originales sin filtrar
     inventarioData: [],
+    inventarioDataOriginal: [], // Datos originales sin filtrar
 };
 
 /* -------------------- Utils -------------------- */
@@ -268,6 +282,11 @@ const render = {
         const tbody = $('#telaresTable tbody'); if(!tbody) return;
         tbody.innerHTML = '';
 
+        // Guardar datos originales si es la primera carga
+        if (state.telaresDataOriginal.length === 0 && rows?.length) {
+            state.telaresDataOriginal = JSON.parse(JSON.stringify(rows));
+        }
+
         if (!rows?.length) {
             tbody.innerHTML = `<tr><td colspan="12" class="px-4 py-8 text-center text-sm text-gray-500">No hay datos disponibles</td></tr>`;
             state.selectedTelar = null; disable($('#btnProgramar'), true);
@@ -287,6 +306,7 @@ const render = {
             tr.className = `selectable-row hover:bg-blue-50 cursor-pointer ${baseBg}`;
             tr.dataset.baseBg = baseBg;
             tr.dataset.telar  = r.no_telar ?? '';
+            tr.dataset.cuenta = r.cuenta ?? '';
 
             tr.innerHTML = `
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap font-bold">${r.no_telar ?? ''}</td>
@@ -345,14 +365,19 @@ const render = {
         const tbody = $('#inventarioTable tbody'); if(!tbody) return;
         tbody.innerHTML = '';
 
-        // Guardar datos para recargar después de reservar
+        // Guardar datos originales SOLO si es la primera carga (para mantener todos los datos disponibles para filtrado local)
+        // IMPORTANTE: No sobrescribir si ya tenemos datos originales, para que el filtrado local siempre tenga todos los datos
+        if (state.inventarioDataOriginal.length === 0 && rows?.length) {
+            state.inventarioDataOriginal = JSON.parse(JSON.stringify(rows));
+        }
         state.inventarioData = rows || [];
 
         if (!rows?.length) {
-            tbody.innerHTML = `<tr><td colspan="13" class="px-4 py-8 text-center text-sm text-gray-500">
+            tbody.innerHTML = `<tr><td colspan="12" class="px-4 py-8 text-center text-sm text-gray-500">
                 <i class="fa-solid fa-box-open w-12 h-12 text-gray-400 mb-2"></i> No hay datos de inventario disponible por el momento
             </td></tr>`;
-        }
+        return;
+    }
         const frag = document.createDocumentFragment();
         rows.forEach(r=>{
             const tr = document.createElement('tr');
@@ -366,22 +391,26 @@ const render = {
             tr.dataset.wmsLocationId = r.WMSLocationId || '';
             tr.dataset.inventSerialId = r.InventSerialId || '';
             tr.dataset.noTelarId = r.NoTelarId || '';
+
+            // Formatear cantidad y metros sin decimales
+            const kilos = fmt.num(r.InventQty, 0);
+            const metros = fmt.num(r.Metros, 0);
+
             tr.innerHTML = `
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.ItemId||''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.ItemId||''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     <span class="px-2 py-0.5 rounded text-xs font-medium ${fmt.tipoBadge(r.Tipo)}">${r.Tipo||''}</span>
                 </td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-right">${fmt.num(r.InventQty, 2)}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.ConfigId||''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.InventSizeId||''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.InventColorId||''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.InventLocationId||''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.InventBatchId||''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.WMSLocationId||''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.InventSerialId||''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-right">${fmt.num(r.Metros, 2)}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${fmt.date(r.ProdDate)}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap font-medium">${r.NoTelarId || ''}</td>`;
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.ConfigId||''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.InventSizeId||''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.InventColorId||''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.InventBatchId||''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.WMSLocationId||''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.InventSerialId||''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${fmt.date(r.ProdDate)}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${metros}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${kilos}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center font-medium">${r.NoTelarId || ''}</td>`;
             frag.appendChild(tr);
         });
         tbody.appendChild(frag);
@@ -390,37 +419,71 @@ const render = {
 
 /* -------------------- Selección (solo Tailwind) -------------------- */
 const selection = {
+    clearVisual(row) {
+        // Solo limpiar estilos visuales sin recargar datos
+        if (row) {
+            row.classList.remove('is-selected','bg-blue-500','text-white');
+            row.style.removeProperty('background-color');
+            row.style.removeProperty('color');
+            const base = row.dataset.baseBg || 'bg-white';
+            row.className = row.className
+                .split(' ')
+                .filter(c => !c.startsWith('bg-') || c==='bg-blue-50')
+                .join(' ');
+            row.classList.add(base, 'hover:bg-blue-50', 'cursor-pointer');
+            row.querySelectorAll('td').forEach(td => {
+                td.classList.remove('text-white');
+                td.style.removeProperty('color');
+            });
+            row.querySelectorAll('.badge').forEach(badge => {
+                badge.classList.remove('text-white', 'bg-white/20');
+                badge.style.removeProperty('color');
+                badge.style.removeProperty('background-color');
+            });
+        }
+    },
     clear() {
         const prev = $('#telaresTable .selectable-row.is-selected');
-        if (!prev) return;
-        prev.classList.remove('is-selected','bg-blue-500','text-white');
-        // Limpiar estilos inline
-        prev.style.removeProperty('background-color');
-        prev.style.removeProperty('color');
-        const base = prev.dataset.baseBg || 'bg-white';
-        // quitar cualquier bg-* previa y aplicar base
-        prev.className = prev.className
-            .split(' ')
-            .filter(c => !c.startsWith('bg-') || c==='bg-blue-50') // conservamos hover:bg-blue-50
-            .join(' ');
-        prev.classList.add(base, 'hover:bg-blue-50', 'cursor-pointer');
-        prev.querySelectorAll('td').forEach(td => {
-            td.classList.remove('text-white');
-            td.style.removeProperty('color');
-        });
-        // Restaurar badges
-        prev.querySelectorAll('.badge').forEach(badge => {
-            badge.classList.remove('text-white', 'bg-white/20');
-            badge.style.removeProperty('color');
-            badge.style.removeProperty('background-color');
-        });
+        if (prev) {
+            this.clearVisual(prev);
+        }
+
         state.selectedTelar = null;
         disable($('#btnProgramar'), true);
         disable($('#btnReservar'), true);
+
+        // Restaurar inventario sin filtros cuando se deselecciona - usar datos originales (sin recargar)
+        if (state.inventarioDataOriginal.length > 0) {
+            render.inventario(state.inventarioDataOriginal);
+            state.filters.inventario = [];
+            filters.updateBadge();
+        } else {
+            // Solo recargar si no hay datos originales
+            show($('#loaderInventario'));
+            (async () => {
+                try {
+                    const { data } = await api.get(API.inventarioDisponibleGet);
+                    state.inventarioDataOriginal = JSON.parse(JSON.stringify(data || []));
+                    render.inventario(data || []);
+                    state.filters.inventario = [];
+                    filters.updateBadge();
+                } catch(e) {
+                    console.error('Error recargando inventario:', e);
+                } finally {
+                    hide($('#loaderInventario'));
+                }
+            })();
+        }
     },
-    apply(row) {
+    async apply(row) {
         if (!row) return;
-        this.clear();
+
+        // Limpiar solo visualmente la fila anterior (sin recargar datos)
+        const prev = $('#telaresTable .selectable-row.is-selected');
+        if (prev && prev !== row) {
+            this.clearVisual(prev);
+        }
+
         // Guardar baseBg si no existe
         if (!row.dataset.baseBg) {
             const base = row.className.match(/bg-(white|gray-50)/)?.[0] || 'bg-white';
@@ -445,8 +508,82 @@ const selection = {
             badge.style.setProperty('color', '#ffffff', 'important');
             badge.style.setProperty('background-color', 'rgba(255,255,255,0.2)', 'important');
         });
-        state.selectedTelar = { no_telar: row.dataset.telar || null };
+
+        const cuenta = row.dataset.cuenta || '';
+        state.selectedTelar = {
+            no_telar: row.dataset.telar || null,
+            cuenta: cuenta
+        };
+
         disable($('#btnProgramar'), !state.selectedTelar.no_telar);
+
+        // Filtrar inventario por cuenta localmente (sin petición HTTP)
+        if (cuenta) {
+            this.filterInventarioByCuenta(cuenta);
+        } else {
+            // Si no hay cuenta, mostrar todos los datos originales sin filtro
+            if (state.inventarioDataOriginal.length > 0) {
+                render.inventario(state.inventarioDataOriginal);
+                state.filters.inventario = [];
+                filters.updateBadge();
+                disable($('#btnReservar'), !state.selectedTelar.no_telar || !state.inventarioData.length);
+            } else {
+                // Si no hay datos originales, cargar desde el servidor
+                show($('#loaderInventario'));
+                (async () => {
+                    try {
+                        const { data } = await api.get(API.inventarioDisponibleGet);
+                        state.inventarioDataOriginal = JSON.parse(JSON.stringify(data || []));
+                        render.inventario(data || []);
+                        state.filters.inventario = [];
+                        filters.updateBadge();
+                        disable($('#btnReservar'), !state.selectedTelar.no_telar || !state.inventarioData.length);
+                    } catch(e) {
+                        console.error('Error cargando inventario:', e);
+                    } finally {
+                        hide($('#loaderInventario'));
+                    }
+                })();
+            }
+        }
+    },
+
+    filterInventarioByCuenta(cuenta) {
+        // Filtrar localmente usando los datos ya cargados (sin petición HTTP)
+        if (!state.inventarioDataOriginal.length) {
+            // Si no hay datos originales, cargar primero
+            show($('#loaderInventario'));
+            (async () => {
+                try {
+                    const { data } = await api.get(API.inventarioDisponibleGet);
+                    state.inventarioDataOriginal = JSON.parse(JSON.stringify(data || []));
+                    // Ahora filtrar
+                    const filtros = [{ columna: 'InventSizeId', valor: cuenta }];
+                    const filtered = filters.filterLocal(state.inventarioDataOriginal, filtros);
+                    render.inventario(filtered);
+                    state.filters.inventario = [{ table: 'inventario', column: 'InventSizeId', value: cuenta, idx: Date.now() }];
+                    filters.updateBadge();
+                    disable($('#btnReservar'), !state.selectedTelar.no_telar || !state.inventarioData.length);
+                } catch(e) {
+                    console.error('Error cargando inventario:', e);
+                    Swal.fire('Error', 'No se pudo cargar el inventario', 'error');
+                } finally {
+                    hide($('#loaderInventario'));
+                }
+            })();
+            return;
+        }
+
+        // Filtrar localmente desde los datos originales
+        const filtros = [{ columna: 'InventSizeId', valor: cuenta }];
+        const filtered = filters.filterLocal(state.inventarioDataOriginal, filtros);
+        render.inventario(filtered);
+
+        // Actualizar estado de filtros para mantener consistencia
+        state.filters.inventario = [{ table: 'inventario', column: 'InventSizeId', value: cuenta, idx: Date.now() }];
+        filters.updateBadge();
+
+        // Actualizar estado del botón reservar después de filtrar
         disable($('#btnReservar'), !state.selectedTelar.no_telar || !state.inventarioData.length);
     },
     toggle(row) {
@@ -467,6 +604,62 @@ const filters = {
             badge.textContent = total;
             badge.classList.toggle('hidden', total === 0);
         }
+    },
+
+    filterLocal(data, filterList) {
+        if (!filterList?.length || !data?.length) return data;
+        return data.filter(item => {
+            return filterList.every(f => {
+                const col = f.columna || f.column;
+                const val = (f.valor || f.value || '').toString().toLowerCase().trim();
+                if (!col || !val) return true;
+
+                const itemVal = item[col];
+
+                // Filtro especial para NoTelarId (puede ser null o vacío)
+                if (col === 'NoTelarId') {
+                    if (['null', 'vacío', 'vacio', 'disponible', ''].includes(val)) {
+                        return !itemVal || itemVal === '' || itemVal === null;
+                    }
+                    const noTelarStr = (itemVal || '').toString().toLowerCase();
+                    return noTelarStr.includes(val);
+                }
+
+                // Si el valor del item es null/undefined/vacío y el filtro no es vacío, no coincide
+                if (itemVal === null || itemVal === undefined || itemVal === '') {
+                    return false;
+                }
+
+                const itemStr = String(itemVal).toLowerCase();
+
+                // Filtros especiales para fechas
+                if (col === 'fecha' || col === 'ProdDate') {
+                    try {
+                        const itemDate = new Date(itemVal);
+                        const filterDate = new Date(val);
+                        if (!isNaN(itemDate.getTime()) && !isNaN(filterDate.getTime())) {
+                            return itemDate.toDateString() === filterDate.toDateString();
+                        }
+                    } catch(e) {
+                        // Si falla el parseo, usar búsqueda de texto
+                    }
+                    return itemStr.includes(val);
+                }
+
+                // Filtros numéricos
+                if (['calibre', 'metros', 'InventQty', 'Metros'].includes(col)) {
+                    const itemNum = parseFloat(itemVal);
+                    const filterNum = parseFloat(val);
+                    if (!isNaN(itemNum) && !isNaN(filterNum)) {
+                        return Math.abs(itemNum - filterNum) < 0.001 || itemStr.includes(val);
+                    }
+                    return itemStr.includes(val);
+                }
+
+                // Filtro de texto (contains)
+                return itemStr.includes(val);
+            });
+        });
     },
 
     rowHTML(type, idx, col = '', val = '') {
@@ -537,10 +730,9 @@ const filters = {
             newSel.onchange = (e) => {
                 const newType = e.target.value;
                 filters.currentType = newType;
-                filters.currentFilters = state.filters[newType] || [];
-                if (filters.currentFilters.length === 0) {
-                    filters.currentFilters = [{ table: newType, column: '', value: '', idx: Date.now() }];
-                }
+                filters.currentFilters = state.filters[newType]?.length > 0
+                    ? state.filters[newType]
+                    : [{ table: newType, column: '', value: '', idx: Date.now() }];
                 const html = filters.currentFilters.map(f => filters.rowHTML(newType, f.idx, f.column, f.value)).join('');
                 document.getElementById('swalFilters').innerHTML = html;
                 filters.bindEvents(newType);
@@ -566,10 +758,9 @@ const filters = {
         await filters.loadColumns();
         filters.currentType = 'telares';
         // Cargar filtros guardados para telares
-        filters.currentFilters = state.filters.telares || [];
-        if (filters.currentFilters.length === 0) {
-            filters.currentFilters = [{ table: 'telares', column: '', value: '', idx: Date.now() }];
-        }
+        filters.currentFilters = state.filters.telares.length > 0
+            ? state.filters.telares
+            : [{ table: 'telares', column: '', value: '', idx: Date.now() }];
 
         const html = `
             <div id="swalFilterContainer" style="text-align:left">
@@ -616,57 +807,57 @@ const filters = {
         });
 
         if (result.isConfirmed && result.value) {
-            await filters.apply(result.value.type, result.value.filters);
+            filters.apply(result.value.type, result.value.filters);
         }
     },
 
-    async apply(type, list) {
-        const loader = type === 'telares' ? '#loaderTelares' : '#loaderInventario';
-        show($(loader));
-        try {
-            const url = type === 'telares' ? API.inventarioTelares : API.inventarioDisponible;
-            const { data } = await api.post(url, { filtros: list });
-            type === 'telares' ? render.telares(data) : render.inventario(data);
-            // Guardar filtros por tipo de tabla
-            state.filters[type] = list.map((f, i) => ({ table: type, column: f.columna, value: f.valor, idx: Date.now() + i }));
-            filters.updateBadge();
-            Swal.fire({toast:true,position:'top-end',icon:'success',title:`${list.length} filtro(s) aplicados`,showConfirmButton:false,timer:2000});
-        } catch(e) {
-            Swal.fire('Error', e.message||'Error al aplicar filtros','error');
-        } finally {
-            hide($(loader));
+    apply(type, list) {
+        // Filtrar datos localmente
+        if (type === 'telares') {
+            const original = state.telaresDataOriginal.length > 0 ? state.telaresDataOriginal : state.telaresData;
+            const filtered = filters.filterLocal(original, list);
+            render.telares(filtered);
+        } else {
+            const original = state.inventarioDataOriginal.length > 0 ? state.inventarioDataOriginal : state.inventarioData;
+            const filtered = filters.filterLocal(original, list);
+            render.inventario(filtered);
         }
+
+        // Guardar filtros por tipo de tabla
+        state.filters[type] = list.map((f, i) => ({ table: type, column: f.columna, value: f.valor, idx: Date.now() + i }));
+        filters.updateBadge();
+        Swal.fire({toast:true,position:'top-end',icon:'success',title:`${list.length} filtro(s) aplicados`,showConfirmButton:false,timer:2000});
     },
 
-    async reset() {
-        const confirm = await Swal.fire({
-            title: '¿Restablecer filtros?',
-            text: 'Se restablecerán todas las tablas',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Sí, restablecer',
-            cancelButtonText: 'Cancelar'
-        });
-        if (!confirm.isConfirmed) return;
-
-        show($('#loaderTelares'));
-        show($('#loaderInventario'));
-        try {
-            const [telaresRes, inventarioRes] = await Promise.all([
-                api.post(API.inventarioTelares, { filtros: [] }),
-                api.get(API.inventarioDisponibleGet)
-            ]);
-            render.telares(telaresRes.data);
-            render.inventario(inventarioRes.data || []);
-            state.filters = { telares: [], inventario: [] };
-            filters.updateBadge();
-            Swal.fire({toast:true,position:'top-end',icon:'success',title:'Filtros restablecidos',showConfirmButton:false,timer:1500});
-        } catch(e) {
-            Swal.fire('Error', e.message||'Error al restablecer','error');
-        } finally {
-            hide($('#loaderTelares'));
-            hide($('#loaderInventario'));
+    reset() {
+        // Restaurar datos originales de telares
+        if (state.telaresDataOriginal.length > 0) {
+            render.telares(state.telaresDataOriginal);
         }
+
+        // Restaurar datos originales de inventario (sin recargar del servidor si ya existen)
+        if (state.inventarioDataOriginal.length > 0) {
+            render.inventario(state.inventarioDataOriginal);
+        } else {
+            // Solo recargar si no hay datos originales
+            show($('#loaderInventario'));
+            (async () => {
+                try {
+                    const { data } = await api.get(API.inventarioDisponibleGet);
+                    state.inventarioDataOriginal = JSON.parse(JSON.stringify(data || []));
+                    render.inventario(data || []);
+                } catch(e) {
+                    console.error('Error recargando inventario:', e);
+                } finally {
+                    hide($('#loaderInventario'));
+                }
+            })();
+        }
+
+        // Limpiar filtros
+        state.filters = { telares: [], inventario: [] };
+        filters.updateBadge();
+        Swal.fire({toast:true,position:'top-end',icon:'success',title:'Filtros restablecidos',showConfirmButton:false,timer:1500});
     }
 };
 
@@ -709,16 +900,16 @@ const actions = {
     async reservar(){
         if (!state.selectedTelar?.no_telar) {
             Swal.fire('Aviso','Selecciona un telar primero','warning');
-            return;
-        }
+        return;
+    }
 
         // Obtener todas las piezas disponibles (sin telar asignado) de la tabla de inventario
         const piezasDisponibles = state.inventarioData.filter(item => !item.NoTelarId || item.NoTelarId === '');
 
         if (piezasDisponibles.length === 0) {
             Swal.fire('Info','No hay piezas disponibles para reservar (todas ya están reservadas)','info');
-        return;
-    }
+            return;
+        }
 
         const ok = await Swal.fire({
             title:'¿Reservar piezas?',
@@ -777,15 +968,26 @@ const actions = {
                 timer:3000
             });
 
-            // Recargar inventario para mostrar los telares asignados
-            const inventarioFilters = state.filters.filter(f=>f.table==='inventario').map(f=>({columna:f.column, valor:f.value}));
-            if (inventarioFilters.length > 0) {
-                const { data } = await api.post(API.inventarioDisponible, { filtros: inventarioFilters });
-                render.inventario(data);
-            } else {
+            // Recargar inventario desde el servidor para obtener datos actualizados (después de reservar)
+            try {
                 const { data } = await api.get(API.inventarioDisponibleGet);
-                render.inventario(data);
+                // Actualizar datos originales con los nuevos datos del servidor
+                state.inventarioDataOriginal = JSON.parse(JSON.stringify(data || []));
+
+                // Aplicar filtros si existen (filtrado local)
+                const inventarioFilters = state.filters.inventario.map(f => ({ columna: f.column, valor: f.value }));
+                if (inventarioFilters.length > 0) {
+                    const filtered = filters.filterLocal(state.inventarioDataOriginal, inventarioFilters);
+                    render.inventario(filtered);
+                } else {
+                    render.inventario(state.inventarioDataOriginal);
+                }
+            } catch(e) {
+                console.error('Error recargando inventario:', e);
             }
+        } catch(e) {
+            console.error('Error en proceso de reserva:', e);
+            Swal.fire('Error', 'Error al procesar la reserva', 'error');
         } finally {
             hide($('#loaderInventario'));
         }
@@ -826,6 +1028,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         show($('#loaderInventario'));
         try {
             const { data } = await api.get(API.inventarioDisponibleGet);
+            state.inventarioDataOriginal = JSON.parse(JSON.stringify(data || []));
             render.inventario(data || []);
             // Habilitar/deshabilitar botón según haya telar seleccionado
             disable($('#btnReservar'), !state.selectedTelar?.no_telar);
