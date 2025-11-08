@@ -101,33 +101,40 @@ Telares por Operador
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
                             <label class="block text-sm font-medium">Número Empleado</label>
-                            <input type="text" name="numero_empleado" class="w-full px-3 py-2 border rounded" required>
+                            <select id="createEmpleado" name="numero_empleado" class="w-full px-3 py-2 border rounded" required>
+                                <option value="" disabled selected>Selecciona empleado</option>
+                                @foreach(($usuarios ?? []) as $u)
+                                    <option value="{{ $u->numero_empleado }}" data-nombre="{{ $u->nombre }}" data-turno="{{ $u->turno }}">{{ $u->numero_empleado }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium">Nombre</label>
-                            <input type="text" name="nombreEmpl" class="w-full px-3 py-2 border rounded" required>
+                            <input type="text" id="createNombre" name="nombreEmpl" class="w-full px-3 py-2 border rounded bg-gray-50" readonly>
                         </div>
                         <div>
                             <label class="block text-sm font-medium">No. Telar</label>
-                            <input type="text" name="NoTelarId" class="w-full px-3 py-2 border rounded" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium">Turno</label>
-                            <select name="Turno" class="w-full px-3 py-2 border rounded" required>
-                                <option value="" disabled selected>Selecciona turno</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
+                            <select id="createTelar" name="NoTelarId" class="w-full px-3 py-2 border rounded" required>
+                                <option value="" disabled selected>Selecciona telar</option>
+                                @foreach(($telares ?? []) as $tel)
+                                    <option value="{{ $tel->NoTelarId }}" data-salon="{{ $tel->SalonTejidoId }}">
+                                        {{ $tel->NoTelarId }}
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
                         <div>
+                            <label class="block text-sm font-medium">Turno</label>
+                            <input type="text" id="createTurno" name="Turno" class="w-full px-3 py-2 border rounded bg-gray-50" readonly>
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium">Salón Tejido Id</label>
-                            <input type="text" name="SalonTejidoId" class="w-full px-3 py-2 border rounded" required>
+                            <input type="text" id="createSalon" name="SalonTejidoId" class="w-full px-3 py-2 border rounded" required>
                         </div>
                     </div>
                     <div class="flex justify-end">
-                        <button type="button" onclick="closeModal('createModal')" class="px-4 py-2 bg-gray-500 text-white rounded mr-2">Cancelar</button>
-                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded">Guardar</button>
+                        <button type="button" onclick="closeModal('createModal')" class="px-4 py-2 bg-gray-500 text-white rounded mr-2 mt-3">Cancelar</button>
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded mt-3">Guardar</button>
                     </div>
                 </form>
             </div>
@@ -148,23 +155,29 @@ Telares por Operador
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
                             <label class="block text-sm font-medium">Número Empleado</label>
-                            <input type="text" id="editNumero" name="numero_empleado" class="w-full px-3 py-2 border rounded" required>
+                            <select id="editEmpleado" name="numero_empleado" class="w-full px-3 py-2 border rounded" required>
+                                @foreach(($usuarios ?? []) as $u)
+                                    <option value="{{ $u->numero_empleado }}" data-nombre="{{ $u->nombre }}" data-turno="{{ $u->turno }}">{{ $u->numero_empleado }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium">Nombre</label>
-                            <input type="text" id="editNombre" name="nombreEmpl" class="w-full px-3 py-2 border rounded" required>
+                            <input type="text" id="editNombre" name="nombreEmpl" class="w-full px-3 py-2 border rounded bg-gray-50" readonly>
                         </div>
                         <div>
                             <label class="block text-sm font-medium">No. Telar</label>
-                            <input type="text" id="editTelar" name="NoTelarId" class="w-full px-3 py-2 border rounded" required>
+                            <select id="editTelar" name="NoTelarId" class="w-full px-3 py-2 border rounded" required>
+                                @foreach(($telares ?? []) as $tel)
+                                    <option value="{{ $tel->NoTelarId }}" data-salon="{{ $tel->SalonTejidoId }}">
+                                        {{ $tel->NoTelarId }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium">Turno</label>
-                            <select id="editTurno" name="Turno" class="w-full px-3 py-2 border rounded" required>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                            </select>
+                            <input type="text" id="editTurno" name="Turno" class="w-full px-3 py-2 border rounded bg-gray-50" readonly>
                         </div>
                         <div>
                             <label class="block text-sm font-medium">Salón Tejido Id</label>
@@ -290,11 +303,17 @@ Telares por Operador
         document.getElementById(modalId).classList.add('hidden');
     }
     function openEditModal(key, numero, nombre, telar, turno = '', salon = '') {
-        document.getElementById('editNumero').value = numero;
+        const editEmpSel = document.getElementById('editEmpleado');
+        if (editEmpSel) {
+            editEmpSel.value = String(numero || '');
+        }
         document.getElementById('editNombre').value = nombre;
-        document.getElementById('editTelar').value = telar;
-        const turnoSelect = document.getElementById('editTurno');
-        if (turnoSelect) turnoSelect.value = String(turno || '');
+        const editTelarSel = document.getElementById('editTelar');
+        if (editTelarSel) {
+            editTelarSel.value = String(telar || '');
+        }
+        const turnoInput = document.getElementById('editTurno');
+        if (turnoInput) turnoInput.value = String(turno || '');
         const salonInput = document.getElementById('editSalon');
         if (salonInput) salonInput.value = salon || '';
         document.getElementById('editForm').action = updateUrl.replace('PLACEHOLDER', encodeURIComponent(key));
@@ -334,5 +353,36 @@ Telares por Operador
 
     // Estado inicial
     updateTopButtonsState();
+
+    // Vincular selects de telar con su salón
+    function wireTelarSalon(selectId, salonInputId) {
+        const sel = document.getElementById(selectId);
+        const salon = document.getElementById(salonInputId);
+        if (!sel || !salon) return;
+        sel.addEventListener('change', () => {
+            const opt = sel.options[sel.selectedIndex];
+            const salonVal = opt ? (opt.getAttribute('data-salon') || '') : '';
+            salon.value = salonVal;
+        });
+    }
+    wireTelarSalon('createTelar', 'createSalon');
+    wireTelarSalon('editTelar', 'editSalon');
+
+    // Vincular empleados -> nombre y turno (modales)
+    function wireEmpleado(selectId, nombreId, turnoId) {
+        const sel = document.getElementById(selectId);
+        const nombre = document.getElementById(nombreId);
+        const turno = document.getElementById(turnoId);
+        if (!sel || !nombre || !turno) return;
+        const sync = () => {
+            const op = sel.options[sel.selectedIndex];
+            nombre.value = op ? (op.getAttribute('data-nombre') || '') : '';
+            turno.value = op ? (op.getAttribute('data-turno') || '') : '';
+        };
+        sel.addEventListener('change', sync);
+        sync();
+    }
+    wireEmpleado('createEmpleado','createNombre','createTurno');
+    wireEmpleado('editEmpleado','editNombre','editTurno');
 </script>
 @endsection

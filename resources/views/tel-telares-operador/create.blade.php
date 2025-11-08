@@ -22,28 +22,37 @@ Nuevo Operador
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium mb-1">Número de Empleado</label>
-                <input type="text" name="numero_empleado" value="{{ old('numero_empleado') }}" class="w-full border rounded px-3 py-2" required>
+                <select id="empleadoSelectCreate" name="numero_empleado" class="w-full border rounded px-3 py-2" required>
+                    <option value="" disabled {{ old('numero_empleado') ? '' : 'selected' }}>Selecciona empleado</option>
+                    @foreach(($usuarios ?? []) as $u)
+                        <option value="{{ $u->numero_empleado }}" data-nombre="{{ $u->nombre }}" data-turno="{{ $u->turno }}" {{ old('numero_empleado') == $u->numero_empleado ? 'selected' : '' }}>
+                            {{ $u->numero_empleado }}
+                        </option>
+                    @endforeach
+                </select>
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">Nombre</label>
-                <input type="text" name="nombreEmpl" value="{{ old('nombreEmpl') }}" class="w-full border rounded px-3 py-2" required>
+                <input type="text" id="nombreCreate" name="nombreEmpl" value="{{ old('nombreEmpl') }}" class="w-full border rounded px-3 py-2 bg-gray-50" readonly>
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">No. Telar</label>
-                <input type="text" name="NoTelarId" value="{{ old('NoTelarId') }}" class="w-full border rounded px-3 py-2" required>
+                <select id="createTelarPage" name="NoTelarId" class="w-full border rounded px-3 py-2" required>
+                    <option value="" disabled {{ old('NoTelarId') ? '' : 'selected' }}>Selecciona telar</option>
+                    @foreach(($telares ?? []) as $tel)
+                        <option value="{{ $tel->NoTelarId }}" data-salon="{{ $tel->SalonTejidoId }}" {{ old('NoTelarId') == $tel->NoTelarId ? 'selected' : '' }}>
+                            {{ $tel->NoTelarId }}
+                        </option>
+                    @endforeach
+                </select>
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">Turno</label>
-                <select name="Turno" class="w-full border rounded px-3 py-2" required>
-                    <option value="" disabled {{ old('Turno') ? '' : 'selected' }}>Selecciona turno</option>
-                    <option value="1" {{ old('Turno') == '1' ? 'selected' : '' }}>1</option>
-                    <option value="2" {{ old('Turno') == '2' ? 'selected' : '' }}>2</option>
-                    <option value="3" {{ old('Turno') == '3' ? 'selected' : '' }}>3</option>
-                </select>
+                <input type="text" id="turnoCreate" name="Turno" value="{{ old('Turno') }}" class="w-full border rounded px-3 py-2 bg-gray-50" readonly>
             </div>
             <div class="md:col-span-2">
                 <label class="block text-sm font-medium mb-1">Salón Tejido Id</label>
-                <input type="text" name="SalonTejidoId" value="{{ old('SalonTejidoId') }}" class="w-full border rounded px-3 py-2" required>
+                <input type="text" id="createSalonPage" name="SalonTejidoId" value="{{ old('SalonTejidoId') }}" class="w-full border rounded px-3 py-2" required>
             </div>
         </div>
         <div class="flex justify-end gap-2 mt-4">
@@ -53,3 +62,36 @@ Nuevo Operador
     </form>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    (function(){
+        const telarSel = document.getElementById('createTelarPage');
+        const salonInp = document.getElementById('createSalonPage');
+        if (telarSel && salonInp) {
+            telarSel.addEventListener('change', () => {
+                const opt = telarSel.options[telarSel.selectedIndex];
+                salonInp.value = opt ? (opt.getAttribute('data-salon') || '') : '';
+            });
+            // Si ya hay seleccionado, inicializar
+            const opt = telarSel.options[telarSel.selectedIndex];
+            if (opt && !salonInp.value) salonInp.value = opt.getAttribute('data-salon') || '';
+        }
+
+        // Vincular empleado -> nombre y turno
+        const empSel = document.getElementById('empleadoSelectCreate');
+        const nombre = document.getElementById('nombreCreate');
+        const turno = document.getElementById('turnoCreate');
+        if (empSel && nombre && turno) {
+            const sync = () => {
+                const op = empSel.options[empSel.selectedIndex];
+                nombre.value = op ? (op.getAttribute('data-nombre') || '') : '';
+                turno.value = op ? (op.getAttribute('data-turno') || '') : '';
+            };
+            empSel.addEventListener('change', sync);
+            // Inicializar si ya hay valor
+            sync();
+        }
+    })();
+</script>
+@endpush

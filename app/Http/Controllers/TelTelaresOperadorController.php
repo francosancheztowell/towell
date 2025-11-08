@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\TelTelaresOperador;
+use App\Models\ReqTelares;
+use App\Models\SYSUsuario;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +33,9 @@ class TelTelaresOperadorController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('tel-telares-operador.index', compact('items', 'q'));
+        $telares = ReqTelares::obtenerTodos();
+        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
+        return view('tel-telares-operador.index', compact('items', 'q', 'telares','usuarios'));
     }
 
     /**
@@ -39,7 +43,9 @@ class TelTelaresOperadorController extends Controller
      */
     public function create()
     {
-        return view('tel-telares-operador.create');
+        $telares = ReqTelares::obtenerTodos();
+        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
+        return view('tel-telares-operador.create', compact('telares','usuarios'));
     }
 
     /**
@@ -48,14 +54,21 @@ class TelTelaresOperadorController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'numero_empleado' => ['required', 'string', 'max:30', 'unique:TelTelaresOperador,numero_empleado'],
-            'nombreEmpl'      => ['required', 'string', 'max:150'],
+            'numero_empleado' => ['required', 'string', 'max:30', 'exists:SYSUsuario,numero_empleado', 'unique:TelTelaresOperador,numero_empleado'],
             'NoTelarId'       => ['required', 'string', 'max:10'],
-            'Turno'           => ['required', 'integer', 'in:1,2,3'],
             'SalonTejidoId'   => ['required', 'string', 'max:10'],
         ]);
 
-        TelTelaresOperador::create($data);
+        $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
+        $payload = [
+            'numero_empleado' => $data['numero_empleado'],
+            'nombreEmpl'      => $usuario->nombre ?? '',
+            'NoTelarId'       => $data['NoTelarId'],
+            'Turno'           => (string)($usuario->turno ?? ''),
+            'SalonTejidoId'   => $data['SalonTejidoId'],
+        ];
+
+        TelTelaresOperador::create($payload);
 
         return redirect()
             ->route('tel-telares-operador.index')
@@ -68,8 +81,12 @@ class TelTelaresOperadorController extends Controller
      */
     public function edit(TelTelaresOperador $telTelaresOperador)
     {
+        $telares = ReqTelares::obtenerTodos();
+        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
         return view('tel-telares-operador.edit', [
             'item' => $telTelaresOperador,
+            'telares' => $telares,
+            'usuarios' => $usuarios,
         ]);
     }
 
@@ -84,11 +101,14 @@ class TelTelaresOperadorController extends Controller
                 Rule::unique('TelTelaresOperador', 'numero_empleado')
                     ->ignore($telTelaresOperador->getKey(), $telTelaresOperador->getKeyName()),
             ],
-            'nombreEmpl'    => ['required', 'string', 'max:150'],
             'NoTelarId'     => ['required', 'string', 'max:10'],
-            'Turno'         => ['required', 'integer', 'in:1,2,3'],
             'SalonTejidoId' => ['required', 'string', 'max:10'],
         ]);
+
+        // Recalcular nombre y turno desde SYSUsuario
+        $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
+        $data['nombreEmpl'] = $usuario->nombre ?? $telTelaresOperador->nombreEmpl;
+        $data['Turno'] = (string)($usuario->turno ?? $telTelaresOperador->Turno);
 
         $originalKey = $telTelaresOperador->getKey();
 
