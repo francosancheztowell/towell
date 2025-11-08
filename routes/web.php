@@ -22,6 +22,8 @@ use App\Http\Controllers\ProduccionReenconadoCabezuelaController;
 use App\Http\Controllers\ConsultarRequerimientoController;
 use App\Http\Controllers\CodificacionController;
 use App\Http\Controllers\InventarioTelaresController;
+use App\Http\Controllers\TelActividadesBPMController;
+use App\Http\Controllers\TelTelaresOperadorController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
 
@@ -534,6 +536,23 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/inventario/trama/nuevo-requerimiento/actualizar-cantidad', [NuevoRequerimientoController::class, 'actualizarCantidad'])->name('inventario.trama.nuevo.requerimiento.actualizar.cantidad');
     });
 
+    // =========================
+    // TELARES · CRUD AUXILIARES
+    // =========================
+    // Actividades BPM
+    Route::resource('c', TelActividadesBPMController::class)
+        ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
+        ->names('tel-actividades-bpm');
+
+    // Telares por Operador
+    Route::resource('tel-telares-operador', TelTelaresOperadorController::class)
+        ->parameters(['tel-telares-operador' => 'telTelaresOperador'])
+        ->names('tel-telares-operador');
+
+    // Alias solicitado para acceso directo
+    Route::get('/telaresPorOperador', [TelTelaresOperadorController::class, 'index'])->name('telaresPorOperador');
+    Route::get('/ActividadesBPM', [TelActividadesBPMController::class, 'index'])->name('ActividadesBPM');
+
     // ============================================
     // MÓDULO PRODUCCIÓN URD ENGOMADO
     // ============================================
@@ -821,4 +840,9 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         });
 
     // RUTAS DE MÓDULOS (MOVIDAS A MÓDULOS ORGANIZADOS)
+
+
+    // ============================================
+    // RUTAS DE TEJEDORES/CONFIGURACION
+    // ============================================
 });

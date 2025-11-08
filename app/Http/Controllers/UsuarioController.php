@@ -498,6 +498,13 @@ class UsuarioController extends Controller
             'Secuencia Inv Trama' => '/tejido/secuencia-inv-trama',
             'Secuencia Marcas Finales' => '/tejido/secuencia-marcas-finales',
 
+            // Tejedores » Configurar: accesos directos solicitados
+            'Telares x Operador' => '/tel-telares-operador',
+            'Telares por Operador' => '/tel-telares-operador',
+            'Telares x operador' => '/tel-telares-operador',
+            'ActividadesBPM' => '/tel-actividades-bpm',
+            'Actividades BPM' => '/tel-actividades-bpm',
+
             // Módulos de Urdido (orden 62)
             'Programa Urdido' => '/urdido/programar-requerimientos',
             'BPM (Buenas Practicas Manufactura) Urd' => '/urdido/bpm',
