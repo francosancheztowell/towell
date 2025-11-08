@@ -22,6 +22,8 @@ use App\Http\Controllers\ProduccionReenconadoCabezuelaController;
 use App\Http\Controllers\ConsultarRequerimientoController;
 use App\Http\Controllers\CodificacionController;
 use App\Http\Controllers\InventarioTelaresController;
+use App\Http\Controllers\TelActividadesBPMController;
+use App\Http\Controllers\TelTelaresOperadorController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
 
@@ -821,4 +823,9 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         });
 
     // RUTAS DE MÓDULOS (MOVIDAS A MÓDULOS ORGANIZADOS)
+
+
+    // ============================================
+    // RUTAS DE TEJEDORES/CONFIGURACION
+    // ============================================
 });
