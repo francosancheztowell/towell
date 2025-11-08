@@ -5,14 +5,14 @@
 @section('navbar-right')
 <div class="flex items-center gap-2">
     <button type="button" id="btnProgramar"
-            class="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center justify-center"
-            title="Programar">
+            class="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+            title="Programar" disabled>
         <i class="fa-solid fa-play w-4 h-4 mr-1"></i>
         Programar
 	</button>
     <button type="button" id="btnReservar"
-            class="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex items-center justify-center"
-            title="Reservar">
+            class="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+            title="Reservar" disabled>
         <i class="fa-solid fa-check w-4 h-4 mr-1"></i>
         Reservar
     </button>
@@ -63,9 +63,9 @@
                                         ];
                                     @endphp
                                     @foreach($headers as $h)
-                                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap sortable"
+                                        <th class="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap sortable"
                                             data-column="{{ $h['key'] }}">
-                                            <div class="flex items-center justify-between gap-2 cursor-pointer">
+                                            <div class="flex items-center justify-center gap-2 cursor-pointer">
                                                 <span>{{ $h['label'] }}</span>
                                                 <i class="fa-solid fa-sort text-gray-400 sort-icon"></i>
                                             </div>
@@ -95,22 +95,22 @@
                                         data-base-bg="{{ $baseBg }}"
                                         data-telar="{{ $t['no_telar'] ?? '' }}"
                                         data-cuenta="{{ $t['cuenta'] ?? '' }}">
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap font-bold">{{ $t['no_telar'] ?? '' }}</td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center font-bold">{{ $t['no_telar'] ?? '' }}</td>
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             <span class="px-2 py-0.5 rounded text-xs font-medium {{ $tipoClass }}">{{ $t['tipo'] ?? '-' }}</span>
                                         </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">{{ $t['cuenta'] ?? '' }}</td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">{{ number_format((float)($t['calibre'] ?? 0), 2) }}</td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">{{ $t['cuenta'] ?? '' }}</td>
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">{{ number_format((float)($t['calibre'] ?? 0), 2) }}</td>
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             {{ $t['fecha'] ? \Carbon\Carbon::parse($t['fecha'])->format('d-M-Y') : '' }}
                                         </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">{{ $t['turno'] ?? '' }}</td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">{{ $t['hilo'] ?? '' }}</td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-right">{{ number_format((float)($t['metros'] ?? 0), 2) }}</td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">{{ $t['no_julio'] ?? '' }}</td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">{{ $t['no_orden'] ?? '' }}</td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">{{ $t['tipo_atado'] ?? 'Normal' }}</td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">{{ $t['turno'] ?? '' }}</td>
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">{{ $t['hilo'] ?? '' }}</td>
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">{{ number_format((float)($t['metros'] ?? 0), 0) }}</td>
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">{{ $t['no_julio'] ?? '' }}</td>
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">{{ $t['no_orden'] ?? '' }}</td>
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">{{ $t['tipo_atado'] ?? 'Normal' }}</td>
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             <span class="px-2 py-0.5 rounded text-xs font-medium {{ $salonClass }}">{{ $salon }}</span>
                                         </td>
                                     </tr>
@@ -219,6 +219,7 @@ const API = {
     inventarioDisponible: '{{ route("programa.urd.eng.inventario.disponible") }}',
     inventarioDisponibleGet: '{{ route("programa.urd.eng.inventario.disponible.get") }}',
     programarTelar: '{{ route("programa.urd.eng.programar.telar") }}',
+    actualizarTelar: '{{ route("programa.urd.eng.actualizar.telar") }}',
     reservarInventario: '{{ route("programa.urd.eng.reservar.inventario") }}',
     columnOptions: '{{ route("programa.urd.eng.column.options") }}'
 };
@@ -228,6 +229,7 @@ const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
 const state = {
     filters: { telares: [], inventario: [] },
     selectedTelar: null,
+    selectedInventario: null, // Fila seleccionada de la tabla de inventario
     columns: { telares: [], inventario: [] },
     sort: { column: null, direction: 'asc' },
     telaresData: @json($inventarioTelares ?? []),
@@ -309,20 +311,20 @@ const render = {
             tr.dataset.cuenta = r.cuenta ?? '';
 
             tr.innerHTML = `
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap font-bold">${r.no_telar ?? ''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center font-bold">${r.no_telar ?? ''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     <span class="px-2 py-0.5 rounded text-xs font-medium ${fmt.tipoBadge(r.tipo)}">${r.tipo || '-'}</span>
                 </td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.cuenta || ''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${fmt.num(r.calibre)}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${fmt.date(r.fecha)}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.turno || ''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.hilo || ''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-right">${fmt.num(r.metros)}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.no_julio || ''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.no_orden || ''}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">${r.tipo_atado || 'Normal'}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap">
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.cuenta || ''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${fmt.num(r.calibre)}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${fmt.date(r.fecha)}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.turno || ''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.hilo || ''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${fmt.num(r.metros, 0)}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.no_julio || ''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.no_orden || ''}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${r.tipo_atado || 'Normal'}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     <span class="px-2 py-0.5 rounded text-xs font-medium ${fmt.salonBadge(r.salon)}">${r.salon || 'Jacquard'}</span>
                 </td>
             `;
@@ -379,9 +381,17 @@ const render = {
         return;
     }
         const frag = document.createDocumentFragment();
-        rows.forEach(r=>{
+        rows.forEach((r, i) => {
             const tr = document.createElement('tr');
-            tr.className='hover:bg-orange-50';
+            // Si tiene telar asignado, agregar fondo verde más intenso y deshabilitar selección
+            const hasTelar = r.NoTelarId && r.NoTelarId !== '';
+            if (hasTelar) {
+                tr.className = 'bg-green-100 selectable-row-inventario cursor-not-allowed opacity-75';
+                tr.dataset.disabled = 'true';
+            } else {
+                tr.className = 'hover:bg-orange-50 selectable-row-inventario cursor-pointer';
+                tr.dataset.disabled = 'false';
+            }
             tr.dataset.itemId = r.ItemId || '';
             tr.dataset.configId = r.ConfigId || '';
             tr.dataset.inventSizeId = r.InventSizeId || '';
@@ -391,6 +401,8 @@ const render = {
             tr.dataset.wmsLocationId = r.WMSLocationId || '';
             tr.dataset.inventSerialId = r.InventSerialId || '';
             tr.dataset.noTelarId = r.NoTelarId || '';
+            tr.dataset.metros = r.Metros || '';
+            tr.dataset.numJulio = r.InventSerialId || ''; // Num. Julio es InventSerialId
 
             // Formatear cantidad y metros sin decimales
             const kilos = fmt.num(r.InventQty, 0);
@@ -448,16 +460,23 @@ const selection = {
             this.clearVisual(prev);
         }
 
+        // Limpiar selección de inventario
+        const prevInventario = $('#inventarioTable .selectable-row-inventario.is-selected');
+        if (prevInventario) {
+            this.clearVisualInventario(prevInventario);
+        }
+
         state.selectedTelar = null;
+        state.selectedInventario = null;
         disable($('#btnProgramar'), true);
-        disable($('#btnReservar'), true);
+        disable($('#btnReservar'), true); // Deshabilitar hasta que ambas filas estén seleccionadas
 
         // Restaurar inventario sin filtros cuando se deselecciona - usar datos originales (sin recargar)
         if (state.inventarioDataOriginal.length > 0) {
             render.inventario(state.inventarioDataOriginal);
             state.filters.inventario = [];
             filters.updateBadge();
-        } else {
+    } else {
             // Solo recargar si no hay datos originales
             show($('#loaderInventario'));
             (async () => {
@@ -473,6 +492,31 @@ const selection = {
                     hide($('#loaderInventario'));
                 }
             })();
+        }
+    },
+    clearVisualInventario(row) {
+        // Limpiar estilos visuales de fila de inventario
+        if (row) {
+            row.classList.remove('is-selected', 'bg-green-500', 'text-white');
+            row.style.removeProperty('background-color');
+            row.style.removeProperty('color');
+
+            // Restaurar el color de fondo según si tiene telar o no
+            const hasTelar = row.dataset.noTelarId && row.dataset.noTelarId !== '';
+            if (hasTelar) {
+                // Si tiene telar, restaurar estilo deshabilitado
+                row.className = 'bg-green-100 selectable-row-inventario cursor-not-allowed opacity-75';
+                row.dataset.disabled = 'true';
+            } else {
+                // Si no tiene telar, restaurar estilo normal
+                row.className = 'hover:bg-orange-50 selectable-row-inventario cursor-pointer';
+                row.dataset.disabled = 'false';
+            }
+
+            row.querySelectorAll('td').forEach(td => {
+                td.classList.remove('text-white');
+                td.style.removeProperty('color');
+            });
         }
     },
     async apply(row) {
@@ -515,7 +559,10 @@ const selection = {
             cuenta: cuenta
         };
 
-        disable($('#btnProgramar'), !state.selectedTelar.no_telar);
+        disable($('#btnProgramar'), true); // Deshabilitado por el momento
+
+        // Guardar selección de inventario previa si existe
+        const prevInventarioSelected = state.selectedInventario;
 
         // Filtrar inventario por cuenta localmente (sin petición HTTP)
         if (cuenta) {
@@ -526,7 +573,7 @@ const selection = {
                 render.inventario(state.inventarioDataOriginal);
                 state.filters.inventario = [];
                 filters.updateBadge();
-                disable($('#btnReservar'), !state.selectedTelar.no_telar || !state.inventarioData.length);
+                this.validateCuentas();
             } else {
                 // Si no hay datos originales, cargar desde el servidor
                 show($('#loaderInventario'));
@@ -537,13 +584,33 @@ const selection = {
                         render.inventario(data || []);
                         state.filters.inventario = [];
                         filters.updateBadge();
-                        disable($('#btnReservar'), !state.selectedTelar.no_telar || !state.inventarioData.length);
+                        this.validateCuentas();
                     } catch(e) {
                         console.error('Error cargando inventario:', e);
                     } finally {
                         hide($('#loaderInventario'));
                     }
                 })();
+            }
+        }
+
+        // Si había una selección previa de inventario
+        if (prevInventarioSelected) {
+            if (cuenta && prevInventarioSelected.inventSizeId === cuenta) {
+                // Si las cuentas coinciden, restaurar la selección después del render
+                setTimeout(() => {
+                    const rows = document.querySelectorAll('#inventarioTable .selectable-row-inventario');
+                    for (const row of rows) {
+                        if (row.dataset.itemId === prevInventarioSelected.itemId &&
+                            row.dataset.inventSerialId === prevInventarioSelected.inventSerialId) {
+                            this.applyInventario(row);
+                            break;
+                        }
+                    }
+                }, 100);
+            } else {
+                // Si las cuentas no coinciden, limpiar la selección
+                this.clearInventario();
             }
         }
     },
@@ -563,7 +630,8 @@ const selection = {
                     render.inventario(filtered);
                     state.filters.inventario = [{ table: 'inventario', column: 'InventSizeId', value: cuenta, idx: Date.now() }];
                     filters.updateBadge();
-                    disable($('#btnReservar'), !state.selectedTelar.no_telar || !state.inventarioData.length);
+                    // Validar cuentas después de filtrar (actualiza el estado del botón)
+                    selection.validateCuentas();
                 } catch(e) {
                     console.error('Error cargando inventario:', e);
                     Swal.fire('Error', 'No se pudo cargar el inventario', 'error');
@@ -583,12 +651,101 @@ const selection = {
         state.filters.inventario = [{ table: 'inventario', column: 'InventSizeId', value: cuenta, idx: Date.now() }];
         filters.updateBadge();
 
-        // Actualizar estado del botón reservar después de filtrar
-        disable($('#btnReservar'), !state.selectedTelar.no_telar || !state.inventarioData.length);
+        // Validar cuentas después de filtrar
+        this.validateCuentas();
     },
     toggle(row) {
         if (row.classList.contains('is-selected')) { this.clear(); return; }
         this.apply(row);
+    },
+    // Selección de fila en tabla de inventario
+    applyInventario(row) {
+        if (!row) return;
+
+        // Limpiar selección anterior de inventario
+        const prev = $('#inventarioTable .selectable-row-inventario.is-selected');
+        if (prev && prev !== row) {
+            this.clearVisualInventario(prev);
+        }
+
+        // Aplicar selección
+        row.classList.add('bg-green-500', 'text-white', 'is-selected', 'cursor-pointer');
+        row.style.setProperty('background-color', '#10b981', 'important');
+        row.style.setProperty('color', '#ffffff', 'important');
+        row.querySelectorAll('td').forEach(td => {
+            td.classList.add('text-white');
+            td.style.setProperty('color', '#ffffff', 'important');
+        });
+
+        // Guardar datos de la fila seleccionada
+        state.selectedInventario = {
+            itemId: row.dataset.itemId || '',
+            configId: row.dataset.configId || '',
+            inventSizeId: row.dataset.inventSizeId || '',
+            inventColorId: row.dataset.inventColorId || '',
+            inventLocationId: row.dataset.inventLocationId || '',
+            inventBatchId: row.dataset.inventBatchId || '',
+            wmsLocationId: row.dataset.wmsLocationId || '',
+            inventSerialId: row.dataset.inventSerialId || '',
+            metros: parseFloat(row.dataset.metros || 0),
+            numJulio: row.dataset.numJulio || '',
+            // Buscar el objeto completo en los datos
+            data: state.inventarioData.find(item =>
+                item.ItemId === row.dataset.itemId &&
+                item.InventSerialId === row.dataset.inventSerialId
+            )
+        };
+
+        // Validar que las cuentas coincidan
+        this.validateCuentas();
+    },
+    clearInventario() {
+        const prev = $('#inventarioTable .selectable-row-inventario.is-selected');
+        if (prev) {
+            this.clearVisualInventario(prev);
+        }
+        state.selectedInventario = null;
+        this.validateCuentas();
+    },
+    toggleInventario(row) {
+        if (row.classList.contains('is-selected')) {
+            this.clearInventario();
+            return;
+        }
+        this.applyInventario(row);
+    },
+    validateCuentas() {
+        // El botón Reservar solo se habilita cuando AMBAS filas estén seleccionadas (telar E inventario)
+        if (state.selectedTelar && state.selectedInventario) {
+            const cuentaTelar = (state.selectedTelar.cuenta || '').trim();
+            const cuentaInventario = (state.selectedInventario.inventSizeId || '').trim();
+
+            if (cuentaTelar && cuentaInventario) {
+                // Verificar si la cuenta del inventario comienza con la cuenta del telar
+                // Ejemplo: "3060" coincide con "3060-12/1"
+                const coinciden = cuentaInventario.startsWith(cuentaTelar);
+
+                if (!coinciden) {
+    Swal.fire({
+                        icon: 'warning',
+                        title: 'Cuentas no coinciden',
+                        text: `La cuenta del telar (${cuentaTelar}) no coincide con la del inventario (${cuentaInventario})`,
+        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
+                    disable($('#btnReservar'), true);
+                    return false;
+                }
+            }
+            // Si las cuentas coinciden (o no hay cuenta), habilitar botón
+            disable($('#btnReservar'), false);
+            return true;
+        }
+        // Si no hay ambas selecciones, deshabilitar botón
+        disable($('#btnReservar'), true);
+        return false;
     }
 };
 
@@ -631,6 +788,13 @@ const filters = {
                 }
 
                 const itemStr = String(itemVal).toLowerCase();
+                const valLower = val.toLowerCase();
+
+                // Filtro especial para InventSizeId (Cuenta): usar startsWith para coincidencias flexibles
+                // Ejemplo: "3060" coincide con "3060-12/1"
+                if (col === 'InventSizeId') {
+                    return itemStr.startsWith(valLower);
+                }
 
                 // Filtros especiales para fechas
                 if (col === 'fecha' || col === 'ProdDate') {
@@ -643,7 +807,7 @@ const filters = {
                     } catch(e) {
                         // Si falla el parseo, usar búsqueda de texto
                     }
-                    return itemStr.includes(val);
+                    return itemStr.includes(valLower);
                 }
 
                 // Filtros numéricos
@@ -651,13 +815,13 @@ const filters = {
                     const itemNum = parseFloat(itemVal);
                     const filterNum = parseFloat(val);
                     if (!isNaN(itemNum) && !isNaN(filterNum)) {
-                        return Math.abs(itemNum - filterNum) < 0.001 || itemStr.includes(val);
+                        return Math.abs(itemNum - filterNum) < 0.001 || itemStr.includes(valLower);
                     }
-                    return itemStr.includes(val);
+                    return itemStr.includes(valLower);
                 }
 
                 // Filtro de texto (contains)
-                return itemStr.includes(val);
+                return itemStr.includes(valLower);
             });
         });
     },
@@ -903,17 +1067,29 @@ const actions = {
         return;
     }
 
-        // Obtener todas las piezas disponibles (sin telar asignado) de la tabla de inventario
-        const piezasDisponibles = state.inventarioData.filter(item => !item.NoTelarId || item.NoTelarId === '');
-
-        if (piezasDisponibles.length === 0) {
-            Swal.fire('Info','No hay piezas disponibles para reservar (todas ya están reservadas)','info');
+        // Validar que ambas filas estén seleccionadas
+        if (!state.selectedInventario || !state.selectedInventario.data) {
+            Swal.fire('Aviso','Selecciona una fila de inventario primero','warning');
             return;
         }
 
+        // Validar que las cuentas coincidan
+        if (!selection.validateCuentas()) {
+            return;
+        }
+
+        // Validar que la pieza seleccionada no tenga telar asignado
+        if (state.selectedInventario.data.NoTelarId && state.selectedInventario.data.NoTelarId !== '') {
+            Swal.fire('Aviso', 'Esta pieza ya tiene un telar asignado y no se puede reservar', 'warning');
+            return;
+        }
+
+        // Usar solo la pieza seleccionada de inventario
+        const piezasAReservar = [state.selectedInventario.data];
+
         const ok = await Swal.fire({
-            title:'¿Reservar piezas?',
-            text:`¿Deseas reservar ${piezasDisponibles.length} pieza(s) disponible(s) para el telar ${state.selectedTelar.no_telar}?`,
+            title:'¿Reservar pieza?',
+            text:`¿Deseas reservar la pieza seleccionada para el telar ${state.selectedTelar.no_telar}?`,
             icon:'question',
             showCancelButton:true,
             confirmButtonText:'Sí, reservar',
@@ -922,14 +1098,37 @@ const actions = {
 
         if (!ok) return;
 
-        // Reservar todas las piezas disponibles
-        let successCount = 0;
-        let errorCount = 0;
-        const errors = [];
-
         show($('#loaderInventario'));
         try {
-            for (const item of piezasDisponibles) {
+            // 1. Si hay fila seleccionada de inventario, actualizar telar con metros y num_julio ANTES de reservar
+            if (state.selectedInventario && state.selectedInventario.data) {
+                try {
+                    await api.post(API.actualizarTelar, {
+                        no_telar: state.selectedTelar.no_telar,
+                        metros: state.selectedInventario.metros || 0,
+                        no_julio: state.selectedInventario.numJulio || ''
+                    });
+
+                    // Actualizar en el estado local
+                    const telarIndex = state.telaresData.findIndex(t => t.no_telar === state.selectedTelar.no_telar);
+                    if (telarIndex !== -1) {
+                        state.telaresData[telarIndex].metros = state.selectedInventario.metros || 0;
+                        state.telaresData[telarIndex].no_julio = state.selectedInventario.numJulio || '';
+                        render.telares(state.telaresData);
+                    }
+                } catch(e) {
+                    console.error('Error actualizando telar:', e);
+                    Swal.fire('Error', 'Error al actualizar el telar', 'error');
+                    return;
+                }
+            }
+
+            // 2. Reservar las piezas en InvTelasReservadas
+            let successCount = 0;
+            let errorCount = 0;
+            const errors = [];
+
+            for (const item of piezasAReservar) {
                 try {
                     const payload = {
                         NoTelarId: state.selectedTelar.no_telar,
@@ -968,28 +1167,101 @@ const actions = {
                 timer:3000
             });
 
-            // Recargar inventario desde el servidor para obtener datos actualizados (después de reservar)
+            // 3. Recargar ambas tablas desde el servidor para obtener datos actualizados
             try {
-                const { data } = await api.get(API.inventarioDisponibleGet);
-                // Actualizar datos originales con los nuevos datos del servidor
-                state.inventarioDataOriginal = JSON.parse(JSON.stringify(data || []));
+                // Guardar estado actual antes de recargar
+                const selectedTelarNo = state.selectedTelar?.no_telar;
+                const selectedInventarioData = state.selectedInventario?.data;
+                const currentSort = state.sort;
 
-                // Aplicar filtros si existen (filtrado local)
-                const inventarioFilters = state.filters.inventario.map(f => ({ columna: f.column, valor: f.value }));
-                if (inventarioFilters.length > 0) {
-                    const filtered = filters.filterLocal(state.inventarioDataOriginal, inventarioFilters);
-                    render.inventario(filtered);
-                } else {
-                    render.inventario(state.inventarioDataOriginal);
+                // Mostrar loaders
+                show($('#loaderInventario'));
+                show($('#loaderTelares'));
+
+                // Recargar ambas tablas en paralelo
+                const [inventarioResponse, telaresResponse] = await Promise.all([
+                    api.get(API.inventarioDisponibleGet),
+                    api.get(API.inventarioTelares)
+                ]);
+
+                // Actualizar inventario
+                if (inventarioResponse?.data) {
+                    state.inventarioDataOriginal = JSON.parse(JSON.stringify(inventarioResponse.data));
+
+                    // Aplicar filtros si existen
+                    const inventarioFilters = state.filters.inventario.map(f => ({ columna: f.column, valor: f.value }));
+                    if (inventarioFilters.length > 0) {
+                        const filtered = filters.filterLocal(state.inventarioDataOriginal, inventarioFilters);
+                        render.inventario(filtered);
+                        state.inventarioData = filtered;
+                    } else {
+                        render.inventario(state.inventarioDataOriginal);
+                        state.inventarioData = state.inventarioDataOriginal;
+                    }
+                }
+
+                // Actualizar telares
+                if (telaresResponse?.data && telaresResponse.data.length > 0) {
+                    state.telaresDataOriginal = JSON.parse(JSON.stringify(telaresResponse.data));
+
+                    // Aplicar ordenamiento si existía
+                    if (currentSort && currentSort.column) {
+                        state.sort = currentSort;
+                        render.telares(render.sortData(state.telaresDataOriginal));
+                    } else {
+                        state.telaresData = telaresResponse.data;
+                        render.telares(state.telaresData);
+                    }
+
+                    // Restaurar selección del telar después de renderizar
+                    if (selectedTelarNo) {
+                        setTimeout(() => {
+                            const rows = document.querySelectorAll('#telaresTable .selectable-row');
+                            for (const row of rows) {
+                                if (row.dataset.telar === selectedTelarNo) {
+                                    selection.apply(row);
+
+                                    // Restaurar selección de inventario si existía
+                                    if (selectedInventarioData) {
+                                        setTimeout(() => {
+                                            const inventarioRows = document.querySelectorAll('#inventarioTable .selectable-row-inventario');
+                                            for (const invRow of inventarioRows) {
+                                                const rowData = invRow.dataset;
+                                                if (rowData.numJulio === selectedInventarioData.InventSerialId &&
+                                                    rowData.metros === String(selectedInventarioData.Metros || '')) {
+                                                    selection.applyInventario(invRow);
+                                                    break;
+                                                }
+                                            }
+                                        }, 50);
+                                    }
+                                    break;
+                                }
+                            }
+                        }, 100);
+                    }
                 }
             } catch(e) {
-                console.error('Error recargando inventario:', e);
+                console.error('Error recargando datos:', e);
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'warning',
+                    title: 'Error al recargar las tablas',
+                    text: 'Los datos pueden no estar actualizados',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            } finally {
+                hide($('#loaderInventario'));
+                hide($('#loaderTelares'));
             }
         } catch(e) {
             console.error('Error en proceso de reserva:', e);
             Swal.fire('Error', 'Error al procesar la reserva', 'error');
         } finally {
             hide($('#loaderInventario'));
+            hide($('#loaderTelares'));
         }
     }
 };
@@ -1008,6 +1280,33 @@ document.addEventListener('DOMContentLoaded', ()=>{
             e.preventDefault();
             e.stopPropagation();
             selection.toggle(row);
+        }
+    });
+
+    // selección de filas en tabla de inventario
+    $('#inventarioTable tbody')?.addEventListener('click', (e)=>{
+        // Si el click es en un botón o link, no hacer nada
+        if (e.target.closest('button') || e.target.closest('a')) return;
+        const row = e.target.closest('.selectable-row-inventario');
+        if (row) {
+            // No permitir selección si la fila está deshabilitada (tiene telar asignado)
+            if (row.dataset.disabled === 'true') {
+                e.preventDefault();
+                e.stopPropagation();
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Pieza ya reservada',
+                    text: 'Esta pieza ya tiene un telar asignado y no se puede seleccionar',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+                return;
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            selection.toggleInventario(row);
         }
     });
 
@@ -1030,8 +1329,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
             const { data } = await api.get(API.inventarioDisponibleGet);
             state.inventarioDataOriginal = JSON.parse(JSON.stringify(data || []));
             render.inventario(data || []);
-            // Habilitar/deshabilitar botón según haya telar seleccionado
-            disable($('#btnReservar'), !state.selectedTelar?.no_telar);
+            // Validar cuentas (actualiza el estado del botón Reservar)
+            selection.validateCuentas();
         } catch(e) {
             console.error('Error cargando inventario:', e);
             render.inventario([]);

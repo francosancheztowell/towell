@@ -100,6 +100,60 @@ class ReservarProgramarController extends Controller
         }
     }
 
+    public function actualizarTelar(Request $request)
+    {
+        try {
+            $request->validate([
+                'no_telar' => ['required','string','max:50'],
+                'metros' => ['nullable','numeric'],
+                'no_julio' => ['nullable','string','max:50'],
+            ]);
+
+            $noTelar = $request->input('no_telar');
+            $metros = $request->input('metros');
+            $noJulio = $request->input('no_julio');
+
+            // Buscar el telar en la tabla tej_inventario_telares
+            $telar = TejInventarioTelares::where('no_telar', $noTelar)
+                ->where('status', 'Activo')
+                ->first();
+
+            if (!$telar) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Telar no encontrado o no está activo',
+                ], 404);
+            }
+
+            // Actualizar metros y no_julio
+            $updateData = [];
+            if ($metros !== null) {
+                $updateData['metros'] = $metros;
+            }
+            if ($noJulio !== null) {
+                $updateData['no_julio'] = $noJulio;
+            }
+
+            if (!empty($updateData)) {
+                $telar->update($updateData);
+            }
+
+            Log::info("Telar actualizado: {$noTelar}", $updateData);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Telar {$noTelar} actualizado correctamente",
+                'data' => $telar->fresh(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('actualizarTelar: '.$e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el telar: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function reservarInventario(Request $request)
     {
         // Delegar a InvTelasReservadasController

@@ -562,6 +562,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/inventario-disponible', [\App\Http\Controllers\InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible.get');
         Route::post('/inventario-disponible', [\App\Http\Controllers\InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible');
         Route::post('/programar-telar', [\App\Http\Controllers\ReservarProgramarController::class, 'programarTelar'])->name('programar.telar');
+        Route::post('/actualizar-telar', [\App\Http\Controllers\ReservarProgramarController::class, 'actualizarTelar'])->name('actualizar.telar');
         Route::post('/reservar-inventario', [\App\Http\Controllers\InvTelasReservadasController::class, 'reservar'])->name('reservar.inventario');
         Route::get('/column-options', [\App\Http\Controllers\ReservarProgramarController::class, 'getColumnOptions'])->name('column.options');
         Route::get('/reservas/{noTelar}', [\App\Http\Controllers\InvTelasReservadasController::class, 'porTelar'])->name('reservas.porTelar');
