@@ -7,8 +7,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use App\Models\TejProduccionReenconado;
-use App\Models\SSYSFoliosSecuencia;
 use Illuminate\Support\Facades\Auth;
+use App\Helpers\FolioHelper;
+use App\Helpers\TurnoHelper;
 
 class ProduccionReenconadoCabezuelaController extends Controller
 {
@@ -27,38 +28,10 @@ class ProduccionReenconadoCabezuelaController extends Controller
         if ($request->has('modal') || $request->has('record')) {
             $data = $request->input('record', $request->all());
 
-            $rules = [
-                'Folio'            => ['nullable','string','max:10'],
-                'Date'             => ['nullable','date'],
-                'Turno'            => ['nullable','integer','min:1','max:3'],
-                'numero_empleado'  => ['nullable','string','max:30'],
-                'nombreEmpl'       => ['nullable','string','max:150'],
-                'Calibre'          => ['nullable','numeric'],
-                'FibraTrama'       => ['nullable','string','max:30'],
-                'CodColor'         => ['nullable','string','max:10'],
-                'Color'            => ['nullable','string','max:60'],
-                'Cantidad'         => ['nullable','numeric'],
-                'Conos'            => ['nullable','integer'],
-                'Horas'            => ['nullable','numeric'],
-                'Eficiencia'       => ['nullable','numeric'],
-                'Obs'              => ['nullable','string','max:60'],
-            ];
-
-            $validator = Validator::make($data, $rules);
-            if ($validator->fails()) {
-                if ($request->expectsJson()) {
-                    return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-                }
-                return back()->withErrors($validator)->withInput();
-            }
-
-            // Si no viene folio, generarlo a partir del prefijo 'RE' incrementando el consecutivo
+            // Generar SIEMPRE el folio consumiendo la secuencia (no usar el del cliente)
             $folioGenerado = null;
             try {
-                if (empty($data['Folio'])) {
-                    $nf = \App\Models\SSYSFoliosSecuencia::nextFolioByPrefijo('CE', 4); // CE0001
-                    $folioGenerado = $nf['folio'] ?? null;
-                }
+                $folioGenerado = FolioHelper::obtenerSiguienteFolio('Reenconado', 4);
             } catch (\Throwable $e) {
                 Log::error('Generar folio (modal) fallo', ['exception' => $e]);
                 if ($request->expectsJson()) {
@@ -68,7 +41,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
             }
 
             $clean = [
-                'Folio'           => $data['Folio']            ?? $folioGenerado,
+                'Folio'           => $folioGenerado,
                 'Date'            => isset($data['Date']) && $data['Date'] ? date('Y-m-d', strtotime($data['Date'])) : null,
                 'Turno'           => isset($data['Turno']) ? (int)$data['Turno'] : null,
                 'numero_empleado' => $data['numero_empleado']  ?? null,
@@ -83,6 +56,32 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 'Eficiencia'      => isset($data['Eficiencia']) ? (float)$data['Eficiencia'] : null,
                 'Obs'             => $data['Obs']              ?? null,
             ];
+
+            // Reglas: todos requeridos (ya con folio asignado)
+            $rules = [
+                'Folio'            => ['required','string','max:10'],
+                'Date'             => ['required','date'],
+                'Turno'            => ['required','integer','min:1','max:3'],
+                'numero_empleado'  => ['required','string','max:30'],
+                'nombreEmpl'       => ['required','string','max:150'],
+                'Calibre'          => ['required','numeric'],
+                'FibraTrama'       => ['required','string','max:30'],
+                'CodColor'         => ['required','string','max:10'],
+                'Color'            => ['required','string','max:60'],
+                'Cantidad'         => ['required','numeric'],
+                'Conos'            => ['required','integer'],
+                'Horas'            => ['required','numeric'],
+                'Eficiencia'       => ['required','numeric'],
+                'Obs'              => ['required','string','max:60'],
+            ];
+
+            $validator = Validator::make($clean, $rules);
+            if ($validator->fails()) {
+                if ($request->expectsJson()) {
+                    return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+                }
+                return back()->withErrors($validator)->withInput();
+            }
 
             try {
                 $created = TejProduccionReenconado::create($clean);
@@ -125,20 +124,20 @@ class ProduccionReenconadoCabezuelaController extends Controller
         }
 
         $rules = [
-            'Folio'            => ['nullable','string','max:10'],
-            'Date'             => ['nullable','date'],
-            'Turno'            => ['nullable','integer','min:1','max:3'],
-            'numero_empleado'  => ['nullable','string','max:30'],
-            'nombreEmpl'       => ['nullable','string','max:150'],
-            'Calibre'          => ['nullable','numeric'],
-            'FibraTrama'       => ['nullable','string','max:30'],
-            'CodColor'         => ['nullable','string','max:10'],
-            'Color'            => ['nullable','string','max:60'],
-            'Cantidad'         => ['nullable','numeric'],
-            'Conos'            => ['nullable','integer'],
-            'Horas'            => ['nullable','numeric'],
-            'Eficiencia'       => ['nullable','numeric'],
-            'Obs'              => ['nullable','string','max:60'],
+            'Folio'            => ['required','string','max:10'],
+            'Date'             => ['required','date'],
+            'Turno'            => ['required','integer','min:1','max:3'],
+            'numero_empleado'  => ['required','string','max:30'],
+            'nombreEmpl'       => ['required','string','max:150'],
+            'Calibre'          => ['required','numeric'],
+            'FibraTrama'       => ['required','string','max:30'],
+            'CodColor'         => ['required','string','max:10'],
+            'Color'            => ['required','string','max:60'],
+            'Cantidad'         => ['required','numeric'],
+            'Conos'            => ['required','integer'],
+            'Horas'            => ['required','numeric'],
+            'Eficiencia'       => ['required','numeric'],
+            'Obs'              => ['required','string','max:60'],
         ];
 
         $validatedRows = [];
@@ -184,24 +183,119 @@ class ProduccionReenconadoCabezuelaController extends Controller
             ->with('success', 'Registros guardados correctamente: '.count($validatedRows));
     }
 
-    /**
-     * Genera y reserva un nuevo folio (prefijo 'RE') y devuelve también
-     * datos del usuario autenticado para precargar el modal.
-     */
     public function generarFolio(Request $request)
     {
         try {
-            $next = \App\Models\SSYSFoliosSecuencia::nextFolioByPrefijo('CE', 4);
             $user = Auth::user();
+            
+            // No consumir la secuencia al abrir modal: devolver folio sugerido (lectura)
+            $folio = FolioHelper::obtenerFolioSugerido('Reenconado', 4);
+            
+            // Si no hay folio sugerido, generar uno temporal
+            if (empty($folio)) {
+                $folio = 'CE0001'; // Folio por defecto si no existe la secuencia
+            }
+            
+            $turno = TurnoHelper::getTurnoActual();
+            
+            Log::info('Generando folio para modal', [
+                'folio' => $folio,
+                'turno' => $turno,
+                'usuario' => $user->nombre ?? '',
+                'numero_empleado' => $user->numero_empleado ?? '',
+            ]);
+            
             return response()->json([
                 'success' => true,
-                'folio' => $next['folio'] ?? null,
-                'usuario' => $user->nombre ?? null,
-                'numero_empleado' => $user->numero_empleado ?? null,
+                'folio' => $folio,
+                'turno' => $turno,
+                'usuario' => $user->nombre ?? '',
+                'numero_empleado' => $user->numero_empleado ?? '',
                 'fecha' => date('Y-m-d'),
             ]);
         } catch (\Throwable $e) {
-            Log::error('Generar folio endpoint fallo', ['exception' => $e]);
+            Log::error('Generar folio endpoint fallo', [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false, 
+                'message' => $e->getMessage(),
+                'folio' => 'TEMP-' . time(),
+                'turno' => '1',
+                'usuario' => '',
+                'numero_empleado' => '',
+                'fecha' => date('Y-m-d'),
+            ], 200); // Devolver 200 para que el frontend procese el fallback
+        }
+    }
+
+    public function update(Request $request, string $folio)
+    {
+        $data = $request->input('record', $request->all());
+
+        $rules = [
+            'Date'             => ['required','date'],
+            'Turno'            => ['required','integer','min:1','max:3'],
+            'numero_empleado'  => ['required','string','max:30'],
+            'nombreEmpl'       => ['required','string','max:150'],
+            'Calibre'          => ['required','numeric'],
+            'FibraTrama'       => ['required','string','max:30'],
+            'CodColor'         => ['required','string','max:10'],
+            'Color'            => ['required','string','max:60'],
+            'Cantidad'         => ['required','numeric'],
+            'Conos'            => ['required','integer'],
+            'Horas'            => ['required','numeric'],
+            'Eficiencia'       => ['required','numeric'],
+            'Obs'              => ['required','string','max:60'],
+        ];
+
+        $validator = Validator::make($data, $rules);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $clean = [
+            'Date'            => isset($data['Date']) && $data['Date'] ? date('Y-m-d', strtotime($data['Date'])) : null,
+            'Turno'           => isset($data['Turno']) ? (int)$data['Turno'] : null,
+            'numero_empleado' => $data['numero_empleado']  ?? null,
+            'nombreEmpl'      => $data['nombreEmpl']       ?? null,
+            'Calibre'         => isset($data['Calibre']) ? (float)$data['Calibre'] : null,
+            'FibraTrama'      => $data['FibraTrama']       ?? null,
+            'CodColor'        => $data['CodColor']         ?? null,
+            'Color'           => $data['Color']            ?? null,
+            'Cantidad'        => isset($data['Cantidad']) ? (float)$data['Cantidad'] : null,
+            'Conos'           => isset($data['Conos']) ? (int)$data['Conos'] : null,
+            'Horas'           => isset($data['Horas']) ? (float)$data['Horas'] : null,
+            'Eficiencia'      => isset($data['Eficiencia']) ? (float)$data['Eficiencia'] : null,
+            'Obs'             => $data['Obs']              ?? null,
+        ];
+
+        try {
+            $registro = TejProduccionReenconado::findOrFail($folio);
+            $registro->update($clean);
+        } catch (\Throwable $e) {
+            Log::error('Actualizar Reenconado fallo', ['folio' => $folio, 'exception' => $e]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+
+        $out = $registro->fresh();
+        $resp = $out->toArray();
+        $resp['Folio'] = $out->Folio;
+        $resp['Date'] = optional($out->Date)->format('Y-m-d');
+
+        return response()->json(['success' => true, 'data' => $resp]);
+    }
+
+    public function destroy(string $folio)
+    {
+        try {
+            $registro = TejProduccionReenconado::findOrFail($folio);
+            $registro->delete();
+            return response()->json(['success' => true]);
+        } catch (\Throwable $e) {
+            Log::error('Eliminar Reenconado fallo', ['folio' => $folio, 'exception' => $e]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }

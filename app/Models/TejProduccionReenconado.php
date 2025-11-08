@@ -12,6 +12,11 @@ class TejProduccionReenconado extends Model
     // SQL Server con esquema dbo
     protected $table = 'dbo.TejProduccionReenconado';
 
+    // Definir llave primaria
+    protected $primaryKey = 'Folio';
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     // La tabla no maneja created_at / updated_at
     public $timestamps = false;
 
