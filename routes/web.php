@@ -593,6 +593,27 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // ============================================
+    // MÓDULO TEJEDORES (600)
+    // ============================================
+    Route::prefix('tejedores')->name('tejedores.')->group(function () {
+        // Configurar - Muestra submódulos nieto (nivel 3) con Dependencia = 605 (o el orden que corresponda)
+        Route::get('/configurar', function() {
+            // Buscar dinámicamente el orden del módulo "Configurar" que depende de Tejedores (600)
+            $configurarModulo = \App\Models\SYSRoles::where('modulo', 'Configurar')
+                ->where('Dependencia', 600)
+                ->where('Nivel', 2)
+                ->first();
+
+            if ($configurarModulo) {
+                return app(\App\Http\Controllers\UsuarioController::class)->showSubModulosConfiguracion($configurarModulo->orden);
+            }
+
+            // Fallback: intentar con 605 si no se encuentra
+            return app(\App\Http\Controllers\UsuarioController::class)->showSubModulosConfiguracion('605');
+        })->name('configurar');
+    });
+
+    // ============================================
     // RUTAS DIRECTAS (COMPATIBILIDAD)
     // ============================================
 
@@ -724,17 +745,6 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     // RUTAS LEGACY (MANTENER POR COMPATIBILIDAD)
     // ============================================
 
-    // Módulo Urdido (mantener por compatibilidad)
-    Route::get('/modulo-urdido', function () {
-        return view('modulos/urdido');
-    });
-    Route::get('ingresar-folio', [UrdidoController::class, 'cargarOrdenesPendientesUrd'])->name('ingresarFolio');
-    Route::post('/urdido/prioridad/mover', [UrdidoController::class, 'mover'])->name('urdido.prioridad.mover');
-    Route::post('/orden-trabajo', [UrdidoController::class, 'cargarDatosUrdido'])->name('produccion.ordenTrabajo');
-    Route::post('/urdido/autoguardar', [UrdidoController::class, 'autoguardar'])->name('urdido.autoguardar');
-    Route::post('/urdido/finalizar', [UrdidoController::class, 'finalizarUrdido'])->name('urdido.finalizar');
-    Route::get('/imprimir-orden-llena-urd/{folio}', [UrdidoController::class, 'imprimirOrdenUrdido'])->name('imprimir.orden.urdido');
-    Route::get('/imprimir-papeletas-pequenias/{folio}', [UrdidoController::class, 'imprimirPapeletas'])->name('imprimir.orden.papeletas');
 
     // Módulo Engomado
     Route::get('/modulo-engomado', function () {
@@ -780,10 +790,6 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::post('/prog/validar-folios', [RequerimientoController::class, 'validarFolios'])->name('prog.validar.folios');
     Route::post('/inventario/seleccion', [RequerimientoController::class, 'step3Store'])->name('inventario.step3.store');
 
-    // Módulo Edición Urdido-Engomado
-    Route::get('/orden-trabajo-editar', [UrdidoController::class, 'cargarDatosOrdenUrdEng'])->name('update.ordenTrabajo');
-    Route::post('/tejido/actualizarUrdidoEngomado', [UrdidoController::class, 'ordenToActualizar'])->name('orden.produccion.update');
-    Route::post('/reservar-inventario', [RequerimientoController::class, 'BTNreservar'])->name('reservar.inventario');
 
     // Módulo Configuración
     Route::get('/modulo-configuracion', [UsuarioController::class, 'showConfiguracion'])->name('configuracion.index');

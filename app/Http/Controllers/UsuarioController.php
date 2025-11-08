@@ -230,7 +230,7 @@ class UsuarioController extends Controller
                 $subModulos[] = [
                     'nombre' => $moduloDB->modulo,
                     'imagen' => $moduloDB->imagen ?? 'configuracion.png',
-                    'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden),
+                    'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden, $moduloDB->Dependencia ?? null),
                     'ruta_tipo' => 'url',
                     'orden' => $moduloDB->orden,
                     'nivel' => $moduloDB->Nivel,
@@ -287,7 +287,7 @@ class UsuarioController extends Controller
                 $subModulos[] = [
                     'nombre' => $moduloDB->modulo,
                     'imagen' => $moduloDB->imagen ?? 'configuracion.png',
-                    'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden),
+                    'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden, $moduloDB->Dependencia),
                     'orden' => $moduloDB->orden,
                     'nivel' => $moduloDB->Nivel,
                     'dependencia' => $moduloDB->Dependencia,
@@ -388,7 +388,7 @@ class UsuarioController extends Controller
                     $subModulos[] = [
                         'nombre' => $moduloDB->modulo,
                         'imagen' => $moduloDB->imagen ?? 'default.png',
-                        'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden),
+                        'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden, $moduloDB->Dependencia),
                         'ruta_tipo' => 'url',
                         'orden' => $moduloDB->orden,
                         'nivel' => $moduloDB->Nivel,
@@ -416,8 +416,19 @@ class UsuarioController extends Controller
     }
 
     // Método auxiliar para generar rutas de sub-módulos
-    private function generarRutaSubModulo($nombreModulo, $orden)
+    private function generarRutaSubModulo($nombreModulo, $orden, $dependencia = null)
     {
+        // PRIMERO: Verificar casos especiales basados en el contexto (dependencia)
+        // "Configurar" puede estar en Tejido (200) o Tejedores (600)
+        if (strtolower(trim($nombreModulo)) === 'configurar') {
+            // Si la dependencia es 600 (Tejedores), usar ruta de tejedores
+            if ($dependencia == 600 || (is_string($dependencia) && strpos($dependencia, '600') === 0)) {
+                return '/tejedores/configurar';
+            }
+            // Por defecto, si es de Tejido (200) o no se especifica, usar ruta de tejido
+            return '/tejido/configurar';
+        }
+
         // PRIMERO: Mapeo de sub-módulos específicos a sus rutas
         // Esto tiene prioridad sobre la detección automática
         $rutasSubModulos = [
@@ -464,7 +475,6 @@ class UsuarioController extends Controller
             'Marcas Finales' => '/tejido/marcas-finales',  // ✅ Nueva ruta descriptiva
             'Inv Trama' => '/tejido/inventario',  // ✅ Nueva ruta descriptiva
             'Producción Reenconado Cabezuela' => '/tejido/produccion-reenconado',
-            'Configurar' => '/tejido/configurar',
 
             // Nietos de Cortes de Eficiencia (nivel 3) - orden 206-1, 206-2 - ESTRUCTURA JERÁRQUICA
             'Nuevos cortes de eficiencia' => '/modulo-cortes-de-eficiencia',
@@ -632,10 +642,10 @@ class UsuarioController extends Controller
 
             $subModulos = [];
             foreach ($subModulosDB as $moduloDB) {
-                $rutaGenerada = $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden);
+                $rutaGenerada = $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden, $moduloDB->Dependencia ?? null);
 
                 // Log temporal para debugging
-                Log::info("Módulo Nivel 3 cargado: {$moduloDB->modulo} (orden: {$moduloDB->orden}) -> Ruta: {$rutaGenerada}");
+                Log::info("Módulo Nivel 3 cargado: {$moduloDB->modulo} (orden: {$moduloDB->orden}, dependencia: {$moduloDB->Dependencia}) -> Ruta: {$rutaGenerada}");
 
                 $subModulos[] = [
                     'nombre' => $moduloDB->modulo,
@@ -802,7 +812,7 @@ class UsuarioController extends Controller
                     $subModulos[] = [
                         'nombre' => $moduloDB->modulo,
                         'imagen' => $moduloDB->imagen ?? 'default.png',
-                        'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden),
+                        'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden, $moduloDB->Dependencia ?? null),
                         'orden' => $moduloDB->orden
                     ];
                 }
