@@ -25,7 +25,7 @@ class TurnoHelper
         // Turno 1: 6:30 AM - 2:30 PM (390 - 870 minutos)
         // Turno 2: 2:30 PM - 10:30 PM (870 - 1350 minutos)
         // Turno 3: 10:30 PM - 6:30 AM (1350 - 390 minutos, cruza medianoche)
-
+        // recibe tomalo del usuario actual, 
         if ($minutosActuales >= 390 && $minutosActuales < 870) {
             return '1'; // 6:30 AM - 2:30 PM
         } elseif ($minutosActuales >= 870 && $minutosActuales < 1350) {

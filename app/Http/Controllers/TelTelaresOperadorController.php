@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\TelTelaresOperador;
+use App\Models\ReqTelares;
+use App\Models\SYSUsuario;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class TelTelaresOperadorController extends Controller
 {
@@ -16,7 +19,6 @@ class TelTelaresOperadorController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
-        $perPage = (int) $request->get('per_page', 15);
 
         $items = TelTelaresOperador::query()
             ->when($q !== '', function ($qry) use ($q) {
@@ -27,10 +29,11 @@ class TelTelaresOperadorController extends Controller
                 });
             })
             ->orderBy('numero_empleado')
-            ->paginate($perPage)
-            ->withQueryString();
+            ->get();
 
-        return view('tel-telares-operador.index', compact('items', 'q'));
+        $telares = ReqTelares::obtenerTodos();
+        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
+        return view('tel-telares-operador.index', compact('items', 'q', 'telares','usuarios'));
     }
 
     /**
@@ -38,7 +41,9 @@ class TelTelaresOperadorController extends Controller
      */
     public function create()
     {
-        return view('tel-telares-operador.create');
+        $telares = ReqTelares::obtenerTodos();
+        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
+        return view('tel-telares-operador.create', compact('telares','usuarios'));
     }
 
     /**
@@ -47,12 +52,21 @@ class TelTelaresOperadorController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'numero_empleado' => ['required', 'string', 'max:30', 'unique:TelTelaresOperador,numero_empleado'],
-            'nombreEmpl'      => ['required', 'string', 'max:150'],
-            'NoTelarId'       => ['nullable', 'string', 'max:10'],
+            'numero_empleado' => ['required', 'string', 'max:30', 'exists:SYSUsuario,numero_empleado', 'unique:TelTelaresOperador,numero_empleado'],
+            'NoTelarId'       => ['required', 'string', 'max:10'],
+            'SalonTejidoId'   => ['required', 'string', 'max:10'],
         ]);
 
-        TelTelaresOperador::create($data);
+        $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
+        $payload = [
+            'numero_empleado' => $data['numero_empleado'],
+            'nombreEmpl'      => $usuario->nombre ?? '',
+            'NoTelarId'       => $data['NoTelarId'],
+            'Turno'           => (string)($usuario->turno ?? ''),
+            'SalonTejidoId'   => $data['SalonTejidoId'],
+        ];
+
+        TelTelaresOperador::create($payload);
 
         return redirect()
             ->route('tel-telares-operador.index')
@@ -65,8 +79,12 @@ class TelTelaresOperadorController extends Controller
      */
     public function edit(TelTelaresOperador $telTelaresOperador)
     {
+        $telares = ReqTelares::obtenerTodos();
+        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
         return view('tel-telares-operador.edit', [
             'item' => $telTelaresOperador,
+            'telares' => $telares,
+            'usuarios' => $usuarios,
         ]);
     }
 
@@ -81,15 +99,32 @@ class TelTelaresOperadorController extends Controller
                 Rule::unique('TelTelaresOperador', 'numero_empleado')
                     ->ignore($telTelaresOperador->getKey(), $telTelaresOperador->getKeyName()),
             ],
-            'nombreEmpl' => ['required', 'string', 'max:150'],
-            'NoTelarId'  => ['nullable', 'string', 'max:10'],
+            'NoTelarId'     => ['required', 'string', 'max:10'],
+            'SalonTejidoId' => ['required', 'string', 'max:10'],
         ]);
 
-        // Si cambia la PK, Eloquent lo maneja porque no es incrementing
-        $telTelaresOperador->update($data);
+        // Recalcular nombre y turno desde SYSUsuario
+        $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
+        $data['nombreEmpl'] = $usuario->nombre ?? $telTelaresOperador->nombreEmpl;
+        $data['Turno'] = (string)($usuario->turno ?? $telTelaresOperador->Turno);
 
-        return redirect()
-            ->route('tel-telares-operador.index')
+        $originalKey = $telTelaresOperador->getKey();
+
+        try {
+            DB::transaction(function () use ($telTelaresOperador, $data, $originalKey) {
+                // Si la PK cambia, actualizar manualmente con where por clave original
+                if ($data['numero_empleado'] !== $originalKey) {
+                    TelTelaresOperador::where($telTelaresOperador->getKeyName(), $originalKey)
+                        ->update($data);
+                } else {
+                    $telTelaresOperador->update($data);
+                }
+            });
+        } catch (\Throwable $e) {
+            return back()->withErrors('Error al actualizar: ' . $e->getMessage())->withInput();
+        }
+
+        return redirect()->route('tel-telares-operador.index')
             ->with('success', 'Operador actualizado correctamente.');
     }
 
@@ -98,10 +133,13 @@ class TelTelaresOperadorController extends Controller
      */
     public function destroy(TelTelaresOperador $telTelaresOperador)
     {
-        $telTelaresOperador->delete();
+        try {
+            $telTelaresOperador->delete();
+        } catch (\Throwable $e) {
+            return back()->withErrors('No se puede eliminar el operador: ' . $e->getMessage());
+        }
 
-        return redirect()
-            ->route('tel-telares-operador.index')
+        return redirect()->route('tel-telares-operador.index')
             ->with('success', 'Operador eliminado correctamente.');
     }
 }

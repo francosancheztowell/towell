@@ -23,6 +23,8 @@ use App\Http\Controllers\ConsultarRequerimientoController;
 use App\Http\Controllers\CodificacionController;
 use App\Http\Controllers\InventarioTelaresController;
 use App\Http\Controllers\TelActividadesBPMController;
+use App\Http\Controllers\TelBpmController;
+use App\Http\Controllers\TelBpmLineController;
 use App\Http\Controllers\TelTelaresOperadorController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
@@ -516,13 +518,22 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/inventario/trama/nuevo-requerimiento/actualizar-cantidad', [NuevoRequerimientoController::class, 'actualizarCantidad'])->name('inventario.trama.nuevo.requerimiento.actualizar.cantidad');
     });
 
-    // =========================
-    // TELARES · CRUD AUXILIARES
-    // =========================
     // Actividades BPM
-    Route::resource('c', TelActividadesBPMController::class)
-        ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
-        ->names('tel-actividades-bpm');
+    // Route::resource('tel-actividades-bpm', TelActividadesBPMController::class)
+    //     ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
+    //     ->names('tel-actividades-bpm');
+
+        Route::resource('tel-bpm', TelBpmController::class)
+    ->parameters(['tel-bpm' => 'folio'])   // PK string
+    ->names('tel-bpm');                    // tel-bpm.index, tel-bpm.store, etc.
+
+Route::patch('tel-bpm/{folio}/terminar',  [TelBpmController::class, 'finish'])->name('tel-bpm.finish');
+Route::patch('tel-bpm/{folio}/autorizar', [TelBpmController::class, 'authorizeDoc'])->name('tel-bpm.authorize');
+Route::patch('tel-bpm/{folio}/rechazar',  [TelBpmController::class, 'reject'])->name('tel-bpm.reject');
+
+Route::get ('tel-bpm/{folio}/lineas',           [TelBpmLineController::class, 'index'])->name('tel-bpm-line.index');
+Route::post('tel-bpm/{folio}/lineas/toggle',    [TelBpmLineController::class, 'toggle'])->name('tel-bpm-line.toggle');
+Route::post('tel-bpm/{folio}/lineas/bulk-save', [TelBpmLineController::class, 'bulkSave'])->name('tel-bpm-line.bulk');
 
     // Telares por Operador
     Route::resource('tel-telares-operador', TelTelaresOperadorController::class)
@@ -602,18 +613,23 @@ Route::middleware(['auth'])->group(function () {
         // Configurar - Muestra submódulos nieto (nivel 3) con Dependencia = 605 (o el orden que corresponda)
         Route::get('/configurar', function() {
             // Buscar dinámicamente el orden del módulo "Configurar" que depende de Tejedores (600)
-            $configurarModulo = \App\Models\SYSRoles::where('modulo', 'Configurar')
+            $configurarModulo = SYSRoles::where('modulo', 'Configurar')
                 ->where('Dependencia', 600)
                 ->where('Nivel', 2)
                 ->first();
 
             if ($configurarModulo) {
-                return app(\App\Http\Controllers\UsuarioController::class)->showSubModulosConfiguracion($configurarModulo->orden);
+                return app(UsuarioController::class)->showSubModulosConfiguracion($configurarModulo->orden);
             }
 
             // Fallback: intentar con 605 si no se encuentra
-            return app(\App\Http\Controllers\UsuarioController::class)->showSubModulosConfiguracion('605');
+            return app(UsuarioController::class)->showSubModulosConfiguracion('605');
         })->name('configurar');
+
+        // BPM Tejedores · redirige al listado principal del recurso
+        Route::get('/bpm', function () {
+            return redirect()->route('tel-bpm.index');
+        })->name('bpm');
     });
 
     // ============================================
@@ -825,8 +841,4 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
 
     // RUTAS DE MÓDULOS (MOVIDAS A MÓDULOS ORGANIZADOS)
 
-
-    // ============================================
-    // RUTAS DE TEJEDORES/CONFIGURACION
-    // ============================================
 });

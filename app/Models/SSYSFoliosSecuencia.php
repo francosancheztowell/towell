@@ -124,8 +124,18 @@ class SSYSFoliosSecuencia extends Model
             // Bloquear y tratar de obtener por prefijo
             $row = DB::table($table)->where($c['pref'], $prefijo)->lockForUpdate()->first();
             if (!$row) {
-                // Crear configuración por defecto si no existe (consecutivo = 0)
-                DB::table($table)->insert([$c['mod'] => 'Reenconado', $c['pref'] => $prefijo, $c['con'] => 0]);
+                // Crear configuración por defecto si no existe.
+                // Inicializa el consecutivo con el máximo existente en TelBPM para el prefijo dado.
+                $maxFolio = DB::table('TelBPM')
+                    ->where('Folio', 'like', $prefijo.'%')
+                    ->orderBy('Folio', 'desc')
+                    ->value('Folio');
+                $start = 0;
+                if ($maxFolio) {
+                    $start = (int) substr($maxFolio, strlen($prefijo));
+                }
+                // Usamos 'TelBPM' como módulo por defecto para BPM Tejedores
+                DB::table($table)->insert([$c['mod'] => 'TelBPM', $c['pref'] => $prefijo, $c['con'] => $start]);
                 $row = DB::table($table)->where($c['pref'], $prefijo)->lockForUpdate()->first();
                 if (!$row) {
                     throw new \RuntimeException("No fue posible crear/obtener la configuración de folio para prefijo='{$prefijo}'");
