@@ -6,7 +6,7 @@
     <x-layout-scripts />
 </head>
 
-<body class="min-h-screen flex flex-col overflow-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative" style="touch-action: pan-y pinch-zoom;">
+<body class="min-h-screen flex flex-col overflow-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative" style="touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;">
     <x-global-loader />
 
   <!-- NAVBAR -->

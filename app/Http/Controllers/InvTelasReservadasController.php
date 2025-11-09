@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\InvTelasReservadas;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -150,11 +152,30 @@ class InvTelasReservadasController extends Controller
                 'InventQty' => ['nullable','numeric'],
                 'ProdDate'  => ['nullable','date'],
 
+                // NumeroEmpleado y NombreEmpl se asignan automáticamente desde el usuario autenticado
                 'NumeroEmpleado' => ['nullable','string','max:20'],
                 'NombreEmpl'     => ['nullable','string','max:120'],
             ]);
 
+            // Asignar Status
             $data['Status'] = 'Reservado';
+
+            // ProdDate se procesa automáticamente por el mutator del modelo
+            // El mutator convierte fechas inválidas (1900-01-01) a NULL y valida el formato
+
+            // Obtener información del usuario autenticado y asignar automáticamente
+            // Estos campos siempre se toman del usuario autenticado para garantizar la integridad
+            $usuario = Auth::user();
+            if ($usuario) {
+                // Asignar automáticamente desde el usuario autenticado
+                $data['NumeroEmpleado'] = $usuario->numero_empleado ?? null;
+                $data['NombreEmpl'] = $usuario->nombre ?? null;
+            } else {
+                // Si no hay usuario autenticado, limpiar estos campos (no debería pasar en producción)
+                $data['NumeroEmpleado'] = null;
+                $data['NombreEmpl'] = null;
+                Log::warning('Reservar: No hay usuario autenticado', ['request' => $request->all()]);
+            }
 
             $created = false;
             $msg = 'Pieza reservada correctamente';
@@ -176,8 +197,8 @@ class InvTelasReservadasController extends Controller
                 'message' => $msg,
             ]);
         } catch (Throwable $e) {
-            Log::error('Reservar error', ['msg'=>$e->getMessage()]);
-            return response()->json(['success'=>false,'message'=>'Error al reservar la pieza'], 500);
+            Log::error('Reservar error', ['msg'=>$e->getMessage(), 'trace'=>$e->getTraceAsString()]);
+            return response()->json(['success'=>false,'message'=>'Error al reservar la pieza: ' . $e->getMessage()], 500);
         }
     }
 
@@ -284,6 +305,34 @@ class InvTelasReservadasController extends Controller
     {
         $cn = DB::connection(self::TI_CONN);
 
+        // Parámetros base en orden: manteniendo legibilidad con comentarios
+        $params = [
+            // CASE Tipo: pattern Rizo
+            self::PATTERN_RIZO,
+            // CASE Tipo: pattern Pie
+            self::PATTERN_PIE,
+            // JOIN InventDim: DATAAREAID
+            self::DATAAREA,
+            // JOIN InventDim: InventLocationId (A-JUL/TELA)
+            self::LOC_TELA,
+            // LEFT JOIN InventSerial: DATAAREAID
+            self::DATAAREA,
+            // WHERE: DATAAREAID
+            self::DATAAREA,
+            // WHERE: ItemId LIKE pattern Rizo
+            self::PATTERN_RIZO,
+            // WHERE: ItemId LIKE pattern Pie
+            self::PATTERN_PIE,
+        ];
+
+        // Consulta SQL: Determinar Tipo basado en patrones del ItemId
+        // Parámetros en orden:
+        // 1-2: CASE Tipo (PATTERN_RIZO, PATTERN_PIE)
+        // 3: JOIN InventDim DATAAREAID
+        // 4: JOIN InventDim InventLocationId
+        // 5: LEFT JOIN InventSerial DATAAREAID
+        // 6: WHERE DATAAREAID
+        // 7-8: WHERE ItemId LIKE (PATTERN_RIZO, PATTERN_PIE)
         $sql = "
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
@@ -317,24 +366,15 @@ WHERE s.DATAAREAID   = ?
   AND s.AvailPhysical > 0
   AND (s.ItemId LIKE ? OR s.ItemId LIKE ?)
 ";
-        $params = [
-            self::PATTERN_RIZO,
-            self::PATTERN_PIE,
-            self::DATAAREA,
-            self::LOC_TELA,
-            self::DATAAREA,
-            self::DATAAREA,
-            self::PATTERN_RIZO,
-            self::PATTERN_PIE,
-        ];
 
-        // Aplicar filtros adicionales
+        // Aplicar filtros adicionales dinámicos
         foreach ($filtros as $f) {
             $col = $f['columna'] ?? null;
             $val = trim($f['valor'] ?? '');
             if (!$col || $val === '') continue;
 
             if ($col === 'Tipo') {
+                // Filtro por Tipo: Rizo o Pie
                 $v = mb_strtolower($val, 'UTF-8');
                 if (strpos($v, 'rizo') !== false) {
                     $sql .= " AND s.ItemId LIKE ? ";
@@ -347,7 +387,7 @@ WHERE s.DATAAREAID   = ?
             }
 
             if ($col === 'ProdDate') {
-                // Igualdad por fecha (DATE)
+                // Filtro por fecha de producción
                 try {
                     $date = \Carbon\Carbon::parse($val)->format('Y-m-d');
                     $sql .= " AND CAST(ser.ProdDate AS DATE) = ? ";
@@ -360,7 +400,8 @@ WHERE s.DATAAREAID   = ?
             }
 
             if ($col === 'InventQty' || $col === 'Metros') {
-                $expr = self::FILTER_SQL[$col]; // numéricos
+                // Filtro numérico: InventQty o Metros
+                $expr = self::FILTER_SQL[$col];
                 if (is_numeric($val)) {
                     $sql .= " AND $expr = ? ";
                     $params[] = (float)$val;
@@ -371,7 +412,7 @@ WHERE s.DATAAREAID   = ?
                 continue;
             }
 
-            // Texto genérico
+            // Filtro de texto genérico para otras columnas
             if (isset(self::FILTER_SQL[$col])) {
                 $expr = self::FILTER_SQL[$col];
                 $sql  .= " AND LOWER(CAST($expr AS NVARCHAR(100))) LIKE ? ";

@@ -49,7 +49,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
                 // Producto: ampliar alias y permitir fallback luego si sigue nulo
                 'NombreProducto'  => $this->parseString($this->getValue($row, [
-                    'Producto','Nombre Producto','nombre_producto','producto',
+                    'NombreProducto','Nombre Producto','nombre_producto','producto',
                     'Nombre del Producto','Producto Final','Producto/Nombre','prod'
                 ]), 200),
                 'TamanoClave'     => $this->parseString($this->getValue($row, ['Clave Mod.','Clave mod.','Clave Mod','Tamaño Clave','Tamano Clave','tamano_clave']), 40),
@@ -59,7 +59,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'CuentaPie'       => $this->parseString($this->getValue($row, ['Cuenta Pie','cuenta_pie']), 20),
                 'CodColorCtaPie'  => $this->parseString($this->getValue($row, ['Código Color Pie','Codigo Color Pie','Cod Color Cta Pie','cod color cta pie','cod_color_cta_pie']), 20),
                 'NombreCPie'      => $this->parseString($this->getValue($row, ['Color Pie','Nombre C Pie','nombre c pie','nombre_cpie']), 120),
-
+                'FibraPie'        => $this->parseString($this->getValue($row, ['Fibra Pie','fibra_pie','Hilo Pie','hilo_pie']), 30),
                 'AnchoToalla'     => $this->parseInteger($this->getValue($row, ['Ancho por Toalla','Ancho Toalla','ancho_toalla'])),
 
                 /* ===== TRAMA ===== */
@@ -73,6 +73,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 // Campo blanco (base): se rellena desde ReqModelosCodificados
                 'CalibreTrama'    => null,
                 'FibraTrama'      => $this->parseString($this->getValue($row, ['Fibra Trama','fibra_trama']), 30),
+                'DobladilloId'    => $this->parseString($this->getValue($row, ['Dobladillo','Dob']), 20),
                 'PasadasTrama'    => $this->parseInteger($this->getValue($row, ['Pasadas Tra','Pasadas Trama','pasadas_trama'])),
 
                 /* ===== COMBINACIONES 1..5 ===== */
@@ -121,8 +122,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'Luchaje'         => $this->parseInteger($this->getValue($row, ['Lcr','Luchaje','luchaje'])),
                 'PesoCrudo'       => $this->parseInteger($this->getValue($row, ['Pcr','Peso Crudo','peso crudo','peso_crudo'])),
                 'PesoGRM2'        => $this->parseInteger($this->getValue($row, [
-                                        'Peso (gr/m²)','Peso GRM2','peso grm2','peso_grm2',
-                                        'Peso    (gr / m²)','peso gr m 2','peso_gr_m_2'
+                                        'Peso (gr/m²)','Peso GRM2','peso grm2','peso_gr_m_2'
                 ])),
                 'DiasEficiencia'  => $this->parseFloat($this->getValue($row, ['Días Ef.','Dias Ef.','Días Eficiencia','Dias Eficiencia','dias_eficiencia'])),
 
@@ -184,10 +184,13 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'NoTiras'         => $this->parseInteger($this->getValue($row, ['Tiras','No Tiras','no_tiras'])),
 
                 // Pedido / Producción
+                'TotalPedido'     => $this->parseFloat($this->getValue($row, ['Total Pedido','Total Ped','total_pedido','total pedido','Total'])),
+                'Produccion'      => $this->parseFloat($this->getValue($row, ['Producción','Produccion','produccion','Producción'])),
+                'SaldoPedido'     => $this->parseFloat($this->getValue($row, ['Saldos','Saldo Pedido','saldo_pedido','saldos'])),
+                'SaldoMarbete'    => $this->parseInteger($this->getValue($row, ['Saldo Marbete','saldo_marbete','Marbete','marbete'])),
                 'ProgramarProd'   => $this->parseDate($this->getValue($row, ['Day Sheduling','Day Scheduling','Día Scheduling','Dia Scheduling','programar_prod'])),
                 'NoProduccion'    => $this->parseString($this->getValue($row, ['Orden Prod.','Orden Prod','no_produccion']), 30),
                 'Programado'      => $this->parseDate($this->getValue($row, ['INN','Inn','programado'])),
-                'SaldoPedido'     => $this->parseFloat($this->getValue($row, ['Saldos','Saldo Pedido','saldo_pedido','saldos'])),
 
                 // Calc4..6 en BD son FLOAT
                 'Calc4'           => $this->parseFloat($this->getValue($row, ['Calc4','calc4','Calc 4'])),

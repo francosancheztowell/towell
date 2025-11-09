@@ -266,23 +266,52 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ------------------------------
-// Prevenir scroll en body/html - especialmente en tablets
+// Optimización para tablets y móviles
 // ------------------------------
 function setupBodyScrollGuards() {
     const body = document.body;
     if (!body) return;
 
+    // Detectar dispositivo (tablet o móvil)
+    const isTablet = window.innerWidth >= 768 && window.innerWidth <= 1024;
+    const isMobile = window.innerWidth < 768;
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    // Prevenir zoom accidental con doble toque (solo en móviles)
+    let lastTouchEnd = 0;
+    if (isMobile || isTouchDevice) {
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+    }
+
+    // Guard para scroll: solo prevenir en elementos no scrollables
     const pointerGuard = (e) => {
         const target = e.target;
-        const scrollable = target && target.closest('.overflow-y-auto, .overflow-auto, [style*="overflow-y"], [style*="overflow: auto"]');
-        if (!scrollable) {
-            e.preventDefault();
+        const scrollable = target && target.closest('.overflow-y-auto, .overflow-auto, [style*="overflow-y"], [style*="overflow: auto"], textarea, select, [contenteditable="true"]');
+        if (!scrollable && isStandaloneMode()) {
+            // Solo prevenir en modo standalone para evitar scroll accidental
+            const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+            if (!isInput) {
+                e.preventDefault();
+            }
         }
     };
 
-    body.addEventListener('touchmove', pointerGuard, { passive: false });
-    body.addEventListener('wheel', pointerGuard, { passive: false });
+    // Aplicar guards solo en modo standalone
+    if (isStandaloneMode()) {
+        body.addEventListener('touchmove', pointerGuard, { passive: false });
+        // En tablets, ser más permisivo con el scroll
+        if (!isTablet) {
+            body.addEventListener('wheel', pointerGuard, { passive: false });
+        }
+    }
 
+    // Prevenir navegación con teclado en modo standalone
     document.addEventListener('keydown', function(e) {
         const activeElement = document.activeElement;
         const scrollable = activeElement && (
@@ -293,7 +322,8 @@ function setupBodyScrollGuards() {
             activeElement.isContentEditable
         );
 
-        if (!scrollable && (
+        // Solo prevenir en modo standalone y cuando no hay elemento scrollable activo
+        if (isStandaloneMode() && !scrollable && (
             e.key === 'ArrowDown' || e.key === 'ArrowUp' ||
             e.key === 'PageDown' || e.key === 'PageUp' ||
             (e.key === ' ' && !activeElement.tagName.match(/INPUT|TEXTAREA|BUTTON/))
@@ -302,24 +332,46 @@ function setupBodyScrollGuards() {
         }
     });
 
+    // Layout fijo solo en modo standalone (para evitar problemas de viewport)
     const applyFixedLayout = () => {
-        document.documentElement.style.position = 'fixed';
-        document.documentElement.style.width = '100%';
-        document.documentElement.style.height = '100%';
-        body.style.position = 'fixed';
-        body.style.width = '100%';
-        body.style.height = '100%';
-        body.style.top = '0';
-        body.style.left = '0';
+        if (isStandaloneMode()) {
+            // En tablets, no aplicar layout fijo para permitir mejor uso del espacio
+            if (!isTablet) {
+                document.documentElement.style.height = '100vh';
+                document.documentElement.style.overflow = 'hidden';
+                body.style.height = '100vh';
+                body.style.overflow = 'hidden';
+            } else {
+                // En tablets, usar viewport completo pero permitir scroll interno
+                document.documentElement.style.height = '100%';
+                body.style.height = '100%';
+            }
+        }
     };
 
-    if (isStandaloneMode()) {
-        if (document.readyState === 'complete') {
-            applyFixedLayout();
-        } else {
-            window.addEventListener('load', applyFixedLayout, { once: true });
-        }
+    if (document.readyState === 'complete') {
+        applyFixedLayout();
+    } else {
+        window.addEventListener('load', applyFixedLayout, { once: true });
     }
+
+    // Manejar cambios de orientación
+    window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+            applyFixedLayout();
+            // Forzar redibujado en algunos navegadores
+            window.dispatchEvent(new Event('resize'));
+        }, 100);
+    });
+
+    // Manejar cambios de tamaño de ventana (útil en tablets)
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            applyFixedLayout();
+        }, 250);
+    });
 }
 
 // Exponer funciones globalmente si se necesitan

@@ -1,9 +1,10 @@
-const CACHE = "pwa-v4";
+const CACHE = "pwa-v7";
 const ASSETS = [
   "/", "/offline",
-  "/manifest.webmanifest",
+  "/manifest.json",
   "/js/app-pwa.js",
-  "/images/fotosTowell/TOWELLIN.png"
+  "/images/fotosTowell/TOWELLIN.png",
+  "/browserconfig.xml"
 ];
 
 self.addEventListener("install", (e) => {

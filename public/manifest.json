@@ -1,0 +1,92 @@
+{
+  "name": "Towell",
+  "short_name": "Towell",
+  "description": "Sistema de gestión de producción y planificación empresarial Towell",
+  "start_url": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui", "window-controls-overlay"],
+  "background_color": "#0f4c81",
+  "theme_color": "#0f4c81",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "es",
+  "dir": "ltr",
+  "categories": ["productivity", "business", "manufacturing"],
+  "iarc_rating_id": "",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/images/fotosTowell/TOWELLIN.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/fotosTowell/TOWELLIN.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/fotosTowell/TOWELLIN.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/images/fotosTowell/TOWELLIN.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/fotosTowell/TOWELLIN.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/fotosTowell/TOWELLIN.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/fotosTowell/TOWELLIN.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/fotosTowell/TOWELLIN.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/fotosTowell/TOWELLIN.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/fotosTowell/TOWELLIN.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/fotosTowell/TOWELLIN.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [],
+  "related_applications": [],
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
+}
+

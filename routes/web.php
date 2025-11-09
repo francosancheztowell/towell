@@ -558,12 +558,15 @@ Route::middleware(['auth'])->group(function () {
     // ============================================
     Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () {
         Route::get('/reservar-programar', [\App\Http\Controllers\ReservarProgramarController::class, 'index'])->name('reservar.programar');
-        Route::post('/inventario-telares', [\App\Http\Controllers\ReservarProgramarController::class, 'getInventarioTelares'])->name('inventario.telares');
+        Route::get('/programacion-requerimientos', [\App\Http\Controllers\ReservarProgramarController::class, 'programacionRequerimientos'])->name('programacion.requerimientos');
+        Route::post('/programacion-requerimientos/resumen-semanas', [\App\Http\Controllers\ReservarProgramarController::class, 'getResumenSemanas'])->name('programacion.resumen.semanas');
+        Route::get('/inventario-telares', [\App\Http\Controllers\ReservarProgramarController::class, 'getInventarioTelares'])->name('inventario.telares');
         Route::get('/inventario-disponible', [\App\Http\Controllers\InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible.get');
         Route::post('/inventario-disponible', [\App\Http\Controllers\InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible');
         Route::post('/programar-telar', [\App\Http\Controllers\ReservarProgramarController::class, 'programarTelar'])->name('programar.telar');
         Route::post('/actualizar-telar', [\App\Http\Controllers\ReservarProgramarController::class, 'actualizarTelar'])->name('actualizar.telar');
         Route::post('/reservar-inventario', [\App\Http\Controllers\InvTelasReservadasController::class, 'reservar'])->name('reservar.inventario');
+        Route::post('/liberar-telar', [\App\Http\Controllers\ReservarProgramarController::class, 'liberarTelar'])->name('liberar.telar');
         Route::get('/column-options', [\App\Http\Controllers\ReservarProgramarController::class, 'getColumnOptions'])->name('column.options');
         Route::get('/reservas/{noTelar}', [\App\Http\Controllers\InvTelasReservadasController::class, 'porTelar'])->name('reservas.porTelar');
         Route::post('/reservas/cancelar', [\App\Http\Controllers\InvTelasReservadasController::class, 'cancelar'])->name('reservas.cancelar');
