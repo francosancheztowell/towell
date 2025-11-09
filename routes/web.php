@@ -112,10 +112,6 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
 
             $nuevoModulo = SYSRoles::create($data);
 
-            // Verificar usuarios existentes
-            $usuariosCount = \Illuminate\Support\Facades\DB::table('SYSUsuario')->count();
-            \Illuminate\Support\Facades\Log::info('Usuarios existentes en SYSUsuario', ['count' => $usuariosCount]);
-
             // Asignar permisos del nuevo módulo a todos los usuarios existentes usando SQL robusto
             $acceso = $data['acceso'] ? 1 : 0;
             $crear = $data['crear'] ? 1 : 0;
@@ -124,23 +120,7 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
             $registrar = $data['reigstrar'] ? 1 : 0;
             $fechaActual = now()->format('Y-m-d H:i:s');
 
-            \Illuminate\Support\Facades\Log::info('Datos originales del request', [
-                'acceso_request' => $request->has('acceso'),
-                'crear_request' => $request->has('crear'),
-                'modificar_request' => $request->has('modificar'),
-                'eliminar_request' => $request->has('eliminar'),
-                'reigstrar_request' => $request->has('reigstrar'),
-            ]);
 
-            \Illuminate\Support\Facades\Log::info('Datos para asignar permisos', [
-                'idrol' => $nuevoModulo->idrol,
-                'acceso' => $acceso,
-                'crear' => $crear,
-                'modificar' => $modificar,
-                'eliminar' => $eliminar,
-                'registrar' => $registrar,
-                'fecha' => $fechaActual
-            ]);
 
             // SQL robusto para insertar y forzar permisos a todos los usuarios existentes
             $sql = "

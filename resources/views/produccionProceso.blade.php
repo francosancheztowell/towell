@@ -7,7 +7,7 @@
 @endsection
 
 @section('content')
-    <div class="container" id="globalLoader">
+    <div class="container mx-auto" id="globalLoader">
         <!-- Grid de módulos usando componente -->
         <x-module-grid :modulos="$modulos" columns="xl:grid-cols-4" :filterConfig="true" />
     </div>

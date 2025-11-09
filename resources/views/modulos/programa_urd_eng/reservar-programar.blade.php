@@ -557,8 +557,19 @@ const selection = {
         }
 
         if (checked){
+            // Verificar que el telar no esté reservado antes de agregarlo a la selección múltiple
+            if (item.is_reservado) {
+                Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar reservado',text:'No se puede usar en selección múltiple',showConfirmButton:false,timer:2000});
+                if (cb) cb.checked = false; return;
+            }
+            
             if (state.selectedTelares.length > 0){
                 const ref = state.selectedTelares[0];
+                // Verificar que el telar de referencia no esté reservado
+                if (ref.is_reservado) {
+                    Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar reservado en selección',text:'No se puede agregar más telares a una selección que contiene telares reservados',showConfirmButton:false,timer:3000});
+                    if (cb) cb.checked = false; return;
+                }
                 if (!sameGroup(item, ref)){
                     Swal.fire({toast:true,position:'top-end',icon:'warning',title:'Selección incompatible',text:'Solo puedes seleccionar telares con el mismo Tipo, Calibre, Hilo y Salón. La cuenta puede variar.',showConfirmButton:false,timer:3000});
                     if (cb) cb.checked = false; return;
@@ -675,11 +686,17 @@ const selection = {
         const hasMultipleSelection = Array.isArray(state.selectedTelares) && state.selectedTelares.length > 0;
         const hasIndividualSelection = state.selectedTelar && state.selectedTelar.no_telar;
 
-
-
-        // PRIORIDAD: Si hay selección múltiple, habilitar Programar
+        // PRIORIDAD: Si hay selección múltiple, verificar que NINGUNO esté reservado
         if (hasMultipleSelection) {
-            btnProgramar.disabled = false;
+            // Verificar si algún telar en la selección múltiple está reservado
+            const hasReservedTelar = state.selectedTelares.some(t => t.is_reservado === true);
+            if (hasReservedTelar) {
+                // Si hay algún telar reservado, NO permitir programar
+                btnProgramar.disabled = true;
+            } else {
+                // Si ningún telar está reservado, permitir programar
+                btnProgramar.disabled = false;
+            }
         } else if (hasIndividualSelection && state.selectedTelar && !state.selectedTelar.is_reservado) {
             // Si hay selección individual y no está reservado, también habilitar
             btnProgramar.disabled = false;

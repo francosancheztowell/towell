@@ -15,14 +15,16 @@
                 <div class="flex items-center justify-between">
         <!-- Izquierda -->
         <div class="flex items-center gap-2 md:gap-3">
-            <button id="btn-back" class="opacity-0 invisible pointer-events-none w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-blue-200 hover:bg-blue-400 text-black rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
-                title="Volver atrás" aria-label="Volver atrás">
-                    <i class="fas fa-chevron-left text-lg md:text-xl"></i>
+            <button id="btn-back" class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 {{ Route::currentRouteName() === 'produccion.index' ? 'bg-white text-white opacity-0 pointer-events-none' : 'bg-blue-200 hover:bg-blue-400 text-black opacity-100' }}"
+                title="Volver atrás" aria-label="Volver atrás" {{ Route::currentRouteName() === 'produccion.index' ? 'disabled' : '' }}>
+                    <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
             </button>
 
                     <a href="{{ route('produccion.index') }}" class="flex items-center">
-                            <img src="{{ asset('images/fondosTowell/logo.png') }}" alt="Logo Towell" class="h-10 md:h-12">
-                        </a>
+                        <img src="{{ asset('images/fondosTowell/logo.png') }}" alt="Logo Towell" class="h-10 md:h-12">
+                    </a>
                     </div>
 
         <!-- Centro -->
@@ -37,6 +39,16 @@
 
         <!-- Derecha -->
         <div class="flex items-center gap-4">
+          <!-- Botón de instalar PWA (visible en tablets y móviles) -->
+                        <button id="btn-install" 
+                                class="hidden w-10 h-10 md:w-12 md:h-12 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
+                                title="Instalar aplicación Towell" 
+                                aria-label="Instalar aplicación Towell"
+                                style="display: none;">
+                            <svg class="w-5 h-5 md:w-6 md:h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                        </button>
           <!-- Botones específicos para Telares -->
                         @if(request()->routeIs('planeacion.catalogos.telares') || request()->routeIs('telares.index'))
                             <x-action-buttons route="telares" :showFilters="true" />

@@ -18,6 +18,12 @@
     <meta name="msapplication-TileColor" content="#0f4c81">
     <meta name="msapplication-TileImage" content="{{ asset('images/fotosTowell/TOWELLIN.png') }}">
     <meta name="msapplication-config" content="{{ asset('browserconfig.xml') }}">
+    
+    <!-- PWA - Mejor soporte para tablets -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Towell">
+    <meta name="msapplication-starturl" content="/">
+    <meta name="msapplication-tap-highlight" content="no">
 
     <!-- iOS: hace que al "Añadir a pantalla de inicio" abra como app -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -49,6 +55,7 @@
 
     <!-- Preload -->
     <link rel="preload" as="image" href="{{ asset('images/fondosTowell/logo.png') }}">
+    <link rel="preload" as="image" href="{{ asset('images/fondosTowell/TOWELLIN.png') }}" fetchpriority="high">
     @if(file_exists(public_path('images/fotos_usuarios/TOWELLIN.png')))
         <link rel="preload" as="image" href="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}">
     @endif

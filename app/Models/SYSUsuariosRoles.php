@@ -41,17 +41,35 @@ class SYSUsuariosRoles extends Model
     }
 
     /**
-     * Obtener módulos permitidos para un usuario específico
+     * Relación con Usuario
      */
-    public static function getModulosPermitidos($numeroEmpleado)
+    public function usuario()
     {
-        return self::join('SYSRoles as r', 'SYSUsuariosRoles.idrol', '=', 'r.idrol')
-                   ->join('SYSUsuario as u', 'SYSUsuariosRoles.idusuario', '=', 'u.idusuario')
-                   ->where('u.numero_empleado', $numeroEmpleado)
-                   ->where('SYSUsuariosRoles.acceso', true)
-                   ->select('r.*')
-                   ->orderBy('r.orden')
-                   ->get();
+        return $this->belongsTo(Usuario::class, 'idusuario', 'idusuario');
+    }
+
+    /**
+     * Scope para permisos con acceso
+     */
+    public function scopeConAcceso($query)
+    {
+        return $query->where('acceso', true);
+    }
+
+    /**
+     * Scope para un usuario específico
+     */
+    public function scopePorUsuario($query, $idusuario)
+    {
+        return $query->where('idusuario', $idusuario);
+    }
+
+    /**
+     * Scope para un rol específico
+     */
+    public function scopePorRol($query, $idrol)
+    {
+        return $query->where('idrol', $idrol);
     }
 }
 

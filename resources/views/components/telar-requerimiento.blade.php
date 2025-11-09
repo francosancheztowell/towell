@@ -1,7 +1,7 @@
 @props([
     'telar',
     'ordenSig' => null,
-    'salon' => 'Jacquard',
+    'salon' => '',
     'dias' => 7,
     'turnos' => 3
 ])
@@ -208,8 +208,12 @@
         // Configurar event listeners para checkboxes con datos específicos de este telar
         setupRequerimientoCheckboxes(telarId, telarData, ordenSigData, salonTelar);
 
-        // Cargar requerimientos existentes (filtrado por salón)
-        loadRequerimientos(telarId, salonTelar);
+        // Esperar a que las tablas estén renderizadas antes de cargar requerimientos
+        // Usar setTimeout para asegurar que el DOM esté completamente renderizado
+        setTimeout(() => {
+            // Cargar requerimientos existentes (filtrado por salón)
+            loadRequerimientos(telarId, salonTelar);
+        }, 100);
 
         // Cargar inventario de telares al inicio (solo una vez)
         if (!window.inventarioCargado) {
@@ -222,8 +226,8 @@
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', inicializarTelar);
     } else {
-        // DOM ya está listo, ejecutar inmediatamente
-        inicializarTelar();
+        // DOM ya está listo, ejecutar después de un pequeño delay para asegurar que las tablas estén renderizadas
+        setTimeout(inicializarTelar, 50);
     }
 })();
 
@@ -241,7 +245,31 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     const fila = checkbox.closest('tr');
     const tabla = fila.closest('table');
     const fechaElement = tabla.querySelector('th');
-    const fecha = fechaElement ? fechaElement.innerText.trim() : '';
+
+    // Verificar si el header tiene una fecha modificada (fecha antigua)
+    let fecha = '';
+    let fechaISO = null;
+
+    if (fechaElement) {
+        // Si el header tiene una fecha original (modificada), usar esa fecha
+        const fechaOriginalAttr = fechaElement.getAttribute('data-fecha-original');
+        const fechaCompletaAttr = fechaElement.getAttribute('data-fecha-completa');
+
+        if (fechaOriginalAttr || fechaCompletaAttr) {
+            // Usar la fecha completa del atributo si está disponible
+            fechaISO = fechaCompletaAttr || fechaOriginalAttr;
+            console.log(`📅 Usando fecha modificada del header: ${fechaISO}`);
+
+            // Convertir fecha ISO a formato dd/mm para el texto
+            if (fechaISO) {
+                const [y, m, d] = fechaISO.split('-');
+                fecha = `${d}/${m}`;
+            }
+        } else {
+            // Usar el texto del header normalmente
+            fecha = fechaElement.innerText.trim();
+        }
+    }
 
     const valorCheckbox = checkbox.value;
     const tipo = checkbox.dataset.tipo;
@@ -269,7 +297,12 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     });
 
     // Convertir fecha del formato dd/mm a formato ISO (YYYY-MM-DD)
-    function convertirFecha(fechaTexto) {
+    function convertirFecha(fechaTexto, fechaISOExistente) {
+        // Si ya tenemos una fecha ISO (del header modificado), usarla directamente
+        if (fechaISOExistente) {
+            return fechaISOExistente;
+        }
+
         // Extraer solo la fecha dd/mm del texto (puede incluir día de la semana)
         const fechaMatch = fechaTexto.match(/(\d{1,2})\/(\d{1,2})/);
         if (fechaMatch) {
@@ -285,13 +318,15 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     const cuentaSeleccionada = tipo === 'rizo' ? cuentaRizo : cuentaPie;
     const calibreSeleccionado = tipo === 'rizo' ? calibreRizo : calibrePie;
 
-    // Convertir fecha y validar
-    const fechaConvertida = convertirFecha(fecha);
+    // Convertir fecha y validar (usar fechaISO si está disponible del header modificado)
+    const fechaConvertida = convertirFecha(fecha, fechaISO);
     if (!fechaConvertida) {
         alert('Error al extraer la fecha del calendario. Intente de nuevo.');
         checkbox.checked = false;
         return;
     }
+
+    console.log(`💾 Guardando registro con fecha: ${fechaConvertida} (${fechaISO ? 'fecha modificada del header' : 'fecha del calendario'})`);
 
     // Verificar que tenemos cuenta válida (calibre puede ser null)
     if (!cuentaSeleccionada || cuentaSeleccionada === '') {
@@ -393,47 +428,345 @@ function loadRequerimientos(telarId, salon) {
         .then(json => {
             const registros = json?.data || [];
 
-            // Limitar la búsqueda al contenedor del telar correspondiente
-            const container = document.getElementById(`telar-${telarId}`) || document;
-            const fechasTablas = container.querySelectorAll('th');
-
-            // Limpiar todos los checkboxes SOLO dentro de este telar
-            container.querySelectorAll(`input[data-telar="${telarId}"]`).forEach(checkbox => {
-                checkbox.checked = false;
+            // Buscar todas las tablas que contienen checkboxes de este telar
+            // IMPORTANTE: Las tablas deben estar en orden (primera = hoy)
+            const todasLasTablasDelDocumento = Array.from(document.querySelectorAll('table'));
+            const todasLasTablasDelTelar = todasLasTablasDelDocumento.filter(table => {
+                const tieneCheckboxDelTelar = table.querySelector(`input[data-telar="${telarId}"]`) !== null;
+                return tieneCheckboxDelTelar;
             });
 
-            // Marcar por coincidencia de telar+tipo+fecha+turno Y SALON
-            const registrosTelar = registros.filter(reg =>
-                String(reg.no_telar) === String(telarId) &&
-                String(reg.salon || '').toLowerCase() === String(salon || '').toLowerCase()
-            );
+            console.log(`🔍 Telar ${telarId}: Total de tablas en el documento: ${todasLasTablasDelDocumento.length}`);
+            console.log(`🔍 Telar ${telarId}: Tablas con checkboxes del telar: ${todasLasTablasDelTelar.length}`);
 
+            if (todasLasTablasDelTelar.length === 0) {
+                console.error(`❌ ERROR: No se encontraron tablas para el telar ${telarId}`);
+                // Intentar buscar de nuevo después de un delay
+                setTimeout(() => {
+                    console.log(`🔄 Reintentando buscar tablas para telar ${telarId}...`);
+                    loadRequerimientos(telarId, salon);
+                }, 500);
+                return;
+            }
+
+            // Obtener todos los headers de fecha (th) de estas tablas en orden
+            const fechasTablas = [];
+            todasLasTablasDelTelar.forEach((table, index) => {
+                const th = table.querySelector('th');
+                if (th) {
+                    fechasTablas.push(th);
+                    const fechaTexto = th.innerText.trim();
+                    console.log(`   Tabla ${index + 1}: ${fechaTexto}`);
+                }
+            });
+
+            // La primera tabla es la del primer día (hoy) - debe ser la primera en el orden del DOM
+            const primeraTabla = todasLasTablasDelTelar[0];
+
+            if (!primeraTabla) {
+                console.error(`❌ ERROR: No se pudo obtener la primera tabla para el telar ${telarId}`);
+                return;
+            }
+
+            const primeraTablaFecha = primeraTabla.querySelector('th')?.innerText.trim() || 'N/A';
+            console.log(`✅ Primera tabla del telar ${telarId}: ${primeraTablaFecha}`);
+
+            // Limpiar todos los checkboxes de este telar en todas las tablas
+            todasLasTablasDelTelar.forEach(table => {
+                table.querySelectorAll(`input[data-telar="${telarId}"]`).forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
+
+            // Obtener el rango de fechas del calendario (primer día = hoy, último día = hoy + 6)
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const ultimoDia = new Date(hoy);
+            ultimoDia.setDate(hoy.getDate() + 6); // 7 días totales (hoy + 6 días más)
+            ultimoDia.setHours(23, 59, 59, 999);
+
+            // Log para depuración
+            console.log(`Telar ${telarId}: Rango del calendario - Desde: ${hoy.toISOString().split('T')[0]}, Hasta: ${ultimoDia.toISOString().split('T')[0]}`);
+
+            // Función para convertir fecha ISO (YYYY-MM-DD) a objeto Date
+            function parseFechaISO(fechaISO) {
+                if (!fechaISO) return null;
+                const partes = fechaISO.split('-');
+                if (partes.length !== 3) return null;
+                const año = parseInt(partes[0]);
+                const mes = parseInt(partes[1]) - 1; // Los meses en JS van de 0-11
+                const dia = parseInt(partes[2]);
+                if (isNaN(año) || isNaN(mes) || isNaN(dia)) return null;
+                try {
+                    const fecha = new Date(año, mes, dia);
+                    fecha.setHours(0, 0, 0, 0);
+                    // Validar que la fecha es válida
+                    if (fecha.getFullYear() === año && fecha.getMonth() === mes && fecha.getDate() === dia) {
+                        return fecha;
+                    }
+                } catch (e) {
+                    console.error('Error parseando fecha:', fechaISO, e);
+                }
+                return null;
+            }
+
+            // Función para obtener la primera tabla del calendario (hoy)
+            function obtenerPrimeraTabla() {
+                return primeraTabla; // Primera tabla = hoy (primer día del calendario)
+            }
+
+            // Marcar por coincidencia de telar+tipo+fecha+turno Y SALON
+            console.log(`🔍 Buscando registros para telar ${telarId}, salón esperado: "${salon}"`);
+            console.log(`📊 Total de registros disponibles en inventario: ${registros.length}`);
+
+            // Filtrar registros del telar
+            const registrosTelar = registros.filter(reg => {
+                const telarCoincide = String(reg.no_telar) === String(telarId);
+
+                if (!telarCoincide) {
+                    return false;
+                }
+
+                const salonRegistro = String(reg.salon || '').toLowerCase().trim();
+                const salonEsperado = String(salon || '').toLowerCase().trim();
+
+                // Comparación flexible de salón:
+                // 1. Si el salón esperado está vacío o es null/undefined, aceptar TODOS los registros del telar
+                // 2. Si no está vacío, hacer comparación case-insensitive y flexible
+                let salonCoincide = true;
+                if (salonEsperado && salonEsperado !== '') {
+                    // Normalizar ambos salones para comparación (remover espacios extra, convertir a minúsculas)
+                    const salonRegistroNormalizado = salonRegistro.replace(/\s+/g, ' ').trim();
+                    const salonEsperadoNormalizado = salonEsperado.replace(/\s+/g, ' ').trim();
+
+                    salonCoincide = salonRegistroNormalizado === salonEsperadoNormalizado ||
+                                   salonRegistroNormalizado.includes(salonEsperadoNormalizado) ||
+                                   salonEsperadoNormalizado.includes(salonRegistroNormalizado);
+                }
+
+                const coincide = telarCoincide && salonCoincide;
+
+                // Log detallado para cada registro del telar
+                console.log(`  📋 Registro: Telar=${reg.no_telar}, Salon="${reg.salon}" (esperado: "${salon}"), Coincide=${coincide}, Fecha=${reg.fecha}, Tipo=${reg.tipo}, Turno=${reg.turno}, Status=${reg.status || 'N/A'}`);
+
+                return coincide;
+            });
+
+            console.log(`✅ Total de registros del telar ${telarId} después de filtrar: ${registrosTelar.length}`);
+
+            if (registrosTelar.length === 0) {
+                console.warn(`⚠️ No se encontraron registros para telar ${telarId} con salón "${salon}"`);
+                // Mostrar todos los registros del telar para depuración
+                const todosRegistrosTelar = registros.filter(reg => String(reg.no_telar) === String(telarId));
+                console.log(`📋 Registros encontrados para telar ${telarId} (sin filtrar por salón):`, todosRegistrosTelar);
+                if (todosRegistrosTelar.length > 0) {
+                    console.log(`💡 Sugerencia: Verificar que el salón del registro coincida con el salón esperado.`);
+                    console.log(`   Salones en registros:`, [...new Set(todosRegistrosTelar.map(r => r.salon))]);
+                }
+            }
+
+            // PASO 1: Identificar si hay fechas antiguas para actualizar headers PRIMERO
+            let fechaMasAntiguaEnPrimeraTabla = null;
+
+            registrosTelar.forEach(reg => {
+                const fechaISO = reg.fecha;
+                const fechaRegistro = parseFechaISO(fechaISO);
+
+                if (fechaRegistro) {
+                    const timestampRegistro = fechaRegistro.getTime();
+                    const timestampHoy = hoy.getTime();
+                    const fechaEsAnterior = timestampRegistro < timestampHoy;
+
+                    // Si la fecha es anterior, rastrearla para actualizar el header
+                    if (fechaEsAnterior && fechaRegistro) {
+                        if (!fechaMasAntiguaEnPrimeraTabla || fechaRegistro < fechaMasAntiguaEnPrimeraTabla) {
+                            fechaMasAntiguaEnPrimeraTabla = fechaRegistro;
+                        }
+                    }
+                }
+            });
+
+            // PASO 2: Actualizar headers ANTES de procesar registros
+            // Función para formatear fecha
+            function formatearFechaHeader(fechaObj) {
+                const dia = fechaObj.getDate();
+                const mes = fechaObj.getMonth() + 1;
+                const año = fechaObj.getFullYear();
+                const fechaFormateada = `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}`;
+                const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                const diaSemana = diasSemana[fechaObj.getDay()];
+                return { fechaFormateada, diaSemana, año, mes, dia };
+            }
+
+            // Si hay fechas antiguas, actualizar TODOS los headers primero
+            if (fechaMasAntiguaEnPrimeraTabla) {
+                console.log(`📅 Fecha antigua detectada: ${fechaMasAntiguaEnPrimeraTabla.toISOString().split('T')[0]}. Actualizando headers...`);
+
+                // Actualizar la primera tabla con la fecha antigua
+                const thHeaderPrimera = primeraTabla.querySelector('th');
+                if (thHeaderPrimera) {
+                    const fechaOriginalHeader = thHeaderPrimera.getAttribute('data-fecha-original-header') || thHeaderPrimera.innerText.trim();
+                    if (!thHeaderPrimera.getAttribute('data-fecha-original-header')) {
+                        thHeaderPrimera.setAttribute('data-fecha-original-header', fechaOriginalHeader);
+                    }
+
+                    const fechaFormateada1 = formatearFechaHeader(fechaMasAntiguaEnPrimeraTabla);
+                    thHeaderPrimera.innerHTML = `
+                        <div class="text-xs leading-tight">${fechaFormateada1.fechaFormateada}</div>
+                        <div class="text-xs opacity-75 leading-tight">${fechaFormateada1.diaSemana}</div>
+                    `;
+                    thHeaderPrimera.setAttribute('data-fecha-original', fechaMasAntiguaEnPrimeraTabla.toISOString().split('T')[0]);
+                    thHeaderPrimera.setAttribute('data-fecha-completa', `${fechaFormateada1.año}-${String(fechaFormateada1.mes).padStart(2, '0')}-${String(fechaFormateada1.dia).padStart(2, '0')}`);
+                    thHeaderPrimera.classList.add('fecha-modificada');
+                    thHeaderPrimera.style.backgroundColor = '#fef3c7';
+                    thHeaderPrimera.style.borderLeft = '3px solid #f59e0b';
+                    console.log(`✅ Primera tabla: "${fechaFormateada1.fechaFormateada} ${fechaFormateada1.diaSemana}" (fecha antigua)`);
+                }
+
+                // Actualizar las demás tablas: segunda = hoy, tercera = hoy+1, etc.
+                // La última tabla se oculta (se recorta)
+                todasLasTablasDelTelar.forEach((tabla, index) => {
+                    if (index === 0) return; // Ya actualizamos la primera
+
+                    const thHeader = tabla.querySelector('th');
+                    if (!thHeader) return;
+
+                    // Calcular nueva fecha: hoy + (index - 1) días
+                    // index 1 = hoy (segunda tabla)
+                    // index 2 = hoy + 1 (tercera tabla)
+                    // etc.
+                    const nuevaFecha = new Date(hoy);
+                    nuevaFecha.setDate(hoy.getDate() + (index - 1));
+
+                    // Si excede el rango original (hoy+6), ocultar tabla
+                    const fechaOriginalUltimaTabla = new Date(hoy);
+                    fechaOriginalUltimaTabla.setDate(hoy.getDate() + 6);
+
+                    if (nuevaFecha > fechaOriginalUltimaTabla) {
+                        tabla.style.display = 'none';
+                        console.log(`📅 Tabla ${index + 1} OCULTADA (excede rango - se recorta)`);
+                        return;
+                    }
+
+                    // Guardar fecha original del header
+                    if (!thHeader.getAttribute('data-fecha-original-header')) {
+                        thHeader.setAttribute('data-fecha-original-header', thHeader.innerText.trim());
+                    }
+
+                    const fechaFormateada = formatearFechaHeader(nuevaFecha);
+                    thHeader.innerHTML = `
+                        <div class="text-xs leading-tight">${fechaFormateada.fechaFormateada}</div>
+                        <div class="text-xs opacity-75 leading-tight">${fechaFormateada.diaSemana}</div>
+                    `;
+                    thHeader.setAttribute('data-fecha-completa', `${fechaFormateada.año}-${String(fechaFormateada.mes).padStart(2, '0')}-${String(fechaFormateada.dia).padStart(2, '0')}`);
+                    thHeader.classList.remove('fecha-modificada');
+                    thHeader.style.backgroundColor = '';
+                    thHeader.style.borderLeft = '';
+
+                    if (index === 1) {
+                        console.log(`✅ Segunda tabla: "${fechaFormateada.fechaFormateada} ${fechaFormateada.diaSemana}" (HOY)`);
+                    }
+                });
+            } else {
+                // Si no hay fechas antiguas, asegurar que todas las tablas estén visibles
+                todasLasTablasDelTelar.forEach(tabla => {
+                    tabla.style.display = '';
+                });
+            }
+
+            // PASO 3: Procesar registros y marcarlos usando los headers actualizados
             registrosTelar.forEach(reg => {
                 const tipo = (reg.tipo || '').toLowerCase();
                 const fechaISO = reg.fecha;
-                const [y, m, d] = (fechaISO || '').split('-');
-                const fechaDM = d && m ? `${parseInt(d)}/${parseInt(m)}` : '';
+                const fechaRegistro = parseFechaISO(fechaISO);
 
-                const thFecha = Array.from(fechasTablas).find(th => {
-                    const texto = (th.innerText || '').trim();
-                    return texto.includes(fechaDM);
-                });
+                let tablaDestino = null;
+                let usarPrimeraFecha = false;
 
-                if (!thFecha) return;
+                if (fechaRegistro) {
+                    const timestampRegistro = fechaRegistro.getTime();
+                    const timestampHoy = hoy.getTime();
+                    const timestampUltimoDia = ultimoDia.getTime();
+                    const fechaEsAnterior = timestampRegistro < timestampHoy;
+                    const fechaEsPosterior = timestampRegistro > timestampUltimoDia;
 
-                const table = thFecha.closest('table');
-                if (!table) return;
+                    console.log(`📅 Procesando: Fecha=${fechaISO}, Anterior=${fechaEsAnterior}, Posterior=${fechaEsPosterior}`);
 
+                    if (fechaEsAnterior || fechaEsPosterior) {
+                        // Fecha fuera del rango: usar primera tabla
+                        usarPrimeraFecha = true;
+                        tablaDestino = obtenerPrimeraTabla();
+                        console.log(`✅ Usando primera tabla para fecha ${fechaISO}`);
+                    } else {
+                        // Fecha dentro del rango: buscar tabla por fecha completa en atributo
+                        let thFecha = null;
+                        todasLasTablasDelTelar.forEach(tabla => {
+                            if (tabla.style.display === 'none') return; // Saltar tablas ocultas
+                            const th = tabla.querySelector('th');
+                            if (th) {
+                                const fechaCompletaAttr = th.getAttribute('data-fecha-completa');
+                                if (fechaCompletaAttr === fechaISO) {
+                                    thFecha = th;
+                                }
+                            }
+                        });
+
+                        if (thFecha) {
+                            tablaDestino = thFecha.closest('table');
+                            console.log(`✅ Tabla encontrada para fecha ${fechaISO}`);
+                        } else {
+                            // Buscar por texto como fallback
+                            const [y, m, d] = fechaISO.split('-');
+                            const fechaDM = d && m ? `${parseInt(d)}/${parseInt(m)}` : '';
+                            thFecha = Array.from(fechasTablas).find(th => {
+                                if (!th.closest('table') || th.closest('table').style.display === 'none') return false;
+                                return th.innerText.trim().includes(fechaDM);
+                            });
+
+                            if (thFecha) {
+                                tablaDestino = thFecha.closest('table');
+                            } else {
+                                usarPrimeraFecha = true;
+                                tablaDestino = obtenerPrimeraTabla();
+                            }
+                        }
+                    }
+                } else {
+                    usarPrimeraFecha = true;
+                    tablaDestino = obtenerPrimeraTabla();
+                }
+
+                if (!tablaDestino || tablaDestino.style.display === 'none') {
+                    console.warn(`⚠️ No se encontró tabla válida para fecha ${fechaISO}`);
+                    return;
+                }
+
+                // Marcar checkbox
                 const valorEsperado = `${tipo}${reg.turno}`;
-                const checkboxes = table.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`);
+                const checkboxes = tablaDestino.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`);
+
+                if (checkboxes.length === 0) {
+                    console.warn(`⚠️ No se encontraron checkboxes para telar ${telarId}, tipo ${tipo}, turno ${reg.turno}`);
+                    return;
+                }
 
                 checkboxes.forEach(cb => {
-                    if (cb.value === valorEsperado) cb.checked = true;
+                    if (cb.value === valorEsperado) {
+                        cb.checked = true;
+                        if (usarPrimeraFecha && fechaISO) {
+                            cb.title = `Fecha original: ${fechaISO} (mostrado en primera fecha del calendario)`;
+                            cb.setAttribute('data-fecha-original', fechaISO);
+                            cb.classList.add('fecha-antigua');
+                            console.log(`✅ Checkbox marcado en primera tabla: ${tipo}${reg.turno} (fecha: ${fechaISO})`);
+                        } else {
+                            console.log(`✅ Checkbox marcado: ${tipo}${reg.turno} (fecha: ${fechaISO})`);
+                        }
+                    }
                 });
             });
         })
         .catch(error => {
-            // Error silencioso
+            console.error('Error al cargar requerimientos:', error);
         });
 }
 

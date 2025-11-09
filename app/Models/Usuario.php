@@ -64,4 +64,43 @@ class Usuario extends Authenticatable
     {
         return 'idusuario';
     }
+
+    /**
+     * Relación con permisos de usuario
+     */
+    public function permisos()
+    {
+        return $this->hasMany(SYSUsuariosRoles::class, 'idusuario', 'idusuario');
+    }
+
+    /**
+     * Obtener módulos con permisos del usuario
+     */
+    public function modulosConPermisos()
+    {
+        return $this->hasManyThrough(
+            SYSRoles::class,
+            SYSUsuariosRoles::class,
+            'idusuario',
+            'idrol',
+            'idusuario',
+            'idrol'
+        )->where('SYSUsuariosRoles.acceso', true);
+    }
+
+    /**
+     * Scope para usuarios activos
+     */
+    public function scopeActivos($query)
+    {
+        return $query->whereNotNull('numero_empleado');
+    }
+
+    /**
+     * Scope para buscar por área
+     */
+    public function scopePorArea($query, $area)
+    {
+        return $query->where('area', $area);
+    }
 }

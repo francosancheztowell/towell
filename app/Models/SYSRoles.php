@@ -191,4 +191,62 @@ class SYSRoles extends Model
     {
         return $this->Dependencia;
     }
+
+    /**
+     * Relación con permisos de usuario
+     */
+    public function permisosUsuario()
+    {
+        return $this->hasMany(SYSUsuariosRoles::class, 'idrol', 'idrol');
+    }
+
+    /**
+     * Relación con módulo padre
+     */
+    public function moduloPadre()
+    {
+        return $this->belongsTo(SYSRoles::class, 'Dependencia', 'orden');
+    }
+
+    /**
+     * Relación con submódulos
+     */
+    public function submódulos()
+    {
+        return $this->hasMany(SYSRoles::class, 'Dependencia', 'orden');
+    }
+
+    /**
+     * Scope para módulos principales
+     */
+    public function scopeModulosPrincipales($query)
+    {
+        return $query->where('Nivel', 1)->whereNull('Dependencia');
+    }
+
+    /**
+     * Scope para submódulos de un módulo padre
+     */
+    public function scopeSubmodulosDe($query, $dependencia, $nivel = 2)
+    {
+        return $query->where('Dependencia', $dependencia)->where('Nivel', $nivel);
+    }
+
+    /**
+     * Scope para módulos con acceso
+     */
+    public function scopeConAcceso($query)
+    {
+        return $query->where('acceso', true);
+    }
+
+    /**
+     * Obtener módulos con permisos de un usuario
+     */
+    public function scopeConPermisosUsuario($query, $idusuario)
+    {
+        return $query->whereHas('permisosUsuario', function($q) use ($idusuario) {
+            $q->where('idusuario', $idusuario)->where('acceso', true);
+        });
+    }
 }

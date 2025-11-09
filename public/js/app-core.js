@@ -22,13 +22,11 @@
     });
 })();
 
-// Botón atrás
+// Botón atrás - siempre presente, solo agregar funcionalidad si no está deshabilitado
 document.addEventListener('DOMContentLoaded', function() {
     const btnBack = document.getElementById('btn-back');
     const homePath = '/produccionProceso';
-    if (btnBack && location.pathname !== homePath) {
-        btnBack.classList.remove('opacity-0', 'invisible', 'pointer-events-none');
-        btnBack.classList.add('flex', 'opacity-100', 'visible');
+    if (btnBack && !btnBack.disabled) {
         btnBack.addEventListener('click', function() {
             if (history.length > 1 && document.referrer) {
                 history.back();
@@ -110,6 +108,7 @@ if (typeof toastr !== 'undefined') {
     });
     window.addEventListener('pageshow', () => {});
 })();
+
 
 
 

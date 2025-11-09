@@ -1,117 +1,133 @@
 <?php
 
 namespace App\Http\Controllers;
-use Illuminate\Http\Request;
-use App\Models\Usuario;
+
+use App\Http\Requests\StoreUsuarioRequest;
+use App\Repositories\UsuarioRepository;
+use App\Services\ModuloService;
+use App\Services\UsuarioService;
+use App\Services\PermissionService;
 use App\Models\SYSRoles;
-use App\Models\SYSUsuariosRoles;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 class UsuarioController extends Controller
 {
-    // Muestra el formulario de creación de usuario
+    public function __construct(
+        private UsuarioRepository $usuarioRepository,
+        private UsuarioService $usuarioService,
+        private ModuloService $moduloService,
+        private PermissionService $permissionService
+    ) {}
+
+    /**
+     * Mostrar la vista principal con módulos del usuario
+     */
+    public function index()
+    {
+        $usuarioActual = Auth::user();
+
+        if (!$usuarioActual || !$usuarioActual->numero_empleado) {
+            return redirect()->route('login')
+                ->with('error', 'Debes iniciar sesión para acceder a los módulos');
+        }
+
+        $modulos = $this->moduloService->getModulosPrincipalesPorUsuario($usuarioActual->idusuario);
+
+        $tieneConfiguracion = $modulos->contains('nombre', 'Configuración');
+
+        return view('produccionProceso', [
+            'modulos' => $modulos,
+            'tieneConfiguracion' => $tieneConfiguracion,
+            'pageTitle' => 'Producción en Proceso'
+        ]);
+    }
+
+    /**
+     * Mostrar formulario de creación de usuario
+     */
     public function create()
     {
-        // Cargar TODOS los módulos (principales, hijos y nietos)
-        $modulos = SYSRoles::orderBy('orden')->get();
+        $modulos = $this->moduloService->getAllModulos();
 
         return view('modulos.usuarios.form_usuario', [
             'usuario' => null,
             'modulos' => $modulos,
+            'permisosUsuario' => collect(),
             'isEdit' => false
         ]);
     }
 
-    // Almacena un nuevo usuario en la base de datos
-    public function store(Request $request)
+    /**
+     * Almacenar un nuevo usuario
+     */
+    public function store(StoreUsuarioRequest $request)
     {
-        //dd($request->all());
         try {
-            // 1) Validación con los campos correctos de la tabla SYSUsuario
-            $data = $request->validate([
-                'numero_empleado' => 'required|string|max:50|unique:SYSUsuario,numero_empleado',
-                'nombre'          => 'required|string|max:255',
-                'contrasenia'     => 'required|string|min:4',
-                'area'            => 'nullable|string|max:100',
-                'telefono'        => 'nullable|string|max:20',
-                'turno'           => 'nullable|string|max:10',
-                'foto'            => 'nullable|image|mimes:jpeg,png,jpg,gif,bmp,webp,svg,tiff,tif|max:10240',
-                'puesto'          => 'nullable|string|max:100',
-                'correo'          => 'nullable|email|max:255',
-            ]);
+            $data = $request->validated();
+            $foto = $request->hasFile('foto') ? $request->file('foto') : null;
 
-            // 4) Foto (guardar en public/images/fotos_usuarios como los módulos)
-            if ($request->hasFile('foto')) {
-                $file = $request->file('foto');
-                $fileName = time() . '_' . $file->getClientOriginalName();
-                $file->move(public_path('images/fotos_usuarios'), $fileName);
-                $data['foto'] = $fileName; // guardar solo el nombre del archivo
-            }
+            // Extraer permisos del request (todos los campos que empiezan con "modulo_")
+            $permisos = array_filter($request->all(), function($key) {
+                return strpos($key, 'modulo_') === 0;
+            }, ARRAY_FILTER_USE_KEY);
 
-            // 5) Hashear contraseña
-            $data['contrasenia'] = Hash::make($data['contrasenia']);
-
-            // 6) remember_token
-            $data['remember_token'] = Str::random(60);
-
-            // 7) Crear usuario
-            $usuario = Usuario::create($data);
-
-            // 8) Guardar permisos por módulo
-            $this->guardarPermisos($request, $usuario->idusuario);
+            $usuario = $this->usuarioService->create($data, $foto, $permisos);
 
             return redirect()
                 ->route('usuarios.select')
                 ->with('success', 'Usuario registrado correctamente');
-        } catch (ValidationException $e) {
-            // Validación: mostramos errores con SweetAlert (ya lo tienes en el Blade)
-            return back()->withErrors($e->errors())->withInput();
-        } catch (\Throwable $e) {
-            Log::error('Error al crear usuario', ['msg' => $e->getMessage()]);
+        } catch (\Exception $e) {
+            Log::error('Error al crear usuario', ['error' => $e->getMessage()]);
             return back()
                 ->with('error', 'No se pudo registrar el usuario. Intenta de nuevo.')
                 ->withInput();
         }
     }
 
+    /**
+     * Listar usuarios con paginación
+     */
     public function select(Request $request)
     {
-        $usuarios = Usuario::query()
-            ->select('idusuario', 'numero_empleado', 'nombre', 'area', 'turno', 'telefono', 'foto', 'puesto', 'correo', 'enviarMensaje')
-            ->orderBy('nombre')
-            ->get(); // paginate no funciona aqui :(, ya que tenemos una version 2008 de SQLSERVER, lo que lo hace imposible, la paginacion debe ser a mano.
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 50;
 
-        return view('modulos.usuarios.select', compact('usuarios'));
+        $result = $this->usuarioRepository->getAll($page, $perPage);
+
+        return view('modulos.usuarios.select', $result);
     }
 
-    // Mostrar QR de un usuario
-    public function showQR($idusuario)
+    /**
+     * Mostrar QR de un usuario
+     */
+    public function showQR(int $idusuario)
     {
-        $usuario = Usuario::findOrFail($idusuario);
+        $usuario = $this->usuarioRepository->findById($idusuario);
+
+        if (!$usuario) {
+            return redirect()->route('usuarios.select')
+                ->with('error', 'Usuario no encontrado');
+        }
 
         return view('modulos.usuarios.qr', compact('usuario'));
     }
 
-    //CRUD REST, solo edit, update y destroy
-
-    // EDITAR
-    public function edit($id)
+    /**
+     * Mostrar formulario de edición de usuario
+     */
+    public function edit(int $id)
     {
-        // Cargar TODOS los módulos (principales, hijos y nietos)
-        $modulos = SYSRoles::orderBy('orden')->get();
+        $usuario = $this->usuarioRepository->findById($id);
 
-        // Obtener el usuario por ID
-        $usuario = Usuario::findOrFail($id);
+        if (!$usuario) {
+            return redirect()->route('usuarios.select')
+                ->with('error', 'Usuario no encontrado');
+        }
 
-        // Obtener permisos actuales del usuario
-        $permisosUsuario = SYSUsuariosRoles::where('idusuario', $usuario->idusuario)
-            ->with('rol')
-            ->get()
-            ->keyBy('idrol');
+        $modulos = $this->moduloService->getAllModulos();
+        $permisosUsuario = $this->permissionService->getAllPermisosUsuario($usuario->idusuario);
 
         return view('modulos.usuarios.form_usuario', [
             'usuario' => $usuario,
@@ -121,66 +137,63 @@ class UsuarioController extends Controller
         ]);
     }
 
-    // ACTUALIZAR
-    public function update(Request $request, $id)
-    {
-        // Validación con los campos correctos de la tabla SYSUsuario
-        $data = $request->validate([
-            'nombre'   => 'required|string|max:255',
-            'area'     => 'nullable|string|max:100',
-            'telefono' => 'nullable|string|max:20',
-            'turno'    => 'nullable|string|max:10',
-            'foto'     => 'nullable|image|mimes:jpeg,png,jpg,gif,bmp,webp,svg,tiff,tif|max:10240',
-            'puesto'   => 'nullable|string|max:100',
-            'correo'   => 'nullable|email|max:255',
-            'contrasenia' => 'nullable|string|min:4',
-        ]);
-
-        // Si se sube una nueva foto
-        if ($request->hasFile('foto')) {
-            $file = $request->file('foto');
-            $fileName = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('images/fotos_usuarios'), $fileName);
-            $data['foto'] = $fileName; // guardar solo el nombre del archivo
-        }
-
-        // Si se proporciona una nueva contraseña, hashearla
-        if ($request->filled('contrasenia')) {
-            $data['contrasenia'] = Hash::make($request->input('contrasenia'));
-        } else {
-            // Si no se proporciona contraseña, mantener la actual
-            unset($data['contrasenia']);
-        }
-
-        // Obtener el usuario por ID
-        $usuario = Usuario::findOrFail($id);
-
-        // numero_empleado lo dejamos como clave, no editable aquí
-        $usuario->update($data);
-
-        // Actualizar permisos
-        $this->guardarPermisos($request, $id);
-
-        return redirect()
-            ->route('usuarios.select')
-            ->with('success', "Usuario #{$usuario->numero_empleado} actualizado correctamente.");
-    }
-
-    // ELIMINAR
-    public function destroy($id)
+    /**
+     * Actualizar usuario
+     */
+    public function update(StoreUsuarioRequest $request, int $id)
     {
         try {
-            $usuario = Usuario::findOrFail($id);
+            $data = $request->validated();
+            $foto = $request->hasFile('foto') ? $request->file('foto') : null;
 
-            // Eliminar primero los registros relacionados en SYSUsuariosRoles
-            SYSUsuariosRoles::where('idusuario', $id)->delete();
+            // Extraer permisos del request (todos los campos que empiezan con "modulo_")
+            $permisos = array_filter($request->all(), function($key) {
+                return strpos($key, 'modulo_') === 0;
+            }, ARRAY_FILTER_USE_KEY);
 
-            // Luego eliminar el usuario
-            $usuario->delete();
+            $actualizado = $this->usuarioService->update($id, $data, $foto, $permisos);
+
+            if (!$actualizado) {
+                return redirect()->route('usuarios.select')
+                    ->with('error', 'Usuario no encontrado');
+            }
+
+            $usuario = $this->usuarioRepository->findById($id);
+            $this->moduloService->limpiarCacheUsuario($id);
 
             return redirect()
                 ->route('usuarios.select')
-                ->with('success', "Usuario #{$usuario->numero_empleado} eliminado correctamente.");
+                ->with('success', "Usuario #{$usuario->numero_empleado} actualizado correctamente.");
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar usuario', [
+                'usuario_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return back()
+                ->with('error', 'No se pudo actualizar el usuario.')
+                ->withInput();
+        }
+    }
+
+    /**
+     * Eliminar usuario
+     */
+    public function destroy(int $id)
+    {
+        try {
+            $usuario = $this->usuarioRepository->findById($id);
+
+            if (!$usuario) {
+                return redirect()->route('usuarios.select')
+                    ->with('error', 'Usuario no encontrado');
+            }
+
+            $numeroEmpleado = $usuario->numero_empleado;
+            $this->usuarioService->delete($id);
+
+            return redirect()
+                ->route('usuarios.select')
+                ->with('success', "Usuario #{$numeroEmpleado} eliminado correctamente.");
         } catch (\Exception $e) {
             Log::error('Error al eliminar usuario', [
                 'usuario_id' => $id,
@@ -193,220 +206,74 @@ class UsuarioController extends Controller
         }
     }
 
-    // Método para mostrar módulos principales de configuración (900 y 1000)
+    /**
+     * Mostrar módulos de configuración
+     */
     public function showConfiguracion()
     {
         $usuarioActual = Auth::user();
-        $idusuario = $usuarioActual->idusuario;
-
-        try {
-            // Obtener el módulo Configuración (nivel 1)
-            $moduloConfiguracion = SYSRoles::where('modulo', 'Configuración')
-                ->where('Nivel', 1)
-                ->whereNull('Dependencia')
-                ->first();
-
-            if (!$moduloConfiguracion) {
-                return redirect('/produccionProceso')->with('error', 'Módulo de configuración no encontrado');
-            }
-
-            // Obtener submódulos de nivel 2 que dependen del módulo Configuración
-            $subModulosDB = SYSUsuariosRoles::join('SYSRoles as r', 'SYSUsuariosRoles.idrol', '=', 'r.idrol')
-                ->where('SYSUsuariosRoles.idusuario', $idusuario)
-                ->where('SYSUsuariosRoles.acceso', true)
-                ->where('r.Nivel', 2) // Solo submódulos de nivel 2
-                ->where('r.Dependencia', $moduloConfiguracion->orden) // Que dependan de Configuración
-                ->select('r.idrol', 'r.orden', 'r.modulo', 'r.imagen', 'r.Nivel', 'r.Dependencia',
-                        'SYSUsuariosRoles.acceso as usuario_acceso',
-                        'SYSUsuariosRoles.crear as usuario_crear',
-                        'SYSUsuariosRoles.modificar as usuario_modificar',
-                        'SYSUsuariosRoles.eliminar as usuario_eliminar',
-                        'SYSUsuariosRoles.registrar as usuario_registrar')
-                ->orderBy('r.orden')
-                ->get();
-
-            $subModulos = [];
-            foreach ($subModulosDB as $moduloDB) {
-                $subModulos[] = [
-                    'nombre' => $moduloDB->modulo,
-                    'imagen' => $moduloDB->imagen ?? 'configuracion.png',
-                    'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden, $moduloDB->Dependencia ?? null),
-                    'ruta_tipo' => 'url',
-                    'orden' => $moduloDB->orden,
-                    'nivel' => $moduloDB->Nivel,
-                    'dependencia' => $moduloDB->Dependencia,
-                    'acceso' => $moduloDB->usuario_acceso,
-                    'crear' => $moduloDB->usuario_crear,
-                    'modificar' => $moduloDB->usuario_modificar,
-                    'eliminar' => $moduloDB->usuario_eliminar,
-                    'registrar' => $moduloDB->usuario_registrar
-                ];
-            }
-
-            return view('modulos.configuracion', [
-                'moduloPrincipal' => 'Configuración',
-                'subModulos' => $subModulos
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error al obtener módulos de configuración: ' . $e->getMessage());
-            return redirect('/produccionProceso')->with('error', 'Error al cargar los módulos de configuración');
-        }
-    }
-
-    // Método para mostrar sub-módulos de configuración (901-999 o 1001-1099)
-    public function showSubModulosConfiguracion($serie)
-    {
-        $usuarioActual = Auth::user();
-        $idusuario = $usuarioActual->idusuario;
-
-        // Ejemplo de serie: '909' (Utilería) → listar nietos nivel 3 con Dependencia = 909
-        $ordenPadre = (string) $serie;
-        $moduloPadre = SYSRoles::where('orden', $ordenPadre)->first();
-        if (!$moduloPadre) {
-            return redirect('/configuracion')->with('error', 'Módulo de configuración no encontrado');
-        }
-
-        try {
-            $subModulosDB = SYSUsuariosRoles::join('SYSRoles as r', 'SYSUsuariosRoles.idrol', '=', 'r.idrol')
-                ->where('SYSUsuariosRoles.idusuario', $idusuario)
-                ->where('SYSUsuariosRoles.acceso', true)
-                ->where('r.Nivel', 3)
-                ->whereRaw("CAST(r.Dependencia AS VARCHAR) = ?", [$ordenPadre])
-                ->select('r.idrol', 'r.orden', 'r.modulo', 'r.imagen', 'r.Nivel', 'r.Dependencia',
-                        'SYSUsuariosRoles.acceso as usuario_acceso',
-                        'SYSUsuariosRoles.crear as usuario_crear',
-                        'SYSUsuariosRoles.modificar as usuario_modificar',
-                        'SYSUsuariosRoles.eliminar as usuario_eliminar',
-                        'SYSUsuariosRoles.registrar as usuario_registrar')
-                ->orderBy('r.orden')
-                ->get();
-
-            $subModulos = [];
-            foreach ($subModulosDB as $moduloDB) {
-                $subModulos[] = [
-                    'nombre' => $moduloDB->modulo,
-                    'imagen' => $moduloDB->imagen ?? 'configuracion.png',
-                    'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden, $moduloDB->Dependencia),
-                    'orden' => $moduloDB->orden,
-                    'nivel' => $moduloDB->Nivel,
-                    'dependencia' => $moduloDB->Dependencia,
-                    'acceso' => $moduloDB->usuario_acceso,
-                    'crear' => $moduloDB->usuario_crear,
-                    'modificar' => $moduloDB->usuario_modificar,
-                    'eliminar' => $moduloDB->usuario_eliminar,
-                    'registrar' => $moduloDB->usuario_registrar
-                ];
-            }
-
-            return view('modulos.submodulos', [
-                'moduloPrincipal' => $moduloPadre->modulo,
-                'subModulos' => $subModulos,
-                'rango' => ['inicio' => $ordenPadre, 'nombre' => $moduloPadre->modulo]
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error al obtener sub-módulos de configuración: ' . $e->getMessage());
-            return redirect('/configuracion')->with('error', 'Error al cargar los sub-módulos');
-        }
-    }
-
-
-
-    // Método para mostrar sub-módulos de un módulo principal
-    public function showSubModulos($moduloPrincipal)
-    {
-        // Permitir slug o nombre exacto
-        $slugToNombre = [
-            'planeacion' => 'Planeación',
-            'tejido' => 'Tejido',
-            'urdido' => 'Urdido',
-            'engomado' => 'Engomado',
-            'atadores' => 'Atadores',
-            'tejedores' => 'Tejedores',
-            'mantenimiento' => 'Mantenimiento',
-            'programa-urd-eng' => 'Programa Urd / Eng',
-            'configuracion' => 'Configuración',
-        ];
-
-        $buscado = $slugToNombre[$moduloPrincipal] ?? $moduloPrincipal;
-
-        // Obtener el módulo principal por nombre o por orden conocido
-        $moduloPadre = SYSRoles::where('modulo', $buscado)
-            ->where('Nivel', 1)
-            ->whereNull('Dependencia')
+        $moduloConfiguracion = SYSRoles::modulosPrincipales()
+            ->where('modulo', 'Configuración')
             ->first();
 
-        if (!$moduloPadre) {
-            // Fallback por rango de orden según slug
-            $rangos = [
-                'planeacion' => 100,
-                'tejido' => 200,
-                'urdido' => 300,
-                'engomado' => 400,
-                'atadores' => 500,
-                'tejedores' => 600,
-                'programa-urd-eng' => 700,
-                'mantenimiento' => 800,
-                'configuracion' => 900,
-            ];
-            if (isset($rangos[$moduloPrincipal])) {
-                $moduloPadre = SYSRoles::where('orden', $rangos[$moduloPrincipal])
-                    ->where('Nivel', 1)
-                    ->whereNull('Dependencia')
-                    ->first();
-            }
+        if (!$moduloConfiguracion) {
+            return redirect('/produccionProceso')
+                ->with('error', 'Módulo de configuración no encontrado');
         }
 
-        if (!$moduloPadre) {
-            return redirect('/produccionProceso')->with('error', 'Módulo no encontrado');
-        }
+        $subModulos = $this->moduloService->getSubmodulosPorModuloPrincipal(
+            'configuracion',
+            $usuarioActual->idusuario
+        );
+
+        return view('modulos.configuracion', [
+            'moduloPrincipal' => 'Configuración',
+            'subModulos' => $subModulos
+        ]);
+    }
+
+    /**
+     * Mostrar submódulos de configuración (nivel 3)
+     */
+    public function showSubModulosConfiguracion(string $serie)
+    {
         $usuarioActual = Auth::user();
-        $idusuario = $usuarioActual->idusuario;
+        $moduloPadre = SYSRoles::where('orden', $serie)->first();
 
-        // Cachear submódulos por módulo principal y usuario (24 horas)
-        $cacheKey = "submodulos_{$moduloPrincipal}_user_{$idusuario}";
-        $subModulos = cache()->remember($cacheKey, 86400, function () use ($idusuario, $moduloPadre) {
-            try {
-                // Obtener submódulos de nivel 2 que dependen del módulo padre
-                $subModulosDB = SYSUsuariosRoles::join('SYSRoles as r', 'SYSUsuariosRoles.idrol', '=', 'r.idrol')
-                    ->where('SYSUsuariosRoles.idusuario', $idusuario)
-                    ->where('SYSUsuariosRoles.acceso', true)
-                    ->where('r.Nivel', 2) // Solo submódulos de nivel 2
-                    ->where('r.Dependencia', $moduloPadre->orden) // Que dependan del módulo padre
-                    ->select('r.idrol', 'r.orden', 'r.modulo', 'r.imagen', 'r.Nivel', 'r.Dependencia',
-                            'SYSUsuariosRoles.acceso as usuario_acceso',
-                            'SYSUsuariosRoles.crear as usuario_crear',
-                            'SYSUsuariosRoles.modificar as usuario_modificar',
-                            'SYSUsuariosRoles.eliminar as usuario_eliminar',
-                            'SYSUsuariosRoles.registrar as usuario_registrar')
-                    ->orderBy('r.orden') // Ya está ordenado jerárquicamente
-                    ->get();
+        if (!$moduloPadre) {
+            return redirect('/configuracion')
+                ->with('error', 'Módulo de configuración no encontrado');
+        }
 
-                $subModulos = [];
-                foreach ($subModulosDB as $moduloDB) {
-                    $subModulos[] = [
-                        'nombre' => $moduloDB->modulo,
-                        'imagen' => $moduloDB->imagen ?? 'default.png',
-                        'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden, $moduloDB->Dependencia),
-                        'ruta_tipo' => 'url',
-                        'orden' => $moduloDB->orden,
-                        'nivel' => $moduloDB->Nivel,
-                        'dependencia' => $moduloDB->Dependencia,
-                        'acceso' => $moduloDB->usuario_acceso,
-                        'crear' => $moduloDB->usuario_crear,
-                        'modificar' => $moduloDB->usuario_modificar,
-                        'eliminar' => $moduloDB->usuario_eliminar,
-                        'registrar' => $moduloDB->usuario_registrar
-                    ];
-                }
+        $subModulos = $this->moduloService->getSubmodulosNivel3(
+            $serie,
+            $usuarioActual->idusuario
+        );
 
-                return $subModulos;
-            } catch (\Exception $e) {
-                Log::error('Error al obtener sub-módulos: ' . $e->getMessage());
-                return [];
-            }
-        });
+        return view('modulos.submodulos', [
+            'moduloPrincipal' => $moduloPadre->modulo,
+            'subModulos' => $subModulos,
+            'rango' => ['inicio' => $serie, 'nombre' => $moduloPadre->modulo]
+        ]);
+    }
+
+    /**
+     * Mostrar submódulos de un módulo principal
+     */
+    public function showSubModulos(string $moduloPrincipal)
+    {
+        $usuarioActual = Auth::user();
+        $moduloPadre = $this->moduloService->buscarModuloPrincipal($moduloPrincipal);
+
+        if (!$moduloPadre) {
+            return redirect('/produccionProceso')
+                ->with('error', 'Módulo no encontrado');
+        }
+
+        $subModulos = $this->moduloService->getSubmodulosPorModuloPrincipal(
+            $moduloPrincipal,
+            $usuarioActual->idusuario
+        );
 
         return view('modulos.submodulos', [
             'moduloPrincipal' => $moduloPadre->modulo,
@@ -415,548 +282,63 @@ class UsuarioController extends Controller
         ]);
     }
 
-    // Método auxiliar para generar rutas de sub-módulos
-    private function generarRutaSubModulo($nombreModulo, $orden, $dependencia = null)
-    {
-        // PRIMERO: Verificar casos especiales basados en el contexto (dependencia)
-        // "Configurar" puede estar en Tejido (200) o Tejedores (600)
-        if (strtolower(trim($nombreModulo)) === 'configurar') {
-            // Si la dependencia es 600 (Tejedores), usar ruta de tejedores
-            if ($dependencia == 600 || (is_string($dependencia) && strpos($dependencia, '600') === 0)) {
-                return '/tejedores/configurar';
-            }
-            // Por defecto, si es de Tejido (200) o no se especifica, usar ruta de tejido
-            return '/tejido/configurar';
-        }
-
-        // PRIMERO: Mapeo de sub-módulos específicos a sus rutas
-        // Esto tiene prioridad sobre la detección automática
-        $rutasSubModulos = [
-            // Submódulos de Planeación que NO tienen nietos
-            'Simulaciones' => '/planeacion/simulaciones',
-            'Alineación' => '/planeacion/alineacion',
-            'Reportes' => '/planeacion/reportes',
-            'Reportes Planeación' => '/planeacion/reportes',
-            'Producciones Terminadas' => '/planeacion/producciones-terminadas',
-            'Catálogos' => '/planeacion/catalogos',
-            'Catalogos' => '/planeacion/catalogos',
-            'Catálogos (Cat.)' => '/planeacion/catalogos',
-            'Catalogos (Cat.)' => '/planeacion/catalogos',
-            'Catálogos de Planeación' => '/planeacion/catalogos',
-            'Catalogos de Planeacion' => '/planeacion/catalogos',
-
-            // Submódulos de Catálogos (nietos - nivel 3) - ESTRUCTURA JERÁRQUICA
-            'Telares' => '/planeacion/catalogos/telares',
-            'Eficiencias STD' => '/planeacion/catalogos/eficiencia',
-            'Velocidad STD' => '/planeacion/catalogos/velocidad',
-            'Calendarios' => '/planeacion/catalogos/calendarios',
-            'Aplicaciones (Cat.)' => '/planeacion/catalogos/aplicaciones',
-            'Modelos' => '/planeacion/catalogos/modelos',
-            'Matriz Calibres' => '/planeacion/catalogos/matriz-calibres',
-            'Matriz Hilos' => '/planeacion/catalogos/matriz-hilos',
-            'Codificación Modelos' => '/planeacion/catalogos/codificacion-modelos',
-
-            // Submódulos de Programa Tejido (nietos - nivel 3)
-            'Programa Tejido' => '/planeacion/programa-tejido',
-            'Programa de Tejido' => '/planeacion/programa-tejido',
-            'Programa Tejido (Cat.)' => '/planeacion/programa-tejido',
-            'Orden de Cambio' => '/tejido/orden-cambio',
-            'Marbetes' => '/tejido/marbetes',
-
-            // Nietos de Inv Telas (nivel 3) - orden 201-1, 201-2, 201-3
-            'Jacquard' => '/tejido/inventario-telas/jacquard',
-            'Itema' => '/tejido/inventario-telas/itema',
-            'Karl Mayer' => '/tejido/karl-mayer',
-
-            // Módulos de Tejido (orden 52) - ESTRUCTURA JERÁRQUICA
-            'Inv Telas' => '/tejido/inventario-telas',
-            'Cortes de Eficiencia' => '/tejido/cortes-eficiencia',  // ✅ Nueva ruta descriptiva
-            'Marcas Finales- Cortes de Eficiencia' => '/tejido/marcas-finales',  // ✅ Nueva ruta descriptiva
-            'Marcas Finales' => '/tejido/marcas-finales',  // ✅ Nueva ruta descriptiva
-            'Inv Trama' => '/tejido/inventario',  // ✅ Nueva ruta descriptiva
-            'Producción Reenconado Cabezuela' => '/tejido/produccion-reenconado',
-
-            // Nietos de Cortes de Eficiencia (nivel 3) - orden 206-1, 206-2 - ESTRUCTURA JERÁRQUICA
-            'Nuevos cortes de eficiencia' => '/modulo-cortes-de-eficiencia',
-            'Consultar eficiencia' => '/modulo-cortes-de-eficiencia/consultar',
-
-            // Nietos de Marcas Finales (nivel 3) - orden 202-1, 202-2 - ESTRUCTURA JERÁRQUICA
-            'Nuevas Marcas Finales' => '/modulo-marcas',
-            'Nuevas marcas finales' => '/modulo-marcas',
-            'nuevas marcas finales' => '/modulo-marcas',
-            'Consultar Marcas Finales' => '/modulo-marcas/consultar',
-            'Consultar marcas finales' => '/modulo-marcas/consultar',
-            'consultar marcas finales' => '/modulo-marcas/consultar',
-
-            // Nietos de Inv Trama (nivel 3) - orden 203-1, 203-2 - ESTRUCTURA JERÁRQUICA
-            'Nuevo requerimiento' => '/tejido/inventario/trama/nuevo-requerimiento',
-            'Consultar requerimiento' => '/tejido/inventario/trama/consultar-requerimiento',
-
-            // Submódulos de Configurar (orden 53)
-            'Secuencia Inv Telas' => '/tejido/secuencia-inv-telas',
-            'Secuencia Corte de Eficiencia' => '/tejido/secuencia-corte-eficiencia',
-            'Secuencia Inv Trama' => '/tejido/secuencia-inv-trama',
-            'Secuencia Marcas Finales' => '/tejido/secuencia-marcas-finales',
-
-            // Tejedores » Configurar: accesos directos solicitados
-            'Telares x Operador' => '/tel-telares-operador',
-            'Telares por Operador' => '/tel-telares-operador',
-            'Telares x operador' => '/tel-telares-operador',
-            'ActividadesBPM' => '/tel-actividades-bpm',
-            'Actividades BPM' => '/tel-actividades-bpm',
-
-            // Módulos de Urdido (orden 62)
-            'Programa Urdido' => '/urdido/programar-requerimientos',
-            'BPM (Buenas Practicas Manufactura) Urd' => '/urdido/bpm',
-            'Reportes Urdido' => '/urdido/reportes',
-            'Catalogos Julios' => '/urdido/catalogos-julios',
-            'Catalogos de Paros' => '/urdido/catalogos-paros',
-
-            // Módulos de Engomado (orden 16)
-            'Programa Engomado' => '/engomado/programar-requerimientos',
-            'BPM (Buenas Practicas Manufactura) Eng' => '/engomado/bpm',
-            'Reportes Engomado' => '/engomado/reportes',
-            'Producción Engomado' => '/engomado/produccion',
-
-            // Módulos de Atadores (orden 1)
-            'Programa Atadores' => '/atadores/programa',
-
-            // Módulos de Tejedores (orden 48)
-            'BPM Tejedores' => '/tejedores/bpm',
-            'Desarrolladores' => '/tejedores/desarrolladores',
-            'Mecánicos' => '/tejedores/mecanicos',
-
-            // Módulos de Programa Urd/Eng (orden 45)
-            'Reservar y Programar' => '/programa-urd-eng/reservar-programar',
-            //'Edición de Ordenes Programadas' => '/modulo-edicion-urdido-engomado',
-
-
-            // Módulos de configuración (nivel 2) - ESTRUCTURA JERÁRQUICA
-            'Usuarios' => '/configuracion/usuarios/select',
-            'Parametros' => '/configuracion/parametros',
-            'Base Datos Principal' => '/configuracion/base-datos',
-            'BD Pro (ERP Productivo)' => '/configuracion/bd-pro-productivo',
-            'BD Pro (ERP Pruebas)' => '/configuracion/bd-pro-pruebas',
-            'BD Tow (ERP Productivo)' => '/configuracion/bd-tow-productivo',
-            'BD Tow (ERP Pruebas)' => '/configuracion/bd-tow-pruebas',
-            'Ambiente' => '/configuracion/ambiente',
-            // 'Utilería' tiene nietos, se maneja automáticamente arriba
-
-            // Nietos de Utilería (nivel 3) - ESTRUCTURA JERÁRQUICA
-            'Cargar Catálogos' => '/configuracion/utileria/cargar-catalogos',
-            'Cargar Orden de Producción' => '/configuracion/cargar-orden-produccion',
-            'Cargar Planeación' => '/configuracion/cargar-planeacion',
-            'Modulos' => '/configuracion/utileria/modulos',
-        ];
-
-        // Debug temporal para ver el nombre del módulo
-        Log::info('Generando ruta para módulo: ' . $nombreModulo . ' - Orden: ' . $orden);
-
-        if (strpos($nombreModulo, 'Catálogo') !== false || strpos($nombreModulo, 'Catalog') !== false) {
-            Log::info('Módulo de catálogos detectado: ' . $nombreModulo . ' - Orden: ' . $orden);
-        }
-
-        // Si existe en el mapeo específico, usarlo (PRIORIDAD ABSOLUTA)
-        // Primero buscar coincidencia exacta
-        if (isset($rutasSubModulos[$nombreModulo])) {
-            Log::info('Ruta encontrada en mapeo (coincidencia exacta): ' . $rutasSubModulos[$nombreModulo]);
-            return $rutasSubModulos[$nombreModulo];
-        }
-
-        // Si no hay coincidencia exacta, buscar insensible a mayúsculas
-        $nombreModuloLower = strtolower(trim($nombreModulo));
-        foreach ($rutasSubModulos as $key => $ruta) {
-            if (strtolower(trim($key)) === $nombreModuloLower) {
-                Log::info('Ruta encontrada en mapeo (coincidencia insensible): ' . $ruta);
-                return $ruta;
-            }
-        }
-
-        // Verificación especial para catálogos (cualquier variación)
-        if (strpos(strtolower($nombreModulo), 'catálogo') !== false ||
-            strpos(strtolower($nombreModulo), 'catalog') !== false ||
-            $orden == '104') {
-            Log::info('Redirigiendo catálogos a: /planeacion/catalogos');
-            return '/planeacion/catalogos';
-        }
-
-        // SEGUNDO: Verificar si este módulo tiene nietos (nivel 3) - si tiene, redirigir a la vista de nietos
-        // SOLO si NO está en el mapeo específico
-        $tieneNietos = SYSRoles::where('Nivel', 3)
-            ->where('Dependencia', $orden)
-            ->exists();
-
-        if ($tieneNietos) {
-            // Mapeo de IDs conocidos a rutas descriptivas
-            $rutasDescriptivas = [
-                '202' => '/tejido/marcas-finales',
-                '203' => '/tejido/inventario',
-                '206' => '/tejido/cortes-eficiencia',
-                '909' => '/configuracion/utileria',
-            ];
-
-            // Si tiene una ruta descriptiva, usarla; sino usar la genérica
-            $ruta = $rutasDescriptivas[$orden] ?? '/submodulos-nivel3/' . $orden;
-            Log::info('Módulo tiene nietos, redirigiendo a: ' . $ruta);
-            return $ruta;
-        }
-
-        // TERCERO: Verificar si el orden contiene separador de nivel 3 (guión o guión bajo)
-        // Solo si no está en el mapeo y no tiene nietos
-        $posSeparador = (strpos($orden, '-') !== false) ? strpos($orden, '-') : strpos($orden, '_');
-        if ($posSeparador !== false) {
-            // Extraer el código del módulo padre (ej: de "201-1" o "201_1" extraer "201")
-            $moduloPadre = substr($orden, 0, $posSeparador);
-
-            // Mapeo de IDs conocidos a rutas descriptivas
-            $rutasDescriptivas = [
-                '202' => '/tejido/marcas-finales',
-                '203' => '/tejido/inventario',
-                '206' => '/tejido/cortes-eficiencia',
-                '909' => '/configuracion/utileria',
-            ];
-
-            // Si tiene una ruta descriptiva, usarla; sino usar la genérica
-            $ruta = $rutasDescriptivas[$moduloPadre] ?? '/submodulos-nivel3/' . $moduloPadre;
-            return $ruta;
-        }
-
-        // CUARTO: Ruta genérica por defecto
-        return '/modulo-' . strtolower(str_replace(' ', '-', $nombreModulo));
-    }
-
-    // Método para mostrar submódulos de nivel 3 (ej: 201_1, 201_2, etc.)
-    public function showSubModulosNivel3($moduloPadre = '104')
+    /**
+     * Mostrar submódulos de nivel 3
+     */
+    public function showSubModulosNivel3(string $moduloPadre = '104')
     {
         $usuarioActual = Auth::user();
-        $idusuario = $usuarioActual->idusuario;
 
         try {
-            // Obtener submódulos de nivel 3 que dependen del submódulo padre (por orden)
-            $subModulosDB = SYSUsuariosRoles::join('SYSRoles as r', 'SYSUsuariosRoles.idrol', '=', 'r.idrol')
-                ->where('SYSUsuariosRoles.idusuario', $idusuario)
-                ->where('SYSUsuariosRoles.acceso', true)
-                ->where('r.Nivel', 3)
-                ->where('r.Dependencia', $moduloPadre)
-                ->select('r.idrol', 'r.orden', 'r.modulo', 'r.imagen', 'r.Nivel', 'r.Dependencia',
-                        'SYSUsuariosRoles.acceso as usuario_acceso',
-                        'SYSUsuariosRoles.crear as usuario_crear',
-                        'SYSUsuariosRoles.modificar as usuario_modificar',
-                        'SYSUsuariosRoles.eliminar as usuario_eliminar',
-                        'SYSUsuariosRoles.registrar as usuario_registrar')
-                ->orderBy('r.orden')
-                ->get();
+            $subModulos = $this->moduloService->getSubmodulosNivel3(
+                $moduloPadre,
+                $usuarioActual->idusuario
+            );
 
-            $subModulos = [];
-            foreach ($subModulosDB as $moduloDB) {
-                $rutaGenerada = $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden, $moduloDB->Dependencia ?? null);
-
-                // Log temporal para debugging
-                Log::info("Módulo Nivel 3 cargado: {$moduloDB->modulo} (orden: {$moduloDB->orden}, dependencia: {$moduloDB->Dependencia}) -> Ruta: {$rutaGenerada}");
-
-                $subModulos[] = [
-                    'nombre' => $moduloDB->modulo,
-                    'imagen' => $moduloDB->imagen ?? 'default.png',
-                    'ruta' => $rutaGenerada,
-                    'ruta_tipo' => 'url',
-                    'orden' => $moduloDB->orden,
-                    'nivel' => $moduloDB->Nivel,
-                    'dependencia' => $moduloDB->Dependencia,
-                    'acceso' => $moduloDB->usuario_acceso,
-                    'crear' => $moduloDB->usuario_crear,
-                    'modificar' => $moduloDB->usuario_modificar,
-                    'eliminar' => $moduloDB->usuario_eliminar,
-                    'registrar' => $moduloDB->usuario_registrar
-                ];
-            }
-
-            // Obtener el nombre del módulo padre
             $moduloPadreInfo = SYSRoles::where('orden', $moduloPadre)->first();
 
             return view('modulos.submodulos', [
                 'moduloPrincipal' => $moduloPadreInfo->modulo ?? "Submódulos de $moduloPadre",
                 'subModulos' => $subModulos,
-                'rango' => ['inicio' => $moduloPadre, 'nombre' => $moduloPadreInfo->modulo ?? "Submódulos"]
+                'rango' => [
+                    'inicio' => $moduloPadre,
+                    'nombre' => $moduloPadreInfo->modulo ?? 'Submódulos'
+                ]
             ]);
-
         } catch (\Exception $e) {
-            Log::error('Error al obtener submódulos nivel 3: ' . $e->getMessage());
-            return redirect('/produccionProceso')->with('error', 'Error al cargar los submódulos');
+            Log::error('Error al obtener submódulos nivel 3', [
+                'error' => $e->getMessage(),
+                'modulo_padre' => $moduloPadre
+            ]);
+            return redirect('/produccionProceso')
+                ->with('error', 'Error al cargar los submódulos');
         }
-    }
-
-    //METODO para mostrar la vista principal (produccionProceso)
-    public function index()
-    {
-        $usuarioActual = Auth::user();
-
-        // Verificar que el usuario esté autenticado
-        if (!$usuarioActual) {
-            return redirect()->route('login')->with('error', 'Debes iniciar sesión para acceder a los módulos');
-        }
-
-        $idusuario = $usuarioActual->idusuario;
-
-        // Verificar que el usuario tenga número de empleado
-        if (!$usuarioActual->numero_empleado) {
-            return redirect()->route('login')->with('error', 'Usuario sin número de empleado válido');
-        }
-
-        // Cachear módulos en sesión por 24 horas
-        $cacheKey = "modulos_principales_user_{$idusuario}";
-        $modulos = cache()->remember($cacheKey, 86400, function () use ($idusuario) {
-            try {
-                // Obtener SOLO módulos principales de nivel 1 usando la nueva estructura jerárquica
-                $modulosDB = SYSUsuariosRoles::join('SYSRoles as r', 'SYSUsuariosRoles.idrol', '=', 'r.idrol')
-                    ->where('SYSUsuariosRoles.idusuario', $idusuario)
-                    ->where('SYSUsuariosRoles.acceso', true)
-                    ->where('r.Nivel', 1) // Solo módulos de nivel 1
-                    ->whereNull('r.Dependencia') // Sin dependencia (módulos principales)
-                    ->select('r.idrol', 'r.orden', 'r.modulo', 'r.imagen', 'r.Nivel', 'r.Dependencia',
-                            'SYSUsuariosRoles.acceso as usuario_acceso',
-                            'SYSUsuariosRoles.crear as usuario_crear',
-                            'SYSUsuariosRoles.modificar as usuario_modificar',
-                            'SYSUsuariosRoles.eliminar as usuario_eliminar',
-                            'SYSUsuariosRoles.registrar as usuario_registrar')
-                    ->orderBy('r.orden') // Ya está ordenado jerárquicamente
-                    ->get();
-
-                // Construir el array de módulos dinámicamente desde la DB
-                $modulos = [];
-                foreach ($modulosDB as $moduloDB) {
-                    $nombreModulo = $moduloDB->modulo;
-                    $orden = $moduloDB->orden;
-
-                    // Generar ruta dinámica basada en el nombre del módulo
-                    $ruta = $this->generarRutaModuloPrincipal($nombreModulo, $orden);
-
-                    $modulos[] = [
-                        'nombre' => $nombreModulo,
-                        'imagen' => $moduloDB->imagen ?? 'default.png',
-                        'ruta' => $ruta,
-                        'ruta_tipo' => 'url',
-                        'orden' => $orden,
-                        'nivel' => $moduloDB->Nivel,
-                        'dependencia' => $moduloDB->Dependencia,
-                        'acceso' => $moduloDB->usuario_acceso,
-                        'crear' => $moduloDB->usuario_crear,
-                        'modificar' => $moduloDB->usuario_modificar,
-                        'eliminar' => $moduloDB->usuario_eliminar,
-                        'registrar' => $moduloDB->usuario_registrar
-                    ];
-                }
-
-                return $modulos;
-            } catch (\Exception $e) {
-                Log::error('Error al obtener módulos de la DB: ' . $e->getMessage());
-                return [];
-            }
-        });
-
-        // Verificar si el usuario tiene permisos de configuración
-        $tieneConfiguracion = false;
-        foreach ($modulos as $modulo) {
-            if ($modulo['nombre'] === 'Configuración') {
-                $tieneConfiguracion = true;
-                break;
-            }
-        }
-
-        return view('/produccionProceso', [
-            'modulos' => $modulos,
-            'tieneConfiguracion' => $tieneConfiguracion,
-            'pageTitle' => 'Producción en Proceso'
-        ]);
     }
 
     /**
-     * API: Obtener todos los submódulos de un módulo principal
-     * Para precarga en background
+     * API: Obtener submódulos de un módulo principal (para precarga)
      */
-    public function getSubModulosAPI($moduloPrincipal)
+    public function getSubModulosAPI(string $moduloPrincipal)
     {
-        $rangosModulos = [
-            'planeacion' => ['inicio' => 100, 'fin' => 199, 'nombre' => 'Planeación'],
-            'tejido' => ['inicio' => 200, 'fin' => 299, 'nombre' => 'Tejido'],
-            'urdido' => ['inicio' => 300, 'fin' => 399, 'nombre' => 'Urdido'],
-            'engomado' => ['inicio' => 400, 'fin' => 499, 'nombre' => 'Engomado'],
-            'atadores' => ['inicio' => 500, 'fin' => 599, 'nombre' => 'Atadores'],
-            'tejedores' => ['inicio' => 600, 'fin' => 699, 'nombre' => 'Tejedores'],
-            'programa-urd-eng' => ['inicio' => 700, 'fin' => 799, 'nombre' => 'Programa Urd / Eng'],
-            'mantenimiento' => ['inicio' => 800, 'fin' => 899, 'nombre' => 'Mantenimiento'],
-        ];
-
-        if (!isset($rangosModulos[$moduloPrincipal])) {
-            return response()->json(['error' => 'Módulo no encontrado'], 404);
-        }
-
         $usuarioActual = Auth::user();
+
         if (!$usuarioActual) {
             return response()->json(['error' => 'No autenticado'], 401);
         }
 
-        $idusuario = $usuarioActual->idusuario;
-        $rango = $rangosModulos[$moduloPrincipal];
-
-        // Usar el mismo caché que showSubModulos
-        $cacheKey = "submodulos_{$moduloPrincipal}_user_{$idusuario}";
-        $subModulos = cache()->remember($cacheKey, 86400, function () use ($idusuario, $rango) {
-            try {
-                $codigoModuloPadre = $rango['inicio'];
-
-                // Obtener submódulos de nivel 2 que dependen del módulo padre
-                $subModulosDB = SYSUsuariosRoles::join('SYSRoles as r', 'SYSUsuariosRoles.idrol', '=', 'r.idrol')
-                    ->where('SYSUsuariosRoles.idusuario', $idusuario)
-                    ->where('SYSUsuariosRoles.acceso', true)
-                    ->where('r.Nivel', 2)
-                    ->where('r.Dependencia', $codigoModuloPadre)
-                    ->select('r.orden', 'r.modulo', 'r.imagen')
-                    ->orderBy('r.orden')
-                    ->get();
-
-                $subModulos = [];
-                foreach ($subModulosDB as $moduloDB) {
-                    $subModulos[] = [
-                        'nombre' => $moduloDB->modulo,
-                        'imagen' => $moduloDB->imagen ?? 'default.png',
-                        'ruta' => $this->generarRutaSubModulo($moduloDB->modulo, $moduloDB->orden, $moduloDB->Dependencia ?? null),
-                        'orden' => $moduloDB->orden
-                    ];
-                }
-
-                return $subModulos;
-            } catch (\Exception $e) {
-                return [];
-            }
-        });
-
-        return response()->json($subModulos);
-    }
-
-    /**
-     * Genera la ruta para un módulo principal (nivel 1)
-     */
-    private function generarRutaModuloPrincipal($nombreModulo, $orden)
-    {
-        // Mapeo de módulos principales a sus rutas
-        $rutasEspeciales = [
-            'Planeación' => '/submodulos/planeacion',
-            'Tejido' => '/submodulos/tejido',
-            'Urdido' => '/submodulos/urdido',
-            'Engomado' => '/submodulos/engomado',
-            'Atadores' => '/submodulos/atadores',
-            'Tejedores' => '/submodulos/tejedores',
-            'Mantenimiento' => '/submodulos/mantenimiento',
-            'Programa Urd / Eng' => '/submodulos/programa-urd-eng',
-            'Configuración' => '/modulo-configuracion',
-        ];
-
-        // Si existe una ruta especial, usarla
-        if (isset($rutasEspeciales[$nombreModulo])) {
-            return $rutasEspeciales[$nombreModulo];
-        }
-
-        // Generar ruta genérica basada en el orden
-        $slug = strtolower(str_replace(' ', '-', $nombreModulo));
-        return "/submodulos/{$slug}";
-    }
-
-    /**
-     * Guardar permisos de módulos para un usuario
-     * @param Request $request
-     * @param int $idusuario
-     */
-    private function guardarPermisos(Request $request, $idusuario)
-    {
         try {
-            // Log para verificar datos recibidos
-            Log::info('Guardando permisos para usuario', [
-                'idusuario' => $idusuario,
-                'total_permisos_recibidos' => count($request->all())
-            ]);
+            $subModulos = $this->moduloService->getSubmodulosPorModuloPrincipal(
+                $moduloPrincipal,
+                $usuarioActual->idusuario
+            );
 
-            // Eliminar permisos anteriores
-            SYSUsuariosRoles::where('idusuario', $idusuario)->delete();
-
-            // Obtener TODOS los módulos (principales, hijos y nietos)
-            $modulos = SYSRoles::orderBy('orden')->get();
-
-            $permisosGuardados = 0;
-            foreach ($modulos as $modulo) {
-                $acceso = $request->has("modulo_{$modulo->idrol}_acceso") ? 1 : 0;
-                $crear = $request->has("modulo_{$modulo->idrol}_crear") ? 1 : 0;
-                $modificar = $request->has("modulo_{$modulo->idrol}_modificar") ? 1 : 0;
-                $eliminar = $request->has("modulo_{$modulo->idrol}_eliminar") ? 1 : 0;
-                $registrar = $crear; // Usar mismo valor que crear
-
-                // Guardar siempre, incluso si no tiene acceso (para mantener la consistencia)
-                SYSUsuariosRoles::create([
-                    'idusuario' => $idusuario,
-                    'idrol' => $modulo->idrol,
-                    'acceso' => $acceso,
-                    'crear' => $crear,
-                    'modificar' => $modificar,
-                    'eliminar' => $eliminar,
-                    'registrar' => $registrar,
-                    'assigned_at' => now(),
-                ]);
-                $permisosGuardados++;
-
-                // Log para los primeros 3 módulos
-                if ($permisosGuardados <= 3) {
-                    Log::info("Permiso guardado para módulo: {$modulo->modulo} (idrol: {$modulo->idrol})", [
-                        'acceso' => $acceso,
-                        'crear' => $crear,
-                        'modificar' => $modificar,
-                        'eliminar' => $eliminar
-                    ]);
-                }
-            }
-
-            Log::info('Permisos guardados exitosamente', [
-                'usuario_id' => $idusuario,
-                'total_permisos' => $permisosGuardados
-            ]);
-
-            // Limpiar caché de módulos para este usuario para que los cambios se reflejen inmediatamente
-            $this->limpiarCachePermisos($idusuario);
-
+            return response()->json($subModulos->values());
         } catch (\Exception $e) {
-            Log::error('Error al guardar permisos', [
-                'usuario_id' => $idusuario,
+            Log::error('Error al obtener submódulos API', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'modulo' => $moduloPrincipal
             ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * Limpiar el caché de permisos de un usuario
-     * @param int $idusuario
-     */
-    private function limpiarCachePermisos($idusuario)
-    {
-        try {
-            // Limpiar caché de módulos principales
-            $cacheKey = "modulos_principales_user_{$idusuario}";
-            cache()->forget($cacheKey);
-
-            // Limpiar caché de submódulos de todos los módulos principales
-            $modulos = ['planeacion', 'tejido', 'urdido', 'engomado', 'atadores', 'tejedores', 'mantenimiento', 'programa-urd-eng'];
-            foreach ($modulos as $modulo) {
-                $subCacheKey = "submodulos_{$modulo}_user_{$idusuario}";
-                cache()->forget($subCacheKey);
-            }
-
-            // También limpiar el caché general de configuración
-            cache()->flush();
-
-        } catch (\Exception $e) {
-            Log::error('Error al limpiar caché de permisos', [
-                'usuario_id' => $idusuario,
-                'error' => $e->getMessage()
-            ]);
+            return response()->json(['error' => 'Error al obtener submódulos'], 500);
         }
     }
 }

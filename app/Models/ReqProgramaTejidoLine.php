@@ -38,7 +38,7 @@ class ReqProgramaTejidoLine extends Model
     protected $casts = [
         'Id'         => 'integer',
         'ProgramaId' => 'integer',
-        'Fecha'      => 'date:Y-m-d',
+        'Fecha'      => 'date', // Cambiar a 'date' para mejor compatibilidad con SQL Server
         'Cantidad'   => 'float',
         'Kilos'      => 'float',
         'Aplicacion' => 'float',

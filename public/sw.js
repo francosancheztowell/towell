@@ -1,4 +1,4 @@
-const CACHE = "pwa-v7";
+const CACHE = "pwa-v8";
 const ASSETS = [
   "/", "/offline",
   "/manifest.json",
