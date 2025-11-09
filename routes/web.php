@@ -540,7 +540,7 @@ Route::middleware(['auth'])->group(function () {
     // TELARES · CRUD AUXILIARES
     // =========================
     // Actividades BPM
-    Route::resource('c', TelActividadesBPMController::class)
+    Route::resource('tel-actividades-bpm', TelActividadesBPMController::class)
         ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
         ->names('tel-actividades-bpm');
 

@@ -45,9 +45,11 @@ Telares por Operador
         </div>
     </div>
 
-    <div class="overflow-x-auto bg-white rounded shadow">
-        <table class="min-w-full text-sm">
-            <thead class="bg-blue-500 text-white">
+    <div class="bg-white rounded shadow">
+        <div class="overflow-x-auto">
+            <div class="overflow-y-auto" style="max-height: 60vh;">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-blue-500 text-white sticky top-0 z-10">
                 <tr>
                     <th class="px-3 py-2 text-left">Número</th>
                     <th class="px-3 py-2 text-left">Nombre</th>
@@ -55,8 +57,8 @@ Telares por Operador
                     <th class="px-3 py-2 text-left">Turno</th>
                     <th class="px-3 py-2 text-left">Salón</th>
                 </tr>
-            </thead>
-            <tbody>
+                    </thead>
+                    <tbody>
                 @forelse($items as $it)
                     <tr class="odd:bg-white even:bg-gray-50 cursor-pointer transition-colors duration-150 hover:bg-blue-50"
                         data-key="{{ $it->getRouteKey() }}"
@@ -76,11 +78,13 @@ Telares por Operador
                 @empty
                     <tr><td colspan="5" class="px-3 py-3 text-center text-gray-500">Sin registros</td></tr>
                 @endforelse
-            </tbody>
-        </table>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
-    <div class="mt-3">{{ $items->links() }}</div>
+    
 
     <!-- Formulario global oculto para eliminar -->
     <form id="globalDeleteForm" action="#" method="POST" class="hidden">

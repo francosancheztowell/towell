@@ -19,7 +19,6 @@ class TelTelaresOperadorController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
-        $perPage = (int) $request->get('per_page', 15);
 
         $items = TelTelaresOperador::query()
             ->when($q !== '', function ($qry) use ($q) {
@@ -30,8 +29,7 @@ class TelTelaresOperadorController extends Controller
                 });
             })
             ->orderBy('numero_empleado')
-            ->paginate($perPage)
-            ->withQueryString();
+            ->get();
 
         $telares = ReqTelares::obtenerTodos();
         $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();

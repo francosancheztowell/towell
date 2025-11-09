@@ -1,4 +1,4 @@
-@extends('layouts.app')
+{{-- @extends('layouts.app')
 
 @section('title', 'Tel · Telares por Operador · Crear')
 @section('page-title')
@@ -94,4 +94,4 @@ Nuevo Operador
         }
     })();
 </script>
-@endpush
+@endpush --}}

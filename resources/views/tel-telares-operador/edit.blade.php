@@ -1,4 +1,4 @@
-@extends('layouts.app')
+{{-- @extends('layouts.app')
 
 @section('title', 'Tel · Telares por Operador · Editar')
 @section('page-title')
@@ -94,4 +94,4 @@ Editar Operador
         }
     })();
 </script>
-@endpush
+@endpush --}}
