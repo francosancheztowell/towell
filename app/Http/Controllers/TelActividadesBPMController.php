@@ -15,13 +15,11 @@ class TelActividadesBPMController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
-        $perPage = (int) $request->get('per_page', 15);
 
         $items = TelActividadesBPM::query()
             ->when($q !== '', fn($qry) => $qry->where('Actividad', 'like', "%{$q}%"))
             ->orderBy('Orden', 'desc')
-            ->paginate($perPage)
-            ->withQueryString();
+            ->get();
 
         return view('tel-actividades-bpm.index', compact('items', 'q'));
     }
