@@ -6,6 +6,8 @@ use App\Models\TelBpmModel;
 use App\Models\TelBpmLineModel;
 use App\Models\TelActividadesBPM;
 use App\Models\SSYSFoliosSecuencia;
+use App\Models\TelTelaresOperador;
+use App\Helpers\TurnoHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -44,10 +46,45 @@ class TelBpmController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        // Prefills para modal crear (estructura de 3 filas)
+        $turnoActual = TurnoHelper::getTurnoActual();
+        $fechaActual = Carbon::now('America/Mexico_City');
+        $user = auth()->user();
+        $userCode    = (string) ($user->cve ?? '');
+        $userCodeAlt = (string) ($user->numero_empleado ?? '');
+        $userName    = (string) ($user->name ?? $user->nombre ?? '');
+
+        // Quien RECIBE: usuario actual en TelTelaresOperador (busca por varias llaves)
+        $operadorUsuario = null;
+        try {
+            $codes = collect([$userCode, $userCodeAlt])->filter(fn($v)=>$v!=='' )->unique()->all();
+            $operadorUsuario = TelTelaresOperador::query()
+                ->when(!empty($codes), fn($q) => $q->whereIn('numero_empleado', $codes))
+                ->when(empty($codes) && $userName !== '', fn($q)=> $q->where('nombreEmpl', 'like', "%{$userName}%"))
+                ->first();
+        } catch (\Throwable $e) {
+            $operadorUsuario = null;
+        }
+        $usuarioEsOperador = (bool) $operadorUsuario;
+
+        // Opciones para ENTREGAR (select)
+        try {
+            $operadoresEntrega = TelTelaresOperador::orderBy('numero_empleado')
+                ->get(['numero_empleado','nombreEmpl','Turno']);
+        } catch (\Throwable $e) {
+            $operadoresEntrega = collect();
+        }
+
         return view('bpm-tejedores.tel-bpm.index', [
             'items'   => $items,
             'q'       => $q,
             'status'  => $status,
+            'turnoActual' => $turnoActual,
+            'fechaActual' => $fechaActual,
+            'turnoActual' => $turnoActual,
+            'operadorUsuario' => $operadorUsuario,
+            'usuarioEsOperador' => $usuarioEsOperador,
+            'operadoresEntrega' => $operadoresEntrega,
         ]);
     }
 
@@ -79,16 +116,45 @@ class TelBpmController extends Controller
             return back()->with('error', 'No se puede crear un nuevo folio: ya existe un registro activo.');
         }
 
-        // Obtener siguiente folio desde SSYSFoliosSecuencias (existente en el sistema)
-        // Intentamos por módulo; si no existe config, probamos por prefijo
-        try {
-            $f = SSYSFoliosSecuencia::nextFolio(self::FOLIO_KEY, self::PAD_LENGTH);
-        } catch (\Throwable $e) {
-            // Fallback: crear/usar por prefijo 'BT'
-            $f = SSYSFoliosSecuencia::nextFolioByPrefijo('BT', self::PAD_LENGTH);
+        // Validar: Entrega y Recibe no pueden ser el mismo operador
+        if (!empty($data['CveEmplRec']) && !empty($data['CveEmplEnt']) && $data['CveEmplRec'] === $data['CveEmplEnt']) {
+            return back()->with('error', 'Entrega y Recibe no pueden ser el mismo operador.');
         }
 
-        $folio = $f['folio'];
+        // Alinear consecutivo con máximo existente para evitar duplicado de PK
+        $folio = null;
+        DB::transaction(function () use (&$folio) {
+            // Leer prefijo actual para TelBPM
+            $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
+            $prefijo = $row->prefijo ?? ($row->Prefijo ?? 'BT');
+            $currConsec = (int)($row->consecutivo ?? ($row->Consecutivo ?? 0));
+
+            // Calcular máximo actual en TelBPM con ese prefijo
+            $maxFolio = DB::table('TelBPM')->where('Folio', 'like', $prefijo.'%')->orderBy('Folio','desc')->value('Folio');
+            $maxNum = 0;
+            if ($maxFolio) {
+                $maxNum = (int) substr($maxFolio, strlen($prefijo));
+            }
+            if ($maxNum > $currConsec) {
+                DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->update(['consecutivo' => $maxNum]);
+            }
+
+            // Generar siguiente folio usando helper
+            try {
+                $f = SSYSFoliosSecuencia::nextFolio(self::FOLIO_KEY, self::PAD_LENGTH);
+            } catch (\Throwable $e) {
+                $f = SSYSFoliosSecuencia::nextFolioByPrefijo($prefijo, self::PAD_LENGTH);
+            }
+            $folio = $f['folio'];
+
+            // Si por alguna razón sigue duplicado, incrementar hasta encontrar libre
+            $guard = 0;
+            while (TelBpmModel::find($folio) && $guard < 5) {
+                $f = SSYSFoliosSecuencia::nextFolioByPrefijo($prefijo, self::PAD_LENGTH);
+                $folio = $f['folio'];
+                $guard++;
+            }
+        });
 
         // Crear header
         TelBpmModel::create([
