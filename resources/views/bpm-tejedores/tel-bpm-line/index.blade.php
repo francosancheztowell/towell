@@ -2,8 +2,37 @@
 
 @section('page-title', 'BPM - Checklist')
 
+@section('navbar-right')
+<div class="flex items-center gap-3">
+    @if($header->Status === 'Creado')
+        <form method="POST" action="{{ route('tel-bpm.finish', $header->Folio) }}" id="form-finish" class="inline">
+            @csrf @method('PATCH')
+            <button type="button" class="px-6 py-2.5 bg-sky-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-sky-600 transition-all duration-200 flex items-center gap-2 group" id="btn-finish">
+                <i class="fa-solid fa-check w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
+                Terminado
+            </button>
+        </form>
+    @elseif($header->Status === 'Terminado')
+        <form method="POST" action="{{ route('tel-bpm.authorize', $header->Folio) }}" id="form-authorize" class="inline">
+            @csrf @method('PATCH')
+            <button type="button" class="px-6 py-2.5 bg-green-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-green-600 transition-all duration-200 flex items-center gap-2 group" id="btn-authorize">
+                <i class="fa-solid fa-thumbs-up w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
+                Autorizar
+            </button>
+        </form>
+        <form method="POST" action="{{ route('tel-bpm.reject', $header->Folio) }}" id="form-reject" class="inline">
+            @csrf @method('PATCH')
+            <button type="button" class="px-6 py-2.5 bg-amber-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-amber-600 transition-all duration-200 flex items-center gap-2 group" id="btn-reject">
+                <i class="fa-solid fa-times w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
+                Rechazar
+            </button>
+        </form>
+    @endif
+</div>
+@endsection
+
 @section('content')
-<div class="max-w-[1200px] mx-auto p-4">
+<div class="max-w-[1200px] mx-auto p-4 pb-16">
     {{-- Header --}}
     <div class="bg-white rounded-xl border p-4 mb-4">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -33,42 +62,21 @@
         </div>
     </div>
 
-        <div class="flex items-center gap-2">
-            @if($header->Status === 'Creado')
-                <form method="POST" action="{{ route('tel-bpm.finish', $header->Folio) }}" id="form-finish">
-                    @csrf @method('PATCH')
-                    <button type="button" class="rounded-lg px-4 py-2 bg-sky-600 text-white hover:bg-sky-700" id="btn-finish">
-                        Terminado
-                    </button>
-                </form>
-            @elseif($header->Status === 'Terminado')
-                <form method="POST" action="{{ route('tel-bpm.authorize', $header->Folio) }}" id="form-authorize">
-                    @csrf @method('PATCH')
-                    <button type="button" class="rounded-lg px-4 py-2 bg-green-600 text-white hover:bg-green-700" id="btn-authorize">
-                        Autorizar
-                    </button>
-                </form>
-                <form method="POST" action="{{ route('tel-bpm.reject', $header->Folio) }}" id="form-reject">
-                    @csrf @method('PATCH')
-                    <button type="button" class="rounded-lg px-4 py-2 bg-amber-600 text-white hover:bg-amber-700" id="btn-reject">
-                        Rechazar
-                    </button>
-                </form>
-            @endif
-            {{-- <a href="{{ route('tel-bpm.index') }}" class="rounded-lg px-3 py-2 border hover:bg-slate-50">Regresar</a> --}}
-        </div>
     </div>
 
     {{-- Tabla de checklist --}}
-    <div id="grid-wrapper" class="overflow-x-auto rounded-lg border bg-white">
+    <div id="grid-wrapper" class="mx-3 mb-12 overflow-auto rounded-lg border bg-white shadow-sm" style="max-height: calc(100vh - 350px);">
         <table id="grid" class="min-w-full text-sm">
-            <thead class="bg-slate-100">
+            <thead class="bg-gradient-to-r from-blue-500 to-blue-600 text-white sticky top-0 z-10">
                 <tr>
-                    <th class="px-3 py-2 text-left w-12">#</th>
-                    <th class="px-3 py-2 text-left">Actividad</th>
+                    <th class="px-4 py-3 text-left w-12 font-semibold sticky left-0 bg-gradient-to-r from-blue-500 to-blue-600 z-20">#</th>
+                    <th class="px-4 py-3 text-left font-semibold sticky left-12 bg-gradient-to-r from-blue-500 to-blue-600 z-20 min-w-[200px]">Actividad</th>
                     {{-- Columnas de telar existentes --}}
                     @foreach($telares as $t)
-                        <th class="px-3 py-2 text-center telar-col" data-telar="{{ $t }}">{{ $t }}<div class="text-[10px] text-slate-500">T: {{ $header->TurnoEntrega }}</div></th>
+                        <th class="px-4 py-3 text-center telar-col font-semibold min-w-[80px]" data-telar="{{ $t }}">
+                            {{ $t }}
+                            <div class="text-xs text-blue-100 font-normal">T: {{ $header->TurnoEntrega }}</div>
+                        </th>
                     @endforeach
                 </tr>
                 
@@ -82,16 +90,18 @@
                     }
                 @endphp
                 @forelse($actividades as $a)
-                    <tr class="border-t">
-                        <td class="px-3 py-2 text-slate-500">{{ $a['Orden'] }}</td>
-                        <td class="px-3 py-2">{{ $a['Actividad'] }}</td>
+                    <tr class="border-t hover:bg-gray-50 transition-colors duration-150 {{ $loop->even ? 'bg-gray-25' : 'bg-white' }}">
+                        <td class="px-4 py-3 text-slate-600 font-medium sticky left-0 bg-white z-10 border-r">{{ $a['Orden'] }}</td>
+                        <td class="px-4 py-3 text-gray-800 text-base font-medium sticky left-12 bg-white z-10 border-r min-w-[200px]">{{ $a['Actividad'] }}</td>
 
                         @foreach($telares as $t)
                             @php $val = $map[$a['Orden']][$t] ?? null; @endphp
-                            <td class="px-3 py-2 text-center">
+                            <td class="px-4 py-3 text-center">
                                 <button
-                                    class="cell-btn inline-flex items-center justify-center w-8 h-8 rounded-md border
-                                        {{ $val==='OK' ? 'bg-green-50 border-green-300' : ($val==='X' ? 'bg-red-50 border-red-300' : 'bg-white') }}"
+                                    class="cell-btn inline-flex items-center justify-center w-9 h-9 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300
+                                        {{ $val==='OK' ? 'bg-green-100 border-green-400 text-green-700 hover:bg-green-200' : 
+                                           ($val==='X' ? 'bg-red-100 border-red-400 text-red-700 hover:bg-red-200' : 
+                                           'bg-gray-50 border-gray-300 text-gray-400 hover:bg-gray-100 hover:border-gray-400') }}"
                                     data-orden="{{ $a['Orden'] }}"
                                     data-actividad="{{ $a['Actividad'] }}"
                                     data-telar="{{ $t }}"
@@ -99,15 +109,15 @@
                                     data-valor="{{ $val ?? '' }}"
                                     @if($header->Status !== 'Creado') disabled @endif
                                 >
-                                   <span class="cell-icon text-lg">
-                                        {!! $val==='OK' ? '✓' : ($val==='X' ? '✗' : '&nbsp;') !!}
+                                   <span class="cell-icon text-lg font-bold">
+                                        {!! $val==='OK' ? '✓' : ($val==='X' ? '✗' : '○') !!}
                                    </span>
                                 </button>
                             </td>
                         @endforeach
                     </tr>
                 @empty
-                    <tr><td colspan="20" class="px-3 py-6 text-center text-slate-500">No hay actividades configuradas.</td></tr>
+                    <tr><td colspan="20" class="px-4 py-6 text-center text-slate-500">No hay actividades configuradas.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -229,13 +239,13 @@
 
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'cell-btn inline-flex items-center justify-center w-8 h-8 rounded-md border bg-white';
+            btn.className = 'cell-btn inline-flex items-center justify-center w-9 h-9 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-gray-50 border-gray-300 text-gray-400 hover:bg-gray-100 hover:border-gray-400';
             btn.dataset.orden = orden;
             btn.dataset.actividad = actTxt;
             btn.dataset.telar = telar;
             btn.dataset.salon = salon;
             btn.dataset.valor = '';
-            btn.innerHTML = '<span class="cell-icon text-lg">&nbsp;</span>';
+            btn.innerHTML = '<span class="cell-icon text-lg font-bold">○</span>';
 
             btn.addEventListener('click', async ()=> {
                 if (!editable) { toast('info','Edición no permitida'); return; }
@@ -255,15 +265,16 @@
                 if (!res.ok || !data.ok){ toast('error', data.msg || 'No se pudo guardar'); return; }
                 const next = data.valor;
                 btn.dataset.valor = next || '';
-                btn.classList.remove('bg-green-50','border-green-300','bg-red-50','border-red-300');
+                btn.classList.remove('bg-green-100','border-green-400','text-green-700','bg-red-100','border-red-400','text-red-700','bg-gray-50','border-gray-300','text-gray-400');
                 if (next === 'OK') {
-                    btn.classList.add('bg-green-50','border-green-300');
+                    btn.classList.add('bg-green-100','border-green-400','text-green-700');
                     btn.querySelector('.cell-icon').innerHTML = '✓';
                 } else if (next === 'X') {
-                    btn.classList.add('bg-red-50','border-red-300');
+                    btn.classList.add('bg-red-100','border-red-400','text-red-700');
                     btn.querySelector('.cell-icon').innerHTML = '✗';
                 } else {
-                    btn.querySelector('.cell-icon').innerHTML = '&nbsp;';
+                    btn.classList.add('bg-gray-50','border-gray-300','text-gray-400');
+                    btn.querySelector('.cell-icon').innerHTML = '○';
                 }
             });
 

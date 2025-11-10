@@ -110,11 +110,7 @@ class TelBpmController extends Controller
         $data['NombreEmplRec'] = $data['NombreEmplRec'] ?? ((string) (auth()->user()->name ?? null));
         $data['TurnoRecibe']   = $data['TurnoRecibe']   ?? ((string) request()->get('turno_actual', '1'));
 
-        // Regla: sólo un folio activo a la vez (Creado o Terminado)
-        $activo = TelBpmModel::whereIn('Status', [self::EST_CREADO, self::EST_TERM])->exists();
-        if ($activo) {
-            return back()->with('error', 'No se puede crear un nuevo folio: ya existe un registro activo.');
-        }
+        // Permitir múltiples folios activos - se eliminó la restricción anterior
 
         // Validar: Entrega y Recibe no pueden ser el mismo operador
         if (!empty($data['CveEmplRec']) && !empty($data['CveEmplEnt']) && $data['CveEmplRec'] === $data['CveEmplEnt']) {
@@ -176,8 +172,8 @@ class TelBpmController extends Controller
         // Si quieres pre-generarlas, dímelo y lo agregamos.
 
         return redirect()
-            ->route('tel-bpm-line.index', $folio)
-            ->with('success', "Folio $folio creado. Completa el checklist.");
+            ->route('tel-bpm.index')
+            ->with('success', "Folio $folio creado exitosamente.");
     }
 
     /** Editar header (sólo en estado 'Creado') */
@@ -227,7 +223,7 @@ class TelBpmController extends Controller
         }
 
         $item->update(['Status' => self::EST_TERM]);
-        return back()->with('success', 'Folio marcado como Terminado.');
+        return redirect()->route('tel-bpm.index')->with('success', 'Folio marcado como Terminado.');
     }
 
     /** Autorizar (de Terminado → Autorizado) */
@@ -264,7 +260,7 @@ class TelBpmController extends Controller
             'NomEmplAutoriza' => $name !== null ? (string)$name : '',
         ]);
 
-        return back()->with('success', 'Folio Autorizado.');
+        return redirect()->route('tel-bpm.index')->with('success', 'Folio Autorizado.');
     }
 
     /** Rechazar (de Terminado → Creado) */
@@ -284,7 +280,7 @@ class TelBpmController extends Controller
             'NomEmplAutoriza' => null,
         ]);
 
-        return back()->with('success', 'Folio regresó a estado Creado.');
+        return redirect()->route('tel-bpm.index')->with('success', 'Folio regresó a estado Creado.');
     }
 
     /* ===================== Helpers ===================== */

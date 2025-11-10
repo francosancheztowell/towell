@@ -161,7 +161,7 @@
 
         <div class="mt-6 flex items-center gap-2">
             <button class="rounded-lg px-4 py-2 bg-blue-600 text-white hover:bg-blue-700">
-                Crear y abrir checklist
+                Crear folio
             </button>
             <button type="button" data-close="#modal-create" class="rounded-lg px-4 py-2 border hover:bg-slate-50">
                 Cancelar
@@ -384,6 +384,21 @@
       text: @json(session('error')),
       confirmButtonText: 'Entendido'
     });
+  })();
+</script>
+@endif
+
+@if(session('success'))
+<script>
+  (function(){
+    const message = @json(session('success'));
+    // Auto-refrescar cuando se crea, termina, autoriza o rechaza un folio
+    if (message.includes('creado') || message.includes('Terminado') || message.includes('Autorizado') || message.includes('Creado')) {
+        // Pequeño delay para que el usuario vea el mensaje de éxito antes del refresh
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+    }
   })();
 </script>
 @endif

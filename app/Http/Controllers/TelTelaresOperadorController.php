@@ -52,7 +52,7 @@ class TelTelaresOperadorController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'numero_empleado' => ['required', 'string', 'max:30', 'exists:SYSUsuario,numero_empleado', 'unique:TelTelaresOperador,numero_empleado'],
+            'numero_empleado' => ['required', 'string', 'max:30', 'exists:SYSUsuario,numero_empleado'],
             'NoTelarId'       => ['required', 'string', 'max:10'],
             'SalonTejidoId'   => ['required', 'string', 'max:10'],
         ]);
@@ -94,13 +94,9 @@ class TelTelaresOperadorController extends Controller
     public function update(Request $request, TelTelaresOperador $telTelaresOperador)
     {
         $data = $request->validate([
-            'numero_empleado' => [
-                'required', 'string', 'max:30',
-                Rule::unique('TelTelaresOperador', 'numero_empleado')
-                    ->ignore($telTelaresOperador->getKey(), $telTelaresOperador->getKeyName()),
-            ],
-            'NoTelarId'     => ['required', 'string', 'max:10'],
-            'SalonTejidoId' => ['required', 'string', 'max:10'],
+            'numero_empleado' => ['required', 'string', 'max:30'],
+            'NoTelarId'       => ['required', 'string', 'max:10'],
+            'SalonTejidoId'   => ['required', 'string', 'max:10'],
         ]);
 
         // Recalcular nombre y turno desde SYSUsuario
