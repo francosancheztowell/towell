@@ -137,7 +137,7 @@
     </style>
 
     @if(count($telares) > 0)
-        <x-telar-navbar :telares="$telares" />
+        <x-telares.telar-navbar :telares="$telares" />
     @endif
 
     @if(count($telares) > 0)
@@ -152,7 +152,7 @@
                 @endphp
 
                 <div id="telar-{{ $telar }}">
-                    <x-telar-section
+                    <x-telares.telar-section
                         :telar="$telarData"
                         :ordenSig="$ordenSig"
                         :tipo="$tipoInventario"

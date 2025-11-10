@@ -194,6 +194,11 @@ document.addEventListener('DOMContentLoaded', () => {
                        class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                        value="${telar.metros ?? ''}" data-field="metros">
             </td>
+            <td class="px-2 py-3 w-24">
+                <input type="number" step="0.01" placeholder="Kilos"
+                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       value="${telar.kilos ?? ''}" data-field="kilos">
+            </td>
             <td class="px-2 py-3 w-24 text-center">
                 <input type="checkbox" class="w-4 h-4" ${telar.agrupar ? 'checked' : ''} data-field="agrupar">
             </td>

@@ -562,7 +562,7 @@ const selection = {
                 Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar reservado',text:'No se puede usar en selección múltiple',showConfirmButton:false,timer:2000});
                 if (cb) cb.checked = false; return;
             }
-            
+
             if (state.selectedTelares.length > 0){
                 const ref = state.selectedTelares[0];
                 // Verificar que el telar de referencia no esté reservado
@@ -971,11 +971,15 @@ const actions = {
 
         show($('#loaderInventario')); show($('#loaderTelares'));
         try{
-            // Actualizar telar (metros / no_julio)
+            // Obtener el lote (InventBatchId) del inventario seleccionado
+            const lote = state.selectedInventario.inventBatchId || state.selectedInventario.data?.InventBatchId || '';
+
+            // Actualizar telar (metros / no_julio / no_orden)
             await http.post(API.actualizarTelar,{
                 no_telar: tel.no_telar, tipo: tel.tipo,
                         metros: state.selectedInventario.metros || 0,
-                        no_julio: state.selectedInventario.numJulio || ''
+                        no_julio: state.selectedInventario.numJulio || '',
+                        no_orden: lote
                     });
 
             // Refrescar UI local del telar
@@ -984,10 +988,12 @@ const actions = {
             if (ix>-1){
                 state.telaresData[ix].metros   = state.selectedInventario.metros || 0;
                 state.telaresData[ix].no_julio = state.selectedInventario.numJulio || '';
+                state.telaresData[ix].no_orden = lote;
                 const jx = state.telaresDataOriginal.findIndex(x => x.no_telar===tel.no_telar && (String(x.tipo||'').toUpperCase().trim()===tTipo));
                 if (jx>-1){
                     state.telaresDataOriginal[jx].metros = state.telaresData[ix].metros;
                     state.telaresDataOriginal[jx].no_julio = state.telaresData[ix].no_julio;
+                    state.telaresDataOriginal[jx].no_orden = lote;
                 }
                         render.telares(state.telaresData);
             }

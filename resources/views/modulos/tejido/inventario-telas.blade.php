@@ -27,6 +27,6 @@
             ];
         @endphp
 
-        <x-module-grid :modulos="$modulos" columns="md:grid-cols-4" image-folder="fotos_tejido" />
+        <x-layout.module-grid :modulos="$modulos" columns="md:grid-cols-4" image-folder="fotos_tejido" />
     </div>
 @endsection

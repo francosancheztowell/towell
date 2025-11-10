@@ -21,7 +21,7 @@ class MarcasFinalesController extends Controller
             ->orderBy('Folio', 'desc')
             ->get();
 
-        return view('modulos.marcas-finales', [
+        return view('modulos.marcas-finales.marcas-finales', [
             'marcas' => $marcas
         ]);
     }

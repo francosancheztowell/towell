@@ -70,7 +70,7 @@
 
         <!-- Formulario de ID Usuario -->
         <div id="user-form" class="block">
-          <x-login-form
+          <x-auth.login-form
             :errors="$errors ?? []"
           />
         </div>

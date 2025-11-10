@@ -3,7 +3,7 @@
 @section('page-title', 'Catálogo de Codificación')
 
 @section('navbar-right')
-<x-action-buttons route="codificacion" :showFilters="true" />
+<x-buttons.catalog-actions route="codificacion" :showFilters="true" />
 @endsection
 
 @section('content')

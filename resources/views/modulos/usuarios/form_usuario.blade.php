@@ -57,7 +57,7 @@
 
 
         <!-- Header con componente reutilizable -->
-        <x-page-header
+        <x-layout.page-header
             :title="$isEdit ? 'Editar Usuario #' . ($usuario->numero_empleado ?? '') : 'Registrar Nuevo Usuario'"
             :subtitle="$isEdit ? 'Actualiza los datos del usuario ' . ($usuario->nombre ?? '') : 'Completa los datos del usuario para crear una nueva cuenta'"
             containerClass="max-w-7xl mx-auto"

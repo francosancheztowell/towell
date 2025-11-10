@@ -140,7 +140,7 @@ class NuevoRequerimientoController extends Controller
         // Normaliza índices
         $vm['telares'] = array_values($vm['telares']);
 
-        return view('modulos/nuevo-requerimiento', ['vm' => $vm]);
+        return view('modulos.inventario-trama.nuevo-requerimiento', ['vm' => $vm]);
     }
 
     /**

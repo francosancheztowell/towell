@@ -66,7 +66,7 @@ class MarcasController extends Controller
                 Log::info('Telares obtenidos de InvSecuenciaTelares (mapeados): ' . $telares->count());
             }
 
-            return view('modulos.nuevo-marcas', compact('telares'));
+            return view('modulos.marcas-finales.nuevo-marcas', compact('telares'));
         } catch (\Exception $e) {
             Log::error('Error al cargar vista de marcas: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -74,7 +74,7 @@ class MarcasController extends Controller
             // Si hay error con las tablas, intentar con array vacío
             $telares = collect([]);
 
-            return view('modulos.nuevo-marcas', compact('telares'));
+            return view('modulos.marcas-finales.nuevo-marcas', compact('telares'));
         }
     }
 
@@ -96,14 +96,14 @@ class MarcasController extends Controller
             // Obtener el último folio creado (el más reciente, o el en proceso si existe)
             $ultimoFolio = $marcas->first();
 
-            return view('modulos.consultar-marcas-finales', compact('marcas', 'ultimoFolio', 'permisos'));
+            return view('modulos.marcas-finales.consultar-marcas-finales', compact('marcas', 'ultimoFolio', 'permisos'));
         } catch (\Exception $e) {
             Log::error('Error al consultar marcas: ' . $e->getMessage());
             // Devolver vista con colección vacía para no romper la UI
             $marcas = collect([]);
             $ultimoFolio = null;
             $permisos = $this->getPermisosMarcas();
-            return view('modulos.consultar-marcas-finales', compact('marcas', 'ultimoFolio', 'permisos'));
+            return view('modulos.marcas-finales.consultar-marcas-finales', compact('marcas', 'ultimoFolio', 'permisos'));
         }
     }
 

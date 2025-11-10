@@ -26,7 +26,7 @@ class ComprasEspecialesController extends Controller
             // 3) Fusionar para la vista (sin conflictos)
             $registros = $this->formatearRegistros($normales, $batas);
 
-            return view('modulos.altas-especiales', compact('registros'));
+            return view('modulos.programa-tejido.altas-especiales', compact('registros'));
         } catch (\Throwable $e) {
             Log::error('ComprasEspecialesController.index', [
                 'message' => $e->getMessage(),
@@ -35,7 +35,7 @@ class ComprasEspecialesController extends Controller
 
             $registros    = collect();
             $errorMensaje = 'Ocurrió un error al cargar los datos: ' . $e->getMessage();
-            return view('modulos.altas-especiales', compact('registros', 'errorMensaje'));
+            return view('modulos.programa-tejido.altas-especiales', compact('registros', 'errorMensaje'));
         }
     }
 
@@ -348,7 +348,7 @@ class ComprasEspecialesController extends Controller
             'cantidad'     => $request->query('cantidad') ?? $request->query('CANTIDAD'),
             'tipohilo'     => $request->query('tipohilo') ?? $request->query('TIPOHILO'),
         ];
-        return view('modulos.programa-tejido-nuevo.altas', compact('prefill'));
+        return view('modulos.programa-tejido.programatejidoform.altas', compact('prefill'));
     }
 
     /**

@@ -3,7 +3,7 @@
 @section('page-title', 'Secuencia de Trama')
 
 @section('navbar-right')
-    <x-botones-inventarios-secuencias
+    <x-buttons.inventory-sequence-actions
         modulo="Secuencia Inv Trama"
         onCreate="agregarSecuenciaInvTrama"
         onEdit="editarSecuenciaInvTrama"

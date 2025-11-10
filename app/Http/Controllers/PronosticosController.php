@@ -19,7 +19,7 @@ class PronosticosController extends Controller
         $meses = $this->parseMeses($request);
         $mesActual = !empty($meses) ? $meses[0] : now()->format('Y-m');
 
-        return view('modulos.alta-pronosticos', compact('mesActual', 'meses'));
+        return view('modulos.programa-tejido.alta-pronosticos', compact('mesActual', 'meses'));
     }
 
     /**
@@ -118,10 +118,10 @@ class PronosticosController extends Controller
         ];
 
         Log::info('PronosticosController.nuevo - Retornando vista', [
-            'vista' => 'modulos.programa-tejido-nuevo.pronosticos',
+            'vista' => 'modulos.programa-tejido.programatejidoform.pronosticos',
             'prefill' => $prefill,
         ]);
 
-        return view('modulos.programa-tejido-nuevo.pronosticos', compact('prefill'));
+        return view('modulos.programa-tejido.programatejidoform.pronosticos', compact('prefill'));
     }
 }

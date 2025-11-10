@@ -1,7 +1,7 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
 @section('page-title')
-    <x-page-title
+    <x-layout.page-title
         title="Configuración"
     />
 @endsection
@@ -11,14 +11,14 @@
 
         @if (count($subModulos) === 0)
             <!-- Estado vacío -->
-            <x-empty-state
+            <x-empty.empty-state
                 icon="config"
                 title="No hay módulos de configuración disponibles"
                 message="No tienes permisos para acceder a los módulos de configuración"
             />
         @else
             <!-- Grid de módulos de configuración usando componente -->
-            <x-module-grid :modulos="$subModulos" columns="xl:grid-cols-4" :filterConfig="false" />
+            <x-layout.module-grid :modulos="$subModulos" columns="xl:grid-cols-4" :filterConfig="false" />
         @endif
     </div>
 @endsection

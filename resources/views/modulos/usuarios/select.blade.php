@@ -25,7 +25,7 @@
     @endphp
 
     <!-- Header con componente reutilizable -->
-    <x-page-header
+    <x-layout.page-header
         title="Lista de Usuarios"
         badge="{{ count($usuarios) }} usuarios"
         containerClass="max-w-full mx-auto px-2 mt-8"
@@ -40,7 +40,7 @@
                 Nuevo Usuario
             </a>
         </x-slot>
-    </x-page-header>
+    </x-layout.page-header>
 
         {{-- Alertas SweetAlert si las usas en tu layout --}}
         @if (session('success'))

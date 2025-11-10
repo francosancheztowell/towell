@@ -2,6 +2,10 @@
 
 @section('page-title', 'Catálogo de Velocidad')
 
+@section('navbar-right')
+<x-buttons.catalog-actions route="velocidad" :showFilters="true" />
+@endsection
+
 @section('content')
     <div class="container">
 
@@ -122,43 +126,43 @@ function repoblarSelect(selectEl, opciones, selectedValue = '') {
             }
         }
 
-        function enableButtons() {
-    const e = document.getElementById('btn-editar');
-    const d = document.getElementById('btn-eliminar');
-    if (e) { e.disabled = false; e.className = 'inline-flex items-center px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium'; }
-    if (d) { d.disabled = false; d.className = 'inline-flex items-center px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium'; }
-}
-function disableButtons() {
-    const e = document.getElementById('btn-editar');
-    const d = document.getElementById('btn-eliminar');
-    if (e) { e.disabled = true; e.className = 'inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg text-sm font-medium cursor-not-allowed'; }
-    if (d) { d.disabled = true; d.className = 'inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg text-sm font-medium cursor-not-allowed'; }
-}
+// Las funciones enableButtons() y disableButtons() se reemplazan por actualizarBotonesAccionVelocidad()
+// que es proporcionada por el componente catalog-actions
 
 /* ===========================
    Selección de filas
 =========================== */
 function selectRow(row, uniqueId, id) {
     document.querySelectorAll('#velocidad-body tr').forEach(r => {
-        r.classList.remove('bg-blue-500','text-white');
-        r.classList.add('hover:bg-blue-50');
+        r.classList.remove('text-blue-600', 'font-semibold');
+        r.classList.add('text-black');
     });
-    row.classList.remove('hover:bg-blue-50');
-    row.classList.add('bg-blue-500','text-white');
+    row.classList.remove('text-black');
+    row.classList.add('text-blue-600', 'font-semibold');
 
     selectedRow = row;
     selectedKey = uniqueId;
     selectedId = id;
-    enableButtons();
+
+    // Usar la función del componente catalog-actions para habilitar botones
+    // Esta función solo cambia el color del texto y cursor, no el fondo, evitando el cuadro gris
+    if (typeof window.actualizarBotonesAccionVelocidad === 'function') {
+        window.actualizarBotonesAccionVelocidad(true);
+    }
 }
 function deselectRow(row) {
-    if (!row.classList.contains('bg-blue-500')) return;
-    row.classList.remove('bg-blue-500','text-white');
-    row.classList.add('hover:bg-blue-50');
+    if (!row.classList.contains('text-blue-600')) return;
+    row.classList.remove('text-blue-600', 'font-semibold');
+    row.classList.add('text-black');
     selectedRow = null;
     selectedKey = null;
     selectedId = null;
-    disableButtons();
+
+    // Usar la función del componente catalog-actions para deshabilitar botones
+    // Esta función solo cambia el color del texto y cursor, no el fondo, evitando el cuadro gris
+    if (typeof window.actualizarBotonesAccionVelocidad === 'function') {
+        window.actualizarBotonesAccionVelocidad(false);
+    }
 }
 
 /* ===========================
@@ -527,7 +531,7 @@ function aplicarFiltros(f) {
         const tr = document.createElement('tr');
                 const uniqueId = item.NoTelarId + '_' + item.FibraId;
 
-        tr.className = 'text-center hover:bg-blue-50 transition cursor-pointer';
+        tr.className = 'text-center hover:bg-blue-50 transition cursor-pointer text-black';
         tr.onclick = () => selectRow(tr, uniqueId, item.Id || null);
         tr.ondblclick = () => deselectRow(tr);
 
@@ -559,26 +563,6 @@ function actualizarContador() {
     else { el.classList.add('hidden'); }
 }
 
-/* ===========================
-   Bootstrap
-=========================== */
-document.addEventListener('DOMContentLoaded', () => {
-    disableButtons();
-});
-
-// Funciones globales para el navbar
-window.filtrarVelocidad = function() {
-    mostrarFiltros();
-};
-
-window.limpiarFiltrosVelocidad = function() {
-    limpiarFiltros();
-};
-
-window.agregarVelocidad = function() {
-    agregarVelocidadLocal();
-};
-
 function limpiarFiltros() {
     filtrosActuales = { salon:'', telar:'', fibra:'', densidad:'', velocidad_min:'', velocidad_max:'' };
     cacheFiltros.clear();
@@ -587,5 +571,35 @@ function limpiarFiltros() {
     actualizarContador();
     crearToast('success', `Filtros limpiados - Mostrando ${datosOriginales.length} registros`, 2000);
 }
+
+/* ===========================
+   Bootstrap
+=========================== */
+document.addEventListener('DOMContentLoaded', () => {
+    // Deshabilitar botones inicialmente usando la función del componente
+    // Usar setTimeout para asegurar que el componente catalog-actions haya terminado de renderizar
+    setTimeout(() => {
+        if (window.actualizarBotonesAccionVelocidad) {
+            window.actualizarBotonesAccionVelocidad(false);
+        }
+    }, 50);
+
+    // Funciones globales para el navbar (esperadas por catalog-actions component)
+    // El componente genera: agregarVelocidad, editarVelocidad, eliminarVelocidad, filtrarVelocidad, limpiarFiltrosVelocidad, subirExcelVelocidad
+    window.agregarVelocidad = agregarVelocidadLocal;
+    window.editarVelocidad = editarVelocidad;
+    window.eliminarVelocidad = eliminarVelocidad;
+    window.filtrarVelocidad = mostrarFiltros;
+    window.limpiarFiltrosVelocidad = limpiarFiltros;
+    window.subirExcelVelocidad = function() {
+        // TODO: Implementar subida de Excel para velocidad
+        Swal.fire({
+            icon: 'info',
+            title: 'Función en desarrollo',
+            text: 'La funcionalidad de subir Excel está en desarrollo',
+            confirmButtonText: 'Entendido'
+        });
+    };
+});
     </script>
 @endsection

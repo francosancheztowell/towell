@@ -54,7 +54,7 @@
         @endif
 
         <!-- Header con componente reutilizable -->
-        <x-page-header
+        <x-layout.page-header
             title="Registrar Nuevo Usuario"
             subtitle="Completa los datos del usuario para crear una nueva cuenta"
             containerClass="max-w-7xl mx-auto"

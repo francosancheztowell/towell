@@ -1,6 +1,6 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 @section('page-title')
-    <x-page-title
+    <x-layout.page-title
         title="{{ $moduloPrincipal }}"
     />
 @endsection
@@ -18,7 +18,7 @@
             </div>
         @else
             <!-- Grid de sub-módulos usando componente -->
-            <x-module-grid :modulos="$subModulos" columns="xl:grid-cols-4" :filterConfig="true" />
+            <x-layout.module-grid :modulos="$subModulos" columns="xl:grid-cols-4" :filterConfig="true" />
         @endif
     </div>
 @endsection

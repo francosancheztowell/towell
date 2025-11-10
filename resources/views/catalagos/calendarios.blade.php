@@ -2,6 +2,10 @@
 
 @section('page-title', 'Catálogo de Calendarios')
 
+@section('navbar-right')
+<x-buttons.catalog-actions route="calendarios" :showFilters="true" />
+@endsection
+
 @section('content')
     <div class="container overflow-y-auto h-[600px]">
 
@@ -1169,6 +1173,6 @@
         });
     </script>
 
-    @include('components.toast-notification')
+    @include('components.ui.toast-notification')
 
 @endsection

@@ -2,6 +2,10 @@
 
 @section('page-title', 'Catálogo de Eficiencia')
 
+@section('navbar-right')
+<x-buttons.catalog-actions route="eficiencia" :showFilters="true" />
+@endsection
+
 @section('content')
 <div class="container">
 
@@ -103,43 +107,43 @@ function repoblarSelect(selectEl, opciones, selectedValue = '') {
     }
 }
 
-function enableButtons() {
-    const e = document.getElementById('btn-editar');
-    const d = document.getElementById('btn-eliminar');
-    if (e) { e.disabled = false; e.className = 'inline-flex items-center px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium'; }
-    if (d) { d.disabled = false; d.className = 'inline-flex items-center px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium'; }
-}
-function disableButtons() {
-    const e = document.getElementById('btn-editar');
-    const d = document.getElementById('btn-eliminar');
-    if (e) { e.disabled = true; e.className = 'inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg text-sm font-medium cursor-not-allowed'; }
-    if (d) { d.disabled = true; d.className = 'inline-flex items-center px-3 py-2 bg-gray-400 text-gray-200 rounded-lg text-sm font-medium cursor-not-allowed'; }
-}
+// Las funciones enableButtons() y disableButtons() se reemplazan por actualizarBotonesAccionEficiencia()
+// que es proporcionada por el componente catalog-actions
 
 /* ===========================
    Selección de filas
 =========================== */
 function selectRow(row, uniqueId, eficienciaId) {
     document.querySelectorAll('#eficiencia-body tr').forEach(r => {
-        r.classList.remove('bg-blue-500','text-white');
-        r.classList.add('hover:bg-blue-50');
+        r.classList.remove('text-blue-600', 'font-semibold');
+        r.classList.add('text-black');
     });
-    row.classList.remove('hover:bg-blue-50');
-    row.classList.add('bg-blue-500','text-white');
+    row.classList.remove('text-black');
+    row.classList.add('text-blue-600', 'font-semibold');
 
     selectedRow = row;
     selectedEficiencia = uniqueId;
     selectedEficienciaId = eficienciaId;
-    enableButtons();
+
+    // Usar la función del componente catalog-actions para habilitar botones
+    // Esta función solo cambia el color del texto y cursor, no el fondo, evitando el cuadro gris
+    if (typeof window.actualizarBotonesAccionEficiencia === 'function') {
+        window.actualizarBotonesAccionEficiencia(true);
+    }
 }
 function deselectRow(row) {
-    if (!row.classList.contains('bg-blue-500')) return;
-    row.classList.remove('bg-blue-500','text-white');
-    row.classList.add('hover:bg-blue-50');
+    if (!row.classList.contains('text-blue-600')) return;
+    row.classList.remove('text-blue-600', 'font-semibold');
+    row.classList.add('text-black');
     selectedRow = null;
     selectedEficiencia = null;
     selectedEficienciaId = null;
-    disableButtons();
+
+    // Usar la función del componente catalog-actions para deshabilitar botones
+    // Esta función solo cambia el color del texto y cursor, no el fondo, evitando el cuadro gris
+    if (typeof window.actualizarBotonesAccionEficiencia === 'function') {
+        window.actualizarBotonesAccionEficiencia(false);
+    }
 }
 
 /* ===========================
@@ -559,7 +563,7 @@ function actualizarTablaOptimizada(datos) {
         const uniqueId = item.NoTelarId + '_' + item.FibraId;
         const pct = Math.round((Number(item.Eficiencia || 0)) * 100);
 
-        tr.className = 'text-center hover:bg-blue-50 transition cursor-pointer';
+        tr.className = 'text-center hover:bg-blue-50 transition cursor-pointer text-black';
         tr.onclick = () => selectRow(tr, uniqueId, item.Id || null);
         tr.ondblclick = () => deselectRow(tr);
         tr.setAttribute('data-eficiencia', uniqueId);
@@ -594,20 +598,30 @@ function actualizarContador() {
    Bootstrap
 =========================== */
 document.addEventListener('DOMContentLoaded', () => {
-    disableButtons();
+    // Deshabilitar botones inicialmente usando la función del componente
+    // Usar setTimeout para asegurar que el componente catalog-actions haya terminado de renderizar
+    setTimeout(() => {
+        if (window.actualizarBotonesAccionEficiencia) {
+            window.actualizarBotonesAccionEficiencia(false);
+        }
+    }, 50);
+
+    // Funciones globales para el navbar (esperadas por catalog-actions component)
+    // El componente genera: agregarEficiencia, editarEficiencia, eliminarEficiencia, filtrarEficiencia, limpiarFiltrosEficiencia, subirExcelEficiencia
+    window.agregarEficiencia = agregarEficienciaLocal;
+    window.editarEficiencia = editarEficiencia;
+    window.eliminarEficiencia = eliminarEficiencia;
+    window.filtrarEficiencia = mostrarFiltros;
+    window.limpiarFiltrosEficiencia = limpiarFiltros;
+    window.subirExcelEficiencia = function() {
+        // TODO: Implementar subida de Excel para eficiencia
+        Swal.fire({
+            icon: 'info',
+            title: 'Función en desarrollo',
+            text: 'La funcionalidad de subir Excel está en desarrollo',
+            confirmButtonText: 'Entendido'
+        });
+    };
 });
-
-// Funciones globales para el navbar
-window.filtrarEficiencia = function() {
-    mostrarFiltros();
-};
-
-window.limpiarFiltrosEficiencia = function() {
-    limpiarFiltros();
-};
-
-window.agregarEficiencia = function() {
-    agregarEficienciaLocal();
-};
 </script>
 @endsection

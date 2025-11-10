@@ -58,7 +58,7 @@ class ConsultarRequerimientoController extends Controller
             return $req;
         });
 
-        return view('modulos.consultar-requerimiento', [
+        return view('modulos.inventario-trama.consultar-requerimiento', [
             'requerimientos' => $requerimientosConConsumos,
             'filtros' => [
                 'folio' => $folioFiltro,
@@ -202,7 +202,7 @@ class ConsultarRequerimientoController extends Controller
         // Agrupar por salón y preparar datos para la vista
         $consumosPorSalon = $consumos->groupBy('SalonTejidoId');
 
-        return view('modulos.resumen-articulos', [
+        return view('modulos.inventario-trama.resumen-articulos', [
             'requerimiento' => $requerimiento,
             'consumosPorSalon' => $consumosPorSalon,
             'totalConsumos' => $consumos->count()

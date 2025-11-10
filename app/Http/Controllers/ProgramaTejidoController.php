@@ -33,10 +33,10 @@ class ProgramaTejidoController extends Controller
                 'FechaFinal','EntregaProduc','EntregaPT','EntregaCte','PTvsCte'
             ])->ordenado()->get();
 
-            return view('modulos.req-programa-tejido', compact('registros'));
+            return view('modulos.programa-tejido.req-programa-tejido', compact('registros'));
         } catch (\Throwable $e) {
             Log::error('Error al cargar programa de tejido', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            return view('modulos.req-programa-tejido', [
+            return view('modulos.programa-tejido.req-programa-tejido', [
                 'registros' => collect(),
                 'error' => 'Error al cargar los datos: '.$e->getMessage(),
             ]);
@@ -59,7 +59,7 @@ class ProgramaTejidoController extends Controller
             ? ReqModelosCodificados::where('TamanoClave', $registro->TamanoClave)->first()
             : null;
 
-        return view('modulos.programa-tejido-nuevo.edit', compact('registro','modeloCodificado'));
+        return view('modulos.programa-tejido.programatejidoform.edit', compact('registro','modeloCodificado'));
     }
 
     /* ======================================

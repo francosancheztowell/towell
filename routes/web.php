@@ -649,7 +649,7 @@ Route::post('tel-bpm/{folio}/lineas/bulk-save', [TelBpmLineController::class, 'b
 
         // Nueva ruta para crear/editar programa de tejido
         Route::get('/planeacion/programa-tejido/nuevo', function() {
-        return view('modulos.programa-tejido-nuevo.create');
+        return view('modulos.programa-tejido.programatejidoform.create');
     })->name('programa-tejido.nuevo');
         Route::get('/planeacion/programa-tejido/altas-especiales/nuevo', [\App\Http\Controllers\ComprasEspecialesController::class, 'nuevo'])->name('programa-tejido.altas-especiales.nuevo');
         Route::get('/planeacion/programa-tejido/pronosticos/nuevo', [\App\Http\Controllers\PronosticosController::class, 'nuevo'])->name('programa-tejido.pronosticos.nuevo');

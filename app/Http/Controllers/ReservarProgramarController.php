@@ -15,6 +15,7 @@ use Illuminate\Validation\Rule;
 class ReservarProgramarController extends Controller
 {
     private const STATUS_ACTIVO = 'Activo';
+    private const FALLBACK_METROS_DEFAULT = true; // Usa MtsPie si MtsRizo==0 (y viceversa)
 
     private const COLS_TELARES = [
         'no_telar','tipo','cuenta','calibre','fecha','turno','hilo','metros',
@@ -107,6 +108,7 @@ class ReservarProgramarController extends Controller
                 'tipo'     => ['nullable','string','max:20'],
                 'metros'   => ['nullable','numeric'],
                 'no_julio' => ['nullable','string','max:50'],
+                'no_orden' => ['nullable','string','max:50'],
             ]);
 
             $noTelar = (string)$request->input('no_telar');
@@ -125,6 +127,7 @@ class ReservarProgramarController extends Controller
             $update = [];
             if ($request->filled('metros'))   $update['metros']   = (float)$request->input('metros');
             if ($request->filled('no_julio')) $update['no_julio'] = (string)$request->input('no_julio');
+            if ($request->filled('no_orden')) $update['no_orden'] = (string)$request->input('no_orden');
 
             if ($update) $telar->update($update);
 
@@ -185,8 +188,8 @@ class ReservarProgramarController extends Controller
             $eliminadas = 0;
             foreach ($reservas as $r) { $r->delete(); $eliminadas++; }
 
-            // 2) Limpiar campos (conservar no_orden)
-            $telar->update(['hilo'=>null,'metros'=>null,'no_julio'=>null]);
+            // 2) Limpiar campos de reserva
+            $telar->update(['hilo'=>null,'metros'=>null,'no_julio'=>null,'no_orden'=>null]);
 
             Log::info('Telar liberado', [
                 'no_telar' => $noTelar,
@@ -256,7 +259,7 @@ class ReservarProgramarController extends Controller
                 $telares = json_decode(urldecode($telaresJson), true) ?: [];
             } catch (\Throwable $e) {
                 Log::error('programacionRequerimientos: parse JSON', ['msg' => $e->getMessage()]);
-                    $telares = [];
+                $telares = [];
             }
         }
 
@@ -287,6 +290,9 @@ class ReservarProgramarController extends Controller
                 ]);
             }
 
+            // Flag para fallback de metros (default: true)
+            $usarFallbackMetros = (bool)$request->boolean('fallback_metros', self::FALLBACK_METROS_DEFAULT);
+
             // Validación de consistencia entre telares
             $v = $this->validarTelaresConsistentes($telares);
             if ($v['error']) {
@@ -305,7 +311,7 @@ class ReservarProgramarController extends Controller
 
             $noTelares = collect($telares)->pluck('no_telar')->filter()->unique()->values()->toArray();
             if (empty($noTelares)) {
-                    return response()->json([
+                return response()->json([
                     'success' => true,
                     'message' => 'No se encontraron números de telar válidos',
                     'data'    => ['rizo' => [], 'pie' => []],
@@ -315,26 +321,52 @@ class ReservarProgramarController extends Controller
             $semanas = $this->construirSemanas(5);
             [$fechaIni, $fechaFin] = [$semanas[0]['inicio'], $semanas[4]['fin']];
 
+            // Hilos reales por telar
+            $telaresConHilo = TejInventarioTelares::whereIn('no_telar', $noTelares)
+                ->where('status', self::STATUS_ACTIVO)
+                ->select('no_telar', 'tipo', 'hilo', 'salon', 'calibre')
+                ->get()
+                ->groupBy('no_telar')
+                ->map(fn($g) => $g->first());
+
+            $hiloPorTelar = [];
+            foreach ($telaresConHilo as $telar) {
+                $noTelar = (string)($telar->no_telar ?? '');
+                $hiloTelar = trim((string)($telar->hilo ?? ''));
+                if ($noTelar !== '') $hiloPorTelar[$noTelar] = $hiloTelar;
+            }
+
+            Log::info('getResumenSemanas - Verificación de telares desde BD', [
+                'hiloPorTelar' => $hiloPorTelar,
+                'hiloEsperadoDesdeValidacion' => $hiloEsperado,
+                'telares_bd' => $telaresConHilo->map(function($t) {
+                    return [
+                        'no_telar' => $t->no_telar,
+                        'tipo' => $t->tipo,
+                        'hilo' => $t->hilo,
+                        'salon' => $t->salon,
+                        'calibre' => $t->calibre,
+                    ];
+                })->values()->toArray()
+            ]);
+
             Log::info('getResumenSemanas - Inicio procesamiento', [
                 'noTelares' => $noTelares,
                 'tipoEsperado' => $tipoEsperado,
                 'calibreEsperado' => $calibreEsperado,
                 'calibreEsVacio' => $calibreEsVacio,
                 'hiloEsperado' => $hiloEsperado,
+                'hiloEsperado_type' => gettype($hiloEsperado),
                 'salonEsperado' => $salonEsperado,
                 'fechaIni' => $fechaIni,
                 'fechaFin' => $fechaFin,
-                'semanas' => $semanas
+                'semanas' => $semanas,
+                'usarFallbackMetros' => $usarFallbackMetros,
             ]);
 
-            // Cargar TODOS los programas del telar con SUS líneas relacionadas usando eager loading
-            // Esto asegura que cuando se busca un programa, automáticamente se cargan sus líneas
-            // Para SQL Server, usar CAST para comparar fechas correctamente
-            // IMPORTANTE: Solo cargar campos que existen en la BD (FibraRizo, FibraPie, NO HiloRizo/HiloPie/Hilo)
+            // Programas + líneas (eager)
             $programas = ReqProgramaTejido::whereIn('NoTelarId', $noTelares)
                 ->with(['lineas' => function($query) use ($fechaIni, $fechaFin) {
-                    // Cargar solo las líneas en el rango de fechas usando la relación
-                    // Para SQL Server, usar CAST para comparar fechas correctamente
                     $query->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$fechaIni])
                           ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fechaFin])
                           ->orderBy('Fecha');
@@ -366,151 +398,59 @@ class ReservarProgramarController extends Controller
                 })->toArray()
             ]);
 
-            // Convertir la relación lineas en un array agrupado por ProgramaId para compatibilidad con el código existente
             $lineasPorPrograma = [];
             foreach ($programas as $programa) {
-                $programaId = $programa->Id;
-                if ($programaId && $programa->lineas->count() > 0) {
-                    $lineasPorPrograma[$programaId] = $programa->lineas;
+                if ($programa->Id && $programa->lineas->count() > 0) {
+                    $lineasPorPrograma[$programa->Id] = $programa->lineas;
                 }
             }
 
-            Log::info('getResumenSemanas - Líneas agrupadas por programa (desde relación)', [
-                'programas_con_lineas' => count($lineasPorPrograma),
-                'total_lineas' => collect($lineasPorPrograma)->sum(fn($l) => $l->count()),
-                'lineas_por_programa' => array_map(fn($l) => $l->count(), $lineasPorPrograma)
-            ]);
-
-            // Verificar si existen programas específicos que el usuario mencionó (3085, 3084, 3078, 3079)
-            // y cargar SUS líneas usando la relación para ver cómo se vinculan
-            $programasEspecificos = [3085, 3084, 3078, 3079];
-            $programasEspecificosEncontrados = ReqProgramaTejido::whereIn('Id', $programasEspecificos)
-                ->with(['lineas' => function($query) use ($fechaIni, $fechaFin) {
-                    // Cargar líneas en el rango de fechas usando la relación
-                    $query->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$fechaIni])
-                          ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fechaFin])
-                          ->orderBy('Fecha');
-                }])
-                ->get();
-
-            if ($programasEspecificosEncontrados->count() > 0) {
-                Log::info('Programas específicos mencionados por el usuario encontrados en la BD (con líneas relacionadas)', [
-                    'programas_encontrados' => $programasEspecificosEncontrados->map(function($p) use ($noTelares, $fechaIni, $fechaFin) {
-                        $estaEnTelaresBuscados = in_array($p->NoTelarId, $noTelares);
-                        $lineasConMtsRizo = $p->lineas->filter(fn($l) => ($l->MtsRizo ?? 0) > 0);
-                        return [
-                            'Id' => $p->Id,
-                            'NoTelarId' => $p->NoTelarId,
-                            'EstaEnTelaresBuscados' => $estaEnTelaresBuscados,
-                            'TelaresBuscados' => $noTelares,
-                            'CuentaRizo' => $p->CuentaRizo,
-                            'FibraRizo' => $p->FibraRizo,
-                            'FibraPie' => $p->FibraPie ?? null,
-                            'CalibreRizo' => $p->CalibreRizo,
-                            'SalonTejidoId' => $p->SalonTejidoId,
-                            'EnProceso' => $p->EnProceso,
-                            'TotalLineasEnRango' => $p->lineas->count(),
-                            'LineasConMtsRizo' => $lineasConMtsRizo->count(),
-                            'EjemploLineasConMtsRizo' => $lineasConMtsRizo->take(5)->map(function($l) {
-                                return [
-                                    'Id' => $l->Id,
-                                    'Fecha' => $l->Fecha instanceof Carbon ? $l->Fecha->format('Y-m-d') : (string)$l->Fecha,
-                                    'MtsRizo' => $l->MtsRizo ?? 0,
-                                    'MtsPie' => $l->MtsPie ?? 0
-                                ];
-                            })->toArray(),
-                            'RangoFechas' => "{$fechaIni} a {$fechaFin}"
-                        ];
-                    })->toArray()
-                ]);
-            } else {
-                Log::info('Programas específicos mencionados por el usuario NO encontrados en la BD', [
-                    'programas_buscados' => $programasEspecificos
-                ]);
-            }
-
             if ($tipoEsperado === 'RIZO') {
-                // Filtrar programas que coincidan con los criterios
-                $programasFiltrados = $programas->filter(function ($p) use ($salonEsperado, $hiloEsperado, $calibreEsperado, $calibreEsVacio) {
+                $programasFiltrados = $programas->filter(function ($p) use ($salonEsperado, $hiloEsperado, $calibreEsperado, $calibreEsVacio, $hiloPorTelar) {
                     $matchSalon = $this->matchSalon($salonEsperado, (string)($p->SalonTejidoId ?? ''));
                     $tieneCuentaRizo = !empty($p->CuentaRizo);
 
-                    // Obtener FibraRizo correctamente (es el único campo que existe en la BD para hilo en RIZO)
                     $fibraRizoRaw = $p->FibraRizo ?? null;
-                    $hiloPrograma = '';
-                    if ($fibraRizoRaw !== null && $fibraRizoRaw !== '' && trim((string)$fibraRizoRaw) !== '') {
-                        $hiloPrograma = trim((string)$fibraRizoRaw);
+                    $hiloPrograma = ($fibraRizoRaw !== null && trim((string)$fibraRizoRaw) !== '') ? trim((string)$fibraRizoRaw) : '';
+
+                    $noTelarPrograma = (string)($p->NoTelarId ?? '');
+                    $hiloTelarBD = $hiloPorTelar[$noTelarPrograma] ?? '';
+                    $matchHiloTelar = true;
+
+                    if ($hiloTelarBD !== '') {
+                        if ($hiloPrograma === '') {
+                            $matchHiloTelar = false;
+                            Log::warning('DISCREPANCIA - Telar tiene hilo pero programa no tiene FibraRizo', [
+                                'NoTelarId' => $noTelarPrograma,
+                                'HiloTelar_BD' => $hiloTelarBD,
+                                'FibraRizoPrograma' => '(vacío)',
+                                'ProgramaId' => $p->Id ?? null,
+                            ]);
+                        } else {
+                            $matchHiloTelar = $this->matchHilo($hiloTelarBD, $hiloPrograma);
+                            if (!$matchHiloTelar) {
+                                Log::warning('DISCREPANCIA - Hilo del telar no coincide con FibraRizo del programa', [
+                                    'NoTelarId' => $noTelarPrograma,
+                                    'HiloTelar_BD' => $hiloTelarBD,
+                                    'FibraRizoPrograma' => $hiloPrograma,
+                                    'HiloEsperado_Validacion' => $hiloEsperado,
+                                    'ProgramaId' => $p->Id ?? null,
+                                    'CuentaRizo' => $p->CuentaRizo ?? null,
+                                    'SalonTejidoId' => $p->SalonTejidoId ?? null,
+                                ]);
+                            }
+                        }
+                    } elseif ($hiloEsperado !== null && $hiloEsperado !== '') {
+                        $matchHiloTelar = $this->matchHilo($hiloEsperado, $hiloPrograma);
                     }
 
-                    $matchHilo = $this->matchHilo($hiloEsperado, $hiloPrograma);
-
-                    // También verificar calibre si es necesario
                     $matchCalibre = true;
                     if (!$calibreEsVacio && $calibreEsperado !== null) {
-                        $calibrePrograma = $p->CalibreRizo ?? null;
-                        $matchCalibre = $this->matchCalibre($calibreEsperado, $calibreEsVacio, $calibrePrograma);
+                        $matchCalibre = $this->matchCalibre($calibreEsperado, $calibreEsVacio, $p->CalibreRizo ?? null);
                     }
 
-                    return $matchSalon && $tieneCuentaRizo && $matchHilo && $matchCalibre;
+                    return $matchSalon && $tieneCuentaRizo && $matchHiloTelar && $matchCalibre;
                 })->values();
-
-                // Log detallado de FibraRizo para cada programa antes de filtrar
-                Log::info('getResumenSemanas - Programas Rizo ANTES de filtrar', [
-                    'totalProgramas' => $programas->count(),
-                    'filtros_aplicados' => [
-                        'salonEsperado' => $salonEsperado,
-                        'hiloEsperado' => $hiloEsperado,
-                        'hiloEsperado_type' => gettype($hiloEsperado),
-                        'calibreEsperado' => $calibreEsperado,
-                        'calibreEsVacio' => $calibreEsVacio
-                    ],
-                    'programas_con_CuentaRizo' => $programas->filter(fn($p) => !empty($p->CuentaRizo))->count(),
-                    'programas_con_FibraRizo_coincidente' => $programas->filter(function($p) use ($hiloEsperado) {
-                        $fibraRizo = $p->FibraRizo ?? null;
-                        $hiloObtenido = $fibraRizo !== null && $fibraRizo !== '' ? trim((string)$fibraRizo) : '';
-                        return $this->matchHilo($hiloEsperado, $hiloObtenido);
-                    })->count(),
-                    'programas_ids' => $programas->pluck('Id')->toArray(),
-                    'programas_con_FibraRizo_detalle' => $programas->map(function($p) use ($hiloEsperado) {
-                        $fibraRizo = $p->FibraRizo;
-                        $hiloObtenido = $fibraRizo !== null && $fibraRizo !== '' ? trim((string)$fibraRizo) : '';
-                        $matchResult = $this->matchHilo($hiloEsperado, $hiloObtenido);
-                        return [
-                            'Id' => $p->Id,
-                            'NoTelarId' => $p->NoTelarId,
-                            'FibraRizo_raw' => $fibraRizo,
-                            'FibraRizo_type' => gettype($fibraRizo),
-                            'FibraRizo_isNull' => $fibraRizo === null,
-                            'FibraRizo_isEmpty' => $fibraRizo === '',
-                            'HiloObtenido' => $hiloObtenido,
-                            'HiloEsperado' => $hiloEsperado,
-                            'MatchResult' => $matchResult,
-                            'CuentaRizo' => $p->CuentaRizo,
-                        ];
-                    })->toArray(),
-                ]);
-
-                Log::info('getResumenSemanas - Programas Rizo filtrados', [
-                    'totalProgramasFiltrados' => $programasFiltrados->count(),
-                    'programasFiltrados_ids' => $programasFiltrados->pluck('Id')->toArray(),
-                    'lineasPorPrograma_keys' => array_keys($lineasPorPrograma),
-                    'lineasPorPrograma_counts' => array_map(fn($c) => $c->count(), $lineasPorPrograma),
-                    'lineasPorPrograma_detalle' => array_map(function($lineas, $pid) {
-                        return [
-                            'ProgramaId' => $pid,
-                            'TotalLineas' => $lineas->count(),
-                            'LineasConMtsRizo' => $lineas->filter(fn($l) => ($l->MtsRizo ?? 0) > 0)->count(),
-                            'LineasConMtsPie' => $lineas->filter(fn($l) => ($l->MtsPie ?? 0) > 0)->count(),
-                            'EjemploLineas' => $lineas->take(3)->map(fn($l) => [
-                                'Id' => $l->Id,
-                                'Fecha' => $l->Fecha instanceof Carbon ? $l->Fecha->format('Y-m-d') : (string)$l->Fecha,
-                                'MtsRizo' => $l->MtsRizo ?? 0,
-                                'MtsPie' => $l->MtsPie ?? 0
-                            ])->toArray()
-                        ];
-                    }, $lineasPorPrograma, array_keys($lineasPorPrograma)),
-                    'rango_fechas' => "{$fechaIni} a {$fechaFin}"
-                ]);
 
                 $resumenRizo = $this->procesarResumenPorTipo(
                     $programasFiltrados, $semanas, 'Rizo',
@@ -519,44 +459,67 @@ class ReservarProgramarController extends Controller
                     $calibreEsVacio,
                     $lineasPorPrograma,
                     $fechaIni,
-                    $fechaFin
+                    $fechaFin,
+                    $usarFallbackMetros
                 );
-
-                Log::info('getResumenSemanas - Resumen Rizo generado', [
-                    'totalItems' => count($resumenRizo),
-                    'rango_fechas' => "{$fechaIni} a {$fechaFin}"
-                ]);
 
                 return response()->json([
                     'success' => true,
                     'data'    => ['rizo' => $resumenRizo, 'pie' => []],
-                'semanas' => $semanas,
-            ]);
+                    'semanas' => $semanas,
+                ]);
             }
 
             // PIE
-            $programasFiltrados = $programas->filter(function ($p) use ($salonEsperado, $hiloEsperado, $calibreEsperado, $calibreEsVacio) {
+            $programasFiltrados = $programas->filter(function ($p) use ($salonEsperado, $hiloEsperado, $calibreEsperado, $calibreEsVacio, $hiloPorTelar) {
                 $matchSalon = $this->matchSalon($salonEsperado, (string)($p->SalonTejidoId ?? ''));
                 $tieneCuentaPie = !empty($p->CuentaPie);
 
-                // Obtener FibraPie correctamente (es el único campo que existe en la BD para hilo en PIE)
                 $fibraPieRaw = $p->FibraPie ?? null;
-                $hiloPrograma = '';
-                if ($fibraPieRaw !== null && $fibraPieRaw !== '' && trim((string)$fibraPieRaw) !== '') {
-                    $hiloPrograma = trim((string)$fibraPieRaw);
+                $hiloPrograma = ($fibraPieRaw !== null && trim((string)$fibraPieRaw) !== '') ? trim((string)$fibraPieRaw) : '';
+
+                $noTelarPrograma = (string)($p->NoTelarId ?? '');
+                $hiloTelarBD = $hiloPorTelar[$noTelarPrograma] ?? '';
+                $matchHiloTelar = true;
+
+                if ($hiloTelarBD !== '') {
+                    if ($hiloPrograma === '') {
+                        $matchHiloTelar = false;
+                        Log::warning('DISCREPANCIA - Telar tiene hilo pero programa no tiene FibraPie', [
+                            'NoTelarId' => $noTelarPrograma,
+                            'HiloTelar_BD' => $hiloTelarBD,
+                            'FibraPiePrograma' => '(vacío)',
+                            'ProgramaId' => $p->Id ?? null,
+                        ]);
+                    } else {
+                        $matchHiloTelar = $this->matchHilo($hiloTelarBD, $hiloPrograma);
+                        if (!$matchHiloTelar) {
+                            Log::warning('DISCREPANCIA - Hilo del telar no coincide con FibraPie del programa', [
+                                'NoTelarId' => $noTelarPrograma,
+                                'HiloTelar_BD' => $hiloTelarBD,
+                                'FibraPiePrograma' => $hiloPrograma,
+                                'HiloEsperado_Validacion' => $hiloEsperado,
+                                'ProgramaId' => $p->Id ?? null,
+                                'CuentaPie' => $p->CuentaPie ?? null,
+                                'SalonTejidoId' => $p->SalonTejidoId ?? null,
+                            ]);
+                        }
+                    }
+                } elseif ($hiloEsperado !== null && $hiloEsperado !== '') {
+                    $matchHiloTelar = $this->matchHilo($hiloEsperado, $hiloPrograma);
                 }
 
-                $matchHilo = $this->matchHilo($hiloEsperado, $hiloPrograma);
                 $matchCalibre = $this->matchCalibre($calibreEsperado, $calibreEsVacio, $p->CalibrePie ?? null);
 
-                return $matchSalon && $tieneCuentaPie && $matchCalibre && $matchHilo;
+                return $matchSalon && $tieneCuentaPie && $matchCalibre && $matchHiloTelar;
             })->values();
 
             $resumenPie = $this->procesarResumenPorTipo(
                 $programasFiltrados, $semanas, 'Pie',
                 null, $hiloEsperado, $calibreEsperado, $calibreEsVacio, $lineasPorPrograma,
                 $fechaIni,
-                $fechaFin
+                $fechaFin,
+                $usarFallbackMetros
             );
 
             return response()->json([
@@ -575,67 +538,43 @@ class ReservarProgramarController extends Controller
     }
 
     /**
-     * Genera resumen por tipo usando líneas de ReqProgramaTejidoLine
-     * Primero intenta usar las líneas desde la relación cargada con eager loading,
-     * luego desde el array agrupado, y finalmente carga las líneas directamente si es necesario
-     * @param array<string,\Illuminate\Support\Collection> $lineasPorPrograma Array de respaldo con líneas agrupadas por ProgramaId
-     * @param string $fechaIni Fecha inicial para cargar líneas si no están disponibles
-     * @param string $fechaFin Fecha final para cargar líneas si no están disponibles
+     * Genera resumen por tipo usando líneas de ReqProgramaTejidoLine.
+     * **IMPORTANTE**: No se filtra por Total > 0 al final; si existe el programa, se regresa
+     * con ceros en las semanas cuando no hay metros en el rango.
      */
-    private function procesarResumenPorTipo($programas, array $semanas, string $tipo,
-        $cuentaEsperada = null, $hiloEsperado = null, $calibreEsperado = null, bool $calibreEsVacio = false, array $lineasPorPrograma = [], string $fechaIni = null, string $fechaFin = null)
-    {
+    private function procesarResumenPorTipo(
+        $programas,
+        array $semanas,
+        string $tipo,
+        $cuentaEsperada = null,
+        $hiloEsperado = null,
+        $calibreEsperado = null,
+        bool $calibreEsVacio = false,
+        array $lineasPorPrograma = [],
+        string $fechaIni = null,
+        string $fechaFin = null,
+        bool $usarFallbackMetros = false
+    ) {
         $resumen = [];
 
         foreach ($programas as $programa) {
             if ($tipo === 'Rizo') {
-                $cuenta      = trim((string)($programa->CuentaRizo ?? ''));
-                $calibre     = $programa->CalibreRizo ?? $programa->Calibre ?? null;
-                // IMPORTANTE: Solo usar FibraRizo (es el único campo que existe en la BD para hilo en RIZO)
+                $cuenta       = trim((string)($programa->CuentaRizo ?? ''));
+                $calibre      = $programa->CalibreRizo ?? $programa->Calibre ?? null;
                 $fibraRizoRaw = $programa->FibraRizo ?? null;
-                $hilo = '';
-                if ($fibraRizoRaw !== null && $fibraRizoRaw !== '' && trim((string)$fibraRizoRaw) !== '') {
-                    $hilo = trim((string)$fibraRizoRaw);
-                }
-                $campoMetros = 'MtsRizo';
-
-                // Log detallado para debugging de FibraRizo
-                Log::debug("procesarResumenPorTipo - Programa Rizo - Obteniendo hilo", [
-                    'ProgramaId' => $programa->Id ?? null,
-                    'NoTelarId' => $programa->NoTelarId ?? null,
-                    'FibraRizo_raw' => $fibraRizoRaw,
-                    'FibraRizo_type' => gettype($fibraRizoRaw),
-                    'FibraRizo_isNull' => $fibraRizoRaw === null,
-                    'FibraRizo_isEmpty' => $fibraRizoRaw === '',
-                    'Hilo_obtenido' => $hilo,
-                    'HiloEsperado' => $hiloEsperado,
-                    'HiloEsperado_type' => gettype($hiloEsperado),
-                ]);
+                $hilo         = ($fibraRizoRaw !== null && trim((string)$fibraRizoRaw) !== '') ? trim((string)$fibraRizoRaw) : '';
+                $campoMetros  = 'MtsRizo';
             } else {
-                $cuenta      = trim((string)($programa->CuentaPie ?? ''));
-                $calibre     = $programa->CalibrePie ?? null;
-                // IMPORTANTE: Solo usar FibraPie (es el único campo que existe en la BD para hilo en PIE)
-                $fibraPieRaw = $programa->FibraPie ?? null;
-                $hilo = '';
-                if ($fibraPieRaw !== null && $fibraPieRaw !== '' && trim((string)$fibraPieRaw) !== '') {
-                    $hilo = trim((string)$fibraPieRaw);
-                }
-                $campoMetros = 'MtsPie';
+                $cuenta       = trim((string)($programa->CuentaPie ?? ''));
+                $calibre      = $programa->CalibrePie ?? null;
+                $fibraPieRaw  = $programa->FibraPie ?? null;
+                $hilo         = ($fibraPieRaw !== null && trim((string)$fibraPieRaw) !== '') ? trim((string)$fibraPieRaw) : '';
+                $campoMetros  = 'MtsPie';
             }
 
             if ($cuenta === '') continue;
 
-            // Log antes de validar hilo
-            $matchHiloResult = $this->matchHilo($hiloEsperado, $hilo);
-            Log::debug("procesarResumenPorTipo - Validando hilo", [
-                'ProgramaId' => $programa->Id ?? null,
-                'Tipo' => $tipo,
-                'Hilo_obtenido' => $hilo,
-                'HiloEsperado' => $hiloEsperado,
-                'MatchResult' => $matchHiloResult,
-            ]);
-
-            if (!$matchHiloResult) continue;
+            if (!$this->matchHilo($hiloEsperado, $hilo)) continue;
             if (!$this->matchCalibre($calibreEsperado, $calibreEsVacio, $calibre)) continue;
             if ($cuentaEsperada !== null && $cuenta !== $cuentaEsperada) continue;
 
@@ -646,6 +585,7 @@ class ReservarProgramarController extends Controller
                 ? "{$telarId}|{$cuenta}|{$hilo}|{$modelo}"
                 : "{$telarId}|{$cuenta}|{$calibre}|{$modelo}";
 
+            // Siempre inicializar el item para asegurar que aparezca aunque todo sea 0
             $resumen[$clave] ??= [
                 'TelarId'   => $telarId,
                 'CuentaValor' => $cuenta,
@@ -656,199 +596,72 @@ class ReservarProgramarController extends Controller
                 'Total'     => 0,
             ];
 
-            // Obtener las líneas del programa usando la relación Eloquent
-            // Esto es la forma correcta: cuando se carga un programa, automáticamente tiene acceso a sus líneas
             $programaId = $programa->Id ?? null;
             $lineas = collect();
 
             if ($programaId) {
-                // PRIORIDAD 1: Usar la relación cargada con eager loading (la forma correcta)
                 if ($programa->relationLoaded('lineas')) {
                     $lineas = $programa->lineas;
-                    Log::debug("Usando líneas desde relación cargada (eager loading)", [
-                        'ProgramaId' => $programaId,
-                        'TotalLineas' => $lineas->count()
-                    ]);
-                }
-                // PRIORIDAD 2: Usar el array agrupado (compatibilidad con código anterior)
-                elseif (isset($lineasPorPrograma[$programaId])) {
+                } elseif (isset($lineasPorPrograma[$programaId])) {
                     $lineas = $lineasPorPrograma[$programaId];
-                    Log::debug("Usando líneas desde array agrupado", [
-                        'ProgramaId' => $programaId,
-                        'TotalLineas' => $lineas->count()
-                    ]);
-                }
-                // PRIORIDAD 3: Cargar las líneas directamente usando la relación (fallback)
-                else {
+                } else {
                     if ($fechaIni && $fechaFin) {
-                        // Para SQL Server, usar CAST para comparar fechas correctamente
                         $lineas = $programa->lineas()
                             ->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$fechaIni])
                             ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fechaFin])
                             ->orderBy('Fecha')
                             ->get();
-                        Log::debug("Cargando líneas directamente desde relación (fallback)", [
-                            'ProgramaId' => $programaId,
-                            'TotalLineas' => $lineas->count(),
-                            'FechaIni' => $fechaIni,
-                            'FechaFin' => $fechaFin
-                        ]);
                     } else {
-                        // Si no hay fechas, cargar todas las líneas del programa
                         $lineas = $programa->lineas;
-                        Log::debug("Cargando todas las líneas del programa (sin filtro de fecha)", [
-                            'ProgramaId' => $programaId,
-                            'TotalLineas' => $lineas->count()
-                        ]);
                     }
                 }
             }
-
-            // Verificar si hay líneas con MtsRizo > 0 para este programa (solo para debugging)
-            $lineasConMtsRizo = $lineas->filter(function($l) use ($campoMetros) {
-                $mts = (float)($l->{$campoMetros} ?? 0);
-                return $mts > 0;
-            });
-
-            if ($tipo === 'Rizo' && $lineasConMtsRizo->count() > 0) {
-                Log::info("Programa Rizo con líneas que tienen MtsRizo > 0", [
-                    'ProgramaId' => $programaId,
-                    'TelarId' => $telarId,
-                    'Cuenta' => $cuenta,
-                    'Hilo' => $hilo,
-                    'Calibre' => $calibre,
-                    'TotalLineas' => $lineas->count(),
-                    'LineasConMtsRizo' => $lineasConMtsRizo->count(),
-                    'EjemploLineasConMtsRizo' => $lineasConMtsRizo->take(5)->map(function($l) {
-                        return [
-                            'Id' => $l->Id,
-                            'Fecha' => $l->Fecha instanceof Carbon ? $l->Fecha->format('Y-m-d') : (string)$l->Fecha,
-                            'MtsRizo' => $l->MtsRizo ?? 0,
-                            'MtsPie' => $l->MtsPie ?? 0,
-                            'Rizo' => $l->Rizo ?? 0,
-                            'Pie' => $l->Pie ?? 0
-                        ];
-                    })->toArray()
-                ]);
-            }
-
-            Log::debug("Procesando programa {$tipo}", [
-                'ProgramaId' => $programaId,
-                'TelarId' => $telarId,
-                'Cuenta' => $cuenta,
-                'TotalLineas' => $lineas->count(),
-                'LineasConMtsRizo' => $tipo === 'Rizo' ? $lineasConMtsRizo->count() : 0,
-                'LineasPorPrograma_keys' => array_keys($lineasPorPrograma)
-            ]);
-
-            $lineasProcesadasCount = 0;
-            $lineasSaltadasCount = 0;
 
             foreach ($lineas as $ln) {
                 $fecha = $ln->Fecha ?? null;
+                if (!$fecha) continue;
 
-                // Log detallado de cada línea
-                Log::debug("Procesando línea en procesarResumenPorTipo", [
-                    'LineaId' => $ln->Id ?? 'N/A',
-                    'ProgramaId' => $programaId ?? 'N/A',
-                    'Fecha_raw' => $fecha,
-                    'Fecha_type' => gettype($fecha),
-                    'Fecha_isCarbon' => $fecha instanceof Carbon,
-                    'Fecha_isDateTime' => $fecha instanceof \DateTime,
-                    'CampoMetros' => $campoMetros,
-                    'MtsRizo' => $ln->MtsRizo ?? 0,
-                    'MtsPie' => $ln->MtsPie ?? 0,
-                ]);
-
-                if (!$fecha) {
-                    $lineasSaltadasCount++;
-                    Log::debug("Línea sin fecha, saltando", [
-                        'LineaId' => $ln->Id ?? 'N/A',
-                        'ProgramaId' => $programaId ?? 'N/A'
-                    ]);
-                continue;
-            }
-
+                // Métrica principal
                 $mts = (float)($ln->{$campoMetros} ?? 0);
 
-                // Log detallado de los metros
-                Log::debug("Línea - Verificando metros", [
-                    'LineaId' => $ln->Id ?? 'N/A',
-                    'ProgramaId' => $programaId ?? 'N/A',
-                    'Fecha' => $fecha instanceof Carbon ? $fecha->format('Y-m-d') : (string)$fecha,
-                    'CampoMetros' => $campoMetros,
-                    'MtsRizo' => $ln->MtsRizo ?? 0,
-                    'MtsPie' => $ln->MtsPie ?? 0,
-                    'Metros_calculados' => $mts,
-                    'Tipo' => $tipo
-                ]);
-
-                if ($mts <= 0) {
-                    $lineasSaltadasCount++;
-                    Log::debug("Línea con metros <= 0, saltando", [
-                        'LineaId' => $ln->Id ?? 'N/A',
-                        'Fecha' => $fecha instanceof Carbon ? $fecha->format('Y-m-d') : (string)$fecha,
-                        'Metros' => $mts,
-                        'CampoMetros' => $campoMetros,
-                        'MtsRizo' => $ln->MtsRizo ?? 0,
-                        'MtsPie' => $ln->MtsPie ?? 0,
-                        'Tipo' => $tipo
-                    ]);
-                    continue;
+                // Fallback de metros si la principal es 0/NULL
+                if ($usarFallbackMetros && $mts <= 0) {
+                    $altCampo = $campoMetros === 'MtsRizo' ? 'MtsPie' : 'MtsRizo';
+                    $alt = (float)($ln->{$altCampo} ?? 0);
+                    if ($alt > 0) {
+                        Log::debug('Fallback metros usado', [
+                            'LineaId'   => $ln->Id ?? null,
+                            'Tipo'      => $tipo,
+                            'CampoMain' => $campoMetros,
+                            'CampoAlt'  => $altCampo,
+                            'ValorAlt'  => $alt,
+                        ]);
+                        $mts = $alt;
+                    }
                 }
 
-                // Convertir fecha a Carbon
-                try {
-                    if ($fecha instanceof Carbon) {
-                        $f = $fecha->copy();
-                    } elseif ($fecha instanceof \DateTime) {
-                        $f = Carbon::instance($fecha);
-                    } elseif (is_string($fecha)) {
-                        // Intentar parsear como fecha Y-m-d
-                        $f = Carbon::createFromFormat('Y-m-d', $fecha);
-                        if (!$f) {
-                            // Fallback a parse genérico
-                            $f = Carbon::parse($fecha);
-                        }
-                    } else {
-                        $f = Carbon::parse($fecha);
+                // Si sigue sin metros, solo mantenemos la fila creada (cero)
+                if ($mts <= 0) continue;
+
+                // Normalizar fecha
+                if ($fecha instanceof Carbon) {
+                    $f = $fecha->copy()->setTime(0, 0, 0);
+                } elseif ($fecha instanceof \DateTime) {
+                    $f = Carbon::instance($fecha)->setTime(0, 0, 0);
+                } elseif (is_string($fecha)) {
+                    try {
+                        $f = Carbon::createFromFormat('Y-m-d', $fecha) ?: Carbon::parse($fecha);
+                    } catch (\Throwable) {
+                        continue;
                     }
                     $f->setTime(0, 0, 0);
-
-                    Log::debug("Fecha parseada correctamente", [
-                        'LineaId' => $ln->Id ?? 'N/A',
-                        'Fecha_original' => $fecha,
-                        'Fecha_parsed' => $f->format('Y-m-d'),
-                        'Fecha_timestamp' => $f->timestamp,
-                        'Metros' => $mts
-                    ]);
-                } catch (\Throwable $e) {
-                    $lineasSaltadasCount++;
-                    Log::warning("Error parseando fecha de línea", [
-                        'LineaId' => $ln->Id ?? 'N/A',
-                        'ProgramaId' => $programaId ?? 'N/A',
-                        'Fecha' => $fecha,
-                        'Fecha_type' => gettype($fecha),
-                        'Error' => $e->getMessage()
-                    ]);
-                    continue;
+                } else {
+                    try { $f = Carbon::parse($fecha)->startOfDay(); } catch (\Throwable) { continue; }
                 }
 
                 $idx = $this->semanaIndex($semanas, $f);
-                if ($idx === null) {
-                    $lineasSaltadasCount++;
-                    Log::debug("Fecha fuera del rango de semanas", [
-                        'LineaId' => $ln->Id ?? 'N/A',
-                        'Fecha' => $f->format('Y-m-d'),
-                        'Rango' => "{$semanas[0]['inicio']} a {$semanas[4]['fin']}",
-                        'Metros' => $mts
-                    ]);
-                continue;
-            }
+                if ($idx === null) continue;
 
-                $lineasProcesadasCount++;
-
-                // Acumular metros en la semana correspondiente
                 if ($idx === 0)      $resumen[$clave]['SemActual']  += $mts;
                 elseif ($idx === 1)  $resumen[$clave]['SemActual1'] += $mts;
                 elseif ($idx === 2)  $resumen[$clave]['SemActual2'] += $mts;
@@ -856,60 +669,46 @@ class ReservarProgramarController extends Controller
                 elseif ($idx === 4)  $resumen[$clave]['SemActual4'] += $mts;
 
                 $resumen[$clave]['Total'] += $mts;
-
-                Log::debug("Línea procesada exitosamente", [
-                    'LineaId' => $ln->Id ?? 'N/A',
-                    'Fecha' => $f->format('Y-m-d'),
-                    'SemanaIndex' => $idx,
-                    'SemanaLabel' => $semanas[$idx]['label'] ?? 'N/A',
-                    'Metros' => $mts,
-                    'Total_acumulado' => $resumen[$clave]['Total']
-                ]);
-            }
-
-            if ($lineasProcesadasCount > 0 || $lineasSaltadasCount > 0) {
-                Log::info("Programa {$tipo} procesado", [
-                    'TelarId' => $telarId,
-                    'ProgramaId' => $programaId ?? 'N/A',
-                    'LineasProcesadas' => $lineasProcesadasCount,
-                    'LineasSaltadas' => $lineasSaltadasCount,
-                    'TotalLineas' => $lineas->count(),
-                    'Clave' => $clave
-                ]);
             }
         }
 
-        return collect($resumen)->values()->map(function ($it) use ($tipo) {
-            if ($tipo === 'Rizo') {
+        // *** NO filtramos por Total > 0: si existe el programa, se muestra con ceros ***
+        return collect($resumen)
+            ->values()
+            ->map(function ($it) use ($tipo) {
+                if ($tipo === 'Rizo') {
+                    return [
+                        'TelarId'            => $it['TelarId'],
+                        'CuentaRizo'         => $it['CuentaValor'],
+                        'Hilo'               => $it['Hilo'],
+                        'Calibre'            => $it['Calibre'],
+                        'Modelo'             => $it['Modelo'],
+                        'SemActualMtsRizo'   => round((float)$it['SemActual'], 2),
+                        'SemActual1MtsRizo'  => round((float)$it['SemActual1'], 2),
+                        'SemActual2MtsRizo'  => round((float)$it['SemActual2'], 2),
+                        'SemActual3MtsRizo'  => round((float)$it['SemActual3'], 2),
+                        'SemActual4MtsRizo'  => round((float)$it['SemActual4'], 2),
+                        'Total'              => round((float)$it['Total'], 2),
+                    ];
+                }
+
                 return [
                     'TelarId'            => $it['TelarId'],
-                    'CuentaRizo'         => $it['CuentaValor'],
+                    'CuentaPie'          => $it['CuentaValor'],
                     'Hilo'               => $it['Hilo'],
-                    'Calibre'            => $it['Calibre'],
+                    'CalibrePie'         => $it['Calibre'],
                     'Modelo'             => $it['Modelo'],
-                    'SemActualMtsRizo'   => round((float)$it['SemActual'], 2),
-                    'SemActual1MtsRizo'  => round((float)$it['SemActual1'], 2),
-                    'SemActual2MtsRizo'  => round((float)$it['SemActual2'], 2),
-                    'SemActual3MtsRizo'  => round((float)$it['SemActual3'], 2),
-                    'SemActual4MtsRizo'  => round((float)$it['SemActual4'], 2),
+                    'SemActualMtsPie'    => round((float)$it['SemActual'], 2),
+                    'SemActual1MtsPie'   => round((float)$it['SemActual1'], 2),
+                    'SemActual2MtsPie'   => round((float)$it['SemActual2'], 2),
+                    'SemActual3MtsPie'   => round((float)$it['SemActual3'], 2),
+                    'SemActual4MtsPie'   => round((float)$it['SemActual4'], 2),
                     'Total'              => round((float)$it['Total'], 2),
                 ];
-            }
-
-            return [
-                'TelarId'            => $it['TelarId'],
-                'CuentaPie'          => $it['CuentaValor'],
-                'Hilo'               => $it['Hilo'],
-                'CalibrePie'         => $it['Calibre'],
-                'Modelo'             => $it['Modelo'],
-                'SemActualMtsPie'    => round((float)$it['SemActual'], 2),
-                'SemActual1MtsPie'   => round((float)$it['SemActual1'], 2),
-                'SemActual2MtsPie'   => round((float)$it['SemActual2'], 2),
-                'SemActual3MtsPie'   => round((float)$it['SemActual3'], 2),
-                'SemActual4MtsPie'   => round((float)$it['SemActual4'], 2),
-                'Total'              => round((float)$it['Total'], 2),
-            ];
-        })->sortBy([['TelarId','asc'], ['Modelo','asc']])->values()->toArray();
+            })
+            ->sortBy([['TelarId','asc'], ['Modelo','asc']])
+            ->values()
+            ->toArray();
     }
 
     /* =========================== PRIVADOS ============================ */
@@ -1012,7 +811,7 @@ class ReservarProgramarController extends Controller
             }
         }
 
-                return [
+        return [
             'error'            => false,
             'tipo'             => $tipo,
             'calibre'          => $calibreRef,
@@ -1060,10 +859,7 @@ class ReservarProgramarController extends Controller
             return [];
         }
 
-        // IMPORTANTE: Consultar líneas directamente desde ReqProgramaTejidoLine
-        // Para SQL Server, usar CAST para convertir fechas a DATE para comparación más precisa
         try {
-            // Primero intentar con whereDate (método estándar de Laravel)
             $lineas = ReqProgramaTejidoLine::whereIn('ProgramaId', $programaIds)
                 ->whereDate('Fecha', '>=', $ini)
                 ->whereDate('Fecha', '<=', $fin)
@@ -1071,167 +867,27 @@ class ReservarProgramarController extends Controller
                 ->orderBy('Fecha')
                 ->get();
 
-            Log::debug('cargarLineasPorPrograma - Consulta con whereDate', [
-                'programaIds' => $programaIds,
-                'fechaInicio' => $ini,
-                'fechaFin' => $fin,
-                'totalLineas' => $lineas->count(),
-                'sql' => ReqProgramaTejidoLine::whereIn('ProgramaId', $programaIds)
-                    ->whereDate('Fecha', '>=', $ini)
-                    ->whereDate('Fecha', '<=', $fin)
-                    ->toSql()
-            ]);
-
-            // Si no se encuentran líneas, intentar con CAST (más compatible con SQL Server)
             if ($lineas->isEmpty()) {
-                Log::info('cargarLineasPorPrograma - Intentando consulta alternativa con CAST');
                 $lineas = ReqProgramaTejidoLine::whereIn('ProgramaId', $programaIds)
                     ->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$ini])
                     ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fin])
                     ->orderBy('ProgramaId')
                     ->orderBy('Fecha')
                     ->get();
-
-                Log::info('cargarLineasPorPrograma - Consulta con CAST', [
-                    'totalLineas' => $lineas->count()
-                ]);
             }
         } catch (\Throwable $e) {
             Log::error('cargarLineasPorPrograma - Error en consulta', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
-            // Fallback a consulta básica sin filtro de fecha
             $lineas = collect();
-        }
-
-        // Log detallado para debugging
-        Log::info('cargarLineasPorPrograma - Líneas cargadas', [
-            'programaIds_count' => count($programaIds),
-            'programaIds' => $programaIds,
-            'fechaInicio' => $ini,
-            'fechaFin' => $fin,
-            'totalLineas' => $lineas->count(),
-            'ejemplo_lineas' => $lineas->take(10)->map(function($l) {
-                $fecha = $l->Fecha;
-                return [
-                    'Id' => $l->Id,
-                    'ProgramaId' => $l->ProgramaId,
-                    'Fecha' => $fecha ? (
-                        $fecha instanceof Carbon
-                            ? $fecha->format('Y-m-d')
-                            : (is_string($fecha) ? $fecha : (string)$fecha)
-                    ) : 'NULL',
-                    'Fecha_type' => gettype($fecha),
-                    'Fecha_isCarbon' => $fecha instanceof Carbon,
-                    'MtsRizo' => $l->MtsRizo ?? 0,
-                    'MtsPie' => $l->MtsPie ?? 0,
-                ];
-            })->toArray(),
-        ]);
-
-        // Si no se encuentran líneas, intentar sin filtro de fecha para debug
-        if ($lineas->isEmpty()) {
-            Log::warning('cargarLineasPorPrograma - No se encontraron líneas con filtro de fecha', [
-                'programaIds' => $programaIds,
-                'fechaInicio' => $ini,
-                'fechaFin' => $fin,
-                'intentando_sin_filtro' => true
-            ]);
-
-            // Consultar sin filtro de fecha para ver si existen líneas
-            $lineasSinFiltro = ReqProgramaTejidoLine::whereIn('ProgramaId', $programaIds)
-                ->orderBy('ProgramaId')
-                ->orderBy('Fecha')
-                ->get(); // Sin límite para ver todas
-
-            Log::info('cargarLineasPorPrograma - TODAS las líneas sin filtro de fecha', [
-                'totalLineasSinFiltro' => $lineasSinFiltro->count(),
-                'rango_buscado' => "{$ini} a {$fin}",
-                'todas_las_lineas' => $lineasSinFiltro->map(function($l) use ($ini, $fin) {
-                    $fecha = $l->Fecha;
-                    $fechaStr = $fecha ? (
-                        $fecha instanceof Carbon
-                            ? $fecha->format('Y-m-d')
-                            : (is_string($fecha) ? $fecha : (string)$fecha)
-                    ) : 'NULL';
-
-                    // Verificar si la fecha está dentro del rango
-                    $fechaCarbon = $fecha instanceof Carbon ? $fecha : ($fecha ? Carbon::parse($fecha) : null);
-                    $dentroRango = false;
-                    if ($fechaCarbon) {
-                        $iniCarbon = Carbon::parse($ini)->startOfDay();
-                        $finCarbon = Carbon::parse($fin)->endOfDay();
-                        $dentroRango = $fechaCarbon->greaterThanOrEqualTo($iniCarbon) &&
-                                      $fechaCarbon->lessThanOrEqualTo($finCarbon);
-                    }
-
-                    return [
-                        'Id' => $l->Id,
-                        'ProgramaId' => $l->ProgramaId,
-                        'Fecha' => $fechaStr,
-                        'Fecha_type' => gettype($fecha),
-                        'Fecha_isCarbon' => $fecha instanceof Carbon,
-                        'MtsRizo' => $l->MtsRizo ?? 0,
-                        'MtsPie' => $l->MtsPie ?? 0,
-                        'DentroRango' => $dentroRango,
-                        'Fecha_timestamp' => $fechaCarbon ? $fechaCarbon->timestamp : null,
-                        'Rango_inicio_timestamp' => Carbon::parse($ini)->startOfDay()->timestamp,
-                        'Rango_fin_timestamp' => Carbon::parse($fin)->endOfDay()->timestamp,
-                    ];
-                })->toArray()
-            ]);
-
-            // Intentar consulta alternativa usando CAST o CONVERT para SQL Server
-            // Esto puede ayudar si whereDate no funciona correctamente
-            try {
-                $lineasAlternativa = ReqProgramaTejidoLine::whereIn('ProgramaId', $programaIds)
-                    ->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$ini])
-                    ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fin])
-                    ->orderBy('ProgramaId')
-                    ->orderBy('Fecha')
-                    ->get();
-
-                Log::info('cargarLineasPorPrograma - Consulta alternativa con CAST', [
-                    'totalLineasAlternativa' => $lineasAlternativa->count(),
-                    'ejemplo_lineas' => $lineasAlternativa->take(5)->map(function($l) {
-                        $fecha = $l->Fecha;
-                        return [
-                            'Id' => $l->Id,
-                            'ProgramaId' => $l->ProgramaId,
-                            'Fecha' => $fecha instanceof Carbon ? $fecha->format('Y-m-d') : (string)$fecha,
-                            'MtsRizo' => $l->MtsRizo ?? 0,
-                            'MtsPie' => $l->MtsPie ?? 0,
-                        ];
-                    })->toArray()
-                ]);
-
-                // Si la consulta alternativa encuentra líneas, usarlas
-                if ($lineasAlternativa->isNotEmpty()) {
-                    $lineas = $lineasAlternativa;
-                    Log::info('cargarLineasPorPrograma - Usando líneas de consulta alternativa');
-                }
-            } catch (\Throwable $e) {
-                Log::warning('cargarLineasPorPrograma - Error en consulta alternativa', [
-                    'error' => $e->getMessage()
-                ]);
-            }
         }
 
         $map = [];
         foreach ($lineas as $l) {
             $pid = $l->ProgramaId;
-            if (!isset($map[$pid])) {
-                $map[$pid] = collect();
-            }
+            $map[$pid] ??= collect();
             $map[$pid]->push($l);
         }
-
-        Log::info('cargarLineasPorPrograma - Agrupación', [
-            'programas_con_lineas' => count($map),
-            'programas_con_lineas_keys' => array_keys($map),
-            'lineas_por_programa' => array_map(fn($c) => $c->count(), $map),
-        ]);
 
         return $map;
     }
@@ -1242,27 +898,10 @@ class ReservarProgramarController extends Controller
         $act = trim($actual);
         $esp = $esperado !== null ? trim((string)$esperado) : null;
 
-        if ($esperado === null) {
-            return true; // Sin filtro
-        }
+        if ($esperado === null) return true; // Sin filtro
+        if ($esperado === '' || $esp === '') return ($act === '' || $act === 'null');
 
-        if ($esperado === '' || $esp === '') {
-            return ($act === '' || $act === null || $act === 'null');
-        }
-
-        // Comparación case-insensitive
-        $result = strcasecmp($act, $esp) === 0;
-
-        // Solo log si no coincide (para debugging)
-        if (!$result) {
-            Log::debug("matchHilo - No coincide", [
-                'esperado' => $esp,
-                'actual' => $act,
-                'comparacion' => "case-insensitive: '{$act}' vs '{$esp}'"
-            ]);
-        }
-
-        return $result;
+        return strcasecmp($act, $esp) === 0;
     }
 
     /** Calibre: $vacio=true => requiere null/vacío; valor numérico => tolerancia 0.01; null => sin filtro */
