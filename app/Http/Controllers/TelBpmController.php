@@ -33,16 +33,22 @@ class TelBpmController extends Controller
         $perPage = (int) $request->get('per_page', 15);
 
         $items = TelBpmModel::query()
-            ->when($q !== '', function ($qry) use ($q) {
-                $qry->where('Folio', 'like', "%{$q}%")
-                    ->orWhere('CveEmplRec', 'like', "%{$q}%")
-                    ->orWhere('NombreEmplRec', 'like', "%{$q}%")
-                    ->orWhere('CveEmplEnt', 'like', "%{$q}%")
-                    ->orWhere('NombreEmplEnt', 'like', "%{$q}%");
+            ->leftJoin('TelBPMLine', function($join) {
+                $join->on('TelBPM.Folio', '=', 'TelBPMLine.Folio')
+                     ->where('TelBPMLine.Orden', '=', 0)
+                     ->where('TelBPMLine.NoTelarId', '=', 'COMENT');
             })
-            ->when($status, fn($qry) => $qry->where('Status', $status))
-            ->orderByDesc('Fecha') // último primero
-            ->orderByDesc('Folio')
+            ->select('TelBPM.*', 'TelBPMLine.comentarios as Comentarios')
+            ->when($q !== '', function ($qry) use ($q) {
+                $qry->where('TelBPM.Folio', 'like', "%{$q}%")
+                    ->orWhere('TelBPM.CveEmplRec', 'like', "%{$q}%")
+                    ->orWhere('TelBPM.NombreEmplRec', 'like', "%{$q}%")
+                    ->orWhere('TelBPM.CveEmplEnt', 'like', "%{$q}%")
+                    ->orWhere('TelBPM.NombreEmplEnt', 'like', "%{$q}%");
+            })
+            ->when($status, fn($qry) => $qry->where('TelBPM.Status', $status))
+            ->orderByDesc('TelBPM.Fecha') // último primero
+            ->orderByDesc('TelBPM.Folio')
             ->paginate($perPage)
             ->withQueryString();
 
@@ -110,11 +116,7 @@ class TelBpmController extends Controller
         $data['NombreEmplRec'] = $data['NombreEmplRec'] ?? ((string) (auth()->user()->name ?? null));
         $data['TurnoRecibe']   = $data['TurnoRecibe']   ?? ((string) request()->get('turno_actual', '1'));
 
-        // Regla: sólo un folio activo a la vez (Creado o Terminado)
-        $activo = TelBpmModel::whereIn('Status', [self::EST_CREADO, self::EST_TERM])->exists();
-        if ($activo) {
-            return back()->with('error', 'No se puede crear un nuevo folio: ya existe un registro activo.');
-        }
+        // Permitir múltiples folios activos - se eliminó la restricción anterior
 
         // Validar: Entrega y Recibe no pueden ser el mismo operador
         if (!empty($data['CveEmplRec']) && !empty($data['CveEmplEnt']) && $data['CveEmplRec'] === $data['CveEmplEnt']) {
@@ -227,7 +229,7 @@ class TelBpmController extends Controller
         }
 
         $item->update(['Status' => self::EST_TERM]);
-        return back()->with('success', 'Folio marcado como Terminado.');
+        return redirect()->route('tel-bpm.index')->with('success', 'Folio marcado como Terminado.');
     }
 
     /** Autorizar (de Terminado → Autorizado) */
@@ -241,13 +243,30 @@ class TelBpmController extends Controller
             return back()->with('error', 'Sólo puedes autorizar un folio Terminado.');
         }
 
+        // Tomar datos del usuario actual de forma robusta
+        $u = auth()->user();
+        $code = null;
+        $name = null;
+        if ($u) {
+            // Posibles campos usados en diferentes módulos
+            $code = $u->cve
+                ?? $u->numero_empleado
+                ?? $u->idusuario
+                ?? $u->id
+                ?? null;
+            $name = $u->name
+                ?? $u->nombre
+                ?? $u->Nombre
+                ?? null;
+        }
+
         $item->update([
             'Status'          => self::EST_AUTO,
-            'CveEmplAutoriza' => (string) auth()->user()->cve ?? null,
-            'NomEmplAutoriza' => (string) auth()->user()->name ?? null,
+            'CveEmplAutoriza' => $code !== null ? (string)$code : '',
+            'NomEmplAutoriza' => $name !== null ? (string)$name : '',
         ]);
 
-        return back()->with('success', 'Folio Autorizado.');
+        return redirect()->route('tel-bpm.index')->with('success', 'Folio Autorizado.');
     }
 
     /** Rechazar (de Terminado → Creado) */
@@ -267,7 +286,7 @@ class TelBpmController extends Controller
             'NomEmplAutoriza' => null,
         ]);
 
-        return back()->with('success', 'Folio regresó a estado Creado.');
+        return redirect()->route('tel-bpm.index')->with('success', 'Folio regresó a estado Creado.');
     }
 
     /* ===================== Helpers ===================== */

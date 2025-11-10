@@ -2,55 +2,58 @@
 
 @section('page-title', 'BPM - Folios')
 
+@section('navbar-right')
+<div class="flex items-center gap-3">
+    <button id="btn-consult" class="px-6 py-2.5 bg-blue-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-blue-600 transition-all duration-200 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+        <i class="fa-solid fa-eye w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
+        Consultar folio
+    </button>
+    <button id="btn-edit" class="px-6 py-2.5 bg-amber-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-amber-600 transition-all duration-200 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+        <i class="fa-solid fa-edit w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
+        Editar folio
+    </button>
+    <button id="btn-delete" class="px-6 py-2.5 bg-red-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-red-600 transition-all duration-200 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+        <i class="fa-solid fa-trash w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
+        Eliminar folio
+    </button>
+    <button id="btn-open-create" class="px-6 py-2.5 bg-green-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-green-600 transition-all duration-200 flex items-center gap-2 group">
+        <i class="fa-solid fa-plus w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
+        Nuevo folio
+    </button>
+</div>
+@endsection
+
 @section('content')
-<div class="max-w-7xl mx-auto p-4">
+<div class="max-w-7xl mx-auto p-4 pb-8">
     {{-- Flash messages --}}
     @if(session('success'))
-        <div class="mb-4 rounded-lg bg-green-600/10 border border-green-600/30 text-green-800 px-4 py-3">
+        <div class="mb-2 rounded-lg bg-green-600/10 border border-green-600/30 text-green-800 px-4 py-3">
             {{ session('success') }}
         </div>
     @endif
     @if(session('error'))
-        <div class="mb-4 rounded-lg bg-red-600/10 border border-red-600/30 text-red-800 px-4 py-3">
+        <div class="mb-2 rounded-lg bg-red-600/10 border border-red-600/30 text-red-800 px-4 py-3">
             {{ session('error') }}
         </div>
     @endif
 
-    <div class="flex items-center justify-between gap-2 mb-4">
-        <h1 class="text-xl font-semibold">Folios BPM</h1>
-        <div class="flex items-center gap-2">
-            <button id="btn-consult" class="rounded-lg px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                Consultar folio
-            </button>
-            <button id="btn-edit" class="rounded-lg px-4 py-2 bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                Editar folio
-            </button>
-            <button id="btn-delete" class="rounded-lg px-4 py-2 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                Eliminar folio
-            </button>
-            <button id="btn-open-create" class="rounded-lg px-4 py-2 bg-green-600 text-white hover:bg-green-700">
-                + Nuevo folio
-            </button>
-        </div>
-    </div>
-
-
     {{-- Tabla --}}
-    <div class="overflow-x-auto rounded-lg border">
+    <div class="overflow-x-auto overflow-y-auto rounded-lg border bg-white shadow-sm mt-0" style="max-height: 70vh;">
         <table class="min-w-full text-sm">
-            <thead class="bg-slate-100">
+            <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                 <tr>
-                    <th class="text-left px-3 py-2">Folio</th>
-                    <th class="text-left px-3 py-2">Status</th>
-                    <th class="text-left px-3 py-2">Fecha</th>
-                    <th class="text-left px-3 py-2">No Recibe</th>
-                    <th class="text-left px-3 py-2">Nombre Recibe</th>
-                    <th class="text-left px-3 py-2">Turno Recibe</th>
-                    <th class="text-left px-3 py-2">No Entrega</th>
-                    <th class="text-left px-3 py-2">Nombre Entrega</th>
-                    <th class="text-left px-3 py-2">Turno Entrega</th>
-                    <th class="text-left px-3 py-2">Cve Autoriza</th>
-                    <th class="text-left px-3 py-2">Nombre Autoriza</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Folio</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Status</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Fecha</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">No Recibe</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Recibe</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Turno Recibe</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">No Entrega</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Entrega</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Turno Entrega</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Cve Autoriza</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Autoriza</th>
+                    <th class="text-left px-4 py-3 font-semibold min-w-[200px]">Comentarios</th>
                 </tr>
             </thead>
             <tbody id="tb-body">
@@ -61,36 +64,43 @@
                         data-cveent="{{ $row->CveEmplEnt }}"
                         data-noment="{{ $row->NombreEmplEnt }}"
                         data-turnoent="{{ $row->TurnoEntrega }}">
-                        <td class="px-3 py-2 font-semibold">
+                        <td class="px-4 py-3 font-semibold">
                             <a class="text-blue-700 hover:underline" href="{{ route('tel-bpm-line.index', $row->Folio) }}">{{ $row->Folio }}</a>
                         </td>
-                        <td class="px-3 py-2">
+                        <td class="px-4 py-3">
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs
                                 {{ $row->Status==='Autorizado' ? 'bg-green-100 text-green-800' :
                                    ($row->Status==='Terminado' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800') }}">
                                 {{ $row->Status }}
                             </span>
                         </td>
-                        <td class="px-3 py-2">{{ optional($row->Fecha)->format('d/m/Y H:i') }}</td>
-                        <td class="px-3 py-2 font-mono">{{ $row->CveEmplRec }}</td>
-                        <td class="px-3 py-2">{{ $row->NombreEmplRec }}</td>
-                        <td class="px-3 py-2">{{ $row->TurnoRecibe }}</td>
-                        <td class="px-3 py-2 font-mono">{{ $row->CveEmplEnt }}</td>
-                        <td class="px-3 py-2">{{ $row->NombreEmplEnt }}</td>
-                        <td class="px-3 py-2">{{ $row->TurnoEntrega }}</td>
-                        <td class="px-3 py-2 font-mono">{{ $row->CveEmplAutoriza }}</td>
-                        <td class="px-3 py-2">{{ $row->NomEmplAutoriza }}</td>
+                        <td class="px-4 py-3">{{ optional($row->Fecha)->format('d/m/Y H:i') }}</td>
+                        <td class="px-4 py-3 font-mono">{{ $row->CveEmplRec }}</td>
+                        <td class="px-4 py-3">{{ $row->NombreEmplRec }}</td>
+                        <td class="px-4 py-3">{{ $row->TurnoRecibe }}</td>
+                        <td class="px-4 py-3 font-mono">{{ $row->CveEmplEnt }}</td>
+                        <td class="px-4 py-3">{{ $row->NombreEmplEnt }}</td>
+                        <td class="px-4 py-3">{{ $row->TurnoEntrega }}</td>
+                        <td class="px-4 py-3 font-mono">{{ $row->CveEmplAutoriza }}</td>
+                        <td class="px-4 py-3">{{ $row->NomEmplAutoriza }}</td>
+                        <td class="px-4 py-3 max-w-[200px]">
+                            @if($row->Comentarios)
+                                <div class="truncate text-gray-700" title="{{ $row->Comentarios }}">
+                                    {{ $row->Comentarios }}
+                                </div>
+                            @else
+                                <span class="text-gray-400 italic">Sin comentarios</span>
+                            @endif
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="12" class="px-3 py-6 text-center text-slate-500">Sin resultados</td></tr>
+                    <tr><td colspan="12" class="px-4 py-6 text-center text-slate-500">Sin resultados</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 
-    <div class="mt-4">
-        {{ $items->links() }}
-    </div>
+    {{-- Sin paginación visual --}}
 </div>
 
 {{-- Modal CREAR --}}
@@ -105,63 +115,82 @@
         @csrf
         <input type="hidden" name="_mode" value="create">
 
-        <div class="grid md:grid-cols-3 gap-4">
-            <!-- Fila 1: Fecha/Hora actual -->
-            <div>
-                <label class="block text-sm font-medium mb-1">Fecha y hora</label>
-                <input type="text" readonly class="w-full rounded-lg border px-3 py-2 bg-slate-50"
-                       value="{{ optional($fechaActual)->format('d/m/Y H:i') }}">
+        <div class="space-y-6">
+            <!-- Fecha y Hora -->
+            <div class="grid md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Fecha y hora</label>
+                    <input type="text" readonly class="w-full rounded-lg border px-3 py-2 bg-slate-50"
+                           value="{{ optional($fechaActual)->format('d/m/Y H:i') }}">
+                </div>
             </div>
 
-            <!-- Fila 2: Recibe (usuario actual) -->
+            <!-- Sección RECIBE -->
             <div>
-                <label class="block text-sm font-medium mb-1">No. Operador (Recibe)</label>
-                <input type="text" name="CveEmplRec" readonly class="w-full rounded-lg border px-3 py-2 bg-slate-50"
-                       value="{{ $operadorUsuario->numero_empleado ?? '' }}">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Nombre (Recibe)</label>
-                <input type="text" name="NombreEmplRec" readonly class="w-full rounded-lg border px-3 py-2 bg-slate-50"
-                       value="{{ $operadorUsuario->nombreEmpl ?? '' }}">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Turno (Recibe)</label>
-                <input type="text" name="TurnoRecibe" readonly class="w-full rounded-lg border px-3 py-2 bg-slate-50"
-                       value="{{ $operadorUsuario->Turno ?? '' }}">
+                <h3 class="text-md font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">
+                    <i class="fa-solid fa-arrow-down text-green-600 mr-2"></i>RECIBE
+                </h3>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">No. Operador</label>
+                        <input type="text" name="CveEmplRec" readonly class="w-full rounded-lg border px-3 py-2 bg-slate-50"
+                               value="{{ $operadorUsuario->numero_empleado ?? '' }}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Nombre</label>
+                        <input type="text" name="NombreEmplRec" readonly class="w-full rounded-lg border px-3 py-2 bg-slate-50"
+                               value="{{ $operadorUsuario->nombreEmpl ?? '' }}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Turno</label>
+                        <input type="text" name="TurnoRecibe" readonly class="w-full rounded-lg border px-3 py-2 bg-slate-50"
+                               value="{{ $operadorUsuario->Turno ?? '' }}">
+                    </div>
+                </div>
             </div>
 
-            <!-- Fila 3: Entrega (select de operador) -->
+            <!-- Sección ENTREGA -->
             <div>
-                <label class="block text-sm font-medium mb-1">No. Operador (Entrega) <span class="text-red-600">*</span></label>
-                <select name="CveEmplEnt" id="sel-entrega" class="w-full rounded-lg border px-3 py-2 @error('CveEmplEnt') border-red-500 @enderror" required>
-                    <option value="">Seleccione…</option>
-                    @php $noRecibe = $operadorUsuario->numero_empleado ?? ''; @endphp
-                    @foreach(($operadoresEntrega ?? collect()) as $op)
-                        @if($op->numero_empleado !== $noRecibe)
-                        <option value="{{ $op->numero_empleado }}" data-nombre="{{ $op->nombreEmpl }}" data-turno="{{ $op->Turno }}"
-                            {{ old('CveEmplEnt') == $op->numero_empleado ? 'selected' : '' }}>{{ $op->numero_empleado }}</option>
-                        @endif
-                    @endforeach
-                </select>
-                @error('CveEmplEnt')<div class="text-red-600 text-xs mt-1">{{ $message }}</div>@enderror
-            </div>
-            <div class="md:col-span-2">
-                <label class="block text-sm font-medium mb-1">Nombre (Entrega) <span class="text-red-600">*</span></label>
-                <input type="text" name="NombreEmplEnt" id="inp-nombre-ent" maxlength="150" value="{{ old('NombreEmplEnt') }}"
-                       class="w-full rounded-lg border px-3 py-2 bg-slate-50 @error('NombreEmplEnt') border-red-500 @enderror" required readonly>
-                @error('NombreEmplEnt')<div class="text-red-600 text-xs mt-1">{{ $message }}</div>@enderror
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Turno (Entrega) <span class="text-red-600">*</span></label>
-                <input type="text" name="TurnoEntrega" id="inp-turno-ent" maxlength="10" value="{{ old('TurnoEntrega') }}"
-                       class="w-full rounded-lg border px-3 py-2 bg-slate-50 @error('TurnoEntrega') border-red-500 @enderror" required readonly>
-                @error('TurnoEntrega')<div class="text-red-600 text-xs mt-1">{{ $message }}</div>@enderror
+                <h3 class="text-md font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">
+                    <i class="fa-solid fa-arrow-up text-blue-600 mr-2"></i>ENTREGA
+                </h3>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">No. Operador <span class="text-red-600">*</span></label>
+                        <select name="CveEmplEnt" id="sel-entrega" class="w-full rounded-lg border px-3 py-2 @error('CveEmplEnt') border-red-500 @enderror" required>
+                            <option value="">Seleccione…</option>
+                            @php 
+                                $noRecibe = $operadorUsuario->numero_empleado ?? ''; 
+                                $operadoresUnicos = ($operadoresEntrega ?? collect())->unique('numero_empleado')->filter(function($op) use ($noRecibe) {
+                                    return $op->numero_empleado !== $noRecibe;
+                                });
+                            @endphp
+                            @foreach($operadoresUnicos as $op)
+                                <option value="{{ $op->numero_empleado }}" data-nombre="{{ $op->nombreEmpl }}" data-turno="{{ $op->Turno }}"
+                                    {{ old('CveEmplEnt') == $op->numero_empleado ? 'selected' : '' }}>{{ $op->numero_empleado }}</option>
+                            @endforeach
+                        </select>
+                        @error('CveEmplEnt')<div class="text-red-600 text-xs mt-1">{{ $message }}</div>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Nombre <span class="text-red-600">*</span></label>
+                        <input type="text" name="NombreEmplEnt" id="inp-nombre-ent" maxlength="150" value="{{ old('NombreEmplEnt') }}"
+                               class="w-full rounded-lg border px-3 py-2 bg-slate-50 @error('NombreEmplEnt') border-red-500 @enderror" required readonly>
+                        @error('NombreEmplEnt')<div class="text-red-600 text-xs mt-1">{{ $message }}</div>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Turno <span class="text-red-600">*</span></label>
+                        <input type="text" name="TurnoEntrega" id="inp-turno-ent" maxlength="10" value="{{ old('TurnoEntrega') }}"
+                               class="w-full rounded-lg border px-3 py-2 bg-slate-50 @error('TurnoEntrega') border-red-500 @enderror" required readonly>
+                        @error('TurnoEntrega')<div class="text-red-600 text-xs mt-1">{{ $message }}</div>@enderror
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="mt-6 flex items-center gap-2">
             <button class="rounded-lg px-4 py-2 bg-blue-600 text-white hover:bg-blue-700">
-                Crear y abrir checklist
+                Crear folio
             </button>
             <button type="button" data-close="#modal-create" class="rounded-lg px-4 py-2 border hover:bg-slate-50">
                 Cancelar
@@ -384,6 +413,21 @@
       text: @json(session('error')),
       confirmButtonText: 'Entendido'
     });
+  })();
+</script>
+@endif
+
+@if(session('success'))
+<script>
+  (function(){
+    const message = @json(session('success'));
+    // Auto-refrescar cuando se crea, termina, autoriza o rechaza un folio
+    if (message.includes('creado') || message.includes('Terminado') || message.includes('Autorizado') || message.includes('Creado')) {
+        // Pequeño delay para que el usuario vea el mensaje de éxito antes del refresh
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+    }
   })();
 </script>
 @endif
