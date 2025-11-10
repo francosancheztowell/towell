@@ -27,52 +27,176 @@ Actividades BPM
         </script>
     @endif
 
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-        <form method="GET" action="{{ route('tel-actividades-bpm.index') }}" class="flex items-center gap-2">
-            <input type="text" name="q" value="{{ $q ?? '' }}" placeholder="Buscar actividad..." class="border rounded px-3 py-2 w-64">
-            <button class="px-3 py-2 rounded bg-blue-600 text-white">Buscar</button>
-            @if(($q ?? '') !== '')
-                <a href="{{ route('tel-actividades-bpm.index') }}" class="px-3 py-2 rounded bg-gray-200">Limpiar</a>
-            @endif
-        </form>
-        <a href="{{ route('tel-actividades-bpm.create') }}" class="px-3 py-2 rounded bg-green-600 text-white">
-            <i class="fa-solid fa-plus mr-1.5"></i> Nueva Actividad
-        </a>
+    <!-- Card -->
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+        <!-- Header: botones de acción -->
+        <div class="px-4 py-3 flex items-center justify-end gap-3 border-b border-gray-100">
+            <button onclick="openModal('createModal')" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-sm">
+                <i class="fa-solid fa-plus"></i>
+                Nueva Actividad
+            </button>
+            <button id="btn-edit" disabled onclick="editSelected()" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-pen"></i>
+                Editar Actividad
+            </button>
+            <button id="btn-delete" disabled onclick="deleteSelected()" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-trash"></i>
+                Eliminar Actividad
+            </button>
+        </div>
+
+        <!-- Table wrapper: sticky header + hover rows -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-blue-600 text-white">
+                    <tr>
+                        <th class="px-3 py-2 text-left w-28 sticky top-0">Orden</th>
+                        <th class="px-3 py-2 text-left sticky top-0">Actividad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($items as $it)
+                        <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50 transition-colors cursor-pointer row-select"
+                            data-id="{{ $it->Orden }}"
+                            data-actividad="{{ $it->Actividad }}"
+                            onclick="selectRow(this)">
+                            <td class="px-3 py-2 align-middle font-mono text-gray-700">{{ $it->Orden }}</td>
+                            <td class="px-3 py-2 align-middle">{{ $it->Actividad }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="2" class="px-4 py-6 text-center text-gray-500">Sin registros</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <div class="bg-white rounded shadow overflow-x-auto">
-        <table class="min-w-full text-sm">
-            <thead class="bg-blue-500 text-white">
-                <tr>
-                    <th class="px-3 py-2 text-left w-28">Orden</th>
-                    <th class="px-3 py-2 text-left">Actividad</th>
-                    <th class="px-3 py-2 text-left w-40">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($items as $it)
-                    <tr class="odd:bg-white even:bg-gray-50">
-                        <td class="px-3 py-2 align-middle">{{ $it->Orden }}</td>
-                        <td class="px-3 py-2 align-middle">{{ $it->Actividad }}</td>
-                        <td class="px-3 py-2 align-middle">
-                            <div class="flex items-center gap-2">
-                                <a href="{{ route('tel-actividades-bpm.edit', $it) }}" class="px-2 py-1 rounded bg-amber-600 text-white">Editar</a>
-                                <form method="POST" action="{{ route('tel-actividades-bpm.destroy', $it) }}" onsubmit="return confirm('¿Eliminar actividad?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="px-2 py-1 rounded bg-red-600 text-white">Eliminar</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="3" class="px-3 py-3 text-center text-gray-500">Sin registros</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+    <!-- Modal para Nueva Actividad -->
+    <div id="createModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen">
+            <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+                <h2 class="text-lg font-bold mb-4">Nueva Actividad</h2>
+                <form action="{{ route('tel-actividades-bpm.store') }}" method="POST">
+                    @csrf
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Actividad</label>
+                        <input type="text" name="Actividad" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="closeModal('createModal')" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cancelar</button>
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Editar Actividad -->
+    <div id="editModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen">
+            <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+                <h2 class="text-lg font-bold mb-4">Editar Actividad</h2>
+                <form id="editForm" action="" method="POST">
+                    @csrf
+                    @method('PUT')
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Actividad</label>
+                        <input type="text" id="editActividad" name="Actividad" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="closeModal('editModal')" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cancelar</button>
+                        <button type="submit" class="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700">Actualizar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 @endsection
 
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    let selectedRow = null;
+    let selectedId = null;
+
+    function openModal(modalId) {
+        document.getElementById(modalId).classList.remove('hidden');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.add('hidden');
+    }
+
+    function selectRow(row) {
+        // Remover selección anterior
+        if (selectedRow) {
+            selectedRow.classList.remove('bg-blue-100', 'border-blue-500');
+        }
+
+        // Seleccionar nueva fila
+        selectedRow = row;
+        selectedId = row.dataset.id;
+        row.classList.add('bg-blue-100', 'border-blue-500');
+
+        // Habilitar botones
+        document.getElementById('btn-edit').disabled = false;
+        document.getElementById('btn-delete').disabled = false;
+    }
+
+    function editSelected() {
+        if (!selectedRow || !selectedId) return;
+
+        const actividad = selectedRow.dataset.actividad;
+        document.getElementById('editActividad').value = actividad;
+        document.getElementById('editForm').action = '{{ route("tel-actividades-bpm.update", ":id") }}'.replace(':id', selectedId);
+        openModal('editModal');
+    }
+
+    function deleteSelected() {
+        if (!selectedRow || !selectedId) return;
+
+        Swal.fire({
+            title: '¿Eliminar actividad?',
+            text: 'Esta acción no se puede deshacer.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#6b7280'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Crear formulario dinámico para eliminar
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ route("tel-actividades-bpm.destroy", ":id") }}'.replace(':id', selectedId);
+                
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = '_token';
+                csrfToken.value = '{{ csrf_token() }}';
+                
+                const methodField = document.createElement('input');
+                methodField.type = 'hidden';
+                methodField.name = '_method';
+                methodField.value = 'DELETE';
+                
+                form.appendChild(csrfToken);
+                form.appendChild(methodField);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
+
+    // Cerrar modal al hacer clic fuera
+    window.onclick = function(event) {
+        if (event.target.classList.contains('bg-gray-600')) {
+            event.target.classList.add('hidden');
+        }
+    }
+</script>
+@endpush

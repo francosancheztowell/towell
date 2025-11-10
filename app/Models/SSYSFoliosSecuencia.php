@@ -90,17 +90,25 @@ class SSYSFoliosSecuencia extends Model
             $c = static::getColumnMap();
             $table = $c['table'];
 
-            // Bloquear y obtener fila por modulo
-            $row = DB::table($table)->where($c['mod'], $modulo)->lockForUpdate()->first();
+            // Bloquear y obtener fila por modulo con alias consistentes
+            $row = DB::table($table)
+                ->select([
+                    DB::raw($c['mod']  . ' as mod'),
+                    DB::raw($c['pref'] . ' as pref'),
+                    DB::raw($c['con']  . ' as con'),
+                ])
+                ->where($c['mod'], $modulo)
+                ->lockForUpdate()
+                ->first();
             if (!$row) {
                 throw new \RuntimeException("No existe configuración de folio para modulo='{$modulo}'");
             }
 
-            $current = (int)($row->{$c['con']} ?? 0);
+            $current = (int)($row->con ?? 0);
             $next = $current + 1;
             DB::table($table)->where($c['mod'], $modulo)->update([$c['con'] => $next]);
 
-            $pref = (string)($row->{$c['pref']} ?? '');
+            $pref = (string)($row->pref ?? '');
             $num  = str_pad((string)$next, $pad, '0', STR_PAD_LEFT);
             $folio = $pref . $num;
 
@@ -121,8 +129,16 @@ class SSYSFoliosSecuencia extends Model
             $c = static::getColumnMap();
             $table = $c['table'];
 
-            // Bloquear y tratar de obtener por prefijo
-            $row = DB::table($table)->where($c['pref'], $prefijo)->lockForUpdate()->first();
+            // Bloquear y tratar de obtener por prefijo con alias consistentes
+            $row = DB::table($table)
+                ->select([
+                    DB::raw($c['mod']  . ' as mod'),
+                    DB::raw($c['pref'] . ' as pref'),
+                    DB::raw($c['con']  . ' as con'),
+                ])
+                ->where($c['pref'], $prefijo)
+                ->lockForUpdate()
+                ->first();
             if (!$row) {
                 // Crear configuración por defecto si no existe.
                 // Inicializa el consecutivo con el máximo existente en TelBPM para el prefijo dado.
@@ -136,17 +152,25 @@ class SSYSFoliosSecuencia extends Model
                 }
                 // Usamos 'TelBPM' como módulo por defecto para BPM Tejedores
                 DB::table($table)->insert([$c['mod'] => 'TelBPM', $c['pref'] => $prefijo, $c['con'] => $start]);
-                $row = DB::table($table)->where($c['pref'], $prefijo)->lockForUpdate()->first();
+                $row = DB::table($table)
+                    ->select([
+                        DB::raw($c['mod']  . ' as mod'),
+                        DB::raw($c['pref'] . ' as pref'),
+                        DB::raw($c['con']  . ' as con'),
+                    ])
+                    ->where($c['pref'], $prefijo)
+                    ->lockForUpdate()
+                    ->first();
                 if (!$row) {
                     throw new \RuntimeException("No fue posible crear/obtener la configuración de folio para prefijo='{$prefijo}'");
                 }
             }
 
-            $current = (int)($row->{$c['con']} ?? 0);
+            $current = (int)($row->con ?? 0);
             $next = $current + 1;
             DB::table($table)->where($c['pref'], $prefijo)->update([$c['con'] => $next]);
 
-            $pref = (string)($row->{$c['pref']} ?? $prefijo);
+            $pref = (string)($row->pref ?? $prefijo);
             $num  = str_pad((string)$next, $pad, '0', STR_PAD_LEFT);
             $folio = $pref . $num;
 

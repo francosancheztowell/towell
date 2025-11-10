@@ -36,9 +36,9 @@
 
 
     {{-- Tabla --}}
-    <div class="overflow-x-auto rounded-lg border">
+    <div class="overflow-x-auto rounded-lg border bg-white">
         <table class="min-w-full text-sm">
-            <thead class="bg-slate-100">
+            <thead class="bg-blue-600 text-white">
                 <tr>
                     <th class="text-left px-3 py-2">Folio</th>
                     <th class="text-left px-3 py-2">Status</th>
@@ -105,7 +105,7 @@
         @csrf
         <input type="hidden" name="_mode" value="create">
 
-        <div class="grid md:grid-cols-3 gap-4">
+        <div class="grid md:grid-cols-3 gap-4 bg-white">
             <!-- Fila 1: Fecha/Hora actual -->
             <div>
                 <label class="block text-sm font-medium mb-1">Fecha y hora</label>

@@ -241,10 +241,27 @@ class TelBpmController extends Controller
             return back()->with('error', 'Sólo puedes autorizar un folio Terminado.');
         }
 
+        // Tomar datos del usuario actual de forma robusta
+        $u = auth()->user();
+        $code = null;
+        $name = null;
+        if ($u) {
+            // Posibles campos usados en diferentes módulos
+            $code = $u->cve
+                ?? $u->numero_empleado
+                ?? $u->idusuario
+                ?? $u->id
+                ?? null;
+            $name = $u->name
+                ?? $u->nombre
+                ?? $u->Nombre
+                ?? null;
+        }
+
         $item->update([
             'Status'          => self::EST_AUTO,
-            'CveEmplAutoriza' => (string) auth()->user()->cve ?? null,
-            'NomEmplAutoriza' => (string) auth()->user()->name ?? null,
+            'CveEmplAutoriza' => $code !== null ? (string)$code : '',
+            'NomEmplAutoriza' => $name !== null ? (string)$name : '',
         ]);
 
         return back()->with('success', 'Folio Autorizado.');

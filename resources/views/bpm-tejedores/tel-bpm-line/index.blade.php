@@ -55,7 +55,7 @@
                     </button>
                 </form>
             @endif
-            <a href="{{ route('tel-bpm.index') }}" class="rounded-lg px-3 py-2 border hover:bg-slate-50">Regresar</a>
+            {{-- <a href="{{ route('tel-bpm.index') }}" class="rounded-lg px-3 py-2 border hover:bg-slate-50">Regresar</a> --}}
         </div>
     </div>
 
@@ -71,6 +71,7 @@
                         <th class="px-3 py-2 text-center telar-col" data-telar="{{ $t }}">{{ $t }}<div class="text-[10px] text-slate-500">T: {{ $header->TurnoEntrega }}</div></th>
                     @endforeach
                 </tr>
+                
             </thead>
             <tbody>
                 @php
@@ -94,7 +95,7 @@
                                     data-orden="{{ $a['Orden'] }}"
                                     data-actividad="{{ $a['Actividad'] }}"
                                     data-telar="{{ $t }}"
-                                    data-salon=""
+                                    data-salon="{{ $salonPorTelar[$t] ?? '' }}"
                                     data-valor="{{ $val ?? '' }}"
                                     @if($header->Status !== 'Creado') disabled @endif
                                 >
@@ -113,9 +114,9 @@
     </div>
 
     {{-- Nota --}}
-    <div class="mt-3 text-xs text-slate-500">
+    {{-- <div class="mt-3 text-xs text-slate-500">
         La edición del checklist sólo está permitida en estado <b>Creado</b>.
-    </div>
+    </div> --}}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -129,7 +130,7 @@
         Swal.fire({ icon, title, toast:true, position:'top-end', timer:2000, showConfirmButton:false });
     }
 
-    // Toggle tri-estado
+    // Tri-estado por celda: vacío → ✓ → ✗ → vacío (guarda sólo el folio actual)
     document.querySelectorAll('.cell-btn').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
             if (!editable) { toast('info','Edición no permitida'); return; }
@@ -165,6 +166,35 @@
                 btn.querySelector('.cell-icon').innerHTML = '✗';
             } else {
                 btn.querySelector('.cell-icon').innerHTML = '&nbsp;';
+            }
+        });
+    });
+
+    // Checkbox por telar (OK/NO) asociado al que recibe
+    document.querySelectorAll('.telar-ok').forEach(chk => {
+        chk.addEventListener('change', async () => {
+            if (!editable) { toast('info','Edición no permitida'); chk.checked = !chk.checked; return; }
+            const telar = chk.dataset.telar;
+            const rows = [{
+                Orden: 9999,
+                NoTelarId: telar,
+                Actividad: 'TELAR_OK',
+                SalonTejidoId: null,
+                TurnoRecibe: @json($header->TurnoRecibe),
+                Valor: chk.checked ? 'OK' : null
+            }];
+            try {
+                const res = await fetch(bulkUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: JSON.stringify({ rows })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error(data.msg || 'Error al guardar');
+                toast('success', chk.checked ? 'Telar OK' : 'Telar sin marcar');
+            } catch (e) {
+                toast('error', e.message || 'No se pudo guardar');
+                chk.checked = !chk.checked; // revertir en error
             }
         });
     });
