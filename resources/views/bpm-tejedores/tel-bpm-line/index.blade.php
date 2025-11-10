@@ -65,17 +65,16 @@
     </div>
 
     {{-- Tabla de checklist --}}
-    <div id="grid-wrapper" class="mx-3 mb-12 overflow-auto rounded-lg border bg-white shadow-sm" style="max-height: calc(100vh - 350px);">
+    <div id="grid-wrapper" class="mx-3 mt-0 mb-4 overflow-auto rounded-lg border bg-white shadow-sm" style="max-height: calc(100vh - 340px);">
         <table id="grid" class="min-w-full text-sm">
-            <thead class="bg-gradient-to-r from-blue-500 to-blue-600 text-white sticky top-0 z-10">
+            <thead class="bg-gradient-to-r from-blue-500 to-blue-600 text-white sticky top-0 z-30">
                 <tr>
-                    <th class="px-4 py-3 text-left w-12 font-semibold sticky left-0 bg-gradient-to-r from-blue-500 to-blue-600 z-20">#</th>
-                    <th class="px-4 py-3 text-left font-semibold sticky left-12 bg-gradient-to-r from-blue-500 to-blue-600 z-20 min-w-[200px]">Actividad</th>
+                    <th class="px-4 py-3 text-left w-16 font-semibold sticky left-0 bg-gradient-to-r from-blue-500 to-blue-600 z-40">#</th>
+                    <th class="px-4 py-3 text-left font-semibold sticky left-16 bg-gradient-to-r from-blue-500 to-blue-600 z-40 min-w-[250px]">Actividad</th>
                     {{-- Columnas de telar existentes --}}
                     @foreach($telares as $t)
-                        <th class="px-4 py-3 text-center telar-col font-semibold min-w-[80px]" data-telar="{{ $t }}">
+                        <th class="px-4 py-3 text-center telar-col font-semibold min-w-[80px] sticky top-0 bg-gradient-to-r from-blue-500 to-blue-600 z-30" data-telar="{{ $t }}">
                             {{ $t }}
-                            <div class="text-xs text-blue-100 font-normal">T: {{ $header->TurnoEntrega }}</div>
                         </th>
                     @endforeach
                 </tr>
@@ -91,8 +90,8 @@
                 @endphp
                 @forelse($actividades as $a)
                     <tr class="border-t hover:bg-gray-50 transition-colors duration-150 {{ $loop->even ? 'bg-gray-25' : 'bg-white' }}">
-                        <td class="px-4 py-3 text-slate-600 font-medium sticky left-0 bg-white z-10 border-r">{{ $a['Orden'] }}</td>
-                        <td class="px-4 py-3 text-gray-800 text-base font-medium sticky left-12 bg-white z-10 border-r min-w-[200px]">{{ $a['Actividad'] }}</td>
+                        <td class="px-4 py-3 text-slate-600 font-medium sticky left-0 {{ $loop->even ? 'bg-gray-25' : 'bg-white' }} z-20 border-r">{{ $a['Orden'] }}</td>
+                        <td class="px-4 py-3 text-gray-800 text-base font-medium sticky left-16 {{ $loop->even ? 'bg-gray-25' : 'bg-white' }} z-20 border-r min-w-[250px]">{{ $a['Actividad'] }}</td>
 
                         @foreach($telares as $t)
                             @php $val = $map[$a['Orden']][$t] ?? null; @endphp
@@ -224,9 +223,9 @@
 
         // Agrega th
         const th = document.createElement('th');
-        th.className = 'px-3 py-2 text-center telar-col';
+        th.className = 'px-4 py-3 text-center telar-col font-semibold min-w-[80px] sticky top-0 bg-gradient-to-r from-blue-500 to-blue-600 z-30';
         th.dataset.telar = telar;
-        th.innerHTML = `${telar}<div class="text-[10px] text-slate-500">T: {{ $header->TurnoEntrega }}</div>`;
+        th.innerHTML = `${telar}`;
         grid.tHead.rows[0].appendChild(th);
 
         // Agrega celdas a cada fila (con botones listos para toggle)
@@ -301,6 +300,19 @@
     confirmAndSubmit('btn-finish','form-finish','¿Marcar como Terminado?');
     confirmAndSubmit('btn-authorize','form-authorize','¿Autorizar folio?');
     confirmAndSubmit('btn-reject','form-reject','¿Rechazar y regresar a Creado?');
+
+    // Sobrescribir comportamiento del botón "atrás" para ir siempre al índice actualizado
+    const btnBack = document.getElementById('btn-back');
+    if (btnBack) {
+        // Remover event listeners existentes clonando el elemento
+        const newBtnBack = btnBack.cloneNode(true);
+        btnBack.parentNode.replaceChild(newBtnBack, btnBack);
+        
+        // Agregar nuevo comportamiento
+        newBtnBack.addEventListener('click', function() {
+            window.location.href = '{{ route("tel-bpm.index") }}';
+        });
+    }
 })();
 </script>
 @endsection

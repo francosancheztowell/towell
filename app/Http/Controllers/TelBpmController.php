@@ -172,8 +172,8 @@ class TelBpmController extends Controller
         // Si quieres pre-generarlas, dímelo y lo agregamos.
 
         return redirect()
-            ->route('tel-bpm.index')
-            ->with('success', "Folio $folio creado exitosamente.");
+            ->route('tel-bpm-line.index', $folio)
+            ->with('success', "Folio $folio creado. Completa el checklist.");
     }
 
     /** Editar header (sólo en estado 'Creado') */
