@@ -551,6 +551,10 @@ Route::post('tel-bpm/{folio}/lineas/bulk-save', [TelBpmLineController::class, 'b
         Route::get('/reservar-programar', [\App\Http\Controllers\ReservarProgramarController::class, 'index'])->name('reservar.programar');
         Route::get('/programacion-requerimientos', [\App\Http\Controllers\ReservarProgramarController::class, 'programacionRequerimientos'])->name('programacion.requerimientos');
         Route::post('/programacion-requerimientos/resumen-semanas', [\App\Http\Controllers\ReservarProgramarController::class, 'getResumenSemanas'])->name('programacion.resumen.semanas');
+        Route::get('/creacion-ordenes', [\App\Http\Controllers\ReservarProgramarController::class, 'creacionOrdenes'])->name('creacion.ordenes');
+        Route::get('/buscar-bom-urdido', [\App\Http\Controllers\ReservarProgramarController::class, 'buscarBomUrdido'])->name('buscar.bom.urdido');
+        Route::get('/materiales-urdido', [\App\Http\Controllers\ReservarProgramarController::class, 'getMaterialesUrdido'])->name('materiales.urdido');
+        Route::get('/materiales-engomado', [\App\Http\Controllers\ReservarProgramarController::class, 'getMaterialesEngomado'])->name('materiales.engomado');
         Route::get('/inventario-telares', [\App\Http\Controllers\ReservarProgramarController::class, 'getInventarioTelares'])->name('inventario.telares');
         Route::get('/inventario-disponible', [\App\Http\Controllers\InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible.get');
         Route::post('/inventario-disponible', [\App\Http\Controllers\InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible');

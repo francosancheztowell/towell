@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class URDCatalogoMaquina extends Model
 {
+    protected $connection = 'sqlsrv';
     protected $table = 'URDCatalogoMaquinas';
 
     // Clave primaria string (no autoincremental)

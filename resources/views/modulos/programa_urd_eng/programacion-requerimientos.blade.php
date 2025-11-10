@@ -5,7 +5,7 @@
 @section('navbar-right')
 <div class="flex items-center gap-3">
     <!-- Botón único -->
-    <button id="btnSiguiente" type="button"
+    <button id="btnSiguiente" type="button" title="Siguiente"
         class="px-6 py-2.5 bg-blue-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-2 group">
         <i class="fa-solid fa-arrow-right w-4 h-4 group-hover:translate-x-1 transition-transform duration-200"></i>
     </button>
@@ -13,6 +13,8 @@
 @endsection
 
 @section('content')
+
+
 <div class="w-full">
 
     {{-- =================== Tabla de requerimientos =================== --}}
@@ -46,19 +48,29 @@
     <div class="bg-white overflow-hidden rounded-lg border">
         <div class="overflow-x-auto">
             <table id="tablaResumen" class="w-full">
-                <thead>
-                    <tr class="bg-gray-100 border-b">
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-800">Telar</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-800">Cuenta</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-800">Hilo</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-800">Calibre</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-800">Modelo</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-800">Sem Actual</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-800">Sem Actual +1</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-800">Sem Actual +2</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-800">Sem Actual +3</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-800">Sem Actual +4</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-800">Total</th>
+                <thead id="theadResumen">
+                    <tr class="bg-slate-100 border-b">
+                        <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Telar</th>
+                        <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Cuenta</th>
+                        <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Hilo</th>
+                        <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Calibre</th>
+                        <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Modelo</th>
+                        <th class="px-2 py-1.5 text-center text-[10px] font-semibold text-blue-700 bg-blue-50/50" colspan="5">Metros</th>
+                        <th class="px-2 py-1.5 text-right text-[10px] font-semibold text-blue-700 bg-blue-50" rowspan="2">Total (mts)</th>
+                        <th class="px-2 py-1.5 text-center text-[10px] font-semibold text-green-700 bg-green-50/50" colspan="5">Kilos</th>
+                        <th class="px-2 py-1.5 text-right text-[10px] font-semibold text-green-700 bg-green-50" rowspan="2">Total (kg)</th>
+                    </tr>
+                    <tr class="border-b">
+                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="0">Semana 1</th>
+                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="1">Semana 2</th>
+                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="2">Semana 3</th>
+                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="3">Semana 4</th>
+                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="4">Semana 5</th>
+                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="0">Semana 1</th>
+                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="1">Semana 2</th>
+                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="2">Semana 3</th>
+                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="3">Semana 4</th>
+                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="4">Semana 5</th>
                     </tr>
                 </thead>
                 <tbody id="tbodyResumen" class="bg-white divide-y">
@@ -69,6 +81,9 @@
     </div>
 </div>
 
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     /* =================== Estado & Constantes =================== */
@@ -76,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
     const opciones = {
-        urdido: ['Mc Coy 1', 'Mc Coy 2', 'Mc Coy 3'],
+        urdido: @json($opcionesUrdido ?? []),
         tipoAtado: ['Normal', 'Especial'],
         destino: ['JACQUARD', 'SMIT', 'SULZER', 'SMITH']
     };
@@ -98,14 +113,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const d = new Date(); const m = (d.getMonth()+1+'').padStart(2,'0'); const day = (d.getDate()+'').padStart(2,'0');
         return `${d.getFullYear()}-${m}-${day}`;
     }
+
+    // Normalizar tipo a formato estándar: "Rizo" o "Pie" (primera letra mayúscula, resto minúsculas)
+    function normalizarTipo(tipo) {
+        if (!tipo || tipo === '') return '';
+        const tipoUpper = String(tipo).toUpperCase().trim();
+        if (tipoUpper === 'RIZO') return 'Rizo';
+        if (tipoUpper === 'PIE') return 'Pie';
+        return tipo; // Si no es RIZO ni PIE, retornar el original
+    }
+
     function normalizeInput(arr) {
         return (arr || []).map(t => ({
             ...t,
+            tipo: normalizarTipo(t.tipo), // Normalizar tipo a "Rizo" o "Pie"
             hilo: t.hilo && String(t.hilo).trim() !== '' ? String(t.hilo).trim() : null
         }));
     }
 
+    // Formatear número para input (con comas y puntos)
+    function formatNumberInput(value) {
+        if (!value || value === '') return '';
+        const num = parseFloat(String(value).replace(/,/g, ''));
+        if (isNaN(num)) return '';
+        return num.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    // Parsear número desde input (remover comas y puntos)
+    function parseNumberInput(value) {
+        if (!value || value === '') return '';
+        return String(value).replace(/,/g, '');
+    }
+
     // Valida que todos compartan Tipo (obligatorio) y, si están presentes, mismo calibre/hilo/salón
+    // NOTA: Para PIE, no se valida hilo
     function validarGrupo(telares) {
         if (!telares.length) return { valido:false, mensaje:'No hay telares seleccionados' };
 
@@ -114,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const calBase  = base.calibre != null && base.calibre !== '' ? parseFloat(base.calibre) : null;
         const hiloBase = base.hilo && String(base.hilo).trim() !== '' ? String(base.hilo).trim() : null;
         const salonBase= String(base.salon || '').trim();
+        const esPie = tipoBase === 'PIE';
 
         if (!tipoBase) return { valido:false, mensaje:'El telar debe tener un tipo definido' };
 
@@ -127,23 +169,31 @@ document.addEventListener('DOMContentLoaded', () => {
             if (calBase!=null && cal!=null && Math.abs(calBase - cal) >= 0.01)
                 return { valido:false, mensaje:`El telar ${t.no_telar || 'N/A'} calibre "${cal}" ≠ "${calBase}".` };
 
-            const hilo = t.hilo && String(t.hilo).trim() !== '' ? String(t.hilo).trim() : null;
-            if (hiloBase && hilo && hilo !== hiloBase)
-                return { valido:false, mensaje:`El telar ${t.no_telar || 'N/A'} hilo "${hilo}" ≠ "${hiloBase}".` };
+            // Para PIE, no se valida hilo
+            if (!esPie) {
+                const hilo = t.hilo && String(t.hilo).trim() !== '' ? String(t.hilo).trim() : null;
+                if (hiloBase && hilo && hilo !== hiloBase)
+                    return { valido:false, mensaje:`El telar ${t.no_telar || 'N/A'} hilo "${hilo}" ≠ "${hiloBase}".` };
+            }
 
             const salon = String(t.salon || '').trim();
             if (salonBase && salon && salon !== salonBase)
                 return { valido:false, mensaje:`El telar ${t.no_telar || 'N/A'} salón "${salon}" ≠ "${salonBase}".` };
         }
 
-        return { valido:true, tipo:base.tipo, calibre:calBase, hilo:hiloBase, salon:salonBase };
+        // Para PIE, establecer hilo como null para que no se use en consultas
+        // Normalizar el tipo antes de retornarlo
+        const tipoNormalizado = normalizarTipo(base.tipo);
+        return { valido:true, tipo:tipoNormalizado, calibre:calBase, hilo:esPie ? null : hiloBase, salon:salonBase };
     }
 
     /* =================== Render principal =================== */
     function crearFila(telar, index) {
         const fechaISO = telar.fecha_req || todayISO();
-        const tipoCls  = (String(telar.tipo||'').toUpperCase()==='RIZO')
-            ? 'bg-rose-100 text-rose-700' : (String(telar.tipo||'').toUpperCase()==='PIE'
+        // Normalizar tipo para mostrar
+        const tipoNormalizado = normalizarTipo(telar.tipo);
+        const tipoCls  = (String(tipoNormalizado||'').toUpperCase()==='RIZO')
+            ? 'bg-rose-100 text-rose-700' : (String(tipoNormalizado||'').toUpperCase()==='PIE'
             ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700');
 
         const tr = document.createElement('tr');
@@ -169,12 +219,14 @@ document.addEventListener('DOMContentLoaded', () => {
             </td>
             <td class="px-2 py-3 w-28">
                 <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="urdido">
-                    <option value="">Seleccione...</option>
-                    ${opciones.urdido.map(x => `<option value="${x}" ${telar.urdido===x?'selected':''}>${x}</option>`).join('')}
+                    ${opciones.urdido.map((x, idx) => {
+                        const isSelected = telar.urdido === x || (!telar.urdido && idx === 0);
+                        return `<option value="${x}" ${isSelected ? 'selected' : ''}>${x}</option>`;
+                    }).join('')}
                 </select>
             </td>
             <td class="px-2 py-3 w-20">
-                <span class="px-2 py-1 inline-block text-xs font-medium rounded-md ${tipoCls}">${telar.tipo || 'N/A'}</span>
+                <span class="px-2 py-1 inline-block text-xs font-medium rounded-md ${tipoCls}">${tipoNormalizado || 'N/A'}</span>
             </td>
             <td class="px-2 py-3 w-28">
                 <select class="w-full px-2 py-1.5 text-xs bg-transparent border-0 cursor-default appearance-none" data-field="destino" disabled>
@@ -190,14 +242,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 </select>
             </td>
             <td class="px-2 py-3 w-24">
-                <input type="number" step="0.01" placeholder="Metros"
-                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       value="${telar.metros ?? ''}" data-field="metros">
+                <input type="text" placeholder="Metros"
+                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
+                       value="${telar.metros ? formatNumberInput(telar.metros) : ''}" data-field="metros">
             </td>
             <td class="px-2 py-3 w-24">
-                <input type="number" step="0.01" placeholder="Kilos"
-                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       value="${telar.kilos ?? ''}" data-field="kilos">
+                <input type="text" placeholder="Kilos"
+                       class="w-full px-2 py-1.5 bg-transparent border-0 text-xs text-right"
+                       value="${telar.kilos ? formatNumberInput(telar.kilos) : ''}" data-field="kilos" disabled>
             </td>
             <td class="px-2 py-3 w-24 text-center">
                 <input type="checkbox" class="w-4 h-4" ${telar.agrupar ? 'checked' : ''} data-field="agrupar">
@@ -238,15 +290,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Filtrado tolerante
+        const tipoValidado = String(v.tipo||'').toUpperCase().trim();
+        const esPie = tipoValidado === 'PIE';
         const filtrados = telaresData.filter(t => {
             const tipo = String(t.tipo||'').toUpperCase().trim();
-            if (tipo !== String(v.tipo||'').toUpperCase().trim()) return false;
+            if (tipo !== tipoValidado) return false;
 
             const cal = t.calibre!=null && t.calibre!=='' ? parseFloat(t.calibre) : null;
             if (v.calibre!=null && cal!=null && Math.abs(v.calibre - cal) >= 0.01) return false;
 
-            const hilo = t.hilo && String(t.hilo).trim() !== '' ? String(t.hilo).trim() : null;
-            if (v.hilo && hilo && v.hilo !== hilo) return false;
+            // Para PIE, no se filtra por hilo
+            if (!esPie) {
+                const hilo = t.hilo && String(t.hilo).trim() !== '' ? String(t.hilo).trim() : null;
+                if (v.hilo && hilo && v.hilo !== hilo) return false;
+            }
 
             const salon = String(t.salon || '').trim();
             if (v.salon && salon && v.salon !== salon) return false;
@@ -256,9 +313,223 @@ document.addEventListener('DOMContentLoaded', () => {
 
         filtrados.forEach((t, i) => tbody.appendChild(crearFila(t, i)));
 
+        // Aplicar agrupación automática
+        aplicarAgrupacionAutomatica(filtrados);
+
+        // Agregar event listeners a los checkboxes de agrupación
+        agregarValidacionAgrupacion();
+
         // Mantener dataset filtrado para el resumen
         telaresData = filtrados;
         cargarResumenDesdeServidor(v);
+    }
+
+    // Función para aplicar agrupación automática basada en Cuenta, Hilo, Calibre y Tipo
+    function aplicarAgrupacionAutomatica(telares) {
+        if (!telares || telares.length === 0) return;
+
+        // Agrupar telares por los criterios de agrupación
+        const grupos = {};
+        const tipoBase = String(telares[0]?.tipo || '').toUpperCase().trim();
+        const esPie = tipoBase === 'PIE';
+
+        telares.forEach((telar, index) => {
+            // Normalizar valores para la clave de agrupación
+            const cuenta = String(telar.cuenta || '').trim();
+            const calibre = telar.calibre != null && telar.calibre !== '' ? parseFloat(telar.calibre).toFixed(2) : '';
+            const hilo = esPie ? '' : (telar.hilo && String(telar.hilo).trim() !== '' ? String(telar.hilo).trim() : '');
+            const tipo = String(telar.tipo || '').toUpperCase().trim();
+
+            // Crear clave de agrupación (para PIE no incluye hilo)
+            const clave = esPie
+                ? `${cuenta}|${calibre}|${tipo}`
+                : `${cuenta}|${hilo}|${calibre}|${tipo}`;
+
+            if (!grupos[clave]) {
+                grupos[clave] = [];
+            }
+            grupos[clave].push({ telar, index });
+        });
+
+        // Marcar checkboxes de agrupación para grupos con más de un telar
+        Object.values(grupos).forEach(grupo => {
+            if (grupo.length > 1) {
+                // Si hay más de un telar en el grupo, marcar todos los checkboxes
+                grupo.forEach(({ index }) => {
+                    const fila = document.querySelector(`#tablaRequerimientos tbody tr[data-index="${index}"]`);
+                    if (fila) {
+                        const checkbox = fila.querySelector('input[data-field="agrupar"]');
+                        if (checkbox) {
+                            checkbox.checked = true;
+                            // Actualizar también el dato en telaresData usando el telarId
+                            const telarId = fila.dataset.telarId || '';
+                            const telarEnData = telaresData.find(t => String(t.no_telar || '') === telarId);
+                            if (telarEnData) {
+                                telarEnData.agrupar = true;
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    // Función para validar si dos telares pueden agruparse
+    function puedenAgruparse(telar1, telar2) {
+        const tipo1 = String(telar1.tipo || '').toUpperCase().trim();
+        const tipo2 = String(telar2.tipo || '').toUpperCase().trim();
+        const esPie = tipo1 === 'PIE';
+
+        // Deben tener el mismo tipo
+        if (tipo1 !== tipo2) {
+            return { puede: false, motivo: 'tipo' };
+        }
+
+        // Deben tener la misma cuenta
+        const cuenta1 = String(telar1.cuenta || '').trim();
+        const cuenta2 = String(telar2.cuenta || '').trim();
+        if (cuenta1 !== cuenta2) {
+            return { puede: false, motivo: 'cuenta' };
+        }
+
+        // Deben tener el mismo calibre
+        const cal1 = telar1.calibre != null && telar1.calibre !== '' ? parseFloat(telar1.calibre) : null;
+        const cal2 = telar2.calibre != null && telar2.calibre !== '' ? parseFloat(telar2.calibre) : null;
+        if (cal1 != null && cal2 != null && Math.abs(cal1 - cal2) >= 0.01) {
+            return { puede: false, motivo: 'calibre' };
+        }
+        if ((cal1 == null) !== (cal2 == null)) {
+            return { puede: false, motivo: 'calibre' };
+        }
+
+        // Para RIZO, deben tener el mismo hilo
+        if (!esPie) {
+            const hilo1 = telar1.hilo && String(telar1.hilo).trim() !== '' ? String(telar1.hilo).trim() : null;
+            const hilo2 = telar2.hilo && String(telar2.hilo).trim() !== '' ? String(telar2.hilo).trim() : null;
+            if (hilo1 && hilo2 && hilo1 !== hilo2) {
+                return { puede: false, motivo: 'hilo' };
+            }
+        }
+
+        return { puede: true };
+    }
+
+    // Función para obtener mensaje de error de agrupación
+    function obtenerMensajeErrorAgrupacion(motivo) {
+        const mensajes = {
+            'tipo': 'No se pueden agrupar telares con diferentes tipos (RIZO/PIE).',
+            'cuenta': 'No se pueden agrupar telares con diferentes cuentas.',
+            'hilo': 'No se pueden agrupar telares con diferentes hilos.',
+            'calibre': 'No se pueden agrupar telares con diferentes calibres.'
+        };
+        return mensajes[motivo] || 'No se pueden agrupar estos telares.';
+    }
+
+    // Función para mostrar alerta de agrupación con SweetAlert2 (toast)
+    function mostrarAlertaAgrupacion(mensaje) {
+        // Verificar si SweetAlert2 está disponible
+        if (typeof Swal !== 'undefined') {
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 2000,
+                timerProgressBar: true,
+                width: 'auto',
+                padding: '0.75rem 1rem',
+                didOpen: (toast) => {
+                    toast.addEventListener('mouseenter', Swal.stopTimer);
+                    toast.addEventListener('mouseleave', Swal.resumeTimer);
+                }
+            });
+            Toast.fire({
+                icon: 'error',
+                title: mensaje,
+                iconColor: '#ef4444'
+            });
+        } else {
+            // Fallback a alert nativo si SweetAlert2 no está disponible
+            alert(mensaje);
+        }
+    }
+
+    // Función para agregar validación a los checkboxes de agrupación
+    function agregarValidacionAgrupacion() {
+        const checkboxes = document.querySelectorAll('#tablaRequerimientos input[data-field="agrupar"]');
+
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function(e) {
+                // Si se está desmarcando, permitir sin validación
+                if (!this.checked) {
+                    const fila = this.closest('tr');
+                    const telarId = fila.dataset.telarId || '';
+                    const telarEnData = telaresData.find(t => String(t.no_telar || '') === telarId);
+                    if (telarEnData) {
+                        telarEnData.agrupar = false;
+                    }
+                    return;
+                }
+
+                // Si se está marcando, validar que pueda agruparse con los demás
+                const fila = this.closest('tr');
+                const telarId = fila.dataset.telarId || '';
+                const telarActual = telaresData.find(t => String(t.no_telar || '') === telarId);
+
+                if (!telarActual) {
+                    this.checked = false;
+                    return;
+                }
+
+                // Obtener todos los telares que ya tienen el checkbox marcado (excepto el actual)
+                // Buscar todas las filas y verificar cuáles tienen el checkbox marcado
+                const todasLasFilas = document.querySelectorAll('#tablaRequerimientos tbody tr');
+                const telaresAgrupados = [];
+
+                todasLasFilas.forEach(fila => {
+                    const inputTelarFila = fila.querySelector('input[data-field="telar"]');
+                    const checkboxFila = fila.querySelector('input[data-field="agrupar"]');
+
+                    if (!inputTelarFila || !checkboxFila) return;
+
+                    const telarIdFila = inputTelarFila.value;
+                    if (telarIdFila === telarId) return; // Saltar el telar actual
+
+                    if (checkboxFila.checked) {
+                        // Encontrar el telar en telaresData
+                        const telarEncontrado = telaresData.find(t => String(t.no_telar || '') === telarIdFila);
+                        if (telarEncontrado) {
+                            telaresAgrupados.push(telarEncontrado);
+                        }
+                    }
+                });
+
+                // Si hay telares ya agrupados, validar que el actual pueda agruparse con ellos
+                if (telaresAgrupados.length > 0) {
+                    const telarReferencia = telaresAgrupados[0];
+                    const validacion = puedenAgruparse(telarActual, telarReferencia);
+
+                    if (!validacion.puede) {
+                        // Mostrar alerta y desmarcar el checkbox
+                        this.checked = false;
+                        mostrarAlertaAgrupacion(obtenerMensajeErrorAgrupacion(validacion.motivo));
+                        return;
+                    }
+
+                    // Validar también con todos los demás telares agrupados (por seguridad)
+                    for (const otroTelar of telaresAgrupados) {
+                        const validacionOtro = puedenAgruparse(telarActual, otroTelar);
+                        if (!validacionOtro.puede) {
+                            this.checked = false;
+                            mostrarAlertaAgrupacion(obtenerMensajeErrorAgrupacion(validacionOtro.motivo));
+                            return;
+                        }
+                    }
+                }
+
+                // Si pasa todas las validaciones, permitir la agrupación
+                telarActual.agrupar = true;
+            });
+        });
     }
 
     /* =================== Resumen =================== */
@@ -266,8 +537,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const tb = document.getElementById('tbodyResumen');
         tb.innerHTML = `
             <tr>
-                <td colspan="11" class="px-4 py-8 text-center text-gray-500">
-                    <i class="fa-solid fa-circle-info text-gray-400 mb-2"></i>
+                <td colspan="16" class="px-2 py-4 text-center text-gray-500 text-[10px]">
+                    <i class="fa-solid fa-circle-info text-gray-400 mb-1"></i>
                     <p>${msg}</p>
                 </td>
             </tr>`;
@@ -277,9 +548,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const tbody = document.getElementById('tbodyResumen');
         tbody.innerHTML = `
             <tr>
-                <td colspan="11" class="px-4 py-8 text-center text-gray-500">
+                <td colspan="16" class="px-2 py-4 text-center text-gray-500 text-[10px]">
                     <div class="flex items-center justify-center gap-2">
-                        <div class="animate-spin rounded-full h-5 w-5 border-2 border-gray-300 border-t-blue-500"></div>
+                        <div class="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-blue-500"></div>
                         <span>Cargando datos...</span>
                     </div>
                 </td>
@@ -299,15 +570,56 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(json.message || `Error HTTP ${res.status}`);
             }
 
-            renderResumen(json.data, validacion);
+            renderResumen(json.data, validacion, json.semanas || []);
         } catch (e) {
             renderResumenMensaje(e.message || 'Error al cargar datos');
         }
     }
 
-    function renderResumen(data, validacion) {
+    function renderResumen(data, validacion, semanas) {
         const tb = document.getElementById('tbodyResumen');
         tb.innerHTML = '';
+
+        // Actualizar encabezados con fechas
+        if (Array.isArray(semanas) && semanas.length > 0) {
+            semanas.forEach((sem, idx) => {
+                const headers = document.querySelectorAll(`.semana-header[data-semana="${idx}"]`);
+                if (headers.length === 0) return;
+
+                let fechaIni = '';
+                let fechaFin = '';
+
+                if (sem.inicio) {
+                    try {
+                        const fecha = new Date(sem.inicio + 'T00:00:00');
+                        if (!isNaN(fecha.getTime())) {
+                            fechaIni = fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit'});
+                        }
+                    } catch(e) {
+                        fechaIni = sem.inicio ? sem.inicio.substring(5, 10).replace('-', '/') : '';
+                    }
+                }
+
+                if (sem.fin) {
+                    try {
+                        const fecha = new Date(sem.fin + 'T00:00:00');
+                        if (!isNaN(fecha.getTime())) {
+                            fechaFin = fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit'});
+                        }
+                    } catch(e) {
+                        fechaFin = sem.fin ? sem.fin.substring(5, 10).replace('-', '/') : '';
+                    }
+                }
+
+                headers.forEach(header => {
+                    // Solo actualizar si no tiene fechas ya
+                    if (header.querySelector('span.text-gray-500') === null && fechaIni && fechaFin) {
+                        const originalText = header.textContent.trim();
+                        header.innerHTML = `${originalText}<br><span class="text-gray-500 font-normal text-[9px]">${fechaIni} - ${fechaFin}</span>`;
+                    }
+                });
+            });
+        }
 
         const tipo = String(validacion.tipo || '').toUpperCase().trim();
         const calEsperado = validacion.calibre;
@@ -321,7 +633,8 @@ document.addEventListener('DOMContentLoaded', () => {
             dataRizo: data.rizo,
             dataPie: data.pie,
             tieneRizo: Array.isArray(data.rizo) && data.rizo.length > 0,
-            tienePie: Array.isArray(data.pie) && data.pie.length > 0
+            tienePie: Array.isArray(data.pie) && data.pie.length > 0,
+            semanas
         });
 
         const items = [];
@@ -343,8 +656,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     s1: it.SemActual1MtsRizo || it.semActual1MtsRizo || it.SemActual1 || 0,
                     s2: it.SemActual2MtsRizo || it.semActual2MtsRizo || it.SemActual2 || 0,
                     s3: it.SemActual3MtsRizo || it.semActual3MtsRizo || it.SemActual3 || 0,
-                    s4: it.SemActual4MtsRizo || it.semActual4MtsRizo || it.SemActual4 || 0, // Semana 5 (Sem Actual +4)
-                    total: it.Total || 0
+                    s4: it.SemActual4MtsRizo || it.semActual4MtsRizo || it.SemActual4 || 0,
+                    k0: it.SemActualKilosRizo || it.semActualKilosRizo || 0,
+                    k1: it.SemActual1KilosRizo || it.semActual1KilosRizo || 0,
+                    k2: it.SemActual2KilosRizo || it.semActual2KilosRizo || 0,
+                    k3: it.SemActual3KilosRizo || it.semActual3KilosRizo || 0,
+                    k4: it.SemActual4KilosRizo || it.semActual4KilosRizo || 0,
+                    total: it.Total || 0,
+                    totalKilos: it.TotalKilos || 0
                 });
             }
         }
@@ -358,26 +677,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 const okCal = (calEsperado==null) || (calNum==null) || Math.abs(calEsperado - calNum) < 0.01;
                 if (!okCal) continue;
 
-                // Para PIE, el hilo debe ser el mismo que el de la tabla de arriba (hiloEsperado)
-                // Validar que el hilo coincida si está presente en el item
+                // Para PIE, NO se filtra por hilo - se muestran todos los registros que coincidan en calibre
                 const hiloIt = String(it.Hilo || it.hilo || '').trim();
-                if (hiloEsperado != null && hiloIt && hiloIt.toUpperCase() !== String(hiloEsperado).toUpperCase()) {
-                    // Si el item tiene hilo pero no coincide, continuar
-                    continue;
-                }
 
                 items.push({
                     telar: it.TelarId || it.telarId || it.Telar || it.telar || '',
                     cuenta: it.CuentaPie || it.cuentaPie || it.Cuenta || it.cuenta || '',
-                    hilo: (hiloEsperado != null && hiloEsperado !== '') ? hiloEsperado : (hiloIt || '-'),
+                    hilo: hiloIt || '-',
                     calibre: calIt ?? '-',
                     modelo: it.Modelo || it.modelo || '-',
                     s0: it.SemActualMtsPie || it.semActualMtsPie || it.SemActual || 0,
                     s1: it.SemActual1MtsPie || it.semActual1MtsPie || it.SemActual1 || 0,
                     s2: it.SemActual2MtsPie || it.semActual2MtsPie || it.SemActual2 || 0,
                     s3: it.SemActual3MtsPie || it.semActual3MtsPie || it.SemActual3 || 0,
-                    s4: it.SemActual4MtsPie || it.semActual4MtsPie || it.SemActual4 || 0, // Semana 5 (Sem Actual +4)
-                    total: it.Total || 0
+                    s4: it.SemActual4MtsPie || it.semActual4MtsPie || it.SemActual4 || 0,
+                    k0: it.SemActualKilosPie || it.semActualKilosPie || 0,
+                    k1: it.SemActual1KilosPie || it.semActual1KilosPie || 0,
+                    k2: it.SemActual2KilosPie || it.semActual2KilosPie || 0,
+                    k3: it.SemActual3KilosPie || it.semActual3KilosPie || 0,
+                    k4: it.SemActual4KilosPie || it.semActual4KilosPie || 0,
+                    total: it.Total || 0,
+                    totalKilos: it.TotalKilos || 0
                 });
             }
         }
@@ -390,10 +710,11 @@ document.addEventListener('DOMContentLoaded', () => {
             let mensaje = `No hay datos de programación en el rango de 5 semanas.`;
             mensaje += `\nTipo: ${tipo || 'N/A'}`;
             mensaje += `\nCalibre: ${calEsperado ?? 'N/A'}`;
-            mensaje += `\nHilo: ${hiloEsperado ?? 'Todos'}`;
+            mensaje += `\nHilo: ${tipo === 'PIE' ? 'No aplica' : (hiloEsperado ?? 'Todos')}`;
 
             if (tieneDatosRizo || tieneDatosPie) {
-                mensaje += `\n\nNota: Existen ${tieneDatosRizo ? data.rizo.length : data.pie.length} registro(s) en la base de datos, pero no coinciden con los filtros aplicados (hilo/calibre) o no tienen fechas en el rango de las 5 semanas.`;
+                const filtrosAplicados = tipo === 'PIE' ? 'calibre' : 'hilo/calibre';
+                mensaje += `\n\nNota: Existen ${tieneDatosRizo ? data.rizo.length : data.pie.length} registro(s) en la base de datos, pero no coinciden con los filtros aplicados (${filtrosAplicados}) o no tienen fechas en el rango de las 5 semanas.`;
             } else {
                 mensaje += `\n\nNota: No se encontraron registros de programación para los telares seleccionados en el rango de fechas de las 5 semanas (${validacion?.semanas?.[0]?.inicio || 'N/A'} a ${validacion?.semanas?.[4]?.fin || 'N/A'}).`;
             }
@@ -402,24 +723,135 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Agrupar items por telar para calcular sumas por telar
+        const itemsPorTelar = {};
         for (const r of items) {
+            const telarId = String(r.telar || '').trim();
+            if (!itemsPorTelar[telarId]) {
+                itemsPorTelar[telarId] = {
+                    telar: telarId,
+                    totalMetros: 0,
+                    totalKilos: 0,
+                    items: []
+                };
+            }
+            itemsPorTelar[telarId].totalMetros += Number(r.total || 0);
+            itemsPorTelar[telarId].totalKilos += Number(r.totalKilos || 0);
+            itemsPorTelar[telarId].items.push(r);
+        }
+
+        // Renderizar filas de la tabla 2
+        let sumaTotalMetros = 0;
+        let sumaTotalKilos = 0;
+        for (const r of items) {
+            sumaTotalMetros += Number(r.total || 0);
+            sumaTotalKilos += Number(r.totalKilos || 0);
             const tr = document.createElement('tr');
             tr.className = 'border-b hover:bg-gray-50';
             tr.innerHTML = `
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-700">${r.telar}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-700">${r.cuenta || '-'}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-700">${r.hilo || '-'}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-700">${r.calibre != null && r.calibre !== '' ? r.calibre : '-'}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-700">${r.modelo || '-'}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-right">${fmtNum(r.s0)}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-right">${fmtNum(r.s1)}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-right">${fmtNum(r.s2)}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-right">${fmtNum(r.s3)}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs text-right">${fmtNum(r.s4)}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-xs font-semibold text-right">${fmtNum(r.total)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.telar}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.cuenta || '-'}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.hilo || '-'}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.calibre != null && r.calibre !== '' ? r.calibre : '-'}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.modelo || '-'}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.s0)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.s1)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.s2)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.s3)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.s4)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-blue-600 bg-blue-50">${fmtNum(r.total)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.k0)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.k1)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.k2)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.k3)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.k4)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-green-600 bg-green-50">${fmtNum(r.totalKilos)}</td>
             `;
             tb.appendChild(tr);
         }
+
+        // Agregar fila de totales (sumas - solo lectura)
+        const trTotal = document.createElement('tr');
+        trTotal.className = 'border-t-2 border-gray-400 bg-gray-100';
+        trTotal.id = 'filaTotal';
+
+        trTotal.innerHTML = `
+            <td class="px-2 py-2 whitespace-nowrap text-[10px] font-bold text-gray-800 bg-gray-100" colspan="5">TOTAL</td>
+            <td class="px-2 py-2 whitespace-nowrap text-[10px] text-right bg-gray-100" colspan="5"></td>
+            <td class="px-2 py-2 whitespace-nowrap text-[10px] font-semibold text-right text-blue-700 bg-blue-100">
+                <span class="block">${fmtNum(sumaTotalMetros)}</span>
+            </td>
+            <td class="px-2 py-2 whitespace-nowrap text-[10px] text-right bg-gray-100" colspan="5"></td>
+            <td class="px-2 py-2 whitespace-nowrap text-[10px] font-semibold text-right text-green-700 bg-green-100">
+                <span class="block">${fmtNum(sumaTotalKilos)}</span>
+            </td>
+        `;
+        tb.appendChild(trTotal);
+
+        // Función para calcular kilos programados por telar
+        const calcularKilosProgramadosPorTelar = (telarId, metrosProg) => {
+            const datosTelar = itemsPorTelar[telarId];
+            if (!datosTelar || datosTelar.totalMetros <= 0 || datosTelar.totalKilos <= 0) return 0;
+            const metros = Number(metrosProg) || 0;
+            return (datosTelar.totalKilos / datosTelar.totalMetros) * metros;
+        };
+
+        // Actualizar valores en la tabla 1 por telar
+        const filasTabla1 = document.querySelectorAll('#tablaRequerimientos tbody tr');
+        filasTabla1.forEach(fila => {
+            const telarId = fila.dataset.telarId || '';
+            const datosTelar = itemsPorTelar[telarId];
+
+            if (datosTelar && datosTelar.totalMetros > 0) {
+                // Obtener inputs de esta fila
+                const metrosInput = fila.querySelector('input[data-field="metros"]');
+                const kilosInput = fila.querySelector('input[data-field="kilos"]');
+
+                if (metrosInput && kilosInput) {
+                    // Inicializar metros con la suma del telar
+                    metrosInput.value = formatNumberInput(datosTelar.totalMetros);
+
+                    // Calcular kilos iniciales para este telar
+                    const kilosInicial = calcularKilosProgramadosPorTelar(telarId, datosTelar.totalMetros);
+                    kilosInput.value = formatNumberInput(kilosInicial);
+
+                    // Event listeners para formatear y calcular
+                    // Limpiar formato al enfocar para edición
+                    metrosInput.addEventListener('focus', function() {
+                        this.value = parseNumberInput(this.value);
+                    });
+
+                    // Permitir solo números, comas y puntos
+                    metrosInput.addEventListener('input', function(e) {
+                        this.value = this.value.replace(/[^\d.,]/g, '');
+
+                        // Calcular kilos en tiempo real
+                        const metrosRaw = parseNumberInput(this.value);
+                        const metros = Number(metrosRaw) || 0;
+                        const kilos = calcularKilosProgramadosPorTelar(telarId, metros);
+
+                        // Actualizar solo el input de kilos de esta fila
+                        if (kilosInput) {
+                            kilosInput.value = kilos > 0 ? formatNumberInput(kilos) : '';
+                        }
+                    });
+
+                    // Formatear al perder el foco
+                    metrosInput.addEventListener('blur', function() {
+                        const value = parseNumberInput(this.value);
+                        if (value) {
+                            this.value = formatNumberInput(value);
+                            // Recalcular kilos después de formatear
+                            const metros = Number(value) || 0;
+                            const kilos = calcularKilosProgramadosPorTelar(telarId, metros);
+                            if (kilosInput) {
+                                kilosInput.value = kilos > 0 ? formatNumberInput(kilos) : '';
+                            }
+                        }
+                    });
+                }
+            }
+        });
     }
 
     function fmtNum(n) {
@@ -429,8 +861,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* =================== Evento único =================== */
     document.getElementById('btnSiguiente')?.addEventListener('click', () => {
-        // Coloca aquí la acción de “Siguiente”
-        console.log('Siguiente');
+        // Recopilar datos de la tabla
+        const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
+        const datosTelares = [];
+
+        filas.forEach(fila => {
+            const telarId = fila.querySelector('input[data-field="telar"]')?.value || '';
+            const fechaReq = fila.querySelector('input[data-field="fecha_req"]')?.value || '';
+            const cuenta = fila.querySelector('input[data-field="cuenta"]')?.value || '';
+            const calibre = fila.querySelector('input[data-field="calibre"]')?.value || '';
+            const hilo = fila.querySelector('input[data-field="hilo"]')?.value || '';
+            const urdido = fila.querySelector('select[data-field="urdido"]')?.value || '';
+            // Obtener tipo desde el span dentro de la celda de tipo
+            const tipoCell = fila.querySelector('td:nth-child(7)');
+            const tipoRaw = tipoCell ? tipoCell.querySelector('span')?.textContent.trim() || '' : '';
+            // Normalizar el tipo a formato estándar
+            const tipo = normalizarTipo(tipoRaw);
+            const destino = fila.querySelector('select[data-field="destino"]')?.value || '';
+            const tipoAtado = fila.querySelector('select[data-field="tipo_atado"]')?.value || '';
+            const metros = parseNumberInput(fila.querySelector('input[data-field="metros"]')?.value || '0') || '0';
+            const kilos = parseNumberInput(fila.querySelector('input[data-field="kilos"]')?.value || '0') || '0';
+            const agrupar = fila.querySelector('input[data-field="agrupar"]')?.checked || false;
+
+            if (telarId) {
+                datosTelares.push({
+                    no_telar: telarId,
+                    fecha_req: fechaReq,
+                    cuenta: cuenta,
+                    calibre: calibre,
+                    hilo: hilo,
+                    urdido: urdido,
+                    tipo: tipo,
+                    destino: destino,
+                    tipo_atado: tipoAtado,
+                    metros: metros,
+                    kilos: kilos,
+                    agrupar: agrupar
+                });
+            }
+        });
+
+        if (datosTelares.length === 0) {
+            alert('No hay telares para procesar');
+            return;
+        }
+
+        // Redirigir a la vista de creación de órdenes con los datos
+        const datosEncoded = encodeURIComponent(JSON.stringify(datosTelares));
+        window.location.href = `{{ route('programa.urd.eng.creacion.ordenes') }}?telares=${datosEncoded}`;
     });
 
     /* =================== Init =================== */

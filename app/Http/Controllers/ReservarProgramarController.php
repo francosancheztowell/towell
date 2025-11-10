@@ -7,8 +7,10 @@ use App\Models\TejInventarioTelares;
 use App\Models\InvTelasReservadas;
 use App\Models\ReqProgramaTejido;
 use App\Models\ReqProgramaTejidoLine;
+use App\Models\URDCatalogoMaquina;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
@@ -263,8 +265,41 @@ class ReservarProgramarController extends Controller
             }
         }
 
+        // Obtener máquinas de urdido desde la base de datos
+        $maquinasUrdido = URDCatalogoMaquina::where('Departamento', 'Urdido')
+            ->orderBy('Nombre')
+            ->pluck('Nombre')
+            ->toArray();
+
         return view('modulos.programa_urd_eng.programacion-requerimientos', [
             'telaresSeleccionados' => $telares,
+            'opcionesUrdido' => $maquinasUrdido,
+        ]);
+    }
+
+    public function creacionOrdenes(Request $request)
+    {
+        $telares = [];
+        $telaresJson = $request->query('telares');
+
+        if ($telaresJson) {
+            try {
+                $telares = json_decode(urldecode($telaresJson), true) ?: [];
+            } catch (\Throwable $e) {
+                Log::error('creacionOrdenes: parse JSON', ['msg' => $e->getMessage()]);
+                $telares = [];
+            }
+        }
+
+        // Obtener máquinas de urdido desde la base de datos
+        $maquinasUrdido = URDCatalogoMaquina::where('Departamento', 'Urdido')
+            ->orderBy('Nombre')
+            ->pluck('Nombre')
+            ->toArray();
+
+        return view('modulos.programa_urd_eng.creacion-ordenes', [
+            'telaresSeleccionados' => $telares,
+            'opcionesUrdido' => $maquinasUrdido,
         ]);
     }
 
@@ -470,48 +505,14 @@ class ReservarProgramarController extends Controller
                 ]);
             }
 
-            // PIE
-            $programasFiltrados = $programas->filter(function ($p) use ($salonEsperado, $hiloEsperado, $calibreEsperado, $calibreEsVacio, $hiloPorTelar) {
+            // PIE - Para PIE no se filtra por hilo
+            $programasFiltrados = $programas->filter(function ($p) use ($salonEsperado, $calibreEsperado, $calibreEsVacio) {
                 $matchSalon = $this->matchSalon($salonEsperado, (string)($p->SalonTejidoId ?? ''));
                 $tieneCuentaPie = !empty($p->CuentaPie);
-
-                $fibraPieRaw = $p->FibraPie ?? null;
-                $hiloPrograma = ($fibraPieRaw !== null && trim((string)$fibraPieRaw) !== '') ? trim((string)$fibraPieRaw) : '';
-
-                $noTelarPrograma = (string)($p->NoTelarId ?? '');
-                $hiloTelarBD = $hiloPorTelar[$noTelarPrograma] ?? '';
-                $matchHiloTelar = true;
-
-                if ($hiloTelarBD !== '') {
-                    if ($hiloPrograma === '') {
-                        $matchHiloTelar = false;
-                        Log::warning('DISCREPANCIA - Telar tiene hilo pero programa no tiene FibraPie', [
-                            'NoTelarId' => $noTelarPrograma,
-                            'HiloTelar_BD' => $hiloTelarBD,
-                            'FibraPiePrograma' => '(vacío)',
-                            'ProgramaId' => $p->Id ?? null,
-                        ]);
-                    } else {
-                        $matchHiloTelar = $this->matchHilo($hiloTelarBD, $hiloPrograma);
-                        if (!$matchHiloTelar) {
-                            Log::warning('DISCREPANCIA - Hilo del telar no coincide con FibraPie del programa', [
-                                'NoTelarId' => $noTelarPrograma,
-                                'HiloTelar_BD' => $hiloTelarBD,
-                                'FibraPiePrograma' => $hiloPrograma,
-                                'HiloEsperado_Validacion' => $hiloEsperado,
-                                'ProgramaId' => $p->Id ?? null,
-                                'CuentaPie' => $p->CuentaPie ?? null,
-                                'SalonTejidoId' => $p->SalonTejidoId ?? null,
-                            ]);
-                        }
-                    }
-                } elseif ($hiloEsperado !== null && $hiloEsperado !== '') {
-                    $matchHiloTelar = $this->matchHilo($hiloEsperado, $hiloPrograma);
-                }
-
                 $matchCalibre = $this->matchCalibre($calibreEsperado, $calibreEsVacio, $p->CalibrePie ?? null);
 
-                return $matchSalon && $tieneCuentaPie && $matchCalibre && $matchHiloTelar;
+                // Para PIE, solo se filtra por salón, cuenta y calibre (NO por hilo)
+                return $matchSalon && $tieneCuentaPie && $matchCalibre;
             })->values();
 
             $resumenPie = $this->procesarResumenPorTipo(
@@ -574,7 +575,8 @@ class ReservarProgramarController extends Controller
 
             if ($cuenta === '') continue;
 
-            if (!$this->matchHilo($hiloEsperado, $hilo)) continue;
+            // Para PIE, no se filtra por hilo
+            if ($tipo !== 'Pie' && !$this->matchHilo($hiloEsperado, $hilo)) continue;
             if (!$this->matchCalibre($calibreEsperado, $calibreEsVacio, $calibre)) continue;
             if ($cuentaEsperada !== null && $cuenta !== $cuentaEsperada) continue;
 
@@ -593,7 +595,9 @@ class ReservarProgramarController extends Controller
                 'Calibre'   => $calibre,
                 'Modelo'    => $modelo,
                 'SemActual' => 0, 'SemActual1' => 0, 'SemActual2' => 0, 'SemActual3' => 0, 'SemActual4' => 0,
+                'SemActualKilos' => 0, 'SemActual1Kilos' => 0, 'SemActual2Kilos' => 0, 'SemActual3Kilos' => 0, 'SemActual4Kilos' => 0,
                 'Total'     => 0,
+                'TotalKilos' => 0,
             ];
 
             $programaId = $programa->Id ?? null;
@@ -621,7 +625,7 @@ class ReservarProgramarController extends Controller
                 $fecha = $ln->Fecha ?? null;
                 if (!$fecha) continue;
 
-                // Métrica principal
+                // Métrica principal (metros)
                 $mts = (float)($ln->{$campoMetros} ?? 0);
 
                 // Fallback de metros si la principal es 0/NULL
@@ -640,8 +644,11 @@ class ReservarProgramarController extends Controller
                     }
                 }
 
-                // Si sigue sin metros, solo mantenemos la fila creada (cero)
-                if ($mts <= 0) continue;
+                // Kilos desde la línea
+                $kilos = (float)($ln->Kilos ?? 0);
+
+                // Procesar si hay metros o kilos (para mostrar datos incluso si solo hay kilos)
+                if ($mts <= 0 && $kilos <= 0) continue;
 
                 // Normalizar fecha
                 if ($fecha instanceof Carbon) {
@@ -662,13 +669,26 @@ class ReservarProgramarController extends Controller
                 $idx = $this->semanaIndex($semanas, $f);
                 if ($idx === null) continue;
 
-                if ($idx === 0)      $resumen[$clave]['SemActual']  += $mts;
-                elseif ($idx === 1)  $resumen[$clave]['SemActual1'] += $mts;
-                elseif ($idx === 2)  $resumen[$clave]['SemActual2'] += $mts;
-                elseif ($idx === 3)  $resumen[$clave]['SemActual3'] += $mts;
-                elseif ($idx === 4)  $resumen[$clave]['SemActual4'] += $mts;
+                // Acumular metros y kilos por semana
+                if ($idx === 0) {
+                    $resumen[$clave]['SemActual'] += $mts;
+                    $resumen[$clave]['SemActualKilos'] += $kilos;
+                } elseif ($idx === 1) {
+                    $resumen[$clave]['SemActual1'] += $mts;
+                    $resumen[$clave]['SemActual1Kilos'] += $kilos;
+                } elseif ($idx === 2) {
+                    $resumen[$clave]['SemActual2'] += $mts;
+                    $resumen[$clave]['SemActual2Kilos'] += $kilos;
+                } elseif ($idx === 3) {
+                    $resumen[$clave]['SemActual3'] += $mts;
+                    $resumen[$clave]['SemActual3Kilos'] += $kilos;
+                } elseif ($idx === 4) {
+                    $resumen[$clave]['SemActual4'] += $mts;
+                    $resumen[$clave]['SemActual4Kilos'] += $kilos;
+                }
 
                 $resumen[$clave]['Total'] += $mts;
+                $resumen[$clave]['TotalKilos'] += $kilos;
             }
         }
 
@@ -688,7 +708,13 @@ class ReservarProgramarController extends Controller
                         'SemActual2MtsRizo'  => round((float)$it['SemActual2'], 2),
                         'SemActual3MtsRizo'  => round((float)$it['SemActual3'], 2),
                         'SemActual4MtsRizo'  => round((float)$it['SemActual4'], 2),
+                        'SemActualKilosRizo' => round((float)$it['SemActualKilos'], 2),
+                        'SemActual1KilosRizo' => round((float)$it['SemActual1Kilos'], 2),
+                        'SemActual2KilosRizo' => round((float)$it['SemActual2Kilos'], 2),
+                        'SemActual3KilosRizo' => round((float)$it['SemActual3Kilos'], 2),
+                        'SemActual4KilosRizo' => round((float)$it['SemActual4Kilos'], 2),
                         'Total'              => round((float)$it['Total'], 2),
+                        'TotalKilos'         => round((float)$it['TotalKilos'], 2),
                     ];
                 }
 
@@ -703,7 +729,13 @@ class ReservarProgramarController extends Controller
                     'SemActual2MtsPie'   => round((float)$it['SemActual2'], 2),
                     'SemActual3MtsPie'   => round((float)$it['SemActual3'], 2),
                     'SemActual4MtsPie'   => round((float)$it['SemActual4'], 2),
+                    'SemActualKilosPie'  => round((float)$it['SemActualKilos'], 2),
+                    'SemActual1KilosPie' => round((float)$it['SemActual1Kilos'], 2),
+                    'SemActual2KilosPie' => round((float)$it['SemActual2Kilos'], 2),
+                    'SemActual3KilosPie' => round((float)$it['SemActual3Kilos'], 2),
+                    'SemActual4KilosPie' => round((float)$it['SemActual4Kilos'], 2),
                     'Total'              => round((float)$it['Total'], 2),
+                    'TotalKilos'         => round((float)$it['TotalKilos'], 2),
                 ];
             })
             ->sortBy([['TelarId','asc'], ['Modelo','asc']])
@@ -788,6 +820,7 @@ class ReservarProgramarController extends Controller
 
         $hiloRef   = (string)($t0['hilo'] ?? '');
         $salonRef  = strtoupper(trim((string)($t0['salon'] ?? '')));
+        $esPie = ($tipo === 'PIE');
 
         foreach ($telares as $t) {
             $tipoAct = strtoupper(trim((string)($t['tipo'] ?? '')));
@@ -800,9 +833,12 @@ class ReservarProgramarController extends Controller
                 }
             }
 
-            $hiloAct = trim((string)($t['hilo'] ?? ''));
-            if ($hiloRef !== '' && $hiloAct !== '' && strcasecmp($hiloAct, $hiloRef) !== 0) {
-                return ['error'=>true,'mensaje'=>"Todos los telares deben tener el mismo hilo. {$hiloAct} ≠ {$hiloRef}"];
+            // Para PIE, no se valida hilo
+            if (!$esPie) {
+                $hiloAct = trim((string)($t['hilo'] ?? ''));
+                if ($hiloRef !== '' && $hiloAct !== '' && strcasecmp($hiloAct, $hiloRef) !== 0) {
+                    return ['error'=>true,'mensaje'=>"Todos los telares deben tener el mismo hilo. {$hiloAct} ≠ {$hiloRef}"];
+                }
             }
 
             $salAct = strtoupper(trim((string)($t['salon'] ?? '')));
@@ -811,13 +847,14 @@ class ReservarProgramarController extends Controller
             }
         }
 
+        // Para PIE, establecer hilo como '' (vacío) para que no se use en consultas
         return [
             'error'            => false,
             'tipo'             => $tipo,
             'calibre'          => $calibreRef,
             'calibre_vacio'    => $calibreVacio,
             'calibre_original' => $calibreOriginal,
-            'hilo'             => $hiloRef, // '' => buscar vacíos
+            'hilo'             => $esPie ? '' : $hiloRef, // '' => buscar vacíos o no filtrar (PIE)
             'salon'            => $salonRef,
         ];
     }
@@ -924,5 +961,215 @@ class ReservarProgramarController extends Controller
     private function nullSiVacio($v)
     {
         return ($v === '' ? null : $v);
+    }
+
+    /**
+     * Buscar BOM (L.Mat Urdido) con autocompletado
+     * Filtra por ItemGroupId = 'JUL-URD' y DataAreaId = 'PRO'
+     */
+    public function buscarBomUrdido(Request $request)
+    {
+        try {
+            $query = trim((string) $request->query('q', ''));
+
+            if (strlen($query) < 1) {
+                return response()->json([]);
+            }
+
+            // Buscar en la tabla BOM donde ItemGroupId = 'JUL-URD' y DataAreaId = 'PRO'
+            // La búsqueda se hace por BOMID
+            // Hacemos join con INVENTTABLE para filtrar por ItemGroupId
+            $results = DB::connection('sqlsrv_ti')
+                ->table('BOM as b')
+                ->join('INVENTTABLE as it', function($join) {
+                    $join->on('it.ITEMID', '=', 'b.ITEMID')
+                         ->on('it.DATAAREAID', '=', 'b.DATAAREAID');
+                })
+                ->where('b.DATAAREAID', 'PRO')
+                ->where('it.ITEMGROUPID', 'JUL-URD')
+                ->where(function($q) use ($query) {
+                    $q->where('b.BOMID', 'LIKE', '%' . $query . '%')
+                      ->orWhere('it.ITEMNAME', 'LIKE', '%' . $query . '%')
+                      ->orWhere('b.ITEMID', 'LIKE', '%' . $query . '%');
+                })
+                ->select([
+                    'b.BOMID as BOMID',
+                    'b.ITEMID as ITEMID',
+                    'it.ITEMNAME as ITEMNAME'
+                ])
+                ->distinct()
+                ->orderBy('b.BOMID')
+                ->limit(20)
+                ->get();
+
+            return response()->json($results);
+        } catch (\Throwable $e) {
+            Log::error('buscarBomUrdido: Error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'Error al buscar BOM'], 500);
+        }
+    }
+
+    /**
+     * Obtener materiales de urdido por BOMID
+     * Join BOM + InventDim filtrado por BOMID seleccionado
+     * Campos: ItemId, BomQty (suma), ConfigId
+     */
+    public function getMaterialesUrdido(Request $request)
+    {
+        try {
+            $bomId = trim((string) $request->query('bomId', ''));
+
+            if (empty($bomId)) {
+                return response()->json([]);
+            }
+
+            // Join BOM + InventDim
+            // Filtros: Bom.BomId = valor seleccionado, Bom.DATAAREAID = 'PRO', InventDim.InventdimId = bom.inventDimId
+            // Agrupar por ItemId y ConfigId, sumando BomQty
+            $results = DB::connection('sqlsrv_ti')
+                ->table('BOM as b')
+                ->join('INVENTDIM as id', 'id.INVENTDIMID', '=', 'b.INVENTDIMID')
+                ->join('INVENTTABLE as it', function($join) {
+                    $join->on('it.ITEMID', '=', 'b.ITEMID')
+                         ->on('it.DATAAREAID', '=', 'b.DATAAREAID');
+                })
+                ->where('b.BOMID', $bomId)
+                ->where('b.DATAAREAID', 'PRO')
+                ->where('id.DATAAREAID', 'PRO')
+                ->select([
+                    'b.ITEMID as ItemId',
+                    DB::raw('SUM(CAST(b.BOMQTY AS DECIMAL(18,6))) as BomQty'),
+                    'id.CONFIGID as ConfigId',
+                    DB::raw('MAX(it.ITEMNAME) as ItemName')
+                ])
+                ->groupBy('b.ITEMID', 'id.CONFIGID')
+                ->orderBy('b.ITEMID')
+                ->get();
+
+            return response()->json($results);
+        } catch (\Throwable $e) {
+            Log::error('getMaterialesUrdido: Error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'Error al obtener materiales'], 500);
+        }
+    }
+
+    /**
+     * Obtener inventario disponible (Materiales Engomado - Tabla 3)
+     * Join: InventSum -> InventDim -> InventSerial
+     * Filtrado por ItemId de los materiales de urdido
+     */
+    public function getMaterialesEngomado(Request $request)
+    {
+        try {
+            // Obtener itemIds - puede venir como itemIds[] en query string
+            $itemIds = $request->input('itemIds', $request->query('itemIds', []));
+
+            // Si viene como string, convertirlo a array
+            if (is_string($itemIds)) {
+                $itemIds = [$itemIds];
+            }
+
+            // Si es array asociativo con claves numéricas, convertir a array indexado
+            if (is_array($itemIds)) {
+                $itemIds = array_values($itemIds);
+            } else {
+                $itemIds = [];
+            }
+
+            Log::info('getMaterialesEngomado: ItemIds recibidos (raw)', [
+                'itemIds' => $itemIds,
+                'type' => gettype($itemIds),
+                'all_input' => $request->all(),
+                'query' => $request->query()
+            ]);
+
+            if (empty($itemIds)) {
+                Log::warning('getMaterialesEngomado: ItemIds vacío');
+                return response()->json([]);
+            }
+
+            // Filtrar y limpiar ItemIds
+            $itemIds = array_filter(array_map(function($id) {
+                $cleaned = trim((string) $id);
+                return $cleaned !== '' ? $cleaned : null;
+            }, $itemIds), function($id) {
+                return $id !== null;
+            });
+
+            $itemIds = array_values($itemIds);
+
+            if (empty($itemIds)) {
+                Log::warning('getMaterialesEngomado: ItemIds vacío después de filtrar');
+                return response()->json([]);
+            }
+
+            Log::info('getMaterialesEngomado: ItemIds después de filtrar', ['itemIds' => $itemIds, 'count' => count($itemIds)]);
+
+            // Join InventSum -> InventDim -> InventSerial
+            // Según especificación: InventSum.ItemId = UrdlMat.ItemId
+            // Filtros:
+            // - InventSum.ItemId IN (ItemIds de materiales de urdido)
+            // - InventSum.AvailPhysical <> 0
+            // - InventSum.DATAAREAID = 'PRO'
+            // - InventDim.InventDimId = InventSum.InventDimId
+            // - InventDim.InventLocationId IN ('A-MP', 'A-MPBB')
+            // - InventDim.DATAAREAID = 'PRO'
+            // - InventSerial.InventSerialId = InventDim.InventSerialId
+            // - InventSerial.ItemId = InventSum.ItemId
+            // - InventSerial.DATAAREAID = 'PRO'
+            $results = DB::connection('sqlsrv_ti')
+                ->table('InventSum as sum')
+                ->join('InventDim as dim', function($join) {
+                    $join->on('dim.INVENTDIMID', '=', 'sum.INVENTDIMID')
+                         ->on('dim.DATAAREAID', '=', 'sum.DATAAREAID');
+                })
+                ->join('InventSerial as ser', function($join) {
+                    $join->on('ser.INVENTSERIALID', '=', 'dim.INVENTSERIALID')
+                         ->on('ser.ITEMID', '=', 'sum.ITEMID')
+                         ->on('ser.DATAAREAID', '=', 'sum.DATAAREAID');
+                })
+                ->whereIn('sum.ITEMID', array_values($itemIds))
+                ->where('sum.DATAAREAID', 'PRO')
+                ->where('sum.AVAILPHYSICAL', '<>', 0)
+                ->where('dim.DATAAREAID', 'PRO')
+                ->whereIn('dim.INVENTLOCATIONID', ['A-MP', 'A-MPBB'])
+                ->where('ser.DATAAREAID', 'PRO')
+                ->select([
+                    'sum.ITEMID as ItemId',
+                    'sum.PHYSICALINVENT as PhysicalInvent',
+                    'sum.RESERVPHYSICAL as ReservPhysical',
+                    'dim.CONFIGID as ConfigId',
+                    'dim.INVENTSIZEID as InventSizeId',
+                    'dim.INVENTCOLORID as InventColorId',
+                    'dim.INVENTLOCATIONID as InventLocationId',
+                    'dim.INVENTBATCHID as InventBatchId',
+                    'dim.WMSLOCATIONID as WMSLocationId',
+                    'dim.INVENTSERIALID as InventSerialId',
+                    'ser.PRODDATE as ProdDate',
+                    'ser.TWTIRAS as TwTiras'
+                ])
+                ->orderBy('sum.ITEMID')
+                ->orderBy('dim.INVENTLOCATIONID')
+                ->orderBy('dim.INVENTSERIALID')
+                ->get();
+
+            Log::info('getMaterialesEngomado: Resultados encontrados', ['count' => $results->count()]);
+
+            return response()->json($results);
+        } catch (\Throwable $e) {
+            Log::error('getMaterialesEngomado: Error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+            return response()->json(['error' => 'Error al obtener materiales de engomado: ' . $e->getMessage()], 500);
+        }
     }
 }
