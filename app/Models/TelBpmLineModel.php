@@ -30,6 +30,7 @@ class TelBpmLineModel extends Model
         'Orden',
         'Actividad',
         'Valor',
+        'comentarios',
     ];
 
     protected $casts = [

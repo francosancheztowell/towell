@@ -65,7 +65,7 @@
     </div>
 
     {{-- Tabla de checklist --}}
-    <div id="grid-wrapper" class="mx-3 mt-0 mb-4 overflow-auto rounded-lg border bg-white shadow-sm" style="max-height: calc(100vh - 340px);">
+    <div id="grid-wrapper" class="mx-3 -mt-14 mb-2 overflow-auto rounded-lg border bg-white shadow-sm" style="max-height: calc(100vh - 340px);">
         <table id="grid" class="min-w-full text-sm">
             <thead class="bg-gradient-to-r from-blue-500 to-blue-600 text-white sticky top-0 z-30">
                 <tr>
@@ -120,6 +120,38 @@
                 @endforelse
             </tbody>
         </table>
+    </div>
+
+    {{-- Sección de Comentarios --}}
+    <div class="bg-white rounded-xl border p-4 mt-4 mb-10">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg font-semibold text-gray-700">
+                <i class="fa-solid fa-comment text-blue-600 mr-2"></i>Comentarios Generales
+            </h3>
+            @if($header->Status === 'Creado')
+                <button id="btn-save-comentarios" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-save mr-1"></i>Guardar
+                </button>
+            @endif
+        </div>
+        <div>
+            <textarea 
+                id="comentarios-textarea" 
+                rows="4" 
+                maxlength="1000" 
+                placeholder="Ingrese comentarios generales sobre este folio..."
+                class="w-full rounded-lg border px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $header->Status !== 'Creado' ? 'bg-gray-50' : '' }}"
+                {{ $header->Status !== 'Creado' ? 'readonly' : '' }}
+            >{{ $comentarios }}</textarea>
+            <div class="flex justify-between items-center mt-2">
+                <div class="text-xs text-gray-500">
+                    Máximo 1000 caracteres
+                </div>
+                <div class="text-xs text-gray-500">
+                    <span id="char-count">{{ strlen($comentarios ?? '') }}</span>/1000
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- Nota --}}
@@ -313,6 +345,67 @@
             window.location.href = '{{ route("tel-bpm.index") }}';
         });
     }
+
+    // Manejo de comentarios
+    const comentariosTextarea = document.getElementById('comentarios-textarea');
+    const btnSaveComentarios = document.getElementById('btn-save-comentarios');
+    const charCount = document.getElementById('char-count');
+    const comentariosUrl = @json(route('tel-bpm-line.comentarios', $header->Folio));
+
+    // Contador de caracteres
+    comentariosTextarea?.addEventListener('input', function() {
+        const count = this.value.length;
+        charCount.textContent = count;
+        if (count > 1000) {
+            charCount.classList.add('text-red-500');
+        } else {
+            charCount.classList.remove('text-red-500');
+        }
+    });
+
+    // Guardar comentarios
+    btnSaveComentarios?.addEventListener('click', async function() {
+        if (!editable) {
+            toast('info', 'Edición no permitida');
+            return;
+        }
+
+        const comentarios = comentariosTextarea.value;
+        if (comentarios.length > 1000) {
+            toast('error', 'Los comentarios exceden el límite de 1000 caracteres');
+            return;
+        }
+
+        try {
+            btnSaveComentarios.disabled = true;
+            btnSaveComentarios.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Guardando...';
+
+            const response = await fetch(comentariosUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    Comentarios: comentarios
+                })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok && data.ok) {
+                toast('success', data.msg || 'Comentarios guardados');
+            } else {
+                toast('error', data.msg || 'Error al guardar comentarios');
+            }
+        } catch (error) {
+            toast('error', 'Error de conexión');
+        } finally {
+            btnSaveComentarios.disabled = false;
+            btnSaveComentarios.innerHTML = '<i class="fa-solid fa-save mr-1"></i>Guardar';
+        }
+    });
 })();
 </script>
 @endsection

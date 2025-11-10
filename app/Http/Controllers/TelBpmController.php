@@ -33,16 +33,22 @@ class TelBpmController extends Controller
         $perPage = (int) $request->get('per_page', 15);
 
         $items = TelBpmModel::query()
-            ->when($q !== '', function ($qry) use ($q) {
-                $qry->where('Folio', 'like', "%{$q}%")
-                    ->orWhere('CveEmplRec', 'like', "%{$q}%")
-                    ->orWhere('NombreEmplRec', 'like', "%{$q}%")
-                    ->orWhere('CveEmplEnt', 'like', "%{$q}%")
-                    ->orWhere('NombreEmplEnt', 'like', "%{$q}%");
+            ->leftJoin('TelBPMLine', function($join) {
+                $join->on('TelBPM.Folio', '=', 'TelBPMLine.Folio')
+                     ->where('TelBPMLine.Orden', '=', 0)
+                     ->where('TelBPMLine.NoTelarId', '=', 'COMENT');
             })
-            ->when($status, fn($qry) => $qry->where('Status', $status))
-            ->orderByDesc('Fecha') // último primero
-            ->orderByDesc('Folio')
+            ->select('TelBPM.*', 'TelBPMLine.comentarios as Comentarios')
+            ->when($q !== '', function ($qry) use ($q) {
+                $qry->where('TelBPM.Folio', 'like', "%{$q}%")
+                    ->orWhere('TelBPM.CveEmplRec', 'like', "%{$q}%")
+                    ->orWhere('TelBPM.NombreEmplRec', 'like', "%{$q}%")
+                    ->orWhere('TelBPM.CveEmplEnt', 'like', "%{$q}%")
+                    ->orWhere('TelBPM.NombreEmplEnt', 'like', "%{$q}%");
+            })
+            ->when($status, fn($qry) => $qry->where('TelBPM.Status', $status))
+            ->orderByDesc('TelBPM.Fecha') // último primero
+            ->orderByDesc('TelBPM.Folio')
             ->paginate($perPage)
             ->withQueryString();
 

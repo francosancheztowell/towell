@@ -53,6 +53,7 @@
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Turno Entrega</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Cve Autoriza</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Autoriza</th>
+                    <th class="text-left px-4 py-3 font-semibold min-w-[200px]">Comentarios</th>
                 </tr>
             </thead>
             <tbody id="tb-body">
@@ -82,6 +83,15 @@
                         <td class="px-4 py-3">{{ $row->TurnoEntrega }}</td>
                         <td class="px-4 py-3 font-mono">{{ $row->CveEmplAutoriza }}</td>
                         <td class="px-4 py-3">{{ $row->NomEmplAutoriza }}</td>
+                        <td class="px-4 py-3 max-w-[200px]">
+                            @if($row->Comentarios)
+                                <div class="truncate text-gray-700" title="{{ $row->Comentarios }}">
+                                    {{ $row->Comentarios }}
+                                </div>
+                            @else
+                                <span class="text-gray-400 italic">Sin comentarios</span>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr><td colspan="12" class="px-4 py-6 text-center text-slate-500">Sin resultados</td></tr>

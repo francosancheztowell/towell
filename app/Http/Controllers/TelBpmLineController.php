@@ -74,6 +74,13 @@ class TelBpmLineController extends Controller
             // Si falla la inicialización, continuamos mostrando lo disponible
         }
 
+        // Obtener comentarios existentes
+        $comentarios = DB::table('TelBPMLine')
+            ->where('Folio', $folio)
+            ->where('Orden', 0)
+            ->where('NoTelarId', 'COMENT')
+            ->value('comentarios') ?? '';
+
         return view('bpm-tejedores.tel-bpm-line.index', [
             'folio'       => $folio,
             'header'      => $header,
@@ -81,6 +88,7 @@ class TelBpmLineController extends Controller
             'lineas'      => $lineas,
             'telares'     => $telares,
             'salonPorTelar' => $salonPorTelar,
+            'comentarios' => $comentarios,
         ]);
     }
 
@@ -183,6 +191,42 @@ class TelBpmLineController extends Controller
         });
 
         return response()->json(['ok' => true]);
+    }
+
+    /** Actualizar comentarios del folio */
+    public function updateComentarios(Request $request, string $folio)
+    {
+        $header = TelBpmModel::findOrFail($folio);
+
+        if ($header->Status !== self::EST_CREADO) {
+            return response()->json(['ok' => false, 'msg' => 'Edición sólo en estado Creado'], 422);
+        }
+
+        $data = $request->validate([
+            'Comentarios' => ['nullable','string','max:1000'],
+        ]);
+
+        try {
+            // Buscar si ya existe un registro de comentarios (usando Orden = 0 como identificador especial)
+            DB::table('TelBPMLine')->updateOrInsert(
+                [
+                    'Folio' => $folio,
+                    'Orden' => 0, // Orden especial para comentarios
+                    'NoTelarId' => 'COMENT', // Acortado para evitar truncamiento
+                    'Actividad' => 'COMENTARIOS', // Acortado
+                ],
+                [
+                    'comentarios' => $data['Comentarios'] ?? null,
+                    'TurnoRecibe' => substr((string)$header->TurnoRecibe, 0, 10), // Limitar a 10 caracteres
+                    'SalonTejidoId' => null,
+                    'Valor' => null,
+                ]
+            );
+
+            return response()->json(['ok' => true, 'msg' => 'Comentarios guardados']);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'msg' => $e->getMessage()], 500);
+        }
     }
 
     /* ==================== Helpers ==================== */
