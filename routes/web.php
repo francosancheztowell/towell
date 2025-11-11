@@ -795,10 +795,11 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/atadores/programar-requerimientos', function () {
         return view('modulos/atadores/programar-requerimientos');
     });
-    Route::get('/atadores-juliosAtados', [AtadorController::class, 'cargarDatosUrdEngAtador'])->name('datosAtadores.Atador');
-    Route::post('/atadores/save', [AtadorController::class, 'save'])->name('atadores.save');
-    Route::get('/atadores/show', [AtadorController::class, 'show'])->name('atadores.show');
-    Route::post('/tejedores/validar', [AtadorController::class, 'validarTejedor'])->name('tejedor.validar');
+    Route::get('/atadores/programa', [AtadoresController::class, 'index'])->name('atadores.programa');
+    Route::get('/atadores-juliosAtados', [AtadoresController::class, 'cargarDatosUrdEngAtador'])->name('datosAtadores.Atador');
+    Route::post('/atadores/save', [AtadoresController::class, 'save'])->name('atadores.save');
+    Route::get('/atadores/show', [AtadoresController::class, 'show'])->name('atadores.show');
+    Route::post('/tejedores/validar', [AtadoresController::class, 'validarTejedor'])->name('tejedor.validar');
 
     // Módulo Mantenimiento
     Route::get('/modulo-mantenimiento', function () {
