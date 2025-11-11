@@ -132,11 +132,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
     }
 
-    function formatNumberInput(value) {
+    function formatNumberInput(value, decimals = 2) {
         if (!value || value === '') return '';
         const num = parseFloat(String(value).replace(/,/g, ''));
         if (isNaN(num)) return '';
-        return num.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2});
+        return num.toLocaleString('es-MX', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
     }
 
     function parseNumberInput(value) {
@@ -270,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
                            placeholder="Buscar BOM..."
                            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                            data-grupo="${grupo.telaresStr}"
+                           data-kilos="${grupo.kilos || 0}"
                            data-bom-input="true"
                            data-bom-id=""
                            autocomplete="off">
@@ -363,7 +367,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         globalSuggestionsContainer.classList.add('hidden');
                         selectedIndex = -1;
                         // Cargar materiales de urdido cuando se selecciona un BOM
-                        cargarMaterialesUrdido(sugerencia.BOMID);
+                        const kilosProgramados = parseFloat(activeInput.dataset.kilos || 0);
+                        cargarMaterialesUrdido(sugerencia.BOMID, kilosProgramados);
                         activeInput = null;
                     }
                 });
@@ -493,11 +498,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /* =================== Cargar materiales de urdido =================== */
-    async function cargarMaterialesUrdido(bomId) {
-        console.log('cargarMaterialesUrdido: BOM ID recibido', bomId);
+    async function cargarMaterialesUrdido(bomId, kilosProgramados = 0) {
+        console.log('cargarMaterialesUrdido: BOM ID recibido', bomId, 'Kilos programados:', kilosProgramados);
         if (!bomId || bomId.trim() === '') {
             console.log('cargarMaterialesUrdido: BOM ID vacío');
-            renderTablaMaterialesUrdido([]);
+            renderTablaMaterialesUrdido([], kilosProgramados);
             return;
         }
 
@@ -512,23 +517,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) {
                 console.error('cargarMaterialesUrdido: Response no OK', response.status);
-                renderTablaMaterialesUrdido([]);
+                renderTablaMaterialesUrdido([], kilosProgramados);
                 return;
             }
 
             const data = await response.json();
             console.log('cargarMaterialesUrdido: Data recibida', data);
             console.log('cargarMaterialesUrdido: Cantidad de materiales', Array.isArray(data) ? data.length : 'no es array');
-            renderTablaMaterialesUrdido(data);
+            renderTablaMaterialesUrdido(data, kilosProgramados);
         } catch (e) {
             console.error('Error al cargar materiales de urdido:', e);
             console.error('Error stack:', e.stack);
-            renderTablaMaterialesUrdido([]);
+            renderTablaMaterialesUrdido([], kilosProgramados);
         }
     }
 
     /* =================== Render tablas de materiales =================== */
-    function renderTablaMaterialesUrdido(materiales = []) {
+    function renderTablaMaterialesUrdido(materiales = [], kilosProgramados = 0) {
         const tbody = document.getElementById('tbodyMaterialesUrdido');
 
         if (!materiales || materiales.length === 0) {
@@ -546,19 +551,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tbody.innerHTML = '';
 
+        // Convertir kilos programados a número
+        const kilosProg = parseFloat(kilosProgramados || 0);
+
         materiales.forEach(material => {
             const tr = document.createElement('tr');
             tr.className = 'border-b hover:bg-gray-50';
 
-            // Calcular kilos: BomQty * Kilos programados (necesitamos obtener los kilos de la tabla 1)
-            // Por ahora solo mostramos el BomQty como consumo
-            const consumo = parseFloat(material.BomQty || 0);
-            const kilos = 0; // Se calculará después cuando tengamos los kilos programados
+            // Calcular kilos: Kilos Programados * Consumo (consumo redondeado a 3 decimales)
+            const consumoOriginal = parseFloat(material.BomQty || 0);
+            const consumo = Math.round((consumoOriginal || 0) * 1000) / 1000;
+            const kilos = kilosProg * consumo;
 
             tr.innerHTML = `
                 <td class="px-2 py-3 text-xs text-center">${material.ItemId || '-'}</td>
                 <td class="px-2 py-3 text-xs text-center">${material.ConfigId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${formatNumberInput(consumo)}</td>
+                <td class="px-2 py-3 text-xs text-center">${formatNumberInput(consumo, 3)}</td>
                 <td class="px-2 py-3 text-xs text-center">${formatNumberInput(kilos)}</td>
             `;
             tbody.appendChild(tr);

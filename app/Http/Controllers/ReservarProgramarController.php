@@ -111,6 +111,7 @@ class ReservarProgramarController extends Controller
                 'metros'   => ['nullable','numeric'],
                 'no_julio' => ['nullable','string','max:50'],
                 'no_orden' => ['nullable','string','max:50'],
+                'localidad' => ['nullable','string','max:10'],
             ]);
 
             $noTelar = (string)$request->input('no_telar');
@@ -130,6 +131,7 @@ class ReservarProgramarController extends Controller
             if ($request->filled('metros'))   $update['metros']   = (float)$request->input('metros');
             if ($request->filled('no_julio')) $update['no_julio'] = (string)$request->input('no_julio');
             if ($request->filled('no_orden')) $update['no_orden'] = (string)$request->input('no_orden');
+            if ($request->filled('localidad')) $update['localidad'] = (string)$request->input('localidad');
 
             if ($update) $telar->update($update);
 
@@ -972,42 +974,40 @@ class ReservarProgramarController extends Controller
         try {
             $query = trim((string) $request->query('q', ''));
 
-            if (strlen($query) < 1) {
-                return response()->json([]);
-            }
-
-            // Buscar en la tabla BOM donde ItemGroupId = 'JUL-URD' y DataAreaId = 'PRO'
-            // La búsqueda se hace por BOMID
-            // Hacemos join con INVENTTABLE para filtrar por ItemGroupId
-            $results = DB::connection('sqlsrv_ti')
-                ->table('BOM as b')
-                ->join('INVENTTABLE as it', function($join) {
+            $q = DB::connection('sqlsrv_ti')
+                ->table('BOMTABLE as bt')
+                ->join('BOM as b', function($join) {
+                    $join->on('b.BOMID', '=', 'bt.BOMID')
+                         ->on('b.DATAAREAID', '=', 'bt.DATAAREAID');
+                })
+                ->leftJoin('INVENTTABLE as it', function($join) {
                     $join->on('it.ITEMID', '=', 'b.ITEMID')
                          ->on('it.DATAAREAID', '=', 'b.DATAAREAID');
                 })
-                ->where('b.DATAAREAID', 'PRO')
-                ->where('it.ITEMGROUPID', 'JUL-URD')
-                ->where(function($q) use ($query) {
-                    $q->where('b.BOMID', 'LIKE', '%' . $query . '%')
-                      ->orWhere('it.ITEMNAME', 'LIKE', '%' . $query . '%')
-                      ->orWhere('b.ITEMID', 'LIKE', '%' . $query . '%');
-                })
-                ->select([
-                    'b.BOMID as BOMID',
-                    'b.ITEMID as ITEMID',
-                    'it.ITEMNAME as ITEMNAME'
-                ])
-                ->distinct()
-                ->orderBy('b.BOMID')
-                ->limit(20)
-                ->get();
+                ->where('bt.DATAAREAID', 'PRO')
+                ->where('bt.ITEMGROUPID', 'JUL-URD');
 
-            return response()->json($results);
+            if (strlen($query) >= 1) {
+                $q->where(function($subQ) use ($query) {
+                    $subQ->where('bt.BOMID', 'LIKE', $query . '%')
+                         ->orWhere('b.ITEMID', 'LIKE', $query . '%')
+                         ->orWhere('it.ITEMNAME', 'LIKE', '%' . $query . '%');
+                });
+            }
+
+            return response()->json(
+                $q->select(
+                        'bt.BOMID as BOMID',
+                        'b.ITEMID as ITEMID',
+                        DB::raw('COALESCE(it.ITEMNAME, b.ITEMID) as ITEMNAME')
+                    )
+                  ->distinct()
+                  ->orderBy('bt.BOMID')
+                  ->limit(20)
+                  ->get()
+            );
         } catch (\Throwable $e) {
-            Log::error('buscarBomUrdido: Error', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('buscarBomUrdido: Error', ['message' => $e->getMessage(), 'query' => $query]);
             return response()->json(['error' => 'Error al buscar BOM'], 500);
         }
     }

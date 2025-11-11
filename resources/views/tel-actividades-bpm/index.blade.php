@@ -176,17 +176,17 @@ Actividades BPM
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = '{{ route("tel-actividades-bpm.destroy", ":id") }}'.replace(':id', selectedId);
-
+                
                 const csrfToken = document.createElement('input');
                 csrfToken.type = 'hidden';
                 csrfToken.name = '_token';
                 csrfToken.value = '{{ csrf_token() }}';
-
+                
                 const methodField = document.createElement('input');
                 methodField.type = 'hidden';
                 methodField.name = '_method';
                 methodField.value = 'DELETE';
-
+                
                 form.appendChild(csrfToken);
                 form.appendChild(methodField);
                 document.body.appendChild(form);

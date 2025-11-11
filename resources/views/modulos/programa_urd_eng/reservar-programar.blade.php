@@ -971,15 +971,17 @@ const actions = {
 
         show($('#loaderInventario')); show($('#loaderTelares'));
         try{
-            // Obtener el lote (InventBatchId) del inventario seleccionado
+            // Obtener el lote (InventBatchId) y localidad (WMSLocationId) del inventario seleccionado
             const lote = state.selectedInventario.inventBatchId || state.selectedInventario.data?.InventBatchId || '';
+            const localidad = state.selectedInventario.wmsLocationId || state.selectedInventario.data?.WMSLocationId || '';
 
-            // Actualizar telar (metros / no_julio / no_orden)
+            // Actualizar telar (metros / no_julio / no_orden / localidad)
             await http.post(API.actualizarTelar,{
                 no_telar: tel.no_telar, tipo: tel.tipo,
                         metros: state.selectedInventario.metros || 0,
                         no_julio: state.selectedInventario.numJulio || '',
-                        no_orden: lote
+                        no_orden: lote,
+                        localidad: localidad
                     });
 
             // Refrescar UI local del telar
