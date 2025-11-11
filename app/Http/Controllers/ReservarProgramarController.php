@@ -1062,7 +1062,7 @@ class ReservarProgramarController extends Controller
     /**
      * Obtener inventario disponible (Materiales Engomado - Tabla 3)
      * Join: InventSum -> InventDim -> InventSerial
-     * Filtrado por ItemId de los materiales de urdido
+     * Filtrado por ItemId y ConfigId de los materiales de urdido (Tabla 2)
      */
     public function getMaterialesEngomado(Request $request)
     {
@@ -1082,9 +1082,26 @@ class ReservarProgramarController extends Controller
                 $itemIds = [];
             }
 
-            Log::info('getMaterialesEngomado: ItemIds recibidos (raw)', [
+            // Obtener configIds - puede venir como configIds[] en query string
+            $configIds = $request->input('configIds', $request->query('configIds', []));
+
+            // Si viene como string, convertirlo a array
+            if (is_string($configIds)) {
+                $configIds = [$configIds];
+            }
+
+            // Si es array asociativo con claves numéricas, convertir a array indexado
+            if (is_array($configIds)) {
+                $configIds = array_values($configIds);
+            } else {
+                $configIds = [];
+            }
+
+            Log::info('getMaterialesEngomado: Parámetros recibidos (raw)', [
                 'itemIds' => $itemIds,
-                'type' => gettype($itemIds),
+                'configIds' => $configIds,
+                'type_itemIds' => gettype($itemIds),
+                'type_configIds' => gettype($configIds),
                 'all_input' => $request->all(),
                 'query' => $request->query()
             ]);
@@ -1109,22 +1126,64 @@ class ReservarProgramarController extends Controller
                 return response()->json([]);
             }
 
-            Log::info('getMaterialesEngomado: ItemIds después de filtrar', ['itemIds' => $itemIds, 'count' => count($itemIds)]);
+            // Filtrar y limpiar ConfigIds
+            $configIds = array_filter(array_map(function($id) {
+                $cleaned = trim((string) $id);
+                return $cleaned !== '' && $cleaned !== null ? $cleaned : null;
+            }, $configIds), function($id) {
+                return $id !== null;
+            });
 
-            // Consulta simple - misma estructura que RequerimientoController
-            $results = DB::connection('sqlsrv_ti')
+            $configIds = array_values($configIds);
+
+            Log::info('getMaterialesEngomado: Parámetros después de filtrar', [
+                'itemIds' => $itemIds,
+                'configIds' => $configIds,
+                'count_itemIds' => count($itemIds),
+                'count_configIds' => count($configIds)
+            ]);
+
+            // Consulta - filtrar por ItemId y ConfigId si están disponibles
+            // Filtros según especificación:
+            // InventSum: ItemId IN (itemIds), AvailPhysical <> 0, DATAAREAID = 'PRO'
+            // InventDim: InventDimId = InventSum.InventDimId (JOIN),
+            //            InventLocationId IN ('A-MP', 'A-MPBB'),
+            //            ConfigId IN (configIds) si están disponibles,
+            //            DATAAREAID = 'PRO'
+            // InventSerial: InventSerialId = InventDim.InventSerialId (JOIN),
+            //               ItemId = InventSum.ItemId (JOIN),
+            //               DATAAREAID = 'PRO'
+            $query = DB::connection('sqlsrv_ti')
                 ->table('InventSum as sum')
+                // JOIN: InventDim.InventDimId = InventSum.InventDimId
                 ->join('InventDim as dim', 'dim.INVENTDIMID', '=', 'sum.INVENTDIMID')
+                // JOIN: InventSerial.ItemId = InventSum.ItemId AND InventSerial.InventSerialId = InventDim.InventSerialId
                 ->join('InventSerial as ser', function($join) {
                     $join->on('sum.ITEMID', '=', 'ser.ITEMID')
                          ->on('ser.INVENTSERIALID', '=', 'dim.INVENTSERIALID');
                 })
+                // InventSum.ItemId IN (itemIds de materiales de urdido)
                 ->whereIn('sum.ITEMID', $itemIds)
-                ->where('sum.DATAAREAID', 'PRO')
+                // InventSum.AvailPhysical <> 0 (inventario físico disponible, después de reservas)
                 ->whereRaw('sum.AvailPhysical <> 0')
+                // InventSum.DATAAREAID = 'PRO'
+                ->where('sum.DATAAREAID', 'PRO')
+                // InventDim.DATAAREAID = 'PRO'
                 ->where('dim.DATAAREAID', 'PRO')
-                ->where('ser.DATAAREAID', 'PRO')
-                ->select([
+                // InventDim.InventLocationId IN ('A-MP', 'A-MPBB')
+                ->whereIn('dim.INVENTLOCATIONID', ['A-MP', 'A-MPBB'])
+                // InventSerial.DATAAREAID = 'PRO'
+                ->where('ser.DATAAREAID', 'PRO');
+
+            // InventDim.ConfigId IN (configIds de materiales de urdido) - solo si hay ConfigIds disponibles
+            if (!empty($configIds)) {
+                $query->whereIn('dim.CONFIGID', $configIds);
+                Log::info('getMaterialesEngomado: Filtro por ConfigId aplicado', ['configIds' => $configIds]);
+            } else {
+                Log::info('getMaterialesEngomado: No hay ConfigIds disponibles, filtrando solo por ItemId');
+            }
+
+            $results = $query->select([
                     'sum.ITEMID as ItemId',
                     'sum.PHYSICALINVENT as PhysicalInvent',
                     'sum.RESERVPHYSICAL as ReservPhysical',
@@ -1136,7 +1195,9 @@ class ReservarProgramarController extends Controller
                     'dim.WMSLOCATIONID as WMSLocationId',
                     'dim.INVENTSERIALID as InventSerialId',
                     'ser.PRODDATE as ProdDate',
-                    'ser.TWTIRAS as TwTiras'
+                    'ser.TWTIRAS as TwTiras',
+                    'ser.TWCALIDADFLOG as TwCalidadFlog',
+                    'ser.TWCLIENTEFLOG as TwClienteFlog'
                 ])
                 ->orderBy('sum.ITEMID')
                 ->orderBy('dim.INVENTLOCATIONID')
@@ -1146,6 +1207,8 @@ class ReservarProgramarController extends Controller
             Log::info('getMaterialesEngomado: Resultados encontrados', [
                 'count' => $results->count(),
                 'itemIds_buscados' => $itemIds,
+                'configIds_buscados' => $configIds,
+                'inventLocationIds_filtrados' => ['A-MP', 'A-MPBB'],
                 'sample' => $results->take(2)->toArray()
             ]);
 
