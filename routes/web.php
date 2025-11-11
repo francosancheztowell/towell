@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TelaresController;
 use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\AplicacionesController;
+use App\Http\Controllers\AtadoresController;
 use App\Http\Controllers\NuevoRequerimientoController;
 use App\Http\Controllers\ProduccionReenconadoCabezuelaController;
 use App\Http\Controllers\ConsultarRequerimientoController;
@@ -780,6 +781,14 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     })->name('folio.pantalla');
 
     // Módulo Atadores
+    
+    // Ruta principal desde produccionProceso
+    Route::get('produccionProceso/atadores', [AtadoresController::class, 'index'])
+        ->name('atadores.index');
+
+    // Ruta alternativa (mantener por compatibilidad)
+    Route::get('modulo-atadores', [AtadoresController::class, 'index'])
+        ->name('atadores.modulo');
     Route::get('/modulo-atadores', function () {
         return view('modulos/atadores');
     });

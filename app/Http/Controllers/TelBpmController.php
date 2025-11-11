@@ -3,15 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\TelBpmModel;
-use App\Models\TelBpmLineModel;
-use App\Models\TelActividadesBPM;
 use App\Models\SSYSFoliosSecuencia;
 use App\Models\TelTelaresOperador;
 use App\Helpers\TurnoHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 
 class TelBpmController extends Controller
