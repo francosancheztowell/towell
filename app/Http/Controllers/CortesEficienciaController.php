@@ -23,7 +23,7 @@ class CortesEficienciaController extends Controller
             ->pluck('NoTelarId')
             ->toArray();
 
-        return view('modulos.cortes-eficiencia', compact('telares'));
+        return view('modulos.cortes-eficiencia.cortes-eficiencia', compact('telares'));
     }
 
     /**
@@ -42,7 +42,7 @@ class CortesEficienciaController extends Controller
 
             // Evitar caché del navegador para esta vista
             return response()
-                ->view('modulos.consultar-cortes-eficiencia', compact('cortes'))
+                ->view('modulos.cortes-eficiencia.consultar-cortes-eficiencia', compact('cortes'))
                 ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
                 ->header('Pragma', 'no-cache')
                 ->header('Expires', '0');
@@ -53,7 +53,7 @@ class CortesEficienciaController extends Controller
             // Si hay error, retornar vista vacía y sin caché
             $cortes = collect([]);
             return response()
-                ->view('modulos.consultar-cortes-eficiencia', compact('cortes'))
+                ->view('modulos.cortes-eficiencia.consultar-cortes-eficiencia', compact('cortes'))
                 ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
                 ->header('Pragma', 'no-cache')
                 ->header('Expires', '0');

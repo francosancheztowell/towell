@@ -14,6 +14,7 @@ use App\Http\Controllers\SecuenciaInvTramaController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TelaresController;
+use App\Http\Controllers\UrdidoController;
 use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\AplicacionesController;
 use App\Http\Controllers\NuevoRequerimientoController;
@@ -552,7 +553,6 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
     Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () {
         Route::get('/reservar-programar', [ReservarProgramarController::class, 'index'])->name('reservar.programar');
         Route::get('/programacion-requerimientos', [ReservarProgramarController::class, 'programacionRequerimientos'])->name('programacion.requerimientos');
-        Route::get('/creacion-ordenes', [ReservarProgramarController::class, 'creacionOrdenes'])->name('creacion.ordenes');
         Route::post('/programacion-requerimientos/resumen-semanas', [ReservarProgramarController::class, 'getResumenSemanas'])->name('programacion.resumen.semanas');
         Route::get('/inventario-telares', [ReservarProgramarController::class, 'getInventarioTelares'])->name('inventario.telares');
         Route::get('/inventario-disponible', [InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible.get');
@@ -564,9 +564,6 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
         Route::get('/column-options', [ReservarProgramarController::class, 'getColumnOptions'])->name('column.options');
         Route::get('/reservas/{noTelar}', [InvTelasReservadasController::class, 'porTelar'])->name('reservas.porTelar');
         Route::post('/reservas/cancelar', [InvTelasReservadasController::class, 'cancelar'])->name('reservas.cancelar');
-        Route::get('/buscar-bom-urdido', [ReservarProgramarController::class, 'buscarBomUrdido'])->name('buscar.bom.urdido');
-        Route::get('/materiales-urdido', [ReservarProgramarController::class, 'getMaterialesUrdido'])->name('materiales.urdido');
-        Route::get('/materiales-engomado', [ReservarProgramarController::class, 'getMaterialesEngomado'])->name('materiales.engomado');
     });
 
     // ============================================

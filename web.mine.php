@@ -14,6 +14,7 @@ use App\Http\Controllers\SecuenciaInvTramaController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TelaresController;
+use App\Http\Controllers\UrdidoController;
 use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\AplicacionesController;
 use App\Http\Controllers\NuevoRequerimientoController;
@@ -21,8 +22,6 @@ use App\Http\Controllers\ProduccionReenconadoCabezuelaController;
 use App\Http\Controllers\ConsultarRequerimientoController;
 use App\Http\Controllers\CodificacionController;
 use App\Http\Controllers\InventarioTelaresController;
-use App\Http\Controllers\InvTelasReservadasController;
-use App\Http\Controllers\ReservarProgramarController;
 use App\Http\Controllers\TelActividadesBPMController;
 use App\Http\Controllers\TelBpmController;
 use App\Http\Controllers\TelBpmLineController;
@@ -520,9 +519,9 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Actividades BPM
-    Route::resource('tel-actividades-bpm', TelActividadesBPMController::class)
-        ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
-        ->names('tel-actividades-bpm');
+    // Route::resource('tel-actividades-bpm', TelActividadesBPMController::class)
+    //     ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
+    //     ->names('tel-actividades-bpm');
 
         Route::resource('tel-bpm', TelBpmController::class)
     ->parameters(['tel-bpm' => 'folio'])   // PK string
@@ -535,7 +534,6 @@ Route::patch('tel-bpm/{folio}/rechazar',  [TelBpmController::class, 'reject'])->
 Route::get ('tel-bpm/{folio}/lineas',           [TelBpmLineController::class, 'index'])->name('tel-bpm-line.index');
 Route::post('tel-bpm/{folio}/lineas/toggle',    [TelBpmLineController::class, 'toggle'])->name('tel-bpm-line.toggle');
 Route::post('tel-bpm/{folio}/lineas/bulk-save', [TelBpmLineController::class, 'bulkSave'])->name('tel-bpm-line.bulk');
-Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 'updateComentarios'])->name('tel-bpm-line.comentarios');
 
     // Telares por Operador
     Route::resource('tel-telares-operador', TelTelaresOperadorController::class)
@@ -550,23 +548,23 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
     // MÓDULO PRODUCCIÓN URD ENGOMADO
     // ============================================
     Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () {
-        Route::get('/reservar-programar', [ReservarProgramarController::class, 'index'])->name('reservar.programar');
-        Route::get('/programacion-requerimientos', [ReservarProgramarController::class, 'programacionRequerimientos'])->name('programacion.requerimientos');
-        Route::get('/creacion-ordenes', [ReservarProgramarController::class, 'creacionOrdenes'])->name('creacion.ordenes');
-        Route::post('/programacion-requerimientos/resumen-semanas', [ReservarProgramarController::class, 'getResumenSemanas'])->name('programacion.resumen.semanas');
-        Route::get('/inventario-telares', [ReservarProgramarController::class, 'getInventarioTelares'])->name('inventario.telares');
-        Route::get('/inventario-disponible', [InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible.get');
-        Route::post('/inventario-disponible', [InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible');
-        Route::post('/programar-telar', [ReservarProgramarController::class, 'programarTelar'])->name('programar.telar');
-        Route::post('/actualizar-telar', [ReservarProgramarController::class, 'actualizarTelar'])->name('actualizar.telar');
-        Route::post('/reservar-inventario', [InvTelasReservadasController::class, 'reservar'])->name('reservar.inventario');
-        Route::post('/liberar-telar', [ReservarProgramarController::class, 'liberarTelar'])->name('liberar.telar');
-        Route::get('/column-options', [ReservarProgramarController::class, 'getColumnOptions'])->name('column.options');
-        Route::get('/reservas/{noTelar}', [InvTelasReservadasController::class, 'porTelar'])->name('reservas.porTelar');
-        Route::post('/reservas/cancelar', [InvTelasReservadasController::class, 'cancelar'])->name('reservas.cancelar');
-        Route::get('/buscar-bom-urdido', [ReservarProgramarController::class, 'buscarBomUrdido'])->name('buscar.bom.urdido');
-        Route::get('/materiales-urdido', [ReservarProgramarController::class, 'getMaterialesUrdido'])->name('materiales.urdido');
-        Route::get('/materiales-engomado', [ReservarProgramarController::class, 'getMaterialesEngomado'])->name('materiales.engomado');
+        Route::get('/reservar-programar', [\App\Http\Controllers\ReservarProgramarController::class, 'index'])->name('reservar.programar');
+        Route::get('/programacion-requerimientos', [\App\Http\Controllers\ReservarProgramarController::class, 'programacionRequerimientos'])->name('programacion.requerimientos');
+        Route::post('/programacion-requerimientos/resumen-semanas', [\App\Http\Controllers\ReservarProgramarController::class, 'getResumenSemanas'])->name('programacion.resumen.semanas');
+        Route::get('/creacion-ordenes', [\App\Http\Controllers\ReservarProgramarController::class, 'creacionOrdenes'])->name('creacion.ordenes');
+        Route::get('/buscar-bom-urdido', [\App\Http\Controllers\ReservarProgramarController::class, 'buscarBomUrdido'])->name('buscar.bom.urdido');
+        Route::get('/materiales-urdido', [\App\Http\Controllers\ReservarProgramarController::class, 'getMaterialesUrdido'])->name('materiales.urdido');
+        Route::get('/materiales-engomado', [\App\Http\Controllers\ReservarProgramarController::class, 'getMaterialesEngomado'])->name('materiales.engomado');
+        Route::get('/inventario-telares', [\App\Http\Controllers\ReservarProgramarController::class, 'getInventarioTelares'])->name('inventario.telares');
+        Route::get('/inventario-disponible', [\App\Http\Controllers\InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible.get');
+        Route::post('/inventario-disponible', [\App\Http\Controllers\InvTelasReservadasController::class, 'disponible'])->name('inventario.disponible');
+        Route::post('/programar-telar', [\App\Http\Controllers\ReservarProgramarController::class, 'programarTelar'])->name('programar.telar');
+        Route::post('/actualizar-telar', [\App\Http\Controllers\ReservarProgramarController::class, 'actualizarTelar'])->name('actualizar.telar');
+        Route::post('/reservar-inventario', [\App\Http\Controllers\InvTelasReservadasController::class, 'reservar'])->name('reservar.inventario');
+        Route::post('/liberar-telar', [\App\Http\Controllers\ReservarProgramarController::class, 'liberarTelar'])->name('liberar.telar');
+        Route::get('/column-options', [\App\Http\Controllers\ReservarProgramarController::class, 'getColumnOptions'])->name('column.options');
+        Route::get('/reservas/{noTelar}', [\App\Http\Controllers\InvTelasReservadasController::class, 'porTelar'])->name('reservas.porTelar');
+        Route::post('/reservas/cancelar', [\App\Http\Controllers\InvTelasReservadasController::class, 'cancelar'])->name('reservas.cancelar');
     });
 
     // ============================================

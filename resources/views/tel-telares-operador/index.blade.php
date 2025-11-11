@@ -5,16 +5,35 @@
 Telares por Operador
 @endsection
 
+@section('navbar-right')
+    <div class="flex items-center gap-2">
+        <button onclick="openModal('createModal')" class="p-2 rounded-lg transition hover:bg-green-100" title="Nuevo Operador">
+            <i class="fa-solid fa-plus text-green-600 text-lg"></i>
+        </button>
+        <button id="btn-top-edit" type="button"
+            class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            onclick="handleTopEdit()" disabled title="Editar Operador">
+            <i class="fa-solid fa-pen-to-square text-yellow-500 text-lg"></i>
+        </button>
+        <button id="btn-top-delete" type="button"
+            class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            onclick="handleTopDelete()" disabled title="Eliminar Operador">
+            <i class="fa-solid fa-trash text-red-600 text-lg"></i>
+        </button>
+    </div>
+@endsection
+
 @section('content')
-<div class="container mx-auto px-3 md:px-6 py-4">
+<div class="container ">
     @if($errors->any())
-        <div class="rounded bg-red-100 text-red-800 px-3 py-2 mb-3">
-            <ul class="mb-0 list-disc list-inside">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
+        <script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                html: '<ul class="text-left list-disc list-inside">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>',
+                confirmButtonText: 'Aceptar'
+            });
+        </script>
     @endif
     @if(session('success'))
         <script>
@@ -27,27 +46,9 @@ Telares por Operador
         </script>
     @endif
 
-    <div class="flex items-center justify-end mb-3">
-        <div class="flex items-center gap-2 md:gap-3">
-            <button onclick="openModal('createModal')" class="px-3 py-2 rounded bg-green-600 text-white">
-                <i class="fa-solid fa-plus mr-1.5"></i> Nuevo Operador
-            </button>
-            <button id="btn-top-edit" type="button"
-                class="px-3 py-2 rounded bg-amber-600 text-white opacity-50 cursor-not-allowed"
-                onclick="handleTopEdit()" disabled>
-                <i class="fa-solid fa-pen-to-square mr-1.5"></i> Editar Operador
-            </button>
-            <button id="btn-top-delete" type="button"
-                class="px-3 py-2 rounded bg-red-600 text-white opacity-50 cursor-not-allowed"
-                onclick="handleTopDelete()" disabled>
-                <i class="fa-solid fa-trash mr-1.5"></i> Eliminar Operador
-            </button>
-        </div>
-    </div>
-
     <div class="bg-white rounded shadow">
         <div class="overflow-x-auto">
-            <div class="overflow-y-auto" style="max-height: 60vh;">
+            <div class="overflow-y-auto">
                 <table class="min-w-full text-sm">
                     <thead class="bg-blue-500 text-white sticky top-0 z-10">
                 <tr>
@@ -84,7 +85,7 @@ Telares por Operador
         </div>
     </div>
 
-    
+
 
     <!-- Formulario global oculto para eliminar -->
     <form id="globalDeleteForm" action="#" method="POST" class="hidden">

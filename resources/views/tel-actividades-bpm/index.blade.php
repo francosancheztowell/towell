@@ -5,16 +5,25 @@
 Actividades BPM
 @endsection
 
+@section('navbar-right')
+    <div class="flex items-center gap-2">
+        <x-navbar.button-create onclick="openModal('createModal')" title="Nueva Actividad" module="Actividades BPM" />
+        <x-navbar.button-edit onclick="editSelected()" id="btn-edit" title="Editar Actividad" module="Actividades BPM" />
+        <x-navbar.button-delete onclick="deleteSelected()" id="btn-delete" title="Eliminar Actividad" module="Actividades BPM" />
+    </div>
+@endsection
+
 @section('content')
-<div class="container mx-auto px-3 md:px-6 py-4">
+<div class="container ">
     @if($errors->any())
-        <div class="rounded bg-red-100 text-red-800 px-3 py-2 mb-3">
-            <ul class="mb-0 list-disc list-inside">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
+        <script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                html: '<ul class="text-left list-disc list-inside">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>',
+                confirmButtonText: 'Aceptar'
+            });
+        </script>
     @endif
     @if(session('success'))
         <script>
@@ -28,23 +37,7 @@ Actividades BPM
     @endif
 
     <!-- Card -->
-    <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-        <!-- Header: botones de acción -->
-        <div class="px-4 py-3 flex items-center justify-end gap-3 border-b border-gray-100">
-            <button onclick="openModal('createModal')" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-sm">
-                <i class="fa-solid fa-plus"></i>
-                Nueva Actividad
-            </button>
-            <button id="btn-edit" disabled onclick="editSelected()" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                <i class="fa-solid fa-pen"></i>
-                Editar Actividad
-            </button>
-            <button id="btn-delete" disabled onclick="deleteSelected()" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                <i class="fa-solid fa-trash"></i>
-                Eliminar Actividad
-            </button>
-        </div>
-
+    <div class="bg-white  overflow-hidden">
         <!-- Table wrapper: sticky header + hover rows -->
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
@@ -133,13 +126,23 @@ Actividades BPM
     function selectRow(row) {
         // Remover selección anterior
         if (selectedRow) {
-            selectedRow.classList.remove('bg-blue-100', 'border-blue-500');
+            selectedRow.classList.remove('bg-blue-500', 'text-white');
+            // Restaurar colores originales
+            const cells = selectedRow.querySelectorAll('td');
+            cells.forEach(cell => {
+                cell.classList.remove('text-white');
+            });
         }
 
         // Seleccionar nueva fila
         selectedRow = row;
         selectedId = row.dataset.id;
-        row.classList.add('bg-blue-100', 'border-blue-500');
+        row.classList.add('bg-blue-500', 'text-white');
+        // Aplicar texto blanco a todas las celdas
+        const cells = row.querySelectorAll('td');
+        cells.forEach(cell => {
+            cell.classList.add('text-white');
+        });
 
         // Habilitar botones
         document.getElementById('btn-edit').disabled = false;
@@ -173,17 +176,17 @@ Actividades BPM
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = '{{ route("tel-actividades-bpm.destroy", ":id") }}'.replace(':id', selectedId);
-                
+
                 const csrfToken = document.createElement('input');
                 csrfToken.type = 'hidden';
                 csrfToken.name = '_token';
                 csrfToken.value = '{{ csrf_token() }}';
-                
+
                 const methodField = document.createElement('input');
                 methodField.type = 'hidden';
                 methodField.name = '_method';
                 methodField.value = 'DELETE';
-                
+
                 form.appendChild(csrfToken);
                 form.appendChild(methodField);
                 document.body.appendChild(form);

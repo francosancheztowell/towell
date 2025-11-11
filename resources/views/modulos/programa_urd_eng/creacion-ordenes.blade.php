@@ -46,10 +46,10 @@
     {{-- =================== Tablas 2 y 3: Materiales Urdido y Engomado (mismo nivel) =================== --}}
     <div class="flex gap-4 mb-4">
         {{-- =================== Tabla 2: Materiales Urdido =================== --}}
-        <div class="w-1/3 bg-white overflow-hidden rounded-2xl">
-            <div class="overflow-x-auto">
+        <div class="w-1/3 bg-white overflow-hidden rounded-2xl flex flex-col" style="max-height: 250px;">
+            <div class="overflow-x-auto overflow-y-auto flex-1">
                 <table id="tablaMaterialesUrdido" class="w-full">
-                    <thead>
+                    <thead class="sticky top-0 bg-slate-100 z-10">
                         <tr class="bg-slate-100 border-b">
                             <th class="px-2 py-2 text-center text-xs font-semibold w-32">Articulo</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-32">Configuración</th>
@@ -65,10 +65,10 @@
         </div>
 
         {{-- =================== Tabla 3: Materiales Engomado =================== --}}
-        <div class="flex-1 bg-white overflow-hidden rounded-2xl">
-            <div class="overflow-x-auto">
+        <div class="flex-1 bg-white overflow-hidden rounded-2xl flex flex-col" style="max-height: 250px;">
+            <div class="overflow-x-auto overflow-y-auto flex-1">
                 <table id="tablaMaterialesEngomado" class="w-full">
-                    <thead>
+                    <thead class="sticky top-0 bg-slate-100 z-10">
                         <tr class="bg-slate-100 border-b">
                             <th class="px-2 py-2 text-center text-xs font-semibold w-24">Articulo</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-24">Config</th>

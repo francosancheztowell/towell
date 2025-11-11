@@ -138,9 +138,13 @@ class MarcasController extends Controller
                 $nuevoFolio = 'FM0001';
             }
 
+            // Obtener turno actual usando TurnoHelper
+            $turno = TurnoHelper::getTurnoActual();
+
             return response()->json([
                 'success' => true,
                 'folio' => $nuevoFolio,
+                'turno' => $turno,
                 'usuario' => $usuario->nombre ?? 'Usuario',
                 'numero_empleado' => $usuario->numero_empleado ?? ''
             ]);
@@ -220,7 +224,7 @@ class MarcasController extends Controller
                     }
 
                     // Usar EficienciaSTD cuando exista
-                    $porcentajeEfi = $eficiencia ? number_format(($eficiencia -> EficienciaSTD ?? $eficiencia -> EficienciaSTD ?? 0) *100, 0) :0;
+                    $porcentajeEfi = $eficiencia ? number_format(($eficiencia->EficienciaSTD ?? $eficiencia->Eficiencia ?? 0) * 100, 0) : 0;
 
                     Log::info("Telar {$noTelar} - Salón: {$row->SalonId} - Eficiencia: {$porcentajeEfi}");
 

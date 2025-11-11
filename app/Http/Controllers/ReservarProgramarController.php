@@ -1111,34 +1111,18 @@ class ReservarProgramarController extends Controller
 
             Log::info('getMaterialesEngomado: ItemIds después de filtrar', ['itemIds' => $itemIds, 'count' => count($itemIds)]);
 
-            // Join InventSum -> InventDim -> InventSerial
-            // Según especificación: InventSum.ItemId = UrdlMat.ItemId
-            // Filtros:
-            // - InventSum.ItemId IN (ItemIds de materiales de urdido)
-            // - InventSum.AvailPhysical <> 0
-            // - InventSum.DATAAREAID = 'PRO'
-            // - InventDim.InventDimId = InventSum.InventDimId
-            // - InventDim.InventLocationId IN ('A-MP', 'A-MPBB')
-            // - InventDim.DATAAREAID = 'PRO'
-            // - InventSerial.InventSerialId = InventDim.InventSerialId
-            // - InventSerial.ItemId = InventSum.ItemId
-            // - InventSerial.DATAAREAID = 'PRO'
+            // Consulta simple - misma estructura que RequerimientoController
             $results = DB::connection('sqlsrv_ti')
                 ->table('InventSum as sum')
-                ->join('InventDim as dim', function($join) {
-                    $join->on('dim.INVENTDIMID', '=', 'sum.INVENTDIMID')
-                         ->on('dim.DATAAREAID', '=', 'sum.DATAAREAID');
-                })
+                ->join('InventDim as dim', 'dim.INVENTDIMID', '=', 'sum.INVENTDIMID')
                 ->join('InventSerial as ser', function($join) {
-                    $join->on('ser.INVENTSERIALID', '=', 'dim.INVENTSERIALID')
-                         ->on('ser.ITEMID', '=', 'sum.ITEMID')
-                         ->on('ser.DATAAREAID', '=', 'sum.DATAAREAID');
+                    $join->on('sum.ITEMID', '=', 'ser.ITEMID')
+                         ->on('ser.INVENTSERIALID', '=', 'dim.INVENTSERIALID');
                 })
-                ->whereIn('sum.ITEMID', array_values($itemIds))
+                ->whereIn('sum.ITEMID', $itemIds)
                 ->where('sum.DATAAREAID', 'PRO')
-                ->where('sum.AVAILPHYSICAL', '<>', 0)
+                ->whereRaw('sum.AvailPhysical <> 0')
                 ->where('dim.DATAAREAID', 'PRO')
-                ->whereIn('dim.INVENTLOCATIONID', ['A-MP', 'A-MPBB'])
                 ->where('ser.DATAAREAID', 'PRO')
                 ->select([
                     'sum.ITEMID as ItemId',
@@ -1159,7 +1143,11 @@ class ReservarProgramarController extends Controller
                 ->orderBy('dim.INVENTSERIALID')
                 ->get();
 
-            Log::info('getMaterialesEngomado: Resultados encontrados', ['count' => $results->count()]);
+            Log::info('getMaterialesEngomado: Resultados encontrados', [
+                'count' => $results->count(),
+                'itemIds_buscados' => $itemIds,
+                'sample' => $results->take(2)->toArray()
+            ]);
 
             return response()->json($results);
         } catch (\Throwable $e) {

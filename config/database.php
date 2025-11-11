@@ -111,7 +111,7 @@ return [
             // 'encrypt' => env('DB_ENCRYPT', 'yes'),
             'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'true'),
         ],
-        
+
         'sqlsrv_ti' => [
             'driver' => 'sqlsrv',
             'host' => env('DB_HOST_TIPRO', '192.168.2.28'), // Asegúrate de que este es el host correcto

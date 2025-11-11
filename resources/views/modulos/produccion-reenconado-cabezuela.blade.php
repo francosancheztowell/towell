@@ -5,19 +5,30 @@
 Producción Reenconado Cabezuela
 @endsection
 
+@section('navbar-right')
+    <div class="flex items-center gap-2">
+        <button type="button" id="btn-reporte" class="p-2 rounded-lg transition hover:bg-purple-100" title="Reporte">
+            <i class="fa fa-file text-purple-600 text-lg"></i>
+        </button>
+        <button type="button" id="btn-nuevo" class="p-2 rounded-lg transition hover:bg-green-100" title="Nuevo">
+            <i class="fa fa-plus text-green-600 text-lg"></i>
+        </button>
+        <button type="button" id="btn-editar" class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar">
+            <i class="fa fa-pen text-yellow-500 text-lg"></i>
+        </button>
+        <button type="button" id="btn-eliminar" class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar">
+            <i class="fa fa-trash text-red-600 text-lg"></i>
+        </button>
+    </div>
+@endsection
+
 @push('styles')
 <style>
-    .table-capture thead th{ position: sticky; top: 0; z-index:5; border-bottom:2px solid #e5e7eb;}
-    .table-capture input, .table-capture select { min-width: 110px; }
-    .table-capture .w-sm { width: 90px; }
-    .table-capture .w-xs { width: 72px; }
-    .table-capture .w-lg { min-width: 160px; }
-    .table-capture td, .table-capture th { padding: 0.5rem 0.75rem; }
+    /* Solo estilos que no se pueden hacer con Tailwind */
+    .table-capture thead th { position: sticky; top: 0; z-index: 5; }
     #tabla-registros tr.selected { background-color: #bfdbfe !important; }
-    /* Mantener header visible incluso con teclado móvil */
-    /* Header siempre visible incluso con teclado: absoluto dentro del modal relativo */
     .modal-header { position: absolute; top: 0; left: 0; right: 0; z-index: 30; }
-    .modal-scroll { max-height: 85vh; overflow-y: auto; scroll-padding-top: 72px; padding-top: 72px; padding-bottom: 28px; }
+    .modal-scroll { scroll-padding-top: 72px; }
     .modal-scroll input, .modal-scroll textarea, .modal-scroll select { scroll-margin-top: 72px; }
 </style>
 @endpush
@@ -27,59 +38,29 @@ Producción Reenconado Cabezuela
 @endpush
 
 @section('content')
-<div class="container mx-auto px-3 md:px-6 py-4">
-        @if(session('success'))
-                <div class="rounded-md bg-green-100 text-green-800 px-3 py-2 mb-3">{{ session('success') }}</div>
-        @endif
-        @if($errors->any())
-                <div class="rounded-md bg-red-100 text-red-800 px-3 py-2 mb-3">
-                        <ul class="mb-0">
-                                @foreach($errors->all() as $error)
-                                        <li>{{ $error }}</li>
-                                @endforeach
-                        </ul>
-                </div>
-        @endif
-
-        <div class="flex items-center justify-end mb-3">
-            <div class="flex items-center gap-2">
-                <button type="button" id="btn-reporte" class="px-3 py-2 rounded bg-purple-500 text-white shadow hover:bg-purple-600 transition font-medium">
-                    <i class="fa fa-file"></i> Reporte
-                </button>
-                <button type="button" id="btn-nuevo" class="px-3 py-2 rounded bg-green-600 text-white shadow hover:bg-green-700 transition font-medium">
-                    <i class="fa fa-plus"></i> Nuevo
-                </button>
-                <button type="button" id="btn-editar" class="px-3 py-2 rounded bg-amber-500 text-white shadow hover:bg-amber-600 transition font-medium">
-                    <i class="fa fa-pen"></i> Editar
-                </button>
-                <button type="button" id="btn-eliminar" class="px-3 py-2 rounded bg-red-600 text-white shadow hover:bg-red-700 transition font-medium">
-                    <i class="fa fa-trash"></i> Eliminar
-                </button>
-            </div>
-        </div>
-
-        <div class="overflow-x-auto rounded shadow bg-white">
+<div class="w-full ">
+        <div class="overflow-x-auto rounded shadow bg-white w-full">
                 <table class="min-w-full table-capture text-sm" id="tabla-registros">
                         <thead class="text-white">
                 <tr class="text-center align-middle">
-                    <th class="w-sm bg-blue-500 whitespace-nowrap">Folio</th>
-                    <th class="w-sm bg-blue-500 whitespace-nowrap">Fecha</th>
-                    <th class="w-xs bg-blue-500 whitespace-nowrap">Turno</th>
-                    <th class="w-lg bg-blue-500 whitespace-nowrap">Operador</th>
-                    <th class="w-xs bg-blue-500 whitespace-nowrap">Calibre</th>
-                    <th class="w-sm bg-blue-500 whitespace-nowrap">Fibra</th>
-                    <th class="w-sm bg-blue-500 whitespace-nowrap">Cód. Color</th>
-                    <th class="w-lg bg-blue-500 whitespace-nowrap">Color</th>
-                    <th class="w-sm bg-blue-500 whitespace-nowrap">Cantidad</th>
-                    <th class="w-xs bg-blue-500 whitespace-nowrap">Conos</th>
-                    <th class="w-sm bg-blue-500 whitespace-nowrap">Hrs</th>
-                    <th class="w-sm bg-blue-500 whitespace-nowrap">Eficiencia</th>
-                    <th class="w-lg bg-blue-500 whitespace-nowrap">Observaciones</th>
+                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Folio</th>
+                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Fecha</th>
+                    <th class="w-[72px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Turno</th>
+                    <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Operador</th>
+                    <th class="w-[72px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Calibre</th>
+                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Fibra</th>
+                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Cód. Color</th>
+                    <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Color</th>
+                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Cantidad</th>
+                    <th class="w-[72px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Conos</th>
+                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Hrs</th>
+                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Eficiencia</th>
+                    <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Observaciones</th>
                 </tr>
                         </thead>
                         <tbody id="rows-body" class="text-gray-800">
                                 @forelse($registros as $r)
-                                        <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50" 
+                                        <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50"
                                             data-folio="{{ $r->Folio }}"
                                             data-date="{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}"
                                             data-turno="{{ $r->Turno }}"
@@ -94,19 +75,19 @@ Producción Reenconado Cabezuela
                                             data-horas="{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2, '.', '') }}"
                                             data-eficiencia="{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2, '.', '') }}"
                                             data-obs="{{ $r->Obs }}">
-                                                <td class="whitespace-nowrap">{{ $r->Folio }}</td>
-                                                <td class="whitespace-nowrap">{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ $r->Folio }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}</td>
                                                 <td class="text-center whitespace-nowrap">{{ $r->Turno }}</td>
-                                                <td class="whitespace-nowrap">{{ $r->nombreEmpl }}</td>
-                                                <td class="text-right whitespace-nowrap">{{ is_null($r->Calibre) ? '' : number_format($r->Calibre, 2) }}</td>
-                                                <td class="whitespace-nowrap">{{ $r->FibraTrama }}</td>
-                                                <td class="whitespace-nowrap">{{ $r->CodColor }}</td>
-                                                <td class="whitespace-nowrap">{{ $r->Color }}</td>
-                                                <td class="text-right whitespace-nowrap">{{ is_null($r->Cantidad) ? '' : number_format($r->Cantidad, 2) }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ $r->nombreEmpl }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ is_null($r->Calibre) ? '' : number_format($r->Calibre, 2) }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ $r->FibraTrama }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ $r->CodColor }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ $r->Color }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ is_null($r->Cantidad) ? '' : number_format($r->Cantidad, 2) }}</td>
                                                 <td class="text-center whitespace-nowrap">{{ $r->Conos }}</td>
-                                                <td class="text-right whitespace-nowrap">{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2) }}</td>
-                                                <td class="text-right whitespace-nowrap">{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2) }}</td>
-                                                <td class="whitespace-nowrap">{{ $r->Obs }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2) }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2) }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ $r->Obs }}</td>
                                         </tr>
                                 @empty
                                         <tr class="odd:bg-white even:bg-gray-50"><td colspan="13" class="text-center text-gray-500 py-3">Sin registros</td></tr>
@@ -134,7 +115,7 @@ Producción Reenconado Cabezuela
                     </button>
                 </div>
             </div>
-            <div class="p-4 modal-scroll">
+            <div class="p-4 modal-scroll max-h-[85vh] overflow-y-auto pt-[72px] pb-7">
                 <div class="grid grid-cols-12 gap-4">
                     <!-- Sección: Información General -->
                     <div class="col-span-12">
@@ -142,7 +123,7 @@ Producción Reenconado Cabezuela
                             <i class="fa fa-info-circle mr-2 text-blue-500"></i>Información General
                         </h6>
                     </div>
-                    
+
                     <div class="col-span-6 md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Folio</label>
                         <input type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50" id="f_Folio" readonly>
@@ -153,7 +134,7 @@ Producción Reenconado Cabezuela
                     </div>
                     <div class="col-span-6 md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
-                        <select class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Turno">
+                        <select class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Turno">
                             <option value="1">1 </option>
                             <option value="2">2 </option>
                             <option value="3">3 </option>
@@ -177,19 +158,19 @@ Producción Reenconado Cabezuela
 
                     <div class="col-span-6 md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Calibre</label>
-                        <input type="number" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Calibre">
+                        <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Calibre">
                     </div>
                     <div class="col-span-6 md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Fibra</label>
-                        <input type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_FibraTrama">
+                        <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_FibraTrama">
                     </div>
                     <div class="col-span-6 md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Cód. Color</label>
-                        <input type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_CodColor">
+                        <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_CodColor">
                     </div>
                     <div class="col-span-6 md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Color</label>
-                        <input type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Color">
+                        <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Color">
                     </div>
 
                     <!-- Sección: Producción -->
@@ -201,23 +182,23 @@ Producción Reenconado Cabezuela
 
                     <div class="col-span-6 md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad (kg)</label>
-                        <input type="number" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Cantidad">
+                        <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Cantidad">
                     </div>
                     <div class="col-span-6 md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Conos</label>
-                        <input type="number" step="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Conos">
+                        <input type="number" step="1" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Conos">
                     </div>
                     <div class="col-span-6 md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Tiempo (hrs)</label>
-                        <input type="number" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Horas">
+                        <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Horas">
                     </div>
                     <div class="col-span-6 md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Eficiencia (%)</label>
-                        <input type="number" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Eficiencia">
+                        <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Eficiencia">
                     </div>
                     <div class="col-span-12">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-                        <textarea class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-8" id="f_Obs" rows="2"></textarea>
+                        <textarea class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-8" id="f_Obs" rows="2"></textarea>
                     </div>
                 </div>
             </div>
@@ -227,6 +208,28 @@ Producción Reenconado Cabezuela
 
 <script>
 (function(){
+    // Mostrar alertas de sesión con SweetAlert2
+    @if(session('success'))
+        Swal.fire({
+            icon: 'success',
+            title: 'Éxito',
+            text: '{{ session('success') }}',
+            timer: 3000,
+            showConfirmButton: false,
+            toast: true,
+            position: 'top-end'
+        });
+    @endif
+
+    @if($errors->any())
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            html: '<ul class="text-left list-disc list-inside">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>',
+            confirmButtonText: 'Aceptar'
+        });
+    @endif
+
     const nuevoBtn = document.getElementById('btn-nuevo');
     const editarBtn = document.getElementById('btn-editar');
     const eliminarBtn = document.getElementById('btn-eliminar');
@@ -244,7 +247,7 @@ Producción Reenconado Cabezuela
     function rowHtml(r){
         const nf = (v, d=2) => (v===null||v===undefined||v==='') ? '' : Number(v).toFixed(d);
         return `
-            <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50" 
+            <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50"
                 data-folio="${r.Folio??''}"
                 data-date="${r.Date??''}"
                 data-turno="${r.Turno??''}"
@@ -259,19 +262,19 @@ Producción Reenconado Cabezuela
                 data-horas="${r.Horas??''}"
                 data-eficiencia="${r.Eficiencia??''}"
                 data-obs="${r.Obs??''}">
-                <td class="whitespace-nowrap">${r.Folio??''}</td>
-                <td class="whitespace-nowrap">${r.Date??''}</td>
+                <td class="text-center whitespace-nowrap">${r.Folio??''}</td>
+                <td class="text-center whitespace-nowrap">${r.Date??''}</td>
                 <td class="text-center whitespace-nowrap">${r.Turno??''}</td>
-                <td class="whitespace-nowrap">${r.nombreEmpl??''}</td>
-                <td class="text-right whitespace-nowrap">${nf(r.Calibre)}</td>
-                <td class="whitespace-nowrap">${r.FibraTrama??''}</td>
-                <td class="whitespace-nowrap">${r.CodColor??''}</td>
-                <td class="whitespace-nowrap">${r.Color??''}</td>
-                <td class="text-right whitespace-nowrap">${nf(r.Cantidad)}</td>
+                <td class="text-center whitespace-nowrap">${r.nombreEmpl??''}</td>
+                <td class="text-center whitespace-nowrap">${nf(r.Calibre)}</td>
+                <td class="text-center whitespace-nowrap">${r.FibraTrama??''}</td>
+                <td class="text-center whitespace-nowrap">${r.CodColor??''}</td>
+                <td class="text-center whitespace-nowrap">${r.Color??''}</td>
+                <td class="text-center whitespace-nowrap">${nf(r.Cantidad)}</td>
                 <td class="text-center whitespace-nowrap">${r.Conos??''}</td>
-                <td class="text-right whitespace-nowrap">${nf(r.Horas)}</td>
-                <td class="text-right whitespace-nowrap">${nf(r.Eficiencia)}</td>
-                <td class="whitespace-nowrap">${r.Obs??''}</td>
+                <td class="text-center whitespace-nowrap">${nf(r.Horas)}</td>
+                <td class="text-center whitespace-nowrap">${nf(r.Eficiencia)}</td>
+                <td class="text-center whitespace-nowrap">${r.Obs??''}</td>
             </tr>`;
     }
 
@@ -416,10 +419,7 @@ Producción Reenconado Cabezuela
         const hasSelection = !!selectedRow;
         editarBtn.disabled = !hasSelection;
         eliminarBtn.disabled = !hasSelection;
-        editarBtn.classList.toggle('opacity-50', !hasSelection);
-        editarBtn.classList.toggle('cursor-not-allowed', !hasSelection);
-        eliminarBtn.classList.toggle('opacity-50', !hasSelection);
-        eliminarBtn.classList.toggle('cursor-not-allowed', !hasSelection);
+        // Las clases disabled:opacity-50 y disabled:cursor-not-allowed ya están en el HTML
     }
 
     updateActionButtons();
@@ -430,20 +430,20 @@ Producción Reenconado Cabezuela
         // Primero mostrar el modal
         showModal();
         modalTitle.innerHTML = '<i class="fa fa-plus-circle mr-2"></i>Nuevo Registro de Producción';
-        
+
         try {
             const url = `{{ route('tejido.produccion.reenconado.generar-folio') }}`;
             const {data} = await axios.post(url);
-            
+
             {{-- console.log('Datos recibidos del backend:', data); --}}
-            
+
             if(data && data.success){
                 document.getElementById('f_Folio').value = data.folio || '';
                 document.getElementById('f_Date').value = data.fecha || new Date().toISOString().split('T')[0];
                 document.getElementById('f_Turno').value = data.turno || '1';
                 document.getElementById('f_nombreEmpl').value = data.usuario || '';
                 document.getElementById('f_numero_empleado').value = data.numero_empleado || '';
-                
+
                 {{-- console.log('Campos rellenados:', {
                     folio: document.getElementById('f_Folio').value,
                     fecha: document.getElementById('f_Date').value,
