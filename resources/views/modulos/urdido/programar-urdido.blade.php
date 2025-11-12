@@ -4,7 +4,7 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
-    <x-navbar.button-create onclick="console.log('Cargar Información')" title="Cargar Información" icon="fa-solid fa-download" />
+    <x-navbar.button-create onclick="console.log('Cargar Información')" title="Cargar Información" icon="fa-download" iconColor="text-blue-500" hoverBg="hover:bg-blue-100" />
     <x-navbar.button-edit onclick="console.log('Subir Prioridad')" title="Subir Prioridad" icon="fa-arrow-up" iconColor="text-green-500" hoverBg="hover:bg-green-100" />
     <x-navbar.button-edit onclick="console.log('Bajar Prioridad')" title="Bajar Prioridad" icon="fa-arrow-down" iconColor="text-red-500" hoverBg="hover:bg-red-100" />
 
