@@ -16,6 +16,7 @@ use App\Http\Controllers\TelaresController;
 use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\AplicacionesController;
 use App\Http\Controllers\AtadoresController;
+use App\Http\Controllers\AtaActividadesController;
 use App\Http\Controllers\NuevoRequerimientoController;
 use App\Http\Controllers\ProduccionReenconadoCabezuelaController;
 use App\Http\Controllers\ConsultarRequerimientoController;
@@ -809,9 +810,11 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::post('/tejedores/validar', [AtadoresController::class, 'validarTejedor'])->name('tejedor.validar');
 
     // Catálogos de Atadores
-    Route::get('/atadores/catalogos/actividades', function () {
-        return view('modulos.catalogos-atadores.actividades.index');
-    })->name('atadores.catalogos.actividades');
+    Route::get('/atadores/catalogos/actividades', [AtaActividadesController::class, 'index'])->name('atadores.catalogos.actividades');
+    Route::post('/atadores/catalogos/actividades', [AtaActividadesController::class, 'store'])->name('atadores.catalogos.actividades.store');
+    Route::get('/atadores/catalogos/actividades/{id}', [AtaActividadesController::class, 'show'])->name('atadores.catalogos.actividades.show');
+    Route::put('/atadores/catalogos/actividades/{id}', [AtaActividadesController::class, 'update'])->name('atadores.catalogos.actividades.update');
+    Route::delete('/atadores/catalogos/actividades/{id}', [AtaActividadesController::class, 'destroy'])->name('atadores.catalogos.actividades.destroy');
 
     Route::get('/atadores/catalogos/comentarios', function () {
         return view('modulos.catalogos-atadores.comentarios.index');

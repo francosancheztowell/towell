@@ -187,7 +187,7 @@
                             Código <span class="text-red-500">*</span>
                         </label>
                         <input type="text" id="codigo" name="codigo" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 hover:shadow-sm transition-all duration-200"
                             placeholder="Ej: COM-001">
                     </div>
                     
@@ -196,7 +196,7 @@
                             Título <span class="text-red-500">*</span>
                         </label>
                         <input type="text" id="titulo" name="titulo" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 hover:shadow-sm transition-all duration-200"
                             placeholder="Título del comentario">
                     </div>
                     
@@ -205,7 +205,7 @@
                             Comentario <span class="text-red-500">*</span>
                         </label>
                         <textarea id="comentario" name="comentario" rows="4" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 hover:shadow-sm transition-all duration-200"
                             placeholder="Descripción del comentario"></textarea>
                     </div>
                     
@@ -214,7 +214,7 @@
                             Tipo <span class="text-red-500">*</span>
                         </label>
                         <select id="tipo" name="tipo" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 hover:shadow-sm transition-all duration-200">
                             <option value="">Seleccionar...</option>
                             <option value="observacion">Observación</option>
                             <option value="incidencia">Incidencia</option>
@@ -228,7 +228,7 @@
                             Estado <span class="text-red-500">*</span>
                         </label>
                         <select id="estado" name="estado" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 hover:shadow-sm transition-all duration-200">
                             <option value="1">Activo</option>
                             <option value="0">Inactivo</option>
                         </select>
