@@ -808,6 +808,19 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/atadores/show', [AtadoresController::class, 'show'])->name('atadores.show');
     Route::post('/tejedores/validar', [AtadoresController::class, 'validarTejedor'])->name('tejedor.validar');
 
+    // Catálogos de Atadores
+    Route::get('/atadores/catalogos/actividades', function () {
+        return view('modulos.catalogos-atadores.actividades.index');
+    })->name('atadores.catalogos.actividades');
+
+    Route::get('/atadores/catalogos/comentarios', function () {
+        return view('modulos.catalogos-atadores.comentarios.index');
+    })->name('atadores.catalogos.comentarios');
+
+    Route::get('/atadores/catalogos/maquinas', function () {
+        return view('modulos.catalogos-atadores.maquinas.index');
+    })->name('atadores.catalogos.maquinas');
+
     // Módulo Mantenimiento
     Route::get('/modulo-mantenimiento', function () {
         return view('modulos/mantenimiento');
