@@ -18,7 +18,7 @@
                         confirmButtonColor: '#2563eb',
                         confirmButtonText: 'Entendido'
                     }).then(() => {
-                        window.location.href = "{{ route('usuarios.select') }}";
+                        window.location.href = "{{ route('configuracion.usuarios.select') }}";
                     });
                 });
             </script>
@@ -64,7 +64,7 @@
         />
 
         <!-- Formulario -->
-        <form action="{{ $isEdit ? route('usuarios.update', $usuario) : route('usuarios.store') }}"
+        <form action="{{ $isEdit ? route('configuracion.usuarios.update', $usuario) : route('configuracion.usuarios.store') }}"
               method="POST"
               enctype="multipart/form-data"
               class="bg-white rounded-b-xl shadow-sm">
@@ -422,7 +422,7 @@
                 <div class="sticky bottom-0 left-0 right-0 z-20">
                     <div class="px-4 sm:px-6 py-3 sm:py-4">
                         <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-end max-w-7xl mx-auto">
-                            <a href="{{ route('usuarios.select') }}"
+                            <a href="{{ route('configuracion.usuarios.select') }}"
                                class="px-4 sm:px-6 py-2 sm:py-3 bg-red-500 border border-gray-300 rounded-lg text-sm font-medium text-white focus:outline-none focus:ring-2 transition-colors text-center">
                                 Cancelar
                             </a>

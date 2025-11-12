@@ -119,11 +119,28 @@ class ModuloService
      */
     public function getSubmodulosNivel3(string $ordenPadre, int $idusuario): Collection
     {
-        // Usar join para optimizar la consulta
-        return SYSRoles::submodulosDe($ordenPadre, 3)
-            ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
-            ->where('SYSUsuariosRoles.idusuario', $idusuario)
-            ->where('SYSUsuariosRoles.acceso', true)
+        // Primero, obtener el módulo padre para verificar su dependencia
+        $moduloPadre = SYSRoles::where('orden', $ordenPadre)->first();
+
+        // Si el módulo padre tiene dependencia 500 (Atadores), buscar módulos nieto por prefijo de orden
+        // Los módulos nieto de Atadores tienen Dependencia = 500 pero orden que empieza con el orden del padre (ej: 503-1, 503-2)
+        if ($moduloPadre && $moduloPadre->Dependencia == '500') {
+            // Buscar módulos de nivel 3 que tengan Dependencia = 500 y orden que empiece con el orden del padre
+            $query = SYSRoles::where('Nivel', 3)
+                ->where('Dependencia', '500')
+                ->where('orden', 'like', $ordenPadre . '-%')
+                ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
+                ->where('SYSUsuariosRoles.idusuario', $idusuario)
+                ->where('SYSUsuariosRoles.acceso', true);
+        } else {
+            // Para otros módulos, usar la lógica original (buscar por Dependencia = ordenPadre)
+            $query = SYSRoles::submodulosDe($ordenPadre, 3)
+                ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
+                ->where('SYSUsuariosRoles.idusuario', $idusuario)
+                ->where('SYSUsuariosRoles.acceso', true);
+        }
+
+        return $query
             ->select(
                 'SYSRoles.*',
                 'SYSUsuariosRoles.acceso as usuario_acceso',
@@ -262,6 +279,16 @@ class ModuloService
             return '/tejido/configurar';
         }
 
+        // Caso especial: Catalogos y Configuracion de Atadores (dependencia 500)
+        if ($dependencia == 500 || (is_string($dependencia) && strpos($dependencia, '500') === 0)) {
+            if (strtolower(trim($nombreModulo)) === 'catalogos' || strtolower(trim($nombreModulo)) === 'catálogos') {
+                return '/submodulos-nivel3/503'; // Redirigir a nivel 3 de Catalogos de Atadores
+            }
+            if (strtolower(trim($nombreModulo)) === 'configuracion' || strtolower(trim($nombreModulo)) === 'configuración') {
+                return '/submodulos-nivel3/502'; // Redirigir a nivel 3 de Configuracion de Atadores
+            }
+        }
+
         // Mapeo completo de rutas
         $rutasSubModulos = [
             // Submódulos de Planeación
@@ -391,10 +418,13 @@ class ModuloService
             }
         }
 
-        // Verificación especial para catálogos
-        if (strpos(strtolower($nombreModulo), 'catálogo') !== false ||
+        // Verificación especial para catálogos de Planeación (dependencia 100, orden 104)
+        // Solo aplicar si NO es de Atadores (dependencia 500) y es de Planeación (dependencia 100)
+        if (($dependencia == 100 || (is_string($dependencia) && strpos($dependencia, '100') === 0)) &&
+            ($dependencia != 500 && (is_string($dependencia) && strpos($dependencia, '500') === false)) &&
+            (strpos(strtolower($nombreModulo), 'catálogo') !== false ||
             strpos(strtolower($nombreModulo), 'catalog') !== false ||
-            $orden == '104') {
+            $orden == '104')) {
             return '/planeacion/catalogos';
         }
 
@@ -405,9 +435,12 @@ class ModuloService
 
         if ($tieneNietos) {
             $rutasDescriptivas = [
+                '104' => '/planeacion/catalogos', // Catálogos de Planeación
                 '202' => '/tejido/marcas-finales',
                 '203' => '/tejido/inventario',
                 '206' => '/tejido/cortes-eficiencia',
+                '502' => '/atadores/configuracion', // Configuración de Atadores
+                '503' => '/atadores/catalogos', // Catálogos de Atadores
                 '909' => '/configuracion/utileria',
             ];
 

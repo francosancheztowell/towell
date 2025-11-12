@@ -355,6 +355,9 @@ Route::middleware(['auth'])->group(function () {
     Route::redirect('/submodulos-nivel3/203', '/tejido/inventario', 301);
     Route::redirect('/submodulos-nivel3/206', '/tejido/cortes-eficiencia', 301);
     Route::redirect('/submodulos-nivel3/909', '/configuracion/utileria', 301);
+    // Redirects para submódulos de Atadores
+    Route::redirect('/submodulos-nivel3/502', '/atadores/configuracion', 301);
+    Route::redirect('/submodulos-nivel3/503', '/atadores/catalogos', 301);
 
     // Rutas específicas con nombres descriptivos (reemplazan submodulos-nivel3/{id})
     // Estas rutas llaman directamente al método del controlador con el ID específico
@@ -369,6 +372,12 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/configuracion/utileria', fn() => app(UsuarioController::class)->showSubModulosNivel3('909'))
         ->name('configuracion.utileria');
+
+    // Rutas específicas para submódulos de Atadores
+    Route::get('/atadores/configuracion', fn() => app(UsuarioController::class)->showSubModulosNivel3('502'))
+        ->name('atadores.configuracion');
+    Route::get('/atadores/catalogos', fn() => app(UsuarioController::class)->showSubModulosNivel3('503'))
+        ->name('atadores.catalogos');
 
     // Ruta genérica para compatibilidad (solo para otros IDs no especificados arriba)
     Route::get('/submodulos-nivel3/{moduloPadre}', [UsuarioController::class, 'showSubModulosNivel3'])->name('submodulos.nivel3');
@@ -385,7 +394,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Catálogos con estructura jerárquica
         Route::prefix('catalogos')->name('catalogos.')->group(function () {
-            Route::get('/', [UsuarioController::class, 'showSubModulosNivel3'])->name('index');
+            Route::get('/', fn() => app(UsuarioController::class)->showSubModulosNivel3('104'))->name('index');
             // Route::get('/req-programa-tejido', [ExcelImportacionesController::class, 'showReqProgramaTejido'])->name('req-programa-tejido');
             Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares');
             Route::get('/telares/falla', [CatalagoTelarController::class, 'falla'])->name('telares.falla');
@@ -738,14 +747,8 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/modulo-consultar-requerimiento/{folio}', [ConsultarRequerimientoController::class, 'show'])->name('modulo.consultar.requerimiento.show');
     Route::post('/modulo-consultar-requerimiento/{folio}/status', [ConsultarRequerimientoController::class, 'updateStatus'])->name('modulo.consultar.requerimiento.status');
     Route::get('/modulo-consultar-requerimiento/{folio}/resumen', [ConsultarRequerimientoController::class, 'resumen'])->name('modulo.consultar.requerimiento.resumen');
-    // Rutas directas de configuración
-    Route::get('/usuarios/select', [UsuarioController::class, 'select'])->name('usuarios.select');
-    Route::get('/usuarios/create', [UsuarioController::class, 'create'])->name('usuarios.create');
-    Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
-    Route::get('/usuarios/{id}/qr', [UsuarioController::class, 'showQR'])->name('usuarios.qr');
-    Route::get('/usuarios/{id}/edit', [UsuarioController::class, 'edit'])->name('usuarios.edit');
-    Route::put('/usuarios/{id}', [UsuarioController::class, 'update'])->name('usuarios.update');
-    Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
+    // NOTA: Las rutas de usuarios están definidas en el grupo 'configuracion' (líneas 582-590)
+    // No duplicar aquí para evitar conflictos. Usar: configuracion.usuarios.select, etc.
     Route::get('/modulo-cargar-catálogos', function () {
         return view('modulos/cargar-catalogos');
     })->name('catalogos.index');
@@ -852,11 +855,12 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/api/modulos/nivel/{nivel}', [ModulosController::class, 'getModulosPorNivel'])->name('api.modulos.nivel');
     Route::get('/api/modulos/submodulos/{dependencia}', [ModulosController::class, 'getSubmodulos'])->name('api.modulos.submodulos');
 
-    // Rutas para inventario de telares
+    // Rutas para inventario de telares (módulo separado)
+    // NOTA: Esta ruta es diferente de 'programa-urd-eng/inventario-telares' (línea 558)
     Route::controller(InventarioTelaresController::class)
-        ->prefix('inventario-telares')->name('inventario-telares.')->group(function () {
-            Route::get('/', 'index')->name('get');
-            Route::post('/guardar', 'store')->name('guardar');
+        ->prefix('inventario-telares')->name('inventario.telares.modulo.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/guardar', 'store')->name('store');
         });
 
     // RUTAS DE MÓDULOS (MOVIDAS A MÓDULOS ORGANIZADOS)

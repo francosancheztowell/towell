@@ -76,7 +76,7 @@ class UsuarioController extends Controller
             $usuario = $this->usuarioService->create($data, $foto, $permisos);
 
             return redirect()
-                ->route('usuarios.select')
+                ->route('configuracion.usuarios.select')
                 ->with('success', 'Usuario registrado correctamente');
         } catch (\Exception $e) {
             Log::error('Error al crear usuario', ['error' => $e->getMessage()]);
@@ -107,7 +107,7 @@ class UsuarioController extends Controller
         $usuario = $this->usuarioRepository->findById($idusuario);
 
         if (!$usuario) {
-            return redirect()->route('usuarios.select')
+            return redirect()->route('configuracion.usuarios.select')
                 ->with('error', 'Usuario no encontrado');
         }
 
@@ -122,7 +122,7 @@ class UsuarioController extends Controller
         $usuario = $this->usuarioRepository->findById($id);
 
         if (!$usuario) {
-            return redirect()->route('usuarios.select')
+            return redirect()->route('configuracion.usuarios.select')
                 ->with('error', 'Usuario no encontrado');
         }
 
@@ -154,7 +154,7 @@ class UsuarioController extends Controller
             $actualizado = $this->usuarioService->update($id, $data, $foto, $permisos);
 
             if (!$actualizado) {
-                return redirect()->route('usuarios.select')
+                return redirect()->route('configuracion.usuarios.select')
                     ->with('error', 'Usuario no encontrado');
             }
 
@@ -162,7 +162,7 @@ class UsuarioController extends Controller
             $this->moduloService->limpiarCacheUsuario($id);
 
             return redirect()
-                ->route('usuarios.select')
+                ->route('configuracion.usuarios.select')
                 ->with('success', "Usuario #{$usuario->numero_empleado} actualizado correctamente.");
         } catch (\Exception $e) {
             Log::error('Error al actualizar usuario', [
@@ -192,7 +192,7 @@ class UsuarioController extends Controller
             $this->usuarioService->delete($id);
 
             return redirect()
-                ->route('usuarios.select')
+                ->route('configuracion.usuarios.select')
                 ->with('success', "Usuario #{$numeroEmpleado} eliminado correctamente.");
         } catch (\Exception $e) {
             Log::error('Error al eliminar usuario', [
@@ -201,7 +201,7 @@ class UsuarioController extends Controller
             ]);
 
             return redirect()
-                ->route('usuarios.select')
+                ->route('configuracion.usuarios.select')
                 ->with('error', 'No se pudo eliminar el usuario. Verifica que no tenga registros relacionados.');
         }
     }
