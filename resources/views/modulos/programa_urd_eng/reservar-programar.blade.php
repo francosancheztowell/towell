@@ -105,8 +105,12 @@
                                         $noOrdenTrim  = trim($t['no_orden'] ?? '');
                                         $hasBoth      = $metrosFloat > 0 && $noJulioTrim !== '';
                                         $isReservado  = $noJulioTrim !== '' && $noOrdenTrim !== '';
+                                        $tieneNoOrden = $noOrdenTrim !== '';
                                         $finalBg      = $hasBoth ? 'bg-blue-100' : $baseBg;
                                         $blueBorder   = $hasBoth ? 'border-l-4 border-blue-400' : '';
+                                        $checkboxDisabled = ($isReservado || $tieneNoOrden) ? 'disabled' : '';
+                                        $checkboxCursor = ($isReservado || $tieneNoOrden) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer';
+                                        $checkboxTitle = $isReservado ? 'Telar reservado - no se puede seleccionar' : ($tieneNoOrden ? 'Telar con orden - no se puede seleccionar' : 'Selección múltiple (misma cuenta/atributos)');
                                             @endphp
                                     <tr class="selectable-row hover:bg-blue-50 cursor-pointer {{ $finalBg }} {{ $blueBorder }}"
                                         data-base-bg="{{ $baseBg }}"
@@ -141,11 +145,11 @@
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             <input type="checkbox"
-                                                   class="telar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 {{ $isReservado ? 'cursor-not-allowed opacity-50' : 'cursor-pointer' }}"
+                                                   class="telar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 {{ $checkboxCursor }}"
                                                    data-telar="{{ $t['no_telar'] ?? '' }}"
                                                    data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
-                                                   {{ $isReservado ? 'disabled' : '' }}
-                                                   title="{{ $isReservado ? 'Telar reservado - no se puede seleccionar' : 'Selección múltiple (misma cuenta/atributos)' }}">
+                                                   {{ $checkboxDisabled }}
+                                                   title="{{ $checkboxTitle }}">
                                         </td>
                                     </tr>
                                 @endforeach
@@ -337,11 +341,8 @@ const render = {
 
         state.telaresData = rows.map((r,i)=>({...r,_i:i}));
 
-        const isRes = r => (parseFloat(r.metros||0) > 0) && String(r.no_julio||'').trim() !== '';
-        const notRes = rows.filter(r=>!isRes(r));
-        const yesRes = rows.filter(isRes);
-        const base = state.sort.column ? this.sorted(notRes, state.sort.column, state.sort.direction) : notRes;
-        const data = [...base, ...yesRes];
+        // Ordenar todos los registros juntos según la columna seleccionada (sin separar reservados)
+        const data = state.sort.column ? this.sorted(rows, state.sort.column, state.sort.direction) : rows;
 
         const frag = document.createDocumentFragment();
         data.forEach((r, idx) => {
@@ -350,6 +351,7 @@ const render = {
             const noOrden = String(r.no_orden||'').trim();
             const hasBoth = metrosF>0 && noJulio!=='';
             const isReservado = noJulio!=='' && noOrden!=='';
+            const tieneNoOrden = noOrden !== '';
 
             // Verificar si está en selección múltiple
             const telarNo = r.no_telar || '';
@@ -382,10 +384,10 @@ const render = {
             tr.dataset.hasBoth = hasBoth ? 'true' : 'false';
             tr.dataset.isReservado = isReservado ? 'true' : 'false';
 
-            // Construir atributos del checkbox
+            // Construir atributos del checkbox: deshabilitar si está reservado O tiene no_orden
             const checkboxChecked = isInMultiple ? ' checked' : '';
-            const checkboxDisabled = isReservado ? ' disabled' : '';
-            const checkboxCursor = isReservado ? 'cursor-not-allowed opacity-50' : 'cursor-pointer';
+            const checkboxDisabled = (isReservado || tieneNoOrden) ? ' disabled' : '';
+            const checkboxCursor = (isReservado || tieneNoOrden) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer';
 
             tr.innerHTML = `
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center font-bold">${r.no_telar ?? ''}</td>
@@ -432,10 +434,19 @@ const render = {
             const telTipo   = (tel.tipo||'').toString().toUpperCase().trim();
             const telNo     = tel.no_telar;
             const telJulio  = tel.no_julio;
+            const telNoOrden = (tel.no_orden||'').toString().trim();
 
             data = data.filter(r=>{
                 const hasTelar = !!(r.NoTelarId && r.NoTelarId!=='');
                 const invTipo  = (r.Tipo||'').toString().toUpperCase().trim();
+                const inventBatchId = (r.InventBatchId||'').toString().trim();
+
+                // Validación: Si el telar tiene no_orden, el Lote (InventBatchId) debe ser igual
+                if (telNoOrden && telNoOrden !== '') {
+                    if (inventBatchId !== telNoOrden) {
+                        return false;
+                    }
+                }
 
                 // Obligatorio: misma cuenta (InventSizeId inicia con cuenta del telar)
                 if (telCuenta && !matchCuenta(telCuenta, r.InventSizeId)) return false;
@@ -546,8 +557,20 @@ const selection = {
             is_reservado: row.dataset.isReservado === 'true'
         };
 
+        // Función para verificar si un telar tiene no_orden
+        const tieneNoOrden = (telar) => {
+            const noOrden = (telar.no_orden || '').toString().trim();
+            return noOrden !== '';
+        };
+
         if (item.is_reservado && checked){
             Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar reservado',text:'No se puede usar en selección múltiple',showConfirmButton:false,timer:2000});
+            if (cb) cb.checked = false; return;
+        }
+
+        // Validar que no tenga no_orden
+        if (tieneNoOrden(item) && checked){
+            Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar con orden',text:'No se puede usar en selección múltiple',showConfirmButton:false,timer:2000});
             if (cb) cb.checked = false; return;
         }
 
@@ -563,11 +586,22 @@ const selection = {
                 if (cb) cb.checked = false; return;
             }
 
+            // Verificar que el telar no tenga no_orden
+            if (tieneNoOrden(item)) {
+                Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar con orden',text:'No se puede usar en selección múltiple',showConfirmButton:false,timer:2000});
+                if (cb) cb.checked = false; return;
+            }
+
             if (state.selectedTelares.length > 0){
                 const ref = state.selectedTelares[0];
                 // Verificar que el telar de referencia no esté reservado
                 if (ref.is_reservado) {
                     Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar reservado en selección',text:'No se puede agregar más telares a una selección que contiene telares reservados',showConfirmButton:false,timer:3000});
+                    if (cb) cb.checked = false; return;
+                }
+                // Verificar que el telar de referencia no tenga no_orden
+                if (tieneNoOrden(ref)) {
+                    Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar con orden en selección',text:'No se puede agregar más telares a una selección que contiene telares con orden',showConfirmButton:false,timer:3000});
                     if (cb) cb.checked = false; return;
                 }
                 if (!sameGroup(item, ref)){
@@ -686,20 +720,36 @@ const selection = {
         const hasMultipleSelection = Array.isArray(state.selectedTelares) && state.selectedTelares.length > 0;
         const hasIndividualSelection = state.selectedTelar && state.selectedTelar.no_telar;
 
-        // PRIORIDAD: Si hay selección múltiple, verificar que NINGUNO esté reservado
+        // Función para verificar si un telar tiene no_orden
+        const tieneNoOrden = (telar) => {
+            const noOrden = (telar.no_orden || '').toString().trim();
+            return noOrden !== '';
+        };
+
+        // PRIORIDAD: Si hay selección múltiple, verificar que NINGUNO esté reservado Y que ninguno tenga no_orden
         if (hasMultipleSelection) {
             // Verificar si algún telar en la selección múltiple está reservado
             const hasReservedTelar = state.selectedTelares.some(t => t.is_reservado === true);
-            if (hasReservedTelar) {
-                // Si hay algún telar reservado, NO permitir programar
+            // Verificar si algún telar en la selección múltiple tiene no_orden
+            const hasNoOrden = state.selectedTelares.some(t => tieneNoOrden(t));
+
+            if (hasReservedTelar || hasNoOrden) {
+                // Si hay algún telar reservado o con no_orden, NO permitir programar
                 btnProgramar.disabled = true;
             } else {
-                // Si ningún telar está reservado, permitir programar
+                // Si ningún telar está reservado ni tiene no_orden, permitir programar
                 btnProgramar.disabled = false;
             }
-        } else if (hasIndividualSelection && state.selectedTelar && !state.selectedTelar.is_reservado) {
-            // Si hay selección individual y no está reservado, también habilitar
-            btnProgramar.disabled = false;
+        } else if (hasIndividualSelection && state.selectedTelar) {
+            // Si hay selección individual, verificar que no esté reservado Y que no tenga no_orden
+            const tieneOrden = tieneNoOrden(state.selectedTelar);
+            if (state.selectedTelar.is_reservado || tieneOrden) {
+                // Si está reservado o tiene no_orden, NO permitir programar
+                btnProgramar.disabled = true;
+            } else {
+                // Si no está reservado ni tiene no_orden, permitir programar
+                btnProgramar.disabled = false;
+            }
         } else {
             // En cualquier otro caso, deshabilitar
             btnProgramar.disabled = true;
@@ -875,6 +925,16 @@ const actions = {
     async programar(){
          // Si hay selección múltiple, redirigir a programación de requerimientos
          if (state.selectedTelares && state.selectedTelares.length > 0) {
+             // Validar que ningún telar tenga no_orden
+             const tieneNoOrden = state.selectedTelares.some(t => {
+                 const noOrden = (t.no_orden || '').toString().trim();
+                 return noOrden !== '';
+             });
+
+             if (tieneNoOrden) {
+                 return Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar con orden',text:'No se puede programar un telar que ya tiene No. Orden',showConfirmButton:false,timer:2000});
+             }
+
              const telaresJson = encodeURIComponent(JSON.stringify(state.selectedTelares));
              const url = '{{ route("programa.urd.eng.programacion.requerimientos") }}?telares=' + telaresJson;
 
@@ -888,6 +948,12 @@ const actions = {
 
          // Si hay selección individual, también redirigir a programación de requerimientos (sin modal)
          if (state.selectedTelar && state.selectedTelar.no_telar && !state.selectedTelar.is_reservado) {
+             // Validar que no tenga no_orden
+             const noOrden = (state.selectedTelar.no_orden || '').toString().trim();
+             if (noOrden !== '') {
+                 return Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar con orden',text:'No se puede programar un telar que ya tiene No. Orden',showConfirmButton:false,timer:2000});
+             }
+
              // Buscar el telar completo en los datos originales (que tienen todos los campos)
              const telarCompleto = (state.telaresDataOriginal.length > 0 ? state.telaresDataOriginal : state.telaresData).find(t => {
                  const telarMatch = String(t.no_telar || '') === String(state.selectedTelar.no_telar || '');
@@ -925,6 +991,12 @@ const actions = {
          // Si el telar está reservado, no se puede programar
          if (state.selectedTelar.is_reservado) {
              return Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar reservado',text:'No se puede programar un telar reservado',showConfirmButton:false,timer:2000});
+         }
+
+         // Si el telar tiene no_orden, no se puede programar
+         const noOrden = (state.selectedTelar.no_orden || '').toString().trim();
+         if (noOrden !== '') {
+             return Swal.fire({toast:true,position:'top-end',icon:'info',title:'Telar con orden',text:'No se puede programar un telar que ya tiene No. Orden',showConfirmButton:false,timer:2000});
          }
      },
     async liberarTelar(){

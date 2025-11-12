@@ -348,14 +348,14 @@ class ModuloService
             'Actividades BPM' => '/tel-actividades-bpm',
 
             // Módulos de Urdido
-            'Programa Urdido' => '/urdido/programar-requerimientos',
+            'Programa Urdido' => '/urdido/programar-urdido',
             'BPM (Buenas Practicas Manufactura) Urd' => '/urdido/bpm',
             'Reportes Urdido' => '/urdido/reportes',
             'Catalogos Julios' => '/urdido/catalogos-julios',
             'Catalogos de Paros' => '/urdido/catalogos-paros',
 
             // Módulos de Engomado
-            'Programa Engomado' => '/engomado/programar-requerimientos',
+            'Programa Engomado' => '/engomado/programar-engomado',
             'BPM (Buenas Practicas Manufactura) Eng' => '/engomado/bpm',
             'Reportes Engomado' => '/engomado/reportes',
             'Producción Engomado' => '/engomado/produccion',

@@ -11,11 +11,13 @@
         @param string $module - Nombre del módulo para verificar permisos (opcional)
         @param int $moduleId - ID del módulo (idrol) para verificar permisos (opcional, preferido sobre $module)
         @param bool $checkPermission - Si debe verificar permisos (default: true si se proporciona $module o $moduleId)
+        @param string $icon - Clase del icono FontAwesome (default: 'fa-plus')
 
     Uso:
         <x-navbar.button-create onclick="openModal('createModal')" />
         <x-navbar.button-create onclick="handleCreate()" moduleId="123" title="Crear Registro" id="btn-create" />
         <x-navbar.button-create onclick="handleCreate()" module="Marcas Finales" title="Crear Registro" id="btn-create" />
+        <x-navbar.button-create onclick="cargarInfo()" title="Cargar" icon="fa-download" />
 --}}
 
 @props([
@@ -25,7 +27,8 @@
     'disabled' => false,
     'module' => null,
     'moduleId' => null,
-    'checkPermission' => null
+    'checkPermission' => null,
+    'icon' => 'fa-plus'
 ])
 
 @php
@@ -64,7 +67,7 @@
     class="p-2 rounded-lg transition hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
     @if($disabled) disabled @endif
     title="{{ $title }}">
-    <i class="fa-solid fa-plus text-green-600 text-lg"></i>
+    <i class="fa-solid {{ $icon }} text-green-600 text-lg"></i>
 </button>
 @endif
 

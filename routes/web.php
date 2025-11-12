@@ -779,6 +779,12 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     // RUTAS LEGACY (MANTENER POR COMPATIBILIDAD)
     // ============================================
 
+    // Módulo Urdido
+    Route::prefix('urdido')->name('urdido.')->group(function () {
+        Route::get('/programar-urdido', function () {
+            return view('modulos.urdido.programar-urdido');
+        })->name('programar.urdido');
+    });
 
     // Módulo Engomado
     Route::get('/modulo-engomado', function () {
