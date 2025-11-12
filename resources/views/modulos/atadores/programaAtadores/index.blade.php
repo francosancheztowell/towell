@@ -4,7 +4,18 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-create onclick="openModal('createModal')" title="Nuevo Modal" module="Atadores"/>
+        <button onclick="iniciarAtado()" 
+            class="px-2 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200">
+            <i class="fas fa-play mr-1"></i> Iniciar Atado
+        </button>
+        <button onclick="calificaTejedor()" 
+            class="px-2 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors duration-200">
+            <i class="fas fa-user-check mr-1"></i> Califica Tejedor
+        </button>
+        <button onclick="calificaSupervisor()" 
+            class="px-2 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200">
+            <i class="fas fa-user-tie mr-1"></i> Califica Supervisor
+        </button>
     </div>
 @endsection
 
@@ -103,6 +114,130 @@
                 </tbody>
             </table>
         </div>
-    {{-- </div> --}}
 </div>
+
+<!-- Modal Calificar Tejedor -->
+<div id="calificarTejedor" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center border-b p-4">
+            <h2 class="text-xl font-bold text-gray-800">Calificar Tejedor</h2>
+            <button onclick="closeCalificarTejedor()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        <form id="formCalificarTejedor" onsubmit="submitCalificarTejedor(event)">
+            <div class="p-6">
+                <div class="grid grid-cols-1 gap-4">
+                    <!-- Calidad de Atado -->
+                    <div>
+                        <label for="calidadAtado" class="block text-sm font-medium text-gray-700 mb-2">
+                            Calidad de Atado <span class="text-red-500">*</span>
+                        </label>
+                        <select id="calidadAtado" name="calidadAtado" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 hover:border-green-400 hover:shadow-sm transition-all duration-200">
+                            <option value="">Seleccione una calificación</option>
+                            <option value="1">1 - Muy Deficiente</option>
+                            <option value="2">2 - Deficiente</option>
+                            <option value="3">3 - Insuficiente</option>
+                            <option value="4">4 - Regular Bajo</option>
+                            <option value="5">5 - Regular</option>
+                            <option value="6">6 - Aceptable</option>
+                            <option value="7">7 - Bueno</option>
+                            <option value="8">8 - Muy Bueno</option>
+                            <option value="9">9 - Excelente</option>
+                            <option value="10">10 - Sobresaliente</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Orden y Limpieza -->
+                    <div>
+                        <label for="ordenLimpieza" class="block text-sm font-medium text-gray-700 mb-2">
+                            Orden y Limpieza <span class="text-red-500">*</span>
+                        </label>
+                        <select id="ordenLimpieza" name="ordenLimpieza" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 hover:border-green-400 hover:shadow-sm transition-all duration-200">
+                            <option value="">Seleccione una calificación</option>
+                            <option value="1">1 - Muy Deficiente</option>
+                            <option value="2">2 - Deficiente</option>
+                            <option value="3">3 - Regular</option>
+                            <option value="4">4 - Bueno</option>
+                            <option value="5">5 - Excelente</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t p-4 flex justify-end gap-2">
+                <button type="button" onclick="closeCalificarTejedor()" 
+                    class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
+                    Cancelar
+                </button>
+                <button type="submit" 
+                    class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg">
+                    <i class="fas fa-save mr-1"></i> Guardar Calificación
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 @endsection
+
+@push('scripts')
+<script>
+function iniciarAtado(){
+    console.log("Iniciar Atado");
+    // Aquí irá la lógica para iniciar el atado
+}
+
+function calificaTejedor(){
+    // Abrir modal de calificación de tejedor
+    document.getElementById('calificarTejedor').classList.remove('hidden');
+    document.getElementById('calificarTejedor').classList.add('flex');
+}
+
+function closeCalificarTejedor(){
+    document.getElementById('calificarTejedor').classList.add('hidden');
+    document.getElementById('calificarTejedor').classList.remove('flex');
+    document.getElementById('formCalificarTejedor').reset();
+}
+
+function submitCalificarTejedor(event){
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const calidadAtado = formData.get('calidadAtado');
+    const ordenLimpieza = formData.get('ordenLimpieza');
+    
+    console.log('Calificación de Tejedor:', {
+        calidadAtado: calidadAtado,
+        ordenLimpieza: ordenLimpieza
+    });
+    
+    // Aquí irá la conexión con la DB
+    Swal.fire({
+        icon: 'success',
+        title: 'Calificación Guardada',
+        text: `Calidad de Atado: ${calidadAtado}, Orden y Limpieza: ${ordenLimpieza}`,
+        showConfirmButton: false,
+        timer: 2000
+    });
+    
+    closeCalificarTejedor();
+}
+
+function calificaSupervisor(){
+    console.log("Califica Supervisor");
+    // Aquí irá la lógica para calificar al supervisor
+}
+
+// Cerrar modal al hacer clic fuera
+window.onclick = function(event) {
+    const modalTejedor = document.getElementById('calificarTejedor');
+    
+    if (event.target === modalTejedor) {
+        closeCalificarTejedor();
+    }
+}
+</script>
+@endpush
