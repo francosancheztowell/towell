@@ -72,7 +72,6 @@ class ProgramarUrdEngController extends Controller
                 'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null,
                 'Metros' => isset($grupo['metros']) ? (float)$grupo['metros'] : null,
                 'Kilos' => isset($grupo['kilos']) ? (float)$grupo['kilos'] : null,
-                'NoProduccion' => $grupo['noProduccion'] ?? null,
                 'SalonTejidoId' => $grupo['salonTejidoId'] ?? $grupo['destino'] ?? null,
                 'MaquinaId' => $grupo['maquinaId'] ?? null,
                 'BomId' => $grupo['bomId'] ?? null, // L.Mat Urdido
@@ -96,7 +95,7 @@ class ProgramarUrdEngController extends Controller
                     'WMSLocationId' => $material['wmsLocationId'] ?? null,
                     'InventSerialId' => $material['inventSerialId'] ?? null,
                     'InventQty' => isset($material['kilos']) ? (float)$material['kilos'] : null,
-                    'ProdDate' => isset($material['prodDate']) ? (float)$material['prodDate'] : null,
+                    'ProdDate' => $this->parseProdDate($material['prodDate'] ?? null),
                     'Status' => $material['status'] ?? 'Activo',
                     'NumeroEmpleado' => $material['numeroEmpleado'] ?? $numeroEmpleado,
                     'NombreEmpl' => $material['nombreEmpl'] ?? $nombreEmpleado,
@@ -113,6 +112,7 @@ class ProgramarUrdEngController extends Controller
                         'Folio' => $folio,
                         'Julios' => isset($julio['julios']) && $julio['julios'] !== '' ? (int)$julio['julios'] : null,
                         'Hilos' => isset($julio['hilos']) && $julio['hilos'] !== '' ? (int)$julio['hilos'] : null,
+                        'Obs' => $julio['observaciones'] ?? null,
                     ]);
                 }
             }
@@ -128,13 +128,12 @@ class ProgramarUrdEngController extends Controller
                 'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null,
                 'Metros' => isset($grupo['metros']) ? (float)$grupo['metros'] : null,
                 'Kilos' => isset($grupo['kilos']) ? (float)$grupo['kilos'] : null,
-                'NoProduccion' => $grupo['noProduccion'] ?? null,
                 'SalonTejidoId' => $grupo['salonTejidoId'] ?? $grupo['destino'] ?? null,
                 'MaquinaUrd' => $grupo['maquinaId'] ?? null,
                 'BomUrd' => $grupo['bomId'] ?? null,
                 'FechaProg' => now()->format('Y-m-d'),
                 'Status' => $grupo['status'] ?? 'Activo',
-                'Nucleo' => $this->parseNucleo($datosEngomado['nucleo'] ?? null),
+                'Nucleo' => isset($datosEngomado['nucleo']) && $datosEngomado['nucleo'] !== '' ? (string)$datosEngomado['nucleo'] : null,
                 'NoTelas' => isset($datosEngomado['noTelas']) && $datosEngomado['noTelas'] !== '' ? (int)$datosEngomado['noTelas'] : null,
                 'AnchoBalonas' => isset($datosEngomado['anchoBalonas']) && $datosEngomado['anchoBalonas'] !== '' ? (int)$datosEngomado['anchoBalonas'] : null,
                 'MetrajeTelas' => isset($datosEngomado['metrajeTelas']) && $datosEngomado['metrajeTelas'] !== '' ? (float)str_replace(',', '', $datosEngomado['metrajeTelas']) : null,
@@ -192,55 +191,59 @@ class ProgramarUrdEngController extends Controller
     }
 
     /**
-     * Convertir núcleo de texto a número
-     * Mapea los nombres de núcleo a valores numéricos según el esquema de la base de datos
-     * Retorna null si el valor está vacío o no es reconocido
+     * Convertir ProdDate a formato de fecha válido para la base de datos
+     * Acepta string de fecha, Carbon, o null
      */
-    private function parseNucleo($nucleo): ?int
+    private function parseProdDate($prodDate)
     {
         // Si está vacío o es null, retornar null
-        if (empty($nucleo) || $nucleo === null || $nucleo === '') {
+        if (empty($prodDate) || $prodDate === null || $prodDate === '') {
             return null;
         }
 
-        // Convertir a string y normalizar (eliminar espacios, convertir a minúsculas)
-        $nucleoStr = strtolower(trim((string)$nucleo));
-
-        // Si está vacío después de trim, retornar null
-        if ($nucleoStr === '') {
-            return null;
+        // Si ya es una instancia de Carbon, retornarla
+        if ($prodDate instanceof \Carbon\Carbon) {
+            return $prodDate->format('Y-m-d');
         }
 
-        // Mapeo de nombres a números
-        $mapeo = [
-            'jacquard' => 1,
-            'itema' => 2,
-            'smith' => 3,
-        ];
-
-        // Si está en el mapeo, retornar el número
-        if (isset($mapeo[$nucleoStr])) {
-            return (int)$mapeo[$nucleoStr];
+        // Si es un string, intentar parsearlo
+        if (is_string($prodDate)) {
+            try {
+                // Intentar parsear como fecha
+                $date = \Carbon\Carbon::parse($prodDate);
+                return $date->format('Y-m-d');
+            } catch (\Exception $e) {
+                // Si no se puede parsear, registrar warning y retornar null
+                Log::warning('Error al parsear ProdDate', [
+                    'prodDate_original' => $prodDate,
+                    'error' => $e->getMessage()
+                ]);
+                return null;
+            }
         }
 
-        // Si es un número válido (puede venir como string numérico), retornarlo como int
-        if (is_numeric($nucleo)) {
-            return (int)$nucleo;
+        // Si es un timestamp numérico
+        if (is_numeric($prodDate)) {
+            try {
+                $date = \Carbon\Carbon::createFromTimestamp($prodDate);
+                return $date->format('Y-m-d');
+            } catch (\Exception $e) {
+                Log::warning('Error al convertir timestamp ProdDate', [
+                    'prodDate_original' => $prodDate,
+                    'error' => $e->getMessage()
+                ]);
+                return null;
+            }
         }
 
-        // Si es un string numérico después de limpiar
-        $nucleoNum = preg_replace('/[^\d]/', '', $nucleoStr);
-        if ($nucleoNum !== '' && is_numeric($nucleoNum)) {
-            return (int)$nucleoNum;
-        }
-
-        // Si no coincide con nada, registrar warning y retornar null
-        Log::warning('Valor de núcleo no reconocido, se guardará como NULL', [
-            'nucleo_original' => $nucleo,
-            'nucleo_normalizado' => $nucleoStr
+        // Si no coincide con ningún formato conocido, retornar null
+        Log::warning('Formato de ProdDate no reconocido', [
+            'prodDate_original' => $prodDate,
+            'tipo' => gettype($prodDate)
         ]);
 
         return null;
     }
+
 }
 

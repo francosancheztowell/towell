@@ -39,7 +39,7 @@ class UrdConsumoHilo extends Model
     protected $casts = [
         'Id' => 'integer',
         'InventQty' => 'float',
-        'ProdDate' => 'float',
+        'ProdDate' => 'date',
         'Conos' => 'integer',
     ];
 

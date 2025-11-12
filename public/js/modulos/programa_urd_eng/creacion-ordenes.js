@@ -145,7 +145,7 @@ function agruparTelares(telares) {
 
         if (!grupos[clave]) {
             grupos[clave] = { telares:[], cuenta, calibre, hilo, tipo:tipoN, urdido, tipoAtado, destino,
-                              fechaReq: telar.fecha_req || '', metros:0, kilos:0 };
+                              fechaReq: telar.fecha_req || '', metros:0, kilos:0, maquinaId: telar.urdido || telar.maquina_urd || telar.maquinaId || '' };
         }
         grupos[clave].telares.push(telar);
         grupos[clave].metros += telar.metros || 0;
@@ -157,7 +157,7 @@ function agruparTelares(telares) {
         out.push({
             telares:[t], telaresStr:t.no_telar, cuenta:t.cuenta || '', calibre:t.calibre || '', hilo:t.hilo || '',
             tipo: normalizarTipo(t.tipo), urdido:t.urdido || '', tipoAtado:t.tipo_atado || 'Normal', destino:t.destino || '',
-            fechaReq:t.fecha_req || '', metros:t.metros || 0, kilos:t.kilos || 0
+            fechaReq:t.fecha_req || '', metros:t.metros || 0, kilos:t.kilos || 0, maquinaId: t.urdido || t.maquina_urd || t.maquinaId || ''
         });
     }
     return out;
@@ -537,7 +537,7 @@ async function cargarMaterialesEngomado(itemIds, configIds=[], bomId=null, forza
 function renderTablaMaterialesEngomado(materiales=[], bomId=null) {
     const tbody = qs('#tbodyMaterialesEngomado');
     if (!Array.isArray(materiales) || !materiales.length) {
-        tbody.innerHTML = `<tr><td colspan="13" class="px-4 py-8 text-center text-gray-500">
+        tbody.innerHTML = `<tr><td colspan="14" class="px-4 py-8 text-center text-gray-500">
             <i class="fa-solid fa-circle-info text-gray-400 mb-2"></i><p>No hay materiales de engomado disponibles.</p></td></tr>`;
 
         // Guardar materiales vacíos en gruposData
@@ -564,6 +564,7 @@ function renderTablaMaterialesEngomado(materiales=[], bomId=null) {
         const conos  = toNumber(m.TwTiras, 0);
         const lotePr = m.TwCalidadFlog || '-';
         const noProv = m.TwClienteFlog || '-';
+        const prodDate = m.ProdDate ? fmtDate(m.ProdDate) : (m.ProdDate || '-');
         const checkboxKey = `${m.ItemId || ''}_${m.InventSerialId || ''}`;
 
         const tr = document.createElement('tr');
@@ -582,6 +583,7 @@ function renderTablaMaterialesEngomado(materiales=[], bomId=null) {
             <td class="px-2 py-3 text-xs text-center">${fmtNumber(conos)}</td>
             <td class="px-2 py-3 text-xs text-center">${lotePr}</td>
             <td class="px-2 py-3 text-xs text-center">${noProv}</td>
+            <td class="px-2 py-3 text-xs text-center">${prodDate}</td>
             <td class="px-2 py-3 text-center">
                 <input type="checkbox" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 checkbox-material"
                     data-material-id="${m.ItemId || ''}" data-serial-id="${m.InventSerialId || ''}"
@@ -785,6 +787,7 @@ window.crearOrdenes = async function() {
                     conos: toNumber(material.TwTiras, 0),
                     loteProv: material.TwCalidadFlog || '',
                     noProv: material.TwClienteFlog || '',
+                    prodDate: material.ProdDate || null,
                     status: 'Activo'
                 });
             }
@@ -798,12 +801,14 @@ window.crearOrdenes = async function() {
             if (inputs.length >= 2) {
                 const julios = inputs[0]?.value?.trim();
                 const hilos = inputs[1]?.value?.trim();
+                const observaciones = inputs[2]?.value?.trim() || '';
 
                 // Solo agregar si tiene al menos julios o hilos
                 if (!isBlank(julios) || !isBlank(hilos)) {
                     construccionUrdido.push({
                         julios: julios || '',
-                        hilos: hilos || ''
+                        hilos: hilos || '',
+                        observaciones: observaciones
                     });
                 }
             }
@@ -947,7 +952,7 @@ window.crearOrdenes = async function() {
             noProduccion: grupo.noProduccion || '',
             salonTejidoId: grupo.destino || '',
             destino: grupo.destino || '',
-            maquinaId: grupo.maquinaId || '',
+            maquinaId: grupo.maquinaId || grupo.urdido || '',
             bomId: bomId,
             status: 'Activo'
         };

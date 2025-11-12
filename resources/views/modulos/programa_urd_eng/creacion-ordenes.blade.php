@@ -75,6 +75,7 @@
                             <th class="px-2 py-2 text-center text-xs font-semibold w-20">Conos</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-28">Lote Proveedor</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-24">No Proveedor</th>
+                            <th class="px-2 py-2 text-center text-xs font-semibold w-28">Fecha</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-20">Seleccionar</th>
                         </tr>
                     </thead>

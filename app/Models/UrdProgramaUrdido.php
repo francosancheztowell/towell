@@ -25,7 +25,6 @@ class UrdProgramaUrdido extends Model
         'Fibra',
         'Metros',
         'Kilos',
-        'NoProduccion',
         'SalonTejidoId',
         'MaquinaId',
         'BomId',

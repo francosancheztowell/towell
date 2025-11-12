@@ -19,6 +19,7 @@ class UrdJuliosOrden extends Model
         'Folio',
         'Julios',
         'Hilos',
+        'Obs',
     ];
 
     protected $casts = [
