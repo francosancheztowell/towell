@@ -119,28 +119,11 @@ class ModuloService
      */
     public function getSubmodulosNivel3(string $ordenPadre, int $idusuario): Collection
     {
-        // Primero, obtener el módulo padre para verificar su dependencia
-        $moduloPadre = SYSRoles::where('orden', $ordenPadre)->first();
-
-        // Si el módulo padre tiene dependencia 500 (Atadores), buscar módulos nieto por prefijo de orden
-        // Los módulos nieto de Atadores tienen Dependencia = 500 pero orden que empieza con el orden del padre (ej: 503-1, 503-2)
-        if ($moduloPadre && $moduloPadre->Dependencia == '500') {
-            // Buscar módulos de nivel 3 que tengan Dependencia = 500 y orden que empiece con el orden del padre
-            $query = SYSRoles::where('Nivel', 3)
-                ->where('Dependencia', '500')
-                ->where('orden', 'like', $ordenPadre . '-%')
-                ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
-                ->where('SYSUsuariosRoles.idusuario', $idusuario)
-                ->where('SYSUsuariosRoles.acceso', true);
-        } else {
-            // Para otros módulos, usar la lógica original (buscar por Dependencia = ordenPadre)
-            $query = SYSRoles::submodulosDe($ordenPadre, 3)
-                ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
-                ->where('SYSUsuariosRoles.idusuario', $idusuario)
-                ->where('SYSUsuariosRoles.acceso', true);
-        }
-
-        return $query
+        // Usar join para optimizar la consulta
+        return SYSRoles::submodulosDe($ordenPadre, 3)
+            ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
+            ->where('SYSUsuariosRoles.idusuario', $idusuario)
+            ->where('SYSUsuariosRoles.acceso', true)
             ->select(
                 'SYSRoles.*',
                 'SYSUsuariosRoles.acceso as usuario_acceso',
