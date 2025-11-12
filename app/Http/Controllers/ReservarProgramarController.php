@@ -8,6 +8,7 @@ use App\Models\InvTelasReservadas;
 use App\Models\ReqProgramaTejido;
 use App\Models\ReqProgramaTejidoLine;
 use App\Models\URDCatalogoMaquina;
+use App\Models\EngAnchoBalonaCuenta;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -1221,6 +1222,134 @@ class ReservarProgramarController extends Controller
                 'file' => $e->getFile()
             ]);
             return response()->json(['error' => 'Error al obtener materiales de engomado: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Obtener anchos de balona por cuenta y tipo (Rizo/Pie)
+     */
+    public function getAnchosBalona(Request $request)
+    {
+        try {
+            $request->validate([
+                'cuenta' => ['nullable', 'string', 'max:10'],
+                'tipo' => ['nullable', 'string', 'in:Rizo,Pie'],
+            ]);
+
+            $cuenta = $request->input('cuenta');
+            $tipo = $request->input('tipo');
+
+            $query = EngAnchoBalonaCuenta::query();
+
+            if ($cuenta) {
+                $query->where('Cuenta', $cuenta);
+            }
+
+            if ($tipo) {
+                $query->where('RizoPie', $tipo);
+            }
+
+            $resultados = $query->orderBy('AnchoBalona')->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $resultados->map(function ($item) {
+                    return [
+                        'id' => $item->Id,
+                        'anchoBalona' => $item->AnchoBalona,
+                        'cuenta' => $item->Cuenta,
+                        'rizoPie' => $item->RizoPie,
+                    ];
+                }),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('getAnchosBalona: Error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al obtener anchos de balona: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener máquinas de engomado
+     */
+    public function getMaquinasEngomado(Request $request)
+    {
+        try {
+            $maquinas = URDCatalogoMaquina::where('Departamento', 'Engomado')
+                ->orderBy('Nombre')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $maquinas->map(function ($maquina) {
+                    return [
+                        'maquinaId' => $maquina->MaquinaId,
+                        'nombre' => $maquina->Nombre,
+                        'departamento' => $maquina->Departamento,
+                    ];
+                }),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('getMaquinasEngomado: Error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al obtener máquinas de engomado: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Buscar BOM (L.Mat Engomado) con autocompletado
+     * Filtra por ItemGroupId = 'JUL-ENG' y DataAreaId = 'PRO'
+     */
+    public function buscarBomEngomado(Request $request)
+    {
+        try {
+            $query = trim((string) $request->query('q', ''));
+
+            $q = DB::connection('sqlsrv_ti')
+                ->table('BOMTABLE as bt')
+                ->join('BOM as b', function($join) {
+                    $join->on('b.BOMID', '=', 'bt.BOMID')
+                         ->on('b.DATAAREAID', '=', 'bt.DATAAREAID');
+                })
+                ->leftJoin('INVENTTABLE as it', function($join) {
+                    $join->on('it.ITEMID', '=', 'b.ITEMID')
+                         ->on('it.DATAAREAID', '=', 'b.DATAAREAID');
+                })
+                ->where('bt.DATAAREAID', 'PRO')
+                ->where('bt.ITEMGROUPID', 'JUL-ENG');
+
+            if (strlen($query) >= 1) {
+                $q->where(function($subQ) use ($query) {
+                    $subQ->where('bt.BOMID', 'LIKE', $query . '%')
+                         ->orWhere('b.ITEMID', 'LIKE', $query . '%')
+                         ->orWhere('it.ITEMNAME', 'LIKE', '%' . $query . '%');
+                });
+            }
+
+            return response()->json(
+                $q->select(
+                        'bt.BOMID as BOMID',
+                        'b.ITEMID as ITEMID',
+                        DB::raw('COALESCE(it.ITEMNAME, b.ITEMID) as ITEMNAME')
+                    )
+                  ->distinct()
+                  ->orderBy('bt.BOMID')
+                  ->limit(20)
+                  ->get()
+            );
+        } catch (\Throwable $e) {
+            Log::error('buscarBomEngomado: Error', ['message' => $e->getMessage(), 'query' => $query]);
+            return response()->json(['error' => 'Error al buscar BOM de engomado'], 500);
         }
     }
 }

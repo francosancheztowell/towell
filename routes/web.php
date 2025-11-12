@@ -24,6 +24,7 @@ use App\Http\Controllers\CodificacionController;
 use App\Http\Controllers\InventarioTelaresController;
 use App\Http\Controllers\InvTelasReservadasController;
 use App\Http\Controllers\ReservarProgramarController;
+use App\Http\Controllers\ProgramarUrdEngController;
 use App\Http\Controllers\TelActividadesBPMController;
 use App\Http\Controllers\TelBpmController;
 use App\Http\Controllers\TelBpmLineController;
@@ -566,8 +567,12 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
         Route::get('/reservas/{noTelar}', [InvTelasReservadasController::class, 'porTelar'])->name('reservas.porTelar');
         Route::post('/reservas/cancelar', [InvTelasReservadasController::class, 'cancelar'])->name('reservas.cancelar');
         Route::get('/buscar-bom-urdido', [ReservarProgramarController::class, 'buscarBomUrdido'])->name('buscar.bom.urdido');
+        Route::get('/buscar-bom-engomado', [ReservarProgramarController::class, 'buscarBomEngomado'])->name('buscar.bom.engomado');
         Route::get('/materiales-urdido', [ReservarProgramarController::class, 'getMaterialesUrdido'])->name('materiales.urdido');
         Route::get('/materiales-engomado', [ReservarProgramarController::class, 'getMaterialesEngomado'])->name('materiales.engomado');
+        Route::get('/anchos-balona', [ReservarProgramarController::class, 'getAnchosBalona'])->name('anchos.balona');
+        Route::get('/maquinas-engomado', [ReservarProgramarController::class, 'getMaquinasEngomado'])->name('maquinas.engomado');
+        Route::post('/crear-ordenes', [ProgramarUrdEngController::class, 'crearOrdenes'])->name('crear.ordenes');
     });
 
     // ============================================
@@ -781,7 +786,7 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     })->name('folio.pantalla');
 
     // Módulo Atadores
-    
+
     // Ruta principal desde produccionProceso
     Route::get('produccionProceso/atadores', [AtadoresController::class, 'index'])
         ->name('atadores.index');
