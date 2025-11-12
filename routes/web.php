@@ -17,6 +17,7 @@ use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\AplicacionesController;
 use App\Http\Controllers\AtadoresController;
 use App\Http\Controllers\AtaActividadesController;
+use App\Http\Controllers\AtaComentariosController;
 use App\Http\Controllers\NuevoRequerimientoController;
 use App\Http\Controllers\ProduccionReenconadoCabezuelaController;
 use App\Http\Controllers\ConsultarRequerimientoController;
@@ -816,9 +817,11 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::put('/atadores/catalogos/actividades/{id}', [AtaActividadesController::class, 'update'])->name('atadores.catalogos.actividades.update');
     Route::delete('/atadores/catalogos/actividades/{id}', [AtaActividadesController::class, 'destroy'])->name('atadores.catalogos.actividades.destroy');
 
-    Route::get('/atadores/catalogos/comentarios', function () {
-        return view('modulos.catalogos-atadores.comentarios.index');
-    })->name('atadores.catalogos.comentarios');
+    Route::get('/atadores/catalogos/comentarios', [AtaComentariosController::class, 'index'])->name('atadores.catalogos.comentarios');
+    Route::post('/atadores/catalogos/comentarios', [AtaComentariosController::class, 'store'])->name('atadores.catalogos.comentarios.store');
+    Route::get('/atadores/catalogos/comentarios/{nota1}', [AtaComentariosController::class, 'show'])->name('atadores.catalogos.comentarios.show');
+    Route::put('/atadores/catalogos/comentarios/{nota1}', [AtaComentariosController::class, 'update'])->name('atadores.catalogos.comentarios.update');
+    Route::delete('/atadores/catalogos/comentarios/{nota1}', [AtaComentariosController::class, 'destroy'])->name('atadores.catalogos.comentarios.destroy');
 
     Route::get('/atadores/catalogos/maquinas', function () {
         return view('modulos.catalogos-atadores.maquinas.index');
