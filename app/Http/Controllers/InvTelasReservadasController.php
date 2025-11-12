@@ -74,25 +74,64 @@ class InvTelasReservadasController extends Controller
                 }
             }
 
-            // 1) Mapa “dimKey -> NoTelarId” de lo ya reservado
-            $reservadasMap = [];
+            // 1) Cargar todas las reservas activas y crear mapas
+            $reservadasMap = [];  // dimKey -> NoTelarId
+            $reservadasCompletas = [];  // dimKey -> objeto completo de reserva
+            $totalReservadas = 0;
+
             InvTelasReservadas::query()
                 ->where('Status', 'Reservado')
                 ->select([
-                    'ItemId','ConfigId','InventSizeId','InventColorId',
+                    'Id', 'ItemId','ConfigId','InventSizeId','InventColorId',
                     'InventLocationId','InventBatchId','WMSLocationId','InventSerialId',
-                    'NoTelarId'
+                    'NoTelarId', 'Tipo', 'Metros', 'InventQty', 'ProdDate', 'SalonTejidoId'
                 ])
-                ->chunk(500, function ($chunk) use (&$reservadasMap) {
+                ->chunk(500, function ($chunk) use (&$reservadasMap, &$reservadasCompletas, &$totalReservadas) {
                     foreach ($chunk as $r) {
-                        $reservadasMap[$this->dimKey($r)] = $r->NoTelarId;
+                        $key = $this->dimKey($r);
+                        $reservadasMap[$key] = $r->NoTelarId;
+                        $reservadasCompletas[$key] = $r;
+                        $totalReservadas++;
                     }
                 });
+
+            // Log específico para la reserva con Id 73 (diagnóstico)
+            $reserva73 = InvTelasReservadas::where('Id', 73)->where('Status', 'Reservado')->first();
+            if ($reserva73) {
+                $key73 = $this->dimKey($reserva73);
+                Log::info('InvDisponible: Reserva ID 73 encontrada', [
+                    'reserva_id' => $reserva73->Id,
+                    'itemId' => $reserva73->ItemId,
+                    'configId' => $reserva73->ConfigId,
+                    'inventSizeId' => $reserva73->InventSizeId,
+                    'inventColorId' => $reserva73->InventColorId,
+                    'inventLocationId' => $reserva73->InventLocationId,
+                    'inventBatchId' => $reserva73->InventBatchId,
+                    'wmsLocationId' => $reserva73->WMSLocationId,
+                    'inventSerialId' => $reserva73->InventSerialId,
+                    'noTelarId' => $reserva73->NoTelarId,
+                    'dimKey' => $key73,
+                    'en_reservadas_map' => isset($reservadasMap[$key73]),
+                    'en_reservadas_completas' => isset($reservadasCompletas[$key73]),
+                ]);
+            }
+
+            Log::info('InvDisponible: Reservas cargadas', [
+                'total_reservadas' => $totalReservadas,
+                'reservadas_map_size' => count($reservadasMap),
+                'sample_keys' => array_slice(array_keys($reservadasMap), 0, 5),
+            ]);
 
             // 2) Traer disponible TI-PRO
             $rows = $this->queryDisponibleFromTiPro($filtrosTi, self::LIMIT_TI);
 
-            // 3) Merge + filtro por NoTelarId (si viene)
+            Log::info('InvDisponible: Inventario TI-PRO consultado', [
+                'total_rows' => count($rows),
+                'sample_row' => $rows[0] ?? null,
+            ]);
+
+            // 3) Merge: marcar registros de TI-PRO que están reservados
+            $keysEnTI = []; // Claves dimensionales encontradas en TI-PRO
             $out = [];
             $wantOnlyAvailable = false;
             if ($filtroNoTelarId !== null && $filtroNoTelarId !== '') {
@@ -100,8 +139,27 @@ class InvTelasReservadasController extends Controller
                 $wantOnlyAvailable = in_array($v, ['null','vacío','vacio','disponible'], true);
             }
 
+            $coincidencias = 0;
+            $noCoincidencias = 0;
+            $sampleKeys = [];
+
             foreach ($rows as $row) {
-                $row->NoTelarId = $reservadasMap[$this->dimKey($row)] ?? null;
+                $rowKey = $this->dimKey($row);
+                $keysEnTI[$rowKey] = true;
+                $row->NoTelarId = $reservadasMap[$rowKey] ?? null;
+
+                if ($row->NoTelarId !== null) {
+                    $coincidencias++;
+                    if (count($sampleKeys) < 3) {
+                        $sampleKeys[] = [
+                            'key' => $rowKey,
+                            'noTelarId' => $row->NoTelarId,
+                            'itemId' => $row->ItemId ?? null,
+                        ];
+                    }
+                } else {
+                    $noCoincidencias++;
+                }
 
                 if ($filtroNoTelarId !== null && $filtroNoTelarId !== '') {
                     if ($wantOnlyAvailable) {
@@ -117,6 +175,149 @@ class InvTelasReservadasController extends Controller
 
                 $out[] = $row;
             }
+
+            // 4) Agregar reservas que NO están en TI-PRO pero que están reservadas
+            // Esto incluye casos donde el inventario ya fue consumido o movido
+            $reservasNoEnTI = 0;
+            foreach ($reservadasCompletas as $key => $reserva) {
+                // Si no está en TI-PRO
+                if (!isset($keysEnTI[$key])) {
+                    // Si estamos filtrando por "solo disponibles", no agregar reservas
+                    if ($wantOnlyAvailable) {
+                        continue;
+                    }
+
+                    // Si hay filtro por NoTelarId, verificar si coincide
+                    if ($filtroNoTelarId !== null && $filtroNoTelarId !== '') {
+                        // Si filtramos por un telar específico, verificar
+                        if (stripos((string)($reserva->NoTelarId ?? ''), $filtroNoTelarId) === false) {
+                            continue;
+                        }
+                    }
+                    // Si no hay filtro por NoTelarId, agregar todas las reservas que no están en TI-PRO
+
+                    // Crear objeto compatible con el formato esperado
+                    $rowReservado = (object)[
+                        'ItemId' => $reserva->ItemId ?? '',
+                        'ConfigId' => $reserva->ConfigId ?? '',
+                        'InventSizeId' => $reserva->InventSizeId ?? '',
+                        'InventColorId' => $reserva->InventColorId ?? '',
+                        'InventLocationId' => $reserva->InventLocationId ?? '',
+                        'InventBatchId' => $reserva->InventBatchId ?? '',
+                        'WMSLocationId' => $reserva->WMSLocationId ?? '',
+                        'InventSerialId' => $reserva->InventSerialId ?? '',
+                        'Tipo' => $reserva->Tipo ?? null,
+                        'Metros' => $reserva->Metros ?? 0,
+                        'InventQty' => $reserva->InventQty ?? 0,
+                        'ProdDate' => $reserva->ProdDate ? ($reserva->ProdDate instanceof Carbon ? $reserva->ProdDate->toDateTimeString() : (string)$reserva->ProdDate) : null,
+                        'NoTelarId' => $reserva->NoTelarId ?? '',
+                        'ReservaId' => $reserva->Id ?? null,
+                        'NoDisponibleEnTI' => true, // Flag para indicar que no está en TI-PRO
+                        'SalonTejidoId' => $reserva->SalonTejidoId ?? null,
+                    ];
+
+                    // Aplicar filtros adicionales si existen (excepto NoTelarId que ya se procesó)
+                    $cumpleFiltros = true;
+                    foreach ($filtrosTi as $f) {
+                        $col = $f['columna'] ?? null;
+                        $val = trim($f['valor'] ?? '');
+                        if (!$col || $val === '') continue;
+
+                        $valorCampo = $rowReservado->$col ?? null;
+                        $valorCampoStr = is_null($valorCampo) ? '' : trim((string)$valorCampo);
+
+                        if ($col === 'Tipo') {
+                            $v = mb_strtolower($val, 'UTF-8');
+                            $tipoReserva = mb_strtolower($rowReservado->Tipo ?? '', 'UTF-8');
+                            if ((strpos($v, 'rizo') !== false && $tipoReserva !== 'rizo') ||
+                                (strpos($v, 'pie') !== false && $tipoReserva !== 'pie')) {
+                                $cumpleFiltros = false;
+                                break;
+                            }
+                            continue;
+                        }
+
+                        if (stripos($valorCampoStr, $val) === false) {
+                            $cumpleFiltros = false;
+                            break;
+                        }
+                    }
+
+                    if ($cumpleFiltros) {
+                        // Log específico si es la reserva 73
+                        if (($reserva->Id ?? null) == 73) {
+                            Log::info('InvDisponible: Reserva ID 73 agregada a resultado', [
+                                'reserva_id' => $reserva->Id,
+                                'noTelarId' => $reserva->NoTelarId,
+                                'itemId' => $reserva->ItemId,
+                                'dimKey' => $key,
+                                'filtroNoTelarId' => $filtroNoTelarId,
+                                'wantOnlyAvailable' => $wantOnlyAvailable,
+                                'cumpleFiltros' => $cumpleFiltros,
+                                'rowReservado' => $rowReservado,
+                            ]);
+                        }
+                        $out[] = $rowReservado;
+                        $reservasNoEnTI++;
+                    } else {
+                        // Log si la reserva 73 no cumple los filtros
+                        if (($reserva->Id ?? null) == 73) {
+                            Log::warning('InvDisponible: Reserva ID 73 NO agregada - no cumple filtros', [
+                                'reserva_id' => $reserva->Id,
+                                'noTelarId' => $reserva->NoTelarId,
+                                'itemId' => $reserva->ItemId,
+                                'dimKey' => $key,
+                                'filtroNoTelarId' => $filtroNoTelarId,
+                                'wantOnlyAvailable' => $wantOnlyAvailable,
+                                'cumpleFiltros' => $cumpleFiltros,
+                                'filtrosTi' => $filtrosTi,
+                            ]);
+                        }
+                    }
+                } else {
+                    // Log si la reserva 73 ya está en TI-PRO
+                    if (($reserva->Id ?? null) == 73) {
+                        Log::info('InvDisponible: Reserva ID 73 ya está en TI-PRO (no se agregará por separado)', [
+                            'reserva_id' => $reserva->Id,
+                            'dimKey' => $key,
+                            'noTelarId' => $reserva->NoTelarId,
+                        ]);
+                    }
+                }
+            }
+
+            // Verificar si la reserva 73 está en el resultado final
+            $reserva73EnResultado = false;
+            foreach ($out as $row) {
+                if (isset($row->ReservaId) && $row->ReservaId == 73) {
+                    $reserva73EnResultado = true;
+                    Log::info('InvDisponible: Reserva ID 73 ENCONTRADA en resultado final', [
+                        'reserva_id' => $row->ReservaId,
+                        'noTelarId' => $row->NoTelarId ?? null,
+                        'itemId' => $row->ItemId ?? null,
+                        'noDisponibleEnTI' => $row->NoDisponibleEnTI ?? false,
+                    ]);
+                    break;
+                }
+            }
+            if (!$reserva73EnResultado) {
+                Log::warning('InvDisponible: Reserva ID 73 NO encontrada en resultado final', [
+                    'total_resultados' => count($out),
+                    'filtroNoTelarId' => $filtroNoTelarId,
+                    'wantOnlyAvailable' => $wantOnlyAvailable,
+                    'filtrosTi' => $filtrosTi,
+                ]);
+            }
+
+            Log::info('InvDisponible: Merge completado', [
+                'total_rows_ti' => count($rows),
+                'coincidencias_reservadas' => $coincidencias,
+                'no_reservadas' => $noCoincidencias,
+                'reservas_no_en_ti' => $reservasNoEnTI,
+                'total_final' => count($out),
+                'sample_coincidencias' => $sampleKeys,
+                'reserva73_en_resultado' => $reserva73EnResultado,
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -177,18 +378,54 @@ class InvTelasReservadasController extends Controller
                 Log::warning('Reservar: No hay usuario autenticado', ['request' => $request->all()]);
             }
 
+            // Normalizar valores dimensionales para consistencia
+            $dimFields = ['ItemId', 'ConfigId', 'InventSizeId', 'InventColorId',
+                         'InventLocationId', 'InventBatchId', 'WMSLocationId', 'InventSerialId'];
+            foreach ($dimFields as $field) {
+                if (isset($data[$field])) {
+                    $data[$field] = $this->normalizeDimValue($data[$field]);
+                }
+            }
+
+            // Generar clave dimensional para logging
+            $dimKeyForLog = $this->dimKey($data);
+
+            Log::info('Reservar: Intentando crear reserva', [
+                'dimKey' => $dimKeyForLog,
+                'noTelarId' => $data['NoTelarId'] ?? null,
+                'itemId' => $data['ItemId'] ?? null,
+                'data_normalizada' => array_intersect_key($data, array_flip($dimFields)),
+            ]);
+
             $created = false;
             $msg = 'Pieza reservada correctamente';
 
             try {
-                InvTelasReservadas::create($data);
+                $reserva = InvTelasReservadas::create($data);
                 $created = true;
+
+                Log::info('Reservar: Reserva creada exitosamente', [
+                    'reserva_id' => $reserva->Id ?? null,
+                    'dimKey' => $dimKeyForLog,
+                    'noTelarId' => $reserva->NoTelarId ?? null,
+                    'status' => $reserva->Status ?? null,
+                ]);
             } catch (\Illuminate\Database\QueryException $qe) {
                 // 2601/2627 = índice único
                 if (!in_array($qe->getCode(), [2601, 2627], true)) {
+                    Log::error('Reservar: Error de base de datos', [
+                        'error' => $qe->getMessage(),
+                        'code' => $qe->getCode(),
+                        'dimKey' => $dimKeyForLog,
+                    ]);
                     throw $qe;
                 }
                 $msg = 'La pieza ya estaba reservada (no se duplicó).';
+
+                Log::info('Reservar: Reserva ya existía (índice único)', [
+                    'dimKey' => $dimKeyForLog,
+                    'noTelarId' => $data['NoTelarId'] ?? null,
+                ]);
             }
 
             return response()->json([
@@ -211,7 +448,65 @@ class InvTelasReservadasController extends Controller
             ->limit(500)
             ->get();
 
-        return response()->json(['success'=>true,'data'=>$rows,'total'=>$rows->count()]);
+        // Generar dimKey para cada reserva para verificación
+        $rowsWithKey = $rows->map(function($r) {
+            $r->dimKey = $this->dimKey($r);
+            return $r;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data'    => $rowsWithKey,
+            'total'   => $rows->count()
+        ]);
+    }
+
+    /** GET método de diagnóstico: verificar reservas recientes y sus dimKeys */
+    public function diagnosticarReservas(Request $request)
+    {
+        try {
+            $limit = (int)($request->query('limit', 10));
+            $noTelar = $request->query('noTelar');
+
+            $query = InvTelasReservadas::where('Status', 'Reservado')
+                ->orderByDesc('Id');
+
+            if ($noTelar) {
+                $query->where('NoTelarId', $noTelar);
+            }
+
+            $reservas = $query->limit($limit)->get();
+
+            $diagnostico = $reservas->map(function($r) {
+                return [
+                    'id' => $r->Id,
+                    'noTelarId' => $r->NoTelarId,
+                    'itemId' => $r->ItemId,
+                    'configId' => $r->ConfigId,
+                    'inventSizeId' => $r->InventSizeId,
+                    'inventColorId' => $r->InventColorId,
+                    'inventLocationId' => $r->InventLocationId,
+                    'inventBatchId' => $r->InventBatchId,
+                    'wmsLocationId' => $r->WMSLocationId,
+                    'inventSerialId' => $r->InventSerialId,
+                    'dimKey' => $this->dimKey($r),
+                    'status' => $r->Status,
+                    'created_at' => $r->created_at?->toIso8601String(),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $diagnostico,
+                'total' => $reservas->count(),
+            ]);
+        } catch (Throwable $e) {
+            Log::error('DiagnosticarReservas error', ['msg' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al diagnosticar reservas: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /** POST cancelar por Id o por clave dimensional + telar */
@@ -266,31 +561,40 @@ class InvTelasReservadasController extends Controller
         return $out;
     }
 
-    /** Llave única de la pieza (para cruzar con reservas locales) */
+    /**
+     * Normaliza un valor para la clave dimensional.
+     * Convierte NULL a string vacío, elimina espacios y normaliza.
+     */
+    private function normalizeDimValue($value): string
+    {
+        if ($value === null || $value === 'null' || $value === 'NULL') {
+            return '';
+        }
+        if (is_numeric($value)) {
+            return trim((string)$value);
+        }
+        return trim((string)$value);
+    }
+
+    /** Llave única de la pieza (para cruzar con reservas locales).
+     * IMPORTANTE: Normaliza valores para evitar discrepancias por NULL, espacios, etc.
+     */
     private function dimKey($obj): string
     {
-        if (is_array($obj)) {
-            return implode('|', [
-                $obj['ItemId'] ?? null,
-                $obj['ConfigId'] ?? null,
-                $obj['InventSizeId'] ?? null,
-                $obj['InventColorId'] ?? null,
-                $obj['InventLocationId'] ?? null,
-                $obj['InventBatchId'] ?? null,
-                $obj['WMSLocationId'] ?? null,
-                $obj['InventSerialId'] ?? null,
-            ]);
+        $fields = ['ItemId', 'ConfigId', 'InventSizeId', 'InventColorId',
+                   'InventLocationId', 'InventBatchId', 'WMSLocationId', 'InventSerialId'];
+
+        $values = [];
+        foreach ($fields as $field) {
+            if (is_array($obj)) {
+                $value = $obj[$field] ?? null;
+            } else {
+                $value = $obj->$field ?? null;
+            }
+            $values[] = $this->normalizeDimValue($value);
         }
-        return implode('|', [
-            $obj->ItemId ?? null,
-            $obj->ConfigId ?? null,
-            $obj->InventSizeId ?? null,
-            $obj->InventColorId ?? null,
-            $obj->InventLocationId ?? null,
-            $obj->InventBatchId ?? null,
-            $obj->WMSLocationId ?? null,
-            $obj->InventSerialId ?? null,
-        ]);
+
+        return implode('|', $values);
     }
 
     /**
@@ -337,14 +641,14 @@ class InvTelasReservadasController extends Controller
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 SELECT TOP ($limit)
-    s.ItemId,
-    d.ConfigId,
-    d.InventSizeId,
-    d.InventColorId,
-    d.InventLocationId,
-    d.InventBatchId,
-    d.WMSLocationId,
-    d.InventSerialId,
+    LTRIM(RTRIM(ISNULL(s.ItemId, ''))) AS ItemId,
+    LTRIM(RTRIM(ISNULL(d.ConfigId, ''))) AS ConfigId,
+    LTRIM(RTRIM(ISNULL(d.InventSizeId, ''))) AS InventSizeId,
+    LTRIM(RTRIM(ISNULL(d.InventColorId, ''))) AS InventColorId,
+    LTRIM(RTRIM(ISNULL(d.InventLocationId, ''))) AS InventLocationId,
+    LTRIM(RTRIM(ISNULL(d.InventBatchId, ''))) AS InventBatchId,
+    LTRIM(RTRIM(ISNULL(d.WMSLocationId, ''))) AS WMSLocationId,
+    LTRIM(RTRIM(ISNULL(d.InventSerialId, ''))) AS InventSerialId,
     CASE
         WHEN s.ItemId LIKE ? THEN 'Rizo'
         WHEN s.ItemId LIKE ? THEN 'Pie'

@@ -103,21 +103,10 @@
                     <tbody id="tbodyConstruccionUrdido" class="bg-white divide-y">
                         <tr>
                             <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
-                            </td>
-                            <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
-                            </td>
-                            <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
                                 <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
@@ -125,10 +114,10 @@
                         </tr>
                         <tr>
                             <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
                                 <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
@@ -136,10 +125,21 @@
                         </tr>
                         <tr>
                             <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                            </td>
+                            <td class="px-2 py-0.5">
+                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
                                 <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-2 py-0.5">
+                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                            </td>
+                            <td class="px-2 py-0.5">
+                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
                                 <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>

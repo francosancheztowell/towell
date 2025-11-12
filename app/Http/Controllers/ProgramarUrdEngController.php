@@ -7,10 +7,13 @@ use App\Models\EngProgramaEngomado;
 use App\Models\UrdJuliosOrden;
 use App\Models\UrdConsumoHilo;
 use App\Models\SSYSFoliosSecuencia;
+use App\Models\TejInventarioTelares;
 use App\Helpers\TurnoHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
+
 use Illuminate\Support\Facades\Auth;
 
 class ProgramarUrdEngController extends Controller
@@ -56,8 +59,10 @@ class ProgramarUrdEngController extends Controller
             $folioConsumo = $folioConsumoData['folio']; // Ejemplo: "CH00001"
 
             // =================== PASO 2: Generar Folio (URD/ENG) para tabla 2 ===================
+            // IMPORTANTE: Este Folio será usado como no_orden en TejInventarioTelares
             $folioData = SSYSFoliosSecuencia::nextFolio('URD/ENG', 5);
-            $folio = $folioData['folio']; // Ejemplo: "00001" (sin prefijo si es NULL)
+            $folio = $folioData['folio']; // Ejemplo: "00001" o "URD00001" (dependiendo del prefijo configurado)
+
 
             // =================== PASO 3: Guardar Tabla 2 (UrdProgramaUrdido) PRIMERO ===================
             // Necesitamos crear Tabla 2 primero para que Tabla 3 pueda referenciar el Folio
@@ -143,19 +148,68 @@ class ProgramarUrdEngController extends Controller
                 'Obs' => $datosEngomado['observaciones'] ?? null,
             ]);
 
-            DB::commit();
+            // =================== PASO 7: Actualizar no_orden en TejInventarioTelares ===================
+            // IMPORTANTE: El no_orden debe ser el mismo que el Folio generado
+            // Obtener los telares del grupo seleccionado
+            $telaresStr = $grupo['telaresStr'] ?? $grupo['noTelarId'] ?? null;
+            $telaresActualizados = 0;
+            $telaresNoEncontrados = [];
 
-            Log::info('Ordenes URD/ENG creadas exitosamente', [
-                'folio' => $folio,
-                'folioConsumo' => $folioConsumo,
-            ]);
+
+            if ($telaresStr) {
+                // Normalizar tipo (Rizo/Pie) una sola vez
+                $tipo = $grupo['tipo'] ?? null;
+                if ($tipo) {
+                    $tipoUpper = strtoupper(trim($tipo));
+                    if ($tipoUpper === 'RIZO') {
+                        $tipo = 'Rizo';
+                    } elseif ($tipoUpper === 'PIE') {
+                        $tipo = 'Pie';
+                    }
+                }
+
+                // Si hay múltiples telares separados por coma, actualizar cada uno
+                $telaresArray = explode(',', $telaresStr);
+                foreach ($telaresArray as $noTelar) {
+                    $noTelar = trim($noTelar);
+                    if (empty($noTelar)) continue;
+
+                    // Buscar el telar por no_telar y tipo si está disponible
+                    $query = TejInventarioTelares::where('no_telar', $noTelar)
+                        ->where('status', 'Activo');
+
+                    if ($tipo) {
+                        $query->where('tipo', $tipo);
+                    }
+
+                    $telar = $query->first();
+                    if ($telar) {
+                        // Actualizar no_orden con el Folio generado (debe ser el mismo)
+                        $telar->no_orden = $folio;
+                        $telar->save();
+
+                        $telaresActualizados++;
+                    } else {
+                        $telaresNoEncontrados[] = [
+                            'no_telar' => $noTelar,
+                            'tipo' => $tipo,
+                            'razon' => 'No encontrado en TejInventarioTelares con status Activo',
+                        ];
+                    }
+                }
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Órdenes creadas exitosamente',
+                'redirect_url' => 'http://127.0.0.1:8000/programa-urd-eng/reservar-programar',
                 'data' => [
                     'folio' => $folio,
                     'folioConsumo' => $folioConsumo,
+                    'telares_actualizados' => $telaresActualizados,
+                    'telares_no_encontrados' => count($telaresNoEncontrados),
                 ],
             ]);
 
@@ -213,11 +267,7 @@ class ProgramarUrdEngController extends Controller
                 $date = \Carbon\Carbon::parse($prodDate);
                 return $date->format('Y-m-d');
             } catch (\Exception $e) {
-                // Si no se puede parsear, registrar warning y retornar null
-                Log::warning('Error al parsear ProdDate', [
-                    'prodDate_original' => $prodDate,
-                    'error' => $e->getMessage()
-                ]);
+                // Si no se puede parsear, retornar null
                 return null;
             }
         }
@@ -228,20 +278,11 @@ class ProgramarUrdEngController extends Controller
                 $date = \Carbon\Carbon::createFromTimestamp($prodDate);
                 return $date->format('Y-m-d');
             } catch (\Exception $e) {
-                Log::warning('Error al convertir timestamp ProdDate', [
-                    'prodDate_original' => $prodDate,
-                    'error' => $e->getMessage()
-                ]);
                 return null;
             }
         }
 
         // Si no coincide con ningún formato conocido, retornar null
-        Log::warning('Formato de ProdDate no reconocido', [
-            'prodDate_original' => $prodDate,
-            'tipo' => gettype($prodDate)
-        ]);
-
         return null;
     }
 

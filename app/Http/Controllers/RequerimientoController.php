@@ -2,14 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\InventDim;
-use App\Models\InventSum;
 use Illuminate\Http\Request;
 use App\Models\Requerimiento;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\QueryException;
@@ -38,7 +35,7 @@ class RequerimientoController extends Controller
                 ->lockForUpdate() // 👈 Esto bloquea la fila hasta que la transacción termine
                 ->get();
 
-            //Aqui haremos el proceso para detectar que un requerimiento esta fuera del rango de la semana, para no borrarlo, 
+            //Aqui haremos el proceso para detectar que un requerimiento esta fuera del rango de la semana, para no borrarlo,
             //vamos a descartar requerimientos (checkboxes que hayan sido marcados en dias previos al RANGO DE DIAS QUE SE MUESTRAN EN EL FRONT)
             // Si el registro es de tipo 'rizo'
             if ($request->rizo == 1) {
@@ -275,7 +272,7 @@ class RequerimientoController extends Controller
         ]);
 
         $nuevoValorMetros = parse_metros($inventario['metros']);
-        $nuevoValorMccoy = 3; //PENDIENTE, aún necesitamos saber qué datos irán aquí 
+        $nuevoValorMccoy = 3; //PENDIENTE, aún necesitamos saber qué datos irán aquí
         $nuevoTelar = DB::table('Produccion.dbo.requerimiento')->where('id', $requerimiento['id'])->first();
         $orden = $inventario['orden'];
 
@@ -482,7 +479,7 @@ class RequerimientoController extends Controller
             ->with('folios', $folios);
     }
 
-    // STEP 2 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - - - - - - - - - - -  - - - - - - - - - - - -  - - - - - - - - - - - - 
+    // STEP 2 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - - - - - - - - - - -  - - - - - - - - - - - -  - - - - - - - - - - - -
     public function step2(Request $request) // STEP 2
     {
         try {
@@ -1583,20 +1580,5 @@ class RequerimientoController extends Controller
     }
 
 
-    /** Normaliza en mayúsculas sin espacios extremos */
-    // private function norm($v): string
-    // {
-    //     return mb_strtoupper(trim((string)($v ?? '')));
-    // }
-
-    /** Clave reducida: ITEM|SIZE|COLOR (ignora CONFIG porque difiere entre arrays) */
-    // private function k3($itemid, $sizeid, $colorid): string
-    // {
-    //     return implode('|', [
-    //         $this->norm($itemid),
-    //         $this->norm($sizeid),
-    //         $this->norm($colorid),
-    //     ]);
-    // }
 
 }

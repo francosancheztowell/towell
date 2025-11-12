@@ -31,9 +31,87 @@ class ReservarProgramarController extends Controller
     {
         $rows = $this->baseQuery()->limit(1000)->get();
 
+        // Validación rápida de no_orden: sincronizar reservas con telares que tienen no_orden
+        $this->validarYActualizarNoOrden($rows);
+
         return view('modulos.programa_urd_eng.reservar-programar', [
             'inventarioTelares' => $this->normalizeTelares($rows),
         ]);
+    }
+
+    /**
+     * Validación rápida: si un telar tiene no_orden, las reservas activas deben tener:
+     * 1. El mismo no_orden en NoOrden
+     * 2. El mismo no_orden en InventBatchId (para órdenes programadas)
+     * Actualiza las reservas automáticamente si no coinciden
+     * Optimizado: usa una sola consulta por batch de telares
+     */
+    private function validarYActualizarNoOrden($telares)
+    {
+        try {
+            // Filtrar telares que tienen no_orden y agrupar por no_telar|tipo|no_orden
+            $mapaNoOrden = [];
+            foreach ($telares as $telar) {
+                $noOrden = trim((string)($telar->no_orden ?? ''));
+                // Solo validar si el telar tiene no_orden
+                if (empty($noOrden)) continue;
+
+                $noTelar = $telar->no_telar ?? null;
+                $tipo = $this->normalizeTipo($telar->tipo ?? null);
+                if (empty($noTelar)) continue;
+
+                $clave = $noTelar . '|' . ($tipo ?? '');
+                // Si ya existe, usar el no_orden más reciente (último visto)
+                $mapaNoOrden[$clave] = [
+                    'no_telar' => $noTelar,
+                    'no_orden' => $noOrden,
+                    'tipo' => $tipo
+                ];
+            }
+
+            if (empty($mapaNoOrden)) {
+                return;
+            }
+
+            // Procesar en chunks para evitar consultas muy grandes
+            $chunks = array_chunk($mapaNoOrden, 50, true);
+            foreach ($chunks as $chunk) {
+                foreach ($chunk as $clave => $datos) {
+                    $noTelar = $datos['no_telar'];
+                    $noOrden = $datos['no_orden'];
+                    $tipo = $datos['tipo'];
+
+                    // Buscar reservas activas para este telar
+                    $query = InvTelasReservadas::where('NoTelarId', $noTelar)
+                        ->where('Status', 'Reservado');
+
+                    if ($tipo) {
+                        $query->where('Tipo', $tipo);
+                    }
+
+                    // Actualizar reservas que no tienen el mismo no_orden en NoOrden o InventBatchId
+                    // Solo actualizar si hay diferencias
+                    $query->where(function($q) use ($noOrden) {
+                        $q->whereNull('NoOrden')
+                          ->orWhere('NoOrden', '!=', $noOrden)
+                          ->orWhere('NoOrden', '')
+                          ->orWhereNull('InventBatchId')
+                          ->orWhere('InventBatchId', '!=', $noOrden)
+                          ->orWhere('InventBatchId', '');
+                    })->update([
+                        'NoOrden' => $noOrden,
+                        'InventBatchId' => $noOrden, // InventBatchId debe ser igual a no_orden
+                        'updated_at' => now()
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Error silencioso - no afectar la carga de la página
+            Log::warning('Error en validación no_orden', [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine()
+            ]);
+        }
     }
 
     public function getInventarioTelares(Request $request)
@@ -1098,17 +1176,7 @@ class ReservarProgramarController extends Controller
                 $configIds = [];
             }
 
-            Log::info('getMaterialesEngomado: Parámetros recibidos (raw)', [
-                'itemIds' => $itemIds,
-                'configIds' => $configIds,
-                'type_itemIds' => gettype($itemIds),
-                'type_configIds' => gettype($configIds),
-                'all_input' => $request->all(),
-                'query' => $request->query()
-            ]);
-
             if (empty($itemIds)) {
-                Log::warning('getMaterialesEngomado: ItemIds vacío');
                 return response()->json([]);
             }
 
@@ -1123,7 +1191,6 @@ class ReservarProgramarController extends Controller
             $itemIds = array_values($itemIds);
 
             if (empty($itemIds)) {
-                Log::warning('getMaterialesEngomado: ItemIds vacío después de filtrar');
                 return response()->json([]);
             }
 
@@ -1136,13 +1203,6 @@ class ReservarProgramarController extends Controller
             });
 
             $configIds = array_values($configIds);
-
-            Log::info('getMaterialesEngomado: Parámetros después de filtrar', [
-                'itemIds' => $itemIds,
-                'configIds' => $configIds,
-                'count_itemIds' => count($itemIds),
-                'count_configIds' => count($configIds)
-            ]);
 
             // Consulta - filtrar por ItemId y ConfigId si están disponibles
             // Filtros según especificación:
@@ -1166,7 +1226,7 @@ class ReservarProgramarController extends Controller
                 // InventSum.ItemId IN (itemIds de materiales de urdido)
                 ->whereIn('sum.ITEMID', $itemIds)
                 // InventSum.AvailPhysical <> 0 (inventario físico disponible, después de reservas)
-                ->whereRaw('sum.AvailPhysical <> 0')
+                ->whereRaw('sum.PhysicalInvent <> 0')
                 // InventSum.DATAAREAID = 'PRO'
                 ->where('sum.DATAAREAID', 'PRO')
                 // InventDim.DATAAREAID = 'PRO'
@@ -1179,11 +1239,9 @@ class ReservarProgramarController extends Controller
             // InventDim.ConfigId IN (configIds de materiales de urdido) - solo si hay ConfigIds disponibles
             if (!empty($configIds)) {
                 $query->whereIn('dim.CONFIGID', $configIds);
-                Log::info('getMaterialesEngomado: Filtro por ConfigId aplicado', ['configIds' => $configIds]);
-            } else {
-                Log::info('getMaterialesEngomado: No hay ConfigIds disponibles, filtrando solo por ItemId');
             }
 
+            // Optimizar consulta: solo seleccionar campos necesarios y limitar ordenamiento
             $results = $query->select([
                     'sum.ITEMID as ItemId',
                     'sum.PHYSICALINVENT as PhysicalInvent',
@@ -1201,27 +1259,15 @@ class ReservarProgramarController extends Controller
                     'ser.TWCLIENTEFLOG as TwClienteFlog'
                 ])
                 ->orderBy('sum.ITEMID')
-                ->orderBy('dim.INVENTLOCATIONID')
-                ->orderBy('dim.INVENTSERIALID')
                 ->get();
-
-            Log::info('getMaterialesEngomado: Resultados encontrados', [
-                'count' => $results->count(),
-                'itemIds_buscados' => $itemIds,
-                'configIds_buscados' => $configIds,
-                'inventLocationIds_filtrados' => ['A-MP', 'A-MPBB'],
-                'sample' => $results->take(2)->toArray()
-            ]);
 
             return response()->json($results);
         } catch (\Throwable $e) {
             Log::error('getMaterialesEngomado: Error', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
+                'line' => $e->getLine()
             ]);
-            return response()->json(['error' => 'Error al obtener materiales de engomado: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al obtener materiales de engomado'], 500);
         }
     }
 

@@ -574,6 +574,7 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
         Route::get('/column-options', [ReservarProgramarController::class, 'getColumnOptions'])->name('column.options');
         Route::get('/reservas/{noTelar}', [InvTelasReservadasController::class, 'porTelar'])->name('reservas.porTelar');
         Route::post('/reservas/cancelar', [InvTelasReservadasController::class, 'cancelar'])->name('reservas.cancelar');
+        Route::get('/reservas/diagnostico', [InvTelasReservadasController::class, 'diagnosticarReservas'])->name('reservas.diagnostico');
         Route::get('/buscar-bom-urdido', [ReservarProgramarController::class, 'buscarBomUrdido'])->name('buscar.bom.urdido');
         Route::get('/buscar-bom-engomado', [ReservarProgramarController::class, 'buscarBomEngomado'])->name('buscar.bom.engomado');
         Route::get('/materiales-urdido', [ReservarProgramarController::class, 'getMaterialesUrdido'])->name('materiales.urdido');

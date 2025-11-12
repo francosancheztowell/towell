@@ -16,7 +16,7 @@ class InvTelasReservadas extends Model
         'ItemId','ConfigId','InventSizeId','InventColorId','InventLocationId',
         'InventBatchId','WMSLocationId','InventSerialId',
         'Tipo','Metros','InventQty','ProdDate',
-        'NoTelarId','SalonTejidoId',
+        'NoTelarId','SalonTejidoId','NoOrden',
         'Status','NumeroEmpleado','NombreEmpl',
     ];
 
