@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\AtadorController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CalendarioController;
 use App\Http\Controllers\CatalagoEficienciaController;
