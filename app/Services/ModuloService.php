@@ -383,6 +383,7 @@ class ModuloService
 
             // Módulos de Atadores
             'Programa Atadores' => '/atadores/programa',
+            'Montadod de Julios en Telar'=> '/atadores/montado',
             
             // Catálogos de Atadores (nivel 3)
             'Actividades' => '/atadores/catalogos/actividades',
