@@ -12,6 +12,7 @@ use App\Models\AtaMontadoMaquinasModel;
 use App\Models\AtaMontadoActividadesModel;
 use App\Models\AtaMaquinasModel;
 use App\Models\AtaActividadesModel;
+use App\Models\AtaComentariosModel;
 
 class AtadoresController extends Controller
 {
@@ -118,6 +119,9 @@ class AtadoresController extends Controller
                 ->keyBy('ActividadId');
         }
 
+        // Catálogo de notas/comentarios (para mostrar al final)
+        $comentarios = AtaComentariosModel::orderBy('Nota1')->get();
+
         return view(
             'modulos.atadores.calificar-atadores.index',
             compact(
@@ -125,7 +129,8 @@ class AtadoresController extends Controller
                 'maquinasCatalogo',
                 'maquinasMontado',
                 'actividadesCatalogo',
-                'actividadesMontado'
+                'actividadesMontado',
+                'comentarios'
             )
         );
     }

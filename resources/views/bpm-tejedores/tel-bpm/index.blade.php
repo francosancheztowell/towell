@@ -4,6 +4,7 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-3">
+    <x-navbar.button-create id="" onclick="openModal('createModal')" title="Nueva Actividad" module="Actividades BPM" />
     <button id="btn-consult" class="px-6 py-2.5 bg-blue-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-blue-600 transition-all duration-200 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed" disabled>
         <i class="fa-solid fa-eye w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
         Consultar folio

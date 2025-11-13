@@ -138,9 +138,9 @@
         </div>
 
         <!-- Maquinas y Actividades -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             <!-- Tabla: AtaMontadoMaquinas -->
-            <div class="bg-white rounded-lg shadow-md p-4 overflow-x-auto">
+            <div class="bg-white rounded-lg shadow-md p-4 overflow-x-auto lg:col-span-1">
                 <h3 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">Máquinas</h3>
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -171,15 +171,15 @@
             </div>
 
             <!-- Tabla: AtaMontadoActividades -->
-            <div class="bg-white rounded-lg shadow-md p-4 overflow-x-auto">
+            <div class="bg-white rounded-lg shadow-md p-4 overflow-x-auto lg:col-span-2">
                 <h3 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">Actividades</h3>
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actividad</th>
-                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Porcentaje</th>
-                            <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Operador</th>
+                            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Actividad</th>
+                            <th class="px-1 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-20">%</th>
+                            <th class="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Estado</th>
+                            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Operador</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -193,12 +193,12 @@
                                     : '-';
                             @endphp
                             <tr>
-                                <td class="px-4 py-2 text-sm text-gray-900">{{ $act->ActividadId }}</td>
-                                <td class="px-4 py-2 text-sm text-right text-gray-900">{{ number_format((float)$porcentaje, 0) }}%</td>
-                                <td class="px-4 py-2 text-center">
+                                <td class="px-2 py-2 text-sm text-gray-900 w-24">{{ $act->ActividadId }}</td>
+                                <td class="px-1 py-2 text-sm text-right text-gray-900 w-20">{{ number_format((float)$porcentaje, 0) }}%</td>
+                                <td class="px-1 py-2 text-center w-16">
                                     <input type="checkbox" {{ $checked ? 'checked' : '' }} disabled class="h-4 w-4 text-green-600 rounded" />
                                 </td>
-                                <td class="px-4 py-2 text-sm text-gray-900">{{ $operador }}</td>
+                                <td class="px-2 py-2 text-sm text-gray-900">{{ $operador }}</td>
                             </tr>
                         @empty
                             <tr>
@@ -259,6 +259,42 @@
             <p class="text-gray-400 text-sm mt-2">Seleccione un registro desde el programa de atadores</p>
         </div>
     @endif
+
+    @isset($comentarios)
+    <!-- Notas / Comentarios Catálogo -->
+    <div class="bg-white rounded-lg shadow-md p-4 mt-6">
+        <h3 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">
+            <i class="fa-solid fa-comment text-blue-600 mr-2"></i>Notas
+        </h3>
+        @if($comentarios->isEmpty())
+            <p class="text-sm text-gray-500">No hay notas configuradas.</p>
+        @else
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Nota 1 -->
+                <div>
+                    <h4 class="text-xs font-semibold text-gray-500 mb-2">Nota 1</h4>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach($comentarios->pluck('Nota1')->filter()->unique()->values() as $n1)
+                            <button type="button" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md text-sm"
+                                    onclick="agregarNota(`{{ $n1 }}`)">{{ $n1 }}</button>
+                        @endforeach
+                    </div>
+                </div>
+                <!-- Nota 2 -->
+                <div>
+                    <h4 class="text-xs font-semibold text-gray-500 mb-2">Nota 2</h4>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach($comentarios->pluck('Nota2')->filter()->unique()->values() as $n2)
+                            <button type="button" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md text-sm"
+                                    onclick="agregarNota(`{{ $n2 }}`)">{{ $n2 }}</button>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">Clic en una nota para agregarla a Observaciones.</p>
+        @endif
+    </div>
+    @endisset
 </div>
 @endsection
 
@@ -341,6 +377,15 @@ function guardarObservaciones(event){
         showConfirmButton: false,
         timer: 2000
     });
+}
+
+// Agregar nota a Observaciones
+function agregarNota(texto){
+    const ta = document.getElementById('observaciones');
+    if(!ta) return;
+    const sep = ta.value && !ta.value.endsWith('\n') ? '\n' : '';
+    ta.value = ta.value + sep + texto;
+    ta.focus();
 }
 </script>
 @endpush
