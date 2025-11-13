@@ -14,6 +14,8 @@
         @param string $icon - Clase del icono FontAwesome (default: 'fa-plus')
         @param string $iconColor - Color del icono en clases Tailwind (default: 'text-green-600')
         @param string $hoverBg - Color de fondo al hacer hover en clases Tailwind (default: 'hover:bg-green-100')
+        @param string $text - Texto opcional para mostrar junto al ícono (opcional)
+        @param string $bg - Color de fondo en clases Tailwind (opcional, ej: 'bg-blue-500', 'bg-green-600')
 
     Uso:
         <x-navbar.button-create onclick="openModal('createModal')" />
@@ -21,6 +23,8 @@
         <x-navbar.button-create onclick="handleCreate()" module="Marcas Finales" title="Crear Registro" id="btn-create" />
         <x-navbar.button-create onclick="cargarInfo()" title="Cargar" icon="fa-download" />
         <x-navbar.button-create onclick="cargarInfo()" title="Cargar" icon="fa-download" iconColor="text-blue-500" hoverBg="hover:bg-blue-100" />
+        <x-navbar.button-create onclick="cargarInfo()" title="Cargar" icon="fa-download" text="Cargar Información" />
+        <x-navbar.button-create onclick="cargarInfo()" title="Cargar" icon="fa-download" text="Cargar" bg="bg-blue-500" iconColor="text-white" />
 --}}
 
 @props([
@@ -33,7 +37,9 @@
     'checkPermission' => null,
     'icon' => 'fa-plus',
     'iconColor' => 'text-green-600',
-    'hoverBg' => 'hover:bg-green-100'
+    'hoverBg' => 'hover:bg-green-100',
+    'text' => null,
+    'bg' => null
 ])
 
 @php
@@ -71,6 +77,16 @@
     if (!str_starts_with($iconNormalized, 'fa-')) {
         $iconNormalized = 'fa-' . $iconNormalized;
     }
+
+    // Si hay texto, ajustar el padding
+    $paddingClass = $text ? 'px-3 py-2' : 'p-2';
+
+    // Si hay fondo, ajustar el hoverBg si no se especifica
+    $finalHoverBg = $hoverBg;
+    if ($bg && $hoverBg === 'hover:bg-green-100') {
+        // Si hay un fondo personalizado, usar un hover más oscuro por defecto
+        $finalHoverBg = 'hover:opacity-90';
+    }
 @endphp
 
 @if($hasPermission)
@@ -78,10 +94,13 @@
     type="button"
     @if($id) id="{{ $id }}" @endif
     onclick="{{ $onclick }}"
-    class="p-2 rounded-lg transition {{ $hoverBg }} disabled:opacity-50 disabled:cursor-not-allowed"
+    class="{{ $paddingClass }} rounded-lg transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 {{ $bg ?? '' }}"
     @if($disabled) disabled @endif
     title="{{ $title }}">
-    <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} text-lg"></i>
+    <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} {{ $text ? 'text-base' : 'text-lg' }}"></i>
+    @if($text)
+        <span class="text-sm font-medium {{ $iconColor }}">{{ $text }}</span>
+    @endif
 </button>
 @endif
 

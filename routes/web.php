@@ -24,6 +24,7 @@ use App\Http\Controllers\InventarioTelaresController;
 use App\Http\Controllers\InvTelasReservadasController;
 use App\Http\Controllers\ReservarProgramarController;
 use App\Http\Controllers\ProgramarUrdEngController;
+use App\Http\Controllers\ProgramarUrdidoController;
 use App\Http\Controllers\TelActividadesBPMController;
 use App\Http\Controllers\TelBpmController;
 use App\Http\Controllers\TelBpmLineController;
@@ -781,9 +782,10 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
 
     // Módulo Urdido
     Route::prefix('urdido')->name('urdido.')->group(function () {
-        Route::get('/programar-urdido', function () {
-            return view('modulos.urdido.programar-urdido');
-        })->name('programar.urdido');
+        Route::get('/programar-urdido', [ProgramarUrdidoController::class, 'index'])->name('programar.urdido');
+        Route::get('/programar-urdido/ordenes', [ProgramarUrdidoController::class, 'getOrdenes'])->name('programar.urdido.ordenes');
+        Route::post('/programar-urdido/subir-prioridad', [ProgramarUrdidoController::class, 'subirPrioridad'])->name('programar.urdido.subir.prioridad');
+        Route::post('/programar-urdido/bajar-prioridad', [ProgramarUrdidoController::class, 'bajarPrioridad'])->name('programar.urdido.bajar.prioridad');
     });
 
     // Módulo Engomado

@@ -44,6 +44,26 @@ class UrdProgramaUrdido extends Model
     ];
 
     /**
+     * Extraer el número de MC Coy del campo MaquinaId
+     * Ejemplos: "Mc Coy 1" -> 1, "Mc Coy 2" -> 2
+     * 
+     * @return int|null
+     */
+    public function getMcCoyNumberAttribute(): ?int
+    {
+        if (empty($this->MaquinaId)) {
+            return null;
+        }
+
+        // Buscar patrón "Mc Coy X" o "Mc Coy X" (case insensitive)
+        if (preg_match('/mc\s*coy\s*(\d+)/i', $this->MaquinaId, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return null;
+    }
+
+    /**
      * Relación con EngProgramaEngomado (1:1)
      */
     public function engomado()
