@@ -16,6 +16,9 @@ use App\Http\Controllers\TelaresController;
 use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\AplicacionesController;
 use App\Http\Controllers\AtadoresController;
+use App\Http\Controllers\AtaActividadesController;
+use App\Http\Controllers\AtaComentariosController;
+use App\Http\Controllers\AtaMaquinasController;
 use App\Http\Controllers\NuevoRequerimientoController;
 use App\Http\Controllers\ProduccionReenconadoCabezuelaController;
 use App\Http\Controllers\ConsultarRequerimientoController;
@@ -825,10 +828,35 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         return view('modulos/atadores/programar-requerimientos');
     });
     Route::get('/atadores/programa', [AtadoresController::class, 'index'])->name('atadores.programa');
+    Route::get('/atadores/iniciar', [AtadoresController::class, 'iniciarAtado'])->name('atadores.iniciar');
+    Route::get('/atadores/calificar', [AtadoresController::class, 'calificarAtadores'])->name('atadores.calificar');
     Route::get('/atadores-juliosAtados', [AtadoresController::class, 'cargarDatosUrdEngAtador'])->name('datosAtadores.Atador');
     Route::post('/atadores/save', [AtadoresController::class, 'save'])->name('atadores.save');
     Route::get('/atadores/show', [AtadoresController::class, 'show'])->name('atadores.show');
     Route::post('/tejedores/validar', [AtadoresController::class, 'validarTejedor'])->name('tejedor.validar');
+
+    // Catálogos de Atadores//
+
+    // Atadores - Actividades
+    Route::get('/atadores/catalogos/actividades', [AtaActividadesController::class, 'index'])->name('atadores.catalogos.actividades');
+    Route::post('/atadores/catalogos/actividades', [AtaActividadesController::class, 'store'])->name('atadores.catalogos.actividades.store');
+    Route::get('/atadores/catalogos/actividades/{id}', [AtaActividadesController::class, 'show'])->name('atadores.catalogos.actividades.show');
+    Route::put('/atadores/catalogos/actividades/{id}', [AtaActividadesController::class, 'update'])->name('atadores.catalogos.actividades.update');
+    Route::delete('/atadores/catalogos/actividades/{id}', [AtaActividadesController::class, 'destroy'])->name('atadores.catalogos.actividades.destroy');
+
+    // Atadores Comentarios
+    Route::get('/atadores/catalogos/comentarios', [AtaComentariosController::class, 'index'])->name('atadores.catalogos.comentarios');
+    Route::post('/atadores/catalogos/comentarios', [AtaComentariosController::class, 'store'])->name('atadores.catalogos.comentarios.store');
+    Route::get('/atadores/catalogos/comentarios/{nota1}', [AtaComentariosController::class, 'show'])->name('atadores.catalogos.comentarios.show');
+    Route::put('/atadores/catalogos/comentarios/{nota1}', [AtaComentariosController::class, 'update'])->name('atadores.catalogos.comentarios.update');
+    Route::delete('/atadores/catalogos/comentarios/{nota1}', [AtaComentariosController::class, 'destroy'])->name('atadores.catalogos.comentarios.destroy');
+
+    // Atadores Maquinas
+    Route::get('/atadores/catalogos/maquinas', [AtaMaquinasController::class, 'index'])->name('atadores.catalogos.maquinas');
+    Route::post('/atadores/catalogos/maquinas', [AtaMaquinasController::class, 'store'])->name('atadores.catalogos.maquinas.store');
+    Route::get('/atadores/catalogos/maquinas/{maquinaId}', [AtaMaquinasController::class, 'show'])->name('atadores.catalogos.maquinas.show');
+    Route::put('/atadores/catalogos/maquinas/{maquinaId}', [AtaMaquinasController::class, 'update'])->name('atadores.catalogos.maquinas.update');
+    Route::delete('/atadores/catalogos/maquinas/{maquinaId}', [AtaMaquinasController::class, 'destroy'])->name('atadores.catalogos.maquinas.destroy');
 
     // Módulo Mantenimiento
     Route::get('/modulo-mantenimiento', function () {

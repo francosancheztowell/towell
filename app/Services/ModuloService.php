@@ -119,11 +119,32 @@ class ModuloService
      */
     public function getSubmodulosNivel3(string $ordenPadre, int $idusuario): Collection
     {
-        // Usar join para optimizar la consulta
-        return SYSRoles::submodulosDe($ordenPadre, 3)
-            ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
-            ->where('SYSUsuariosRoles.idusuario', $idusuario)
-            ->where('SYSUsuariosRoles.acceso', true)
+        // Primero, obtener el módulo padre para verificar su dependencia
+        $moduloPadre = SYSRoles::where('orden', $ordenPadre)->first();
+
+        // Si el módulo padre tiene dependencia 500 (Atadores), buscar módulos nieto por prefijo de orden
+        // Los módulos nieto de Atadores tienen Dependencia = ordenPadre (ej: 503) y orden que empieza con el orden del padre
+        if ($moduloPadre && $moduloPadre->Dependencia == '500') {
+            // Buscar módulos de nivel 3 que tengan Dependencia = ordenPadre
+            // Intentar dos patrones: con guión (503-1) y con dos puntos (503:1)
+            $query = SYSRoles::where('Nivel', 3)
+                ->where('Dependencia', $ordenPadre)
+                ->where(function($q) use ($ordenPadre) {
+                    $q->where('orden', 'like', $ordenPadre . '-%')
+                      ->orWhere('orden', 'like', $ordenPadre . ':%');
+                })
+                ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
+                ->where('SYSUsuariosRoles.idusuario', $idusuario)
+                ->where('SYSUsuariosRoles.acceso', true);
+        } else {
+            // Para otros módulos, usar la lógica original (buscar por Dependencia = ordenPadre)
+            $query = SYSRoles::submodulosDe($ordenPadre, 3)
+                ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
+                ->where('SYSUsuariosRoles.idusuario', $idusuario)
+                ->where('SYSUsuariosRoles.acceso', true);
+        }
+
+        return $query
             ->select(
                 'SYSRoles.*',
                 'SYSUsuariosRoles.acceso as usuario_acceso',
@@ -366,6 +387,13 @@ class ModuloService
 
             // Módulos de Atadores
             'Programa Atadores' => '/atadores/programa',
+            'Montadod de Julios en Telar'=> '/atadores/montado',
+
+            // Catálogos de Atadores (nivel 3)
+            'Actividades' => '/atadores/catalogos/actividades',
+            'Comentarios' => '/atadores/catalogos/comentarios',
+            'Maquinas' => '/atadores/catalogos/maquinas',
+            'Máquinas' => '/atadores/catalogos/maquinas',
 
             // Módulos de Tejedores
             'BPM Tejedores' => '/tejedores/bpm',

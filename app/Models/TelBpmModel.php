@@ -33,7 +33,7 @@ class TelBpmModel extends Model
     ];
 
     protected $casts = [
-        'Fecha' => 'datetime',   // DATETIME -> Carbon
+        'Fecha' => 'datetime',   
     ];
 
     /** Relaciones */
