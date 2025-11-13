@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 use App\Models\TejInventarioTelares;
 use App\Models\AtaMontadoTelasModel;
 use App\Models\AtaMontadoMaquinasModel;
@@ -28,8 +31,9 @@ class AtadoresController extends Controller
             'cuenta',
             'calibre',
             'hilo',
-            'LoteProveedor',
-            'NoProveedor',
+            // Map column names from MySQL (camelCase) to expected aliases
+            DB::raw('loteProveedor as LoteProveedor'),
+            DB::raw('noProveedor as NoProveedor'),
             'horaParo'
         )
         ->whereNotNull('no_julio')
@@ -60,6 +64,9 @@ class AtadoresController extends Controller
         // ELIMINAR todos los registros anteriores en AtaMontadoTelas antes de insertar el nuevo
         AtaMontadoTelasModel::query()->delete();
 
+        // Usuario actual como operador por defecto
+        $user = Auth::user();
+
         // Insertar solo el registro seleccionado en AtaMontadoTelas
         AtaMontadoTelasModel::create([
             'Estatus' => 'En Proceso',
@@ -73,6 +80,9 @@ class AtadoresController extends Controller
             'LoteProveedor' => $item->LoteProveedor,
             'NoProveedor' => $item->NoProveedor,
             'HoraParo' => $item->horaParo,
+            // Operador = usuario en sesión al iniciar
+            'CveTejedor' => $user?->numero_empleado,
+            'NomTejedor' => $user?->nombre,
             'Calidad' => null,
             'Limpieza' => null,
         ]);
@@ -118,5 +128,41 @@ class AtadoresController extends Controller
                 'actividadesMontado'
             )
         );
+    }
+
+    public function save(Request $request)
+    {
+        $action = $request->input('action');
+
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
+        }
+
+        // Obtener el atado actual (último en proceso)
+        $montado = AtaMontadoTelasModel::orderBy('Fecha', 'desc')
+            ->orderBy('Turno', 'desc')
+            ->first();
+
+        if (!$montado) {
+            return response()->json(['ok' => false, 'message' => 'No hay atado en proceso'], 404);
+        }
+
+        if ($action === 'operador') {
+            $montado->CveTejedor = $user->numero_empleado;
+            $montado->NomTejedor = $user->nombre;
+            $montado->save();
+            return response()->json(['ok' => true, 'message' => 'Operador asignado']);
+        }
+
+        if ($action === 'supervisor') {
+            $montado->CveSupervisor = $user->numero_empleado;
+            $montado->NomSupervisor = $user->nombre;
+            $montado->FechaSupervisor = Carbon::now();
+            $montado->save();
+            return response()->json(['ok' => true, 'message' => 'Supervisor asignado']);
+        }
+
+        return response()->json(['ok' => false, 'message' => 'Acción no válida'], 422);
     }
 }

@@ -283,13 +283,47 @@ function terminarAtado(){
 }
 
 function calificarTejedor(){
-    console.log("Calificar Tejedor");
-    // Aquí irá la lógica para calificar al tejedor
+    // Asignar operador = usuario en sesión
+    fetch('{{ route('atadores.save') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ action: 'operador' })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(res.ok){
+            Swal.fire({ icon: 'success', title: 'Operador asignado', timer: 1500, showConfirmButton: false });
+            setTimeout(() => location.reload(), 800);
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo asignar operador' });
+        }
+    })
+    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
 }
 
 function autorizaSupervisor(){
-    console.log("Autoriza Supervisor");
-    // Aquí irá la lógica para autorizar supervisor
+    // Asignar supervisor = usuario en sesión
+    fetch('{{ route('atadores.save') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ action: 'supervisor' })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(res.ok){
+            Swal.fire({ icon: 'success', title: 'Supervisor asignado', timer: 1500, showConfirmButton: false });
+            setTimeout(() => location.reload(), 800);
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo asignar supervisor' });
+        }
+    })
+    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
 }
 
 function guardarObservaciones(event){
