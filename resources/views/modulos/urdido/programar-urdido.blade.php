@@ -21,7 +21,7 @@
             hoverBg="hover:bg-red-100"
         />
         <x-navbar.button-create
-            onclick="cargarOrdenes()"
+             onclick="irProduccion()"
             title="Cargar Información"
             icon="fa-download"
             iconColor="text-white"
@@ -55,6 +55,7 @@
                                         <th class="{{ $thBaseClasses }}">Cuenta</th>
                                         <th class="{{ $thBaseClasses }}">Calibre</th>
                                         <th class="{{ $thBaseClasses }}">Metros</th>
+                                        <th class="{{ $thBaseClasses }}">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody id="mcCoy{{ $i }}TableBody" class="bg-white">
@@ -81,6 +82,7 @@
                 cargarOrdenes: '{{ route('urdido.programar.urdido.ordenes') }}',
                 subirPrioridad: '{{ route('urdido.programar.urdido.subir.prioridad') }}',
                 bajarPrioridad: '{{ route('urdido.programar.urdido.bajar.prioridad') }}',
+                produccion: '{{ route('urdido.modulo.produccion.urdido') }}',
             };
 
             const csrfToken = '{{ csrf_token() }}';
@@ -126,9 +128,11 @@
             const setButtonsEnabled = (enabled) => {
                 const btnSubir = document.getElementById('btnSubirPrioridad');
                 const btnBajar = document.getElementById('btnBajarPrioridad');
+                const btnProduccion = document.getElementById('btnIrProduccion');
 
                 if (btnSubir) btnSubir.disabled = !enabled;
                 if (btnBajar) btnBajar.disabled = !enabled;
+                if (btnProduccion) btnProduccion.disabled = !enabled;
             };
 
             // Badge de tipo (Rizo / Pie / Otro)
@@ -202,6 +206,7 @@
                             <td class="${baseTd}">${orden.cuenta || ''}</td>
                             <td class="${baseTd}">${orden.calibre || ''}</td>
                             <td class="${baseTd}">${metros}</td>
+                            <td class="${baseTd}">${orden.status}</td>
                         </tr>
                     `;
                 }).join('');
@@ -352,6 +357,19 @@
             };
 
             // ==========================
+            // Ir a Producción
+            // ==========================
+            const irProduccion = () => {
+                if (!state.ordenSeleccionada) {
+                    showToast('warning', 'Seleccione una orden');
+                    return;
+                }
+
+                const url = `${routes.produccion}?orden_id=${state.ordenSeleccionada.id}`;
+                window.location.href = url;
+            };
+
+            // ==========================
             // API pública (para onclick del Blade)
             // ==========================
             const subirPrioridad = () => actualizarPrioridad(routes.subirPrioridad);
@@ -360,6 +378,7 @@
             window.cargarOrdenes = cargarOrdenes;
             window.subirPrioridad = subirPrioridad;
             window.bajarPrioridad = bajarPrioridad;
+            window.irProduccion = irProduccion;
 
             // ==========================
             // Init

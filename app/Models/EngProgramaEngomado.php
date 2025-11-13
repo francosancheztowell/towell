@@ -38,6 +38,10 @@ class EngProgramaEngomado extends Model
         'MaquinaEng',
         'BomEng',
         'Obs',
+        'BomFormula',
+        'TipoAtado',
+        'CveEmpl',
+        'NomEmpl',
     ];
 
     protected $casts = [

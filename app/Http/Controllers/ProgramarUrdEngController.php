@@ -64,6 +64,9 @@ class ProgramarUrdEngController extends Controller
             $folio = $folioData['folio']; // Ejemplo: "00001" o "URD00001" (dependiendo del prefijo configurado)
 
 
+            // Obtener TipoAtado del grupo (tabla 1) - puede ser "Normal" o "Especial"
+            $tipoAtado = $grupo['tipoAtado'] ?? '';
+
             // =================== PASO 3: Guardar Tabla 2 (UrdProgramaUrdido) PRIMERO ===================
             // Necesitamos crear Tabla 2 primero para que Tabla 3 pueda referenciar el Folio
             $programaUrdido = UrdProgramaUrdido::create([
@@ -82,6 +85,9 @@ class ProgramarUrdEngController extends Controller
                 'BomId' => $grupo['bomId'] ?? null, // L.Mat Urdido
                 'FechaProg' => now()->format('Y-m-d'),
                 'Status' => $grupo['status'] ?? 'Activo',
+                'TipoAtado' => $tipoAtado,
+                'CveEmpl' => $numeroEmpleado,
+                'NomEmpl' => $nombreEmpleado,
             ]);
 
             // =================== PASO 4: Guardar Tabla 3 (UrdConsumoHilo) CON Folio de Tabla 2 ===================
@@ -122,6 +128,35 @@ class ProgramarUrdEngController extends Controller
                 }
             }
 
+            // Obtener ItemId de la BOM de engomado para BomFormula
+            $bomFormula = null;
+            $bomEngId = $datosEngomado['lMatEngomado'] ?? null;
+            if ($bomEngId) {
+                try {
+                    // Buscar el ItemId de la BOM de engomado en la tabla BOM
+                    $bomItem = DB::connection('sqlsrv_ti')
+                        ->table('BOM as b')
+                        ->join('BOMTABLE as bt', function($join) {
+                            $join->on('bt.BOMID', '=', 'b.BOMID')
+                                 ->on('bt.DATAAREAID', '=', 'b.DATAAREAID');
+                        })
+                        ->where('bt.BOMID', $bomEngId)
+                        ->where('bt.DATAAREAID', 'PRO')
+                        ->where('bt.ITEMGROUPID', 'JUL-ENG')
+                        ->select('b.ITEMID')
+                        ->first();
+
+                    if ($bomItem && isset($bomItem->ITEMID)) {
+                        $bomFormula = $bomItem->ITEMID;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Error al obtener ItemId de BOM de engomado', [
+                        'bomId' => $bomEngId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             // =================== PASO 6: Guardar Tabla 5 (EngProgramaEngomado) ===================
             EngProgramaEngomado::create([
                 'Folio' => $folio,
@@ -144,8 +179,12 @@ class ProgramarUrdEngController extends Controller
                 'MetrajeTelas' => isset($datosEngomado['metrajeTelas']) && $datosEngomado['metrajeTelas'] !== '' ? (float)str_replace(',', '', $datosEngomado['metrajeTelas']) : null,
                 'Cuentados' => isset($datosEngomado['cuendeadosMin']) && $datosEngomado['cuendeadosMin'] !== '' ? (int)$datosEngomado['cuendeadosMin'] : null,
                 'MaquinaEng' => $datosEngomado['maquinaEngomado'] ?? null,
-                'BomEng' => $datosEngomado['lMatEngomado'] ?? null,
+                'BomEng' => $bomEngId,
                 'Obs' => $datosEngomado['observaciones'] ?? null,
+                'BomFormula' => $bomFormula,
+                'TipoAtado' => $tipoAtado,
+                'CveEmpl' => $numeroEmpleado,
+                'NomEmpl' => $nombreEmpleado,
             ]);
 
             // =================== PASO 7: Actualizar no_orden en TejInventarioTelares ===================

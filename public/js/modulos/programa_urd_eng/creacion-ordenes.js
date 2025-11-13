@@ -981,6 +981,7 @@
                 destino: grupo.destino || '',
                 maquinaId: grupo.maquinaId || grupo.urdido || '',
                 bomId: bomId,
+                tipoAtado: grupo.tipoAtado || 'Normal',
                 status: 'Activo'
             };
 
@@ -1033,8 +1034,8 @@
                     confirmButtonColor: '#2563eb',
                     confirmButtonText: 'Aceptar'
                 }).then(() => {
-                    // Redirigir a la URL especificada
-                    window.location.href = result.redirect_url || '/programa-urd-eng/reservar-programar';
+                    // Redirigir a la ruta relativa (Laravel manejará el hostname/IP automáticamente)
+                    window.location.href = '/programa-urd-eng/reservar-programar';
                 });
             } else {
                 Swal.fire({

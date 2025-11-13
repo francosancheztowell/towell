@@ -25,6 +25,7 @@ use App\Http\Controllers\InvTelasReservadasController;
 use App\Http\Controllers\ReservarProgramarController;
 use App\Http\Controllers\ProgramarUrdEngController;
 use App\Http\Controllers\ProgramarUrdidoController;
+use App\Http\Controllers\ModuloProduccionUrdidoController;
 use App\Http\Controllers\TelActividadesBPMController;
 use App\Http\Controllers\TelBpmController;
 use App\Http\Controllers\TelBpmLineController;
@@ -359,6 +360,14 @@ Route::middleware(['auth'])->group(function () {
     // Redirects para submódulos de Atadores
     Route::redirect('/submodulos-nivel3/502', '/atadores/configuracion', 301);
     Route::redirect('/submodulos-nivel3/503', '/atadores/catalogos', 301);
+
+    // Redirects para módulo producción urdido (compatibilidad con URLs antiguas)
+    Route::get('/modulo-produccion-urdido', function () {
+        return redirect('/urdido/modulo-produccion-urdido', 301);
+    });
+    Route::get('/modulo-producción-urdido', function () {
+        return redirect('/urdido/modulo-produccion-urdido', 301);
+    });
 
     // Rutas específicas con nombres descriptivos (reemplazan submodulos-nivel3/{id})
     // Estas rutas llaman directamente al método del controlador con el ID específico
@@ -786,6 +795,10 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         Route::get('/programar-urdido/ordenes', [ProgramarUrdidoController::class, 'getOrdenes'])->name('programar.urdido.ordenes');
         Route::post('/programar-urdido/subir-prioridad', [ProgramarUrdidoController::class, 'subirPrioridad'])->name('programar.urdido.subir.prioridad');
         Route::post('/programar-urdido/bajar-prioridad', [ProgramarUrdidoController::class, 'bajarPrioridad'])->name('programar.urdido.bajar.prioridad');
+        Route::get('/modulo-produccion-urdido', [ModuloProduccionUrdidoController::class, 'index'])->name('modulo.produccion.urdido');
+        Route::get('/modulo-produccion-urdido/catalogos-julios', [ModuloProduccionUrdidoController::class, 'getCatalogosJulios'])->name('modulo.produccion.urdido.catalogos.julios');
+        Route::get('/modulo-produccion-urdido/hilos-by-julio', [ModuloProduccionUrdidoController::class, 'getHilosByJulio'])->name('modulo.produccion.urdido.hilos.by.julio');
+        Route::post('/modulo-produccion-urdido/guardar-oficial', [ModuloProduccionUrdidoController::class, 'guardarOficial'])->name('modulo.produccion.urdido.guardar.oficial');
     });
 
     // Módulo Engomado

@@ -353,6 +353,10 @@ class ModuloService
             'Reportes Urdido' => '/urdido/reportes',
             'Catalogos Julios' => '/urdido/catalogos-julios',
             'Catalogos de Paros' => '/urdido/catalogos-paros',
+            'Producción Urdido' => '/urdido/modulo-produccion-urdido',
+            'Produccion Urdido' => '/urdido/modulo-produccion-urdido',
+            'Módulo Producción Urdido' => '/urdido/modulo-produccion-urdido',
+            'Modulo Produccion Urdido' => '/urdido/modulo-produccion-urdido',
 
             // Módulos de Engomado
             'Programa Engomado' => '/engomado/programar-engomado',

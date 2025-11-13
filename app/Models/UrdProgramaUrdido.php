@@ -31,6 +31,9 @@ class UrdProgramaUrdido extends Model
         'FechaProg',
         'Status',
         'FolioConsumo',
+        'TipoAtado',
+        'CveEmpl',
+        'NomEmpl',
     ];
 
     protected $casts = [
@@ -46,7 +49,7 @@ class UrdProgramaUrdido extends Model
     /**
      * Extraer el número de MC Coy del campo MaquinaId
      * Ejemplos: "Mc Coy 1" -> 1, "Mc Coy 2" -> 2
-     * 
+     *
      * @return int|null
      */
     public function getMcCoyNumberAttribute(): ?int

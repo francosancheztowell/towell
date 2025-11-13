@@ -84,6 +84,7 @@ class ProgramarUrdidoController extends Controller
                         'calibre' => $orden->Calibre,
                         'metros' => $orden->Metros,
                         'mccoy' => $mcCoy,
+                        'status' => $orden->Status ?? null,
                         'created_at' => $orden->CreatedAt ? $orden->CreatedAt->format('Y-m-d H:i:s') : null,
                     ];
                 }
