@@ -106,17 +106,17 @@
                         <div class="flex justify-between">
                             <span class="text-xs text-gray-500">Calidad:</span>
                             @if($item->Calidad)
-                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-sm">{{ $item->Calidad }}</span>
+                                <span id="valCalidad" class="px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-sm">{{ $item->Calidad }}</span>
                             @else
-                                <span class="text-sm text-gray-400">-</span>
+                                <span id="valCalidad" class="text-sm text-gray-400">-</span>
                             @endif
                         </div>
                         <div class="flex justify-between">
                             <span class="text-xs text-gray-500">Limpieza:</span>
                             @if($item->Limpieza)
-                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-sm">{{ $item->Limpieza }}</span>
+                                <span id="valLimpieza" class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-sm">{{ $item->Limpieza }}</span>
                             @else
-                                <span class="text-sm text-gray-400">-</span>
+                                <span id="valLimpieza" class="text-sm text-gray-400">-</span>
                             @endif
                         </div>
                     </div>
@@ -221,11 +221,11 @@
                 <div class="space-y-2">
                     <div class="flex justify-between">
                         <span class="text-xs text-gray-500">Clave:</span>
-                        <span class="text-sm font-medium">{{ $item->CveTejedor ?? '-' }}</span>
+                        <span id="valCveTejedor" class="text-sm font-medium">{{ $item->CveTejedor ?? '-' }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-xs text-gray-500">Nombre:</span>
-                        <span class="text-sm font-medium">{{ $item->NomTejedor ?? '-' }}</span>
+                        <span id="valNomTejedor" class="text-sm font-medium">{{ $item->NomTejedor ?? '-' }}</span>
                     </div>
                 </div>
             </div>
@@ -298,6 +298,8 @@
 
 @push('scripts')
 <script>
+// Usuario actual disponible para reflejar en UI tras guardados
+const currentUser = {!! auth()->check() ? json_encode(['numero_empleado' => auth()->user()->numero_empleado, 'nombre' => auth()->user()->nombre]) : 'null' !!};
 function terminarAtado(){
     Swal.fire({
         title: '¿Terminar Atado?',
@@ -377,8 +379,21 @@ async function calificarTejedor(){
     .then(r => r.json())
     .then(res => {
         if(res.ok){
-            Swal.fire({ icon: 'success', title: 'Calificación guardada', timer: 1500, showConfirmButton: false });
-            setTimeout(() => location.reload(), 800);
+            // Actualizar tabla en vivo sin recargar
+            const calidad = document.getElementById('valCalidad');
+            const limpieza = document.getElementById('valLimpieza');
+            if (calidad) { calidad.textContent = formValues.calidad; calidad.className = 'px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-sm'; }
+            if (limpieza) { limpieza.textContent = formValues.limpieza; limpieza.className = 'px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-sm'; }
+            // Reflejar operador si estaba vacío y tenemos usuario actual
+            const cveTej = document.getElementById('valCveTejedor');
+            const nomTej = document.getElementById('valNomTejedor');
+            if (currentUser && cveTej && (!cveTej.textContent || cveTej.textContent.trim() === '-')) {
+                cveTej.textContent = currentUser.numero_empleado || '-';
+            }
+            if (currentUser && nomTej && (!nomTej.textContent || nomTej.textContent.trim() === '-')) {
+                nomTej.textContent = currentUser.nombre || '-';
+            }
+            Swal.fire({ icon: 'success', title: 'Calificación guardada', timer: 1200, showConfirmButton: false });
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo guardar' });
         }
@@ -387,31 +402,47 @@ async function calificarTejedor(){
 }
 
 function autorizaSupervisor(){
-    // Asignar supervisor = usuario en sesión
-    fetch('{{ route('atadores.save') }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({ action: 'supervisor' })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if(res.ok){
-            Swal.fire({
-                icon: 'success',
-                title: 'Autorizado',
-                html: '<i class="fa-solid fa-circle-check fa-2xl" style="color:#16a34a"></i> Supervisor y operador asentados',
-                timer: 1500,
-                showConfirmButton: false
-            });
-            setTimeout(() => location.reload(), 800);
-        } else {
-            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo asignar supervisor' });
+    Swal.fire({
+        title: '¿Autorizar Supervisor?',
+        text: 'Esto completará el proceso y regresará al programa de atadores',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, autorizar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Asignar supervisor = usuario en sesión
+            fetch('{{ route('atadores.save') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ action: 'supervisor' })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if(res.ok){
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Proceso Completado',
+                        text: 'El atado ha sido autorizado y guardado en el historial',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                    setTimeout(() => {
+                        // Redirigir al programa de atadores
+                        window.location.href = res.redirect || '{{ route('atadores.programa') }}';
+                    }, 2100);
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo autorizar el proceso' });
+                }
+            })
+            .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
         }
-    })
-    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
+    });
 }
 
 function guardarObservaciones(event){

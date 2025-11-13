@@ -13,6 +13,7 @@ use App\Models\AtaMontadoActividadesModel;
 use App\Models\AtaMaquinasModel;
 use App\Models\AtaActividadesModel;
 use App\Models\AtaComentariosModel;
+use App\Models\TejHistorialInventarioTelaresModel;
 
 class AtadoresController extends Controller
 {
@@ -37,8 +38,9 @@ class AtadoresController extends Controller
             DB::raw('noProveedor as NoProveedor'),
             'horaParo'
         )
+        ->where('status', 'activo') // Solo registros activos
         ->whereNotNull('no_julio')
-        ->where('no_julio', '!=', '')
+        ->where('no_julio', '!=', '') // No_julio debe estar lleno
         ->orderBy('fecha', 'desc')
         ->orderBy('turno', 'desc')
         ->get();
@@ -161,30 +163,61 @@ class AtadoresController extends Controller
         }
 
         if ($action === 'supervisor') {
-            // Guardar supervisor y, si faltan, tejedor; usar query directa para evitar PK 'id'
-            DB::connection('sqlsrv')
-                ->table('AtaMontadoTelas')
-                ->where('NoJulio', $montado->NoJulio)
-                ->where('NoProduccion', $montado->NoProduccion)
-                ->update([
-                    'CveSupervisor' => $user->numero_empleado,
-                    'NomSupervisor' => $user->nombre,
-                    'FechaSupervisor' => Carbon::now(),
-                    'CveTejedor' => $montado->CveTejedor ?: $user->numero_empleado,
-                    'NomTejedor' => $montado->NomTejedor ?: $user->nombre,
+            try {
+                DB::beginTransaction();
+
+                // 1. Actualizar supervisor en AtaMontadoTelas
+                DB::connection('sqlsrv')
+                    ->table('AtaMontadoTelas')
+                    ->where('NoJulio', $montado->NoJulio)
+                    ->where('NoProduccion', $montado->NoProduccion)
+                    ->update([
+                        'CveSupervisor' => $user->numero_empleado,
+                        'NomSupervisor' => $user->nombre,
+                        'FechaSupervisor' => Carbon::now(),
+                        'Estatus' => 'Autorizado',
+                        'CveTejedor' => $montado->CveTejedor ?: $user->numero_empleado,
+                        'NomTejedor' => $montado->NomTejedor ?: $user->nombre,
+                    ]);
+
+                // 2. Guardar en TejHistorialInventarioTelares
+                TejHistorialInventarioTelaresModel::create([
+                    'NoTelarId' => $montado->NoTelarId,
+                    'Status' => 'Completado',
+                    'Tipo' => $montado->Tipo,
+                    'FechaRequerimiento' => $montado->Fecha,
+                    'Turno' => $montado->Turno,
+                    'Metros' => $montado->Metros,
+                    'NoJulio' => $montado->NoJulio,
+                    'NoProduccion' => $montado->NoProduccion,
+                    'LoteProveedor' => $montado->LoteProveedor,
+                    'NoProveedor' => $montado->NoProveedor,
+                    'HoraParo' => $montado->HoraParo
                 ]);
 
-            // Registrar supervisor en actividades (usar campos existentes CveEmpl/NomEmpl)
-            DB::connection('sqlsrv')
-                ->table('AtaMontadoActividades')
-                ->where('NoJulio', $montado->NoJulio)
-                ->where('NoProduccion', $montado->NoProduccion)
-                ->update([
-                    'CveEmpl' => $user->numero_empleado,
-                    'NomEmpl' => $user->nombre,
+                // 3. Buscar y eliminar el registro original de tej_inventario_telares
+                $registroOriginal = TejInventarioTelares::where('no_julio', $montado->NoJulio)
+                    ->where('no_orden', $montado->NoProduccion)
+                    ->first();
+                
+                if ($registroOriginal) {
+                    $registroOriginal->delete();
+                }
+
+                // 4. Limpiar AtaMontadoTelas para el siguiente proceso
+                AtaMontadoTelasModel::query()->delete();
+
+                DB::commit();
+                return response()->json([
+                    'ok' => true, 
+                    'message' => 'Proceso autorizado completamente',
+                    'redirect' => route('atadores.programa')
                 ]);
 
-            return response()->json(['ok' => true, 'message' => 'Supervisor asignado']);
+            } catch (\Exception $e) {
+                DB::rollback();
+                return response()->json(['ok' => false, 'message' => 'Error: ' . $e->getMessage()]);
+            }
         }
 
         if ($action === 'calificacion') {
