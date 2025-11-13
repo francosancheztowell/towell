@@ -21,113 +21,119 @@
 
 @section('content')
 <div class="container mx-auto px-4 py-6">
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">Montado de Telas - Atadores</h1>
-    </div>
+
 
     @if($montadoTelas->isNotEmpty())
         @php
             $item = $montadoTelas->first();
         @endphp
         
-        <!-- Información Principal en Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <!-- Card 1: Información General -->
-            <div class="bg-white rounded-lg shadow-md p-4">
-                <h3 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">Información General</h3>
-                <div class="space-y-2">
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Estatus:</span>
-                        <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $item->Estatus == 'En Proceso' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800' }}">
-                            {{ $item->Estatus ?? '-' }}
-                        </span>
+        <!-- Resumen del Atado (4 bloques combinados + comentarios) -->
+        <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <h3 class="text-base font-semibold text-gray-700 mb-4">Resumen del Atado</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Información General -->
+                <div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">Fecha:</span>
+                            <span class="text-sm font-medium">{{ $item->Fecha ? \Carbon\Carbon::parse($item->Fecha)->format('d/m/Y') : '-' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">Turno:</span>
+                            <span class="text-sm font-medium">{{ $item->Turno ?? '-' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">No. Julio:</span>
+                            <span class="text-sm font-medium">{{ $item->NoJulio ?? '-' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">No. Producción:</span>
+                            <span class="text-sm font-medium">{{ $item->NoProduccion ?? '-' }}</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Fecha:</span>
-                        <span class="text-sm font-medium">{{ $item->Fecha ? \Carbon\Carbon::parse($item->Fecha)->format('d/m/Y') : '-' }}</span>
+                </div>
+
+                <!-- Detalles de Producción -->
+                <div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">Tipo:</span>
+                            <span class="text-sm font-medium">{{ $item->Tipo ?? '-' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">Metros:</span>
+                            <span class="text-sm font-medium">{{ $item->Metros ? number_format($item->Metros, 2) : '-' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">No. Telar:</span>
+                            <span class="text-sm font-medium">{{ $item->NoTelarId ?? '-' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">Lote Proveedor:</span>
+                            <span class="text-sm font-medium">{{ $item->LoteProveedor ?? '-' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">No. Proveedor:</span>
+                            <span class="text-sm font-medium">{{ $item->NoProveedor ?? '-' }}</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Turno:</span>
-                        <span class="text-sm font-medium">{{ $item->Turno ?? '-' }}</span>
+                </div>
+
+                <!-- Tiempos y Pesos -->
+                <div>
+                    {{-- <h4 class="text-sm font-semibold text-gray-600 mb-2 border-b pb-1">Tiempos y Pesos</h4> --}}
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">Merga Kg:</span>
+                            <span class="text-sm font-medium">{{ $item->MergaKg ? number_format($item->MergaKg, 2) : '-' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">Hora Paro:</span>
+                            <span class="text-sm font-medium">{{ $item->HoraParo ?? '-' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">Hora Arranque:</span>
+                            <span class="text-sm font-medium">{{ $item->HoraArranque ?? '-' }}</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">No. Julio:</span>
-                        <span class="text-sm font-medium">{{ $item->NoJulio ?? '-' }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">No. Producción:</span>
-                        <span class="text-sm font-medium">{{ $item->NoProduccion ?? '-' }}</span>
+                </div>
+
+                <!-- Calificaciones -->
+                <div>
+                    {{-- <h4 class="text-sm font-semibold text-gray-600 mb-2 border-b pb-1">Calificaciones</h4> --}}
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">Calidad:</span>
+                            @if($item->Calidad)
+                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-sm">{{ $item->Calidad }}</span>
+                            @else
+                                <span class="text-sm text-gray-400">-</span>
+                            @endif
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs text-gray-500">Limpieza:</span>
+                            @if($item->Limpieza)
+                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-sm">{{ $item->Limpieza }}</span>
+                            @else
+                                <span class="text-sm text-gray-400">-</span>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Card 2: Detalles de Producción -->
-            <div class="bg-white rounded-lg shadow-md p-4">
-                <h3 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">Detalles de Producción</h3>
-                <div class="space-y-2">
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Tipo:</span>
-                        <span class="text-sm font-medium">{{ $item->Tipo ?? '-' }}</span>
+            <!-- Observaciones dentro del mismo card -->
+            <div class="mt-4">
+                <h4 class="text-sm font-semibold text-gray-600 mb-2 border-b pb-1">Observaciones</h4>
+                <form id="formObservaciones" onsubmit="guardarObservaciones(event)">
+                    <textarea id="observaciones" name="observaciones" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200" placeholder="Escriba aquí las observaciones sobre el atado...">{{ $item->Obs }}</textarea>
+                    <div class="mt-3 flex justify-end">
+                        <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200">
+                            <i class="fas fa-save mr-1"></i> Guardar Observaciones
+                        </button>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Metros:</span>
-                        <span class="text-sm font-medium">{{ $item->Metros ? number_format($item->Metros, 2) : '-' }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">No. Telar:</span>
-                        <span class="text-sm font-medium">{{ $item->NoTelarId ?? '-' }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Lote Proveedor:</span>
-                        <span class="text-sm font-medium">{{ $item->LoteProveedor ?? '-' }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">No. Proveedor:</span>
-                        <span class="text-sm font-medium">{{ $item->NoProveedor ?? '-' }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card 3: Tiempos y Pesos -->
-            <div class="bg-white rounded-lg shadow-md p-4">
-                <h3 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">Tiempos y Pesos</h3>
-                <div class="space-y-2">
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Merga Kg:</span>
-                        <span class="text-sm font-medium">{{ $item->MergaKg ? number_format($item->MergaKg, 2) : '-' }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Hora Paro:</span>
-                        <span class="text-sm font-medium">{{ $item->HoraParo ?? '-' }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Hora Arranque:</span>
-                        <span class="text-sm font-medium">{{ $item->HoraArranque ?? '-' }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card 4: Calificaciones -->
-            <div class="bg-white rounded-lg shadow-md p-4">
-                <h3 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">Calificaciones</h3>
-                <div class="space-y-2">
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Calidad:</span>
-                        @if($item->Calidad)
-                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-sm">{{ $item->Calidad }}</span>
-                        @else
-                            <span class="text-sm text-gray-400">-</span>
-                        @endif
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Limpieza:</span>
-                        @if($item->Limpieza)
-                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-sm">{{ $item->Limpieza }}</span>
-                        @else
-                            <span class="text-sm text-gray-400">-</span>
-                        @endif
-                    </div>
-                </div>
+                </form>
             </div>
         </div>
 
@@ -245,25 +251,7 @@
             </div>
         </div>
 
-        <!-- Observaciones -->
-        <div class="bg-white rounded-lg shadow-md p-4">
-            <h3 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">
-                <i class="fas fa-clipboard mr-2 text-orange-500"></i>Observaciones
-            </h3>
-            <form id="formObservaciones" onsubmit="guardarObservaciones(event)">
-                <textarea 
-                    id="observaciones" 
-                    name="observaciones" 
-                    rows="4"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200"
-                    placeholder="Escriba aquí las observaciones sobre el atado...">{{ $item->Obs }}</textarea>
-                <div class="mt-3 flex justify-end">
-                    <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200">
-                        <i class="fas fa-save mr-1"></i> Guardar Observaciones
-                    </button>
-                </div>
-            </form>
-        </div>
+        
     @else
         <div class="bg-white rounded-lg shadow-md p-8 text-center">
             <i class="fas fa-inbox text-gray-300 text-6xl mb-4"></i>
