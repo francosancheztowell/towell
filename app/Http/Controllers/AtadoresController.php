@@ -168,6 +168,24 @@ class AtadoresController extends Controller
             return response()->json(['ok' => true, 'message' => 'Supervisor asignado']);
         }
 
+        if ($action === 'calificacion') {
+            $data = $request->validate([
+                'calidad' => ['required','integer','min:1','max:10'],
+                'limpieza' => ['required','integer','min:1','max:5'],
+            ]);
+            $montado->Calidad = (int) $data['calidad'];
+            $montado->Limpieza = (int) $data['limpieza'];
+            // Registrar también operador si no existe
+            if (empty($montado->CveTejedor)) {
+                $montado->CveTejedor = $user->numero_empleado;
+            }
+            if (empty($montado->NomTejedor)) {
+                $montado->NomTejedor = $user->nombre;
+            }
+            $montado->save();
+            return response()->json(['ok' => true, 'message' => 'Calificación guardada']);
+        }
+
         return response()->json(['ok' => false, 'message' => 'Acción no válida'], 422);
     }
 }

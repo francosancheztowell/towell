@@ -9,8 +9,8 @@
             <i class="fas fa-stop mr-1"></i> Terminar Atado
         </button>
         <button onclick="calificarTejedor()" 
-            class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors duration-200">
-            <i class="fas fa-user-check mr-1"></i> Calificar Tejedor
+            class="px-2 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors duration-200">
+            <i class="fas fa-user-check mr-1"></i> Califica Tejedor
         </button>
         <button onclick="autorizaSupervisor()" 
             class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200">
@@ -275,8 +275,7 @@
                     <h4 class="text-xs font-semibold text-gray-500 mb-2">Nota 1</h4>
                     <div class="flex flex-wrap gap-2">
                         @foreach($comentarios->pluck('Nota1')->filter()->unique()->values() as $n1)
-                            <button type="button" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md text-sm"
-                                    onclick="agregarNota(`{{ $n1 }}`)">{{ $n1 }}</button>
+                            <span  class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-red-500 rounded-md text-sm">{{ $n1 }}</span>
                         @endforeach
                     </div>
                 </div>
@@ -285,13 +284,11 @@
                     <h4 class="text-xs font-semibold text-gray-500 mb-2">Nota 2</h4>
                     <div class="flex flex-wrap gap-2">
                         @foreach($comentarios->pluck('Nota2')->filter()->unique()->values() as $n2)
-                            <button type="button" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md text-sm"
-                                    onclick="agregarNota(`{{ $n2 }}`)">{{ $n2 }}</button>
+                            <span class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-red-500 rounded-md text-sm">{{ $n2 }}</span>
                         @endforeach
                     </div>
                 </div>
             </div>
-            <p class="text-xs text-gray-400 mt-2">Clic en una nota para agregarla a Observaciones.</p>
         @endif
     </div>
     @endisset
@@ -318,23 +315,55 @@ function terminarAtado(){
     });
 }
 
-function calificarTejedor(){
-    // Asignar operador = usuario en sesión
+async function calificarTejedor(){
+    const { value: formValues } = await Swal.fire({
+        title: 'Calificar Tejedor',
+        html: `
+            <div class="text-left">
+                <label class=\"block text-sm mb-1\">Calidad de Atado</label>
+                <select id=\"swCalidad\" class=\"swal2-input\" style=\"width:100%\">
+                    <option value=\"\">Seleccione</option>
+                    ${Array.from({length:10}, (_,i)=>`<option value=\"${i+1}\">${i+1}</option>`).join('')}
+                </select>
+                <label class=\"block text-sm mb-1 mt-3\">Orden y Limpieza</label>
+                <select id=\"swLimpieza\" class=\"swal2-input\" style=\"width:100%\">
+                    <option value=\"\">Seleccione</option>
+                    ${Array.from({length:5}, (_,i)=>`<option value=\"${i+1}\">${i+1}</option>`).join('')}
+                </select>
+            </div>
+        `,
+        focusConfirm: false,
+        preConfirm: () => {
+            const calidad = document.getElementById('swCalidad').value;
+            const limpieza = document.getElementById('swLimpieza').value;
+            if(!calidad || !limpieza){
+                Swal.showValidationMessage('Seleccione calidad y limpieza');
+                return false;
+            }
+            return { calidad, limpieza };
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Guardar'
+    });
+
+    if(!formValues) return;
+
+    // Enviar calificación y, si no existe, asignar operador con el usuario en sesión
     fetch('{{ route('atadores.save') }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify({ action: 'operador' })
+        body: JSON.stringify({ action: 'calificacion', calidad: Number(formValues.calidad), limpieza: Number(formValues.limpieza) })
     })
     .then(r => r.json())
     .then(res => {
         if(res.ok){
-            Swal.fire({ icon: 'success', title: 'Operador asignado', timer: 1500, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: 'Calificación guardada', timer: 1500, showConfirmButton: false });
             setTimeout(() => location.reload(), 800);
         } else {
-            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo asignar operador' });
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo guardar' });
         }
     })
     .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
