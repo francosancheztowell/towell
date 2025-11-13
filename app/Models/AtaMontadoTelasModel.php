@@ -10,6 +10,7 @@ class AtaMontadoTelasModel extends Model
     protected $table = 'AtaMontadoTelas';
     protected $connection = 'sqlsrv';
     public $timestamps = false;
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'Estatus',
@@ -29,6 +30,9 @@ class AtaMontadoTelasModel extends Model
         'Limpieza',
         'CveSupervisor',
         'NomSupervisor',
-        'Obs'
+        'Obs',
+        'CveTejedor',
+        'NomTejedor',
+        'FechaSupervisor'
     ];
 }

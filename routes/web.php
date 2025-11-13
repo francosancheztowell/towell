@@ -806,6 +806,8 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         return view('modulos/atadores/programar-requerimientos');
     });
     Route::get('/atadores/programa', [AtadoresController::class, 'index'])->name('atadores.programa');
+    Route::get('/atadores/iniciar', [AtadoresController::class, 'iniciarAtado'])->name('atadores.iniciar');
+    Route::get('/atadores/calificar', [AtadoresController::class, 'calificarAtadores'])->name('atadores.calificar');
     Route::get('/atadores-juliosAtados', [AtadoresController::class, 'cargarDatosUrdEngAtador'])->name('datosAtadores.Atador');
     Route::post('/atadores/save', [AtadoresController::class, 'save'])->name('atadores.save');
     Route::get('/atadores/show', [AtadoresController::class, 'show'])->name('atadores.show');

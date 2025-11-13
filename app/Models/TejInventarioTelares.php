@@ -22,7 +22,10 @@ class TejInventarioTelares extends Model
         'no_orden',
         'tipo_atado',
         'salon',
-        'localidad'
+        'localidad',
+        'LoteProveedor',
+        'NoProveedor',
+        'horaParo',
     ];
 
     protected $casts = [

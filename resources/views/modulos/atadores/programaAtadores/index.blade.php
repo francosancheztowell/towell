@@ -4,8 +4,8 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button onclick="iniciarAtado()" 
-            class="px-2 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200">
+        <button id="btnIniciarAtado" onclick="iniciarAtado()" disabled
+            class="px-2 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 opacity-50 cursor-not-allowed">
             <i class="fas fa-play mr-1"></i> Iniciar Atado
         </button>
         <button onclick="calificaTejedor()" 
@@ -62,11 +62,22 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
                             Hilo
                         </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
+                            Lote de Proveedor
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
+                            No. Proveedor
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
+                            Hr. Paro
+                        </th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($inventarioTelares as $item)
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150" 
+                            onclick="selectRow(this, {{ $item->id }})" 
+                            data-id="{{ $item->id }}">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {{ $item->fecha ? $item->fecha->format('d/m/Y') : '-' }}
                             </td>
@@ -103,10 +114,19 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {{ $item->hilo ?? '-' }}
                             </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ $item->LoteProveedor ?? '-' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ $item->NoProveedor ?? '-' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ $item->horaParo ?? '-' }}
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="12" class="px-6 py-4 text-center text-sm text-gray-500">
+                            <td colspan="15" class="px-6 py-4 text-center text-sm text-gray-500">
                                 No hay datos disponibles en el inventario de telares
                             </td>
                         </tr>
@@ -185,9 +205,62 @@
 
 @push('scripts')
 <script>
+let selectedRowId = null;
+let selectedRow = null;
+
+function selectRow(row, id) {
+    // Remover selección previa
+    if (selectedRow) {
+        selectedRow.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-500');
+    }
+    
+    // Si se hace clic en la misma fila, deseleccionar
+    if (selectedRow === row) {
+        selectedRow = null;
+        selectedRowId = null;
+        disableIniciarButton();
+        return;
+    }
+    
+    // Seleccionar nueva fila
+    selectedRow = row;
+    selectedRowId = id;
+    row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-500');
+    
+    // Habilitar botón
+    enableIniciarButton();
+}
+
+function enableIniciarButton() {
+    const btn = document.getElementById('btnIniciarAtado');
+    if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        btn.classList.add('cursor-pointer');
+    }
+}
+
+function disableIniciarButton() {
+    const btn = document.getElementById('btnIniciarAtado');
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.classList.remove('cursor-pointer');
+    }
+}
+
 function iniciarAtado(){
-    console.log("Iniciar Atado");
-    // Aquí irá la lógica para iniciar el atado
+    if (!selectedRowId) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Atención',
+            text: 'Debe seleccionar un registro primero'
+        });
+        return;
+    }
+    
+    // Enviar el ID seleccionado
+    window.location.href = `{{ route("atadores.iniciar") }}?id=${selectedRowId}`;
 }
 
 function calificaTejedor(){
