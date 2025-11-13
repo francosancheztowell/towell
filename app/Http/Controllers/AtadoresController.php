@@ -161,10 +161,29 @@ class AtadoresController extends Controller
         }
 
         if ($action === 'supervisor') {
-            $montado->CveSupervisor = $user->numero_empleado;
-            $montado->NomSupervisor = $user->nombre;
-            $montado->FechaSupervisor = Carbon::now();
-            $montado->save();
+            // Guardar supervisor y, si faltan, tejedor; usar query directa para evitar PK 'id'
+            DB::connection('sqlsrv')
+                ->table('AtaMontadoTelas')
+                ->where('NoJulio', $montado->NoJulio)
+                ->where('NoProduccion', $montado->NoProduccion)
+                ->update([
+                    'CveSupervisor' => $user->numero_empleado,
+                    'NomSupervisor' => $user->nombre,
+                    'FechaSupervisor' => Carbon::now(),
+                    'CveTejedor' => $montado->CveTejedor ?: $user->numero_empleado,
+                    'NomTejedor' => $montado->NomTejedor ?: $user->nombre,
+                ]);
+
+            // Registrar supervisor en actividades (usar campos existentes CveEmpl/NomEmpl)
+            DB::connection('sqlsrv')
+                ->table('AtaMontadoActividades')
+                ->where('NoJulio', $montado->NoJulio)
+                ->where('NoProduccion', $montado->NoProduccion)
+                ->update([
+                    'CveEmpl' => $user->numero_empleado,
+                    'NomEmpl' => $user->nombre,
+                ]);
+
             return response()->json(['ok' => true, 'message' => 'Supervisor asignado']);
         }
 
@@ -173,17 +192,54 @@ class AtadoresController extends Controller
                 'calidad' => ['required','integer','min:1','max:10'],
                 'limpieza' => ['required','integer','min:1','max:5'],
             ]);
-            $montado->Calidad = (int) $data['calidad'];
-            $montado->Limpieza = (int) $data['limpieza'];
-            // Registrar también operador si no existe
-            if (empty($montado->CveTejedor)) {
-                $montado->CveTejedor = $user->numero_empleado;
-            }
-            if (empty($montado->NomTejedor)) {
-                $montado->NomTejedor = $user->nombre;
-            }
-            $montado->save();
+            DB::connection('sqlsrv')
+                ->table('AtaMontadoTelas')
+                ->where('NoJulio', $montado->NoJulio)
+                ->where('NoProduccion', $montado->NoProduccion)
+                ->update([
+                    'Calidad' => (int) $data['calidad'],
+                    'Limpieza' => (int) $data['limpieza'],
+                    'CveTejedor' => $montado->CveTejedor ?: $user->numero_empleado,
+                    'NomTejedor' => $montado->NomTejedor ?: $user->nombre,
+                ]);
+
             return response()->json(['ok' => true, 'message' => 'Calificación guardada']);
+        }
+
+        if ($action === 'maquina_estado') {
+            $data = $request->validate([
+                'maquinaId' => ['required','string','max:50'],
+                'estado' => ['required','boolean']
+            ]);
+
+            // Evitar errores por PK inexistente usando query builder
+            DB::connection('sqlsrv')
+                ->table('AtaMontadoMaquinas')
+                ->updateOrInsert(
+                    [
+                        'NoJulio' => $montado->NoJulio,
+                        'NoProduccion' => $montado->NoProduccion,
+                        'MaquinaId' => $data['maquinaId'],
+                    ],
+                    [
+                        'Estado' => $data['estado'] ? 1 : 0,
+                    ]
+                );
+
+            return response()->json(['ok' => true, 'message' => 'Estado de máquina actualizado']);
+        }
+
+        if ($action === 'terminar') {
+            // Actualiza HoraArranque con hora actual en Telas
+            DB::connection('sqlsrv')
+                ->table('AtaMontadoTelas')
+                ->where('NoJulio', $montado->NoJulio)
+                ->where('NoProduccion', $montado->NoProduccion)
+                ->update([
+                    'HoraArranque' => Carbon::now()->format('H:i:s')
+                ]);
+
+            return response()->json(['ok' => true, 'message' => 'Atado terminado y hora de arranque registrada']);
         }
 
         return response()->json(['ok' => false, 'message' => 'Acción no válida'], 422);

@@ -158,7 +158,8 @@
                             <tr>
                                 <td class="px-4 py-2 text-sm text-gray-900">{{ $maq->MaquinaId }}</td>
                                 <td class="px-4 py-2 text-center">
-                                    <input type="checkbox" {{ $checked ? 'checked' : '' }} disabled class="h-4 w-4 text-blue-600 rounded" />
+                                    <input type="checkbox" {{ $checked ? 'checked' : '' }} class="h-4 w-4 text-blue-600 rounded"
+                                           onchange="toggleMaquina('{{ $maq->MaquinaId }}', this.checked)" />
                                 </td>
                             </tr>
                         @empty
@@ -300,7 +301,7 @@
 function terminarAtado(){
     Swal.fire({
         title: '¿Terminar Atado?',
-        text: '¿Está seguro de que desea terminar este atado?',
+        text: 'Se registrará la hora de arranque con la hora actual',
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
@@ -309,8 +310,24 @@ function terminarAtado(){
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            // Aquí irá la lógica para terminar el atado
-            console.log("Terminar Atado confirmado");
+            fetch('{{ route('atadores.save') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ action: 'terminar' })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if(res.ok){
+                    Swal.fire({ icon: 'success', title: 'Atado terminado', timer: 1500, showConfirmButton: false });
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo terminar' });
+                }
+            })
+            .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
         }
     });
 }
@@ -382,7 +399,13 @@ function autorizaSupervisor(){
     .then(r => r.json())
     .then(res => {
         if(res.ok){
-            Swal.fire({ icon: 'success', title: 'Supervisor asignado', timer: 1500, showConfirmButton: false });
+            Swal.fire({
+                icon: 'success',
+                title: 'Autorizado',
+                html: '<i class="fa-solid fa-circle-check fa-2xl" style="color:#16a34a"></i> Supervisor y operador asentados',
+                timer: 1500,
+                showConfirmButton: false
+            });
             setTimeout(() => location.reload(), 800);
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo asignar supervisor' });
@@ -415,6 +438,25 @@ function agregarNota(texto){
     const sep = ta.value && !ta.value.endsWith('\n') ? '\n' : '';
     ta.value = ta.value + sep + texto;
     ta.focus();
+}
+
+// Toggle estado de máquina y guardar en DB
+function toggleMaquina(maquinaId, checked){
+    fetch('{{ route('atadores.save') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ action: 'maquina_estado', maquinaId, estado: !!checked })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(!res.ok){
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo actualizar máquina' });
+        }
+    })
+    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
 }
 </script>
 @endpush
