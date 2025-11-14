@@ -20,29 +20,40 @@ class AtadoresController extends Controller
     //
     public function index(){
         $inventarioTelares = TejInventarioTelares::select(
-            'id',
-            'fecha',
-            'turno',
-            'no_telar',
-            'tipo',
-            'no_julio',
-            'localidad',
-            'metros',
-            'no_orden',
-            'tipo_atado',
-            'cuenta',
-            'calibre',
-            'hilo',
+            'tej_inventario_telares.id',
+            'tej_inventario_telares.fecha',
+            'tej_inventario_telares.turno',
+            'tej_inventario_telares.no_telar',
+            'tej_inventario_telares.tipo',
+            'tej_inventario_telares.no_julio',
+            'tej_inventario_telares.localidad',
+            'tej_inventario_telares.metros',
+            'tej_inventario_telares.no_orden',
+            'tej_inventario_telares.tipo_atado',
+            'tej_inventario_telares.cuenta',
+            'tej_inventario_telares.calibre',
+            'tej_inventario_telares.hilo',
             // Map column names from MySQL (camelCase) to expected aliases
-            DB::raw('loteProveedor as LoteProveedor'),
-            DB::raw('noProveedor as NoProveedor'),
-            'horaParo'
+            DB::raw('tej_inventario_telares.loteProveedor as LoteProveedor'),
+            DB::raw('tej_inventario_telares.noProveedor as NoProveedor'),
+            'tej_inventario_telares.horaParo',
+            // Dynamic status based on AtaMontadoTelas
+            DB::raw("CASE 
+                WHEN AtaMontadoTelas.Estatus = 'Autorizado' THEN 'Autorizado'
+                WHEN AtaMontadoTelas.Calidad IS NOT NULL AND AtaMontadoTelas.Limpieza IS NOT NULL THEN 'Calificado'
+                WHEN AtaMontadoTelas.HoraArranque IS NOT NULL THEN 'En Proceso'
+                ELSE 'Activo'
+            END as status_proceso")
         )
-        ->where('status', 'activo') // Solo registros activos
-        ->whereNotNull('no_julio')
-        ->where('no_julio', '!=', '') // No_julio debe estar lleno
-        ->orderBy('fecha', 'desc')
-        ->orderBy('turno', 'desc')
+        ->leftJoin('AtaMontadoTelas', function($join) {
+            $join->on('tej_inventario_telares.no_julio', '=', 'AtaMontadoTelas.NoJulio')
+                 ->on('tej_inventario_telares.no_orden', '=', 'AtaMontadoTelas.NoProduccion');
+        })
+        ->where('tej_inventario_telares.status', 'activo') // Solo registros activos
+        ->whereNotNull('tej_inventario_telares.no_julio')
+        ->where('tej_inventario_telares.no_julio', '!=', '') // No_julio debe estar lleno
+        ->orderBy('tej_inventario_telares.fecha', 'desc')
+        ->orderBy('tej_inventario_telares.turno', 'desc')
         ->get();
 
         return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares'));

@@ -8,14 +8,14 @@
             class="px-2 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 opacity-50 cursor-not-allowed">
             <i class="fas fa-play mr-1"></i> Iniciar Atado
         </button>
-        <button onclick="calificaTejedor()" 
+        {{-- <button onclick="calificaTejedor()" 
             class="px-2 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors duration-200">
             <i class="fas fa-user-check mr-1"></i> Califica Tejedor
         </button>
         <button onclick="calificaSupervisor()" 
             class="px-2 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200">
             <i class="fas fa-user-tie mr-1"></i> Califica Supervisor
-        </button>
+        </button> --}}
     </div>
 @endsection
 
@@ -28,6 +28,9 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
                             Fecha Req
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
+                            Status
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
                             Turno Req
@@ -81,6 +84,16 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {{ $item->fecha ? $item->fecha->format('d/m/Y') : '-' }}
                             </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm" data-status="{{ $item->status_proceso }}">
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                    @if($item->status_proceso === 'Activo') bg-gray-200 text-gray-800
+                                    @elseif($item->status_proceso === 'En Proceso') bg-blue-200 text-blue-800
+                                    @elseif($item->status_proceso === 'Calificado') bg-yellow-200 text-yellow-800
+                                    @elseif($item->status_proceso === 'Autorizado') bg-green-200 text-green-800
+                                    @endif">
+                                    {{ $item->status_proceso }}
+                                </span>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {{ $item->turno ?? '-' }}
                             </td>
@@ -126,7 +139,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="15" class="px-6 py-4 text-center text-sm text-gray-500">
+                            <td colspan="16" class="px-6 py-4 text-center text-sm text-gray-500">
                                 No hay datos disponibles en el inventario de telares
                             </td>
                         </tr>
@@ -207,6 +220,36 @@
 <script>
 let selectedRowId = null;
 let selectedRow = null;
+
+// Auto-refresh status every 5 seconds to show real-time changes
+setInterval(refreshStatus, 5000);
+
+async function refreshStatus() {
+    try {
+        const response = await fetch('{{ route("atadores.programa") }}');
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Update each row's status
+        const currentRows = document.querySelectorAll('tbody tr[data-id]');
+        currentRows.forEach(row => {
+            const id = row.getAttribute('data-id');
+            const newRow = doc.querySelector(`tr[data-id="${id}"]`);
+            if (newRow) {
+                const currentStatusCell = row.querySelector('td[data-status]');
+                const newStatusCell = newRow.querySelector('td[data-status]');
+                if (currentStatusCell && newStatusCell && 
+                    currentStatusCell.getAttribute('data-status') !== newStatusCell.getAttribute('data-status')) {
+                    currentStatusCell.innerHTML = newStatusCell.innerHTML;
+                    currentStatusCell.setAttribute('data-status', newStatusCell.getAttribute('data-status'));
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error refreshing status:', error);
+    }
+}
 
 function selectRow(row, id) {
     // Remover selección previa

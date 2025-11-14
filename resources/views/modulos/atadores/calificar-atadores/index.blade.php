@@ -126,6 +126,12 @@
                         <span class="text-sm font-semibold text-gray-800">{{ $item->NoProveedor ?? '-' }}</span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide"></span>
+                        <span id="valFechaSupervisor" class="text-sm font-semibold text-gray-800">
+                            {{ '-' }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Tejedor</span>
                         <div class="text-sm font-semibold text-gray-800 flex flex-wrap justify-end gap-1 text-right">
                             <span id="valCveTejedor">{{ $item->CveTejedor ?? '-' }}</span>
@@ -136,9 +142,10 @@
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Fecha Hora</span>
                         <span id="valFechaSupervisor" class="text-sm font-semibold text-gray-800">
-                            {{ $item->FechaSupervisor ? \Carbon\Carbon::parse($item->FechaSupervisor)->format('d/m/Y H:i') : '-' }}
+                            {{ '-' }}
                         </span>
                     </div>
+                    
                 </div>
             </div>
 
