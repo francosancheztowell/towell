@@ -88,6 +88,7 @@
                                 <span class="px-2 py-1 rounded-full text-xs font-semibold
                                     @if($item->status_proceso === 'Activo') bg-gray-200 text-gray-800
                                     @elseif($item->status_proceso === 'En Proceso') bg-blue-200 text-blue-800
+                                    @elseif($item->status_proceso === 'Terminado') bg-purple-200 text-purple-800
                                     @elseif($item->status_proceso === 'Calificado') bg-yellow-200 text-yellow-800
                                     @elseif($item->status_proceso === 'Autorizado') bg-green-200 text-green-800
                                     @endif">

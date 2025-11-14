@@ -59,7 +59,7 @@
                             <input type="number" id="mergaKg" step="0.01" value="{{ $item->MergaKg ?? '' }}"
                                    class="w-28 px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                                    placeholder="0.00" oninput="handleMergaChange(this.value)"
-                                   @if($item->Calidad && $item->Limpieza) disabled @endif />
+                                   @if($item->HoraArranque) disabled @endif />
                             <span id="mergaSavedIndicator" class="absolute -right-6 top-1/2 -translate-y-1/2 text-green-600 text-xs hidden">
                                 <i class="fas fa-check"></i>
                             </span>
@@ -95,7 +95,9 @@
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Hora de Arranque</span>
-                        <span class="text-sm font-semibold text-gray-800">{{ $item->HoraArranque ?? '-' }}</span>
+                        <span class="text-sm font-semibold text-gray-800">
+                            {{ $item->HoraArranque ? \Carbon\Carbon::parse($item->HoraArranque)->format('H:i') : '-' }}
+                        </span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">5'S Orden y Limpieza (5-10)</span>
@@ -134,9 +136,9 @@
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Tejedor</span>
                         <div class="text-sm font-semibold text-gray-800 flex flex-wrap justify-end gap-1 text-right">
-                            <span id="valCveTejedor">{{ $item->CveTejedor ?? '-' }}</span>
-                            <span id="tejedorDash" class="text-gray-400 {{ (!empty($item->CveTejedor) && !empty($item->NomTejedor)) ? '' : 'hidden' }}">-</span>
-                            <span id="valNomTejedor">{{ $item->NomTejedor ?? '-' }}</span>
+                            <span id="valCveTejedor">-</span>
+                            <span id="tejedorDash" class="text-gray-400 hidden">-</span>
+                            <span id="valNomTejedor"></span>
                         </div>
                     </div>
                     <div class="flex justify-between items-center gap-4">
@@ -165,10 +167,10 @@
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200" 
                         placeholder="Escriba aquí las observaciones sobre el atado..."
                         oninput="handleObservacionesChange()"
-                        @if($item->Calidad && $item->Limpieza) disabled @endif>{{ $item->Obs }}</textarea>
+                        @if($item->HoraArranque) disabled @endif>{{ $item->Obs }}</textarea>
                     <div class="mt-3 flex justify-end">
                         <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200"
-                            @if($item->Calidad && $item->Limpieza) disabled @endif>
+                            @if($item->HoraArranque) disabled @endif>
                             <i class="fas fa-save mr-1"></i> Guardar Observaciones
                         </button>
                     </div>
@@ -199,7 +201,7 @@
                                 <td class="px-4 py-2 text-center">
                                     <input type="checkbox" {{ $checked ? 'checked' : '' }} class="h-4 w-4 text-blue-600 rounded"
                                            onchange="toggleMaquina('{{ $maq->MaquinaId }}', this.checked)"
-                                           @if($item->Calidad && $item->Limpieza) disabled @endif />
+                                           @if($item->HoraArranque) disabled @endif />
                                 </td>
                             </tr>
                         @empty
@@ -239,7 +241,7 @@
                                 <td class="px-1 py-2 text-center w-16">
                                     <input type="checkbox" {{ $checked ? 'checked' : '' }} class="h-4 w-4 text-green-600 rounded"
                                            onchange="toggleActividad('{{ $act->ActividadId }}', this.checked)"
-                                           @if($item->Calidad && $item->Limpieza) disabled @endif />
+                                           @if($item->HoraArranque) disabled @endif />
                                 </td>
                                 <td class="px-2 py-2 text-sm text-gray-900 operador-cell">{{ $operador }}</td>
                             </tr>
@@ -270,22 +272,26 @@
         @if($comentarios->isEmpty())
             <p class="text-sm text-gray-500">No hay notas configuradas.</p>
         @else
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-6 mb-28">
                 <!-- Nota 1 -->
                 <div>
-                    <h4 class="text-xs font-semibold text-gray-500 mb-2">Nota 1</h4>
-                    <div class="flex flex-wrap gap-2">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3 bg-gray-50 px-3 py-2 rounded-t-md border-b-2 border-blue-500">Nota 1</h4>
+                    <div class="space-y-3">
                         @foreach($comentarios->pluck('Nota1')->filter()->unique()->values() as $n1)
-                            <span  class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-red-500 rounded-md text-sm">{{ $n1 }}</span>
+                            <div class="px-4 py-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md text-sm leading-relaxed whitespace-normal">
+                                {{ $n1 }}
+                            </div>
                         @endforeach
                     </div>
                 </div>
                 <!-- Nota 2 -->
                 <div>
-                    <h4 class="text-xs font-semibold text-gray-500 mb-2">Nota 2</h4>
-                    <div class="flex flex-wrap gap-2">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3 bg-gray-50 px-3 py-2 rounded-t-md border-b-2 border-green-500">Nota 2</h4>
+                    <div class="space-y-3">
                         @foreach($comentarios->pluck('Nota2')->filter()->unique()->values() as $n2)
-                            <span class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-red-500 rounded-md text-sm">{{ $n2 }}</span>
+                            <div class="px-4 py-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md text-sm leading-relaxed whitespace-normal">
+                                {{ $n2 }}
+                            </div>
                         @endforeach
                     </div>
                 </div>
@@ -480,15 +486,15 @@ async function calificarTejedor(){
         title: 'Calificar Tejedor',
         html: `
             <div class="text-left">
-                <label class=\"block text-sm mb-1\">Calidad de Atado</label>
-                <select id=\"swCalidad\" class=\"swal2-input\" style=\"width:100%\">
-                    <option value=\"\">Seleccione</option>
-                    ${Array.from({length:10}, (_,i)=>`<option value=\"${i+1}\">${i+1}</option>`).join('')}
+                <label class="block text-sm mb-1">Calidad de Atado</label>
+                <select id="swCalidad" class="swal2-input" style="width:100%">
+                    <option value="">Seleccione</option>
+                    ${Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}
                 </select>
-                <label class=\"block text-sm mb-1 mt-3\">Orden y Limpieza</label>
-                <select id=\"swLimpieza\" class=\"swal2-input\" style=\"width:100%\">
-                    <option value=\"\">Seleccione</option>
-                    ${Array.from({length:5}, (_,i)=>`<option value=\"${i+1}\">${i+1}</option>`).join('')}
+                <label class="block text-sm mb-1 mt-3">Orden y Limpieza (5-10)</label>
+                <select id="swLimpieza" class="swal2-input" style="width:100%">
+                    <option value="">Seleccione</option>
+                    ${Array.from({length:6}, (_,i)=>`<option value="${i+5}">${i+5}</option>`).join('')}
                 </select>
             </div>
         `,

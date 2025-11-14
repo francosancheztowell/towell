@@ -41,7 +41,8 @@ class AtadoresController extends Controller
             DB::raw("CASE 
                 WHEN AtaMontadoTelas.Estatus = 'Autorizado' THEN 'Autorizado'
                 WHEN AtaMontadoTelas.Calidad IS NOT NULL AND AtaMontadoTelas.Limpieza IS NOT NULL THEN 'Calificado'
-                WHEN AtaMontadoTelas.HoraArranque IS NOT NULL THEN 'En Proceso'
+                WHEN AtaMontadoTelas.HoraArranque IS NOT NULL THEN 'Terminado'
+                WHEN AtaMontadoTelas.NoJulio IS NOT NULL THEN 'En Proceso'
                 ELSE 'Activo'
             END as status_proceso")
         )
@@ -339,7 +340,7 @@ class AtadoresController extends Controller
         if ($action === 'calificacion') {
             $data = $request->validate([
                 'calidad' => ['required','integer','min:1','max:10'],
-                'limpieza' => ['required','integer','min:1','max:5'],
+                'limpieza' => ['required','integer','min:5','max:10'],
             ]);
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
@@ -439,7 +440,7 @@ class AtadoresController extends Controller
                 ->where('NoJulio', $montado->NoJulio)
                 ->where('NoProduccion', $montado->NoProduccion)
                 ->update([
-                    'HoraArranque' => Carbon::now()->format('H:i:s')
+                    'HoraArranque' => Carbon::now()->format('H:i')
                 ]);
 
             return response()->json(['ok' => true, 'message' => 'Atado terminado y hora de arranque registrada']);
