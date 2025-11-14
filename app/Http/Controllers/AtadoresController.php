@@ -64,8 +64,14 @@ class AtadoresController extends Controller
             return redirect()->route('atadores.programa')->with('error', 'Registro no encontrado');
         }
 
-        // ELIMINAR todos los registros anteriores en AtaMontadoTelas antes de insertar el nuevo
-        AtaMontadoTelasModel::query()->delete();
+        // ELIMINAR solo los registros EN PROCESO (no autorizados) para permitir nuevo proceso
+        AtaMontadoTelasModel::where('Estatus', 'En Proceso')->delete();
+        AtaMontadoMaquinasModel::whereIn('NoJulio', function($query) {
+            $query->select('NoJulio')->from('AtaMontadoTelas')->where('Estatus', 'En Proceso');
+        })->delete();
+        AtaMontadoActividadesModel::whereIn('NoJulio', function($query) {
+            $query->select('NoJulio')->from('AtaMontadoTelas')->where('Estatus', 'En Proceso');
+        })->delete();
 
         // Usuario actual como operador por defecto
         $user = Auth::user();
@@ -90,14 +96,41 @@ class AtadoresController extends Controller
             'Limpieza' => null,
         ]);
 
+        // Crear registros base para máquinas del catálogo
+        $maquinas = AtaMaquinasModel::all();
+        foreach ($maquinas as $maquina) {
+            AtaMontadoMaquinasModel::create([
+                'NoJulio' => $item->no_julio,
+                'NoProduccion' => $item->no_orden,
+                'MaquinaId' => $maquina->MaquinaId,
+                'Estado' => 0 // Por defecto inactivo
+            ]);
+        }
+
+        // Crear registros base para actividades del catálogo
+        $actividades = AtaActividadesModel::all();
+        foreach ($actividades as $actividad) {
+            AtaMontadoActividadesModel::create([
+                'NoJulio' => $item->no_julio,
+                'NoProduccion' => $item->no_orden,
+                'ActividadId' => $actividad->ActividadId,
+                'Porcentaje' => $actividad->Porcentaje,
+                'Estado' => 0, // Por defecto inactivo
+                'CveEmpl' => null,
+                'NomEmpl' => null,
+                'Turno' => $item->turno
+            ]);
+        }
+
         // Redirigir a la página de calificar atadores
         return redirect()->route('atadores.calificar')->with('success', 'Atado iniciado correctamente');
     }
 
     public function calificarAtadores()
     {
-        // Obtener todos los registros de AtaMontadoTelas
-        $montadoTelas = AtaMontadoTelasModel::orderBy('Fecha', 'desc')
+        // Obtener solo los registros EN PROCESO (no los autorizados)
+        $montadoTelas = AtaMontadoTelasModel::where('Estatus', 'En Proceso')
+            ->orderBy('Fecha', 'desc')
             ->orderBy('Turno', 'desc')
             ->get();
 
@@ -195,7 +228,52 @@ class AtadoresController extends Controller
                     'HoraParo' => $montado->HoraParo
                 ]);
 
-                // 3. Buscar y eliminar el registro original de tej_inventario_telares
+                // 3. Guardar datos de máquinas y actividades del proceso actual
+                // Obtener datos actuales de máquinas
+                $maquinasActuales = AtaMontadoMaquinasModel::where('NoJulio', $montado->NoJulio)
+                    ->where('NoProduccion', $montado->NoProduccion)
+                    ->get();
+
+                // Obtener datos actuales de actividades  
+                $actividadesActuales = AtaMontadoActividadesModel::where('NoJulio', $montado->NoJulio)
+                    ->where('NoProduccion', $montado->NoProduccion)
+                    ->get();
+
+                // También asegurar que se guarden las máquinas y actividades con estado activo
+                // (En caso de que no se hayan marcado manualmente en la interfaz)
+                $maquinasCatalogo = AtaMaquinasModel::all();
+                foreach ($maquinasCatalogo as $maq) {
+                    $existe = $maquinasActuales->where('MaquinaId', $maq->MaquinaId)->first();
+                    if (!$existe) {
+                        // Crear registro por defecto
+                        AtaMontadoMaquinasModel::create([
+                            'NoJulio' => $montado->NoJulio,
+                            'NoProduccion' => $montado->NoProduccion,
+                            'MaquinaId' => $maq->MaquinaId,
+                            'Estado' => 0 // Por defecto inactivo
+                        ]);
+                    }
+                }
+
+                $actividadesCatalogo = AtaActividadesModel::all();
+                foreach ($actividadesCatalogo as $act) {
+                    $existe = $actividadesActuales->where('ActividadId', $act->ActividadId)->first();
+                    if (!$existe) {
+                        // Crear registro por defecto
+                        AtaMontadoActividadesModel::create([
+                            'NoJulio' => $montado->NoJulio,
+                            'NoProduccion' => $montado->NoProduccion,
+                            'ActividadId' => $act->ActividadId,
+                            'Porcentaje' => $act->Porcentaje,
+                            'Estado' => 0, // Por defecto inactivo
+                            'CveEmpl' => null,
+                            'NomEmpl' => null,
+                            'Turno' => $montado->Turno
+                        ]);
+                    }
+                }
+
+                // 4. Buscar y eliminar SOLO el registro original de tej_inventario_telares
                 $registroOriginal = TejInventarioTelares::where('no_julio', $montado->NoJulio)
                     ->where('no_orden', $montado->NoProduccion)
                     ->first();
@@ -204,8 +282,9 @@ class AtadoresController extends Controller
                     $registroOriginal->delete();
                 }
 
-                // 4. Limpiar AtaMontadoTelas para el siguiente proceso
-                AtaMontadoTelasModel::query()->delete();
+                // 5. NO eliminar las tablas de montado - mantener los registros autorizados
+                // Los registros en AtaMontadoTelas, AtaMontadoMaquinas y AtaMontadoActividades 
+                // se conservan como registro histórico del proceso autorizado
 
                 DB::commit();
                 return response()->json([
@@ -239,6 +318,18 @@ class AtadoresController extends Controller
             return response()->json(['ok' => true, 'message' => 'Calificación guardada']);
         }
 
+        if ($action === 'observaciones') {
+            $observaciones = $request->input('observaciones');
+            
+            DB::connection('sqlsrv')
+                ->table('AtaMontadoTelas')
+                ->where('NoJulio', $montado->NoJulio)
+                ->where('NoProduccion', $montado->NoProduccion)
+                ->update(['Obs' => $observaciones]);
+
+            return response()->json(['ok' => true, 'message' => 'Observaciones guardadas']);
+        }
+
         if ($action === 'maquina_estado') {
             $data = $request->validate([
                 'maquinaId' => ['required','string','max:50'],
@@ -263,7 +354,7 @@ class AtadoresController extends Controller
         }
 
         if ($action === 'terminar') {
-            // Actualiza HoraArranque con hora actual en Telas
+            // Register current time as "hora de arranque"
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
                 ->where('NoJulio', $montado->NoJulio)
@@ -273,6 +364,36 @@ class AtadoresController extends Controller
                 ]);
 
             return response()->json(['ok' => true, 'message' => 'Atado terminado y hora de arranque registrada']);
+        }
+
+        if ($action === 'actividad_estado') {
+            $actividadId = $request->input('actividadId');
+            $estado = $request->input('estado') ? 1 : 0;
+
+            // Obtener registro actual para verificar si tiene operador
+            $actividad = DB::connection('sqlsrv')
+                ->table('AtaMontadoActividades')
+                ->where('NoJulio', $montado->NoJulio)
+                ->where('NoProduccion', $montado->NoProduccion)
+                ->where('ActividadId', $actividadId)
+                ->first();
+
+            $updateData = ['Estado' => $estado];
+            
+            // Si se activa y no tiene operador, asignar usuario actual
+            if ($estado && $actividad && (!$actividad->CveEmpl || !$actividad->NomEmpl)) {
+                $updateData['CveEmpl'] = $user->numero_empleado;
+                $updateData['NomEmpl'] = $user->nombre;
+            }
+
+            DB::connection('sqlsrv')
+                ->table('AtaMontadoActividades')
+                ->where('NoJulio', $montado->NoJulio)
+                ->where('NoProduccion', $montado->NoProduccion)
+                ->where('ActividadId', $actividadId)
+                ->update($updateData);
+
+            return response()->json(['ok' => true, 'message' => 'Estado de actividad actualizado']);
         }
 
         return response()->json(['ok' => false, 'message' => 'Acción no válida'], 422);

@@ -104,7 +104,7 @@
                     {{-- <h4 class="text-sm font-semibold text-gray-600 mb-2 border-b pb-1">Calificaciones</h4> --}}
                     <div class="space-y-2">
                         <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Calidad:</span>
+                            <span class="text-xs text-gray-500">Calidad de Atado (1-10):</span>
                             @if($item->Calidad)
                                 <span id="valCalidad" class="px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-sm">{{ $item->Calidad }}</span>
                             @else
@@ -112,7 +112,7 @@
                             @endif
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Limpieza:</span>
+                            <span class="text-xs text-gray-500">5'S Orden y Limpieza (5-10):</span>
                             @if($item->Limpieza)
                                 <span id="valLimpieza" class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-sm">{{ $item->Limpieza }}</span>
                             @else
@@ -197,7 +197,8 @@
                                 <td class="px-2 py-2 text-sm text-gray-900 w-24">{{ $act->ActividadId }}</td>
                                 <td class="px-1 py-2 text-sm text-right text-gray-900 w-20">{{ number_format((float)$porcentaje, 0) }}%</td>
                                 <td class="px-1 py-2 text-center w-16">
-                                    <input type="checkbox" {{ $checked ? 'checked' : '' }} disabled class="h-4 w-4 text-green-600 rounded" />
+                                    <input type="checkbox" {{ $checked ? 'checked' : '' }} class="h-4 w-4 text-green-600 rounded"
+                                           onchange="toggleActividad('{{ $act->ActividadId }}', this.checked)" />
                                 </td>
                                 <td class="px-2 py-2 text-sm text-gray-900">{{ $operador }}</td>
                             </tr>
@@ -450,16 +451,29 @@ function guardarObservaciones(event){
     
     const observaciones = document.getElementById('observaciones').value;
     
-    // Aquí irá la lógica para guardar las observaciones en la DB
-    console.log('Observaciones:', observaciones);
-    
-    Swal.fire({
-        icon: 'success',
-        title: 'Observaciones Guardadas',
-        text: 'Las observaciones se han guardado correctamente',
-        showConfirmButton: false,
-        timer: 2000
-    });
+    fetch('{{ route('atadores.save') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ action: 'observaciones', observaciones: observaciones })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(res.ok){
+            Swal.fire({
+                icon: 'success',
+                title: 'Observaciones Guardadas',
+                text: 'Las observaciones se han guardado correctamente',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudieron guardar las observaciones' });
+        }
+    })
+    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
 }
 
 // Agregar nota a Observaciones
@@ -485,6 +499,25 @@ function toggleMaquina(maquinaId, checked){
     .then(res => {
         if(!res.ok){
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo actualizar máquina' });
+        }
+    })
+    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
+}
+
+// Toggle estado de actividad y guardar en DB
+function toggleActividad(actividadId, checked){
+    fetch('{{ route('atadores.save') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ action: 'actividad_estado', actividadId, estado: !!checked })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(!res.ok){
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo actualizar actividad' });
         }
     })
     .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
