@@ -67,7 +67,45 @@ class ProgramarUrdEngController extends Controller
             // Obtener TipoAtado del grupo (tabla 1) - puede ser "Normal" o "Especial"
             $tipoAtado = $grupo['tipoAtado'] ?? '';
 
+            // Obtener ItemId de la BOM de urdido para BomFormula
+            $bomFormulaUrdido = null;
+            $bomUrdId = $grupo['bomId'] ?? null;
+            if ($bomUrdId) {
+                try {
+                    // Buscar el ItemId de la BOM de urdido en la tabla BOM
+                    $bomItem = DB::connection('sqlsrv_ti')
+                        ->table('BOM as b')
+                        ->join('BOMTABLE as bt', function($join) {
+                            $join->on('bt.BOMID', '=', 'b.BOMID')
+                                 ->on('bt.DATAAREAID', '=', 'b.DATAAREAID');
+                        })
+                        ->where('bt.BOMID', $bomUrdId)
+                        ->where('bt.DATAAREAID', 'PRO')
+                        ->where('bt.ITEMGROUPID', 'JUL-URD')
+                        ->select('b.ITEMID')
+                        ->first();
+
+                    if ($bomItem && isset($bomItem->ITEMID)) {
+                        $bomFormulaUrdido = $bomItem->ITEMID;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Error al obtener ItemId de BOM de urdido', [
+                        'bomId' => $bomUrdId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             // =================== PASO 3: Guardar Tabla 2 (UrdProgramaUrdido) PRIMERO ===================
+            // Obtener InventBatchId del primer material que lo tenga para LoteProveedor
+            $loteProveedor = null;
+            foreach ($materialesEngomado as $material) {
+                if (!empty($material['inventBatchId'])) {
+                    $loteProveedor = $material['inventBatchId'];
+                    break;
+                }
+            }
+
             // Necesitamos crear Tabla 2 primero para que Tabla 3 pueda referenciar el Folio
             $programaUrdido = UrdProgramaUrdido::create([
                 'Folio' => $folio,
@@ -82,12 +120,14 @@ class ProgramarUrdEngController extends Controller
                 'Kilos' => isset($grupo['kilos']) ? (float)$grupo['kilos'] : null,
                 'SalonTejidoId' => $grupo['salonTejidoId'] ?? $grupo['destino'] ?? null,
                 'MaquinaId' => $grupo['maquinaId'] ?? null,
-                'BomId' => $grupo['bomId'] ?? null, // L.Mat Urdido
+                'BomId' => $bomUrdId, // L.Mat Urdido
                 'FechaProg' => now()->format('Y-m-d'),
                 'Status' => $grupo['status'] ?? 'Activo',
+                'BomFormula' => $bomFormulaUrdido,
                 'TipoAtado' => $tipoAtado,
                 'CveEmpl' => $numeroEmpleado,
                 'NomEmpl' => $nombreEmpleado,
+                'LoteProveedor' => $loteProveedor,
             ]);
 
             // =================== PASO 4: Guardar Tabla 3 (UrdConsumoHilo) CON Folio de Tabla 2 ===================
@@ -185,6 +225,7 @@ class ProgramarUrdEngController extends Controller
                 'TipoAtado' => $tipoAtado,
                 'CveEmpl' => $numeroEmpleado,
                 'NomEmpl' => $nombreEmpleado,
+                'LoteProveedor' => $loteProveedor,
             ]);
 
             // =================== PASO 7: Actualizar no_orden en TejInventarioTelares ===================

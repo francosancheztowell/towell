@@ -47,3 +47,5 @@ class InvSecuenciaTrama extends Model
 
 
 
+
+

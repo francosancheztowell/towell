@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\UrdProgramaUrdido;
-use App\Models\UrdJuliosOrden;
 use App\Models\EngProgramaEngomado;
-use App\Models\UrdProduccionUrdido;
+use App\Models\UrdJuliosOrden;
+use App\Models\EngProduccionEngomado;
 use App\Models\UrdCatJulios;
 use App\Models\SYSUsuario;
 use Illuminate\Http\Request;
@@ -15,10 +14,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
-class ModuloProduccionUrdidoController extends Controller
+class ModuloProduccionEngomadoController extends Controller
 {
     /**
-     * Mostrar la vista de producción de urdido con los datos de la orden seleccionada
+     * Mostrar la vista de producción de engomado con los datos de la orden seleccionada
      *
      * @param Request $request
      * @return View|RedirectResponse
@@ -29,10 +28,9 @@ class ModuloProduccionUrdidoController extends Controller
 
         // Si no hay orden_id, mostrar vista vacía
         if (!$ordenId) {
-            return view('modulos.urdido.modulo-produccion-urdido', [
+            return view('modulos.engomado.modulo-produccion-engomado', [
                 'orden' => null,
                 'julios' => collect([]),
-                'engomado' => null,
                 'metros' => '0',
                 'destino' => null,
                 'hilo' => null,
@@ -44,11 +42,11 @@ class ModuloProduccionUrdidoController extends Controller
             ]);
         }
 
-        // Buscar la orden
-        $orden = UrdProgramaUrdido::find($ordenId);
+        // Buscar la orden de engomado
+        $orden = EngProgramaEngomado::find($ordenId);
 
         if (!$orden) {
-            return redirect()->route('urdido.programar.urdido')
+            return redirect()->route('engomado.programar.engomado')
                 ->with('error', 'Orden no encontrada');
         }
 
@@ -59,32 +57,28 @@ class ModuloProduccionUrdidoController extends Controller
                 $orden->Status = 'En Proceso';
                 $orden->save();
 
-                Log::info('Status actualizado a "En Proceso"', [
+                Log::info('Status actualizado a "En Proceso" (Engomado)', [
                     'folio' => $orden->Folio,
                     'orden_id' => $orden->Id,
                     'status_anterior' => $statusAnterior,
                     'status_nuevo' => 'En Proceso',
                 ]);
             } catch (\Throwable $e) {
-                Log::error('Error al actualizar status a "En Proceso"', [
+                Log::error('Error al actualizar status a "En Proceso" (Engomado)', [
                     'folio' => $orden->Folio,
                     'orden_id' => $orden->Id,
                     'error' => $e->getMessage(),
                 ]);
-                // No lanzar excepción, continuar con el flujo normal
             }
         }
 
-        // Obtener julios asociados al folio
+        // Obtener julios asociados al folio (comparten el mismo Folio con urdido)
         $julios = UrdJuliosOrden::where('Folio', $orden->Folio)
             ->whereNotNull('Julios')
             ->orderBy('Julios')
             ->get();
 
         // Calcular el total de registros (suma de todos los números de julio)
-        // Si hay un julio con número 12, se generan 12 filas
-        // Si hay un julio con número 15, se generan 15 filas
-        // Si hay múltiples julios, se suman todos
         $totalRegistros = 0;
         if ($julios->count() > 0) {
             foreach ($julios as $julio) {
@@ -95,14 +89,12 @@ class ModuloProduccionUrdidoController extends Controller
             }
         }
 
-        // Obtener registros existentes en UrdProduccionUrdido para este Folio
-        $registrosProduccion = UrdProduccionUrdido::where('Folio', $orden->Folio)
+        // Obtener registros existentes en EngProduccionEngomado para este Folio
+        $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)
             ->orderBy('Id')
             ->get();
 
         // Crear registros basándose en los julios de UrdJuliosOrden
-        // Para cada julio, crear N registros (donde N = valor de Julios)
-        // NoJulio será null al crear, pero Hilos se rellenan desde UrdJuliosOrden
         if ($julios->count() > 0) {
             try {
                 $registrosACrear = [];
@@ -113,23 +105,21 @@ class ModuloProduccionUrdidoController extends Controller
                 // Calcular cuántos registros faltan
                 $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
 
-                // Crear los registros faltantes, distribuyendo los Hilos de los julios
-                // Iterar por los julios y crear N registros para cada uno (donde N = valor de Julios)
+                // Crear los registros faltantes
                 $indiceRegistro = 0;
                 foreach ($julios as $julio) {
                     $numeroJulio = (int) ($julio->Julios ?? 0);
-                    $hilos = $julio->Hilos ?? null;
 
                     if ($numeroJulio > 0) {
-                        // Crear N registros para este julio (donde N = numeroJulio)
-                        // Pero solo crear los que faltan
                         for ($i = 0; $i < $numeroJulio && $indiceRegistro < $registrosFaltantes; $i++) {
                             $registrosACrear[] = [
                                 'Folio' => $orden->Folio,
-                                'TipoAtado' => $orden->TipoAtado ?? null,
                                 'NoJulio' => null, // NoJulio debe ser null al crear los registros
-                                'Hilos' => $hilos, // Rellenar Hilos desde UrdJuliosOrden
                                 'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
+                                'Canoa1' => null,
+                                'Canoa2' => null,
+                                'Canoa3' => null,
+                                'Tambor' => null,
                             ];
                             $indiceRegistro++;
                         }
@@ -139,20 +129,17 @@ class ModuloProduccionUrdidoController extends Controller
                 // Crear todos los registros en lote si hay alguno
                 if (count($registrosACrear) > 0) {
                     foreach ($registrosACrear as $registroData) {
-                        UrdProduccionUrdido::create($registroData);
+                        EngProduccionEngomado::create($registroData);
                     }
 
-                    Log::info('Registros creados en UrdProduccionUrdido', [
+                    Log::info('Registros creados en EngProduccionEngomado', [
                         'folio' => $orden->Folio,
                         'creados' => count($registrosACrear),
                         'total_requerido' => $totalRegistros,
-                        'detalle' => array_map(function($r) {
-                            return ['NoJulio' => $r['NoJulio'] ?? 'null', 'Hilos' => $r['Hilos']];
-                        }, $registrosACrear),
                     ]);
                 }
             } catch (\Throwable $e) {
-                Log::error('Error al crear registros en UrdProduccionUrdido', [
+                Log::error('Error al crear registros en EngProduccionEngomado', [
                     'folio' => $orden->Folio,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
@@ -160,43 +147,36 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             // Recargar los registros después de crear los faltantes
-            $registrosProduccion = UrdProduccionUrdido::where('Folio', $orden->Folio)
+            $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)
                 ->orderBy('Id')
                 ->get();
         }
 
-        // Debug temporal - remover después
-        Log::info('ModuloProduccionUrdido - Debug', [
-            'folio' => $orden->Folio,
-            'julios_count' => $julios->count(),
-            'julios_data' => $julios->map(function($j) {
-                return ['Julios' => $j->Julios, 'Hilos' => $j->Hilos];
-            })->toArray(),
-            'totalRegistros' => $totalRegistros
-        ]);
-
-        // Obtener información de engomado si existe
-        $engomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
-
         // Formatear metros con separador de miles
         $metros = $orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0';
 
-        // Obtener destino (SalonTejidoId) - puede venir de la orden o del engomado
-        $destino = $orden->SalonTejidoId ?? ($engomado ? $engomado->SalonTejidoId : null);
+        // Obtener destino (SalonTejidoId)
+        $destino = $orden->SalonTejidoId ?? null;
 
-        // Obtener hilo (Fibra) - puede venir de la orden o del engomado
-        $hilo = $orden->Fibra ?? ($engomado ? $engomado->Fibra : null);
+        // Obtener hilo (Fibra)
+        $hilo = $orden->Fibra ?? null;
 
-        // Tipo atado - puede venir de la orden o del engomado
-        $tipoAtado = $orden->TipoAtado ?? ($engomado ? $engomado->TipoAtado : null);
+        // Tipo atado
+        $tipoAtado = $orden->TipoAtado ?? null;
 
-        // Nombre del empleado que ordenó - viene de la orden
+        // Nombre del empleado que ordenó
         $nomEmpl = $orden->NomEmpl ?? null;
 
-        // Observaciones - pueden venir del engomado
-        $observaciones = $engomado ? ($engomado->Obs ?? '') : '';
+        // Observaciones
+        $observaciones = $orden->Obs ?? '';
 
-        // Lote Proveedor
+        // Campos adicionales para la sección superior
+        $urdido = $orden->MaquinaUrd ?? null;
+        $nucleo = $orden->Nucleo ?? null;
+        $noTelas = $orden->NoTelas ?? null;
+        $anchoBalonas = $orden->AnchoBalonas ?? null;
+        $metrajeTelas = $orden->MetrajeTelas ? number_format($orden->MetrajeTelas, 0, '.', ',') : null;
+        $cuendeadosMin = $orden->Cuentados ?? null;
         $loteProveedor = $orden->LoteProveedor ?? null;
 
         // Obtener usuario autenticado para pre-rellenar en el modal
@@ -204,10 +184,9 @@ class ModuloProduccionUrdidoController extends Controller
         $usuarioNombre = $usuarioActual ? ($usuarioActual->nombre ?? '') : '';
         $usuarioClave = $usuarioActual ? ($usuarioActual->numero_empleado ?? '') : '';
 
-        return view('modulos.urdido.modulo-produccion-urdido', [
+        return view('modulos.engomado.modulo-produccion-engomado', [
             'orden' => $orden,
             'julios' => $julios,
-            'engomado' => $engomado,
             'metros' => $metros,
             'destino' => $destino,
             'hilo' => $hilo,
@@ -215,43 +194,45 @@ class ModuloProduccionUrdidoController extends Controller
             'nomEmpl' => $nomEmpl,
             'observaciones' => $observaciones,
             'totalRegistros' => $totalRegistros,
-            'loteProveedor' => $loteProveedor,
             'registrosProduccion' => $registrosProduccion,
             'usuarioNombre' => $usuarioNombre,
             'usuarioClave' => $usuarioClave,
+            'urdido' => $urdido,
+            'nucleo' => $nucleo,
+            'noTelas' => $noTelas,
+            'anchoBalonas' => $anchoBalonas,
+            'metrajeTelas' => $metrajeTelas,
+            'cuendeadosMin' => $cuendeadosMin,
+            'loteProveedor' => $loteProveedor,
         ]);
     }
 
     /**
      * Obtener catálogo de julios desde UrdCatJulios
-     * Retorna todos los julios del catálogo con su Tara
-     * El NoJulio es independiente y no depende de los julios de la orden
      *
      * @return JsonResponse
      */
     public function getCatalogosJulios(): JsonResponse
     {
         try {
-            // Obtener julios desde el catálogo UrdCatJulios
-            $julios = UrdCatJulios::select('NoJulio', 'Tara', 'Departamento')
-                ->whereNotNull('NoJulio')
-                ->orderBy('NoJulio')
-                ->get()
-                ->map(function($item) {
-                    return [
-                        'julio' => $item->NoJulio,
-                        'tara' => $item->Tara ?? 0,
-                        'departamento' => $item->Departamento ?? null,
-                    ];
-                })
-                ->values();
+            $julios = UrdCatJulios::select(['Julio', 'Tara'])
+                ->whereNotNull('Julio')
+                ->orderBy('Julio')
+                ->get();
+
+            $data = $julios->map(function ($julio) {
+                return [
+                    'julio' => $julio->Julio,
+                    'tara' => $julio->Tara ?? 0,
+                ];
+            });
 
             return response()->json([
                 'success' => true,
-                'data' => $julios,
+                'data' => $data,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener catálogo de julios', [
+            Log::error('Error al obtener catálogo de julios (Engomado)', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -264,51 +245,52 @@ class ModuloProduccionUrdidoController extends Controller
     }
 
     /**
-     * Obtener Hilos de un NoJulio específico desde UrdJuliosOrden
-     * Busca en los julios de la orden actual
+     * Obtener usuarios del área de Engomado
      *
-     * @param Request $request
      * @return JsonResponse
      */
-    public function getHilosByJulio(Request $request): JsonResponse
+    public function getUsuariosEngomado(): JsonResponse
     {
         try {
-            $noJulio = $request->query('no_julio');
-            $folio = $request->query('folio');
+            $usuarios = SYSUsuario::select([
+                'idusuario',
+                'numero_empleado',
+                'nombre',
+                'turno',
+            ])
+            ->where('area', 'Engomado')
+            ->whereNotNull('numero_empleado')
+            ->orderBy('nombre')
+            ->get();
 
-            if (!$noJulio || !$folio) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'NoJulio y Folio son requeridos',
-                ], 400);
-            }
-
-            // Buscar en UrdJuliosOrden el registro que coincida con el NoJulio y Folio
-            $julio = UrdJuliosOrden::where('Folio', $folio)
-                ->where('Julios', $noJulio)
-                ->first();
-
-            $hilos = $julio ? ($julio->Hilos ?? null) : null;
+            $usuariosFormateados = $usuarios->map(function ($usuario) {
+                return [
+                    'id' => $usuario->idusuario,
+                    'numero_empleado' => $usuario->numero_empleado,
+                    'nombre' => $usuario->nombre,
+                    'turno' => $usuario->turno,
+                ];
+            });
 
             return response()->json([
                 'success' => true,
-                'hilos' => $hilos,
+                'data' => $usuariosFormateados,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener hilos por julio', [
+            Log::error('Error al obtener usuarios de Engomado', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'error' => 'Error al obtener hilos: ' . $e->getMessage(),
+                'error' => 'Error al obtener usuarios: ' . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Guardar o actualizar oficial en un registro de producción
+     * Guardar oficial en un registro de producción
      *
      * @param Request $request
      * @return JsonResponse
@@ -325,7 +307,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'turno' => 'nullable|integer|in:1,2,3',
             ]);
 
-            $registro = UrdProduccionUrdido::find($request->registro_id);
+            $registro = EngProduccionEngomado::find($request->registro_id);
 
             if (!$registro) {
                 return response()->json([
@@ -336,7 +318,6 @@ class ModuloProduccionUrdidoController extends Controller
 
             $numeroOficial = $request->numero_oficial;
 
-            // Validar que el número de oficial esté en el rango permitido (1-3)
             if ($numeroOficial < 1 || $numeroOficial > 3) {
                 return response()->json([
                     'success' => false,
@@ -344,13 +325,9 @@ class ModuloProduccionUrdidoController extends Controller
                 ], 422);
             }
 
-            // Verificar si se está intentando crear un nuevo oficial (no editar uno existente)
-            // Si el oficial en esa posición ya existe, se permite editar
-            // Si no existe, verificar que no haya 3 oficiales ya registrados
             $oficialExistente = !empty($registro->{"NomEmpl{$numeroOficial}"});
 
             if (!$oficialExistente) {
-                // Contar cuántos oficiales ya están registrados
                 $oficialesRegistrados = 0;
                 for ($i = 1; $i <= 3; $i++) {
                     if (!empty($registro->{"NomEmpl{$i}"})) {
@@ -358,7 +335,6 @@ class ModuloProduccionUrdidoController extends Controller
                     }
                 }
 
-                // Si ya hay 3 oficiales, no permitir agregar uno nuevo
                 if ($oficialesRegistrados >= 3) {
                     return response()->json([
                         'success' => false,
@@ -367,7 +343,6 @@ class ModuloProduccionUrdidoController extends Controller
                 }
             }
 
-            // Actualizar los campos correspondientes según el número de oficial
             $registro->{"CveEmpl{$numeroOficial}"} = $request->cve_empl;
             $registro->{"NomEmpl{$numeroOficial}"} = $request->nom_empl;
 
@@ -398,7 +373,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al guardar oficial', [
+            Log::error('Error al guardar oficial (Engomado)', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -425,7 +400,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'turno' => 'required|integer|in:1,2,3',
             ]);
 
-            $registro = UrdProduccionUrdido::find($request->registro_id);
+            $registro = EngProduccionEngomado::find($request->registro_id);
 
             if (!$registro) {
                 return response()->json([
@@ -436,7 +411,6 @@ class ModuloProduccionUrdidoController extends Controller
 
             $numeroOficial = $request->numero_oficial;
 
-            // Verificar que el oficial existe
             if (empty($registro->{"NomEmpl{$numeroOficial}"})) {
                 return response()->json([
                     'success' => false,
@@ -444,7 +418,6 @@ class ModuloProduccionUrdidoController extends Controller
                 ], 422);
             }
 
-            // Actualizar el turno del oficial
             $registro->{"Turno{$numeroOficial}"} = $request->turno;
             $registro->save();
 
@@ -464,7 +437,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar turno de oficial', [
+            Log::error('Error al actualizar turno de oficial (Engomado)', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -490,7 +463,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'fecha' => 'required|date',
             ]);
 
-            $registro = UrdProduccionUrdido::find($request->registro_id);
+            $registro = EngProduccionEngomado::find($request->registro_id);
 
             if (!$registro) {
                 return response()->json([
@@ -499,7 +472,6 @@ class ModuloProduccionUrdidoController extends Controller
                 ], 404);
             }
 
-            // Actualizar la fecha
             $registro->Fecha = $request->fecha;
             $registro->save();
 
@@ -517,7 +489,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar fecha', [
+            Log::error('Error al actualizar fecha (Engomado)', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -544,7 +516,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'tara' => 'nullable|numeric|min:0',
             ]);
 
-            $registro = UrdProduccionUrdido::find($request->registro_id);
+            $registro = EngProduccionEngomado::find($request->registro_id);
 
             if (!$registro) {
                 return response()->json([
@@ -553,32 +525,23 @@ class ModuloProduccionUrdidoController extends Controller
                 ], 404);
             }
 
-            // Actualizar NoJulio y Tara
             $registro->NoJulio = $request->no_julio ?? null;
 
-            // Procesar Tara: convertir a float si existe, null si no
             $taraValue = null;
             if ($request->has('tara') && $request->tara !== null && $request->tara !== '') {
                 $taraValue = (float)$request->tara;
             }
             $registro->Tara = $taraValue;
 
-            // Recalcular KgNeto siempre que haya Tara (incluso si es 0)
-            // Si hay KgBruto, calcular KgBruto - Tara
-            // Si no hay KgBruto pero hay Tara, KgNeto será -Tara (0 - Tara)
             if ($taraValue !== null) {
                 $kgBruto = $registro->KgBruto !== null ? (float)$registro->KgBruto : 0;
                 $kgNetoCalculado = $kgBruto - $taraValue;
                 $registro->KgNeto = $kgNetoCalculado;
             } else {
-                // Si no hay Tara, KgNeto puede ser null o igual a KgBruto
                 $registro->KgNeto = $registro->KgBruto !== null ? (float)$registro->KgBruto : null;
             }
 
-            // Guardar los cambios
-            $guardado = $registro->save();
-
-            // Refrescar el modelo para obtener los valores actualizados de la BD
+            $registro->save();
             $registro->refresh();
 
             return response()->json([
@@ -597,7 +560,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar NoJulio y Tara', [
+            Log::error('Error al actualizar NoJulio y Tara (Engomado)', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -623,7 +586,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'kg_bruto' => 'nullable|numeric|min:0',
             ]);
 
-            $registro = UrdProduccionUrdido::find($request->registro_id);
+            $registro = EngProduccionEngomado::find($request->registro_id);
 
             if (!$registro) {
                 return response()->json([
@@ -632,30 +595,22 @@ class ModuloProduccionUrdidoController extends Controller
                 ], 404);
             }
 
-            // Procesar KgBruto: convertir a float si existe, null si no
             $kgBrutoValue = null;
             if ($request->has('kg_bruto') && $request->kg_bruto !== null && $request->kg_bruto !== '') {
                 $kgBrutoValue = (float)$request->kg_bruto;
             }
             $registro->KgBruto = $kgBrutoValue;
 
-            // Recalcular KgNeto siempre que haya Tara
-            // Si hay KgBruto, calcular KgBruto - Tara
-            // Si no hay KgBruto pero hay Tara, KgNeto será -Tara (0 - Tara)
             if ($registro->Tara !== null) {
                 $kgBruto = $kgBrutoValue !== null ? $kgBrutoValue : 0;
                 $tara = (float)$registro->Tara;
                 $kgNetoCalculado = $kgBruto - $tara;
                 $registro->KgNeto = $kgNetoCalculado;
             } else {
-                // Si no hay Tara, KgNeto puede ser null o igual a KgBruto
                 $registro->KgNeto = $kgBrutoValue !== null ? $kgBrutoValue : null;
             }
 
-            // Guardar los cambios
-            $guardado = $registro->save();
-
-            // Refrescar el modelo para obtener los valores actualizados de la BD
+            $registro->save();
             $registro->refresh();
 
             return response()->json([
@@ -673,7 +628,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar KgBruto', [
+            Log::error('Error al actualizar KgBruto (Engomado)', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -686,7 +641,7 @@ class ModuloProduccionUrdidoController extends Controller
     }
 
     /**
-     * Actualizar campos de producción (Hilatura, Maquina, Operac, Transf)
+     * Actualizar campos de producción (SolCan, Canoa1-3, Tambor, Humedad, Roturas)
      *
      * @param Request $request
      * @return JsonResponse
@@ -696,11 +651,11 @@ class ModuloProduccionUrdidoController extends Controller
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
-                'campo' => 'required|string|in:Hilatura,Maquina,Operac,Transf',
-                'valor' => 'nullable|integer|min:0|max:100',
+                'campo' => 'required|string|in:SolCan,Canoa1,Canoa2,Canoa3,Tambor,Humedad,Roturas',
+                'valor' => 'nullable|numeric',
             ]);
 
-            $registro = UrdProduccionUrdido::find($request->registro_id);
+            $registro = EngProduccionEngomado::find($request->registro_id);
 
             if (!$registro) {
                 return response()->json([
@@ -710,13 +665,15 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             $campo = $request->campo;
-            $valor = $request->valor !== null ? (int)$request->valor : null;
+            $valor = $request->valor !== null ? (float)$request->valor : null;
 
-            // Actualizar el campo correspondiente
+            // Para Roturas, convertir a entero
+            if ($campo === 'Roturas' && $valor !== null) {
+                $valor = (int)$valor;
+            }
+
             $registro->$campo = $valor;
             $registro->save();
-
-            // Refrescar el modelo para obtener los valores actualizados de la BD
             $registro->refresh();
 
             return response()->json([
@@ -734,7 +691,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar campos de producción', [
+            Log::error('Error al actualizar campos de producción (Engomado)', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -761,7 +718,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'valor' => ['nullable', 'string', 'regex:#^([0-1][0-9]|2[0-3]):[0-5][0-9]$#'],
             ]);
 
-            $registro = UrdProduccionUrdido::find($request->registro_id);
+            $registro = EngProduccionEngomado::find($request->registro_id);
 
             if (!$registro) {
                 return response()->json([
@@ -773,11 +730,8 @@ class ModuloProduccionUrdidoController extends Controller
             $campo = $request->campo;
             $valor = $request->valor !== null && $request->valor !== '' ? $request->valor : null;
 
-            // Actualizar el campo correspondiente
             $registro->$campo = $valor;
             $registro->save();
-
-            // Refrescar el modelo para obtener los valores actualizados de la BD
             $registro->refresh();
 
             return response()->json([
@@ -795,7 +749,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar horas', [
+            Log::error('Error al actualizar horas (Engomado)', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -803,49 +757,6 @@ class ModuloProduccionUrdidoController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error al actualizar hora: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Obtener usuarios del área de Urdido
-     *
-     * @return JsonResponse
-     */
-    public function getUsuariosUrdido(): JsonResponse
-    {
-        try {
-            $usuarios = SYSUsuario::select([
-                'idusuario',
-                'numero_empleado',
-                'nombre',
-            ])
-            ->where('area', 'Urdido')
-            ->whereNotNull('numero_empleado')
-            ->orderBy('nombre')
-            ->get();
-
-            $usuariosFormateados = $usuarios->map(function ($usuario) {
-                return [
-                    'id' => $usuario->idusuario,
-                    'numero_empleado' => $usuario->numero_empleado,
-                    'nombre' => $usuario->nombre,
-                ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'data' => $usuariosFormateados,
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('Error al obtener usuarios de Urdido', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al obtener usuarios: ' . $e->getMessage(),
             ], 500);
         }
     }

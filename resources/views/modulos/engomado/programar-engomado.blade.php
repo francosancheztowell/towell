@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-title', 'Programar Urdido')
+@section('page-title', 'Programar Engomado')
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
@@ -21,7 +21,7 @@
             hoverBg="hover:bg-red-100"
         />
         <x-navbar.button-create
-             onclick="irProduccion()"
+            onclick="irProduccion()"
             title="Cargar Información"
             icon="fa-download"
             iconColor="text-white"
@@ -33,21 +33,17 @@
 @endsection
 
 @section('content')
-    <div class="w-full">
-        <div class="grid grid-cols-2 gap-2">
-            @for ($i = 1; $i <= 4; $i++)
-                <div>
+    <div class="w-full h-full">
+        <div class="grid grid-cols-2 gap-2 w-full">
+            @for ($i = 1; $i <= 2; $i++)
+                <div class="w-full">
                     <h2 class="text-xl font-semibold text-white text-center bg-blue-500 py-1 rounded-t-xl">
-                        @if($i == 4)
-                            Karl Mayer
-                        @else
-                            MC Coy {{ $i }}
-                        @endif
+                        Tabla {{ $i === 1 ? 'West Point 2' : 'West Point 3' }}
                     </h2>
 
-                    <div class="h-[256px] border border-gray-300 border-t-0 rounded-b-xl bg-white flex flex-col overflow-hidden">
-                        <div class="overflow-x-auto overflow-y-auto flex-1">
-                            <table class="w-full table-auto border-collapse">
+                    <div class="h-[600px] border border-gray-300 border-t-0 rounded-b-xl bg-white flex flex-col overflow-hidden w-full">
+                        <div class="overflow-x-auto overflow-y-auto flex-1 w-full">
+                            <table class="w-full table-auto border-collapse min-w-full">
                                 <thead class="sticky top-0 bg-gray-100 z-10">
                                     <tr class="bg-gray-100 h-6 leading-6">
                                         @php
@@ -59,12 +55,13 @@
                                         <th class="{{ $thBaseClasses }}">Cuenta</th>
                                         <th class="{{ $thBaseClasses }}">Calibre</th>
                                         <th class="{{ $thBaseClasses }}">Metros</th>
-                                        <th class="{{ $thBaseClasses }}">Status</th>
+                                        <th class="{{ $thBaseClasses }}">Formula</th>
+                                        <th class="{{ $thBaseClasses }}">Estado</th>
                                     </tr>
                                 </thead>
-                                <tbody id="mcCoy{{ $i }}TableBody" class="bg-white">
+                                <tbody id="tabla{{ $i }}TableBody" class="bg-white">
                                     <tr>
-                                        <td colspan="6" class="px-2 py-2 text-center text-gray-500 text-2xl">
+                                        <td colspan="8" class="px-2 py-2 text-center text-gray-500 text-2xl">
                                             <div class="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-500 mx-auto"></div>
                                         </td>
                                     </tr>
@@ -83,17 +80,17 @@
             // Config & Estado Global
             // ==========================
             const routes = {
-                cargarOrdenes: '{{ route('urdido.programar.urdido.ordenes') }}',
-                subirPrioridad: '{{ route('urdido.programar.urdido.subir.prioridad') }}',
-                bajarPrioridad: '{{ route('urdido.programar.urdido.bajar.prioridad') }}',
-                produccion: '{{ route('urdido.modulo.produccion.urdido') }}',
+                cargarOrdenes: '{{ route('engomado.programar.engomado.ordenes') }}',
+                subirPrioridad: '{{ route('engomado.programar.engomado.subir.prioridad') }}',
+                bajarPrioridad: '{{ route('engomado.programar.engomado.bajar.prioridad') }}',
+                produccion: '#', // TODO: Agregar ruta cuando esté lista
             };
 
             const csrfToken = '{{ csrf_token() }}';
 
             const state = {
-                ordenes: {},            // { 1: [..], 2: [..], 3: [..], 4: [..] }
-                ordenSeleccionada: null // { id, mccoy, ... }
+                ordenes: {},            // { 1: [..], 2: [..] }
+                ordenSeleccionada: null // { id, tabla, ... }
             };
 
             // ==========================
@@ -132,11 +129,10 @@
             const setButtonsEnabled = (enabled) => {
                 const btnSubir = document.getElementById('btnSubirPrioridad');
                 const btnBajar = document.getElementById('btnBajarPrioridad');
-                const btnProduccion = document.getElementById('btnIrProduccion');
 
                 if (btnSubir) btnSubir.disabled = !enabled;
                 if (btnBajar) btnBajar.disabled = !enabled;
-                if (btnProduccion) btnProduccion.disabled = !enabled;
+                // El botón de producción se manejará por la validación en irProduccion()
             };
 
             // Badge de tipo (Rizo / Pie / Otro)
@@ -169,17 +165,17 @@
             // ==========================
             // Renderizado Tablas
             // ==========================
-            const renderTable = (mccoy) => {
-                const tbodyId = `mcCoy${mccoy}TableBody`;
+            const renderTable = (tabla) => {
+                const tbodyId = `tabla${tabla}TableBody`;
                 const tbody = document.getElementById(tbodyId);
                 if (!tbody) return;
 
-                const ordenes = state.ordenes[mccoy] || [];
+                const ordenes = state.ordenes[tabla] || [];
 
                 if (!ordenes.length) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="6" class="px-2 py-2 text-center text-gray-500 text-xl">
+                            <td colspan="8" class="px-2 py-2 text-center text-gray-500 text-xl">
                                 No hay órdenes pendientes
                             </td>
                         </tr>
@@ -203,14 +199,15 @@
                         : '';
 
                     return `
-                        <tr class="${rowClasses}" data-orden-id="${orden.id}" data-mccoy="${mccoy}">
+                        <tr class="${rowClasses}" data-orden-id="${orden.id}" data-tabla="${tabla}">
                             <td class="${baseTd} text-center font-semibold">${prioridad}</td>
                             <td class="${baseTd}">${orden.folio || ''}</td>
                             <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, isSelected)}</td>
                             <td class="${baseTd}">${orden.cuenta || ''}</td>
                             <td class="${baseTd}">${orden.calibre || ''}</td>
                             <td class="${baseTd}">${metros}</td>
-                            <td class="${baseTd}">${orden.status}</td>
+                            <td class="${baseTd}">${orden.formula || '-'}</td>
+                            <td class="${baseTd}">${orden.status || ''}</td>
                         </tr>
                     `;
                 }).join('');
@@ -219,8 +216,8 @@
             };
 
             const renderAllTables = () => {
-                for (let mccoy = 1; mccoy <= 4; mccoy++) {
-                    renderTable(mccoy);
+                for (let tabla = 1; tabla <= 2; tabla++) {
+                    renderTable(tabla);
                 }
             };
 
@@ -229,9 +226,9 @@
             // ==========================
             const handleRowClick = (row) => {
                 const ordenId = Number(row.dataset.ordenId);
-                const mccoy = Number(row.dataset.mccoy);
+                const tabla = Number(row.dataset.tabla);
 
-                const orden = (state.ordenes[mccoy] || []).find(o => o.id === ordenId);
+                const orden = (state.ordenes[tabla] || []).find(o => o.id === ordenId);
                 if (!orden) return;
 
                 state.ordenSeleccionada = orden;
@@ -240,8 +237,8 @@
             };
 
             const setupRowClickDelegates = () => {
-                for (let mccoy = 1; mccoy <= 4; mccoy++) {
-                    const tbody = document.getElementById(`mcCoy${mccoy}TableBody`);
+                for (let tabla = 1; tabla <= 2; tabla++) {
+                    const tbody = document.getElementById(`tabla${tabla}TableBody`);
                     if (!tbody) continue;
 
                     tbody.addEventListener('click', (event) => {
@@ -292,13 +289,13 @@
 
                     // Intentar restaurar selección
                     if (ordenAnterior) {
-                        const mccoy = ordenAnterior.mccoy;
-                        const ordenActualizada = (state.ordenes[mccoy] || [])
+                        const tabla = ordenAnterior.tabla;
+                        const ordenActualizada = (state.ordenes[tabla] || [])
                             .find(o => o.id === ordenAnterior.id);
 
                         if (ordenActualizada) {
                             state.ordenSeleccionada = ordenActualizada;
-                            renderTable(mccoy);
+                            renderTable(tabla);
                             setButtonsEnabled(true);
                         } else {
                             state.ordenSeleccionada = null;
@@ -328,7 +325,6 @@
 
                 try {
                     const payload = JSON.stringify({ id: state.ordenSeleccionada.id });
-
                     const result = await fetchJson(endpoint, {
                         method: 'POST',
                         body: payload,
@@ -344,11 +340,11 @@
                     await cargarOrdenes(true);
 
                     // Restaurar selección si sigue existiendo
-                    for (let mccoy = 1; mccoy <= 4; mccoy++) {
-                        const orden = (state.ordenes[mccoy] || []).find(o => o.id === ordenId);
+                    for (let tablaIndex = 1; tablaIndex <= 2; tablaIndex++) {
+                        const orden = (state.ordenes[tablaIndex] || []).find(o => o.id === ordenId);
                         if (orden) {
                             state.ordenSeleccionada = orden;
-                            renderTable(mccoy);
+                            renderTable(tablaIndex);
                             break;
                         }
                     }
@@ -369,7 +365,7 @@
                     return;
                 }
 
-                const url = `${routes.produccion}?orden_id=${state.ordenSeleccionada.id}`;
+                const url = `{{ route('engomado.modulo.produccion.engomado') }}?orden_id=${state.ordenSeleccionada.id}`;
                 window.location.href = url;
             };
 
@@ -395,3 +391,4 @@
         })();
     </script>
 @endsection
+

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-title', 'Producción de Urdido')
+@section('page-title', 'Producción de Engomado')
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
@@ -34,34 +34,37 @@
         <div class="bg-white p-1">
         <div class="grid grid-cols-12 gap-2 items-stretch">
             <!-- Columna Izquierda -->
-            <div class="col-span-12 md:col-span-2 flex flex-col space-y-3">
+            <div class="col-span-12 md:col-span-3 flex flex-col space-y-4">
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Folio:</span>
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[80px]">Folio:</span>
                         <span class="text-sm text-gray-900 flex-1">{{ $orden ? $orden->Folio : '-' }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Cuenta:</span>
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[80px]">Cuenta:</span>
                         <span class="text-sm text-gray-900 flex-1">{{ $orden ? ($orden->Cuenta ?? '-') : '-' }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Urdido:</span>
-                        <span class="text-sm text-gray-900 flex-1">{{ $orden ? ($orden->MaquinaId ?? '-') : '-' }}</span>
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Metros:</span>
-                        <span class="text-sm text-gray-900 flex-1">{{ $metros ?? '0' }}</span>
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[80px]">Urdido:</span>
+                        <span class="text-sm text-gray-900 flex-1">{{ $urdido ?? '-' }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Proveedor:</span>
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[80px]">Destino:</span>
+                        <span class="text-sm text-gray-900 flex-1">{{ $destino ?? '-' }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[80px]">Proveedor:</span>
                         <span class="text-sm text-gray-900 flex-1">{{ $loteProveedor ?? '-' }}</span>
                 </div>
             </div>
 
             <!-- Columna Centro -->
-                <div class="col-span-12 md:col-span-2 flex flex-col space-y-4">
+                <div class="col-span-12 md:col-span-4 flex flex-col space-y-4">
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Tipo:</span>
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">Engomado:</span>
+                        <span class="text-sm text-gray-900 flex-1">{{ $orden ? ($orden->MaquinaEng ?? '-') : '-' }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">Tipo:</span>
                         @if($orden && $orden->RizoPie)
                             @php
                                 $tipo = strtoupper(trim($orden->RizoPie));
@@ -76,69 +79,34 @@
                         @endif
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Destino:</span>
-                        <span class="text-sm text-gray-900 flex-1">{{ $destino ?? '-' }}</span>
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">Núcleo:</span>
+                        <span class="text-sm text-gray-900 flex-1">{{ $nucleo ?? '-' }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Ordenado por:</span>
-                        <span class="text-sm text-gray-900 flex-1">{{ $nomEmpl ?? '-' }}</span>
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">No. De Telas:</span>
+                        <span class="text-sm text-gray-900 flex-1">{{ $noTelas ?? '-' }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Hilo:</span>
-                        <span class="text-sm text-gray-500 italic flex-1">{{ $hilo ?? '-' }}</span>
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">Ancho Balonas:</span>
+                        <span class="text-sm text-gray-900 flex-1">{{ $anchoBalonas ?? '-' }}</span>
                 </div>
-                <div class="flex-1"></div>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">Mts. De Telas:</span>
+                        <span class="text-sm text-gray-900 flex-1">{{ $metrajeTelas ?? '-' }}</span>
+                </div>
             </div>
 
-            <!-- Columna 3: Tabla No. JULIO y HILOS -->
-                <div class="col-span-12 md:col-span-4 flex flex-col">
-                <div class="flex-1 flex flex-col">
-                        <label class="block text-sm font-semibold text-gray-700 text-center">Información de Julio</label>
-                    <div class="border border-gray-300 rounded overflow-hidden max-w-md mx-auto w-full">
-                        <table class="w-full text-sm" style="table-layout: fixed;">
-                            <thead>
-                                <tr>
-                                    <th class="text-center bg-gray-200 font-semibold text-gray-700 border-gray-300 text-sm px-2" style="width: 80px;">No. Julio</th>
-                                    <th class="text-center bg-gray-200 font-semibold text-gray-700 text-sm px-2" style="width: 70px;">Hilos</th>
-                                    <th class="text-center bg-gray-200 font-semibold text-gray-700 text-sm px-2" style="width: 180px;">Obs.</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                    @if($julios && $julios->count() > 0)
-                                        @foreach($julios as $julio)
-                                <tr>
-                                    <td class="border border-r border-gray-200 text-center py-1 px-2" style="width: 80px;">
-                                                    <span class="text-sm text-gray-900">{{ $julio->Julios ?? '-' }}</span>
-                                    </td>
-                                    <td class="border text-center py-1 px-2" style="width: 70px;">
-                                                    <span class="text-sm text-gray-900">{{ $julio->Hilos ?? '-' }}</span>
-                                    </td>
-                                    <td class="border text-center py-1 px-2" style="width: 180px;">
-                                                    <span class="text-sm text-gray-900">{{ $julio->Obs ?? '-' }}</span>
-                                    </td>
-                                </tr>
-                                        @endforeach
-                                    @else
-                                        <tr>
-                                            <td colspan="3" class="border text-center py-1 px-2 text-gray-500 italic">
-                                                No hay información de julios
-                                    </td>
-                                </tr>
-                                    @endif
-                            </tbody>
-                        </table>
-                    </div>
+            <!-- Columna Derecha -->
+            <div class="col-span-12 md:col-span-5 flex flex-col space-y-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[120px]">Cuendeados Mín.:</span>
+                        <span class="text-sm text-gray-900 flex-1">{{ $cuendeadosMin ?? '-' }}</span>
                 </div>
-                <div class="flex-1"></div>
-            </div>
-
-            <!-- Columna 4: Observaciones -->
-            <div class="col-span-12 md:col-span-4 flex flex-col">
-                <div class="flex-1 flex flex-col">
-                    <label class="block text-sm font-semibold text-gray-700">Observaciones:</label>
-                    <div class="flex-1 w-full border border-gray-300 rounded px-2 text-sm overflow-y-auto">
+                <div class="flex items-start gap-2">
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[120px]">Observaciones:</span>
+                        <div class="flex-1 w-full border border-gray-300 rounded px-2 py-1 text-sm overflow-y-auto min-h-[150px]">
                             <span class="text-gray-500 whitespace-pre-wrap">{{ $observaciones ?? '-' }}</span>
-                    </div>
+                        </div>
                 </div>
             </div>
         </div>
@@ -161,24 +129,27 @@
                         <th class="py-1"></th>
                         <th class="py-1"></th>
                         <th class="py-1"></th>
-                        <th colspan="4" class="py-1 text-center bg-blue-700">Roturas</th>
+                        <th colspan="3" class="py-1 text-center bg-blue-700">Temperatura</th>
+                        <th class="py-1"></th>
+                        <th class="py-1"></th>
                     </tr>
                     <tr>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold sticky left-0 bg-blue-500 z-30 text-xs md:text-sm">Fecha</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Oficial</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Turno</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell">H. Inicio</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell">H. Fin</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">No. Julio</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell">Hilos</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell">H. Final</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Julio</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Kg. Bruto</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Tara</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Kg. Neto</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Metros</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-sm">Hilat.</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-sm">Maq.</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-sm">Operac.</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-sm">Transf.</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Sol. Can.</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-xs">Canoa 1</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-xs">Canoa 2</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-xs">Tambor</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Humedad</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Roturas</th>
                     </tr>
                 </thead>
                 <tbody id="tabla-produccion-body" class="bg-white divide-y divide-gray-200">
@@ -206,10 +177,10 @@
                                     $horaInicio = $registro && $registro->HoraInicial ? substr($registro->HoraInicial, 0, 5) : '';
                                     $horaFin = $registro && $registro->HoraFinal ? substr($registro->HoraFinal, 0, 5) : '';
                                     $noJulio = $registro ? ($registro->NoJulio ?? '') : '';
-                                    $hilos = $registro ? ($registro->Hilos ?? '') : '';
                                     $kgBruto = $registro ? ($registro->KgBruto ?? '') : '';
                                     $tara = $registro ? ($registro->Tara ?? '') : '';
                                     $kgNeto = $registro ? ($registro->KgNeto ?? '') : '';
+                                    $solidos = $registro ? ($registro->SolCan ?? '') : '';
 
                                     $metros = '';
                                     if ($registro) {
@@ -220,10 +191,11 @@
                                         $metros = $sumaMetros > 0 ? $sumaMetros : '';
                                     }
 
-                                    $hilatura = $registro ? ($registro->Hilatura ?? 0) : 0;
-                                    $maquina = $registro ? ($registro->Maquina ?? 0) : 0;
-                                    $operac = $registro ? ($registro->Operac ?? 0) : 0;
-                                    $transf = $registro ? ($registro->Transf ?? 0) : 0;
+                                    $tempCanoa1 = $registro && $registro->Canoa1 !== null ? (int)$registro->Canoa1 : '';
+                                    $tempCanoa2 = $registro && $registro->Canoa2 !== null ? (int)$registro->Canoa2 : '';
+                                    $tambor = $registro && $registro->Tambor !== null ? (int)$registro->Tambor : '';
+                                    $humedad = $registro ? ($registro->Humedad ?? '') : '';
+                                    $roturas = $registro ? ($registro->Roturas ?? '') : '';
                                     $registroId = $registro ? $registro->Id : null;
 
                                     $oficiales = [];
@@ -381,17 +353,6 @@
                             </select>
                         </td>
 
-                                    {{-- Hilos --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell">
-                                        <input
-                                            type="number"
-                                            disabled
-                                            data-field="hilos"
-                                            class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-hilos"
-                                            value="{{ $hilos }}"
-                                        >
-                        </td>
-
                                     {{-- Kg Bruto --}}
                         <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
                                         <input
@@ -438,16 +399,27 @@
                                         >
                         </td>
 
-                                    {{-- Hilatura --}}
+                                    {{-- Solidos --}}
                         <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            data-field="solidos"
+                                            class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            value="{{ $solidos }}"
+                                        >
+                        </td>
+
+                                    {{-- Temperatura Canoa 1 --}}
+                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap bg-blue-50">
                             <div class="flex items-center justify-center relative">
                                             <button
                                                 type="button"
                                                 class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-2 py-2 rounded text-sm transition-colors"
-                                                onclick="toggleQuantityEdit(this, 'hilat')"
+                                                onclick="toggleQuantityEdit(this, 'temp_canoa1')"
                                             >
-                                                <span class="quantity-display font-semibold" data-field="hilat">
-                                                    {{ $hilatura }}
+                                                <span class="quantity-display font-semibold" data-field="temp_canoa1">
+                                                    {{ $tempCanoa1 !== '' ? $tempCanoa1 : '-' }}
                                                 </span>
                                 </button>
                                 <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
@@ -455,7 +427,7 @@
                                         <div class="flex space-x-1 min-w-max">
                                                         @for($numIndex = 0; $numIndex <= 100; $numIndex++)
                                                             <span
-                                                                class="number-option inline-block w-7 h-7 text-center leading-7 text-xs cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $numIndex == $hilatura ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}"
+                                                                class="number-option inline-block w-7 h-7 text-center leading-7 text-xs cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $tempCanoa1 !== '' && $numIndex == $tempCanoa1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}"
                                                                 data-value="{{ $numIndex }}"
                                                             >
                                                                 {{ $numIndex }}
@@ -467,16 +439,16 @@
                             </div>
                         </td>
 
-                                    {{-- Maquina --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                                    {{-- Temperatura Canoa 2 --}}
+                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap bg-blue-50">
                             <div class="flex items-center justify-center relative">
                                             <button
                                                 type="button"
                                                 class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-2 py-2 rounded text-sm transition-colors"
-                                                onclick="toggleQuantityEdit(this, 'maq')"
+                                                onclick="toggleQuantityEdit(this, 'temp_canoa2')"
                                             >
-                                                <span class="quantity-display font-semibold" data-field="maq">
-                                                    {{ $maquina }}
+                                                <span class="quantity-display font-semibold" data-field="temp_canoa2">
+                                                    {{ $tempCanoa2 !== '' ? $tempCanoa2 : '-' }}
                                                 </span>
                                 </button>
                                 <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
@@ -484,7 +456,7 @@
                                         <div class="flex space-x-1 min-w-max">
                                                         @for($numIndex = 0; $numIndex <= 100; $numIndex++)
                                                             <span
-                                                                class="number-option inline-block w-7 h-7 text-center leading-7 text-xs cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $numIndex == $maquina ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}"
+                                                                class="number-option inline-block w-7 h-7 text-center leading-7 text-xs cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $tempCanoa2 !== '' && $numIndex == $tempCanoa2 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}"
                                                                 data-value="{{ $numIndex }}"
                                                             >
                                                                 {{ $numIndex }}
@@ -496,16 +468,16 @@
                             </div>
                         </td>
 
-                                    {{-- Operac --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                                    {{-- Tambor --}}
+                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap bg-blue-50">
                             <div class="flex items-center justify-center relative">
                                             <button
                                                 type="button"
                                                 class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-2 py-2 rounded text-sm transition-colors"
-                                                onclick="toggleQuantityEdit(this, 'operac')"
+                                                onclick="toggleQuantityEdit(this, 'tambor')"
                                             >
-                                                <span class="quantity-display font-semibold" data-field="operac">
-                                                    {{ $operac }}
+                                                <span class="quantity-display font-semibold" data-field="tambor">
+                                                    {{ $tambor !== '' ? $tambor : '-' }}
                                                 </span>
                                 </button>
                                 <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
@@ -513,7 +485,7 @@
                                         <div class="flex space-x-1 min-w-max">
                                                         @for($numIndex = 0; $numIndex <= 100; $numIndex++)
                                                             <span
-                                                                class="number-option inline-block w-7 h-7 text-center leading-7 text-xs cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $numIndex == $operac ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}"
+                                                                class="number-option inline-block w-7 h-7 text-center leading-7 text-xs cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $tambor !== '' && $numIndex == $tambor ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}"
                                                                 data-value="{{ $numIndex }}"
                                                             >
                                                                 {{ $numIndex }}
@@ -525,39 +497,33 @@
                             </div>
                         </td>
 
-                                    {{-- Transf --}}
+                                    {{-- Humedad --}}
                         <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
-                            <div class="flex items-center justify-center relative">
-                                            <button
-                                                type="button"
-                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-2 py-2 rounded text-sm transition-colors"
-                                                onclick="toggleQuantityEdit(this, 'transf')"
-                                            >
-                                                <span class="quantity-display font-semibold" data-field="transf">
-                                                    {{ $transf }}
-                                                </span>
-                                </button>
-                                <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
-                                    <div class="number-scroll-container overflow-x-auto w-48 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                                        <div class="flex space-x-1 min-w-max">
-                                                        @for($numIndex = 0; $numIndex <= 100; $numIndex++)
-                                                            <span
-                                                                class="number-option inline-block w-7 h-7 text-center leading-7 text-xs cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $numIndex == $transf ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}"
-                                                                data-value="{{ $numIndex }}"
-                                                            >
-                                                                {{ $numIndex }}
-                                                            </span>
-                                            @endfor
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            data-field="humedad"
+                                            class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            value="{{ $humedad }}"
+                                        >
+                        </td>
+
+                                    {{-- Roturas --}}
+                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                                        <input
+                                            type="number"
+                                            step="1"
+                                            min="0"
+                                            data-field="roturas"
+                                            class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            value="{{ $roturas }}"
+                                        >
                         </td>
                     </tr>
                             @endfor
                         @else
                             <tr>
-                                <td colspan="15" class="px-2 py-4 text-center text-gray-500 italic">
+                                <td colspan="16" class="px-2 py-4 text-center text-gray-500 italic">
                                     No hay registros para generar.
                                     @if(isset($julios) && $julios->count() > 0)
                                         <br>Total calculado: {{ $totalRegistros }} | Cantidad de julios: {{ $julios->count() }}
@@ -760,7 +726,7 @@
                 }
 
                 cargarCatalogosJulios();
-                cargarUsuariosUrdido();
+                cargarUsuariosEngomado();
 
                 if (tablaBody) {
                     tablaBody.addEventListener('change', function (e) {
@@ -894,6 +860,21 @@
                             const campoBD = field === 'h_inicio' ? 'HoraInicial' : 'HoraFinal';
                             actualizarHora(registroId, campoBD, horaValue || null);
                         }
+
+                        // Cambio de campos de producción (Solidos, Temperatura, Humedad, Roturas)
+                        const camposProduccion = ['solidos', 'temp_canoa1', 'temp_canoa2', 'tambor', 'humedad', 'roturas'];
+                        if (camposProduccion.includes(field)) {
+                            if (!verificarOficialSeleccionado(registroId)) {
+                                mostrarAlertaOficialRequerido();
+                                return;
+                            }
+
+                            const valor = target.value.trim();
+                            const campoBD = campoMap[field];
+                            if (campoBD) {
+                                actualizarCampoProduccion(registroId, campoBD, valor || null);
+                            }
+                        }
                     });
                 }
 
@@ -931,7 +912,7 @@
                     }
 
                     try {
-                        const response = await fetch('{{ route('urdido.modulo.produccion.urdido.actualizar.fecha') }}', {
+                        const response = await fetch('{{ route('engomado.modulo.produccion.engomado.actualizar.fecha') }}', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -981,7 +962,7 @@
 
                 async function actualizarTurnoOficial(registroId, numeroOficial, turno) {
                     try {
-                        const response = await fetch('{{ route('urdido.modulo.produccion.urdido.actualizar.turno.oficial') }}', {
+                        const response = await fetch('{{ route('engomado.modulo.produccion.engomado.actualizar.turno.oficial') }}', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1049,7 +1030,7 @@
                     }
 
                     try {
-                        const response = await fetch('{{ route('urdido.modulo.produccion.urdido.actualizar.kg.bruto') }}', {
+                        const response = await fetch('{{ route('engomado.modulo.produccion.engomado.actualizar.kg.bruto') }}', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1113,7 +1094,7 @@
                     }
 
                     try {
-                        const response = await fetch('{{ route('urdido.modulo.produccion.urdido.actualizar.julio.tara') }}', {
+                        const response = await fetch('{{ route('engomado.modulo.produccion.engomado.actualizar.julio.tara') }}', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1173,7 +1154,7 @@
 
                 async function actualizarHora(registroId, campo, valor) {
                     try {
-                        const response = await fetch('{{ route('urdido.modulo.produccion.urdido.actualizar.horas') }}', {
+                        const response = await fetch('{{ route('engomado.modulo.produccion.engomado.actualizar.horas') }}', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1227,7 +1208,7 @@
 
                 async function cargarCatalogosJulios() {
                     try {
-                        const response = await fetch('{{ route('urdido.modulo.produccion.urdido.catalogos.julios') }}');
+                        const response = await fetch('{{ route('engomado.modulo.produccion.engomado.catalogos.julios') }}');
                         const result = await response.json();
 
                         if (!(result.success && result.data)) {
@@ -1300,7 +1281,7 @@
                     }
 
                     try {
-                        const response = await fetch('{{ route('urdido.modulo.produccion.urdido.actualizar.campos.produccion') }}', {
+                        const response = await fetch('{{ route('engomado.modulo.produccion.engomado.actualizar.campos.produccion') }}', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1309,7 +1290,7 @@
                             body: JSON.stringify({
                                 registro_id: registroId,
                                 campo,
-                                valor: valor !== null && valor !== '' ? parseInt(valor) : null
+                                valor: valor !== null && valor !== '' ? (campo === 'Roturas' ? parseInt(valor) : parseFloat(valor)) : null
                             })
                         });
 
@@ -1349,10 +1330,12 @@
                 }
 
                 const campoMap = {
-                    hilat: 'Hilatura',
-                    maq: 'Maquina',
-                    operac: 'Operac',
-                    transf: 'Transf'
+                    solidos: 'SolCan',
+                    temp_canoa1: 'Canoa1',
+                    temp_canoa2: 'Canoa2',
+                    tambor: 'Tambor',
+                    humedad: 'Humedad',
+                    roturas: 'Roturas'
                 };
 
                 document.addEventListener('click', function (e) {
@@ -1378,14 +1361,26 @@
 
             const quantityDisplay = cell.querySelector('.quantity-display');
             if (quantityDisplay) {
-                quantityDisplay.textContent = selectedValue;
-
                         const fieldName = quantityDisplay.getAttribute('data-field');
                         const registroId = row ? row.getAttribute('data-registro-id') : null;
 
-                        if (registroId && fieldName && campoMap[fieldName]) {
-                            actualizarCampoProduccion(registroId, campoMap[fieldName], selectedValue);
+                        if (!registroId || !fieldName || !campoMap[fieldName]) return;
+
+                        // Verificar que haya un oficial seleccionado antes de actualizar
+                        if (!verificarOficialSeleccionado(registroId)) {
+                            mostrarAlertaOficialRequerido();
+                            return;
                         }
+
+                        // Guardar el valor anterior para poder revertir si es necesario
+                        const valorAnterior = quantityDisplay.textContent.trim();
+
+                        quantityDisplay.textContent = selectedValue;
+
+                        actualizarCampoProduccion(registroId, campoMap[fieldName], selectedValue).catch(() => {
+                            // Si hay error, revertir el valor
+                            quantityDisplay.textContent = valorAnterior;
+                        });
                     }
 
             const editContainer = cell.querySelector('.quantity-edit-container');
@@ -1487,27 +1482,27 @@
                 const btnCancelarModal = document.getElementById('btn-cancelar-modal');
                 const modalRegistroId = document.getElementById('modal-registro-id');
 
-                let usuariosUrdido = [];
+                let usuariosEngomado = [];
 
-                async function cargarUsuariosUrdido() {
+                async function cargarUsuariosEngomado() {
                     try {
-                        const response = await fetch('{{ route('urdido.modulo.produccion.urdido.usuarios.urdido') }}');
+                        const response = await fetch('{{ route('engomado.modulo.produccion.engomado.usuarios.engomado') }}');
                         const result = await response.json();
 
                         if (result.success && result.data) {
-                            usuariosUrdido = result.data;
+                            usuariosEngomado = result.data;
                         } else {
                             console.error('Error al cargar usuarios:', result.error);
-                            usuariosUrdido = [];
+                            usuariosEngomado = [];
                         }
                     } catch (error) {
-                        console.error('Error al cargar usuarios de Urdido:', error);
-                        usuariosUrdido = [];
+                        console.error('Error al cargar usuarios de Engomado:', error);
+                        usuariosEngomado = [];
                     }
                 }
 
                 function poblarSelectUsuarios(selectElement, claveSeleccionada) {
-                    if (!selectElement || !usuariosUrdido.length) return;
+                    if (!selectElement || !usuariosEngomado.length) return;
 
                     // Limpiar opciones existentes excepto la primera
                     while (selectElement.options.length > 1) {
@@ -1517,12 +1512,13 @@
                     let usuarioSeleccionado = null;
 
                     // Agregar usuarios
-                    usuariosUrdido.forEach(usuario => {
+                    usuariosEngomado.forEach(usuario => {
                         const option = document.createElement('option');
                         option.value = usuario.numero_empleado;
                         option.textContent = usuario.nombre;
                         option.setAttribute('data-numero-empleado', usuario.numero_empleado);
                         option.setAttribute('data-nombre', usuario.nombre);
+                        option.setAttribute('data-turno', usuario.turno || '');
 
                         // Seleccionar si coincide con la clave
                         if (claveSeleccionada && usuario.numero_empleado === claveSeleccionada) {
@@ -1533,12 +1529,20 @@
                         selectElement.appendChild(option);
                     });
 
-                    // Si hay un usuario seleccionado, actualizar el nombre en el input readonly
+                    // Si hay un usuario seleccionado, actualizar el nombre y el turno
                     if (usuarioSeleccionado) {
                         const numero = selectElement.getAttribute('data-numero');
                         const nombreInput = document.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
                         if (nombreInput) {
                             nombreInput.value = usuarioSeleccionado.nombre;
+                        }
+
+                        // Actualizar el turno automáticamente si hay un turno
+                        if (usuarioSeleccionado.turno) {
+                            const turnoSelect = document.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
+                            if (turnoSelect) {
+                                turnoSelect.value = usuarioSeleccionado.turno;
+                            }
                         }
                     }
                 }
@@ -1646,8 +1650,8 @@
                     if (!row) return;
 
                     // Asegurar que los usuarios estén cargados antes de renderizar
-                    if (usuariosUrdido.length === 0) {
-                        await cargarUsuariosUrdido();
+                    if (usuariosEngomado.length === 0) {
+                        await cargarUsuariosEngomado();
                     }
 
                     renderizarOficialesExistentes(registroId);
@@ -1668,6 +1672,7 @@
                         if (selectedOption && selectedOption.value) {
                             const numeroEmpleado = selectedOption.value;
                             const nombre = selectedOption.getAttribute('data-nombre') || selectedOption.textContent;
+                            const turno = selectedOption.getAttribute('data-turno') || '';
 
                             // Actualizar el input hidden con el número de empleado
                             const claveInput = document.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
@@ -1680,6 +1685,14 @@
                             if (nombreInput) {
                                 nombreInput.value = nombre;
                             }
+
+                            // Actualizar el select de turno automáticamente si hay un turno
+                            if (turno) {
+                                const turnoSelect = document.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
+                                if (turnoSelect) {
+                                    turnoSelect.value = turno;
+                                }
+                            }
                         } else {
                             // Si se deselecciona, limpiar campos
                             const claveInput = document.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
@@ -1690,6 +1703,12 @@
                             const nombreInput = document.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
                             if (nombreInput) {
                                 nombreInput.value = '';
+                            }
+
+                            // Limpiar el turno también
+                            const turnoSelect = document.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
+                            if (turnoSelect) {
+                                turnoSelect.value = '';
                             }
                         }
                     }
@@ -1775,7 +1794,7 @@
                                     ...oficial
                                 };
 
-                                const response = await fetch('{{ route('urdido.modulo.produccion.urdido.guardar.oficial') }}', {
+                                const response = await fetch('{{ route('engomado.modulo.produccion.engomado.guardar.oficial') }}', {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json',

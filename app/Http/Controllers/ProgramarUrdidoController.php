@@ -59,7 +59,7 @@ class ProgramarUrdidoController extends Controller
                 'FechaProg',
                 'CreatedAt',
             ])
-            ->where('Status', 'Activo')
+            ->whereIn('Status', ['Programado', 'En Proceso'])
             ->whereNotNull('MaquinaId')
             ->get();
 
@@ -144,7 +144,7 @@ class ProgramarUrdidoController extends Controller
             }
 
             // Obtener todas las órdenes del mismo MC Coy ordenadas por CreatedAt
-            $ordenesMcCoy = UrdProgramaUrdido::where('Status', 'Activo')
+            $ordenesMcCoy = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso'])
                 ->whereNotNull('MaquinaId')
                 ->get()
                 ->filter(function ($item) use ($mcCoy) {
@@ -232,7 +232,7 @@ class ProgramarUrdidoController extends Controller
             }
 
             // Obtener todas las órdenes del mismo MC Coy ordenadas por CreatedAt
-            $ordenesMcCoy = UrdProgramaUrdido::where('Status', 'Activo')
+            $ordenesMcCoy = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso'])
                 ->whereNotNull('MaquinaId')
                 ->get()
                 ->filter(function ($item) use ($mcCoy) {

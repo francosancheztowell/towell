@@ -42,6 +42,7 @@ class EngProgramaEngomado extends Model
         'TipoAtado',
         'CveEmpl',
         'NomEmpl',
+        'LoteProveedor',
     ];
 
     protected $casts = [

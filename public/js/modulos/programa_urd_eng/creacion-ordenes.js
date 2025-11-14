@@ -820,7 +820,7 @@
                         loteProv: material.TwCalidadFlog || '',
                         noProv: material.TwClienteFlog || '',
                         prodDate: material.ProdDate || null,
-                        status: 'Activo'
+                        status: 'Programado'
                     });
                 }
             });
@@ -982,7 +982,7 @@
                 maquinaId: grupo.maquinaId || grupo.urdido || '',
                 bomId: bomId,
                 tipoAtado: grupo.tipoAtado || 'Normal',
-                status: 'Activo'
+                status: 'Programado'
             };
 
             // Preparar payload completo
