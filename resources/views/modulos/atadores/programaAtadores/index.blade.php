@@ -75,7 +75,7 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($inventarioTelares as $item)
-                        <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150" 
+                        <tr class="hover:bg-blue-400 cursor-pointer transition-colors duration-150" 
                             onclick="selectRow(this, {{ $item->id }})" 
                             data-id="{{ $item->id }}">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -154,7 +154,7 @@
                             Calidad de Atado <span class="text-red-500">*</span>
                         </label>
                         <select id="calidadAtado" name="calidadAtado" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 hover:border-green-400 hover:shadow-sm transition-all duration-200">
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 hover:border-blue-400400 hover:shadow-sm transition-all duration-200">
                             <option value="">Seleccione una calificación</option>
                             <option value="1">1 - Muy Deficiente</option>
                             <option value="2">2 - Deficiente</option>
@@ -175,7 +175,7 @@
                             Orden y Limpieza <span class="text-red-500">*</span>
                         </label>
                         <select id="ordenLimpieza" name="ordenLimpieza" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 hover:border-green-400 hover:shadow-sm transition-all duration-200">
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 hover:border-blue-400400 hover:shadow-sm transition-all duration-200">
                             <option value="">Seleccione una calificación</option>
                             <option value="1">1 - Muy Deficiente</option>
                             <option value="2">2 - Deficiente</option>

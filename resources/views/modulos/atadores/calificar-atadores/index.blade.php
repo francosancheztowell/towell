@@ -4,16 +4,18 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button onclick="terminarAtado()" 
+        <button id="btnTerminar" onclick="terminarAtado()" 
             class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200">
             <i class="fas fa-stop mr-1"></i> Terminar Atado
         </button>
-        <button onclick="calificarTejedor()" 
-            class="px-2 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors duration-200">
+        <button id="btnCalificar" onclick="calificarTejedor()" 
+            class="px-2 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            @if($montadoTelas->isNotEmpty() && !$montadoTelas->first()->HoraArranque) disabled @endif>
             <i class="fas fa-user-check mr-1"></i> Califica Tejedor
         </button>
-        <button onclick="autorizaSupervisor()" 
-            class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200">
+        <button id="btnAutorizar" onclick="autorizaSupervisor()" 
+            class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            @if($montadoTelas->isNotEmpty() && (!$montadoTelas->first()->Calidad || !$montadoTelas->first()->Limpieza)) disabled @endif>
             <i class="fas fa-user-tie mr-1"></i> Autoriza Supervisor
         </button>
     </div>
@@ -31,94 +33,100 @@
         <!-- Resumen del Atado (4 bloques combinados + comentarios) -->
         <div class="bg-white rounded-lg shadow-md p-4 mb-6">
             <h3 class="text-base font-semibold text-gray-700 mb-4">Resumen del Atado</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <!-- Información General -->
-                <div>
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Fecha:</span>
-                            <span class="text-sm font-medium">{{ $item->Fecha ? \Carbon\Carbon::parse($item->Fecha)->format('d/m/Y') : '-' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Turno:</span>
-                            <span class="text-sm font-medium">{{ $item->Turno ?? '-' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">No. Julio:</span>
-                            <span class="text-sm font-medium">{{ $item->NoJulio ?? '-' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">No. Producción:</span>
-                            <span class="text-sm font-medium">{{ $item->NoProduccion ?? '-' }}</span>
-                        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Columna 1 -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Fecha del Atado</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->Fecha ? \Carbon\Carbon::parse($item->Fecha)->format('d/m/Y') : '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Un Orden</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->NoProduccion ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Metros</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->Metros ? number_format($item->Metros, 2) : '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Merma Kg</span>
+                        <input type="number" id="mergaKg" step="0.01" value="{{ $item->MergaKg ?? '' }}"
+                               class="w-28 px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="0.00" onchange="guardarMerga(this.value)" />
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Calidad de Atado (1-10)</span>
+                        @if($item->Calidad)
+                            <span id="valCalidad" class="px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-sm">{{ $item->Calidad }}</span>
+                        @else
+                            <span id="valCalidad" class="text-sm text-gray-400">-</span>
+                        @endif
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Cve Supervisor</span>
+                        <span id="valCveSupervisor" class="text-sm font-semibold text-gray-800">{{ $item->CveSupervisor ?? '-' }}</span>
                     </div>
                 </div>
 
-                <!-- Detalles de Producción -->
-                <div>
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Tipo:</span>
-                            <span class="text-sm font-medium">{{ $item->Tipo ?? '-' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Metros:</span>
-                            <span class="text-sm font-medium">{{ $item->Metros ? number_format($item->Metros, 2) : '-' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">No. Telar:</span>
-                            <span class="text-sm font-medium">{{ $item->NoTelarId ?? '-' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Lote Proveedor:</span>
-                            <span class="text-sm font-medium">{{ $item->LoteProveedor ?? '-' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">No. Proveedor:</span>
-                            <span class="text-sm font-medium">{{ $item->NoProveedor ?? '-' }}</span>
-                        </div>
+                <!-- Columna 2 -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Hora de Paro</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->HoraParo ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">No Julio</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->NoJulio ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Lote Provee</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->LoteProveedor ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Hora de Arranque</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->HoraArranque ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">5'S Orden y Limpieza (5-10)</span>
+                        @if($item->Limpieza)
+                            <span id="valLimpieza" class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-sm">{{ $item->Limpieza }}</span>
+                        @else
+                            <span id="valLimpieza" class="text-sm text-gray-400">-</span>
+                        @endif
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Nom Supervisor</span>
+                        <span id="valNomSupervisor" class="text-sm font-semibold text-gray-800">{{ $item->NomSupervisor ?? '-' }}</span>
                     </div>
                 </div>
 
-                <!-- Tiempos y Pesos -->
-                <div>
-                    {{-- <h4 class="text-sm font-semibold text-gray-600 mb-2 border-b pb-1">Tiempos y Pesos</h4> --}}
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Merga Kg:</span>
-                            <span class="text-sm font-medium">{{ $item->MergaKg ? number_format($item->MergaKg, 2) : '-' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Hora Paro:</span>
-                            <span class="text-sm font-medium">{{ $item->HoraParo ?? '-' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Hora Arranque:</span>
-                            <span class="text-sm font-medium">{{ $item->HoraArranque ?? '-' }}</span>
+                <!-- Columna 3 -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Telar</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->NoTelarId ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Tipo</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->Tipo ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">No Provee</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->NoProveedor ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Tejedor</span>
+                        <div class="text-sm font-semibold text-gray-800 flex flex-wrap justify-end gap-1 text-right">
+                            <span id="valCveTejedor">{{ $item->CveTejedor ?? '-' }}</span>
+                            <span id="tejedorDash" class="text-gray-400 {{ (!empty($item->CveTejedor) && !empty($item->NomTejedor)) ? '' : 'hidden' }}">-</span>
+                            <span id="valNomTejedor">{{ $item->NomTejedor ?? '-' }}</span>
                         </div>
                     </div>
-                </div>
-
-                <!-- Calificaciones -->
-                <div>
-                    {{-- <h4 class="text-sm font-semibold text-gray-600 mb-2 border-b pb-1">Calificaciones</h4> --}}
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">Calidad de Atado (1-10):</span>
-                            @if($item->Calidad)
-                                <span id="valCalidad" class="px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-sm">{{ $item->Calidad }}</span>
-                            @else
-                                <span id="valCalidad" class="text-sm text-gray-400">-</span>
-                            @endif
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs text-gray-500">5'S Orden y Limpieza (5-10):</span>
-                            @if($item->Limpieza)
-                                <span id="valLimpieza" class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-sm">{{ $item->Limpieza }}</span>
-                            @else
-                                <span id="valLimpieza" class="text-sm text-gray-400">-</span>
-                            @endif
-                        </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Fecha Hora</span>
+                        <span id="valFechaSupervisor" class="text-sm font-semibold text-gray-800">
+                            {{ $item->FechaSupervisor ? \Carbon\Carbon::parse($item->FechaSupervisor)->format('d/m/Y H:i') : '-' }}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -193,14 +201,14 @@
                                     ? trim(($a->CveEmpl ? $a->CveEmpl : '').($a->NomEmpl ? ' - '.$a->NomEmpl : ''))
                                     : '-';
                             @endphp
-                            <tr>
+                            <tr id="actividad-{{ $act->ActividadId }}">
                                 <td class="px-2 py-2 text-sm text-gray-900 w-24">{{ $act->ActividadId }}</td>
                                 <td class="px-1 py-2 text-sm text-right text-gray-900 w-20">{{ number_format((float)$porcentaje, 0) }}%</td>
                                 <td class="px-1 py-2 text-center w-16">
                                     <input type="checkbox" {{ $checked ? 'checked' : '' }} class="h-4 w-4 text-green-600 rounded"
                                            onchange="toggleActividad('{{ $act->ActividadId }}', this.checked)" />
                                 </td>
-                                <td class="px-2 py-2 text-sm text-gray-900">{{ $operador }}</td>
+                                <td class="px-2 py-2 text-sm text-gray-900 operador-cell">{{ $operador }}</td>
                             </tr>
                         @empty
                             <tr>
@@ -212,48 +220,6 @@
             </div>
         </div>
 
-        <!-- Personal Section -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <!-- Tejedor -->
-            <div class="bg-white rounded-lg shadow-md p-4">
-                <h3 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">
-                    <i class="fas fa-user mr-2 text-blue-500"></i>Tejedor
-                </h3>
-                <div class="space-y-2">
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Clave:</span>
-                        <span id="valCveTejedor" class="text-sm font-medium">{{ $item->CveTejedor ?? '-' }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Nombre:</span>
-                        <span id="valNomTejedor" class="text-sm font-medium">{{ $item->NomTejedor ?? '-' }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Supervisor -->
-            <div class="bg-white rounded-lg shadow-md p-4">
-                <h3 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">
-                    <i class="fas fa-user-tie mr-2 text-purple-500"></i>Supervisor
-                </h3>
-                <div class="space-y-2">
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Clave:</span>
-                        <span class="text-sm font-medium">{{ $item->CveSupervisor ?? '-' }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Nombre:</span>
-                        <span class="text-sm font-medium">{{ $item->NomSupervisor ?? '-' }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-xs text-gray-500">Fecha:</span>
-                        <span class="text-sm font-medium">{{ $item->FechaSupervisor ? \Carbon\Carbon::parse($item->FechaSupervisor)->format('d/m/Y') : '-' }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        
     @else
         <div class="bg-white rounded-lg shadow-md p-8 text-center">
             <i class="fas fa-inbox text-gray-300 text-6xl mb-4"></i>
@@ -301,7 +267,35 @@
 <script>
 // Usuario actual disponible para reflejar en UI tras guardados
 const currentUser = {!! auth()->check() ? json_encode(['numero_empleado' => auth()->user()->numero_empleado, 'nombre' => auth()->user()->nombre]) : 'null' !!};
+
+// Información de actividades para validación
+const actividadesData = {!! json_encode($actividadesCatalogo->map(function($act) use ($actividadesMontado) {
+    $a = $actividadesMontado->get($act->ActividadId);
+    return [
+        'id' => $act->ActividadId,
+        'estado' => $a && (int)($a->Estado ?? 0) === 1
+    ];
+})) !!};
+
 function terminarAtado(){
+    // Validar que todas las actividades estén marcadas
+    const total = actividadesData.length;
+    const completadas = actividadesData.filter(a => a.estado).length;
+    
+    // Verificar checkboxes actuales en la interfaz
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][onchange*="toggleActividad"]');
+    const marcados = Array.from(checkboxes).filter(cb => cb.checked).length;
+    
+    if (marcados < total) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Actividades incompletas',
+            text: `Debe marcar todas las actividades antes de terminar el atado. (${marcados}/${total} completadas)`,
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+    
     Swal.fire({
         title: '¿Terminar Atado?',
         text: 'Se registrará la hora de arranque con la hora actual',
@@ -325,7 +319,24 @@ function terminarAtado(){
             .then(res => {
                 if(res.ok){
                     Swal.fire({ icon: 'success', title: 'Atado terminado', timer: 1500, showConfirmButton: false });
-                    setTimeout(() => location.reload(), 800);
+                    // Deshabilitar botón de terminar atado
+                    const btnTerminar = document.getElementById('btnTerminar');
+                    if (btnTerminar) btnTerminar.disabled = true;
+                    // Habilitar botón de calificar
+                    const btnCalificar = document.getElementById('btnCalificar');
+                    if (btnCalificar) btnCalificar.disabled = false;
+                    // Deshabilitar todos los checkboxes de máquinas y actividades
+                    document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.disabled = true);
+                    // Deshabilitar campo de observaciones y merga
+                    const obsTextarea = document.getElementById('observaciones');
+                    if (obsTextarea) obsTextarea.disabled = true;
+                    const mergaInput = document.getElementById('mergaKg');
+                    if (mergaInput) mergaInput.disabled = true;
+                    const obsForm = document.getElementById('formObservaciones');
+                    if (obsForm) {
+                        const btnGuardar = obsForm.querySelector('button[type="submit"]');
+                        if (btnGuardar) btnGuardar.disabled = true;
+                    }
                 } else {
                     Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo terminar' });
                 }
@@ -394,6 +405,30 @@ async function calificarTejedor(){
             if (currentUser && nomTej && (!nomTej.textContent || nomTej.textContent.trim() === '-')) {
                 nomTej.textContent = currentUser.nombre || '-';
             }
+            const dashTej = document.getElementById('tejedorDash');
+            if (dashTej && cveTej && nomTej) {
+                if (cveTej.textContent.trim() !== '-' && nomTej.textContent.trim() !== '-') {
+                    dashTej.classList.remove('hidden');
+                } else {
+                    dashTej.classList.add('hidden');
+                }
+            }
+            // Actualizar supervisor con el usuario actual
+            if (res.supervisor) {
+                const cveSup = document.getElementById('valCveSupervisor');
+                const nomSup = document.getElementById('valNomSupervisor');
+                if (cveSup) cveSup.textContent = res.supervisor.cve || '-';
+                if (nomSup) nomSup.textContent = res.supervisor.nombre || '-';
+            }
+            // Deshabilitar botones Terminar Atado y Calificar Tejedor
+            const btnTerminar = document.getElementById('btnTerminar');
+            if (btnTerminar) btnTerminar.disabled = true;
+            const btnCalificar = document.getElementById('btnCalificar');
+            if (btnCalificar) btnCalificar.disabled = true;
+            // Habilitar botón de autorizar
+            const btnAutorizar = document.getElementById('btnAutorizar');
+            if (btnAutorizar) btnAutorizar.disabled = false;
+            
             Swal.fire({ icon: 'success', title: 'Calificación guardada', timer: 1200, showConfirmButton: false });
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo guardar' });
@@ -476,6 +511,27 @@ function guardarObservaciones(event){
     .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
 }
 
+// Guardar Merga Kg
+function guardarMerga(valor){
+    if (!valor || valor === '') return;
+    
+    fetch('{{ route('atadores.save') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ action: 'merga', mergaKg: parseFloat(valor) })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(!res.ok){
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo guardar la merga' });
+        }
+    })
+    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
+}
+
 // Agregar nota a Observaciones
 function agregarNota(texto){
     const ta = document.getElementById('observaciones');
@@ -516,7 +572,22 @@ function toggleActividad(actividadId, checked){
     })
     .then(r => r.json())
     .then(res => {
-        if(!res.ok){
+        if(res.ok){
+            // Actualizar el operador en la tabla dinámicamente
+            const fila = document.getElementById('actividad-' + actividadId);
+            if (fila && res.operador) {
+                const celdaOperador = fila.querySelector('.operador-cell');
+                if (celdaOperador) {
+                    celdaOperador.textContent = res.operador;
+                }
+            }
+            
+            // Actualizar el estado en actividadesData
+            const actividadIndex = actividadesData.findIndex(a => a.id === actividadId);
+            if (actividadIndex !== -1) {
+                actividadesData[actividadIndex].estado = !!checked;
+            }
+        } else {
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo actualizar actividad' });
         }
     })

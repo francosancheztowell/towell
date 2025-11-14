@@ -179,8 +179,9 @@ class AtadoresController extends Controller
             return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
         }
 
-        // Obtener el atado actual (último en proceso)
-        $montado = AtaMontadoTelasModel::orderBy('Fecha', 'desc')
+        // Obtener el atado actual (último EN PROCESO)
+        $montado = AtaMontadoTelasModel::where('Estatus', 'En Proceso')
+            ->orderBy('Fecha', 'desc')
             ->orderBy('Turno', 'desc')
             ->first();
 
@@ -313,9 +314,18 @@ class AtadoresController extends Controller
                     'Limpieza' => (int) $data['limpieza'],
                     'CveTejedor' => $montado->CveTejedor ?: $user->numero_empleado,
                     'NomTejedor' => $montado->NomTejedor ?: $user->nombre,
+                    'CveSupervisor' => $user->numero_empleado,
+                    'NomSupervisor' => $user->nombre,
                 ]);
 
-            return response()->json(['ok' => true, 'message' => 'Calificación guardada']);
+            return response()->json([
+                'ok' => true, 
+                'message' => 'Calificación guardada',
+                'supervisor' => [
+                    'cve' => $user->numero_empleado,
+                    'nombre' => $user->nombre
+                ]
+            ]);
         }
 
         if ($action === 'observaciones') {
@@ -328,6 +338,18 @@ class AtadoresController extends Controller
                 ->update(['Obs' => $observaciones]);
 
             return response()->json(['ok' => true, 'message' => 'Observaciones guardadas']);
+        }
+
+        if ($action === 'merga') {
+            $mergaKg = $request->input('mergaKg');
+            
+            DB::connection('sqlsrv')
+                ->table('AtaMontadoTelas')
+                ->where('NoJulio', $montado->NoJulio)
+                ->where('NoProduccion', $montado->NoProduccion)
+                ->update(['MergaKg' => $mergaKg]);
+
+            return response()->json(['ok' => true, 'message' => 'Merga guardada']);
         }
 
         if ($action === 'maquina_estado') {
@@ -354,6 +376,27 @@ class AtadoresController extends Controller
         }
 
         if ($action === 'terminar') {
+            // Validar que TODAS las actividades estén marcadas (Estado = 1)
+            $totalActividades = DB::connection('sqlsrv')
+                ->table('AtaMontadoActividades')
+                ->where('NoJulio', $montado->NoJulio)
+                ->where('NoProduccion', $montado->NoProduccion)
+                ->count();
+
+            $actividadesCompletadas = DB::connection('sqlsrv')
+                ->table('AtaMontadoActividades')
+                ->where('NoJulio', $montado->NoJulio)
+                ->where('NoProduccion', $montado->NoProduccion)
+                ->where('Estado', 1)
+                ->count();
+
+            if ($actividadesCompletadas < $totalActividades) {
+                return response()->json([
+                    'ok' => false, 
+                    'message' => 'Debe marcar todas las actividades antes de terminar el atado. (' . $actividadesCompletadas . '/' . $totalActividades . ' completadas)'
+                ], 422);
+            }
+
             // Register current time as "hora de arranque"
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
@@ -370,20 +413,16 @@ class AtadoresController extends Controller
             $actividadId = $request->input('actividadId');
             $estado = $request->input('estado') ? 1 : 0;
 
-            // Obtener registro actual para verificar si tiene operador
-            $actividad = DB::connection('sqlsrv')
-                ->table('AtaMontadoActividades')
-                ->where('NoJulio', $montado->NoJulio)
-                ->where('NoProduccion', $montado->NoProduccion)
-                ->where('ActividadId', $actividadId)
-                ->first();
-
             $updateData = ['Estado' => $estado];
             
-            // Si se activa y no tiene operador, asignar usuario actual
-            if ($estado && $actividad && (!$actividad->CveEmpl || !$actividad->NomEmpl)) {
+            // Si se activa (marca el checkbox), SIEMPRE asignar el usuario actual como operador
+            if ($estado) {
                 $updateData['CveEmpl'] = $user->numero_empleado;
                 $updateData['NomEmpl'] = $user->nombre;
+            } else {
+                // Si se desmarca, limpiar el operador
+                $updateData['CveEmpl'] = null;
+                $updateData['NomEmpl'] = null;
             }
 
             DB::connection('sqlsrv')
@@ -393,7 +432,16 @@ class AtadoresController extends Controller
                 ->where('ActividadId', $actividadId)
                 ->update($updateData);
 
-            return response()->json(['ok' => true, 'message' => 'Estado de actividad actualizado']);
+            // Devolver el operador actualizado para reflejar en la UI
+            $operador = $estado ? trim(($user->numero_empleado ?? '') . ' - ' . ($user->nombre ?? '')) : '-';
+            
+            return response()->json([
+                'ok' => true, 
+                'message' => 'Estado de actividad actualizado',
+                'operador' => $operador,
+                'cveEmpl' => $estado ? $user->numero_empleado : null,
+                'nomEmpl' => $estado ? $user->nombre : null
+            ]);
         }
 
         return response()->json(['ok' => false, 'message' => 'Acción no válida'], 422);
