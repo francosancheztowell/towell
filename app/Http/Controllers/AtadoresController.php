@@ -64,13 +64,38 @@ class AtadoresController extends Controller
             return redirect()->route('atadores.programa')->with('error', 'Registro no encontrado');
         }
 
-        // ELIMINAR solo los registros EN PROCESO (no autorizados) para permitir nuevo proceso
-        AtaMontadoTelasModel::where('Estatus', 'En Proceso')->delete();
-        AtaMontadoMaquinasModel::whereIn('NoJulio', function($query) {
-            $query->select('NoJulio')->from('AtaMontadoTelas')->where('Estatus', 'En Proceso');
+        // Verificar si ya existe un atado en proceso para este mismo NoJulio
+        $existente = AtaMontadoTelasModel::where('NoJulio', $item->no_julio)
+            ->where('NoProduccion', $item->no_orden)
+            ->where('Estatus', 'En Proceso')
+            ->first();
+
+        if ($existente) {
+            // Si ya existe, simplemente redirigir a calificar sin eliminar datos
+            return redirect()->route('atadores.calificar')->with('info', 'Continuando con atado en proceso');
+        }
+
+        // ELIMINAR solo los registros EN PROCESO que NO sean del mismo NoJulio/NoProduccion
+        // para permitir nuevo proceso sin perder datos del actual
+        AtaMontadoTelasModel::where('Estatus', 'En Proceso')
+            ->where(function($query) use ($item) {
+                $query->where('NoJulio', '!=', $item->no_julio)
+                      ->orWhere('NoProduccion', '!=', $item->no_orden);
+            })
+            ->delete();
+            
+        AtaMontadoMaquinasModel::whereNotIn('NoJulio', function($query) use ($item) {
+            $query->select('NoJulio')->from('AtaMontadoTelas')
+                  ->where('Estatus', 'En Proceso')
+                  ->where('NoJulio', $item->no_julio)
+                  ->where('NoProduccion', $item->no_orden);
         })->delete();
-        AtaMontadoActividadesModel::whereIn('NoJulio', function($query) {
-            $query->select('NoJulio')->from('AtaMontadoTelas')->where('Estatus', 'En Proceso');
+        
+        AtaMontadoActividadesModel::whereNotIn('NoJulio', function($query) use ($item) {
+            $query->select('NoJulio')->from('AtaMontadoTelas')
+                  ->where('Estatus', 'En Proceso')
+                  ->where('NoJulio', $item->no_julio)
+                  ->where('NoProduccion', $item->no_orden);
         })->delete();
 
         // Usuario actual como operador por defecto

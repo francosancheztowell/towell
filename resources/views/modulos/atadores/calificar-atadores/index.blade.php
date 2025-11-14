@@ -50,9 +50,14 @@
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Merma Kg</span>
-                        <input type="number" id="mergaKg" step="0.01" value="{{ $item->MergaKg ?? '' }}"
-                               class="w-28 px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               placeholder="0.00" onchange="guardarMerga(this.value)" />
+                        <div class="relative">
+                            <input type="number" id="mergaKg" step="0.01" value="{{ $item->MergaKg ?? '' }}"
+                                   class="w-28 px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                                   placeholder="0.00" oninput="handleMergaChange(this.value)" />
+                            <span id="mergaSavedIndicator" class="absolute -right-6 top-1/2 -translate-y-1/2 text-green-600 text-xs hidden">
+                                <i class="fas fa-check"></i>
+                            </span>
+                        </div>
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Calidad de Atado (1-10)</span>
@@ -133,9 +138,20 @@
 
             <!-- Observaciones dentro del mismo card -->
             <div class="mt-4">
-                <h4 class="text-sm font-semibold text-gray-600 mb-2 border-b pb-1">Observaciones</h4>
+                <h4 class="text-sm font-semibold text-gray-600 mb-2 border-b pb-1">
+                    Observaciones
+                    <span id="autoSaveIndicator" class="text-xs text-gray-400 ml-2 hidden">
+                        <i class="fas fa-circle-notch fa-spin"></i> Guardando...
+                    </span>
+                    <span id="savedIndicator" class="text-xs text-green-600 ml-2 hidden">
+                        <i class="fas fa-check-circle"></i> Guardado
+                    </span>
+                </h4>
                 <form id="formObservaciones" onsubmit="guardarObservaciones(event)">
-                    <textarea id="observaciones" name="observaciones" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200" placeholder="Escriba aquí las observaciones sobre el atado...">{{ $item->Obs }}</textarea>
+                    <textarea id="observaciones" name="observaciones" rows="3" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200" 
+                        placeholder="Escriba aquí las observaciones sobre el atado..."
+                        oninput="handleObservacionesChange()">{{ $item->Obs }}</textarea>
                     <div class="mt-3 flex justify-end">
                         <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200">
                             <i class="fas fa-save mr-1"></i> Guardar Observaciones
@@ -276,6 +292,96 @@ const actividadesData = {!! json_encode($actividadesCatalogo->map(function($act)
         'estado' => $a && (int)($a->Estado ?? 0) === 1
     ];
 })) !!};
+
+// Auto-guardado de observaciones
+let autoSaveTimeout = null;
+let mergaSaveTimeout = null;
+
+function handleObservacionesChange() {
+    const autoSaveIndicator = document.getElementById('autoSaveIndicator');
+    const savedIndicator = document.getElementById('savedIndicator');
+    
+    // Mostrar indicador de guardando
+    if (autoSaveIndicator) {
+        autoSaveIndicator.classList.remove('hidden');
+    }
+    if (savedIndicator) {
+        savedIndicator.classList.add('hidden');
+    }
+    
+    // Limpiar timeout anterior
+    if (autoSaveTimeout) {
+        clearTimeout(autoSaveTimeout);
+    }
+    
+    // Guardar después de 2 segundos de inactividad
+    autoSaveTimeout = setTimeout(() => {
+        guardarObservacionesAuto();
+    }, 2000);
+}
+
+function handleMergaChange(valor) {
+    const indicator = document.getElementById('mergaSavedIndicator');
+    
+    // Ocultar indicador mientras se escribe
+    if (indicator) {
+        indicator.classList.add('hidden');
+    }
+    
+    // Limpiar timeout anterior
+    if (mergaSaveTimeout) {
+        clearTimeout(mergaSaveTimeout);
+    }
+    
+    // Guardar después de 1.5 segundos de inactividad
+    if (valor && valor !== '') {
+        mergaSaveTimeout = setTimeout(() => {
+            guardarMerga(valor);
+        }, 1500);
+    }
+}
+
+
+function guardarObservacionesAuto() {
+    const observaciones = document.getElementById('observaciones').value;
+    const autoSaveIndicator = document.getElementById('autoSaveIndicator');
+    const savedIndicator = document.getElementById('savedIndicator');
+    
+    fetch('{{ route('atadores.save') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ action: 'observaciones', observaciones: observaciones })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(res.ok){
+            // Mostrar indicador de guardado
+            if (autoSaveIndicator) {
+                autoSaveIndicator.classList.add('hidden');
+            }
+            if (savedIndicator) {
+                savedIndicator.classList.remove('hidden');
+                // Ocultar después de 2 segundos
+                setTimeout(() => {
+                    savedIndicator.classList.add('hidden');
+                }, 2000);
+            }
+        } else {
+            if (autoSaveIndicator) {
+                autoSaveIndicator.classList.add('hidden');
+            }
+        }
+    })
+    .catch(() => {
+        if (autoSaveIndicator) {
+            autoSaveIndicator.classList.add('hidden');
+        }
+    });
+}
+
 
 function terminarAtado(){
     // Validar que todas las actividades estén marcadas
@@ -525,8 +631,17 @@ function guardarMerga(valor){
     })
     .then(r => r.json())
     .then(res => {
-        if(!res.ok){
-            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo guardar la merga' });
+        if(res.ok){
+            // Mostrar confirmación visual temporal
+            const input = document.getElementById('mergaKg');
+            if (input) {
+                input.classList.add('border-green-500', 'bg-green-50');
+                setTimeout(() => {
+                    input.classList.remove('border-green-500', 'bg-green-50');
+                }, 1000);
+            }
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo guardar la merma' });
         }
     })
     .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
@@ -553,11 +668,22 @@ function toggleMaquina(maquinaId, checked){
     })
     .then(r => r.json())
     .then(res => {
-        if(!res.ok){
+        if(res.ok){
+            // Confirmación visual guardada
+            console.log(`Máquina ${maquinaId} ${checked ? 'activada' : 'desactivada'} - Guardado en BD`);
+        } else {
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo actualizar máquina' });
+            // Revertir checkbox si falló
+            const checkbox = document.querySelector(`input[onchange*="toggleMaquina('${maquinaId}'"]`);
+            if (checkbox) checkbox.checked = !checked;
         }
     })
-    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
+    .catch(() => {
+        Swal.fire({ icon: 'error', title: 'Error de red' });
+        // Revertir checkbox si falló
+        const checkbox = document.querySelector(`input[onchange*="toggleMaquina('${maquinaId}'"]`);
+        if (checkbox) checkbox.checked = !checked;
+    });
 }
 
 // Toggle estado de actividad y guardar en DB
@@ -587,11 +713,22 @@ function toggleActividad(actividadId, checked){
             if (actividadIndex !== -1) {
                 actividadesData[actividadIndex].estado = !!checked;
             }
+            
+            // Confirmación visual guardada
+            console.log(`Actividad ${actividadId} ${checked ? 'completada' : 'pendiente'} - Guardado en BD`);
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo actualizar actividad' });
+            // Revertir checkbox si falló
+            const checkbox = document.querySelector(`input[onchange*="toggleActividad('${actividadId}'"]`);
+            if (checkbox) checkbox.checked = !checked;
         }
     })
-    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
+    .catch(() => {
+        Swal.fire({ icon: 'error', title: 'Error de red' });
+        // Revertir checkbox si falló
+        const checkbox = document.querySelector(`input[onchange*="toggleActividad('${actividadId}'"]`);
+        if (checkbox) checkbox.checked = !checked;
+    });
 }
 </script>
 @endpush
