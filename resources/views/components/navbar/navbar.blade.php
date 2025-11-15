@@ -125,7 +125,7 @@
                             @yield('navbar-right')
 
               @if(!request()->routeIs('catalogos.req-programa-tejido') && !request()->routeIs('programa.urd.eng.reservar.programar'))
-                <a href="{{ route('planeacion.catalogos.telares.falla') }}"
+                <a href="{{ url('mantenimiento/nuevo-paro') }}"
                         class="bg-yellow-400 hover:bg-yellow-500 flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors">
                   <i class="fas fa-exclamation-triangle"></i>
                   Paro

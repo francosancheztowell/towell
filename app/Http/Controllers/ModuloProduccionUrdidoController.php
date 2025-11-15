@@ -889,5 +889,74 @@ class ModuloProduccionUrdidoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Finalizar orden de urdido cambiando el status de "En Proceso" a "Finalizado"
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function finalizar(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'orden_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
+            ]);
+
+            $orden = UrdProgramaUrdido::find($request->orden_id);
+
+            if (!$orden) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Orden no encontrada',
+                ], 404);
+            }
+
+            // Verificar que el status actual sea "En Proceso"
+            if ($orden->Status !== 'En Proceso') {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La orden no está en estado "En Proceso". Estado actual: ' . $orden->Status,
+                ], 422);
+            }
+
+            // Cambiar el status a "Finalizado"
+            $orden->Status = 'Finalizado';
+            $orden->save();
+
+            Log::info('Orden de urdido finalizada', [
+                'folio' => $orden->Folio,
+                'orden_id' => $orden->Id,
+                'status_anterior' => 'En Proceso',
+                'status_nuevo' => 'Finalizado',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Orden finalizada correctamente',
+                'data' => [
+                    'orden_id' => $orden->Id,
+                    'folio' => $orden->Folio,
+                    'status' => $orden->Status,
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de validación',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Error al finalizar orden de urdido', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al finalizar la orden: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }
 
