@@ -461,6 +461,8 @@ class ModuloService
             'BPM Tejedores' => '/tejedores/bpm',
             'Desarrolladores' => '/tejedores/desarrolladores',
             'Mecánicos' => '/tejedores/mecanicos',
+            'Notificar Montado de Julio' => '/tejedores/notificar-montado-julios',
+            'Notificar Montado de Julio (Tej.)' => '/tejedores/notificar-montado-julios',
 
             // Módulos de Programa Urd/Eng
             'Reservar y Programar' => '/programa-urd-eng/reservar-programar',
