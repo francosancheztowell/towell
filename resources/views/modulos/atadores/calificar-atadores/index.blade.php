@@ -4,13 +4,18 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
+        @php
+            $yaCalificado = $montadoTelas->isNotEmpty() && $montadoTelas->first()->Calidad && $montadoTelas->first()->Limpieza;
+            $yaTerminado = $montadoTelas->isNotEmpty() && $montadoTelas->first()->HoraArranque;
+        @endphp
         <button id="btnTerminar" onclick="terminarAtado()" 
-            class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200">
+            class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            @if($yaTerminado || $yaCalificado) disabled @endif>
             <i class="fas fa-stop mr-1"></i> Terminar Atado
         </button>
         <button id="btnCalificar" onclick="calificarTejedor()" 
             class="px-2 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            @if($montadoTelas->isNotEmpty() && !$montadoTelas->first()->HoraArranque) disabled @endif>
+            @if($montadoTelas->isNotEmpty() && (!$montadoTelas->first()->HoraArranque || $yaCalificado)) disabled @endif>
             <i class="fas fa-user-check mr-1"></i> Califica Tejedor
         </button>
         <button id="btnAutorizar" onclick="autorizaSupervisor()" 
@@ -53,7 +58,8 @@
                         <div class="relative">
                             <input type="number" id="mergaKg" step="0.01" value="{{ $item->MergaKg ?? '' }}"
                                    class="w-28 px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                                   placeholder="0.00" oninput="handleMergaChange(this.value)" />
+                                   placeholder="0.00" oninput="handleMergaChange(this.value)"
+                                   @if($item->HoraArranque) disabled @endif />
                             <span id="mergaSavedIndicator" class="absolute -right-6 top-1/2 -translate-y-1/2 text-green-600 text-xs hidden">
                                 <i class="fas fa-check"></i>
                             </span>
@@ -89,7 +95,9 @@
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Hora de Arranque</span>
-                        <span class="text-sm font-semibold text-gray-800">{{ $item->HoraArranque ?? '-' }}</span>
+                        <span class="text-sm font-semibold text-gray-800">
+                            {{ $item->HoraArranque ? \Carbon\Carbon::parse($item->HoraArranque)->format('H:i') : '-' }}
+                        </span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">5'S Orden y Limpieza (5-10)</span>
@@ -120,19 +128,26 @@
                         <span class="text-sm font-semibold text-gray-800">{{ $item->NoProveedor ?? '-' }}</span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide"></span>
+                        <span id="valFechaSupervisor" class="text-sm font-semibold text-gray-800">
+                            {{ '-' }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Tejedor</span>
                         <div class="text-sm font-semibold text-gray-800 flex flex-wrap justify-end gap-1 text-right">
-                            <span id="valCveTejedor">{{ $item->CveTejedor ?? '-' }}</span>
-                            <span id="tejedorDash" class="text-gray-400 {{ (!empty($item->CveTejedor) && !empty($item->NomTejedor)) ? '' : 'hidden' }}">-</span>
-                            <span id="valNomTejedor">{{ $item->NomTejedor ?? '-' }}</span>
+                            <span id="valCveTejedor">-</span>
+                            <span id="tejedorDash" class="text-gray-400 hidden">-</span>
+                            <span id="valNomTejedor"></span>
                         </div>
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Fecha Hora</span>
                         <span id="valFechaSupervisor" class="text-sm font-semibold text-gray-800">
-                            {{ $item->FechaSupervisor ? \Carbon\Carbon::parse($item->FechaSupervisor)->format('d/m/Y H:i') : '-' }}
+                            {{ '-' }}
                         </span>
                     </div>
+                    
                 </div>
             </div>
 
@@ -151,9 +166,11 @@
                     <textarea id="observaciones" name="observaciones" rows="3" 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200" 
                         placeholder="Escriba aquí las observaciones sobre el atado..."
-                        oninput="handleObservacionesChange()">{{ $item->Obs }}</textarea>
+                        oninput="handleObservacionesChange()"
+                        @if($item->HoraArranque) disabled @endif>{{ $item->Obs }}</textarea>
                     <div class="mt-3 flex justify-end">
-                        <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200">
+                        <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200"
+                            @if($item->HoraArranque) disabled @endif>
                             <i class="fas fa-save mr-1"></i> Guardar Observaciones
                         </button>
                     </div>
@@ -183,7 +200,8 @@
                                 <td class="px-4 py-2 text-sm text-gray-900">{{ $maq->MaquinaId }}</td>
                                 <td class="px-4 py-2 text-center">
                                     <input type="checkbox" {{ $checked ? 'checked' : '' }} class="h-4 w-4 text-blue-600 rounded"
-                                           onchange="toggleMaquina('{{ $maq->MaquinaId }}', this.checked)" />
+                                           onchange="toggleMaquina('{{ $maq->MaquinaId }}', this.checked)"
+                                           @if($item->HoraArranque) disabled @endif />
                                 </td>
                             </tr>
                         @empty
@@ -222,7 +240,8 @@
                                 <td class="px-1 py-2 text-sm text-right text-gray-900 w-20">{{ number_format((float)$porcentaje, 0) }}%</td>
                                 <td class="px-1 py-2 text-center w-16">
                                     <input type="checkbox" {{ $checked ? 'checked' : '' }} class="h-4 w-4 text-green-600 rounded"
-                                           onchange="toggleActividad('{{ $act->ActividadId }}', this.checked)" />
+                                           onchange="toggleActividad('{{ $act->ActividadId }}', this.checked)"
+                                           @if($item->HoraArranque) disabled @endif />
                                 </td>
                                 <td class="px-2 py-2 text-sm text-gray-900 operador-cell">{{ $operador }}</td>
                             </tr>
@@ -253,22 +272,26 @@
         @if($comentarios->isEmpty())
             <p class="text-sm text-gray-500">No hay notas configuradas.</p>
         @else
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-6 mb-28">
                 <!-- Nota 1 -->
                 <div>
-                    <h4 class="text-xs font-semibold text-gray-500 mb-2">Nota 1</h4>
-                    <div class="flex flex-wrap gap-2">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3 bg-gray-50 px-3 py-2 rounded-t-md border-b-2 border-blue-500">Nota 1</h4>
+                    <div class="space-y-3">
                         @foreach($comentarios->pluck('Nota1')->filter()->unique()->values() as $n1)
-                            <span  class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-red-500 rounded-md text-sm">{{ $n1 }}</span>
+                            <div class="px-4 py-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md text-sm leading-relaxed whitespace-normal">
+                                {{ $n1 }}
+                            </div>
                         @endforeach
                     </div>
                 </div>
                 <!-- Nota 2 -->
                 <div>
-                    <h4 class="text-xs font-semibold text-gray-500 mb-2">Nota 2</h4>
-                    <div class="flex flex-wrap gap-2">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3 bg-gray-50 px-3 py-2 rounded-t-md border-b-2 border-green-500">Nota 2</h4>
+                    <div class="space-y-3">
                         @foreach($comentarios->pluck('Nota2')->filter()->unique()->values() as $n2)
-                            <span class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-red-500 rounded-md text-sm">{{ $n2 }}</span>
+                            <div class="px-4 py-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md text-sm leading-relaxed whitespace-normal">
+                                {{ $n2 }}
+                            </div>
                         @endforeach
                     </div>
                 </div>
@@ -425,12 +448,18 @@ function terminarAtado(){
             .then(res => {
                 if(res.ok){
                     Swal.fire({ icon: 'success', title: 'Atado terminado', timer: 1500, showConfirmButton: false });
-                    // Deshabilitar botón de terminar atado
+                    // Deshabilitar botón de terminar atado con blur
                     const btnTerminar = document.getElementById('btnTerminar');
-                    if (btnTerminar) btnTerminar.disabled = true;
+                    if (btnTerminar) {
+                        btnTerminar.disabled = true;
+                        btnTerminar.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
                     // Habilitar botón de calificar
                     const btnCalificar = document.getElementById('btnCalificar');
-                    if (btnCalificar) btnCalificar.disabled = false;
+                    if (btnCalificar) {
+                        btnCalificar.disabled = false;
+                        btnCalificar.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
                     // Deshabilitar todos los checkboxes de máquinas y actividades
                     document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.disabled = true);
                     // Deshabilitar campo de observaciones y merga
@@ -457,15 +486,15 @@ async function calificarTejedor(){
         title: 'Calificar Tejedor',
         html: `
             <div class="text-left">
-                <label class=\"block text-sm mb-1\">Calidad de Atado</label>
-                <select id=\"swCalidad\" class=\"swal2-input\" style=\"width:100%\">
-                    <option value=\"\">Seleccione</option>
-                    ${Array.from({length:10}, (_,i)=>`<option value=\"${i+1}\">${i+1}</option>`).join('')}
+                <label class="block text-sm mb-1">Calidad de Atado</label>
+                <select id="swCalidad" class="swal2-input" style="width:100%">
+                    <option value="">Seleccione</option>
+                    ${Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}
                 </select>
-                <label class=\"block text-sm mb-1 mt-3\">Orden y Limpieza</label>
-                <select id=\"swLimpieza\" class=\"swal2-input\" style=\"width:100%\">
-                    <option value=\"\">Seleccione</option>
-                    ${Array.from({length:5}, (_,i)=>`<option value=\"${i+1}\">${i+1}</option>`).join('')}
+                <label class="block text-sm mb-1 mt-3">Orden y Limpieza (5-10)</label>
+                <select id="swLimpieza" class="swal2-input" style="width:100%">
+                    <option value="">Seleccione</option>
+                    ${Array.from({length:6}, (_,i)=>`<option value="${i+5}">${i+5}</option>`).join('')}
                 </select>
             </div>
         `,
@@ -502,13 +531,14 @@ async function calificarTejedor(){
             const limpieza = document.getElementById('valLimpieza');
             if (calidad) { calidad.textContent = formValues.calidad; calidad.className = 'px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-sm'; }
             if (limpieza) { limpieza.textContent = formValues.limpieza; limpieza.className = 'px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-sm'; }
-            // Reflejar operador si estaba vacío y tenemos usuario actual
+            
+            // SIEMPRE actualizar el campo TEJEDOR con el usuario actual que está calificando
             const cveTej = document.getElementById('valCveTejedor');
             const nomTej = document.getElementById('valNomTejedor');
-            if (currentUser && cveTej && (!cveTej.textContent || cveTej.textContent.trim() === '-')) {
+            if (currentUser && cveTej) {
                 cveTej.textContent = currentUser.numero_empleado || '-';
             }
-            if (currentUser && nomTej && (!nomTej.textContent || nomTej.textContent.trim() === '-')) {
+            if (currentUser && nomTej) {
                 nomTej.textContent = currentUser.nombre || '-';
             }
             const dashTej = document.getElementById('tejedorDash');
@@ -519,6 +549,7 @@ async function calificarTejedor(){
                     dashTej.classList.add('hidden');
                 }
             }
+            
             // Actualizar supervisor con el usuario actual
             if (res.supervisor) {
                 const cveSup = document.getElementById('valCveSupervisor');
@@ -526,14 +557,19 @@ async function calificarTejedor(){
                 if (cveSup) cveSup.textContent = res.supervisor.cve || '-';
                 if (nomSup) nomSup.textContent = res.supervisor.nombre || '-';
             }
+            
             // Deshabilitar botones Terminar Atado y Calificar Tejedor
             const btnTerminar = document.getElementById('btnTerminar');
             if (btnTerminar) btnTerminar.disabled = true;
             const btnCalificar = document.getElementById('btnCalificar');
             if (btnCalificar) btnCalificar.disabled = true;
-            // Habilitar botón de autorizar
+            
+            // Habilitar automáticamente el botón de Autoriza Supervisor
             const btnAutorizar = document.getElementById('btnAutorizar');
-            if (btnAutorizar) btnAutorizar.disabled = false;
+            if (btnAutorizar) {
+                btnAutorizar.disabled = false;
+                btnAutorizar.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
             
             Swal.fire({ icon: 'success', title: 'Calificación guardada', timer: 1200, showConfirmButton: false });
         } else {
