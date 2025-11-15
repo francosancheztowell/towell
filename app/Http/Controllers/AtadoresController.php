@@ -38,7 +38,7 @@ class AtadoresController extends Controller
             DB::raw('tej_inventario_telares.noProveedor as NoProveedor'),
             'tej_inventario_telares.horaParo',
             // Dynamic status based on AtaMontadoTelas
-            DB::raw("CASE 
+            DB::raw("CASE
                 WHEN AtaMontadoTelas.Estatus = 'Autorizado' THEN 'Autorizado'
                 WHEN AtaMontadoTelas.Calidad IS NOT NULL AND AtaMontadoTelas.Limpieza IS NOT NULL THEN 'Calificado'
                 WHEN AtaMontadoTelas.HoraArranque IS NOT NULL THEN 'Terminado'
@@ -68,6 +68,8 @@ class AtadoresController extends Controller
         }
 
         $id = $request->input('id');
+        $noJulioRequest = $request->input('no_julio');
+        $noOrdenRequest = $request->input('no_orden');
 
         // Obtener el registro específico del inventario de telares
         $item = TejInventarioTelares::find($id);
@@ -76,15 +78,33 @@ class AtadoresController extends Controller
             return redirect()->route('atadores.programa')->with('error', 'Registro no encontrado');
         }
 
-        // Verificar si ya existe un atado en proceso para este mismo NoJulio
+        // Validar que los datos del registro coincidan con los enviados desde el frontend
+        // Esto asegura que se está seleccionando el registro correcto
+        if ($noJulioRequest && $item->no_julio != $noJulioRequest) {
+            return redirect()->route('atadores.programa')->with('error', 'Los datos del No. Julio no coinciden. Por favor, seleccione el registro nuevamente.');
+        }
+
+        if ($noOrdenRequest && $item->no_orden != $noOrdenRequest) {
+            return redirect()->route('atadores.programa')->with('error', 'Los datos del No. Orden no coinciden. Por favor, seleccione el registro nuevamente.');
+        }
+
+        // Validar que el registro tenga los datos necesarios
+        if (empty($item->no_julio) || empty($item->no_orden)) {
+            return redirect()->route('atadores.programa')->with('error', 'El registro seleccionado no tiene los datos necesarios (No. Julio o No. Orden)');
+        }
+
+        // Verificar si ya existe un atado en proceso para este mismo NoJulio y NoOrden
         $existente = AtaMontadoTelasModel::where('NoJulio', $item->no_julio)
             ->where('NoProduccion', $item->no_orden)
             ->where('Estatus', 'En Proceso')
             ->first();
 
         if ($existente) {
-            // Si ya existe, simplemente redirigir a calificar sin eliminar datos
-            return redirect()->route('atadores.calificar')->with('info', 'Continuando con atado en proceso');
+            // Si ya existe, redirigir a calificar con los parámetros del registro correcto
+            return redirect()->route('atadores.calificar', [
+                'no_julio' => $item->no_julio,
+                'no_orden' => $item->no_orden
+            ])->with('info', 'Continuando con atado en proceso');
         }
 
         // ELIMINAR solo los registros EN PROCESO que NO sean del mismo NoJulio/NoProduccion
@@ -95,14 +115,14 @@ class AtadoresController extends Controller
                       ->orWhere('NoProduccion', '!=', $item->no_orden);
             })
             ->delete();
-            
+
         AtaMontadoMaquinasModel::whereNotIn('NoJulio', function($query) use ($item) {
             $query->select('NoJulio')->from('AtaMontadoTelas')
                   ->where('Estatus', 'En Proceso')
                   ->where('NoJulio', $item->no_julio)
                   ->where('NoProduccion', $item->no_orden);
         })->delete();
-        
+
         AtaMontadoActividadesModel::whereNotIn('NoJulio', function($query) use ($item) {
             $query->select('NoJulio')->from('AtaMontadoTelas')
                   ->where('Estatus', 'En Proceso')
@@ -159,15 +179,30 @@ class AtadoresController extends Controller
             ]);
         }
 
-        // Redirigir a la página de calificar atadores
-        return redirect()->route('atadores.calificar')->with('success', 'Atado iniciado correctamente');
+        // Redirigir a la página de calificar atadores con los parámetros del registro seleccionado
+        return redirect()->route('atadores.calificar', [
+            'no_julio' => $item->no_julio,
+            'no_orden' => $item->no_orden
+        ])->with('success', 'Atado iniciado correctamente');
     }
 
-    public function calificarAtadores()
+    public function calificarAtadores(Request $request)
     {
+        // Obtener parámetros opcionales para filtrar el registro correcto
+        $noJulio = $request->query('no_julio');
+        $noOrden = $request->query('no_orden');
+
+        // Construir la consulta base
+        $query = AtaMontadoTelasModel::where('Estatus', 'En Proceso');
+
+        // Si se proporcionan parámetros, filtrar por ellos para obtener el registro correcto
+        if ($noJulio && $noOrden) {
+            $query->where('NoJulio', $noJulio)
+                  ->where('NoProduccion', $noOrden);
+        }
+
         // Obtener solo los registros EN PROCESO (no los autorizados)
-        $montadoTelas = AtaMontadoTelasModel::where('Estatus', 'En Proceso')
-            ->orderBy('Fecha', 'desc')
+        $montadoTelas = $query->orderBy('Fecha', 'desc')
             ->orderBy('Turno', 'desc')
             ->get();
 
@@ -180,15 +215,35 @@ class AtadoresController extends Controller
         $actividadesMontado = collect();
         if ($montadoTelas->isNotEmpty()) {
             $actual = $montadoTelas->first();
-            $maquinasMontado = AtaMontadoMaquinasModel::where('NoJulio', $actual->NoJulio)
-                ->where('NoProduccion', $actual->NoProduccion)
-                ->get()
-                ->keyBy('MaquinaId');
 
-            $actividadesMontado = AtaMontadoActividadesModel::where('NoJulio', $actual->NoJulio)
-                ->where('NoProduccion', $actual->NoProduccion)
-                ->get()
-                ->keyBy('ActividadId');
+            // Validar que el registro obtenido coincida con los parámetros si fueron proporcionados
+            if ($noJulio && $noOrden) {
+                if ($actual->NoJulio != $noJulio || $actual->NoProduccion != $noOrden) {
+                    // Si no coincide, buscar sin filtros y usar el primero disponible
+                    $montadoTelas = AtaMontadoTelasModel::where('Estatus', 'En Proceso')
+                        ->orderBy('Fecha', 'desc')
+                        ->orderBy('Turno', 'desc')
+                        ->get();
+
+                    if ($montadoTelas->isNotEmpty()) {
+                        $actual = $montadoTelas->first();
+                    } else {
+                        $actual = null;
+                    }
+                }
+            }
+
+            if ($actual) {
+                $maquinasMontado = AtaMontadoMaquinasModel::where('NoJulio', $actual->NoJulio)
+                    ->where('NoProduccion', $actual->NoProduccion)
+                    ->get()
+                    ->keyBy('MaquinaId');
+
+                $actividadesMontado = AtaMontadoActividadesModel::where('NoJulio', $actual->NoJulio)
+                    ->where('NoProduccion', $actual->NoProduccion)
+                    ->get()
+                    ->keyBy('ActividadId');
+            }
         }
 
         // Catálogo de notas/comentarios (para mostrar al final)
@@ -216,14 +271,30 @@ class AtadoresController extends Controller
             return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
         }
 
-        // Obtener el atado actual (último EN PROCESO)
+        // Obtener parámetros para identificar el registro correcto
+        $noJulio = $request->input('no_julio');
+        $noOrden = $request->input('no_orden');
+
+        // Validar que se proporcionen los parámetros necesarios
+        if (!$noJulio || !$noOrden) {
+            return response()->json(['ok' => false, 'message' => 'Faltan parámetros necesarios (no_julio o no_orden)'], 422);
+        }
+
+        // Construir la consulta para obtener el registro correcto filtrando por NoJulio y NoProduccion
         $montado = AtaMontadoTelasModel::where('Estatus', 'En Proceso')
+            ->where('NoJulio', $noJulio)
+            ->where('NoProduccion', $noOrden)
             ->orderBy('Fecha', 'desc')
             ->orderBy('Turno', 'desc')
             ->first();
 
         if (!$montado) {
-            return response()->json(['ok' => false, 'message' => 'No hay atado en proceso'], 404);
+            return response()->json(['ok' => false, 'message' => 'No hay atado en proceso para el registro especificado (No. Julio: ' . $noJulio . ', No. Orden: ' . $noOrden . ')'], 404);
+        }
+
+        // Validar que los parámetros coincidan con el registro encontrado
+        if ($montado->NoJulio != $noJulio || $montado->NoProduccion != $noOrden) {
+            return response()->json(['ok' => false, 'message' => 'Los datos del registro no coinciden'], 422);
         }
 
         if ($action === 'operador') {
@@ -272,7 +343,7 @@ class AtadoresController extends Controller
                     ->where('NoProduccion', $montado->NoProduccion)
                     ->get();
 
-                // Obtener datos actuales de actividades  
+                // Obtener datos actuales de actividades
                 $actividadesActuales = AtaMontadoActividadesModel::where('NoJulio', $montado->NoJulio)
                     ->where('NoProduccion', $montado->NoProduccion)
                     ->get();
@@ -315,18 +386,18 @@ class AtadoresController extends Controller
                 $registroOriginal = TejInventarioTelares::where('no_julio', $montado->NoJulio)
                     ->where('no_orden', $montado->NoProduccion)
                     ->first();
-                
+
                 if ($registroOriginal) {
                     $registroOriginal->delete();
                 }
 
                 // 5. NO eliminar las tablas de montado - mantener los registros autorizados
-                // Los registros en AtaMontadoTelas, AtaMontadoMaquinas y AtaMontadoActividades 
+                // Los registros en AtaMontadoTelas, AtaMontadoMaquinas y AtaMontadoActividades
                 // se conservan como registro histórico del proceso autorizado
 
                 DB::commit();
                 return response()->json([
-                    'ok' => true, 
+                    'ok' => true,
                     'message' => 'Proceso autorizado completamente',
                     'redirect' => route('atadores.programa')
                 ]);
@@ -356,7 +427,7 @@ class AtadoresController extends Controller
                 ]);
 
             return response()->json([
-                'ok' => true, 
+                'ok' => true,
                 'message' => 'Calificación guardada',
                 'supervisor' => [
                     'cve' => $user->numero_empleado,
@@ -367,7 +438,7 @@ class AtadoresController extends Controller
 
         if ($action === 'observaciones') {
             $observaciones = $request->input('observaciones');
-            
+
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
                 ->where('NoJulio', $montado->NoJulio)
@@ -379,7 +450,7 @@ class AtadoresController extends Controller
 
         if ($action === 'merga') {
             $mergaKg = $request->input('mergaKg');
-            
+
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
                 ->where('NoJulio', $montado->NoJulio)
@@ -429,7 +500,7 @@ class AtadoresController extends Controller
 
             if ($actividadesCompletadas < $totalActividades) {
                 return response()->json([
-                    'ok' => false, 
+                    'ok' => false,
                     'message' => 'Debe marcar todas las actividades antes de terminar el atado. (' . $actividadesCompletadas . '/' . $totalActividades . ' completadas)'
                 ], 422);
             }
@@ -451,7 +522,7 @@ class AtadoresController extends Controller
             $estado = $request->input('estado') ? 1 : 0;
 
             $updateData = ['Estado' => $estado];
-            
+
             // Si se activa (marca el checkbox), SIEMPRE asignar el usuario actual como operador
             if ($estado) {
                 $updateData['CveEmpl'] = $user->numero_empleado;
@@ -471,9 +542,9 @@ class AtadoresController extends Controller
 
             // Devolver el operador actualizado para reflejar en la UI
             $operador = $estado ? trim(($user->numero_empleado ?? '') . ' - ' . ($user->nombre ?? '')) : '-';
-            
+
             return response()->json([
-                'ok' => true, 
+                'ok' => true,
                 'message' => 'Estado de actividad actualizado',
                 'operador' => $operador,
                 'cveEmpl' => $estado ? $user->numero_empleado : null,

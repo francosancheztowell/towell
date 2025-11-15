@@ -8,17 +8,17 @@
             $yaCalificado = $montadoTelas->isNotEmpty() && $montadoTelas->first()->Calidad && $montadoTelas->first()->Limpieza;
             $yaTerminado = $montadoTelas->isNotEmpty() && $montadoTelas->first()->HoraArranque;
         @endphp
-        <button id="btnTerminar" onclick="terminarAtado()" 
+        <button id="btnTerminar" onclick="terminarAtado()"
             class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             @if($yaTerminado || $yaCalificado) disabled @endif>
             <i class="fas fa-stop mr-1"></i> Terminar Atado
         </button>
-        <button id="btnCalificar" onclick="calificarTejedor()" 
+        <button id="btnCalificar" onclick="calificarTejedor()"
             class="px-2 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             @if($montadoTelas->isNotEmpty() && (!$montadoTelas->first()->HoraArranque || $yaCalificado)) disabled @endif>
             <i class="fas fa-user-check mr-1"></i> Califica Tejedor
         </button>
-        <button id="btnAutorizar" onclick="autorizaSupervisor()" 
+        <button id="btnAutorizar" onclick="autorizaSupervisor()"
             class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             @if($montadoTelas->isNotEmpty() && (!$montadoTelas->first()->Calidad || !$montadoTelas->first()->Limpieza)) disabled @endif>
             <i class="fas fa-user-tie mr-1"></i> Autoriza Supervisor
@@ -34,7 +34,7 @@
         @php
             $item = $montadoTelas->first();
         @endphp
-        
+
         <!-- Resumen del Atado (4 bloques combinados + comentarios) -->
         <div class="bg-white rounded-lg shadow-md p-4 mb-6">
             <h3 class="text-base font-semibold text-gray-700 mb-4">Resumen del Atado</h3>
@@ -147,7 +147,7 @@
                             {{ '-' }}
                         </span>
                     </div>
-                    
+
                 </div>
             </div>
 
@@ -163,8 +163,8 @@
                     </span>
                 </h4>
                 <form id="formObservaciones" onsubmit="guardarObservaciones(event)">
-                    <textarea id="observaciones" name="observaciones" rows="3" 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200" 
+                    <textarea id="observaciones" name="observaciones" rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200"
                         placeholder="Escriba aquí las observaciones sobre el atado..."
                         oninput="handleObservacionesChange()"
                         @if($item->HoraArranque) disabled @endif>{{ $item->Obs }}</textarea>
@@ -307,6 +307,15 @@
 // Usuario actual disponible para reflejar en UI tras guardados
 const currentUser = {!! auth()->check() ? json_encode(['numero_empleado' => auth()->user()->numero_empleado, 'nombre' => auth()->user()->nombre]) : 'null' !!};
 
+// Datos del registro actual para identificar correctamente en las peticiones
+@if($montadoTelas->isNotEmpty())
+    const currentNoJulio = '{{ $montadoTelas->first()->NoJulio }}';
+    const currentNoOrden = '{{ $montadoTelas->first()->NoProduccion }}';
+@else
+    const currentNoJulio = null;
+    const currentNoOrden = null;
+@endif
+
 // Información de actividades para validación
 const actividadesData = {!! json_encode($actividadesCatalogo->map(function($act) use ($actividadesMontado) {
     $a = $actividadesMontado->get($act->ActividadId);
@@ -323,7 +332,7 @@ let mergaSaveTimeout = null;
 function handleObservacionesChange() {
     const autoSaveIndicator = document.getElementById('autoSaveIndicator');
     const savedIndicator = document.getElementById('savedIndicator');
-    
+
     // Mostrar indicador de guardando
     if (autoSaveIndicator) {
         autoSaveIndicator.classList.remove('hidden');
@@ -331,12 +340,12 @@ function handleObservacionesChange() {
     if (savedIndicator) {
         savedIndicator.classList.add('hidden');
     }
-    
+
     // Limpiar timeout anterior
     if (autoSaveTimeout) {
         clearTimeout(autoSaveTimeout);
     }
-    
+
     // Guardar después de 2 segundos de inactividad
     autoSaveTimeout = setTimeout(() => {
         guardarObservacionesAuto();
@@ -345,17 +354,17 @@ function handleObservacionesChange() {
 
 function handleMergaChange(valor) {
     const indicator = document.getElementById('mergaSavedIndicator');
-    
+
     // Ocultar indicador mientras se escribe
     if (indicator) {
         indicator.classList.add('hidden');
     }
-    
+
     // Limpiar timeout anterior
     if (mergaSaveTimeout) {
         clearTimeout(mergaSaveTimeout);
     }
-    
+
     // Guardar después de 1.5 segundos de inactividad
     if (valor && valor !== '') {
         mergaSaveTimeout = setTimeout(() => {
@@ -369,14 +378,19 @@ function guardarObservacionesAuto() {
     const observaciones = document.getElementById('observaciones').value;
     const autoSaveIndicator = document.getElementById('autoSaveIndicator');
     const savedIndicator = document.getElementById('savedIndicator');
-    
+
     fetch('{{ route('atadores.save') }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify({ action: 'observaciones', observaciones: observaciones })
+        body: JSON.stringify({
+            action: 'observaciones',
+            observaciones: observaciones,
+            no_julio: currentNoJulio,
+            no_orden: currentNoOrden
+        })
     })
     .then(r => r.json())
     .then(res => {
@@ -410,11 +424,11 @@ function terminarAtado(){
     // Validar que todas las actividades estén marcadas
     const total = actividadesData.length;
     const completadas = actividadesData.filter(a => a.estado).length;
-    
+
     // Verificar checkboxes actuales en la interfaz
     const checkboxes = document.querySelectorAll('input[type="checkbox"][onchange*="toggleActividad"]');
     const marcados = Array.from(checkboxes).filter(cb => cb.checked).length;
-    
+
     if (marcados < total) {
         Swal.fire({
             icon: 'warning',
@@ -424,7 +438,7 @@ function terminarAtado(){
         });
         return;
     }
-    
+
     Swal.fire({
         title: '¿Terminar Atado?',
         text: 'Se registrará la hora de arranque con la hora actual',
@@ -442,7 +456,11 @@ function terminarAtado(){
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ action: 'terminar' })
+                body: JSON.stringify({
+                    action: 'terminar',
+                    no_julio: currentNoJulio,
+                    no_orden: currentNoOrden
+                })
             })
             .then(r => r.json())
             .then(res => {
@@ -521,7 +539,13 @@ async function calificarTejedor(){
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify({ action: 'calificacion', calidad: Number(formValues.calidad), limpieza: Number(formValues.limpieza) })
+        body: JSON.stringify({
+            action: 'calificacion',
+            calidad: Number(formValues.calidad),
+            limpieza: Number(formValues.limpieza),
+            no_julio: currentNoJulio,
+            no_orden: currentNoOrden
+        })
     })
     .then(r => r.json())
     .then(res => {
@@ -531,7 +555,7 @@ async function calificarTejedor(){
             const limpieza = document.getElementById('valLimpieza');
             if (calidad) { calidad.textContent = formValues.calidad; calidad.className = 'px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-sm'; }
             if (limpieza) { limpieza.textContent = formValues.limpieza; limpieza.className = 'px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-sm'; }
-            
+
             // SIEMPRE actualizar el campo TEJEDOR con el usuario actual que está calificando
             const cveTej = document.getElementById('valCveTejedor');
             const nomTej = document.getElementById('valNomTejedor');
@@ -549,7 +573,7 @@ async function calificarTejedor(){
                     dashTej.classList.add('hidden');
                 }
             }
-            
+
             // Actualizar supervisor con el usuario actual
             if (res.supervisor) {
                 const cveSup = document.getElementById('valCveSupervisor');
@@ -557,20 +581,20 @@ async function calificarTejedor(){
                 if (cveSup) cveSup.textContent = res.supervisor.cve || '-';
                 if (nomSup) nomSup.textContent = res.supervisor.nombre || '-';
             }
-            
+
             // Deshabilitar botones Terminar Atado y Calificar Tejedor
             const btnTerminar = document.getElementById('btnTerminar');
             if (btnTerminar) btnTerminar.disabled = true;
             const btnCalificar = document.getElementById('btnCalificar');
             if (btnCalificar) btnCalificar.disabled = true;
-            
+
             // Habilitar automáticamente el botón de Autoriza Supervisor
             const btnAutorizar = document.getElementById('btnAutorizar');
             if (btnAutorizar) {
                 btnAutorizar.disabled = false;
                 btnAutorizar.classList.remove('opacity-50', 'cursor-not-allowed');
             }
-            
+
             Swal.fire({ icon: 'success', title: 'Calificación guardada', timer: 1200, showConfirmButton: false });
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo guardar' });
@@ -598,7 +622,11 @@ function autorizaSupervisor(){
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ action: 'supervisor' })
+                body: JSON.stringify({
+                    action: 'supervisor',
+                    no_julio: currentNoJulio,
+                    no_orden: currentNoOrden
+                })
             })
             .then(r => r.json())
             .then(res => {
@@ -625,16 +653,21 @@ function autorizaSupervisor(){
 
 function guardarObservaciones(event){
     event.preventDefault();
-    
+
     const observaciones = document.getElementById('observaciones').value;
-    
+
     fetch('{{ route('atadores.save') }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify({ action: 'observaciones', observaciones: observaciones })
+        body: JSON.stringify({
+            action: 'observaciones',
+            observaciones: observaciones,
+            no_julio: currentNoJulio,
+            no_orden: currentNoOrden
+        })
     })
     .then(r => r.json())
     .then(res => {
@@ -656,14 +689,19 @@ function guardarObservaciones(event){
 // Guardar Merga Kg
 function guardarMerga(valor){
     if (!valor || valor === '') return;
-    
+
     fetch('{{ route('atadores.save') }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify({ action: 'merga', mergaKg: parseFloat(valor) })
+        body: JSON.stringify({
+            action: 'merga',
+            mergaKg: parseFloat(valor),
+            no_julio: currentNoJulio,
+            no_orden: currentNoOrden
+        })
     })
     .then(r => r.json())
     .then(res => {
@@ -700,7 +738,13 @@ function toggleMaquina(maquinaId, checked){
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify({ action: 'maquina_estado', maquinaId, estado: !!checked })
+        body: JSON.stringify({
+            action: 'maquina_estado',
+            maquinaId: maquinaId,
+            estado: !!checked,
+            no_julio: currentNoJulio,
+            no_orden: currentNoOrden
+        })
     })
     .then(r => r.json())
     .then(res => {
@@ -730,7 +774,13 @@ function toggleActividad(actividadId, checked){
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify({ action: 'actividad_estado', actividadId, estado: !!checked })
+        body: JSON.stringify({
+            action: 'actividad_estado',
+            actividadId: actividadId,
+            estado: !!checked,
+            no_julio: currentNoJulio,
+            no_orden: currentNoOrden
+        })
     })
     .then(r => r.json())
     .then(res => {
@@ -743,13 +793,13 @@ function toggleActividad(actividadId, checked){
                     celdaOperador.textContent = res.operador;
                 }
             }
-            
+
             // Actualizar el estado en actividadesData
             const actividadIndex = actividadesData.findIndex(a => a.id === actividadId);
             if (actividadIndex !== -1) {
                 actividadesData[actividadIndex].estado = !!checked;
             }
-            
+
             // Confirmación visual guardada
             console.log(`Actividad ${actividadId} ${checked ? 'completada' : 'pendiente'} - Guardado en BD`);
         } else {
