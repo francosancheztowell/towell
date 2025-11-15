@@ -363,12 +363,49 @@
             // ==========================
             // Ir a Producción
             // ==========================
-            const irProduccion = () => {
+            const irProduccion = async () => {
                 if (!state.ordenSeleccionada) {
                     showToast('warning', 'Seleccione una orden');
                     return;
                 }
 
+                // Verificar si el usuario puede crear registros
+                try {
+                    const checkUrl = `${routes.produccion}?orden_id=${state.ordenSeleccionada.id}&check_only=true`;
+                    const response = await fetch(checkUrl, {
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+
+                        // Si no puede crear y no hay registros existentes, mostrar error
+                        if (!data.puedeCrear && !data.tieneRegistros) {
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Acceso Denegado',
+                                    html: `
+                                        <p class="mb-2">No tienes permisos para crear registros en este módulo.</p>
+                                        <p class="text-sm text-gray-600">Solo usuarios del área <strong>Urdido</strong> pueden crear registros.</p>
+                                        <p class="text-sm text-gray-600 mt-2">Tu área actual: <strong>${data.usuarioArea || 'No definida'}</strong></p>
+                                    `,
+                                    confirmButtonColor: '#2563eb',
+                                });
+                            } else {
+                                alert('No tienes permisos para crear registros. Solo usuarios del área Urdido pueden crear registros.');
+                            }
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error al verificar permisos:', error);
+                    // Continuar con la redirección si hay error en la verificación
+                }
+
+                // Si puede crear o hay registros existentes, redirigir
                 const url = `${routes.produccion}?orden_id=${state.ordenSeleccionada.id}`;
                 window.location.href = url;
             };

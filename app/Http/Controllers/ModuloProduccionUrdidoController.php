@@ -26,6 +26,30 @@ class ModuloProduccionUrdidoController extends Controller
     public function index(Request $request)
     {
         $ordenId = $request->query('orden_id');
+        $checkOnly = $request->query('check_only') === 'true';
+
+        // Si solo se está verificando permisos, retornar JSON
+        if ($checkOnly && $ordenId) {
+            $orden = UrdProgramaUrdido::find($ordenId);
+            if (!$orden) {
+                return response()->json([
+                    'puedeCrear' => false,
+                    'tieneRegistros' => false,
+                    'error' => 'Orden no encontrada'
+                ], 404);
+            }
+
+            $registrosProduccion = UrdProduccionUrdido::where('Folio', $orden->Folio)->count();
+            $usuarioActual = Auth::user();
+            $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
+            $puedeCrearRegistros = ($usuarioArea === 'Urdido');
+
+            return response()->json([
+                'puedeCrear' => $puedeCrearRegistros,
+                'tieneRegistros' => $registrosProduccion > 0,
+                'usuarioArea' => $usuarioArea,
+            ]);
+        }
 
         // Si no hay orden_id, mostrar vista vacía
         if (!$ordenId) {
@@ -100,10 +124,23 @@ class ModuloProduccionUrdidoController extends Controller
             ->orderBy('Id')
             ->get();
 
+        // Verificar área del usuario
+        $usuarioActual = Auth::user();
+        $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
+        $puedeCrearRegistros = ($usuarioArea === 'Urdido');
+        $tieneRegistrosExistentes = $registrosProduccion->count() > 0;
+
+        // Si el usuario no es del área Urdido y no hay registros existentes, no permitir crear
+        if (!$puedeCrearRegistros && !$tieneRegistrosExistentes) {
+            return redirect()->route('urdido.programar.urdido')
+                ->with('error', 'No tienes permisos para crear registros en este módulo. Solo usuarios del área Urdido pueden crear registros.');
+        }
+
         // Crear registros basándose en los julios de UrdJuliosOrden
         // Para cada julio, crear N registros (donde N = valor de Julios)
         // NoJulio será null al crear, pero Hilos se rellenan desde UrdJuliosOrden
-        if ($julios->count() > 0) {
+        // SOLO crear si el usuario tiene el área correcta
+        if ($julios->count() > 0 && $puedeCrearRegistros) {
             try {
                 $registrosACrear = [];
 
@@ -200,7 +237,6 @@ class ModuloProduccionUrdidoController extends Controller
         $loteProveedor = $orden->LoteProveedor ?? null;
 
         // Obtener usuario autenticado para pre-rellenar en el modal
-        $usuarioActual = Auth::user();
         $usuarioNombre = $usuarioActual ? ($usuarioActual->nombre ?? '') : '';
         $usuarioClave = $usuarioActual ? ($usuarioActual->numero_empleado ?? '') : '';
 
@@ -219,6 +255,9 @@ class ModuloProduccionUrdidoController extends Controller
             'registrosProduccion' => $registrosProduccion,
             'usuarioNombre' => $usuarioNombre,
             'usuarioClave' => $usuarioClave,
+            'puedeCrearRegistros' => $puedeCrearRegistros,
+            'tieneRegistrosExistentes' => $tieneRegistrosExistentes,
+            'usuarioArea' => $usuarioArea,
         ]);
     }
 
@@ -232,9 +271,10 @@ class ModuloProduccionUrdidoController extends Controller
     public function getCatalogosJulios(): JsonResponse
     {
         try {
-            // Obtener julios desde el catálogo UrdCatJulios
+            // Obtener julios desde el catálogo UrdCatJulios, filtrando solo por departamento "Urdido"
             $julios = UrdCatJulios::select('NoJulio', 'Tara', 'Departamento')
                 ->whereNotNull('NoJulio')
+                ->where('Departamento', 'Urdido')
                 ->orderBy('NoJulio')
                 ->get()
                 ->map(function($item) {

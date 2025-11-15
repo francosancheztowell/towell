@@ -4,6 +4,17 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
+        @if(isset($orden) && $orden)
+            <x-navbar.button-create
+                onclick="generarPDF()"
+                title="Generar PDF"
+                icon="fa-file-pdf"
+                iconColor="text-white"
+                hoverBg="hover:bg-red-600"
+                text="PDF"
+                bg="bg-red-500"
+            />
+        @endif
         <x-navbar.button-create
             onclick="finalizar()"
             title="Finalizar"
@@ -17,17 +28,6 @@
 @endsection
 
 @section('content')
-    {{-- Flatpickr (timepicker 24h) --}}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-
-    <style>
-        /* Inputs de hora en formato 24h (HH:MM) */
-        .time-input-24h {
-            direction: ltr;
-            text-align: center;
-            font-variant-numeric: tabular-nums;
-        }
-    </style>
 
     <div class="w-full">
     <!-- Sección superior: Información General -->
@@ -166,11 +166,11 @@
                     <tr>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold sticky left-0 bg-blue-500 z-30 text-xs md:text-sm">Fecha</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Oficial</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Turno</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell">H. Inicio</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell">H. Fin</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">No. Julio</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell">Hilos</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm w-20 max-w-[60px]">Turno</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-32 max-w-[110px]">H. Inicio</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-32 max-w-[110px]">H. Fin</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm w-24 max-w-[75px]">No. Julio</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-20 max-w-[60px]">Hilos</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Kg. Bruto</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Tara</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Kg. Neto</th>
@@ -249,7 +249,7 @@
                                         <div class="flex items-center justify-center gap-0.5 relative">
                                             @php
                                                 $fechaGuardada = $registro && $registro->Fecha ? date('Y-m-d', strtotime($registro->Fecha)) : null;
-                                                $fechaMostrar = $registro && $registro->Fecha ? date('d/m/Y', strtotime($registro->Fecha)) : date('d/m/Y');
+                                                $fechaMostrar = $registro && $registro->Fecha ? date('d/m', strtotime($registro->Fecha)) : date('d/m');
                                             @endphp
                                             <input
                                                 type="date"
@@ -262,10 +262,9 @@
                                             >
                                             <button
                                                 type="button"
-                                                class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center gap-1.5 cursor-pointer"
+                                                class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
                                                 data-registro-id="{{ $registroId }}"
                                             >
-                                                <i class="fa-solid fa-calendar-days text-gray-600 text-xs"></i>
                                                 <span class="fecha-display-text text-gray-900 font-medium">
                                                     {{ $fechaMostrar }}
                                                 </span>
@@ -283,7 +282,7 @@
                                                     data-registro-id="{{ $registroId }}"
                                                 >
                                                     <option value="">Seleccionar oficial...</option>
-                                                    @foreach($oficiales as $oficial)
+                                                    @foreach($oficiales as $index => $oficial)
                                                         <option
                                                             value="{{ $oficial['numero'] }}"
                                                             data-numero="{{ $oficial['numero'] }}"
@@ -291,6 +290,7 @@
                                                             data-clave="{{ $oficial['clave'] }}"
                                                             data-metros="{{ $oficial['metros'] }}"
                                                             data-turno="{{ $oficial['turno'] }}"
+                                                            {{ $index === 0 ? 'selected' : '' }}
                                                         >
                                                             {{ $oficial['nombre'] }}
                                                         </option>
@@ -320,10 +320,10 @@
                         </td>
 
                                     {{-- Turno --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap" style="min-width: 70px;">
+                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap w-20 max-w-[60px]">
                                         <select
                                             data-field="turno"
-                                            class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-1 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             min="1"
                                             max="3"
                                         >
@@ -335,17 +335,16 @@
                         </td>
 
                                     {{-- H. INICIO --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell">
-                            <div class="flex items-center justify-center gap-0.5">
+                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-32 max-w-[110px]">
+                            <div class="flex items-center justify-center gap-1">
                                             <input
-                                                type="text"
+                                                type="time"
                                                 data-field="h_inicio"
-                                                class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 time-input-24h js-timepicker"
-                                                placeholder="HH:MM"
+                                                class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                                 value="{{ $horaInicio }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-base cursor-pointer hover:text-blue-500 set-current-time"
+                                                class="fa-solid fa-clock text-gray-400 text-sm cursor-pointer hover:text-blue-500 set-current-time flex-shrink-0"
                                                 data-time-target="h_inicio"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -353,17 +352,16 @@
                         </td>
 
                                     {{-- H. FIN --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell">
-                            <div class="flex items-center justify-center gap-0.5">
+                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-32 max-w-[110px]">
+                            <div class="flex items-center justify-center gap-1">
                                             <input
-                                                type="text"
+                                                type="time"
                                                 data-field="h_fin"
-                                                class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 time-input-24h js-timepicker"
-                                                placeholder="HH:MM"
+                                                class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                                 value="{{ $horaFin }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-base cursor-pointer hover:text-blue-500 set-current-time"
+                                                class="fa-solid fa-clock text-gray-400 text-sm cursor-pointer hover:text-blue-500 set-current-time flex-shrink-0"
                                                 data-time-target="h_fin"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -371,10 +369,10 @@
                         </td>
 
                                     {{-- No. Julio --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap w-24 max-w-[75px]">
                                         <select
                                             data-field="no_julio"
-                                            class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-julio"
+                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-julio"
                                             data-valor-inicial="{{ $noJulio }}"
                                         >
                                 <option value="">Seleccionar...</option>
@@ -382,12 +380,12 @@
                         </td>
 
                                     {{-- Hilos --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell">
+                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-20 max-w-[60px]">
                                         <input
                                             type="number"
                                             disabled
                                             data-field="hilos"
-                                            class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-hilos"
+                                            class="w-full border border-gray-300 rounded px-1 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-hilos"
                                             value="{{ $hilos }}"
                                         >
                         </td>
@@ -629,33 +627,13 @@
                         Guardar
                     </button>
                 </div>
-            </div>
         </div>
     </div>
-
-    {{-- Flatpickr JS --}}
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+</div>
 
 <script>
         (function () {
     'use strict';
-
-            const TIME_PICKER_SELECTOR = '.js-timepicker';
-
-            function initTimePickers() {
-                if (typeof flatpickr === 'undefined') {
-                    console.warn('Flatpickr no está disponible');
-                    return;
-                }
-
-                flatpickr(TIME_PICKER_SELECTOR, {
-                    enableTime: true,
-                    noCalendar: true,
-                    dateFormat: 'H:i',
-                    time_24hr: true,
-                    minuteIncrement: 1
-                });
-            }
 
             // Calcular Kg. NETO automáticamente
     function calcularNeto(row) {
@@ -714,8 +692,6 @@
         }
 
             document.addEventListener('DOMContentLoaded', function () {
-                initTimePickers();
-
                 const tablaBody = document.getElementById('tabla-produccion-body');
 
                 if (tablaBody) {
@@ -756,6 +732,26 @@
 
                     tablaBody.querySelectorAll('tr').forEach(row => {
                         calcularNeto(row);
+                    });
+
+                    // Inicializar valor anterior del oficial en cada fila y actualizar turno
+                    tablaBody.querySelectorAll('tr').forEach(row => {
+                        const oficialSelect = row.querySelector('.oficial-select');
+                        if (oficialSelect && oficialSelect.value) {
+                            oficialSelect.setAttribute('data-oficial-anterior', oficialSelect.value);
+
+                            // Actualizar turno automáticamente si hay un oficial seleccionado
+                            const selectedOption = oficialSelect.options[oficialSelect.selectedIndex];
+                            if (selectedOption && selectedOption.value) {
+                                const turnoSelect = row.querySelector('select[data-field="turno"]');
+                                if (turnoSelect) {
+                                    const turno = selectedOption.getAttribute('data-turno');
+                                    if (turno) {
+                                        turnoSelect.value = turno;
+                                    }
+                                }
+                            }
+                        }
                     });
                 }
 
@@ -849,7 +845,7 @@
                                 if (fechaDisplayText) {
                                     const parts = fechaValue.split('-');
                                     if (parts.length === 3) {
-                                        fechaDisplayText.textContent = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                                        fechaDisplayText.textContent = `${parts[2]}/${parts[1]}`;
                                     }
                                 }
                             }
@@ -865,25 +861,9 @@
                         if (field === 'h_inicio' || field === 'h_fin') {
                             const row = target.closest('tr');
                             const registroId = row ? row.getAttribute('data-registro-id') : null;
-                            const horaValue = target.value.trim();
+                            const horaValue = target.value || null;
 
                             if (!registroId) return;
-
-                            // Validar formato HH:MM antes de enviar
-                            if (horaValue && !/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(horaValue)) {
-                                if (typeof Swal !== 'undefined') {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Formato inválido',
-                                        text: 'Por favor ingresa una hora válida en formato 24h (HH:MM)',
-                                        timer: 3000,
-                                        showConfirmButton: false,
-                                        toast: true,
-                                        position: 'top-end'
-                                    });
-                                }
-                                return;
-                            }
 
                             // Verificar que haya un oficial seleccionado
                             if (!verificarOficialSeleccionado(registroId)) {
@@ -892,7 +872,7 @@
                             }
 
                             const campoBD = field === 'h_inicio' ? 'HoraInicial' : 'HoraFinal';
-                            actualizarHora(registroId, campoBD, horaValue || null);
+                            actualizarHora(registroId, campoBD, horaValue);
                         }
                     });
                 }
@@ -1831,6 +1811,16 @@
             }
         }
     };
+
+            window.generarPDF = function () {
+                @if(isset($orden) && $orden)
+                    const ordenId = {{ $orden->Id }};
+                    const url = '{{ route('urdido.modulo.produccion.urdido.pdf') }}?orden_id=' + ordenId + '&tipo=urdido';
+                    window.open(url, '_blank');
+                @else
+                    alert('No hay orden seleccionada');
+                @endif
+            };
 })();
 </script>
 @endsection

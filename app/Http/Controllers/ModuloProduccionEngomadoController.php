@@ -25,6 +25,30 @@ class ModuloProduccionEngomadoController extends Controller
     public function index(Request $request)
     {
         $ordenId = $request->query('orden_id');
+        $checkOnly = $request->query('check_only') === 'true';
+
+        // Si solo se está verificando permisos, retornar JSON
+        if ($checkOnly && $ordenId) {
+            $orden = EngProgramaEngomado::find($ordenId);
+            if (!$orden) {
+                return response()->json([
+                    'puedeCrear' => false,
+                    'tieneRegistros' => false,
+                    'error' => 'Orden no encontrada'
+                ], 404);
+            }
+
+            $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)->count();
+            $usuarioActual = Auth::user();
+            $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
+            $puedeCrearRegistros = ($usuarioArea === 'Engomado');
+
+            return response()->json([
+                'puedeCrear' => $puedeCrearRegistros,
+                'tieneRegistros' => $registrosProduccion > 0,
+                'usuarioArea' => $usuarioArea,
+            ]);
+        }
 
         // Si no hay orden_id, mostrar vista vacía
         if (!$ordenId) {
@@ -78,27 +102,30 @@ class ModuloProduccionEngomadoController extends Controller
             ->orderBy('Julios')
             ->get();
 
-        // Calcular el total de registros (suma de todos los números de julio)
-        $totalRegistros = 0;
-        if ($julios->count() > 0) {
-            foreach ($julios as $julio) {
-                $numeroJulio = (int) ($julio->Julios ?? 0);
-                if ($numeroJulio > 0) {
-                    $totalRegistros += $numeroJulio;
-                }
-            }
-        }
+        // Calcular el total de registros basado en No. De Telas
+        $totalRegistros = (int) ($orden->NoTelas ?? 0);
 
         // Obtener registros existentes en EngProduccionEngomado para este Folio
         $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)
             ->orderBy('Id')
             ->get();
 
-        // Crear registros basándose en los julios de UrdJuliosOrden
-        if ($julios->count() > 0) {
-            try {
-                $registrosACrear = [];
+        // Verificar área del usuario
+        $usuarioActual = Auth::user();
+        $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
+        $puedeCrearRegistros = ($usuarioArea === 'Engomado');
+        $tieneRegistrosExistentes = $registrosProduccion->count() > 0;
 
+        // Si el usuario no es del área Engomado y no hay registros existentes, no permitir crear
+        if (!$puedeCrearRegistros && !$tieneRegistrosExistentes) {
+            return redirect()->route('engomado.programar.engomado')
+                ->with('error', 'No tienes permisos para crear registros en este módulo. Solo usuarios del área Engomado pueden crear registros.');
+        }
+
+        // Crear registros basándose en No. De Telas
+        // SOLO crear si el usuario tiene el área correcta
+        if ($totalRegistros > 0 && $puedeCrearRegistros) {
+            try {
                 // Contar cuántos registros ya existen para este folio
                 $registrosExistentes = $registrosProduccion->count();
 
@@ -106,24 +133,17 @@ class ModuloProduccionEngomadoController extends Controller
                 $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
 
                 // Crear los registros faltantes
-                $indiceRegistro = 0;
-                foreach ($julios as $julio) {
-                    $numeroJulio = (int) ($julio->Julios ?? 0);
-
-                    if ($numeroJulio > 0) {
-                        for ($i = 0; $i < $numeroJulio && $indiceRegistro < $registrosFaltantes; $i++) {
-                            $registrosACrear[] = [
-                                'Folio' => $orden->Folio,
-                                'NoJulio' => null, // NoJulio debe ser null al crear los registros
-                                'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
-                                'Canoa1' => null,
-                                'Canoa2' => null,
-                                'Canoa3' => null,
-                                'Tambor' => null,
-                            ];
-                            $indiceRegistro++;
-                        }
-                    }
+                $registrosACrear = [];
+                for ($i = 0; $i < $registrosFaltantes; $i++) {
+                    $registrosACrear[] = [
+                        'Folio' => $orden->Folio,
+                        'NoJulio' => null, // NoJulio debe ser null al crear los registros
+                        'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
+                        'Canoa1' => null,
+                        'Canoa2' => null,
+                        'Canoa3' => null,
+                        'Tambor' => null,
+                    ];
                 }
 
                 // Crear todos los registros en lote si hay alguno
@@ -136,6 +156,7 @@ class ModuloProduccionEngomadoController extends Controller
                         'folio' => $orden->Folio,
                         'creados' => count($registrosACrear),
                         'total_requerido' => $totalRegistros,
+                        'no_telas' => $orden->NoTelas,
                     ]);
                 }
             } catch (\Throwable $e) {
@@ -180,7 +201,6 @@ class ModuloProduccionEngomadoController extends Controller
         $loteProveedor = $orden->LoteProveedor ?? null;
 
         // Obtener usuario autenticado para pre-rellenar en el modal
-        $usuarioActual = Auth::user();
         $usuarioNombre = $usuarioActual ? ($usuarioActual->nombre ?? '') : '';
         $usuarioClave = $usuarioActual ? ($usuarioActual->numero_empleado ?? '') : '';
 
@@ -204,32 +224,39 @@ class ModuloProduccionEngomadoController extends Controller
             'metrajeTelas' => $metrajeTelas,
             'cuendeadosMin' => $cuendeadosMin,
             'loteProveedor' => $loteProveedor,
+            'puedeCrearRegistros' => $puedeCrearRegistros,
+            'tieneRegistrosExistentes' => $tieneRegistrosExistentes,
+            'usuarioArea' => $usuarioArea,
         ]);
     }
 
     /**
      * Obtener catálogo de julios desde UrdCatJulios
+     * Filtrado por departamento "Engomado"
      *
      * @return JsonResponse
      */
     public function getCatalogosJulios(): JsonResponse
     {
         try {
-            $julios = UrdCatJulios::select(['Julio', 'Tara'])
-                ->whereNotNull('Julio')
-                ->orderBy('Julio')
-                ->get();
-
-            $data = $julios->map(function ($julio) {
-                return [
-                    'julio' => $julio->Julio,
-                    'tara' => $julio->Tara ?? 0,
-                ];
-            });
+            // Obtener julios desde el catálogo UrdCatJulios filtrados por departamento "Engomado"
+            $julios = UrdCatJulios::select('NoJulio', 'Tara', 'Departamento')
+                ->whereNotNull('NoJulio')
+                ->where('Departamento', 'Engomado')
+                ->orderBy('NoJulio')
+                ->get()
+                ->map(function($item) {
+                    return [
+                        'julio' => $item->NoJulio,
+                        'tara' => $item->Tara ?? 0,
+                        'departamento' => $item->Departamento ?? null,
+                    ];
+                })
+                ->values();
 
             return response()->json([
                 'success' => true,
-                'data' => $data,
+                'data' => $julios,
             ]);
         } catch (\Throwable $e) {
             Log::error('Error al obtener catálogo de julios (Engomado)', [
@@ -641,7 +668,7 @@ class ModuloProduccionEngomadoController extends Controller
     }
 
     /**
-     * Actualizar campos de producción (SolCan, Canoa1-3, Tambor, Humedad, Roturas)
+     * Actualizar campos de producción (Solidos, Canoa1-3, Tambor, Humedad, Roturas)
      *
      * @param Request $request
      * @return JsonResponse
@@ -651,7 +678,7 @@ class ModuloProduccionEngomadoController extends Controller
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
-                'campo' => 'required|string|in:SolCan,Canoa1,Canoa2,Canoa3,Tambor,Humedad,Roturas',
+                'campo' => 'required|string|in:Solidos,Canoa1,Canoa2,Canoa3,Tambor,Humedad,Roturas',
                 'valor' => 'nullable|numeric',
             ]);
 

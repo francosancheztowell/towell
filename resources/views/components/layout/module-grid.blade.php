@@ -1,11 +1,17 @@
-@props(['modulos', 'columns' => 'xl:grid-cols-5', 'filterConfig' => true, 'imageFolder' => 'fotos_modulos'])
+@props(['modulos', 'columns' => 'xl:grid-cols-5', 'filterConfig' => true, 'imageFolder' => 'fotos_modulos', 'isSubmodulos' => false])
 
 @php
     $timestamp = time();
     $imagenFallback = asset('images/fondosTowell/TOWELLIN.png');
 
     // Contar módulos después de filtrar
-    $modulosFiltrados = collect($modulos)->filter(function($modulo) use ($filterConfig) {
+    // Solo filtrar "Configuración" si NO es una vista de submódulos
+    $modulosFiltrados = collect($modulos)->filter(function($modulo) use ($filterConfig, $isSubmodulos) {
+        // Si es submódulos, NO filtrar "Configuración"
+        if ($isSubmodulos) {
+            return true;
+        }
+        // Si es módulos principales, filtrar "Configuración" si filterConfig es true
         return !$filterConfig || $modulo['nombre'] !== 'Configuración';
     });
 
@@ -42,7 +48,7 @@
 <div class="w-full flex justify-center items-start px-6 py-8">
     <div class="{{ $gridClasses }} {{ $gapClasses }} max-w-7xl mx-auto">
     @foreach ($modulos as $modulo)
-        @if(!$filterConfig || $modulo['nombre'] !== 'Configuración')
+        @if($isSubmodulos || !$filterConfig || $modulo['nombre'] !== 'Configuración')
             @php
                 $imagenUrl = !empty($modulo['imagen'])
                     ? asset('images/' . $imageFolder . '/' . $modulo['imagen']) . '?v=' . $timestamp

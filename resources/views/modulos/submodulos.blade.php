@@ -18,7 +18,7 @@
             </div>
         @else
             <!-- Grid de sub-módulos usando componente -->
-            <x-layout.module-grid :modulos="$subModulos" columns="xl:grid-cols-4" :filterConfig="true" />
+            <x-layout.module-grid :modulos="$subModulos" columns="xl:grid-cols-4" :filterConfig="true" :isSubmodulos="true" />
         @endif
     </div>
 @endsection

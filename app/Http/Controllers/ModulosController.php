@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\SYSRoles;
+use App\Models\SYSUsuario;
+use App\Services\ModuloService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -11,6 +13,13 @@ use Illuminate\Support\Facades\Auth;
 
 class ModulosController extends Controller
 {
+    protected $moduloService;
+
+    public function __construct(ModuloService $moduloService)
+    {
+        $this->moduloService = $moduloService;
+    }
+
     /**
      * Mostrar la vista principal de gestión de módulos
      */
@@ -101,6 +110,9 @@ class ModulosController extends Controller
 
             Log::info('Datos a crear:', $data);
             $modulo = SYSRoles::create($data);
+
+            // Limpiar caché de módulos para todos los usuarios
+            $this->limpiarCacheTodosUsuarios();
 
             return redirect()->route('configuracion.utileria.modulos.edit', $modulo->idrol)
                 ->with('success', "Módulo '{$modulo->modulo}' creado exitosamente");
@@ -274,6 +286,9 @@ class ModulosController extends Controller
 
             Log::info('Datos a actualizar:', $data);
             $modulo->update($data);
+
+            // Limpiar caché de módulos para todos los usuarios
+            $this->limpiarCacheTodosUsuarios();
 
             return redirect()->route('configuracion.utileria.modulos.edit', $modulo->idrol)
                 ->with('success', "Módulo '{$modulo->modulo}' actualizado exitosamente");
@@ -460,6 +475,22 @@ class ModulosController extends Controller
                 'success' => false,
                 'message' => 'Error al cambiar el permiso: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Limpiar caché de módulos para todos los usuarios
+     */
+    private function limpiarCacheTodosUsuarios(): void
+    {
+        try {
+            $usuarios = SYSUsuario::select('idusuario')->get();
+            foreach ($usuarios as $usuario) {
+                $this->moduloService->limpiarCacheUsuario($usuario->idusuario);
+            }
+            Log::info('Caché de módulos limpiado para todos los usuarios');
+        } catch (\Exception $e) {
+            Log::error('Error al limpiar caché de módulos: ' . $e->getMessage());
         }
     }
 }
