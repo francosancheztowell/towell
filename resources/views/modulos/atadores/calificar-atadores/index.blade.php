@@ -5,22 +5,22 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         @php
-            $yaCalificado = $montadoTelas->isNotEmpty() && $montadoTelas->first()->Calidad && $montadoTelas->first()->Limpieza;
-            $yaTerminado = $montadoTelas->isNotEmpty() && $montadoTelas->first()->HoraArranque;
+            $item = $montadoTelas->isNotEmpty() ? $montadoTelas->first() : null;
+            $estatusActual = $item?->Estatus ?? 'En Proceso';
         @endphp
         <button id="btnTerminar" onclick="terminarAtado()"
             class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            @if($yaTerminado || $yaCalificado) disabled @endif>
+            @if(in_array($estatusActual, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif>
             <i class="fas fa-stop mr-1"></i> Terminar Atado
         </button>
         <button id="btnCalificar" onclick="calificarTejedor()"
             class="px-2 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            @if($montadoTelas->isNotEmpty() && (!$montadoTelas->first()->HoraArranque || $yaCalificado)) disabled @endif>
+            @if($estatusActual !== 'Terminado') disabled @endif>
             <i class="fas fa-user-check mr-1"></i> Califica Tejedor
         </button>
         <button id="btnAutorizar" onclick="autorizaSupervisor()"
             class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            @if($montadoTelas->isNotEmpty() && (!$montadoTelas->first()->Calidad || !$montadoTelas->first()->Limpieza)) disabled @endif>
+            @if($estatusActual !== 'Calificado') disabled @endif>
             <i class="fas fa-user-tie mr-1"></i> Autoriza Supervisor
         </button>
     </div>
@@ -59,7 +59,7 @@
                             <input type="number" id="mergaKg" step="0.01" value="{{ $item->MergaKg ?? '' }}"
                                    class="w-28 px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                                    placeholder="0.00" oninput="handleMergaChange(this.value)"
-                                   @if($item->HoraArranque) disabled @endif />
+                                   @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif />
                             <span id="mergaSavedIndicator" class="absolute -right-6 top-1/2 -translate-y-1/2 text-green-600 text-xs hidden">
                                 <i class="fas fa-check"></i>
                             </span>
@@ -75,7 +75,7 @@
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Cve Supervisor</span>
-                        <span id="valCveSupervisor" class="text-sm font-semibold text-gray-800">{{ $item->CveSupervisor ?? '-' }}</span>
+                        <span id="valCveSupervisor" class="text-sm font-semibold text-gray-800">{{ $item->Estatus === 'Autorizado' ? ($item->CveSupervisor ?? '-') : '-' }}</span>
                     </div>
                 </div>
 
@@ -109,7 +109,7 @@
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Nom Supervisor</span>
-                        <span id="valNomSupervisor" class="text-sm font-semibold text-gray-800">{{ $item->NomSupervisor ?? '-' }}</span>
+                        <span id="valNomSupervisor" class="text-sm font-semibold text-gray-800">{{ $item->Estatus === 'Autorizado' ? ($item->NomSupervisor ?? '-') : '-' }}</span>
                     </div>
                 </div>
 
@@ -136,9 +136,15 @@
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Tejedor</span>
                         <div class="text-sm font-semibold text-gray-800 flex flex-wrap justify-end gap-1 text-right">
-                            <span id="valCveTejedor">-</span>
-                            <span id="tejedorDash" class="text-gray-400 hidden">-</span>
-                            <span id="valNomTejedor"></span>
+                            @if(in_array($item->Estatus, ['Calificado', 'Autorizado']) && $item->CveTejedor)
+                                <span id="valCveTejedor">{{ $item->CveTejedor }}</span>
+                                <span id="tejedorDash" class="text-gray-400">-</span>
+                                <span id="valNomTejedor">{{ $item->NomTejedor }}</span>
+                            @else
+                                <span id="valCveTejedor">-</span>
+                                <span id="tejedorDash" class="text-gray-400 hidden">-</span>
+                                <span id="valNomTejedor"></span>
+                            @endif
                         </div>
                     </div>
                     <div class="flex justify-between items-center gap-4">
@@ -167,10 +173,10 @@
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200"
                         placeholder="Escriba aquí las observaciones sobre el atado..."
                         oninput="handleObservacionesChange()"
-                        @if($item->HoraArranque) disabled @endif>{{ $item->Obs }}</textarea>
+                        @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif>{{ $item->Obs }}</textarea>
                     <div class="mt-3 flex justify-end">
                         <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200"
-                            @if($item->HoraArranque) disabled @endif>
+                            @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif>
                             <i class="fas fa-save mr-1"></i> Guardar Observaciones
                         </button>
                     </div>
@@ -201,7 +207,7 @@
                                 <td class="px-4 py-2 text-center">
                                     <input type="checkbox" {{ $checked ? 'checked' : '' }} class="h-4 w-4 text-blue-600 rounded"
                                            onchange="toggleMaquina('{{ $maq->MaquinaId }}', this.checked)"
-                                           @if($item->HoraArranque) disabled @endif />
+                                           @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif />
                                 </td>
                             </tr>
                         @empty
@@ -241,7 +247,7 @@
                                 <td class="px-1 py-2 text-center w-16">
                                     <input type="checkbox" {{ $checked ? 'checked' : '' }} class="h-4 w-4 text-green-600 rounded"
                                            onchange="toggleActividad('{{ $act->ActividadId }}', this.checked)"
-                                           @if($item->HoraArranque) disabled @endif />
+                                           @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif />
                                 </td>
                                 <td class="px-2 py-2 text-sm text-gray-900 operador-cell">{{ $operador }}</td>
                             </tr>
@@ -441,7 +447,7 @@ function terminarAtado(){
 
     Swal.fire({
         title: '¿Terminar Atado?',
-        text: 'Se registrará la hora de arranque con la hora actual',
+        text: 'Se registrará la hora de arranque con la hora actual y el estatus cambiará a "Terminado"',
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
@@ -465,8 +471,8 @@ function terminarAtado(){
             .then(r => r.json())
             .then(res => {
                 if(res.ok){
-                    Swal.fire({ icon: 'success', title: 'Atado terminado', timer: 1500, showConfirmButton: false });
-                    // Deshabilitar botón de terminar atado con blur
+                    Swal.fire({ icon: 'success', title: 'Atado terminado', text: 'El estatus ha cambiado a "Terminado"', timer: 1500, showConfirmButton: false });
+                    // Deshabilitar botón de terminar atado
                     const btnTerminar = document.getElementById('btnTerminar');
                     if (btnTerminar) {
                         btnTerminar.disabled = true;
@@ -556,37 +562,28 @@ async function calificarTejedor(){
             if (calidad) { calidad.textContent = formValues.calidad; calidad.className = 'px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-sm'; }
             if (limpieza) { limpieza.textContent = formValues.limpieza; limpieza.className = 'px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-sm'; }
 
-            // SIEMPRE actualizar el campo TEJEDOR con el usuario actual que está calificando
-            const cveTej = document.getElementById('valCveTejedor');
-            const nomTej = document.getElementById('valNomTejedor');
-            if (currentUser && cveTej) {
-                cveTej.textContent = currentUser.numero_empleado || '-';
-            }
-            if (currentUser && nomTej) {
-                nomTej.textContent = currentUser.nombre || '-';
-            }
-            const dashTej = document.getElementById('tejedorDash');
-            if (dashTej && cveTej && nomTej) {
-                if (cveTej.textContent.trim() !== '-' && nomTej.textContent.trim() !== '-') {
-                    dashTej.classList.remove('hidden');
-                } else {
-                    dashTej.classList.add('hidden');
-                }
-            }
-
-            // Actualizar supervisor con el usuario actual
-            if (res.supervisor) {
-                const cveSup = document.getElementById('valCveSupervisor');
-                const nomSup = document.getElementById('valNomSupervisor');
-                if (cveSup) cveSup.textContent = res.supervisor.cve || '-';
-                if (nomSup) nomSup.textContent = res.supervisor.nombre || '-';
+            // Actualizar el campo TEJEDOR con el usuario actual que está calificando
+            if (res.tejedor && currentUser) {
+                const cveTej = document.getElementById('valCveTejedor');
+                const nomTej = document.getElementById('valNomTejedor');
+                const dashTej = document.getElementById('tejedorDash');
+                
+                if (cveTej) cveTej.textContent = res.tejedor.cve || currentUser.numero_empleado || '-';
+                if (nomTej) nomTej.textContent = res.tejedor.nombre || currentUser.nombre || '';
+                if (dashTej) dashTej.classList.remove('hidden');
             }
 
             // Deshabilitar botones Terminar Atado y Calificar Tejedor
             const btnTerminar = document.getElementById('btnTerminar');
-            if (btnTerminar) btnTerminar.disabled = true;
+            if (btnTerminar) {
+                btnTerminar.disabled = true;
+                btnTerminar.classList.add('opacity-50', 'cursor-not-allowed');
+            }
             const btnCalificar = document.getElementById('btnCalificar');
-            if (btnCalificar) btnCalificar.disabled = true;
+            if (btnCalificar) {
+                btnCalificar.disabled = true;
+                btnCalificar.classList.add('opacity-50', 'cursor-not-allowed');
+            }
 
             // Habilitar automáticamente el botón de Autoriza Supervisor
             const btnAutorizar = document.getElementById('btnAutorizar');
@@ -631,6 +628,14 @@ function autorizaSupervisor(){
             .then(r => r.json())
             .then(res => {
                 if(res.ok){
+                    // Actualizar supervisor en la interfaz antes de redirigir
+                    if (res.supervisor) {
+                        const cveSup = document.getElementById('valCveSupervisor');
+                        const nomSup = document.getElementById('valNomSupervisor');
+                        if (cveSup) cveSup.textContent = res.supervisor.cve || '-';
+                        if (nomSup) nomSup.textContent = res.supervisor.nombre || '-';
+                    }
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Proceso Completado',
