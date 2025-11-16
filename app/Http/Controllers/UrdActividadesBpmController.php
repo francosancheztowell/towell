@@ -38,9 +38,7 @@ class UrdActividadesBpmController extends Controller
 
         UrdActividadesBpmModel::create($data);
 
-        return redirect()
-            ->route('urd-actividades-bpm.index')
-            ->with('success', 'Actividad creada correctamente.');
+        return back()->with('success', 'Actividad creada correctamente.');
     }
 
     /**
@@ -55,9 +53,7 @@ class UrdActividadesBpmController extends Controller
 
         $urdActividadesBpm->update($data);
 
-        return redirect()
-            ->route('urd-actividades-bpm.index')
-            ->with('success', 'Actividad actualizada correctamente.');
+        return back()->with('success', 'Actividad actualizada correctamente.');
     }
 
     /**
@@ -67,9 +63,7 @@ class UrdActividadesBpmController extends Controller
     {
         $urdActividadesBpm->delete();
 
-        return redirect()
-            ->route('urd-actividades-bpm.index')
-            ->with('success', 'Actividad eliminada.');
+        return back()->with('success', 'Actividad eliminada.');
     }
 
     /* ====== No usamos create()/edit() porque la UI va por modales ====== */
