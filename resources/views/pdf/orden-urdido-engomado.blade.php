@@ -17,12 +17,12 @@
         .header {
             position: relative;
             width: 100%;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
         .header-logo {
             position: absolute;
             left: 0;
-            top: -5px;
+            top: -10px;
         }
         .header-logo img {
             max-height: 50px;
@@ -32,6 +32,8 @@
         .header-title {
             text-align: center;
             width: 100%;
+            margin-bottom: 5px;
+            padding-top: 5px;
         }
         .header h1 {
             font-size: 13pt;
@@ -41,11 +43,12 @@
         }
         .folio-top-right {
             position: absolute;
-            top: 0;
+            top: -10px;
             right: 0;
             text-align: right;
             font-size: 8.5pt;
             font-weight: bold;
+            padding-top: 0;
         }
         .info-grid {
             display: table;
@@ -58,19 +61,32 @@
         }
         .info-grid-cell {
             display: table-cell;
-            width: 20%;
+            width: 33.33%;
             padding: 2px 4px;
             vertical-align: top;
             font-size: 8.5pt;
         }
+        .info-grid-item {
+            margin-bottom: 3px;
+            font-size: 8.5pt;
+        }
         .info-grid-label {
             font-weight: bold;
-            margin-bottom: 1px;
+            display: inline;
             font-size: 8.5pt;
         }
         .info-grid-value {
             font-weight: normal;
+            display: inline;
             font-size: 8.5pt;
+        }
+        .construccion-box {
+            border: 1px solid #000;
+            padding: 6px;
+            margin-top: 2px;
+            font-size: 7.5pt;
+            line-height: 1.3;
+            min-height: 65px;
         }
         .info-box {
             border: 1px solid #000;
@@ -107,16 +123,18 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9pt;
+            font-size: 8pt;
         }
         th, td {
             border: 1px solid #000;
-            padding: 4px;
+            padding: 2px 3px;
             text-align: center;
         }
         th {
             background-color: #e0e0e0;
             font-weight: bold;
+            font-size: 7pt;
+            line-height: 1.2;
         }
         .text-left {
             text-align: left;
@@ -130,6 +148,53 @@
             min-height: 50px;
             margin-top: 15px;
             font-size: 9pt;
+        }
+        .engomado-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-size: 8pt;
+        }
+        .engomado-table th,
+        .engomado-table td {
+            border: 1px solid #000;
+            padding: 3px 4px;
+            text-align: left;
+        }
+        .engomado-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            font-size: 7.5pt;
+            width: 15%;
+        }
+        .engomado-table td {
+            text-align: center;
+            width: 10.6%;
+        }
+        .engomado-table td:first-child {
+            text-align: left;
+            font-weight: bold;
+            width: 15%;
+        }
+        .engomado-table td:last-child {
+            width: 15%;
+        }
+        .engomado-footer {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid #000;
+            font-size: 8pt;
+        }
+        .engomado-footer-row {
+            display: table;
+            width: 100%;
+            margin-bottom: 3px;
+        }
+        .engomado-footer-cell {
+            display: table-cell;
+            padding: 2px 8px;
+            vertical-align: top;
         }
     </style>
 </head>
@@ -150,7 +215,7 @@
             No. FOLIO: {{ $orden->Folio ?? '-' }}
         </div>
     @endif
-    <div class="header-title">
+    <div class="header-title mb-4">
         <h1>ORDEN DE URDIDO Y ENGOMADO</h1>
     </div>
 </div>
@@ -167,53 +232,29 @@
         }
     @endphp
 
-    {{-- Todos los campos en una estructura de tabla uniforme --}}
+    {{-- Todos los campos en 3 columnas --}}
     <div class="info-grid">
-        {{-- Primera fila: Fecha, Cuenta, Ordenado por, Tipo, Destino --}}
         <div class="info-grid-row">
+            {{-- Columna 1 --}}
             <div class="info-grid-cell">
-                <div class="info-grid-label">FECHA:</div>
-                <div class="info-grid-value">{{ $fechaOrden }}</div>
+                <div class="info-grid-item"><span class="info-grid-label">FECHA:</span> <span class="info-grid-value">{{ $fechaOrden }}</span></div>
+                <div class="info-grid-item"><span class="info-grid-label">CUENTA:</span> <span class="info-grid-value">{{ $orden->Cuenta ?? '-' }}</span></div>
+                <div class="info-grid-item"><span class="info-grid-label">ORDENADO POR:</span> <span class="info-grid-value">{{ $orden->NomEmpl ?? '-' }}</span></div>
+                <div class="info-grid-item"><span class="info-grid-label">TIPO:</span> <span class="info-grid-value">{{ $orden->RizoPie ?? '-' }}</span></div>
+                <div class="info-grid-item"><span class="info-grid-label">DESTINO:</span> <span class="info-grid-value">{{ $orden->SalonTejidoId ?? '-' }}</span></div>
             </div>
+            {{-- Columna 2 --}}
             <div class="info-grid-cell">
-                <div class="info-grid-label">CUENTA:</div>
-                <div class="info-grid-value">{{ $orden->Cuenta ?? '-' }}</div>
+                <div class="info-grid-item"><span class="info-grid-label">URDIDO:</span> <span class="info-grid-value">{{ $orden->MaquinaId ?? $orden->MaquinaUrd ?? '-' }}</span></div>
+                <div class="info-grid-item"><span class="info-grid-label">PROVEEDOR:</span> <span class="info-grid-value">{{ $orden->LoteProveedor ?? '-' }}</span></div>
+                <div class="info-grid-item"><span class="info-grid-label">CALIBRE:</span> <span class="info-grid-value">{{ $orden->Calibre ?? '-' }}</span></div>
+                <div class="info-grid-item"><span class="info-grid-label">METROS:</span> <span class="info-grid-value">{{ $orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0' }}</span></div>
+                <div class="info-grid-item"><span class="info-grid-label">FÓRMULA:</span> <span class="info-grid-value">{{ $orden->BomFormula ?? '-' }}</span></div>
             </div>
+            {{-- Columna 3 --}}
             <div class="info-grid-cell">
-                <div class="info-grid-label">ORDENADO POR:</div>
-                <div class="info-grid-value">{{ $orden->NomEmpl ?? '-' }}</div>
-            </div>
-            <div class="info-grid-cell">
-                <div class="info-grid-label">TIPO:</div>
-                <div class="info-grid-value">{{ $orden->RizoPie ?? '-' }}</div>
-            </div>
-            <div class="info-grid-cell">
-                <div class="info-grid-label">DESTINO:</div>
-                <div class="info-grid-value">{{ $orden->SalonTejidoId ?? '-' }}</div>
-            </div>
-        </div>
-
-        {{-- Segunda fila: Urdido, Proveedor, Calibre, Metros, Construcción --}}
-        <div class="info-grid-row">
-            <div class="info-grid-cell">
-                <div class="info-grid-label">URDIDO:</div>
-                <div class="info-grid-value">{{ $orden->MaquinaId ?? $orden->MaquinaUrd ?? '-' }}</div>
-            </div>
-            <div class="info-grid-cell">
-                <div class="info-grid-label">PROVEEDOR:</div>
-                <div class="info-grid-value">{{ $orden->LoteProveedor ?? '-' }}</div>
-            </div>
-            <div class="info-grid-cell">
-                <div class="info-grid-label">CALIBRE:</div>
-                <div class="info-grid-value">{{ $orden->Calibre ?? '-' }}</div>
-            </div>
-            <div class="info-grid-cell">
-                <div class="info-grid-label">METROS:</div>
-                <div class="info-grid-value">{{ $orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0' }}</div>
-            </div>
-            <div class="info-grid-cell">
-                <div class="info-grid-label">CONSTRUCCIÓN:</div>
-                <div class="info-grid-value" style="font-size: 7.5pt; line-height: 1.2;">
+                <div class="construccion-box">
+                    <span class="info-grid-label">CONSTRUCCIÓN:</span>
                     @if($julios && $julios->count() > 0)
                         @php
                             $construccionItems = [];
@@ -230,9 +271,9 @@
                                 }
                             }
                         @endphp
-                        {{ !empty($construccionItems) ? implode(', ', $construccionItems) : '-' }}
+                        <span class="info-grid-value">{{ !empty($construccionItems) ? implode(', ', $construccionItems) : '-' }}</span>
                     @else
-                        -
+                        <span class="info-grid-value">-</span>
                     @endif
                 </div>
             </div>
@@ -337,12 +378,16 @@
             <tbody>
             @foreach($registrosProduccion as $registro)
                 @php
-                    // Oficiales
+                    // Oficiales - extraer solo el primer nombre de cada uno
                     $oficiales = [];
                     for ($i = 1; $i <= 3; $i++) {
                         $nomEmpl = $registro->{"NomEmpl{$i}"} ?? null;
                         if ($nomEmpl) {
-                            $oficiales[] = $nomEmpl;
+                            // Extraer solo el primer nombre (primera palabra antes del espacio)
+                            $primerNombre = trim(explode(' ', $nomEmpl)[0]);
+                            if ($primerNombre) {
+                                $oficiales[] = $primerNombre;
+                            }
                         }
                     }
 
@@ -419,12 +464,139 @@
             </tbody>
         </table>
     </div>
-@endif
 
-<div class="observaciones">
-    <strong>OBSERVACIONES:</strong><br>
-    {{ $orden->Obs ?? 'Texto para mostrar, aqui el usuario podra escribir sus observaciones' }}
-</div>
+    @if($isUrdido)
+        {{-- Tabla de Engomado --}}
+        <table class="engomado-table">
+
+            <tbody>
+                <tr>
+                    <td><strong>COCINERO:</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>TURNO:</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>OLLAS:</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>VOL. INICIAL:</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>ALMIDÓN:</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>RESINA:</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>VOL. FINAL:</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>FÓRMULA:</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>% SÓLIDOS:</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>PRODUCCIÓN:</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+
+        {{-- Footer de Engomado --}}
+        <div class="engomado-footer">
+            <div class="engomado-footer-row">
+                <div class="engomado-footer-cell"><strong>NÚCLEO:</strong> {{ $ordenEngomado->Nucleo ?? '-' }}</div>
+                <div class="engomado-footer-cell"><strong>ANCHO BALONAS:</strong> {{ $ordenEngomado->AnchoBalonas ?? '-' }}</div>
+                <div class="engomado-footer-cell"><strong>CUENDEADOS MÍNIMO:</strong> {{ $ordenEngomado->Cuentados ?? '-' }}</div>
+                <div class="engomado-footer-cell"><strong>OBSERVACIONES:</strong> {{ $ordenEngomado->Obs ?? 'Texto para mostrar, aqui el usuario podra escribir sus observaciones' }}</div>
+            </div>
+            <div class="engomado-footer-row">
+                <div class="engomado-footer-cell"><strong>NO. TELAS:</strong> {{ $ordenEngomado->NoTelas ?? '-' }}</div>
+            </div>
+        </div>
+    @endif
+@endif
 
 </body>
 </html>

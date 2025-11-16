@@ -4,17 +4,6 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        @if(isset($orden) && $orden)
-            <x-navbar.button-create
-                onclick="generarPDF()"
-                title="Generar PDF"
-                icon="fa-file-pdf"
-                iconColor="text-white"
-                hoverBg="hover:bg-red-600"
-                text="PDF"
-                bg="bg-red-500"
-            />
-        @endif
         <x-navbar.button-create
             onclick="finalizar()"
             title="Finalizar"
@@ -1783,43 +1772,216 @@
                 }
             });
 
-            window.finalizar = function () {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: '¿Finalizar registro?',
-                text: 'Esta acción marcará el registro como finalizado',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, finalizar',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#2563eb',
-                cancelButtonColor: '#6b7280'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Registro finalizado',
-                        text: 'El registro ha sido marcado como finalizado',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                }
-            });
-        } else {
-            if (confirm('¿Finalizar registro?')) {
-                alert('Registro finalizado');
-            }
-        }
-    };
+            function validarRegistrosCompletos() {
+                const tablaBody = document.getElementById('tabla-produccion-body');
+                if (!tablaBody) return { valido: false, mensaje: 'No se encontró la tabla de producción' };
 
-            window.generarPDF = function () {
-                @if(isset($orden) && $orden)
-                    const ordenId = {{ $orden->Id }};
-                    const url = '{{ route('urdido.modulo.produccion.urdido.pdf') }}?orden_id=' + ordenId + '&tipo=urdido';
-                    window.open(url, '_blank');
-                @else
-                    alert('No hay orden seleccionada');
-                @endif
+                const filas = tablaBody.querySelectorAll('tr[data-registro-id]');
+                const registrosIncompletos = [];
+
+                filas.forEach((fila, index) => {
+                    const registroId = fila.getAttribute('data-registro-id');
+                    const camposFaltantes = [];
+
+                    // Fecha
+                    const fechaInput = fila.querySelector('input.input-fecha');
+                    const fechaDisplay = fila.querySelector('.fecha-display-text');
+                    if (!fechaInput || !fechaInput.value) {
+                        camposFaltantes.push('Fecha');
+                    }
+
+                    // Oficial (requerido)
+                    const oficialSelect = fila.querySelector('.oficial-select');
+                    if (!oficialSelect || !oficialSelect.value) {
+                        camposFaltantes.push('Oficial');
+                    }
+
+                    // Turno
+                    const turnoSelect = fila.querySelector('select[data-field="turno"]');
+                    if (!turnoSelect || !turnoSelect.value) {
+                        camposFaltantes.push('Turno');
+                    }
+
+                    // H. Inicio
+                    const hInicioInput = fila.querySelector('input[data-field="h_inicio"]');
+                    if (!hInicioInput || !hInicioInput.value) {
+                        camposFaltantes.push('H. Inicio');
+                    }
+
+                    // H. Fin
+                    const hFinInput = fila.querySelector('input[data-field="h_fin"]');
+                    if (!hFinInput || !hFinInput.value) {
+                        camposFaltantes.push('H. Fin');
+                    }
+
+                    // No. Julio
+                    const noJulioSelect = fila.querySelector('select[data-field="no_julio"]');
+                    if (!noJulioSelect || !noJulioSelect.value) {
+                        camposFaltantes.push('No. Julio');
+                    }
+
+                    // Kg. Bruto
+                    const kgBrutoInput = fila.querySelector('input[data-field="kg_bruto"]');
+                    if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') {
+                        camposFaltantes.push('Kg. Bruto');
+                    }
+
+                    // Tara
+                    const taraInput = fila.querySelector('input[data-field="tara"]');
+                    if (!taraInput || !taraInput.value || taraInput.value.trim() === '') {
+                        camposFaltantes.push('Tara');
+                    }
+
+                    // Metros
+                    const metrosInput = fila.querySelector('input[data-field="metros"]');
+                    if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') {
+                        camposFaltantes.push('Metros');
+                    }
+
+                    // Roturas son opcionales, no se validan
+
+                    if (camposFaltantes.length > 0) {
+                        registrosIncompletos.push({
+                            fila: index + 1,
+                            campos: camposFaltantes
+                        });
+                    }
+                });
+
+                if (registrosIncompletos.length > 0) {
+                    return { valido: false, mensaje: 'Completa todos los registros' };
+                }
+
+                return { valido: true };
+            }
+
+            window.finalizar = async function () {
+                // Validar que todos los registros estén completos
+                const validacion = validarRegistrosCompletos();
+
+                if (!validacion.valido) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Registros incompletos',
+                            text: validacion.mensaje,
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#2563eb'
+                        });
+                    } else {
+                        alert(validacion.mensaje);
+                    }
+                    return;
+                }
+
+                // Si todos los registros están completos, proceder con la finalización
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '¿Finalizar registro?',
+                        text: 'Esta acción marcará el registro como finalizado y generará el PDF',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, finalizar',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#2563eb',
+                        cancelButtonColor: '#6b7280'
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            @if(isset($orden) && $orden)
+                                const ordenId = {{ $orden->Id }};
+
+                                try {
+                                    // Mostrar loading
+                                    Swal.fire({
+                                        title: 'Finalizando...',
+                                        text: 'Por favor espera',
+                                        allowOutsideClick: false,
+                                        didOpen: () => {
+                                            Swal.showLoading();
+                                        }
+                                    });
+
+                                    // Llamar al endpoint para finalizar (cambiar status)
+                                    const response = await fetch('{{ route('urdido.modulo.produccion.urdido.finalizar') }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                        },
+                                        body: JSON.stringify({ orden_id: ordenId })
+                                    });
+
+                                    const result = await response.json();
+
+                                    if (result.success) {
+                                        // Generar PDF automáticamente
+                                        const url = '{{ route('urdido.modulo.produccion.urdido.pdf') }}?orden_id=' + ordenId + '&tipo=urdido';
+                                        window.open(url, '_blank');
+
+                                        Swal.fire({
+                                            icon: 'success',
+                                            title: 'Registro finalizado',
+                                            text: 'El registro ha sido marcado como finalizado y el PDF se ha generado',
+                                            timer: 2000,
+                                            showConfirmButton: false,
+                                            willClose: () => {
+                                                window.location.href = '/produccionProceso';
+                                            }
+                                        });
+                                    } else {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Error',
+                                            text: result.error || 'Error al finalizar el registro'
+                                        });
+                                    }
+                                } catch (error) {
+                                    console.error('Error al finalizar:', error);
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error',
+                                        text: 'Error al finalizar el registro. Por favor, intenta nuevamente.'
+                                    });
+                                }
+                            @else
+                                alert('No hay orden seleccionada');
+                            @endif
+                        }
+                    });
+                } else {
+                    if (confirm('¿Finalizar registro?')) {
+                        @if(isset($orden) && $orden)
+                            const ordenId = {{ $orden->Id }};
+
+                            try {
+                                const response = await fetch('{{ route('urdido.modulo.produccion.urdido.finalizar') }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                    },
+                                    body: JSON.stringify({ orden_id: ordenId })
+                                });
+
+                                const result = await response.json();
+
+                                if (result.success) {
+                                    const url = '{{ route('urdido.modulo.produccion.urdido.pdf') }}?orden_id=' + ordenId + '&tipo=urdido';
+                                    window.open(url, '_blank');
+                                    alert('Registro finalizado');
+                                    window.location.href = '/produccionProceso';
+                                } else {
+                                    alert('Error: ' + (result.error || 'Error desconocido'));
+                                }
+                            } catch (error) {
+                                console.error('Error al finalizar:', error);
+                                alert('Error al finalizar el registro');
+                            }
+                        @else
+                            alert('No hay orden seleccionada');
+                        @endif
+                    }
+                }
             };
 })();
 </script>

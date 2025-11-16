@@ -45,21 +45,28 @@ class PDFController extends Controller
                 ], 404);
             }
 
-            // 2) Registros de producción
+            // 2) Si es urdido, obtener también los datos de engomado para el footer
+            $ordenEngomado = null;
+            if (strtolower($tipo) === 'urdido' && $orden->Folio) {
+                $ordenEngomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
+            }
+
+            // 3) Registros de producción
             $registrosProduccion = $this->obtenerRegistrosProduccion($orden->Folio, $tipo);
 
-            // 3) Julios
+            // 4) Julios
             $julios = UrdJuliosOrden::where('Folio', $orden->Folio)
                 ->whereNotNull('Julios')
                 ->orderBy('Julios')
                 ->get();
 
-            // 4) Logo en base64 (sin usar GD, solo leyendo el archivo)
+            // 5) Logo en base64 (sin usar GD, solo leyendo el archivo)
             $logoBase64 = $this->cargarLogoBase64();
 
-            // 5) Renderizar vista Blade a HTML
+            // 6) Renderizar vista Blade a HTML
             $html = view('pdf.orden-urdido-engomado', [
                 'orden'              => $orden,
+                'ordenEngomado'      => $ordenEngomado, // Datos de engomado para urdido
                 'registrosProduccion'=> $registrosProduccion,
                 'julios'             => $julios,
                 'tipo'               => $tipo,
@@ -172,7 +179,7 @@ class PDFController extends Controller
 
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html, 'UTF-8');
-        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->setPaper('letter', 'portrait');
 
         try {
             $dompdf->render();

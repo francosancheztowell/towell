@@ -395,7 +395,7 @@ Route::middleware(['auth'])->group(function () {
         ->name('atadores.configuracion');
     Route::get('/atadores/catalogos', fn() => app(UsuarioController::class)->showSubModulosNivel3('503'))
         ->name('atadores.catalogos');
-    
+
     // Configuración de Urdido
     Route::get('/urdido/configuracion', fn() => app(UsuarioController::class)->showSubModulosNivel3('304'))
         ->name('urdido.configuracion');
@@ -811,7 +811,7 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         Route::get('/programar-urdido/ordenes', [ProgramarUrdidoController::class, 'getOrdenes'])->name('programar.urdido.ordenes');
         Route::post('/programar-urdido/subir-prioridad', [ProgramarUrdidoController::class, 'subirPrioridad'])->name('programar.urdido.subir.prioridad');
         Route::post('/programar-urdido/bajar-prioridad', [ProgramarUrdidoController::class, 'bajarPrioridad'])->name('programar.urdido.bajar.prioridad');
-        
+
         // Catálogos de Urdido
         Route::get('/catalogos-julios', [CatalogosUrdidoController::class, 'catalogosJulios'])->name('catalogos.julios');
         Route::get('/catalogo-maquinas', [CatalogosUrdidoController::class, 'catalogoMaquinas'])->name('catalogo.maquinas');
@@ -826,6 +826,7 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         Route::post('/modulo-produccion-urdido/actualizar-kg-bruto', [ModuloProduccionUrdidoController::class, 'actualizarKgBruto'])->name('modulo.produccion.urdido.actualizar.kg.bruto');
         Route::post('/modulo-produccion-urdido/actualizar-campos-produccion', [ModuloProduccionUrdidoController::class, 'actualizarCamposProduccion'])->name('modulo.produccion.urdido.actualizar.campos.produccion');
         Route::post('/modulo-produccion-urdido/actualizar-horas', [ModuloProduccionUrdidoController::class, 'actualizarHoras'])->name('modulo.produccion.urdido.actualizar.horas');
+        Route::post('/modulo-produccion-urdido/finalizar', [ModuloProduccionUrdidoController::class, 'finalizar'])->name('modulo.produccion.urdido.finalizar');
         Route::get('/modulo-produccion-urdido/pdf', [PDFController::class, 'generarPDFUrdidoEngomado'])->name('modulo.produccion.urdido.pdf');
     });
 
@@ -835,7 +836,7 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         Route::get('/programar-engomado/ordenes', [ProgramarEngomadoController::class, 'getOrdenes'])->name('programar.engomado.ordenes');
         Route::post('/programar-engomado/subir-prioridad', [ProgramarEngomadoController::class, 'subirPrioridad'])->name('programar.engomado.subir.prioridad');
         Route::post('/programar-engomado/bajar-prioridad', [ProgramarEngomadoController::class, 'bajarPrioridad'])->name('programar.engomado.bajar.prioridad');
-        
+
         // Módulo Producción Engomado
         Route::get('/modulo-produccion-engomado', [ModuloProduccionEngomadoController::class, 'index'])->name('modulo.produccion.engomado');
         Route::get('/modulo-produccion-engomado/catalogos-julios', [ModuloProduccionEngomadoController::class, 'getCatalogosJulios'])->name('modulo.produccion.engomado.catalogos.julios');
@@ -847,6 +848,7 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         Route::post('/modulo-produccion-engomado/actualizar-kg-bruto', [ModuloProduccionEngomadoController::class, 'actualizarKgBruto'])->name('modulo.produccion.engomado.actualizar.kg.bruto');
         Route::post('/modulo-produccion-engomado/actualizar-campos-produccion', [ModuloProduccionEngomadoController::class, 'actualizarCamposProduccion'])->name('modulo.produccion.engomado.actualizar.campos.produccion');
         Route::post('/modulo-produccion-engomado/actualizar-horas', [ModuloProduccionEngomadoController::class, 'actualizarHoras'])->name('modulo.produccion.engomado.actualizar.horas');
+        Route::post('/modulo-produccion-engomado/finalizar', [ModuloProduccionEngomadoController::class, 'finalizar'])->name('modulo.produccion.engomado.finalizar');
         Route::get('/modulo-produccion-engomado/pdf', [PDFController::class, 'generarPDFUrdidoEngomado'])->name('modulo.produccion.engomado.pdf');
     });
 
@@ -907,6 +909,52 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/modulo-mantenimiento', function () {
         return view('modulos/mantenimiento');
     });
+
+    // Reportar Paro de Maquina
+    Route::get('/mantenimiento/nuevo-paro', function () {
+        return view('modulos.mantenimiento.nuevo-paro.index');
+    })->name('mantenimiento.nuevo-paro');
+
+    // API para obtener departamentos únicos
+    Route::get('/api/mantenimiento/departamentos', function () {
+        $departamentos = \App\Models\URDCatalogoMaquina::select('Departamento')
+            ->distinct()
+            ->orderBy('Departamento')
+            ->pluck('Departamento');
+
+        return response()->json([
+            'success' => true,
+            'data' => $departamentos
+        ]);
+    })->name('api.mantenimiento.departamentos');
+
+    // API para obtener máquinas por departamento
+    Route::get('/api/mantenimiento/maquinas/{departamento}', function ($departamento) {
+        $maquinas = \App\Models\URDCatalogoMaquina::where('Departamento', $departamento)
+            ->orderBy('MaquinaId')
+            ->get(['MaquinaId', 'Nombre', 'Departamento']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $maquinas
+        ]);
+    })->name('api.mantenimiento.maquinas');
+
+    // API para obtener tipos de falla
+    Route::get('/api/mantenimiento/tipos-falla', function () {
+        $tiposFalla = \App\Models\CatTipoFalla::orderBy('TipoFallaId')
+            ->pluck('TipoFallaId');
+
+        return response()->json([
+            'success' => true,
+            'data' => $tiposFalla
+        ]);
+    })->name('api.mantenimiento.tipos-falla');
+
+    // Reporte de Fallos y Paros
+    Route::get('/mantenimientos/reporte-fallos-paros', function () {
+        return view('modulos.mantenimiento.reporte-fallos-paros.index');
+    })->name('mantenimiento.reporte-fallos-paros');
 
     // ============================================
     // RUTAS DE PRODUCCIÓN URD ENGOMADO

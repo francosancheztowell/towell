@@ -78,7 +78,7 @@ class TelBpmController extends Controller
             $operadoresEntrega = collect();
         }
 
-        return view('bpm-tejedores.tel-bpm.index', [
+        return view('modulos.bpm-tejedores.tel-bpm.index', [
             'items'   => $items,
             'q'       => $q,
             'status'  => $status,

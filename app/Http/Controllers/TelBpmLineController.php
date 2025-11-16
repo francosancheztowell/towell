@@ -81,7 +81,7 @@ class TelBpmLineController extends Controller
             ->where('NoTelarId', 'COMENT')
             ->value('comentarios') ?? '';
 
-        return view('bpm-tejedores.tel-bpm-line.index', [
+        return view('modulos.bpm-tejedores.tel-bpm-line.index', [
             'folio'       => $folio,
             'header'      => $header,
             'actividades' => $actividades,

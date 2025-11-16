@@ -21,7 +21,7 @@ class TelActividadesBPMController extends Controller
             ->orderBy('Orden', 'desc')
             ->get();
 
-        return view('tel-actividades-bpm.index', compact('items', 'q'));
+        return view('modulos.tel-actividades-bpm.index', compact('items', 'q'));
     }
 
     /**
@@ -29,7 +29,7 @@ class TelActividadesBPMController extends Controller
      */
     public function create()
     {
-        return view('tel-actividades-bpm.create');
+        return view('modulos.tel-actividades-bpm.create');
     }
 
     /**
@@ -54,7 +54,7 @@ class TelActividadesBPMController extends Controller
     public function edit(TelActividadesBPM $telActividadesBPM)
     {
         // $telActividadesBPM se resuelve por Orden (PK)
-        return view('tel-actividades-bpm.edit', [
+        return view('modulos.tel-actividades-bpm.edit', [
             'item' => $telActividadesBPM,
         ]);
     }
