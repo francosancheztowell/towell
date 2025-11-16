@@ -672,12 +672,10 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
         Route::get('/bpm', function () {
             return redirect()->route('tel-bpm.index');
         })->name('bpm');
-
-        // Notificar Montado de Julios
-        Route::get('/notificar-montado-julios', function () {
-            return view('modulos.notificar-montado-julios.index');
-        })->name('notificar.montado.julios');
     });
+
+    // Notificar Montado de Julios (fuera del grupo para acceso desde módulos)
+    Route::get('/tejedores/notificar-montado-julios', [App\Http\Controllers\NotificarMontadoJulioController::class, 'index'])->name('notificar.montado.julios');
 
     // ============================================
     // RUTAS DIRECTAS (COMPATIBILIDAD)

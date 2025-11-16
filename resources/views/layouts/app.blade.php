@@ -66,6 +66,57 @@
     </div>
   </div>
 
+  <!-- ====== Modal Notificar Montado de Julio ====== -->
+  <div id="modalTelaresNotificar" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+      <!-- Header del Modal -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <h2 class="text-xl font-bold text-gray-800">Telares Asignados</h2>
+        <button type="button" onclick="cerrarModalTelares()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Body del Modal -->
+      <div class="p-6">
+        <!-- Filtros de Tipo -->
+        <div class="mb-6 flex gap-4">
+          <label class="inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="checkRizoModal" class="form-checkbox h-5 w-5 text-blue-600 rounded">
+            <span class="ml-2 text-gray-700 font-medium">Rizo</span>
+          </label>
+          
+          <label class="inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="checkPieModal" class="form-checkbox h-5 w-5 text-blue-600 rounded">
+            <span class="ml-2 text-gray-700 font-medium">Pie</span>
+          </label>
+        </div>
+
+        <!-- Tabla de Telares -->
+        <div class="overflow-x-auto max-h-96">
+          <table class="min-w-full bg-white border border-gray-300 rounded-lg">
+            <thead class="bg-gray-100 sticky top-0">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">Telar</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">Tipo</th>
+              </tr>
+            </thead>
+            <tbody id="tablaTelaresBody" class="divide-y divide-gray-200">
+              <!-- Se llenará dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Footer del Modal -->
+      <div class="flex justify-end p-6 border-t border-gray-200">
+        <button type="button" onclick="cerrarModalTelares()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ====== Scripts ====== -->
     <script src="{{ asset('js/app-core.js') }}"></script>
     <script src="{{ asset('js/app-filters.js') }}"></script>
@@ -83,6 +134,95 @@
   <script>
     // Exponer función resetColumnsSpin globalmente
     window.resetColumnsSpin = resetColumnsSpin;
+
+    // Funciones para modal de telares
+    let telaresData = [];
+    let tipoFiltroActual = null;
+
+    async function abrirModalTelares() {
+      try {
+        const response = await fetch('{{ route('notificar.montado.julios') }}', {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+        const data = await response.json();
+        telaresData = data.telares;
+        renderTelares();
+        document.getElementById('modalTelaresNotificar').style.display = 'flex';
+      } catch (error) {
+        console.error('Error al cargar telares:', error);
+      }
+    }
+
+    function cerrarModalTelares() {
+      document.getElementById('modalTelaresNotificar').style.display = 'none';
+      tipoFiltroActual = null;
+      document.getElementById('checkRizoModal').checked = false;
+      document.getElementById('checkPieModal').checked = false;
+    }
+
+    function renderTelares() {
+      const tbody = document.getElementById('tablaTelaresBody');
+      let telaresFiltrados = telaresData;
+
+      if (tipoFiltroActual) {
+        telaresFiltrados = telaresData.filter(t => t.tipo === tipoFiltroActual);
+      }
+
+      if (telaresFiltrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="2" class="px-6 py-4 text-center text-sm text-gray-500">No hay telares asignados o no coinciden con el filtro seleccionado</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = telaresFiltrados.map(telar => `
+        <tr class="hover:bg-gray-50">
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${telar.no_telar}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${telar.tipo === 'rizo' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+              ${telar.tipo.charAt(0).toUpperCase() + telar.tipo.slice(1)}
+            </span>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Event listeners para checkboxes
+    document.addEventListener('DOMContentLoaded', function() {
+      const checkRizo = document.getElementById('checkRizoModal');
+      const checkPie = document.getElementById('checkPieModal');
+
+      if (checkRizo) {
+        checkRizo.addEventListener('change', function() {
+          if (this.checked) {
+            checkPie.checked = false;
+            tipoFiltroActual = 'rizo';
+          } else {
+            tipoFiltroActual = null;
+          }
+          renderTelares();
+        });
+      }
+
+      if (checkPie) {
+        checkPie.addEventListener('change', function() {
+          if (this.checked) {
+            checkRizo.checked = false;
+            tipoFiltroActual = 'pie';
+          } else {
+            tipoFiltroActual = null;
+          }
+          renderTelares();
+        });
+      }
+
+      // Cerrar modal al hacer clic fuera
+      document.getElementById('modalTelaresNotificar')?.addEventListener('click', function(event) {
+        if (event.target === this) {
+          cerrarModalTelares();
+        }
+      });
+    });
   </script>
     </body>
     </html>
