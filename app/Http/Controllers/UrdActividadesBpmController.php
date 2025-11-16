@@ -23,7 +23,7 @@ class UrdActividadesBpmController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('bpm-tejedores.urd-actividades-bpm.index', compact('items', 'q'));
+        return view('modulos.urdido.urd-actividades-bpm.index', compact('items', 'q'));
     }
 
     /**
