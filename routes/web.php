@@ -395,7 +395,7 @@ Route::middleware(['auth'])->group(function () {
         ->name('atadores.configuracion');
     Route::get('/atadores/catalogos', fn() => app(UsuarioController::class)->showSubModulosNivel3('503'))
         ->name('atadores.catalogos');
-    
+
     // Configuración de Urdido
     Route::get('/urdido/configuracion', fn() => app(UsuarioController::class)->showSubModulosNivel3('304'))
         ->name('urdido.configuracion');
@@ -811,7 +811,7 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         Route::get('/programar-urdido/ordenes', [ProgramarUrdidoController::class, 'getOrdenes'])->name('programar.urdido.ordenes');
         Route::post('/programar-urdido/subir-prioridad', [ProgramarUrdidoController::class, 'subirPrioridad'])->name('programar.urdido.subir.prioridad');
         Route::post('/programar-urdido/bajar-prioridad', [ProgramarUrdidoController::class, 'bajarPrioridad'])->name('programar.urdido.bajar.prioridad');
-        
+
         // Catálogos de Urdido
         Route::get('/catalogos-julios', [CatalogosUrdidoController::class, 'catalogosJulios'])->name('catalogos.julios');
         Route::get('/catalogo-maquinas', [CatalogosUrdidoController::class, 'catalogoMaquinas'])->name('catalogo.maquinas');
@@ -836,7 +836,7 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         Route::get('/programar-engomado/ordenes', [ProgramarEngomadoController::class, 'getOrdenes'])->name('programar.engomado.ordenes');
         Route::post('/programar-engomado/subir-prioridad', [ProgramarEngomadoController::class, 'subirPrioridad'])->name('programar.engomado.subir.prioridad');
         Route::post('/programar-engomado/bajar-prioridad', [ProgramarEngomadoController::class, 'bajarPrioridad'])->name('programar.engomado.bajar.prioridad');
-        
+
         // Módulo Producción Engomado
         Route::get('/modulo-produccion-engomado', [ModuloProduccionEngomadoController::class, 'index'])->name('modulo.produccion.engomado');
         Route::get('/modulo-produccion-engomado/catalogos-julios', [ModuloProduccionEngomadoController::class, 'getCatalogosJulios'])->name('modulo.produccion.engomado.catalogos.julios');
@@ -909,10 +909,10 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/modulo-mantenimiento', function () {
         return view('modulos/mantenimiento');
     });
-    
+
     // Reportar Paro de Maquina
     Route::get('/mantenimiento/nuevo-paro', function () {
-        return view('mantenimiento.nuevo-paro.index');
+        return view('modulos.mantenimiento.nuevo-paro.index');
     })->name('mantenimiento.nuevo-paro');
 
     // API para obtener departamentos únicos
@@ -921,7 +921,7 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
             ->distinct()
             ->orderBy('Departamento')
             ->pluck('Departamento');
-        
+
         return response()->json([
             'success' => true,
             'data' => $departamentos
@@ -933,7 +933,7 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         $maquinas = \App\Models\URDCatalogoMaquina::where('Departamento', $departamento)
             ->orderBy('MaquinaId')
             ->get(['MaquinaId', 'Nombre', 'Departamento']);
-        
+
         return response()->json([
             'success' => true,
             'data' => $maquinas
@@ -944,7 +944,7 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     Route::get('/api/mantenimiento/tipos-falla', function () {
         $tiposFalla = \App\Models\CatTipoFalla::orderBy('TipoFallaId')
             ->pluck('TipoFallaId');
-        
+
         return response()->json([
             'success' => true,
             'data' => $tiposFalla
@@ -953,7 +953,7 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
 
     // Reporte de Fallos y Paros
     Route::get('/mantenimientos/reporte-fallos-paros', function () {
-        return view('mantenimiento.reporte-fallos-paros.index');
+        return view('modulos.mantenimiento.reporte-fallos-paros.index');
     })->name('mantenimiento.reporte-fallos-paros');
 
     // ============================================

@@ -33,7 +33,7 @@ class TelTelaresOperadorController extends Controller
 
         $telares = ReqTelares::obtenerTodos();
         $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
-        return view('tel-telares-operador.index', compact('items', 'q', 'telares','usuarios'));
+        return view('modulos.tel-telares-operador.index', compact('items', 'q', 'telares','usuarios'));
     }
 
     /**
@@ -43,7 +43,7 @@ class TelTelaresOperadorController extends Controller
     {
         $telares = ReqTelares::obtenerTodos();
         $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
-        return view('tel-telares-operador.create', compact('telares','usuarios'));
+        return view('modulos.tel-telares-operador.create', compact('telares','usuarios'));
     }
 
     /**
@@ -81,7 +81,7 @@ class TelTelaresOperadorController extends Controller
     {
         $telares = ReqTelares::obtenerTodos();
         $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
-        return view('tel-telares-operador.edit', [
+        return view('modulos.tel-telares-operador.edit', [
             'item' => $telTelaresOperador,
             'telares' => $telares,
             'usuarios' => $usuarios,
