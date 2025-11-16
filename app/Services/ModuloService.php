@@ -438,7 +438,7 @@ class ModuloService
             'Producción Urdido' => '/urdido/modulo-produccion-urdido',
             'Produccion Urdido' => '/urdido/modulo-produccion-urdido',
             'Módulo Producción Urdido' => '/urdido/modulo-produccion-urdido',
-            'Modulo Produccion Urdido' => '/urdido/modulo-produccion-urdido',
+            // 'Modulo Produccion Urdido' => '/urdido/modulo-produccion-urdido',
             'Configuración' => '/urdido/configuracion',
 
             // Módulos de Engomado
@@ -491,6 +491,7 @@ class ModuloService
             'Catalogo Maquinas' => '/urdido/catalogo-maquinas',
             'Catálogo Máquinas' => '/urdido/catalogo-maquinas',
             'Catálogo Maquinas' => '/urdido/catalogo-maquinas',
+            'Actividades BPM Urdido'=> '/urdido/configuracion/actividades-bpm',
 
         ];
 

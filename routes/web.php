@@ -400,6 +400,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/urdido/configuracion', fn() => app(UsuarioController::class)->showSubModulosNivel3('304'))
         ->name('urdido.configuracion');
 
+    // Actividades BPM Urdido
+    Route::get('/urdido/configuracion/actividades-bpm', function() {
+        return view('modulos.urdido.ActBpmUrd.index');
+    })->name('urdido.configuracion.actividades-bpm');
+
     // Ruta genérica para compatibilidad (solo para otros IDs no especificados arriba)
     Route::get('/submodulos-nivel3/{moduloPadre}', [UsuarioController::class, 'showSubModulosNivel3'])->name('submodulos.nivel3');
 
