@@ -68,10 +68,10 @@
 
   <!-- ====== Modal Notificar Montado de Julio ====== -->
   <div id="modalTelaresNotificar" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
-    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4">
       <!-- Header del Modal -->
-      <div class="flex items-center justify-between p-6 border-b border-gray-200">
-        <h2 class="text-xl font-bold text-gray-800">Telares Asignados</h2>
+      <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <h2 class="text-xl font-bold text-gray-800">Notificar Montado de Julio</h2>
         <button type="button" onclick="cerrarModalTelares()" class="text-gray-400 hover:text-gray-600 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -81,38 +81,102 @@
 
       <!-- Body del Modal -->
       <div class="p-6">
-        <!-- Filtros de Tipo -->
-        <div class="mb-6 flex gap-4">
-          <label class="inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="checkRizoModal" class="form-checkbox h-5 w-5 text-blue-600 rounded">
-            <span class="ml-2 text-gray-700 font-medium">Rizo</span>
-          </label>
-          
-          <label class="inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="checkPieModal" class="form-checkbox h-5 w-5 text-blue-600 rounded">
-            <span class="ml-2 text-gray-700 font-medium">Pie</span>
-          </label>
+        <!-- Formulario de Selección -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <!-- Select de Telar -->
+          <div>
+            <label for="selectTelar" class="block text-sm font-medium text-gray-700 mb-2">
+              Seleccionar Telar
+            </label>
+            <select id="selectTelar" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">-- Seleccione un telar --</option>
+            </select>
+          </div>
+
+          <!-- Checkboxes de Tipo -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
+            <div class="flex gap-4 items-center h-10">
+              <label class="inline-flex items-center cursor-pointer">
+                <input type="radio" name="tipoTelar" id="radioRizo" value="rizo" class="form-radio h-5 w-5 text-blue-600">
+                <span class="ml-2 text-gray-700 font-medium">Rizo</span>
+              </label>
+              
+              <label class="inline-flex items-center cursor-pointer">
+                <input type="radio" name="tipoTelar" id="radioPie" value="pie" class="form-radio h-5 w-5 text-blue-600">
+                <span class="ml-2 text-gray-700 font-medium">Pie</span>
+              </label>
+            </div>
+          </div>
         </div>
 
-        <!-- Tabla de Telares -->
-        <div class="overflow-x-auto max-h-96">
-          <table class="min-w-full bg-white border border-gray-300 rounded-lg">
-            <thead class="bg-gray-100 sticky top-0">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">Telar</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">Tipo</th>
-              </tr>
-            </thead>
-            <tbody id="tablaTelaresBody" class="divide-y divide-gray-200">
-              <!-- Se llenará dinámicamente -->
-            </tbody>
-          </table>
+        <!-- Detalles del Telar -->
+        <div id="detallesTelar" class="hidden bg-gradient-to-br from-blue-50 to-gray-50 rounded-lg p-6 border-2 border-blue-200">
+          <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+            <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+            Información del Telar
+          </h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">No. Telar</label>
+              <input type="text" id="detalle_no_telar" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Cuenta</label>
+              <input type="text" id="detalle_cuenta" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Calibre</label>
+              <input type="text" id="detalle_calibre" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Tipo</label>
+              <input type="text" id="detalle_tipo" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Tipo Atado</label>
+              <input type="text" id="detalle_tipo_atado" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">No. Orden</label>
+              <input type="text" id="detalle_no_orden" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">No. Julio</label>
+              <input type="text" id="detalle_no_julio" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Metros</label>
+              <input type="text" id="detalle_metros" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Hora Paro</label>
+            </div>
+              <input type="text" id="detalle_hora_paro" readonly class="w-full px-3 py-2 bg-green-50 border border-green-300 rounded-md text-2xl font-bold text-green-700 text-center">
+          </div>
+        </div>
+
+        <!-- Mensaje cuando no hay datos -->
+        <div id="mensajeNoData" class="hidden bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-yellow-700">No se encontraron datos para el telar y tipo seleccionados.</p>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Footer del Modal -->
-      <div class="flex justify-end p-6 border-t border-gray-200">
-        <button type="button" onclick="cerrarModalTelares()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">Cerrar</button>
+      <div class="flex justify-end gap-3 p-2 border-t border-gray-200">
+        <button type="button" onclick="notificarTelares()" class="px-4 py-2 bg-blue-400 hover:bg-blue-600 text-white rounded-lg transition-colors">
+          Notificar
+        </button>
+        <button type="button" onclick="cerrarModalTelares()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+          Cerrar
+        </button>
       </div>
     </div>
   </div>
@@ -136,19 +200,30 @@
     window.resetColumnsSpin = resetColumnsSpin;
 
     // Funciones para modal de telares
-    let telaresData = [];
-    let tipoFiltroActual = null;
+    let telaresUsuario = [];
+    let registroActualId = null;
 
     async function abrirModalTelares() {
       try {
-        const response = await fetch('{{ route('notificar.montado.julios') }}', {
+        const response = await fetch('{{ route('notificar.montado.julios') }}?listado=1', {
           headers: {
             'X-Requested-With': 'XMLHttpRequest'
           }
         });
         const data = await response.json();
-        telaresData = data.telares;
-        renderTelares();
+        telaresUsuario = data.telares;
+        
+        // Llenar el select con los telares
+        const select = document.getElementById('selectTelar');
+        select.innerHTML = '<option value="">-- Seleccione un telar --</option>';
+        
+        telaresUsuario.forEach(telar => {
+          const option = document.createElement('option');
+          option.value = telar;
+          option.textContent = telar;
+          select.appendChild(option);
+        });
+        
         document.getElementById('modalTelaresNotificar').style.display = 'flex';
       } catch (error) {
         console.error('Error al cargar telares:', error);
@@ -157,70 +232,151 @@
 
     function cerrarModalTelares() {
       document.getElementById('modalTelaresNotificar').style.display = 'none';
-      tipoFiltroActual = null;
-      document.getElementById('checkRizoModal').checked = false;
-      document.getElementById('checkPieModal').checked = false;
+      document.getElementById('selectTelar').value = '';
+      document.getElementById('radioRizo').checked = false;
+      document.getElementById('radioPie').checked = false;
+      document.getElementById('detallesTelar').classList.add('hidden');
+      document.getElementById('mensajeNoData').classList.add('hidden');
+      registroActualId = null;
     }
 
-    function renderTelares() {
-      const tbody = document.getElementById('tablaTelaresBody');
-      let telaresFiltrados = telaresData;
+    async function buscarDetallesTelar() {
+      const telar = document.getElementById('selectTelar').value;
+      const tipo = document.querySelector('input[name="tipoTelar"]:checked')?.value;
 
-      if (tipoFiltroActual) {
-        telaresFiltrados = telaresData.filter(t => t.tipo === tipoFiltroActual);
+      // Validar que ambos campos estén llenos
+      if (!telar || !tipo) {
+        return; // No hacer nada si falta algún campo
       }
 
-      if (telaresFiltrados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="2" class="px-6 py-4 text-center text-sm text-gray-500">No hay telares asignados o no coinciden con el filtro seleccionado</td></tr>';
+      try {
+        const response = await fetch(`{{ route('notificar.montado.julios') }}?no_telar=${telar}&tipo=${tipo}`, {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+        const data = await response.json();
+
+        // Ocultar mensaje de error
+        document.getElementById('mensajeNoData').classList.add('hidden');
+        
+        if (data.detalles) {
+          registroActualId = data.detalles.id;
+          mostrarDetallesTelar(data.detalles);
+        } else {
+          document.getElementById('detallesTelar').classList.add('hidden');
+          document.getElementById('mensajeNoData').classList.remove('hidden');
+          registroActualId = null;
+        }
+      } catch (error) {
+        console.error('Error al cargar detalles del telar:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error al buscar los detalles del telar',
+          confirmButtonColor: '#3b82f6'
+        });
+      }
+    }
+
+    async function notificarTelares(){
+      if (!registroActualId) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sin registro',
+          text: 'Por favor seleccione un telar y tipo primero',
+          confirmButtonColor: '#3b82f6'
+        });
         return;
       }
 
-      tbody.innerHTML = telaresFiltrados.map(telar => `
-        <tr class="hover:bg-gray-50">
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${telar.no_telar}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${telar.tipo === 'rizo' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
-              ${telar.tipo.charAt(0).toUpperCase() + telar.tipo.slice(1)}
-            </span>
-          </td>
-        </tr>
-      `).join('');
+      // Obtener la hora actual del input
+      const horaParo = document.getElementById('detalle_hora_paro').value;
+      
+      if (!horaParo) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sin hora',
+          text: 'No hay hora registrada para notificar',
+          confirmButtonColor: '#3b82f6'
+        });
+        return;
+      }
+
+      try {
+        const response = await fetch('{{ route('notificar.montado.julios.notificar') }}', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+          },
+          body: JSON.stringify({
+            id: registroActualId,
+            horaParo: horaParo
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Notificado',
+            text: data.message,
+            confirmButtonColor: '#3b82f6',
+            timer: 2000
+          });
+        } else {
+          throw new Error(data.error || 'Error al notificar');
+        }
+      } catch (error) {
+        console.error('Error al notificar:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error al notificar el telar',
+          confirmButtonColor: '#3b82f6'
+        });
+      }
     }
 
-    // Event listeners para checkboxes
+    function mostrarDetallesTelar(detalles) {
+      document.getElementById('detalle_no_telar').value = detalles.no_telar || '';
+      document.getElementById('detalle_cuenta').value = detalles.cuenta || '';
+      document.getElementById('detalle_calibre').value = detalles.calibre || '';
+      document.getElementById('detalle_tipo').value = detalles.tipo || '';
+      document.getElementById('detalle_tipo_atado').value = detalles.tipo_atado || '';
+      document.getElementById('detalle_no_orden').value = detalles.no_orden || '';
+      document.getElementById('detalle_no_julio').value = detalles.no_julio || '';
+      document.getElementById('detalle_metros').value = detalles.metros || '';
+      
+      // Siempre insertar la hora actual
+      const horaParo = new Date().toLocaleTimeString('es-MX', { hour12: false });
+      document.getElementById('detalle_hora_paro').value = horaParo;
+      
+      document.getElementById('detallesTelar').classList.remove('hidden');
+    }
+
+    // Event listeners
     document.addEventListener('DOMContentLoaded', function() {
-      const checkRizo = document.getElementById('checkRizoModal');
-      const checkPie = document.getElementById('checkPieModal');
-
-      if (checkRizo) {
-        checkRizo.addEventListener('change', function() {
-          if (this.checked) {
-            checkPie.checked = false;
-            tipoFiltroActual = 'rizo';
-          } else {
-            tipoFiltroActual = null;
-          }
-          renderTelares();
-        });
-      }
-
-      if (checkPie) {
-        checkPie.addEventListener('change', function() {
-          if (this.checked) {
-            checkRizo.checked = false;
-            tipoFiltroActual = 'pie';
-          } else {
-            tipoFiltroActual = null;
-          }
-          renderTelares();
-        });
-      }
-
       // Cerrar modal al hacer clic fuera
       document.getElementById('modalTelaresNotificar')?.addEventListener('click', function(event) {
         if (event.target === this) {
           cerrarModalTelares();
         }
+      });
+
+      // Buscar automáticamente cuando cambie el select de telar
+      document.getElementById('selectTelar')?.addEventListener('change', function() {
+        buscarDetallesTelar();
+      });
+
+      // Buscar automáticamente cuando cambie el tipo (rizo/pie)
+      document.querySelectorAll('input[name="tipoTelar"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+          buscarDetallesTelar();
+        });
       });
     });
   </script>

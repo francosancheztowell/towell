@@ -676,6 +676,7 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
 
     // Notificar Montado de Julios (fuera del grupo para acceso desde módulos)
     Route::get('/tejedores/notificar-montado-julios', [App\Http\Controllers\NotificarMontadoJulioController::class, 'index'])->name('notificar.montado.julios');
+    Route::post('/tejedores/notificar-montado-julios/notificar', [App\Http\Controllers\NotificarMontadoJulioController::class, 'notificar'])->name('notificar.montado.julios.notificar');
 
     // ============================================
     // RUTAS DIRECTAS (COMPATIBILIDAD)
