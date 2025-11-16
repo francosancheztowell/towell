@@ -915,6 +915,47 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         return view('mantenimiento.nuevo-paro.index');
     })->name('mantenimiento.nuevo-paro');
 
+    // API para obtener departamentos únicos
+    Route::get('/api/mantenimiento/departamentos', function () {
+        $departamentos = \App\Models\URDCatalogoMaquina::select('Departamento')
+            ->distinct()
+            ->orderBy('Departamento')
+            ->pluck('Departamento');
+        
+        return response()->json([
+            'success' => true,
+            'data' => $departamentos
+        ]);
+    })->name('api.mantenimiento.departamentos');
+
+    // API para obtener máquinas por departamento
+    Route::get('/api/mantenimiento/maquinas/{departamento}', function ($departamento) {
+        $maquinas = \App\Models\URDCatalogoMaquina::where('Departamento', $departamento)
+            ->orderBy('MaquinaId')
+            ->get(['MaquinaId', 'Nombre', 'Departamento']);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $maquinas
+        ]);
+    })->name('api.mantenimiento.maquinas');
+
+    // API para obtener tipos de falla
+    Route::get('/api/mantenimiento/tipos-falla', function () {
+        $tiposFalla = \App\Models\CatTipoFalla::orderBy('TipoFallaId')
+            ->pluck('TipoFallaId');
+        
+        return response()->json([
+            'success' => true,
+            'data' => $tiposFalla
+        ]);
+    })->name('api.mantenimiento.tipos-falla');
+
+    // Reporte de Fallos y Paros
+    Route::get('/mantenimientos/reporte-fallos-paros', function () {
+        return view('mantenimiento.reporte-fallos-paros.index');
+    })->name('mantenimiento.reporte-fallos-paros');
+
     // ============================================
     // RUTAS DE PRODUCCIÓN URD ENGOMADO
     // ============================================

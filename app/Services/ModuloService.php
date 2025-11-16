@@ -467,6 +467,10 @@ class ModuloService
             // Módulos de Programa Urd/Eng
             'Reservar y Programar' => '/programa-urd-eng/reservar-programar',
 
+            // Módulos de Mantenimiento
+            'Reportes' => '/mantenimientos/reporte-fallos-paros',
+            'Reportes Mantenimiento' => '/mantenimientos/reporte-fallos-paros',
+
             // Módulos de configuración
             'Usuarios' => '/configuracion/usuarios/select',
             'Parametros' => '/configuracion/parametros',
