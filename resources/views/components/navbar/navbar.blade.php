@@ -36,8 +36,8 @@
 
               @php
                   // Verificar si el usuario tiene acceso al módulo Configuración
-                  // Ocultar el icono en la vista de usuarios
-                  $mostrarIconoConfiguracion = !request()->routeIs('configuracion.usuarios.*');
+                  // Solo mostrar el icono en la pantalla principal (produccionProceso)
+                  $mostrarIconoConfiguracion = Route::currentRouteName() === 'produccion.index';
                   $tieneConfiguracion = false;
                   if (Auth::check() && $mostrarIconoConfiguracion) {
                       $moduloService = app(ModuloService::class);
@@ -200,10 +200,13 @@
                       <i id="iconResetColumns" class="fa-solid fa-rotate"></i>
                     </button>
 
-                    <!-- Grupo 3: Catálogos (icono) -->
-                    <a href="{{ route('catalogos.index') }}" class="w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors" title="Catálogos" aria-label="Catálogos">
-                      <i class="fa-solid fa-database"></i>
-                    </a>
+
+                    <!-- Grupo 4: Actualizar Simulación (icono de subir) -->
+                    <button type="button" id="btnActualizarSimulacion"
+                            class="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+                            title="Actualizar Simulación (eliminar y duplicar datos)" aria-label="Actualizar Simulación">
+                      <i class="fa-solid fa-upload"></i>
+                    </button>
                   </div>
 
                   <!-- Prioridad (solo si hay selección) -->
@@ -236,7 +239,7 @@
 
                             @yield('navbar-right')
 
-              @if(!request()->routeIs('catalogos.req-programa-tejido') && !request()->routeIs('programa.urd.eng.reservar.programar'))
+              @if(!request()->routeIs('catalogos.req-programa-tejido') && !request()->routeIs('programa.urd.eng.reservar.programar') && !request()->is('simulacion*'))
                 <a href="{{ url('mantenimiento/nuevo-paro') }}"
                         class="bg-yellow-400 hover:bg-yellow-500 flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors">
                   <i class="fas fa-exclamation-triangle"></i>

@@ -813,7 +813,7 @@
                     console.log('Redirigiendo con datos:', { salon, claveModelo, tamano, articulo, datos });
 
                     // Redirigir con parámetros
-                    const url = new URL('{{ route("programa-tejido.pronosticos.nuevo") }}', window.location.origin);
+                    const url = new URL('{{ route("simulacion.pronosticos.nuevo") }}', window.location.origin);
                     if (datos?.IDFLOG) url.searchParams.set('idflog', datos.IDFLOG);
                     if (articulo) url.searchParams.set('itemid', articulo);
                     if (tamano) url.searchParams.set('inventsizeid', tamano);

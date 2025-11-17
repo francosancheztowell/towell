@@ -9,10 +9,7 @@
     <button id="btnRestablecer" type="button" class="inline-flex items-center justify-center w-9 h-9 text-base rounded-full text-white bg-gray-600 hover:bg-gray-700 ml-2" title="Restablecer">
         <i class="fa-solid fa-rotate"></i>
     </button>
-    <button id="btnProgramar"
-            class="hidden bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm ml-2">
-        <i class="fa-solid fa-plus mr-1"></i> Programar
-    </button>
+    <x-navbar.button-create id="btnProgramarNavbar" onclick="handleProgramarAlta()" title="Programar" />
 @endsection
 
 @section('content')
@@ -449,7 +446,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
-    const btnProgramar = document.getElementById('btnProgramar');
+    const btnProgramarNavbar = document.getElementById('btnProgramarNavbar');
     let current = null;
 
     // helpers para chips (badges)
@@ -512,11 +509,20 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updateButtonVisibility() {
-        if (current) btnProgramar.classList.remove('hidden');
-        else btnProgramar.classList.add('hidden');
+        if (current) {
+            btnProgramarNavbar.style.display = 'flex';
+            btnProgramarNavbar.disabled = false;
+        } else {
+            btnProgramarNavbar.style.display = 'none';
+            btnProgramarNavbar.disabled = true;
+        }
     }
 
-    btnProgramar.onclick = async () => {
+    // Inicializar visibilidad del botón
+    updateButtonVisibility();
+
+    // Función global para manejar el clic del botón del navbar
+    window.handleProgramarAlta = async () => {
         if (!current) return;
         const idflog       = current.dataset.idflog || '';
         const itemid       = current.dataset.itemid || '';
@@ -795,7 +801,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const { salon, claveModelo } = swalRes.value || { salon:'', claveModelo:'' };
 
         // Redirigir con parámetros (solo si llegamos aquí, significa que el modelo existe)
-        const url = new URL('{{ route("programa-tejido.altas-especiales.nuevo") }}', window.location.origin);
+        const url = new URL('{{ route("simulacion.altas-especiales.nuevo") }}', window.location.origin);
         url.searchParams.set('idflog', idflog);
         if (itemid)       url.searchParams.set('itemid', itemid);
         if (inventsizeid) url.searchParams.set('inventsizeid', inventsizeid);

@@ -890,8 +890,8 @@ function showLoading() {
         loader.style.alignItems = 'center';
         loader.style.justifyContent = 'center';
         loader.innerHTML = `
-            <div class="bg-white p-5 rounded-lg shadow-lg flex items-center justify-center">
-                <div class="w-10 h-10 border-4 border-gray-200 border-t-stone-700 rounded-full animate-spin"></div>
+            <div class="bg-white rounded-lg shadow-lg flex items-center justify-center p-5">
+                <i class="fa-solid fa-spinner fa-spin text-stone-700 text-5xl"></i>
             </div>
         `;
         document.body.appendChild(loader);
@@ -1273,10 +1273,20 @@ window.applyTableFilters = function (values) {
 // ===================== Llenar Simulación =====================
 document.getElementById('btnLlenarSimulacion')?.addEventListener('click', function () {
     Swal.fire({
-        title: '¿Duplicar datos de Programa de Tejido?',
+        title: '¿Llenar Simulación?',
+        html: `
+            <div class="text-left">
+                <p class="text-sm text-gray-700 mb-3">
+                    Se duplicarán los datos de Programa de Tejido a la simulación.
+                </p>
+                <p class="text-xs text-gray-600">
+                    Si ya existen datos en la simulación, estos serán eliminados antes de duplicar los nuevos datos.
+                </p>
+            </div>
+        `,
         icon: 'question',
         showCancelButton: true,
-        confirmButtonText: 'Sí, duplicar datos',
+        confirmButtonText: 'Sí, llenar simulación',
         cancelButtonText: 'Cancelar',
         confirmButtonColor: '#44403c',
         cancelButtonColor: '#6b7280',
@@ -1297,10 +1307,16 @@ document.getElementById('btnLlenarSimulacion')?.addEventListener('click', functi
                 .then(data => {
                     hideLoading();
                     if (data.success) {
+                        const mensajeEliminados = (data.data.registros_eliminados > 0 || data.data.lineas_eliminadas > 0)
+                            ? `<p class="text-xs text-gray-500 mb-2">
+                                    Se eliminaron <strong>${data.data.registros_eliminados}</strong> registro(s) y <strong>${data.data.lineas_eliminadas}</strong> línea(s) anteriores.
+                                </p>`
+                            : '';
                         Swal.fire({
                             title: '¡Éxito!',
                             html: `
                                 <p class="text-sm text-gray-700 mb-2">${data.message}</p>
+                                ${mensajeEliminados}
                                 <p class="text-xs text-gray-500">
                                     Se crearon <strong>${data.data.registros}</strong> registro(s) y <strong>${data.data.lineas}</strong> línea(s).
                                 </p>
@@ -1326,6 +1342,84 @@ document.getElementById('btnLlenarSimulacion')?.addEventListener('click', functi
                     Swal.fire({
                         title: 'Error',
                         text: 'Ocurrió un error al duplicar los datos. Por favor intenta nuevamente.',
+                        icon: 'error',
+                        confirmButtonColor: '#dc2626'
+                    });
+                });
+        }
+    });
+});
+
+// ===================== Actualizar Simulación (desde navbar) =====================
+document.getElementById('btnActualizarSimulacion')?.addEventListener('click', function () {
+    Swal.fire({
+        title: '¿Actualizar Simulación?',
+        html: `
+            <div class="text-left">
+                <p class="text-sm text-gray-700 mb-3">
+                    Esta acción eliminará <strong>todos los datos actuales</strong> de la simulación y los reemplazará con los datos más recientes de Programa de Tejido.
+                </p>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, actualizar simulación',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#44403c',
+        cancelButtonColor: '#6b7280',
+        width: '550px',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostrar loader
+            showLoading();
+
+            fetch('{{ route("simulacion.duplicar-datos") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading();
+                    if (data.success) {
+                        Swal.fire({
+                            title: '¡Simulación Actualizada!',
+                            html: `
+                                <div class="text-left">
+                                    <p class="text-sm text-gray-700 mb-3">${data.message}</p>
+                                    <div class="bg-gray-50 p-3 rounded-lg">
+                                        <p class="text-xs text-gray-600 mb-1">
+                                            <strong>Datos eliminados:</strong> ${data.data.registros_eliminados} registro(s) y ${data.data.lineas_eliminadas} línea(s)
+                                        </p>
+                                        <p class="text-xs text-gray-600">
+                                            <strong>Datos creados:</strong> ${data.data.registros} registro(s) y ${data.data.lineas} línea(s)
+                                        </p>
+                                    </div>
+                                </div>
+                            `,
+                            icon: 'success',
+                            confirmButtonColor: '#44403c',
+                            confirmButtonText: 'Recargar página'
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error',
+                            text: data.message || 'No se pudo actualizar la simulación',
+                            icon: 'error',
+                            confirmButtonColor: '#dc2626'
+                        });
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    console.error('Error:', error);
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'Ocurrió un error al actualizar la simulación. Por favor intenta nuevamente.',
                         icon: 'error',
                         confirmButtonColor: '#dc2626'
                     });

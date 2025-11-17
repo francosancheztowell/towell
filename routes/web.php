@@ -39,6 +39,7 @@ use App\Http\Controllers\TelBpmLineController;
 use App\Http\Controllers\TelTelaresOperadorController;
 use App\Http\Controllers\MantenimientoParosController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoController;
+use App\Http\Controllers\Simulaciones\SimulacionComprasEspecialesController;
 use App\Http\Controllers\MarcasFinalesController;
 use App\Http\Controllers\MarcasController;
 use App\Models\SYSRoles;
@@ -748,9 +749,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     })->name('alta-pronosticos');
 
     // Altas especiales de simulación
-    Route::get('/altas-especiales', function() {
-        return view('modulos.simulacion.altas-especiales', ['registros' => []]);
-    })->name('altas-especiales');
+    Route::get('/altas-especiales', [App\Http\Controllers\Simulaciones\SimulacionComprasEspecialesController::class, 'index'])->name('altas-especiales');
 
     // Rutas para crear nuevo
     Route::get('/nuevo', function() {
@@ -761,9 +760,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
         return view('modulos.simulacion.simulacionform.pronosticos');
     })->name('pronosticos.nuevo');
 
-    Route::get('/altas-especiales/nuevo', function() {
-        return view('modulos.simulacion.simulacionform.altas');
-    })->name('altas-especiales.nuevo');
+    Route::get('/altas-especiales/nuevo', [App\Http\Controllers\Simulaciones\SimulacionComprasEspecialesController::class, 'nuevo'])->name('altas-especiales.nuevo');
 
     // Rutas para catálogos y helpers (deben ir ANTES de las rutas con {id})
     Route::get('/salon-tejido-options', [SimulacionProgramaTejidoController::class, 'getSalonTejidoOptions'])->name('salon-tejido-options');
@@ -774,7 +771,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/descripcion-by-idflog/{idflog}', [SimulacionProgramaTejidoController::class, 'getDescripcionByIdFlog'])->name('descripcion-by-idflog');
     Route::get('/calendario-id-options', [SimulacionProgramaTejidoController::class, 'getCalendarioIdOptions'])->name('calendario-id-options');
     Route::get('/aplicacion-id-options', [SimulacionProgramaTejidoController::class, 'getAplicacionIdOptions'])->name('aplicacion-id-options');
-    Route::get('/datos-relacionados', [SimulacionProgramaTejidoController::class, 'getDatosRelacionados'])->name('datos-relacionados');
+    Route::post('/datos-relacionados', [SimulacionProgramaTejidoController::class, 'getDatosRelacionados'])->name('datos-relacionados');
     Route::get('/telares-by-salon', [SimulacionProgramaTejidoController::class, 'getTelaresBySalon'])->name('telares-by-salon');
     Route::get('/ultima-fecha-final-telar', [SimulacionProgramaTejidoController::class, 'getUltimaFechaFinalTelar'])->name('ultima-fecha-final-telar');
     Route::get('/ultimo-registro-salon', [SimulacionProgramaTejidoController::class, 'getUltimoRegistroSalon'])->name('ultimo-registro-salon');

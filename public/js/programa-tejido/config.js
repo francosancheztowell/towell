@@ -1,24 +1,29 @@
 /**
  * Configuración global para el módulo de Programa de Tejido
  */
+// Detectar si estamos en simulación
+const isSimulacion = window.location.pathname.includes('/simulacion');
+const basePath = isSimulacion ? '/simulacion' : '/planeacion/programa-tejido';
+const apiBasePath = isSimulacion ? '/simulacion' : '/programa-tejido';
+
 window.ProgramaTejidoConfig = {
     // URLs de API
     api: {
-        salon: '/programa-tejido/salon-options',
-        telaresBySalon: '/programa-tejido/telares-by-salon',
-        tamanoClaveBySalon: '/programa-tejido/tamano-clave-by-salon',
-        ultimaFechaFinalTelar: '/programa-tejido/ultima-fecha-final-telar',
-        hilos: '/programa-tejido/hilos-options',
-        flogsId: '/programa-tejido/flogs-id-options',
-        flogsIdFromTwFlogs: '/programa-tejido/flogs-id-from-twflogs',
-        descripcionByIdFlog: '/programa-tejido/descripcion-by-idflog',
-        calendarioId: '/programa-tejido/calendario-id-options',
-        aplicacionId: '/programa-tejido/aplicacion-id-options',
-        datosRelacionados: '/programa-tejido/datos-relacionados',
-        eficienciaStd: '/programa-tejido/eficiencia-std',
-        velocidadStd: '/programa-tejido/velocidad-std',
-        guardar: '/planeacion/programa-tejido',
-        actualizar: '/planeacion/programa-tejido/'
+        salon: `${apiBasePath}/salon-tejido-options`,
+        telaresBySalon: `${apiBasePath}/telares-by-salon`,
+        tamanoClaveBySalon: `${apiBasePath}/tamano-clave-by-salon`,
+        ultimaFechaFinalTelar: `${apiBasePath}/ultima-fecha-final-telar`,
+        hilos: `${apiBasePath}/hilos-options`,
+        flogsId: `${apiBasePath}/flogs-id-options`,
+        flogsIdFromTwFlogs: `${apiBasePath}/flogs-id-from-twflogs-table`,
+        descripcionByIdFlog: `${apiBasePath}/descripcion-by-idflog`,
+        calendarioId: `${apiBasePath}/calendario-id-options`,
+        aplicacionId: `${apiBasePath}/aplicacion-id-options`,
+        datosRelacionados: `${apiBasePath}/datos-relacionados`,
+        eficienciaStd: `${apiBasePath}/eficiencia-std`,
+        velocidadStd: `${apiBasePath}/velocidad-std`,
+        guardar: basePath,
+        actualizar: `${basePath}/`
     },
 
     // Mapeo de campos entre DB y UI

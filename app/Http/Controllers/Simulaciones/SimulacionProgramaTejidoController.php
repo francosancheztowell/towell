@@ -1221,85 +1221,148 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
         try {
             DB::beginTransaction();
 
+            // Primero, eliminar todos los datos existentes en las tablas de simulación
+            $registrosEliminados = SimulacionProgramaTejido::count();
+            $lineasEliminadas = SimulacionProgramaTejidoLine::count();
+
+            // Eliminar líneas primero (por la relación de clave foránea)
+            SimulacionProgramaTejidoLine::truncate();
+            // Luego eliminar los registros principales
+            SimulacionProgramaTejido::truncate();
+
             // Obtener todos los registros de ReqProgramaTejido
             $registrosOriginales = ReqProgramaTejido::all();
             $totalRegistros = $registrosOriginales->count();
-            $totalLineas = 0;
-            $registrosDuplicados = 0;
-            $lineasDuplicadas = 0;
 
             if ($totalRegistros === 0) {
+                DB::commit();
                 return response()->json([
                     'success' => false,
                     'message' => 'No hay datos en Programa de Tejido para duplicar'
                 ], 400);
             }
 
-            // Obtener las columnas reales de la tabla de destino
+            // Obtener las columnas reales de la tabla de destino (una sola vez)
             $tablaDestino = (new SimulacionProgramaTejido())->getTable();
             $columnasDestino = DB::getSchemaBuilder()->getColumnListing($tablaDestino);
             $columnasDestino = array_diff($columnasDestino, ['Id']); // Excluir Id
 
-            // Mapeo de IDs originales a nuevos IDs
-            $mapaIds = [];
+            // Preparar arrays para inserción masiva
+            $datosRegistros = [];
+            $idsOriginales = [];
 
+            // Preparar todos los datos de registros principales
             foreach ($registrosOriginales as $original) {
-                // Obtener todos los atributos del registro original
                 $atributosOriginales = $original->getAttributes();
-
-                // Crear array de datos solo con campos que existen en la tabla de destino
                 $datosNuevos = [];
                 foreach ($columnasDestino as $campo) {
-                    // Solo copiar si el campo existe en el registro original
                     if (array_key_exists($campo, $atributosOriginales)) {
                         $datosNuevos[$campo] = $atributosOriginales[$campo];
                     }
                 }
+                $datosRegistros[] = $datosNuevos;
+                $idsOriginales[] = $original->Id;
+            }
 
-                // Crear nuevo registro en SimulacionProgramaTejido
-                $nuevo = SimulacionProgramaTejido::create($datosNuevos);
-                $mapaIds[$original->Id] = $nuevo->Id;
-                $registrosDuplicados++;
+            // Insertar registros principales en lotes para evitar el límite de 2100 parámetros de SQL Server
+            $tablaSimulacion = (new SimulacionProgramaTejido())->getTable();
 
-                // Obtener las líneas del registro original
-                $lineasOriginales = ReqProgramaTejidoLine::where('ProgramaId', $original->Id)->get();
-                $totalLineas += $lineasOriginales->count();
+            // Calcular el tamaño del lote basado en el número de columnas
+            // SQL Server tiene un límite de 2100 parámetros, así que dividimos por el número de columnas
+            $numColumnas = count($columnasDestino);
+            $tamanoLote = max(1, floor(2000 / $numColumnas)); // Usamos 2000 para estar seguros
 
-                // Duplicar las líneas
-                foreach ($lineasOriginales as $lineaOriginal) {
-                    $datosLinea = [
-                        'ProgramaId' => $nuevo->Id, // Usar el nuevo ID
-                        'Fecha' => $lineaOriginal->Fecha,
-                        'Cantidad' => $lineaOriginal->Cantidad,
-                        'Kilos' => $lineaOriginal->Kilos,
-                        'Aplicacion' => $lineaOriginal->Aplicacion,
-                        'Trama' => $lineaOriginal->Trama,
-                        'Combina1' => $lineaOriginal->Combina1,
-                        'Combina2' => $lineaOriginal->Combina2,
-                        'Combina3' => $lineaOriginal->Combina3,
-                        'Combina4' => $lineaOriginal->Combina4,
-                        'Combina5' => $lineaOriginal->Combina5,
-                        'Pie' => $lineaOriginal->Pie,
-                        'Rizo' => $lineaOriginal->Rizo,
-                        'MtsRizo' => $lineaOriginal->MtsRizo,
-                        'MtsPie' => $lineaOriginal->MtsPie,
-                    ];
-                    SimulacionProgramaTejidoLine::create($datosLinea);
-                    $lineasDuplicadas++;
+            // Obtener el último ID antes de insertar
+            $ultimoIdAntes = DB::table($tablaSimulacion)->max('Id') ?? 0;
+
+            // Insertar en lotes
+            $mapaIds = [];
+            $chunks = array_chunk($datosRegistros, $tamanoLote);
+            $chunkIds = array_chunk($idsOriginales, $tamanoLote);
+
+            foreach ($chunks as $chunkIndex => $chunk) {
+                // Insertar el lote
+                DB::table($tablaSimulacion)->insert($chunk);
+
+                // Obtener los IDs recién insertados para este lote
+                $ultimoIdDespues = DB::table($tablaSimulacion)->max('Id') ?? $ultimoIdAntes;
+                $cantidadInsertada = count($chunk);
+                $primerIdNuevo = $ultimoIdDespues - $cantidadInsertada + 1;
+
+                // Crear mapeo para este lote
+                $idsChunk = $chunkIds[$chunkIndex];
+                for ($i = 0; $i < $cantidadInsertada; $i++) {
+                    if (isset($idsChunk[$i])) {
+                        $mapaIds[$idsChunk[$i]] = $primerIdNuevo + $i;
+                    }
+                }
+
+                $ultimoIdAntes = $ultimoIdDespues;
+            }
+
+            // Obtener todas las líneas de una vez (evitar N+1 queries)
+            $todasLasLineas = ReqProgramaTejidoLine::whereIn('ProgramaId', $idsOriginales)->get();
+
+            // Agrupar líneas por ProgramaId para mapeo eficiente
+            $lineasPorPrograma = [];
+            foreach ($todasLasLineas as $linea) {
+                if (!isset($lineasPorPrograma[$linea->ProgramaId])) {
+                    $lineasPorPrograma[$linea->ProgramaId] = [];
+                }
+                $lineasPorPrograma[$linea->ProgramaId][] = $linea;
+            }
+
+            // Preparar datos de líneas para inserción masiva
+            $datosLineas = [];
+            foreach ($mapaIds as $idOriginal => $idNuevo) {
+                if (isset($lineasPorPrograma[$idOriginal])) {
+                    foreach ($lineasPorPrograma[$idOriginal] as $lineaOriginal) {
+                        $datosLineas[] = [
+                            'ProgramaId' => $idNuevo,
+                            'Fecha' => $lineaOriginal->Fecha,
+                            'Cantidad' => $lineaOriginal->Cantidad,
+                            'Kilos' => $lineaOriginal->Kilos,
+                            'Aplicacion' => $lineaOriginal->Aplicacion,
+                            'Trama' => $lineaOriginal->Trama,
+                            'Combina1' => $lineaOriginal->Combina1,
+                            'Combina2' => $lineaOriginal->Combina2,
+                            'Combina3' => $lineaOriginal->Combina3,
+                            'Combina4' => $lineaOriginal->Combina4,
+                            'Combina5' => $lineaOriginal->Combina5,
+                            'Pie' => $lineaOriginal->Pie,
+                            'Rizo' => $lineaOriginal->Rizo,
+                            'MtsRizo' => $lineaOriginal->MtsRizo,
+                            'MtsPie' => $lineaOriginal->MtsPie,
+                        ];
+                    }
                 }
             }
 
-            DB::commit();
+            // Insertar todas las líneas en lotes calculados dinámicamente
+            $tablaLineas = (new SimulacionProgramaTejidoLine())->getTable();
+            $columnasLineas = DB::getSchemaBuilder()->getColumnListing($tablaLineas);
+            $columnasLineas = array_diff($columnasLineas, ['Id']); // Excluir Id
+            $numColumnasLineas = count($columnasLineas);
 
-            Log::info('Datos duplicados de Programa de Tejido a Simulación', [
-                'registros' => $registrosDuplicados,
-                'lineas' => $lineasDuplicadas
-            ]);
+            // Calcular tamaño del lote: dejar margen de seguridad (usar 2000 en lugar de 2100)
+            $tamanoLoteLineas = max(1, floor(2000 / $numColumnasLineas));
+
+            $chunks = array_chunk($datosLineas, $tamanoLoteLineas);
+            foreach ($chunks as $chunk) {
+                DB::table($tablaLineas)->insert($chunk);
+            }
+
+            $registrosDuplicados = $totalRegistros;
+            $lineasDuplicadas = count($datosLineas);
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => "Datos duplicados exitosamente. Se crearon {$registrosDuplicados} registro(s) y {$lineasDuplicadas} línea(s).",
+                'message' => "Simulación actualizada exitosamente. Se eliminaron {$registrosEliminados} registro(s) y {$lineasEliminadas} línea(s) anteriores. Se crearon {$registrosDuplicados} registro(s) y {$lineasDuplicadas} línea(s) nuevos.",
                 'data' => [
+                    'registros_eliminados' => $registrosEliminados,
+                    'lineas_eliminadas' => $lineasEliminadas,
                     'registros' => $registrosDuplicados,
                     'lineas' => $lineasDuplicadas
                 ]

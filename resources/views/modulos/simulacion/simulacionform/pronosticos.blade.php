@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-title', 'Simulación - Altas Especiales')
+@section('page-title', 'Simulación - Programar Pronóstico')
 
 @section('navbar-right')
 <button onclick="ProgramaTejidoCRUD.guardar()" class="bg-stone-600 hover:bg-stone-700 flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors">
@@ -45,8 +45,7 @@
                                 <tr>
                                     <td class="px-2 py-1 font-medium text-gray-800">Clave Modelo</td>
                                     <td class="px-2 py-1 relative">
-                                        <input  type="text" id="clave-modelo-input" placeholder="Escriba para buscar..." class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-stone-500 text-xs">
-                                        <div id="clave-modelo-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-b shadow-lg hidden max-h-40 overflow-y-auto"></div>
+                                        <input disabled type="text" id="clave-modelo-input" placeholder="Ingrese clave" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-stone-500 text-xs bg-gray-100">
                                     </td>
                                     <td class="px-2 py-1 font-medium text-gray-800">Cuenta Rizo</td>
                                 <td class="px-2 py-1"><input disabled type="text" id="cuenta-rizo" placeholder="Ingrese cuenta" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-stone-500 text-xs bg-gray-100"></td>
@@ -560,10 +559,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 console.log('✅ idflog-input encontrado, estableciendo valor:', Q.idflog);
                 setVal('idflog-input', Q.idflog, false); // No disparar eventos aún
-                // Deshabilitar el input si viene desde la URL
-                input.disabled = true;
-                input.classList.add('bg-gray-100');
-                input.classList.remove('bg-white');
             };
 
             // Intentar inmediatamente y con delays
@@ -644,42 +639,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (Q.idflog) {
                 if (idflogInput && idflogInput.value === Q.idflog) {
                     console.log('✅ idflog establecido correctamente:', Q.idflog);
-                    // Deshabilitar el input si viene desde la URL
-                    idflogInput.disabled = true;
-                    idflogInput.classList.add('bg-gray-100');
-                    idflogInput.classList.remove('bg-white');
-                    // Cargar descripción desde idflog si está disponible
-                    if (window.ProgramaTejidoForm && window.ProgramaTejidoForm.cargarDescripcionPorIdFlog) {
-                        window.ProgramaTejidoForm.cargarDescripcionPorIdFlog(Q.idflog);
-                    }
                 } else {
                     console.warn('⚠️ idflog-input no se estableció correctamente, reintentando...');
                     setVal('idflog-input', Q.idflog, false, true); // force=true
-                    // Deshabilitar el input si viene desde la URL
-                    if (idflogInput) {
-                        idflogInput.disabled = true;
-                        idflogInput.classList.add('bg-gray-100');
-                        idflogInput.classList.remove('bg-white');
-                    }
                     // Reintentar después de un delay adicional
                     setTimeout(() => {
                         const idflogInput2 = document.getElementById('idflog-input');
                         if (idflogInput2 && idflogInput2.value !== Q.idflog) {
                             setVal('idflog-input', Q.idflog, false, true); // force=true
-                            // Deshabilitar el input si viene desde la URL
-                            idflogInput2.disabled = true;
-                            idflogInput2.classList.add('bg-gray-100');
-                            idflogInput2.classList.remove('bg-white');
                         } else if (idflogInput2 && idflogInput2.value === Q.idflog) {
                             console.log('✅ idflog establecido correctamente en reintento:', Q.idflog);
-                            // Deshabilitar el input si viene desde la URL
-                            idflogInput2.disabled = true;
-                            idflogInput2.classList.add('bg-gray-100');
-                            idflogInput2.classList.remove('bg-white');
-                            // Cargar descripción desde idflog si está disponible
-                            if (window.ProgramaTejidoForm && window.ProgramaTejidoForm.cargarDescripcionPorIdFlog) {
-                                window.ProgramaTejidoForm.cargarDescripcionPorIdFlog(Q.idflog);
-                            }
                         }
                     }, 500);
                 }
@@ -704,13 +673,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         const descripcion = Q.nombreproyecto || Q.descripcion;
                         setVal('descripcion', descripcion, false, true); // force=true
                         console.log('✅ Descripción establecida desde URL:', descripcion);
-                    } else if (Q.idflog) {
-                        // Si hay idflog pero no hay descripción aún, intentar cargarla desde el idflog
-                        setTimeout(() => {
-                            if (window.ProgramaTejidoForm && window.ProgramaTejidoForm.cargarDescripcionPorIdFlog) {
-                                window.ProgramaTejidoForm.cargarDescripcionPorIdFlog(Q.idflog);
-                            }
-                        }, 300);
                     }
                 } else {
                     console.log('✅ Descripción ya establecida:', descripcionEl.value);
