@@ -7,7 +7,7 @@
 IMPORTANTE: Configura estas variables en tu archivo .env
 
 TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=2221130412
+TELEGRAM_CHAT_ID=
 
 ═══════════════════════════════════════════════════════════════
 PASOS PARA CONFIGURAR:
