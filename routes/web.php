@@ -38,6 +38,7 @@ use App\Http\Controllers\TelBpmController;
 use App\Http\Controllers\TelBpmLineController;
 use App\Http\Controllers\TelTelaresOperadorController;
 use App\Http\Controllers\UrdActividadesBpmController;
+use App\Http\Controllers\UrdBpmController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
 
@@ -401,6 +402,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/urdido/configuracion', fn() => app(UsuarioController::class)->showSubModulosNivel3('304'))
         ->name('urdido.configuracion');
 
+    // BPM Urdido - Redirigir al controlador
+    Route::get('/urdido/bpm', [UrdBpmController::class, 'index'])->name('urdido.bpm');
+
     // Actividades BPM Urdido - Redirigir al CRUD
     Route::get('/urdido/configuracion/actividades-bpm', function() {
         return redirect()->route('urd-actividades-bpm.index');
@@ -565,6 +569,11 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('urd-actividades-bpm', UrdActividadesBpmController::class)
         ->parameters(['urd-actividades-bpm' => 'urdActividadesBpm'])
         ->names('urd-actividades-bpm');
+
+    // BPM Urdido
+    Route::resource('urd-bpm', UrdBpmController::class)
+        ->parameters(['urd-bpm' => 'id'])
+        ->names('urd-bpm');
 
         Route::resource('tel-bpm', TelBpmController::class)
     ->parameters(['tel-bpm' => 'folio'])   // PK string

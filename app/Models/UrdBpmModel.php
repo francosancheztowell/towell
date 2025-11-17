@@ -9,7 +9,7 @@ class UrdBpmModel extends Model
 {
     use HasFactory;
 
-    // protected $connection = 'sqlsrv'; // o 'ProdTowel'
+    protected $connection = 'sqlsrv'; // o 'ProdTowel'
 
     protected $table = 'UrdBPM';
     protected $primaryKey = 'Id';     // En tu grid aparece Id
