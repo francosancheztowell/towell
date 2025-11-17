@@ -37,8 +37,10 @@ use App\Http\Controllers\TelActividadesBPMController;
 use App\Http\Controllers\TelBpmController;
 use App\Http\Controllers\TelBpmLineController;
 use App\Http\Controllers\TelTelaresOperadorController;
+use App\Http\Controllers\MantenimientoParosController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
 
 
 //Rutas de login, con logout, no protegidas por middleware
@@ -915,41 +917,45 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
         return view('modulos.mantenimiento.nuevo-paro.index');
     })->name('mantenimiento.nuevo-paro');
 
-    // API para obtener departamentos únicos
-    Route::get('/api/mantenimiento/departamentos', function () {
-        $departamentos = \App\Models\URDCatalogoMaquina::select('Departamento')
-            ->distinct()
-            ->orderBy('Departamento')
-            ->pluck('Departamento');
+    // Finalizar Paro de Maquina
+    Route::get('/mantenimiento/finalizar-paro', function () {
+        return view('modulos.mantenimiento.finalizar-paro.index');
+    })->name('mantenimiento.finalizar-paro');
 
-        return response()->json([
-            'success' => true,
-            'data' => $departamentos
-        ]);
-    })->name('api.mantenimiento.departamentos');
+    // API Mantenimiento (movido a controlador para no tener lógica en web.php)
+    Route::get('/api/mantenimiento/departamentos', [MantenimientoParosController::class, 'departamentos'])
+        ->name('api.mantenimiento.departamentos');
 
-    // API para obtener máquinas por departamento
-    Route::get('/api/mantenimiento/maquinas/{departamento}', function ($departamento) {
-        $maquinas = \App\Models\URDCatalogoMaquina::where('Departamento', $departamento)
-            ->orderBy('MaquinaId')
-            ->get(['MaquinaId', 'Nombre', 'Departamento']);
+    Route::get('/api/mantenimiento/maquinas/{departamento}', [MantenimientoParosController::class, 'maquinas'])
+        ->name('api.mantenimiento.maquinas');
 
-        return response()->json([
-            'success' => true,
-            'data' => $maquinas
-        ]);
-    })->name('api.mantenimiento.maquinas');
+    Route::get('/api/mantenimiento/tipos-falla', [MantenimientoParosController::class, 'tiposFalla'])
+        ->name('api.mantenimiento.tipos-falla');
 
-    // API para obtener tipos de falla
-    Route::get('/api/mantenimiento/tipos-falla', function () {
-        $tiposFalla = \App\Models\CatTipoFalla::orderBy('TipoFallaId')
-            ->pluck('TipoFallaId');
+    Route::get('/api/mantenimiento/fallas/{departamento}', [MantenimientoParosController::class, 'fallas'])
+        ->name('api.mantenimiento.fallas');
 
-        return response()->json([
-            'success' => true,
-            'data' => $tiposFalla
-        ]);
-    })->name('api.mantenimiento.tipos-falla');
+    Route::get('/api/mantenimiento/orden-trabajo/{departamento}/{maquina}', [MantenimientoParosController::class, 'ordenTrabajo'])
+        ->name('api.mantenimiento.orden-trabajo');
+
+    Route::get('/api/mantenimiento/operadores', [MantenimientoParosController::class, 'operadores'])
+        ->name('api.mantenimiento.operadores');
+
+    // Guardar paro/falla
+    Route::post('/api/mantenimiento/paros', [MantenimientoParosController::class, 'store'])
+        ->name('api.mantenimiento.paros.store');
+
+    // Obtener lista de paros/fallas activos
+    Route::get('/api/mantenimiento/paros', [MantenimientoParosController::class, 'index'])
+        ->name('api.mantenimiento.paros.index');
+
+    // Obtener un paro específico
+    Route::get('/api/mantenimiento/paros/{id}', [MantenimientoParosController::class, 'show'])
+        ->name('api.mantenimiento.paros.show');
+
+    // Finalizar un paro
+    Route::put('/api/mantenimiento/paros/{id}/finalizar', [MantenimientoParosController::class, 'finalizar'])
+        ->name('api.mantenimiento.paros.finalizar');
 
     // Reporte de Fallos y Paros
     Route::get('/mantenimientos/reporte-fallos-paros', function () {

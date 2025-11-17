@@ -2,7 +2,7 @@
 
 namespace App\Helpers;
 
-use App\Models\SSYSFoliosSecuencias;
+use App\Models\SSYSFoliosSecuencia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -19,45 +19,12 @@ class FolioHelper
     public static function obtenerSiguienteFolio(string $modulo, int $longitudConsecutivo = 5): string
     {
         try {
-            DB::beginTransaction();
-
-            // Bloquear el registro para evitar condiciones de carrera
-            $secuencia = SSYSFoliosSecuencias::where('Modulo', $modulo)
-                ->lockForUpdate()
-                ->first();
-
-            if (!$secuencia) {
-                throw new \Exception("No se encontró secuencia para el módulo: {$modulo}");
-            }
-
-            // Obtener el consecutivo actual
-            $consecutivo = $secuencia->Consecutivo;
-            $prefijo = $secuencia->Prefijo;
-
-            // Generar el folio con padding de ceros
-            $folio = $prefijo . str_pad((string)$consecutivo, $longitudConsecutivo, '0', STR_PAD_LEFT);
-
-            // Incrementar el consecutivo
-            $secuencia->Consecutivo = $consecutivo + 1;
-            $secuencia->save();
-
-            DB::commit();
-
-            Log::info('Folio generado', [
-                'modulo' => $modulo,
-                'folio' => $folio,
-                'consecutivo_usado' => $consecutivo,
-                'nuevo_consecutivo' => $secuencia->Consecutivo,
-            ]);
-
-            return $folio;
-
+            $r = SSYSFoliosSecuencia::nextFolio($modulo, $longitudConsecutivo);
+            return $r['folio'] ?? '';
         } catch (\Throwable $e) {
-            DB::rollBack();
             Log::error('Error al generar folio', [
                 'modulo' => $modulo,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -74,25 +41,14 @@ class FolioHelper
     public static function obtenerFolioSugerido(string $modulo, int $longitudConsecutivo = 5): string
     {
         try {
-            $secuencia = SSYSFoliosSecuencias::where('Modulo', $modulo)->first();
-
-            if (!$secuencia) {
+            $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', $modulo)->first();
+            if (!$row) {
                 Log::warning('No se encontró secuencia para módulo', ['modulo' => $modulo]);
                 return '';
             }
-
-            $consecutivo = $secuencia->Consecutivo;
-            $prefijo = $secuencia->Prefijo;
-
-            $folio = $prefijo . str_pad((string)$consecutivo, $longitudConsecutivo, '0', STR_PAD_LEFT);
-
-            Log::info('Folio sugerido generado', [
-                'modulo' => $modulo,
-                'folio' => $folio,
-                'consecutivo' => $consecutivo,
-            ]);
-
-            return $folio;
+            $pref = $row->prefijo ?? ($row->Prefijo ?? '');
+            $con  = (int)($row->consecutivo ?? ($row->Consecutivo ?? 0));
+            return $pref . str_pad((string)$con, $longitudConsecutivo, '0', STR_PAD_LEFT);
         } catch (\Throwable $e) {
             Log::error('Error al obtener folio sugerido', [
                 'modulo' => $modulo,
@@ -110,17 +66,15 @@ class FolioHelper
      */
     public static function obtenerInfoSecuencia(string $modulo): ?array
     {
-        $secuencia = SSYSFoliosSecuencias::where('Modulo', $modulo)->first();
-
-        if (!$secuencia) {
+        $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', $modulo)->first();
+        if (!$row) {
             return null;
         }
-
         return [
-            'Id' => $secuencia->Id,
-            'Modulo' => $secuencia->Modulo,
-            'Prefijo' => $secuencia->Prefijo,
-            'Consecutivo' => $secuencia->Consecutivo,
+            'Id' => $row->Id ?? null,
+            'Modulo' => $row->Modulo ?? ($row->modulo ?? null),
+            'Prefijo' => $row->Prefijo ?? ($row->prefijo ?? null),
+            'Consecutivo' => $row->Consecutivo ?? ($row->consecutivo ?? null),
         ];
     }
 
@@ -134,20 +88,11 @@ class FolioHelper
     public static function reiniciarConsecutivo(string $modulo, int $nuevoConsecutivo = 1): bool
     {
         try {
-            $secuencia = SSYSFoliosSecuencias::where('Modulo', $modulo)->first();
-
-            if (!$secuencia) {
-                return false;
-            }
-
-            $secuencia->Consecutivo = $nuevoConsecutivo;
-            $secuencia->save();
-
+            DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', $modulo)->update(['consecutivo' => $nuevoConsecutivo]);
             Log::info('Consecutivo reiniciado', [
                 'modulo' => $modulo,
                 'nuevo_consecutivo' => $nuevoConsecutivo,
             ]);
-
             return true;
         } catch (\Throwable $e) {
             Log::error('Error al reiniciar consecutivo', [

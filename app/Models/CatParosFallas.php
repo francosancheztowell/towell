@@ -16,9 +16,12 @@ class CatParosFallas extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'Id',
         'TipoFallaId',
         'Departamento',
+        'Falla',
+        'Descripcion',
+        'Abreviado',
+        'Seccion',
     ];
 
     protected $casts = [

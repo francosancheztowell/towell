@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ManFallasParos extends Model
 {
     protected $connection = 'sqlsrv';
-    protected $table = 'ManFallasParos';
+    protected $table = 'dbo.ManFallasParos';
 
     protected $primaryKey = 'Id';
     public $incrementing = true;
@@ -16,7 +16,6 @@ class ManFallasParos extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'Id',
         'Folio',
         'Estatus',
         'Fecha',
@@ -35,20 +34,22 @@ class ManFallasParos extends Model
         'TurnoAtendio',
         'Obs',
         'OrdenTrabajo',
+        'Enviado',
+        'ObsCierre',
+        'Calidad',
+        'FechaFin',
     ];
 
     protected $casts = [
         'Id' => 'integer',
         'Fecha' => 'date',
-        'Hora' => 'string',
-        'HoraFin' => 'string',
         'Turno' => 'integer',
         'TurnoAtendio' => 'integer',
+        'Enviado' => 'boolean',
+        'Calidad' => 'integer',
+        'FechaFin' => 'date',
     ];
 
-    /**
-     * Relación con CatTipoFalla
-     */
     public function tipoFalla()
     {
         return $this->belongsTo(CatTipoFalla::class, 'TipoFallaId', 'TipoFallaId');
