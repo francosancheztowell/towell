@@ -26,9 +26,6 @@
         <table id="bpmTable" class="min-w-full text-sm">
             <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                 <tr>
-                    {{-- <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">
-                        <input type="checkbox" id="selectAll" class="rounded">
-                    </th> --}}
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Folio</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Status</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Fecha</th>
@@ -58,9 +55,6 @@
                         data-turnoentrega="{{ $item->TurnoEntrega }}"
                         data-cveemplautoriza="{{ $item->CveEmplAutoriza }}"
                         data-nombreemplautoriza="{{ $item->NombreEmplAutoriza }}">
-                        <td class="px-4 py-2">
-                            <input type="checkbox" class="row-checkbox rounded" value="{{ $item->Id }}" onclick="event.stopPropagation()">
-                        </td>
                         <td class="px-4 py-2">{{ $item->Folio }}</td>
                         <td class="px-4 py-2">
                             <span class="px-2 py-1 rounded text-xs font-semibold
@@ -83,7 +77,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="12" class="px-4 py-8 text-center text-gray-500">
+                        <td colspan="11" class="px-4 py-8 text-center text-gray-500">
                             No hay registros disponibles
                         </td>
                     </tr>
@@ -103,12 +97,18 @@
                 <!-- Status oculto, siempre será "Creado" -->
                 <input type="hidden" name="Status" value="Creado">
                 
-                <div class="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Folio *</label>
-                        <input type="text" name="Folio" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500">
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="col-span-2 bg-blue-50 border-2 border-blue-300 rounded-lg p-3">
+                        <label class="block text-sm font-semibold text-blue-800 mb-1">
+                            <i class="fa-solid fa-hashtag mr-1"></i>
+                            Folio que se asignará
+                        </label>
+                        <div class="text-2xl font-bold text-blue-600">
+                            {{ $folioSugerido ?: 'Generando...' }}
+                        </div>
+                        <p class="text-xs text-blue-600 mt-1">Este folio se asignará automáticamente al crear el registro</p>
                     </div>
-                    <div>
+                    <div class="col-span-2">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Fecha *</label>
                         <input type="date" name="Fecha" value="{{ date('Y-m-d') }}" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500">
                     </div>
@@ -117,18 +117,18 @@
                 <!-- Sección: Quien Entrega -->
                 <div class="mb-3">
                     <h4 class="text-sm font-semibold text-blue-700 mb-2">Quien Entrega</h4>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
-                            <input type="text" id="create_CveEmplEnt" name="CveEmplEnt" value="{{ auth()->user()->CveEmpleado ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
-                        </div>
+                    <div class="grid grid-cols-3 gap-2">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
-                            <input type="text" id="create_NombreEmplEnt" name="NombreEmplEnt" value="{{ auth()->user()->NombreCompleto ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                            <input type="text" id="create_NombreEmplEnt" name="NombreEmplEnt" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
-                        <div class="col-span-2">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
+                            <input type="text" id="create_CveEmplEnt" name="CveEmplEnt" value="{{ auth()->user()->numero_empleado ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                        <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
-                            <input type="text" id="create_TurnoEntrega" name="TurnoEntrega" value="{{ auth()->user()->Turno ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                            <input type="text" id="create_TurnoEntrega" name="TurnoEntrega" value="{{ auth()->user()->turno ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
                     </div>
                 </div>
@@ -136,33 +136,27 @@
                 <!-- Sección: Quien Recibe -->
                 <div class="mb-3">
                     <h4 class="text-sm font-semibold text-green-700 mb-2">Quien Recibe</h4>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
-                            <input type="text" name="CveEmplRec" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500">
-                        </div>
+                    <div class="grid grid-cols-3 gap-2">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
-                            <input type="text" name="NombreEmplRec" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500">
+                            <select id="select_NombreEmplRec" name="NombreEmplRec" onchange="fillRecibe(this)" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500">
+                                <option value="">Seleccione...</option>
+                                @foreach($usuarios as $usuario)
+                                    <option value="{{ $usuario->nombre }}" 
+                                            data-numero="{{ $usuario->numero_empleado }}" 
+                                            data-turno="{{ $usuario->turno }}">
+                                        {{ $usuario->nombre }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
-                        <div class="col-span-2">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
+                            <input type="text" id="input_CveEmplRec" name="CveEmplRec" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                        <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
-                            <input type="text" name="TurnoRecibe" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sección: Autoriza -->
-                <div class="mb-3">
-                    <h4 class="text-sm font-semibold text-yellow-700 mb-2">Autoriza</h4>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Cve. Autoriza</label>
-                            <input type="text" name="CveEmplAutoriza" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Nombre Autoriza</label>
-                            <input type="text" name="NombreEmplAutoriza" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500">
+                            <input type="text" id="input_TurnoRecibe" name="TurnoRecibe" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
                     </div>
                 </div>
@@ -278,6 +272,24 @@
 
     <script>
         let selectedRowId = null;
+
+        // Autocompletar campos de Quien Recibe
+        function fillRecibe(select) {
+            const selectedOption = select.options[select.selectedIndex];
+            const numero = selectedOption.getAttribute('data-numero');
+            const turno = selectedOption.getAttribute('data-turno');
+            
+            document.getElementById('input_CveEmplRec').value = numero || '';
+            document.getElementById('input_TurnoRecibe').value = turno || '';
+        }
+
+        // Autocompletar campos de Quien Autoriza
+        function fillAutoriza(select) {
+            const selectedOption = select.options[select.selectedIndex];
+            const numero = selectedOption.getAttribute('data-numero');
+            
+            document.getElementById('input_CveEmplAutoriza').value = numero || '';
+        }
 
         // Select all checkbox
         document.getElementById('selectAll')?.addEventListener('change', function() {
