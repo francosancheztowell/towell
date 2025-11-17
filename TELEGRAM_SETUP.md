@@ -46,11 +46,7 @@ Este proyecto incluye integración con la API de Telegram para enviar mensajes d
 
 Agrega las siguientes líneas a tu archivo `.env`:
 
-```env
-# Telegram Bot Configuration
-TELEGRAM_BOT_TOKEN=8202582254:AAHW_BsOuWZ1BeQqjdndgeNIplS6Ptf-wG4
-TELEGRAM_CHAT_ID=TU_CHAT_ID_AQUI
-```
+
 
 **⚠️ IMPORTANTE:** 
 - El `TELEGRAM_CHAT_ID` **NO es tu número de teléfono** (2223217136)
