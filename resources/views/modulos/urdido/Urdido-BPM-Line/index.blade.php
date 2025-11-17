@@ -4,7 +4,7 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <a href="{{ route('urd-bpm.index') }}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+        <a href="{{ route('urd-bpm.index') }}" class="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
             ← Volver
         </a>
         
@@ -12,7 +12,7 @@
             <form action="{{ route('urd-bpm-line.terminar', $header->Folio) }}" method="POST" class="inline">
                 @csrf
                 @method('PATCH')
-                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <button type="submit" class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                     Terminado
                 </button>
             </form>
@@ -20,14 +20,14 @@
             <form action="{{ route('urd-bpm-line.autorizar', $header->Folio) }}" method="POST" class="inline">
                 @csrf
                 @method('PATCH')
-                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <button type="submit" class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                     Autorizar
                 </button>
             </form>
             <form action="{{ route('urd-bpm-line.rechazar', $header->Folio) }}" method="POST" class="inline">
                 @csrf
                 @method('PATCH')
-                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                <button type="submit" class="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
                     Rechazar
                 </button>
             </form>
@@ -37,45 +37,59 @@
 
 @section('content')
     @if(session('success'))
-        <div class="mb-3 rounded-lg bg-green-600/10 border border-green-600/30 text-green-800 px-4 py-3">
-            {{ session('success') }}
-        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    icon: 'success',
+                    title: '{{ session('success') }}',
+                    showConfirmButton: false,
+                    timer: 1000,
+                    timerProgressBar: true
+                });
+            });
+        </script>
     @endif
     @if(session('error'))
-        <div class="mb-3 rounded-lg bg-red-600/10 border border-red-600/30 text-red-800 px-4 py-3">
-            {{ session('error') }}
-        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: '{{ session('error') }}',
+                    confirmButtonColor: '#3b82f6'
+                });
+            });
+        </script>
     @endif
 
     <!-- Información del Header -->
-    <div class="bg-white rounded-lg shadow-sm border p-4 mb-4">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-lg shadow-sm border p-2 mb-2 mt-2 mx-4">
+        <div class="grid grid-cols-3 md:grid-cols-6 gap-2 text-xs">
             <div>
-                <p class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Folio</p>
-                <p class="text-2xl font-bold text-blue-600">{{ $header->Folio }}</p>
+                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Folio</p>
+                <p class="text-lg font-bold text-blue-600">{{ $header->Folio }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Fecha y Hora</p>
-                <p class="text-base font-semibold">{{ $header->Fecha ? $header->Fecha->format('d/m/Y H:i') : '' }}</p>
+                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Fecha</p>
+                <p class="text-xs font-semibold">{{ $header->Fecha ? $header->Fecha->format('d/m/Y H:i') : '' }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Quien Entrega</p>
-                <p class="text-base font-semibold">{{ $header->NombreEmplEnt }}</p>
-                <p class="text-xs text-gray-600">{{ $header->CveEmplEnt }} - Turno {{ $header->TurnoEntrega }}</p>
+                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Entrega</p>
+                <p class="text-xs font-semibold">{{ $header->NombreEmplEnt }}</p>
+                <p class="text-xs text-gray-600">T{{ $header->TurnoEntrega }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Quien Recibe</p>
-                <p class="text-base font-semibold">{{ $header->NombreEmplRec }}</p>
-                <p class="text-xs text-gray-600">{{ $header->CveEmplRec }} - Turno {{ $header->TurnoRecibe }}</p>
+                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Recibe</p>
+                <p class="text-xs font-semibold">{{ $header->NombreEmplRec }}</p>
+                <p class="text-xs text-gray-600">T{{ $header->TurnoRecibe }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Autoriza</p>
-                <p class="text-base font-semibold">{{ $header->NombreEmplAutoriza }}</p>
-                <p class="text-xs text-gray-600">{{ $header->CveEmplAutoriza }}</p>
+                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Autoriza</p>
+                <p class="text-xs font-semibold">{{ $header->NombreEmplAutoriza }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Status</p>
-                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold
+                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Status</p>
+                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold
                     @if($header->Status === 'Creado') bg-yellow-100 text-yellow-800
                     @elseif($header->Status === 'Terminado') bg-blue-100 text-blue-800
                     @elseif($header->Status === 'Autorizado') bg-green-100 text-green-800
@@ -87,40 +101,40 @@
     </div>
 
     <!-- Checklist de Actividades -->
-    <div class="bg-white rounded-lg shadow-sm border p-4">
-        <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Actividades</h2>
+    <div class="bg-white rounded-lg shadow-sm border p-2 mx-40 my-4">
+        <h2 class="text-base font-bold text-gray-800 mb-2 border-b pb-1.5 px-2">Actividades</h2>
         
-        <div class="overflow-y-auto" style="max-height: calc(100vh - 400px);">
-            <table class="min-w-full">
+        <div class="overflow-y-auto" style="max-height: calc(100vh - 280px);">
+            <table class="min-w-full text-sm">
                 <thead class="sticky top-0 bg-gray-100 border-b">
                     <tr>
-                        <th class="text-left px-4 py-3 font-semibold text-gray-700 w-16">Orden</th>
-                        <th class="text-left px-4 py-3 font-semibold text-gray-700">Actividad</th>
-                        <th class="text-center px-4 py-3 font-semibold text-gray-700 w-24">
-                            <input type="checkbox" 
-                                   id="checkAll" 
-                                   onchange="toggleAll(this)"
-                                   class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                   {{ $header->Status !== 'Creado' ? 'disabled' : '' }}>
-                        </th>
+                        <th class="text-left px-2 py-2 font-semibold text-gray-700 w-12">Orden</th>
+                        <th class="text-left px-2 py-2 font-semibold text-gray-700">Actividad</th>
+                        <th class="text-center px-2 py-2 font-semibold text-gray-700 w-32">{{ $nombreMaquina }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($actividades as $actividad)
                         @php
-                            $isChecked = $lineas->has($actividad->Actividad);
+                            $valor = (int)$lineas->get($actividad->Actividad, 0);
                         @endphp
                         <tr class="border-b hover:bg-gray-50">
-                            <td class="px-4 py-3 text-center text-gray-600">{{ $actividad->Orden }}</td>
-                            <td class="px-4 py-3">{{ $actividad->Actividad }}</td>
-                            <td class="px-4 py-3 text-center">
-                                <input type="checkbox" 
-                                       name="actividad[]" 
-                                       value="{{ $actividad->Actividad }}"
-                                       {{ $isChecked ? 'checked' : '' }}
-                                       {{ $header->Status !== 'Creado' ? 'disabled' : '' }}
-                                       onchange="toggleActividad('{{ $actividad->Actividad }}', this.checked)"
-                                       class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <td class="px-2 py-1.5 text-center text-gray-600">{{ $actividad->Orden }}</td>
+                            <td class="px-2 py-1.5">{{ $actividad->Actividad }}</td>
+                            <td class="px-2 py-1.5 text-center">
+                                <button type="button"
+                                    class="cell-btn inline-flex items-center justify-center w-9 h-9 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300
+                                        {{ $valor == 1 ? 'bg-green-100 border-green-400 text-green-700 hover:bg-green-200' : 
+                                           ($valor == 2 ? 'bg-red-100 border-red-400 text-red-700 hover:bg-red-200' : 
+                                           'bg-gray-50 border-gray-300 text-gray-400 hover:bg-gray-100 hover:border-gray-400') }}"
+                                    data-actividad="{{ $actividad->Actividad }}"
+                                    data-valor="{{ $valor }}"
+                                    {{ $header->Status !== 'Creado' ? 'disabled' : '' }}
+                                    onclick="toggleActividad(this)">
+                                   <span class="cell-icon text-lg font-bold">
+                                        {!! $valor == 1 ? '✓' : ($valor == 2 ? '✗' : '○') !!}
+                                   </span>
+                                </button>
                             </td>
                         </tr>
                     @endforeach
@@ -128,12 +142,18 @@
             </table>
         </div>
     </div>
-@endsection
 
-@section('scripts')
-<script>
-    // Toggle individual activity
-    function toggleActividad(actividad, checked) {
+    <script>
+    // Toggle individual activity: 0 (vacío) → 1 (palomita) → 2 (tache) → 0
+    function toggleActividad(btn) {
+        const actividad = btn.dataset.actividad;
+        const valorActual = parseInt(btn.dataset.valor) || 0;
+        
+        // Ciclo: 0 → 1 → 2 → 0
+        const valorNuevo = (valorActual + 1) % 3;
+        
+        console.log('toggleActividad llamado:', { actividad, valorActual, valorNuevo });
+        
         fetch("{{ route('urd-bpm-line.toggle', $header->Folio) }}", {
             method: 'POST',
             headers: {
@@ -142,48 +162,48 @@
             },
             body: JSON.stringify({
                 actividad: actividad,
-                checked: checked
+                valor: valorNuevo
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
         .then(data => {
-            if (!data.success) {
-                alert('Error al actualizar la actividad');
-                location.reload();
+            console.log('Response data:', data);
+            if (data.success) {
+                // Actualizar UI
+                btn.dataset.valor = valorNuevo;
+                btn.classList.remove('bg-green-100','border-green-400','text-green-700','bg-red-100','border-red-400','text-red-700','bg-gray-50','border-gray-300','text-gray-400');
+                
+                if (valorNuevo === 1) {
+                    btn.classList.add('bg-green-100','border-green-400','text-green-700');
+                    btn.querySelector('.cell-icon').innerHTML = '✓';
+                } else if (valorNuevo === 2) {
+                    btn.classList.add('bg-red-100','border-red-400','text-red-700');
+                    btn.querySelector('.cell-icon').innerHTML = '✗';
+                } else {
+                    btn.classList.add('bg-gray-50','border-gray-300','text-gray-400');
+                    btn.querySelector('.cell-icon').innerHTML = '○';
+                }
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Error al actualizar la actividad',
+                    confirmButtonColor: '#3b82f6'
+                });
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Error al comunicarse con el servidor');
-            location.reload();
+            console.error('Error completo:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al comunicarse con el servidor: ' + error.message,
+                confirmButtonColor: '#3b82f6'
+            });
         });
     }
-
-    // Toggle all checkboxes
-    function toggleAll(checkbox) {
-        const checkboxes = document.querySelectorAll('input[name="actividad[]"]:not(:disabled)');
-        checkboxes.forEach(cb => {
-            if (cb.checked !== checkbox.checked) {
-                cb.checked = checkbox.checked;
-                toggleActividad(cb.value, cb.checked);
-            }
-        });
-    }
-
-    // Update "check all" state when individual checkboxes change
-    document.addEventListener('DOMContentLoaded', function() {
-        updateCheckAllState();
-    });
-
-    function updateCheckAllState() {
-        const checkAll = document.getElementById('checkAll');
-        const checkboxes = document.querySelectorAll('input[name="actividad[]"]:not(:disabled)');
-        const checkedCount = document.querySelectorAll('input[name="actividad[]"]:checked:not(:disabled)').length;
-        
-        if (checkboxes.length > 0) {
-            checkAll.checked = checkedCount === checkboxes.length;
-            checkAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
-        }
-    }
-</script>
+    </script>
 @endsection

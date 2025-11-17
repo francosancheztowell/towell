@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\UrdBpmModel;
 use App\Models\SYSUsuario;
+use App\Models\URDCatalogoMaquina;
 use App\Helpers\FolioHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,15 +17,17 @@ class UrdBpmController extends Controller
         try {
             $items = UrdBpmModel::orderBy('Id', 'desc')->get();
             $usuarios = SYSUsuario::orderBy('nombre', 'asc')->get();
+            $maquinas = URDCatalogoMaquina::orderBy('Nombre', 'asc')->get();
             $folioSugerido = FolioHelper::obtenerFolioSugerido('Urdido BPM', 3);
         } catch (\Exception $e) {
             $items = collect([]);
             $usuarios = collect([]);
+            $maquinas = collect([]);
             $folioSugerido = '';
             Log::error('Error al cargar BPM Urdido: ' . $e->getMessage());
         }
         
-        return view("modulos.urdido.BPM-Urdido.index", compact("items", "usuarios", "folioSugerido"));
+        return view("modulos.urdido.BPM-Urdido.index", compact("items", "usuarios", "maquinas", "folioSugerido"));
     }
 
     public function store(Request $request)
@@ -32,7 +35,7 @@ class UrdBpmController extends Controller
         $validated = $request->validate([
             'Fecha' => 'required|date',
             'CveEmplRec' => 'nullable|string|max:50',
-            'NombreEmplRec' => 'nullable|string|max:255',
+            'NombreEmplRec' => 'required|string|max:255',
             'TurnoRecibe' => 'nullable|string|max:50',
             'CveEmplEnt' => 'nullable|string|max:50',
             'NombreEmplEnt' => 'nullable|string|max:255',
@@ -40,6 +43,11 @@ class UrdBpmController extends Controller
             'CveEmplAutoriza' => 'nullable|string|max:50',
             'NombreEmplAutoriza' => 'nullable|string|max:255',
             'Status' => 'required|in:Creado,Terminado,Autorizado',
+            'MaquinaId' => 'required|string|max:50',
+            'Departamento' => 'nullable|string|max:100',
+        ], [
+            'NombreEmplRec.required' => 'Debe seleccionar quien recibe',
+            'MaquinaId.required' => 'Debe seleccionar una máquina',
         ]);
 
         try {

@@ -7,50 +7,80 @@ use App\Models\UrdActividadesBpmModel;
 use App\Models\UrdBpmLineModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class UrdBpmLineController extends Controller
 {
-    public function index($folio)
+    public function index(string $folio)
     {
-        // Obtener el registro del header
-        $header = UrdBpmModel::where('Folio', $folio)->firstOrFail();
-        
-        // Obtener todas las actividades ordenadas
+        $header = UrdBpmModel::with('maquina')->where('Folio', $folio)->firstOrFail();
         $actividades = UrdActividadesBpmModel::orderBy('Orden')->get();
         
-        // Obtener las líneas existentes del checklist
-        $lineas = UrdBpmLineModel::where('Folio', $folio)->get()->keyBy('Actividad');
+        // Obtener nombre de máquina
+        $nombreMaquina = $header->maquina->Nombre ?? ($header->MaquinaId ?? 'Máquina');
         
-        return view('modulos.urdido.Urdido-BPM-Line.index', compact('header', 'actividades', 'lineas'));
+        // Verificar si ya existen registros para este folio
+        $existingLines = UrdBpmLineModel::where('Folio', $folio)->count();
+        
+        // Si no existen registros, crear todos con Valor=0
+        if ($existingLines === 0) {
+            foreach ($actividades as $actividad) {
+                UrdBpmLineModel::create([
+                    'Folio' => $folio,
+                    'TurnoRecibe' => $header->TurnoRecibe,
+                    'MaquinaId' => $header->MaquinaId,
+                    'Departamento' => $header->Departamento ?? 'Urdido',
+                    'Orden' => $actividad->Orden,
+                    'Actividad' => $actividad->Actividad,
+                    'Valor' => 0,
+                ]);
+            }
+        }
+        
+        // Obtener las líneas con sus valores actuales
+        $lineas = UrdBpmLineModel::where('Folio', $folio)
+            ->pluck('Valor', 'Actividad');
+
+        return view('modulos.urdido.Urdido-BPM-Line.index', compact('header', 'actividades', 'lineas', 'nombreMaquina'));
     }
 
-    public function toggleActividad(Request $request, $folio)
+    public function toggleActividad(Request $request, string $folio)
     {
-        $validated = $request->validate([
-            'actividad' => 'required|string',
-            'checked' => 'required|boolean'
+        $actividad = $request->input('actividad');
+        $valor = $request->input('valor'); // 0, 1 o 2
+
+        Log::info('toggleActividad llamado', [
+            'folio' => $folio,
+            'actividad' => $actividad,
+            'valor' => $valor,
+            'tipo_valor' => gettype($valor)
         ]);
 
-        if ($validated['checked']) {
-            // Crear o actualizar la línea
-            UrdBpmLineModel::updateOrCreate(
-                [
-                    'Folio' => $folio,
-                    'Actividad' => $validated['actividad']
-                ],
-                [
-                    'Valor' => 1,
-                    'TurnoRecibe' => Auth::user()->turno ?? null
-                ]
-            );
-        } else {
-            // Eliminar la línea si se desmarca
-            UrdBpmLineModel::where('Folio', $folio)
-                ->where('Actividad', $validated['actividad'])
-                ->delete();
+        $header = UrdBpmModel::where('Folio', $folio)->firstOrFail();
+
+        // Solo permitir cambios si está en estado "Creado"
+        if ($header->Status !== 'Creado') {
+            Log::warning('Intento de modificar actividad con status incorrecto', ['status' => $header->Status]);
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pueden modificar actividades en estado ' . $header->Status
+            ], 403);
         }
 
-        return response()->json(['success' => true]);
+        // Actualizar el valor (0 = vacío, 1 = palomita, 2 = tache)
+        Log::info('Intentando actualizar', [
+            'folio' => $folio,
+            'actividad' => $actividad,
+            'valorNuevo' => $valor
+        ]);
+
+        $affected = UrdBpmLineModel::where('Folio', $folio)
+            ->where('Actividad', $actividad)
+            ->update(['Valor' => $valor]);
+
+        Log::info('Update ejecutado', ['rows_affected' => $affected]);
+
+        return response()->json(['success' => true, 'affected' => $affected]);
     }
 
     public function terminar($folio)

@@ -5,31 +5,38 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create onclick="openCreateModal()"/>
-        <button onclick="openChecklist()" 
-                id="btn-checklist"
-                class="px-4 py-2 bg-green-600 text-white rounded-lg transition-colors flex items-center gap-2 opacity-50 cursor-not-allowed" 
-                disabled>
-            <i class="fa-solid fa-list-check"></i>
-            Abrir Checklist
-        </button>
-        <x-navbar.button-edit onclick="openEditModal()" id="btn-edit" :disabled="true"/>
-        <x-navbar.button-delete onclick="openDeleteModal()" id="btn-delete" :disabled="true"/>
+        <x-navbar.button-edit onclick="openChecklist()" id="btn-edit" :disabled="true"/>
     </div>
 @endsection
 
 @section( 'content')
     @if(session('success'))
-        <div class="mb-2 rounded-lg bg-green-600/10 border border-green-600/30 text-green-800 px-4 py-3">
-            {{ session('success') }}
-        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    icon: 'success',
+                    title: '{{ session('success') }}',
+                    showConfirmButton: false,
+                    timer: 1000,
+                    timerProgressBar: true
+                });
+            });
+        </script>
     @endif
     @if(session('error'))
-        <div class="mb-2 rounded-lg bg-red-600/10 border border-red-600/30 text-red-800 px-4 py-3">
-            {{ session('error') }}
-        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: '{{ session('error') }}',
+                    confirmButtonColor: '#3b82f6'
+                });
+            });
+        </script>
     @endif
 
-    <div class="overflow-x-auto overflow-y-auto rounded-lg border bg-white shadow-sm mt-4" style="max-height: 70vh;">
+    <div class="overflow-x-auto overflow-y-auto rounded-lg border bg-white shadow-sm mt-4 mx-4" style="max-height: 70vh;">
         <table id="bpmTable" class="min-w-full text-sm">
             <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                 <tr>
@@ -48,7 +55,7 @@
             </thead>
             <tbody>
                 @forelse($items as $item)
-                    <tr class="border-b hover:bg-gray-50 cursor-pointer" 
+                    <tr class="border-b hover:bg-blue-300 cursor-pointer" 
                         onclick="selectRow(this, {{ $item->Id }})"
                         data-id="{{ $item->Id }}"
                         data-folio="{{ $item->Folio }}"
@@ -105,7 +112,7 @@
                 <input type="hidden" name="Status" value="Creado">
                 
                 <div class="grid grid-cols-2 gap-3 mb-4">
-                    <div class="col-span-2 bg-blue-50 border-2 border-blue-300 rounded-lg p-3">
+                    {{-- <div class="col-span-2 bg-blue-50 border-2 border-blue-300 rounded-lg p-3">
                         <label class="block text-sm font-semibold text-blue-800 mb-1">
                             <i class="fa-solid fa-hashtag mr-1"></i>
                             No. Folio
@@ -113,12 +120,13 @@
                         <div class="text-2xl font-bold text-blue-600">
                             {{ $folioSugerido ?: 'Generando...' }}
                         </div>
-                        {{-- <p class="text-xs text-blue-600 mt-1">Este folio se asignará automáticamente al crear el registro</p> --}}
-                    </div>
+                        {{-- <p class="text-xs text-blue-600 mt-1">Este folio se asignará automáticamente al crear el registro</p>
+                    </div> --}}
                     <div class="col-span-2">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Fecha *</label>
                         <input type="date" name="Fecha" value="{{ date('Y-m-d') }}" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500">
                     </div>
+                    
                 </div>
 
                 <!-- Sección: Quien Entrega -->
@@ -145,8 +153,8 @@
                     <h4 class="text-sm font-semibold text-green-700 mb-2">Quien Recibe</h4>
                     <div class="grid grid-cols-3 gap-2">
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
-                            <select id="select_NombreEmplRec" name="NombreEmplRec" onchange="fillRecibe(this)" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Nombre <span class="text-red-600">*</span></label>
+                            <select id="select_NombreEmplRec" name="NombreEmplRec" onchange="fillRecibe(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('NombreEmplRec') border-red-500 @enderror">
                                 <option value="">Seleccione...</option>
                                 @foreach($usuarios as $usuario)
                                     <option value="{{ $usuario->nombre }}" 
@@ -156,6 +164,9 @@
                                     </option>
                                 @endforeach
                             </select>
+                            @error('NombreEmplRec')
+                                <div class="text-red-600 text-xs mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
@@ -164,6 +175,28 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
                             <input type="text" id="input_TurnoRecibe" name="TurnoRecibe" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div> 
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Máquina <span class="text-red-600">*</span></label>
+                            <select id="select_Maquina" name="MaquinaId" onchange="fillMaquina(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('MaquinaId') border-red-500 @enderror">
+                                <option value="">Seleccione...</option>
+                                @foreach($maquinas as $maquina)
+                                    <option value="{{ $maquina->MaquinaId }}" 
+                                            data-nombre="{{ $maquina->Nombre }}" 
+                                            data-departamento="{{ $maquina->Departamento }}">
+                                        {{ $maquina->Nombre }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('MaquinaId')
+                                <div class="text-red-600 text-xs mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div> 
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Departamento</label>
+                            <input type="text" id="input_Departamento" name="Departamento" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">                
                         </div>
                     </div>
                 </div>
@@ -207,7 +240,7 @@
                     </div>
                 </div>
 
-                <!-- Sección: Quien Entrega (Solo lectura) -->
+                <!-- Sección: Quien Entrega -->
                 <div class="mb-3">
                     <h4 class="text-sm font-semibold text-blue-700 mb-2">Quien Entrega</h4>
                     <div class="grid grid-cols-3 gap-2">
@@ -226,7 +259,7 @@
                     </div>
                 </div>
 
-                <!-- Sección: Quien Recibe (Editable) -->
+                <!-- Sección: Quien Recibe -->
                 <div class="mb-3">
                     <h4 class="text-sm font-semibold text-green-700 mb-2">Quien Recibe</h4>
                     <div class="grid grid-cols-3 gap-2">
@@ -303,6 +336,14 @@
             
             document.getElementById('input_CveEmplRec').value = numero || '';
             document.getElementById('input_TurnoRecibe').value = turno || '';
+        }
+
+        // Autocompletar departamento según máquina seleccionada
+        function fillMaquina(select) {
+            const selectedOption = select.options[select.selectedIndex];
+            const departamento = selectedOption.getAttribute('data-departamento');
+            
+            document.getElementById('input_Departamento').value = departamento || '';
         }
 
         // Autocompletar campos de Quien Recibe en modal de editar
@@ -406,7 +447,12 @@
 
         function openChecklist() {
             if (!selectedFolio) {
-                alert('Por favor seleccione un registro para abrir el checklist');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Ningún registro seleccionado',
+                    text: 'Por favor seleccione un registro para abrir el checklist',
+                    confirmButtonColor: '#3b82f6'
+                });
                 return;
             }
             
@@ -414,9 +460,14 @@
             window.location.href = `/urd-bpm-line/${selectedFolio}`;
         }
 
-        function openEditModal() {
+         function openEditModal() {
             if (!selectedRowId) {
-                alert('Por favor seleccione un registro para editar');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Ningún registro seleccionado',
+                    text: 'Por favor seleccione un registro para editar',
+                    confirmButtonColor: '#3b82f6'
+                });
                 return;
             }
             
@@ -447,16 +498,54 @@
 
         function closeEditModal() {
             document.getElementById('editModal').classList.add('hidden');
-        }
+        } 
 
         function openDeleteModal() {
             if (!selectedRowId) {
-                alert('Por favor seleccione un registro para eliminar');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Ningún registro seleccionado',
+                    text: 'Por favor seleccione un registro para eliminar',
+                    confirmButtonColor: '#3b82f6'
+                });
                 return;
             }
 
-            document.getElementById('deleteForm').action = `/urd-bpm/${selectedRowId}`;
-            document.getElementById('deleteModal').classList.remove('hidden');
+            const row = document.querySelector(`tr[data-id="${selectedRowId}"]`);
+            const folio = row?.dataset.folio || 'este registro';
+
+            Swal.fire({
+                title: '¿Está seguro?',
+                html: `¿Desea eliminar el folio <strong>${folio}</strong>?<br><small class="text-gray-500">Esta acción no se puede deshacer.</small>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Crear y enviar el formulario
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = `/urd-bpm/${selectedRowId}`;
+                    
+                    const csrfToken = document.createElement('input');
+                    csrfToken.type = 'hidden';
+                    csrfToken.name = '_token';
+                    csrfToken.value = '{{ csrf_token() }}';
+                    
+                    const methodField = document.createElement('input');
+                    methodField.type = 'hidden';
+                    methodField.name = '_method';
+                    methodField.value = 'DELETE';
+                    
+                    form.appendChild(csrfToken);
+                    form.appendChild(methodField);
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
         }
 
         function closeDeleteModal() {

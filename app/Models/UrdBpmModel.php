@@ -29,6 +29,8 @@ class UrdBpmModel extends Model
         'CveEmplAutoriza',
         'NombreEmplAutoriza',   // según tu mockup/consulta
         'Status',
+        'MaquinaId',
+        'Departamento',
     ];
 
     protected $casts = [
@@ -42,6 +44,12 @@ class UrdBpmModel extends Model
         // FK en lines: Folio ; Local key en header: Folio (no la PK Id)
         return $this->hasMany(UrdBpmLineModel::class, 'Folio', 'Folio')
                     ->orderBy('Orden');
+    }
+
+    /** Relación con la máquina */
+    public function maquina()
+    {
+        return $this->belongsTo(URDCatalogoMaquina::class, 'MaquinaId', 'MaquinaId');
     }
 
     /** Scope útil: por status */
