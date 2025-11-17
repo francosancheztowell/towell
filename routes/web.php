@@ -39,6 +39,7 @@ use App\Http\Controllers\TelBpmLineController;
 use App\Http\Controllers\TelTelaresOperadorController;
 use App\Http\Controllers\UrdActividadesBpmController;
 use App\Http\Controllers\UrdBpmController;
+use App\Http\Controllers\UrdBpmLineController;
     use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
 
@@ -574,6 +575,13 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('urd-bpm', UrdBpmController::class)
         ->parameters(['urd-bpm' => 'id'])
         ->names('urd-bpm');
+
+    // BPM Urdido - Líneas (checklist)
+    Route::get('urd-bpm-line/{folio}', [UrdBpmLineController::class, 'index'])->name('urd-bpm-line.index');
+    Route::post('urd-bpm-line/{folio}/toggle', [UrdBpmLineController::class, 'toggleActividad'])->name('urd-bpm-line.toggle');
+    Route::patch('urd-bpm-line/{folio}/terminar', [UrdBpmLineController::class, 'terminar'])->name('urd-bpm-line.terminar');
+    Route::patch('urd-bpm-line/{folio}/autorizar', [UrdBpmLineController::class, 'autorizar'])->name('urd-bpm-line.autorizar');
+    Route::patch('urd-bpm-line/{folio}/rechazar', [UrdBpmLineController::class, 'rechazar'])->name('urd-bpm-line.rechazar');
 
         Route::resource('tel-bpm', TelBpmController::class)
     ->parameters(['tel-bpm' => 'folio'])   // PK string

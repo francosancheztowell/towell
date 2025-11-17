@@ -5,8 +5,15 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create onclick="openCreateModal()"/>
-        <x-navbar.button-edit onclick="openEditModal()"/>
-        <x-navbar.button-delete onclick="openDeleteModal()"/>
+        <button onclick="openChecklist()" 
+                id="btn-checklist"
+                class="px-4 py-2 bg-green-600 text-white rounded-lg transition-colors flex items-center gap-2 opacity-50 cursor-not-allowed" 
+                disabled>
+            <i class="fa-solid fa-list-check"></i>
+            Abrir Checklist
+        </button>
+        <x-navbar.button-edit onclick="openEditModal()" id="btn-edit" :disabled="true"/>
+        <x-navbar.button-delete onclick="openDeleteModal()" id="btn-delete" :disabled="true"/>
     </div>
 @endsection
 
@@ -101,12 +108,12 @@
                     <div class="col-span-2 bg-blue-50 border-2 border-blue-300 rounded-lg p-3">
                         <label class="block text-sm font-semibold text-blue-800 mb-1">
                             <i class="fa-solid fa-hashtag mr-1"></i>
-                            Folio que se asignará
+                            No. Folio
                         </label>
                         <div class="text-2xl font-bold text-blue-600">
                             {{ $folioSugerido ?: 'Generando...' }}
                         </div>
-                        <p class="text-xs text-blue-600 mt-1">Este folio se asignará automáticamente al crear el registro</p>
+                        {{-- <p class="text-xs text-blue-600 mt-1">Este folio se asignará automáticamente al crear el registro</p> --}}
                     </div>
                     <div class="col-span-2">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Fecha *</label>
@@ -176,68 +183,82 @@
     <!-- Modal Editar -->
     <div id="editModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-            <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 px-6 py-4 rounded-t-lg">
-                <h3 class="text-xl font-semibold text-white">Editar Registro</h3>
+            <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 px-4 py-3 rounded-t-lg">
+                <h3 class="text-lg font-semibold text-white">Editar Registro</h3>
             </div>
-            <form id="editForm" method="POST" class="p-6">
+            <form id="editForm" method="POST" class="p-4">
                 @csrf
                 @method('PUT')
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Folio *</label>
-                        <input type="text" id="edit_Folio" name="Folio" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500">
+                <!-- Status oculto -->
+                <input type="hidden" id="edit_Status" name="Status">
+                
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="col-span-2 bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
+                        <label class="block text-sm font-semibold text-yellow-800 mb-1">
+                            <i class="fa-solid fa-hashtag mr-1"></i>
+                            No. Folio
+                        </label>
+                        <div class="text-2xl font-bold text-yellow-600" id="edit_FolioDisplay"></div>
+                        <input type="hidden" id="edit_Folio" name="Folio">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Status *</label>
-                        <select id="edit_Status" name="Status" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500">
-                            <option value="">Seleccione...</option>
-                            <option value="Creado">Creado</option>
-                            <option value="Terminado">Terminado</option>
-                            <option value="Autorizado">Autorizado</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
-                        <input type="date" id="edit_Fecha" name="Fecha" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">No. Recibe</label>
-                        <input type="text" id="edit_CveEmplRec" name="CveEmplRec" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Recibe</label>
-                        <input type="text" id="edit_NombreEmplRec" name="NombreEmplRec" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Turno Recibe</label>
-                        <input type="text" id="edit_TurnoRecibe" name="TurnoRecibe" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">No. Entrega</label>
-                        <input type="text" id="edit_CveEmplEnt" name="CveEmplEnt" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Entrega</label>
-                        <input type="text" id="edit_NombreEmplEnt" name="NombreEmplEnt" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Turno Entrega</label>
-                        <input type="text" id="edit_TurnoEntrega" name="TurnoEntrega" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Cve. Autoriza</label>
-                        <input type="text" id="edit_CveEmplAutoriza" name="CveEmplAutoriza" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Autoriza</label>
-                        <input type="text" id="edit_NombreEmplAutoriza" name="NombreEmplAutoriza" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Fecha *</label>
+                        <input type="date" id="edit_Fecha" name="Fecha" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
                     </div>
                 </div>
-                <div class="flex justify-end gap-2 mt-6">
-                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">
+
+                <!-- Sección: Quien Entrega (Solo lectura) -->
+                <div class="mb-3">
+                    <h4 class="text-sm font-semibold text-blue-700 mb-2">Quien Entrega</h4>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
+                            <input type="text" id="edit_NombreEmplEnt" name="NombreEmplEnt" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
+                            <input type="text" id="edit_CveEmplEnt" name="CveEmplEnt" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
+                            <input type="text" id="edit_TurnoEntrega" name="TurnoEntrega" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección: Quien Recibe (Editable) -->
+                <div class="mb-3">
+                    <h4 class="text-sm font-semibold text-green-700 mb-2">Quien Recibe</h4>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
+                            <select id="edit_select_NombreEmplRec" name="NombreEmplRec" onchange="fillEditRecibe(this)" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
+                                <option value="">Seleccione...</option>
+                                @foreach($usuarios as $usuario)
+                                    <option value="{{ $usuario->nombre }}" 
+                                            data-numero="{{ $usuario->numero_empleado }}" 
+                                            data-turno="{{ $usuario->turno }}">
+                                        {{ $usuario->nombre }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
+                            <input type="text" id="edit_input_CveEmplRec" name="CveEmplRec" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
+                            <input type="text" id="edit_input_TurnoRecibe" name="TurnoRecibe" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-4">
+                    <button type="button" onclick="closeEditModal()" class="px-3 py-1.5 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300">
                         Cancelar
                     </button>
-                    <button type="submit" class="px-4 py-2 text-white bg-yellow-600 rounded-lg hover:bg-yellow-700">
+                    <button type="submit" class="px-3 py-1.5 text-sm text-white bg-yellow-600 rounded hover:bg-yellow-700">
                         Actualizar
                     </button>
                 </div>
@@ -272,6 +293,7 @@
 
     <script>
         let selectedRowId = null;
+        let selectedFolio = null;
 
         // Autocompletar campos de Quien Recibe
         function fillRecibe(select) {
@@ -281,6 +303,16 @@
             
             document.getElementById('input_CveEmplRec').value = numero || '';
             document.getElementById('input_TurnoRecibe').value = turno || '';
+        }
+
+        // Autocompletar campos de Quien Recibe en modal de editar
+        function fillEditRecibe(select) {
+            const selectedOption = select.options[select.selectedIndex];
+            const numero = selectedOption.getAttribute('data-numero');
+            const turno = selectedOption.getAttribute('data-turno');
+            
+            document.getElementById('edit_input_CveEmplRec').value = numero || '';
+            document.getElementById('edit_input_TurnoRecibe').value = turno || '';
         }
 
         // Autocompletar campos de Quien Autoriza
@@ -306,6 +338,61 @@
             // Select current row
             row.classList.add('bg-blue-100');
             selectedRowId = id;
+            selectedFolio = row.dataset.folio;
+            
+            // Habilitar botones
+            enableButtons();
+        }
+
+        // Habilitar botones cuando hay una fila seleccionada
+        function enableButtons() {
+            // Habilitar botón de checklist
+            const btnChecklist = document.getElementById('btn-checklist');
+            if (btnChecklist) {
+                btnChecklist.disabled = false;
+                btnChecklist.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnChecklist.classList.add('hover:bg-green-700');
+            }
+            
+            // Habilitar botón de editar
+            const btnEdit = document.getElementById('btn-edit');
+            if (btnEdit) {
+                btnEdit.disabled = false;
+                btnEdit.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnEdit.classList.add('hover:bg-yellow-100');
+            }
+            
+            // Habilitar botón de eliminar
+            const btnDelete = document.getElementById('btn-delete');
+            if (btnDelete) {
+                btnDelete.disabled = false;
+                btnDelete.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnDelete.classList.add('hover:bg-red-100');
+            }
+        }
+
+        // Deshabilitar botones
+        function disableButtons() {
+            const btnChecklist = document.getElementById('btn-checklist');
+            if (btnChecklist) {
+                btnChecklist.disabled = true;
+                btnChecklist.classList.add('opacity-50', 'cursor-not-allowed');
+                btnChecklist.classList.remove('hover:bg-green-700');
+            }
+            
+            const btnEdit = document.getElementById('btn-edit');
+            if (btnEdit) {
+                btnEdit.disabled = true;
+                btnEdit.classList.add('opacity-50', 'cursor-not-allowed');
+                btnEdit.classList.remove('hover:bg-yellow-100');
+            }
+            
+            const btnDelete = document.getElementById('btn-delete');
+            if (btnDelete) {
+                btnDelete.disabled = true;
+                btnDelete.classList.add('opacity-50', 'cursor-not-allowed');
+                btnDelete.classList.remove('hover:bg-red-100');
+            }
         }
 
         // Modal functions
@@ -315,6 +402,16 @@
 
         function closeCreateModal() {
             document.getElementById('createModal').classList.add('hidden');
+        }
+
+        function openChecklist() {
+            if (!selectedFolio) {
+                alert('Por favor seleccione un registro para abrir el checklist');
+                return;
+            }
+            
+            // Redirigir a la vista de checklist
+            window.location.href = `/urd-bpm-line/${selectedFolio}`;
         }
 
         function openEditModal() {
@@ -328,16 +425,19 @@
 
             // Fill form with data
             document.getElementById('edit_Folio').value = row.dataset.folio || '';
+            document.getElementById('edit_FolioDisplay').textContent = row.dataset.folio || '';
             document.getElementById('edit_Status').value = row.dataset.status || '';
             document.getElementById('edit_Fecha').value = row.dataset.fecha || '';
-            document.getElementById('edit_CveEmplRec').value = row.dataset.cveemplrec || '';
-            document.getElementById('edit_NombreEmplRec').value = row.dataset.nombreemplrec || '';
-            document.getElementById('edit_TurnoRecibe').value = row.dataset.turnorecibe || '';
-            document.getElementById('edit_CveEmplEnt').value = row.dataset.cveemplent || '';
+            
+            // Quien Recibe (editable con select)
+            document.getElementById('edit_select_NombreEmplRec').value = row.dataset.nombreemplrec || '';
+            document.getElementById('edit_input_CveEmplRec').value = row.dataset.cveemplrec || '';
+            document.getElementById('edit_input_TurnoRecibe').value = row.dataset.turnorecibe || '';
+            
+            // Quien Entrega (solo lectura)
             document.getElementById('edit_NombreEmplEnt').value = row.dataset.nombreemplent || '';
+            document.getElementById('edit_CveEmplEnt').value = row.dataset.cveemplent || '';
             document.getElementById('edit_TurnoEntrega').value = row.dataset.turnoentrega || '';
-            document.getElementById('edit_CveEmplAutoriza').value = row.dataset.cveemplautoriza || '';
-            document.getElementById('edit_NombreEmplAutoriza').value = row.dataset.nombreemplautoriza || '';
 
             // Set form action
             document.getElementById('editForm').action = `/urd-bpm/${selectedRowId}`;

@@ -48,7 +48,10 @@ class UrdBpmController extends Controller
             $validated['Folio'] = $folio;
             
             UrdBpmModel::create($validated);
-            return redirect()->back()->with('success', 'Registro creado exitosamente con folio: ' . $folio);
+            
+            // Redirigir a la vista de líneas del folio creado
+            return redirect()->route('urd-bpm-line.index', $folio)
+                ->with('success', 'Registro creado exitosamente con folio: ' . $folio);
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error al crear el registro: ' . $e->getMessage());
         }
