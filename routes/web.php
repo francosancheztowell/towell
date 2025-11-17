@@ -39,7 +39,7 @@ use App\Http\Controllers\TelBpmLineController;
 use App\Http\Controllers\TelTelaresOperadorController;
 use App\Http\Controllers\UrdActividadesBpmController;
 use App\Http\Controllers\UrdBpmController;
-use App\Models\SYSRoles;
+    use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
 
 
