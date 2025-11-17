@@ -260,7 +260,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const url = `{{ url('/api/mantenimiento/fallas') }}/${encodeURIComponent(departamento)}`;
+            // Para Jacquard, Itema, Karl Mayer y Smith, usar "Tejido" en la consulta
+            const depUpper = departamento.toUpperCase().trim();
+            let departamentoParaConsulta = departamento;
+
+            if (depUpper === 'JACQUARD' || depUpper === 'ITEMA' ||
+                depUpper === 'KARL MAYER' || depUpper === 'KARLMAYER' || depUpper === 'SMITH') {
+                departamentoParaConsulta = 'Tejido';
+            }
+
+            const url = `{{ url('/api/mantenimiento/fallas') }}/${encodeURIComponent(departamentoParaConsulta)}`;
             const response = await fetch(url);
             const result = await response.json();
 

@@ -963,6 +963,15 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
     })->name('mantenimiento.reporte-fallos-paros');
 
     // ============================================
+    // MÓDULO TELEGRAM
+    // ============================================
+    Route::prefix('telegram')->name('telegram.')->group(function () {
+        Route::post('/send', [App\Http\Controllers\Telegram\TelegramController::class, 'sendMessage'])->name('send');
+        Route::get('/bot-info', [App\Http\Controllers\Telegram\TelegramController::class, 'getBotInfo'])->name('bot-info');
+        Route::get('/get-chat-id', [App\Http\Controllers\Telegram\TelegramController::class, 'getChatId'])->name('get-chat-id');
+    });
+
+    // ============================================
     // RUTAS DE PRODUCCIÓN URD ENGOMADO
     // ============================================
     // Route::get('/programa-urd-eng/reservar-programar', [ExcelImportacionesController::class, 'showReservarProgramar'])->name('programa.urdeng.reservar');

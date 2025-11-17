@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class MantenimientoParosController extends Controller
 {
@@ -124,12 +125,23 @@ class MantenimientoParosController extends Controller
 
     /**
      * Fallas por departamento desde CatParosFallas.
+     *
+     * Nota: Para Jacquard, Itema, Karl Mayer y Smith, se usa "Tejido" como departamento
+     * en CatParosFallas para obtener las fallas.
      */
     public function fallas(string $departamento): JsonResponse
     {
         try {
+            $depUpper = strtoupper(trim($departamento));
+
+            // Mapear departamentos de tejido a "Tejido" en CatParosFallas
+            $departamentoParaConsulta = $departamento;
+            if (in_array($depUpper, ['JACQUARD', 'ITEMA', 'KARL MAYER', 'KARLMAYER', 'SMITH'], true)) {
+                $departamentoParaConsulta = 'Tejido';
+            }
+
             $items = CatParosFallas::query()
-                ->where('Departamento', $departamento)
+                ->where('Departamento', $departamentoParaConsulta)
                 ->orderBy('Falla')
                 ->get(['Falla', 'Descripcion', 'Abreviado', 'Seccion']);
 
@@ -300,12 +312,19 @@ class MantenimientoParosController extends Controller
                 'paro_id' => $paro->Id,
             ]);
 
+            // Si el checkbox "Notificar a Supervisor" está marcado, enviar mensaje a Telegram
+            $notificarSupervisor = $request->boolean('notificar_supervisor', false);
+            if ($notificarSupervisor) {
+                $this->enviarNotificacionTelegram($paro, $usuario);
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Paro reportado correctamente',
+                'message' => 'Paro reportado correctamente' . ($notificarSupervisor ? ' y notificación enviada a Telegram' : ''),
                 'data' => [
                     'folio' => $folio,
                     'id' => $paro->Id,
+                    'notificacion_enviada' => $notificarSupervisor,
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -324,6 +343,86 @@ class MantenimientoParosController extends Controller
                 'success' => false,
                 'error' => 'Error al guardar el paro: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Enviar notificación a Telegram con los detalles del paro reportado
+     */
+    private function enviarNotificacionTelegram($paro, $usuario)
+    {
+        try {
+            $botToken = config('services.telegram.bot_token');
+            $chatId = config('services.telegram.chat_id');
+
+            if (empty($botToken) || empty($chatId)) {
+                Log::warning('No se pudo enviar notificación a Telegram: credenciales no configuradas');
+                return;
+            }
+
+            // Formatear fecha en español
+            $fecha = \Carbon\Carbon::parse($paro->Fecha)->format('d/m/Y');
+            $hora = $paro->Hora;
+
+            // Construir el mensaje con formato
+            $mensaje = "🚨 *NOTIFICACIÓN DE FALLA/PARO* 🚨\n\n";
+            $mensaje .= "📋 *Folio:* {$paro->Folio}\n";
+            $mensaje .= "👤 *Reportado por:* {$paro->NomEmpl}\n";
+            $mensaje .= "📅 *Fecha:* {$fecha}\n";
+            $mensaje .= "🕐 *Hora:* {$hora}\n";
+            $mensaje .= "🏢 *Departamento:* {$paro->Depto}\n";
+            $mensaje .= "🔧 *Máquina:* {$paro->MaquinaId}\n";
+            $mensaje .= "⚠️ *Tipo de Falla:* {$paro->TipoFallaId}\n";
+            $mensaje .= "❌ *Falla:* {$paro->Falla}\n";
+
+            if (!empty($paro->Descripcion)) {
+                $mensaje .= "📝 *Descripción:* {$paro->Descripcion}\n";
+            }
+
+            if (!empty($paro->OrdenTrabajo)) {
+                $mensaje .= "📋 *Orden de Trabajo:* {$paro->OrdenTrabajo}\n";
+            }
+
+            if (!empty($paro->Obs)) {
+                $mensaje .= "💬 *Observaciones:* {$paro->Obs}\n";
+            }
+
+            $mensaje .= "\n✅ *Estatus:* {$paro->Estatus}\n";
+            $mensaje .= "🔄 *Turno:* {$paro->Turno}";
+
+            // Enviar mensaje a Telegram
+            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+            $response = Http::post($url, [
+                'chat_id' => $chatId,
+                'text' => $mensaje,
+                'parse_mode' => 'Markdown'
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                if ($data['ok'] ?? false) {
+                    Log::info('Notificación enviada a Telegram exitosamente', [
+                        'folio' => $paro->Folio,
+                        'chat_id' => $chatId
+                    ]);
+                } else {
+                    Log::error('Error en respuesta de Telegram', [
+                        'response' => $data,
+                        'folio' => $paro->Folio
+                    ]);
+                }
+            } else {
+                Log::error('Error al enviar notificación a Telegram', [
+                    'status' => $response->status(),
+                    'response' => $response->json(),
+                    'folio' => $paro->Folio
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Excepción al enviar notificación a Telegram', [
+                'error' => $e->getMessage(),
+                'folio' => $paro->Folio ?? 'N/A'
+            ]);
         }
     }
 

@@ -1,0 +1,44 @@
+═══════════════════════════════════════════════════════════════
+  RESUMEN: LÍMITES Y CAPACIDADES DE TELEGRAM BOT
+═══════════════════════════════════════════════════════════════
+
+📊 LÍMITES DE MENSAJES:
+───────────────────────────────────────────────────────────────
+✅ Chats individuales:     ~1 mensaje por segundo
+✅ Grupos:                 hasta 20 mensajes por segundo
+✅ Global (todos los chats): hasta 30 mensajes por segundo
+✅ Mensajes diarios:       SIN LÍMITE (ilimitado)
+✅ Costo:                  GRATIS (plan gratuito)
+
+📏 LÍMITES DE CONTENIDO:
+───────────────────────────────────────────────────────────────
+✅ Texto:                  4,096 caracteres por mensaje
+✅ Fotos:                  10 MB máximo
+✅ Videos:                 50 MB máximo
+✅ Documentos:             50 MB máximo
+✅ Audio:                  50 MB máximo
+
+🎯 PARA TU CASO DE USO (Notificaciones de Mantenimiento):
+───────────────────────────────────────────────────────────────
+✅ Puedes enviar:           Cientos de mensajes al día
+✅ Límite actual:           Más que suficiente
+✅ No necesitas:            Plan premium ni rate limiting
+✅ Uso estimado:            1-10 mensajes por día
+
+💡 RECOMENDACIONES:
+───────────────────────────────────────────────────────────────
+✅ Tu implementación actual es PERFECTA para:
+   - Notificaciones de paros/fallos
+   - Alertas de mantenimiento
+   - Confirmaciones de operaciones
+   - Reportes diarios
+
+⚠️ Si en el futuro necesitas:
+   - Más de 30 mensajes/segundo → Considera colas o plan premium
+   - Envío masivo a múltiples usuarios → Implementa array de chat_ids
+   - Fotos/archivos → Agrega métodos sendPhoto(), sendDocument()
+
+═══════════════════════════════════════════════════════════════
+CONCLUSIÓN: NO HAY PROBLEMAS DE LÍMITES PARA TU CASO ACTUAL ✅
+═══════════════════════════════════════════════════════════════
+
