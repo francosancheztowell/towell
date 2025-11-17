@@ -46,18 +46,16 @@ Este proyecto incluye integración con la API de Telegram para enviar mensajes d
 
 Agrega las siguientes líneas a tu archivo `.env`:
 
-
+```env
+# Telegram Bot Configuration
+TELEGRAM_BOT_TOKEN=8202582254:AAHW_BsOuWZ1BeQqjdndgeNIplS6Ptf-wG4
+TELEGRAM_CHAT_ID=2221130412
+```
 
 **⚠️ IMPORTANTE:** 
-- El `TELEGRAM_CHAT_ID` **NO es tu número de teléfono** (2223217136)
-- Es un identificador numérico único que Telegram asigna a cada chat
-- Debes obtenerlo siguiendo el paso 2 (Obtener el Chat ID)
-- El número de teléfono 2223217136 es solo para referencia, pero necesitas el `chat_id` real
-
-**Pasos para obtener tu chat_id:**
-1. Envía un mensaje a tu bot en Telegram
-2. Visita: `http://localhost:8000/telegram/get-chat-id` (o usa la API directamente)
-3. Copia el `chat_id` que aparece y reemplázalo en el `.env`
+- El `TELEGRAM_CHAT_ID` configurado es: **2221130412**
+- Este es el identificador del chat donde se recibirán las notificaciones
+- Si necesitas cambiarlo, actualiza el valor en el archivo `.env` y ejecuta `php artisan config:clear`
 
 ### 4. Limpiar caché de configuración
 
