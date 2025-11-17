@@ -42,7 +42,10 @@
             if (typeof abrirNuevo === 'function') {
                 abrirNuevo();
             } else {
-                window.location.href = '/planeacion/programa-tejido/nuevo';
+                // Detectar si estamos en simulación o programa-tejido
+                const isSimulacion = window.location.pathname.includes('/simulacion');
+                const basePath = isSimulacion ? '/simulacion' : '/planeacion/programa-tejido';
+                window.location.href = basePath + '/nuevo';
             }
         });
     }
@@ -136,7 +139,10 @@
                 }
             }).then((result) => {
                 if (result.isConfirmed && result.value) {
-                    const url = new URL(window.location.origin + '/planeacion/programa-tejido/alta-pronosticos');
+                    // Detectar si estamos en simulación o programa-tejido
+                    const isSimulacion = window.location.pathname.includes('/simulacion');
+                    const basePath = isSimulacion ? '/simulacion' : '/planeacion/programa-tejido';
+                    const url = new URL(window.location.origin + basePath + '/alta-pronosticos');
                     result.value.forEach(mes => {
                         url.searchParams.append('meses[]', mes);
                     });

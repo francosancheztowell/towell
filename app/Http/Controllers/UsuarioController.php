@@ -96,7 +96,15 @@ class UsuarioController extends Controller
 
         $result = $this->usuarioRepository->getAll($page, $perPage);
 
-        return view('modulos.usuarios.select', $result);
+        return view('modulos.usuarios.select', [
+            'usuarios' => $result['data'] ?? collect(),
+            'current_page' => $result['current_page'] ?? 1,
+            'per_page' => $result['per_page'] ?? $perPage,
+            'total' => $result['total'] ?? 0,
+            'last_page' => $result['last_page'] ?? 1,
+            'from' => $result['from'] ?? 0,
+            'to' => $result['to'] ?? 0,
+        ]);
     }
 
     /**

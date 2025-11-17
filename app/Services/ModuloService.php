@@ -53,6 +53,10 @@ class ModuloService
                         'registrar' => $modulo->usuario_registrar ?? 0,
                     ];
                 })
+                ->sortBy(function($modulo) {
+                    // Si es Configuración, ponerlo primero (orden 0), sino usar su orden normal
+                    return $modulo['nombre'] === 'Configuración' ? '0' : $modulo['orden'];
+                })
                 ->values()
                 ->toArray(); // Convertir a array para el caché
         });
@@ -357,7 +361,7 @@ class ModuloService
         // Mapeo completo de rutas
         $rutasSubModulos = [
             // Submódulos de Planeación
-            'Simulaciones' => '/planeacion/simulaciones',
+            'Simulaciones' => '/simulacion',
             'Alineación' => '/planeacion/alineacion',
             'Reportes' => '/planeacion/reportes',
             'Reportes Planeación' => '/planeacion/reportes',

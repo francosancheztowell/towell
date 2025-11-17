@@ -76,6 +76,9 @@
   @if(request()->routeIs('catalogos.req-programa-tejido') || (request()->is('planeacion/programa-tejido') && !request()->is('*programa-tejido/*/editar') && !request()->is('*programa-tejido/nuevo*')))
     <script src="{{ asset('js/programa-tejido-menu.js') }}"></script>
   @endif
+  @if(request()->is('simulacion') && !request()->is('*simulacion/*/editar') && !request()->is('*simulacion/nuevo*'))
+    <script src="{{ asset('js/programa-tejido-menu.js') }}"></script>
+  @endif
 
   <script src="{{ asset('js/simple-click-sounds.js') }}"></script>
   <script src="{{ asset('js/app-pwa.js') }}"></script>
