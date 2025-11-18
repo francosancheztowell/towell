@@ -9,10 +9,10 @@
         </a>
         
         @if($header->Status === 'Creado')
-            <form action="{{ route('urd-bpm-line.terminar', $header->Folio) }}" method="POST" class="inline">
+            <form action="{{ route('urd-bpm-line.terminar', $header->Folio) }}" method="POST" class="inline" id="form-terminar">
                 @csrf
                 @method('PATCH')
-                <button type="submit" class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <button type="button" onclick="validarYTerminar()" class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                     Terminado
                 </button>
             </form>
@@ -144,6 +144,40 @@
     </div>
 
     <script>
+    // Interceptar el botón "atrás" del navegador para refrescar
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
+
+    // Toggle individual activity: 0 (vacío) → 1 (palomita) → 2 (tache) → 0
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
+
+    // Validar que todas las actividades estén marcadas antes de terminar
+    function validarYTerminar() {
+        const totalActividades = {{ $actividades->count() }};
+        const actividadesMarcadas = document.querySelectorAll('.cell-btn[data-valor="1"], .cell-btn[data-valor="2"]').length;
+        
+        if (actividadesMarcadas < totalActividades) {
+            const faltantes = totalActividades - actividadesMarcadas;
+            Swal.fire({
+                icon: 'warning',
+                title: 'Actividades pendientes',
+                text: `Faltan ${faltantes} actividad(es) por marcar. Todas las actividades deben estar marcadas (✓ o ✗) antes de terminar.`,
+                confirmButtonColor: '#3b82f6'
+            });
+            return;
+        }
+        
+        // Si todas están marcadas, enviar el formulario
+        document.getElementById('form-terminar').submit();
+    }
+
     // Toggle individual activity: 0 (vacío) → 1 (palomita) → 2 (tache) → 0
     function toggleActividad(btn) {
         const actividad = btn.dataset.actividad;
