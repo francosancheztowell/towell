@@ -952,8 +952,73 @@ function moveRowDown() {
 
 // ===== Función para descargar programa =====
 function descargarPrograma() {
-	// Función para descargar el programa
-	console.log('Descargar programa');
+	Swal.fire({
+		title: 'Descargar Programa',
+		html: `
+			<div class="text-left">
+				<label class="block text-sm font-medium text-gray-700 mb-2">Fecha Inicial:</label>
+				<input
+					type="date"
+					id="fechaInicial"
+					class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+					required
+				>
+			</div>
+		`,
+		icon: 'question',
+		showCancelButton: true,
+		confirmButtonText: 'Descargar',
+		cancelButtonText: 'Cancelar',
+		confirmButtonColor: '#3b82f6',
+		cancelButtonColor: '#6b7280',
+		didOpen: () => {
+			// Preseleccionar fecha actual
+			const hoy = new Date().toISOString().split('T')[0];
+			document.getElementById('fechaInicial').value = hoy;
+			document.getElementById('fechaInicial').focus();
+		},
+		preConfirm: () => {
+			const fechaInicial = document.getElementById('fechaInicial').value;
+			if (!fechaInicial) {
+				Swal.showValidationMessage('Por favor seleccione una fecha inicial');
+				return false;
+			}
+			return fechaInicial;
+		}
+	}).then((result) => {
+		if (result.isConfirmed) {
+			const fechaInicial = result.value;
+
+			// Mostrar loading
+			showLoading();
+
+			// Hacer petición al servidor
+			fetch('/planeacion/programa-tejido/descargar-programa', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+				},
+				body: JSON.stringify({
+					fecha_inicial: fechaInicial
+				})
+			})
+			.then(response => response.json())
+			.then(data => {
+				hideLoading();
+				if (data.success) {
+					showToast('Programa descargado correctamente', 'success');
+				} else {
+					showToast(data.message || 'Error al descargar el programa', 'error');
+				}
+			})
+			.catch(error => {
+				hideLoading();
+				console.error('Error:', error);
+				showToast('Ocurrió un error al procesar la solicitud', 'error');
+			});
+		}
+	});
 }
 
 // ===== Función para abrir nuevo registro =====

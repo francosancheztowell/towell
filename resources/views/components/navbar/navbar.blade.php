@@ -36,14 +36,13 @@
 
               @php
                   // Verificar si el usuario tiene acceso al módulo Configuración
-                  // Solo mostrar el icono en la pantalla principal (produccionProceso)
-                  $mostrarIconoConfiguracion = Route::currentRouteName() === 'produccion.index';
-                  $tieneConfiguracion = false;
-                  if (Auth::check() && $mostrarIconoConfiguracion) {
-                      $moduloService = app(ModuloService::class);
-                      $modulos = $moduloService->getModulosPrincipalesPorUsuario(Auth::id());
-                      $tieneConfiguracion = $modulos->contains('nombre', 'Configuración');
-                  }
+                $mostrarIconoConfiguracion = Route::currentRouteName() === 'produccion.index';
+                $tieneConfiguracion = false;
+                if (Auth::check() && $mostrarIconoConfiguracion) {
+                    $moduloService = app(ModuloService::class);
+                    $modulos = $moduloService->getModulosPrincipalesPorUsuario(Auth::id());
+                    $tieneConfiguracion = $modulos->contains('nombre', 'Configuración');
+                }
               @endphp
 
               @if($tieneConfiguracion)

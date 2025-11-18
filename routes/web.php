@@ -704,6 +704,9 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
 Route::get('/planeacion/programa-tejido/liberar-ordenes', [\App\Http\Controllers\ProgramaTejido\LiberarOrdenesController::class, 'index'])->name('programa-tejido.liberar-ordenes');
 Route::post('/planeacion/programa-tejido/liberar-ordenes/procesar', [\App\Http\Controllers\ProgramaTejido\LiberarOrdenesController::class, 'liberar'])->name('programa-tejido.liberar-ordenes.procesar');
 
+// Descargar programa
+Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Controllers\ProgramaTejido\DescargarProgramaController::class, 'descargar'])->name('programa-tejido.descargar-programa');
+
         // Nueva ruta para crear/editar programa de tejido
         Route::get('/planeacion/programa-tejido/nuevo', function() {
         return view('modulos.programa-tejido.programatejidoform.create');
