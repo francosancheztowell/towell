@@ -4,9 +4,9 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <a href="{{ route('urd-bpm.index') }}" class="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+        {{-- <a href="{{ route('urd-bpm.index') }}" class="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
             ← Volver
-        </a>
+        </a> --}}
         
         @if($header->Status === 'Creado')
             <form action="{{ route('urd-bpm-line.terminar', $header->Folio) }}" method="POST" class="inline" id="form-terminar">
@@ -101,7 +101,7 @@
     </div>
 
     <!-- Checklist de Actividades -->
-    <div class="bg-white rounded-lg shadow-sm border p-2 mx-40 mb-30 ">
+    <div class="bg-white rounded-lg shadow-sm border p-2 mx-60 mb-32">
         <h2 class="text-base font-bold text-gray-800 mb-2 border-b pb-1.5 px-2">Actividades</h2>
         
         <div class="overflow-y-auto" style="max-height: calc(100vh - 280px);">
@@ -119,8 +119,8 @@
                             $valor = (int)$lineas->get($actividad->Actividad, 0);
                         @endphp
                         <tr class="border-b hover:bg-gray-50">
-                            <td class="px-2 py-1.5 text-center text-gray-600">{{ $actividad->Orden }}</td>
-                            <td class="px-2 py-1.5">{{ $actividad->Actividad }}</td>
+                            <td class="px-2 py-1.5 text-center text-gray-600 font-medium">{{ $actividad->Orden }}</td>
+                            <td class="px-2 py-1.5 text-base font-medium">{{ $actividad->Actividad }}</td>
                             <td class="px-2 py-1.5 text-center">
                                 <button type="button"
                                     class="cell-btn inline-flex items-center justify-center w-9 h-9 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300
@@ -144,14 +144,17 @@
     </div>
 
     <script>
-    // Interceptar el botón "atrás" del navegador para refrescar
-    window.addEventListener('pageshow', function(event) {
-        if (event.persisted) {
-            window.location.reload();
-        }
+    // Función global para volver al índice sin apilar páginas y refrescar
+    window.volverAlIndice = function() {
+        window.location.replace("{{ route('urd-bpm.index') }}");
+    };
+
+    // Interceptar el botón "atrás" del navegador
+    window.addEventListener('popstate', function(event) {
+        window.volverAlIndice();
     });
 
-    // Toggle individual activity: 0 (vacío) → 1 (palomita) → 2 (tache) → 0
+    // Interceptar navegación desde caché (back/forward) para refrescar
     window.addEventListener('pageshow', function(event) {
         if (event.persisted) {
             window.location.reload();
