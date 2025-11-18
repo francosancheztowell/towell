@@ -5,7 +5,10 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create onclick="openCreateModal()"/>
-        <x-navbar.button-edit onclick="openChecklist()" id="btn-edit" :disabled="true"/>
+        <button onclick="openChecklist()" id="btn-checklist" disabled class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Abrir Checklist">
+            <i class="fa-solid fa-clipboard-list text-blue-600 text-lg"></i>
+        </button>
+        {{-- <x-navbar.button-edit onclick="openEditModal()" id="btn-edit" :disabled="true"/> --}}
     </div>
 @endsection
 

@@ -7,15 +7,13 @@
         <button onclick="document.getElementById('createModal').classList.remove('hidden')" class="p-2 rounded-lg transition hover:bg-green-100" title="Crear Nuevo">
             <i class="fa-solid fa-plus text-green-600 text-lg"></i>
         </button>
-        <button onclick="openChecklist()" id="btn-open" disabled class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Abrir Checklist">
+        <button onclick="openChecklist()" id="btn-checklist" disabled class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Abrir Checklist">
             <i class="fa-solid fa-clipboard-list text-blue-600 text-lg"></i>
         </button>
-        <button onclick="openEditModal()" id="btn-edit" disabled class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar">
-            <i class="fa-solid fa-pen-to-square text-yellow-500 text-lg"></i>
-        </button>
-        <button onclick="confirmDelete()" id="btn-delete" disabled class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar">
+        {{-- <x-navbar.button-edit onclick="openEditModal()" id="btn-edit" :disabled="true"/> --}}
+        {{-- <button onclick="confirmDelete()" id="btn-delete" disabled class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar">
             <i class="fa-solid fa-trash text-red-600 text-lg"></i>
-        </button>
+        </button> --}}
     </div>
 @endsection
 
@@ -109,12 +107,6 @@
 
             <form action="{{ route('eng-bpm.store') }}" method="POST" class="p-4">
                 @csrf
-                
-                <!-- Folio Sugerido -->
-                <div class="mb-3 bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
-                    <p class="text-xs text-gray-600 mb-1">Folio sugerido (se asignará al guardar):</p>
-                    <p class="text-2xl font-bold text-yellow-700">{{ $folioSugerido }}</p>
-                </div>
 
                 <!-- Fecha -->
                 <div class="mb-3">
@@ -329,10 +321,12 @@
         }
 
         function enableButtons() {
-            ['btn-open', 'btn-edit', 'btn-delete'].forEach(id => {
+            ['btn-checklist', 'btn-edit', 'btn-delete'].forEach(id => {
                 const btn = document.getElementById(id);
-                btn.disabled = false;
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
             });
         }
 
