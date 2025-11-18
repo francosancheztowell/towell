@@ -3,7 +3,7 @@
 @section('title', 'Gestión de Módulos')
 
 @section('navbar-right')
-    <x-navbar.button-create href="{{ route('modulos.sin.auth.create') }}" title="Crear Módulo" />
+    <x-navbar.button-create href="{{ route('modulos.sin.auth.create') }}" title="Crear Módulo" onclick="crearModulo()"/>
     <x-navbar.button-edit id="btnEditarSeleccionado" onclick="editarModuloSeleccionado()" title="Editar" />
     <x-navbar.button-delete id="btnEliminarSeleccionado" onclick="eliminarModulosSeleccionados()" title="Eliminar" />
 @endsection
@@ -288,6 +288,12 @@
             }
         }
     };
+
+    // ==================== GESTIÓN DE SELECCIÓN ====================
+
+    function crearModulo(){
+        
+    }
 
     // ==================== GESTIÓN DE SELECCIÓN ====================
     const SelectionManager = {
