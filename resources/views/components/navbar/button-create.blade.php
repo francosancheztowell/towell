@@ -84,8 +84,8 @@
     // Si hay fondo, ajustar el hoverBg si no se especifica
     $finalHoverBg = $hoverBg;
     if ($bg && $hoverBg === 'hover:bg-green-100') {
-        // Si hay un fondo personalizado, usar un hover más oscuro por defecto
-        $finalHoverBg = 'hover:opacity-90';
+        // Si hay un fondo personalizado, usar el hoverBg proporcionado o un hover más oscuro por defecto
+        $finalHoverBg = $hoverBg !== 'hover:bg-green-100' ? $hoverBg : 'hover:opacity-90';
     }
 @endphp
 
@@ -94,7 +94,7 @@
     type="button"
     @if($id) id="{{ $id }}" @endif
     onclick="{{ $onclick }}"
-    class="{{ $paddingClass }} rounded-lg transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 {{ $bg ?? '' }}"
+    class="{{ $paddingClass }} {{ $text ? 'rounded-lg' : 'rounded-full' }} transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $bg ?? '' }} {{ !$text ? ($bg ? 'w-9 h-9' : 'w-9 h-9') : '' }}"
     @if($disabled) disabled @endif
     title="{{ $title }}">
     <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} {{ $text ? 'text-base' : 'text-lg' }}"></i>

@@ -4,23 +4,23 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
+
+    <button id="btnReservar" type="button"
+    class="px-3 py-1 text-yellow-500 hover:text-yellow-600 rounded-lg transition-colors flex items-center justify-center disabled:text-gray-400 disabled:cursor-not-allowed"
+    title="Reservar" disabled>
+    <i class="fa-solid fa-save w-5 h-5"></i>
+  </button>
+    <button id="btnLiberarTelar" type="button"
+      class="px-3 py-2 text-red-500 hover:text-red-600 rounded-lg transition-colors flex items-center justify-center disabled:text-gray-400 disabled:cursor-not-allowed"
+      title="Liberar telar" disabled>
+      <i class="fa-solid fa-unlock w-5 h-5"></i>
+    </button>
     <button id="btnProgramar" type="button"
       class="px-3 py-1 text-green-500 hover:text-green-600 rounded-lg transition-colors flex items-center justify-center disabled:text-gray-400 disabled:cursor-not-allowed"
       title="Programar" disabled>
       <i class="fa-solid fa-calendar-check w-5 h-5"></i>
     </button>
 
-    <button id="btnLiberarTelar" type="button"
-      class="px-3 py-2 text-red-500 hover:text-red-600 rounded-lg transition-colors flex items-center justify-center disabled:text-gray-400 disabled:cursor-not-allowed"
-      title="Liberar telar" disabled>
-      <i class="fa-solid fa-unlock w-5 h-5"></i>
-    </button>
-
-    <button id="btnReservar" type="button"
-      class="px-3 py-1 text-yellow-500 hover:text-yellow-600 rounded-lg transition-colors flex items-center justify-center disabled:text-gray-400 disabled:cursor-not-allowed"
-      title="Reservar" disabled>
-      <i class="fa-solid fa-save w-5 h-5"></i>
-    </button>
 
     <button id="btnResetFiltros" type="button"
       class="px-3 py-2 text-gray-500 hover:text-gray-600 rounded-lg transition-colors flex items-center justify-center"

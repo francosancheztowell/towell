@@ -12,8 +12,11 @@
         @param int $moduleId - ID del módulo (idrol) para verificar permisos (opcional, preferido sobre $module)
         @param bool $checkPermission - Si debe verificar permisos (default: true si se proporciona $module o $moduleId)
         @param string $icon - Clase del icono FontAwesome (default: 'fa-pen-to-square')
-        @param string $iconColor - Color del icono en clases Tailwind (default: 'text-yellow-500')
-        @param string $hoverBg - Color de fondo al hacer hover en clases Tailwind (default: 'hover:bg-yellow-100')
+        @param string $iconColor - Color del icono en clases Tailwind (default: 'text-white')
+        @param string $hoverBg - Color de fondo al hacer hover en clases Tailwind (default: 'hover:bg-blue-600')
+        @param string $bg - Color de fondo en clases Tailwind (default: 'bg-blue-500')
+        @param string $text - Texto opcional para mostrar junto al ícono (opcional)
+        @param string $class - Clases CSS adicionales personalizadas (opcional)
 
     Uso:
         <x-navbar.button-edit onclick="editSelected()" id="btn-edit" />
@@ -32,8 +35,11 @@
     'moduleId' => null,
     'checkPermission' => null,
     'icon' => 'fa-pen-to-square',
-    'iconColor' => 'text-yellow-500',
-    'hoverBg' => 'hover:bg-yellow-100'
+    'iconColor' => 'text-white',
+    'hoverBg' => 'hover:bg-blue-600',
+    'bg' => 'bg-blue-500',
+    'text' => null,
+    'class' => ''
 ])
 
 @php
@@ -71,6 +77,18 @@
     if (!str_starts_with($iconNormalized, 'fa-')) {
         $iconNormalized = 'fa-' . $iconNormalized;
     }
+
+    // Si hay texto, ajustar el padding
+    $paddingClass = $text ? 'px-3 py-2' : 'p-2';
+@endphp
+
+@php
+    // Si hay fondo personalizado, ajustar hoverBg si es necesario
+    $finalHoverBg = $hoverBg;
+    if ($bg && $hoverBg === 'hover:bg-yellow-100') {
+        // Si hay bg pero hoverBg es el default antiguo, usar hover más oscuro
+        $finalHoverBg = 'hover:opacity-90';
+    }
 @endphp
 
 @if($hasPermission)
@@ -78,10 +96,13 @@
     type="button"
     @if($id) id="{{ $id }}" @endif
     onclick="{{ $onclick }}"
-    class="p-2 rounded-lg transition {{ $hoverBg }} disabled:opacity-50 disabled:cursor-not-allowed"
+    class="{{ $paddingClass }} {{ $text ? 'rounded-lg' : 'rounded-full' }} transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $bg }} {{ !$text ? 'w-9 h-9' : '' }} {{ $class }}"
     @if($disabled) disabled @endif
     title="{{ $title }}">
-    <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} text-lg"></i>
+    <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} {{ $text ? 'text-base' : 'text-lg' }}"></i>
+    @if($text)
+        <span class="text-sm font-medium {{ $iconColor }}">{{ $text }}</span>
+    @endif
 </button>
 @endif
 

@@ -784,10 +784,7 @@ function selectRow(rowElement, rowIndex) {
 		const btnEditar = document.getElementById('btn-editar-programa');
 		const btnEditarLayout = document.getElementById('layoutBtnEditar');
 		if (btnEditar) btnEditar.disabled = false;
-		if (btnEditarLayout) {
-			btnEditarLayout.disabled = false;
-			btnEditarLayout.classList.remove('opacity-50', 'cursor-not-allowed');
-		}
+		if (btnEditarLayout) btnEditarLayout.disabled = false;
 
 		const btnEliminar = document.getElementById('btn-eliminar-programa');
 		const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
@@ -796,17 +793,8 @@ function selectRow(rowElement, rowIndex) {
 		const enProceso = rowElement.querySelector('[data-column="EnProceso"]');
 		const estaEnProceso = enProceso && enProceso.querySelector('input[type="checkbox"]')?.checked;
 
-		if (btnEliminar) {
-			btnEliminar.disabled = estaEnProceso;
-		}
-		if (btnEliminarLayout) {
-			btnEliminarLayout.disabled = estaEnProceso;
-			if (!estaEnProceso) {
-				btnEliminarLayout.classList.remove('opacity-50', 'cursor-not-allowed');
-			} else {
-				btnEliminarLayout.classList.add('opacity-50', 'cursor-not-allowed');
-			}
-		}
+		if (btnEliminar) btnEliminar.disabled = estaEnProceso;
+		if (btnEliminarLayout) btnEliminarLayout.disabled = estaEnProceso;
 	} catch(e) {
 		console.error('Error en selectRow:', e);
 	}
@@ -830,18 +818,12 @@ function deselectRow() {
 		const btnEditar = document.getElementById('btn-editar-programa');
 		const btnEditarLayout = document.getElementById('layoutBtnEditar');
 		if (btnEditar) btnEditar.disabled = true;
-		if (btnEditarLayout) {
-			btnEditarLayout.disabled = true;
-			btnEditarLayout.classList.add('opacity-50', 'cursor-not-allowed');
-		}
+		if (btnEditarLayout) btnEditarLayout.disabled = true;
 
 		const btnEliminar = document.getElementById('btn-eliminar-programa');
 		const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
 		if (btnEliminar) btnEliminar.disabled = true;
-		if (btnEliminarLayout) {
-			btnEliminarLayout.disabled = true;
-			btnEliminarLayout.classList.add('opacity-50', 'cursor-not-allowed');
-		}
+		if (btnEliminarLayout) btnEliminarLayout.disabled = true;
 	} catch(e) {
 		console.error('Error en deselectRow:', e);
 	}
@@ -1059,25 +1041,9 @@ document.addEventListener('DOMContentLoaded', function() {
 	const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
 	if (btnEditarLayout) {
 		btnEditarLayout.disabled = true;
-		btnEditarLayout.classList.add('opacity-50', 'cursor-not-allowed');
-		// Conectar event listener
-		btnEditarLayout.addEventListener('click', () => {
-			const selected = $$('.selectable-row')[selectedRowIndex];
-			const id = selected ? selected.getAttribute('data-id') : null;
-			if (!id) return;
-			window.location.href = `/planeacion/programa-tejido/${encodeURIComponent(id)}/editar`;
-		});
 	}
 	if (btnEliminarLayout) {
 		btnEliminarLayout.disabled = true;
-		btnEliminarLayout.classList.add('opacity-50', 'cursor-not-allowed');
-		// Conectar event listener
-		btnEliminarLayout.addEventListener('click', () => {
-			const selected = $$('.selectable-row')[selectedRowIndex];
-			const id = selected ? selected.getAttribute('data-id') : null;
-			if (!id) return;
-			eliminarRegistro(id);
-		});
 	}
 
     const btnEditar = document.getElementById('btn-editar-programa');

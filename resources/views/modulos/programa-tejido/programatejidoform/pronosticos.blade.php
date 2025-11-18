@@ -3,10 +3,16 @@
 @section('page-title', 'Programar Pronóstico')
 
 @section('navbar-right')
-<button onclick="ProgramaTejidoCRUD.guardar()" class="bg-blue-600 hover:bg-blue-700 flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors">
-    <i class="fas fa-save"></i>
-    Guardar
-</button>
+<x-navbar.button-create 
+    onclick="ProgramaTejidoCRUD.guardar()" 
+    title="Guardar"
+    module="Programa Tejido"
+    :disabled="false"
+    icon="fa-save"
+    text="Guardar"
+    bg="bg-blue-600"
+    iconColor="text-white"
+    hoverBg="hover:bg-blue-700" />
 @endsection
 
 @section('content')

@@ -9,10 +9,7 @@
     <button id="btnRestablecer" type="button" class="inline-flex items-center justify-center w-9 h-9 text-base rounded-full text-white bg-gray-600 hover:bg-gray-700 ml-2" title="Restablecer">
         <i class="fa-solid fa-rotate"></i>
     </button>
-    <button id="btnProgramar"
-            class="hidden bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm ml-2">
-        <i class="fa-solid fa-plus mr-1"></i> Programar
-    </button>
+    <x-navbar.button-create id="btnProgramar" onclick="handleProgramarAlta()" title="Programar" module="Programa Tejido" icon="fa-plus" bg="bg-green-600" iconColor="text-white" hoverBg="hover:bg-green-700" />
 @endsection
 
 @section('content')

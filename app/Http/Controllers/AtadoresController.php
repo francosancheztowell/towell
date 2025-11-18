@@ -133,6 +133,10 @@ class AtadoresController extends Controller
             'Limpieza' => null,
         ]);
 
+        // Actualizar el estado en tej_inventario_telares a "En Proceso"
+        $item->status = 'En Proceso';
+        $item->save();
+
         // Crear registros base para máquinas del catálogo
         $maquinas = AtaMaquinasModel::all();
         foreach ($maquinas as $maquina) {

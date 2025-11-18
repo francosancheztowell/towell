@@ -15,21 +15,30 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-1">
-    <button id="btn-nuevo" class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors" title="Nuevo">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-    </button>
-    <button id="btn-editar" class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors cursor-not-allowed" disabled title="Editar">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-        </svg>
-    </button>
-    <button id="btn-finalizar" class="p-2 text-orange-600 hover:text-orange-800 hover:bg-orange-100 rounded-md transition-colors cursor-not-allowed" disabled title="Finalizar">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-        </svg>
-    </button>
+    <x-navbar.button-create
+      id="btn-nuevo"
+      title="Nuevo"
+      module="Marcas Finales"
+      :disabled="false"
+      icon="fa-plus"
+      iconColor="text-green-600"
+      hoverBg="hover:bg-green-100" />
+    <x-navbar.button-edit
+      id="btn-editar"
+      title="Editar"
+      module="Marcas Finales"
+      :disabled="false"
+      icon="fa-pen-to-square"
+      iconColor="text-blue-600"
+      hoverBg="hover:bg-blue-100" />
+    <x-navbar.button-report
+      id="btn-finalizar"
+      title="Finalizar"
+      :moduleId="25"
+      :disabled="false"
+      icon="fa-check"
+      iconColor="text-orange-600"
+      hoverBg="hover:bg-orange-100" />
 </div>
 @endsection
 
@@ -146,9 +155,6 @@
         </div>
     </div>
 </div>
-
-<!-- Librería -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
 /* ===============================
@@ -352,9 +358,8 @@
     function setBtn(sel, enabled) {
         const btn = $(sel);
         if (!btn) return;
+        // Solo manipular el atributo disabled, los componentes manejan su propio estilo
         btn.disabled = !enabled;
-        btn.classList.toggle('cursor-not-allowed', !enabled);
-        btn.classList.toggle('bg-gray-400', !enabled);
     }
     function enableStatusField() {
         const el = $('#status');

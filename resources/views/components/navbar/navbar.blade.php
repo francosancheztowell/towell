@@ -62,9 +62,15 @@
                     <!-- Grupo 1: Dropdown Agregar + Editar + Eliminar (compacto, solo íconos) -->
                     <div class="flex items-center gap-2 mr-2">
                       <div class="relative">
-                        <button id="layoutBtnAddMenu" type="button" class="w-9 h-9 flex items-center justify-center rounded-full bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400" title="Agregar" aria-label="Agregar">
-                          <i class="fa-solid fa-plus"></i>
-                        </button>
+                        <x-navbar.button-create
+                          id="layoutBtnAddMenu"
+                          onclick="document.getElementById('layoutAddMenu').classList.toggle('hidden')"
+                          title="Agregar"
+                          module="Programa Tejido"
+                          icon="fa-plus"
+                          bg="bg-green-600"
+                          iconColor="text-white"
+                          hoverBg="hover:bg-green-700" />
                         <div id="layoutAddMenu" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 origin-top-right transform transition ease-out duration-150 scale-95 opacity-0 z-50">
                           <div class="py-1">
                             <button type="button" id="menuNuevoRegistro" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
@@ -86,12 +92,22 @@
                           </div>
                         </div>
                       </div>
-                      <button type="button" id="layoutBtnEditar" class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar" aria-label="Editar" disabled>
-                        <i class="fa-solid fa-pen-to-square"></i>
-                      </button>
-                      <button type="button" id="layoutBtnEliminar" class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar" aria-label="Eliminar" disabled>
-                        <i class="fa-solid fa-trash"></i>
-                      </button>
+                      <x-navbar.button-edit
+                        id="layoutBtnEditar"
+                        onclick="const selected = document.querySelectorAll('.selectable-row')[selectedRowIndex]; const id = selected ? selected.getAttribute('data-id') : null; if(id) window.location.href = `/planeacion/programa-tejido/${encodeURIComponent(id)}/editar`;"
+                        title="Editar"
+                        module="Programa Tejido"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-yellow-600"
+                        bg="bg-yellow-500" />
+                      <x-navbar.button-delete
+                        id="layoutBtnEliminar"
+                        onclick="const selected = document.querySelectorAll('.selectable-row')[selectedRowIndex]; const id = selected ? selected.getAttribute('data-id') : null; if(id) eliminarRegistro(id);"
+                        title="Eliminar"
+                        module="Programa Tejido"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-red-600"
+                        bg="bg-red-500" />
                     </div>
 
                     <!-- Grupo 2: Controles de columnas -->
@@ -121,17 +137,25 @@
                   <!-- Prioridad (solo si hay selección) -->
                   <div id="rowPriorityControls" class="flex items-center gap-2 hidden">
                     <!-- Subir (verde) -->
-                    <button type="button" onclick="moveRowUp()"
-                            class="w-9 h-9 flex items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors"
-                            title="Subir prioridad" aria-label="Subir prioridad">
-                      <i class="fa-solid fa-arrow-up"></i>
-                    </button>
+                    <x-navbar.button-edit
+                      onclick="moveRowUp()"
+                      title="Subir prioridad"
+                      module="Programa Tejido"
+                      :disabled="false"
+                      icon="fa-arrow-up"
+                      iconColor="text-white"
+                      hoverBg="hover:bg-green-600"
+                      bg="bg-green-500" />
                     <!-- Bajar (rojo) -->
-                    <button type="button" onclick="moveRowDown()"
-                            class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
-                            title="Bajar prioridad" aria-label="Bajar prioridad">
-                      <i class="fa-solid fa-arrow-down"></i>
-                    </button>
+                    <x-navbar.button-edit
+                      onclick="moveRowDown()"
+                      title="Bajar prioridad"
+                      module="Programa Tejido"
+                      :disabled="false"
+                      icon="fa-arrow-down"
+                      iconColor="text-white"
+                      hoverBg="hover:bg-red-600"
+                      bg="bg-red-500" />
                         </div>
 
                   <!-- Filtros (reactivo) -->
@@ -154,9 +178,16 @@
                     <!-- Grupo 1: Dropdown Agregar + Editar + Eliminar (compacto, solo íconos) -->
                     <div class="flex items-center gap-2 mr-2">
                       <div class="relative">
-                        <button id="layoutBtnAddMenu" type="button" class="w-9 h-9 flex items-center justify-center rounded-full bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400" title="Agregar" aria-label="Agregar">
-                          <i class="fa-solid fa-plus"></i>
-                        </button>
+                        <x-navbar.button-create
+                          id="layoutBtnAddMenu"
+                          onclick="document.getElementById('layoutAddMenu').classList.toggle('hidden')"
+                          title="Agregar"
+                          module="Programa Tejido"
+                          :disabled="false"
+                          icon="fa-plus"
+                          bg="bg-green-600"
+                          iconColor="text-white"
+                          hoverBg="hover:bg-green-700" />
                         <div id="layoutAddMenu" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 origin-top-right transform transition ease-out duration-150 scale-95 opacity-0 z-50">
                           <div class="py-1">
                             <button type="button" id="menuNuevoRegistro" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
@@ -174,12 +205,24 @@
                           </div>
                         </div>
                       </div>
-                      <button type="button" id="layoutBtnEditar" class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar" aria-label="Editar" disabled>
-                        <i class="fa-solid fa-pen-to-square"></i>
-                      </button>
-                      <button type="button" id="layoutBtnEliminar" class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar" aria-label="Eliminar" disabled>
-                        <i class="fa-solid fa-trash"></i>
-                      </button>
+                      <x-navbar.button-edit
+                        id="layoutBtnEditar"
+                        onclick="if(typeof selectedRowId !== 'undefined' && selectedRowId) { const selected = document.querySelector(`.selectable-row[data-id='${selectedRowId}']`); if(selected) { const id = selected.getAttribute('data-id'); if(id) window.location.href = `/simulacion/${encodeURIComponent(id)}/editar`; } }"
+                        title="Editar"
+                        module="Programa Tejido"
+                        :disabled="true"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-yellow-600"
+                        bg="bg-yellow-500" />
+                      <x-navbar.button-delete
+                        id="layoutBtnEliminar"
+                        onclick="if(typeof selectedRowId !== 'undefined' && selectedRowId) { const selected = document.querySelector(`.selectable-row[data-id='${selectedRowId}']`); if(selected) { const id = selected.getAttribute('data-id'); if(id && typeof eliminarRegistro === 'function') eliminarRegistro(id); } }"
+                        title="Eliminar"
+                        module="Programa Tejido"
+                        :disabled="true"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-red-600"
+                        bg="bg-red-500" />
                     </div>
 
                     <!-- Grupo 2: Controles de columnas -->
@@ -202,27 +245,39 @@
 
 
                     <!-- Grupo 4: Actualizar Simulación (icono de subir) -->
-                    <button type="button" id="btnActualizarSimulacion"
-                            class="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
-                            title="Actualizar Simulación (eliminar y duplicar datos)" aria-label="Actualizar Simulación">
-                      <i class="fa-solid fa-upload"></i>
-                    </button>
+                    <x-navbar.button-create
+                      id="btnActualizarSimulacion"
+                      title="Actualizar Simulación (eliminar y duplicar datos)"
+                      module="Programa Tejido"
+                      :disabled="false"
+                      icon="fa-upload"
+                      bg="bg-blue-500"
+                      iconColor="text-white"
+                      hoverBg="hover:bg-blue-600" />
                   </div>
 
                   <!-- Prioridad (solo si hay selección) -->
                   <div id="rowPriorityControls" class="flex items-center gap-2 hidden">
                     <!-- Subir (verde) -->
-                    <button type="button" onclick="moveRowUp()"
-                            class="w-9 h-9 flex items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors"
-                            title="Subir prioridad" aria-label="Subir prioridad">
-                      <i class="fa-solid fa-arrow-up"></i>
-                    </button>
+                    <x-navbar.button-edit
+                      onclick="moveRowUp()"
+                      title="Subir prioridad"
+                      module="Programa Tejido"
+                      :disabled="false"
+                      icon="fa-arrow-up"
+                      iconColor="text-white"
+                      hoverBg="hover:bg-green-600"
+                      bg="bg-green-500" />
                     <!-- Bajar (rojo) -->
-                    <button type="button" onclick="moveRowDown()"
-                            class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
-                            title="Bajar prioridad" aria-label="Bajar prioridad">
-                      <i class="fa-solid fa-arrow-down"></i>
-                    </button>
+                    <x-navbar.button-edit
+                      onclick="moveRowDown()"
+                      title="Bajar prioridad"
+                      module="Programa Tejido"
+                      :disabled="false"
+                      icon="fa-arrow-down"
+                      iconColor="text-white"
+                      hoverBg="hover:bg-red-600"
+                      bg="bg-red-500" />
                         </div>
 
                   <!-- Filtros (reactivo) -->

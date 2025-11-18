@@ -12,8 +12,11 @@
         @param int $moduleId - ID del módulo (idrol) para verificar permisos (opcional, preferido sobre $module)
         @param bool $checkPermission - Si debe verificar permisos (default: true si se proporciona $module o $moduleId)
         @param string $icon - Clase del icono FontAwesome (default: 'fa-trash')
-        @param string $iconColor - Color del icono en clases Tailwind (default: 'text-red-600')
-        @param string $hoverBg - Color de fondo al hacer hover en clases Tailwind (default: 'hover:bg-red-100')
+        @param string $iconColor - Color del icono en clases Tailwind (default: 'text-white')
+        @param string $hoverBg - Color de fondo al hacer hover en clases Tailwind (default: 'hover:bg-blue-600')
+        @param string $bg - Color de fondo en clases Tailwind (default: 'bg-blue-500')
+        @param string $text - Texto opcional para mostrar junto al ícono (opcional)
+        @param string $class - Clases CSS adicionales personalizadas (opcional)
 
     Uso:
         <x-navbar.button-delete onclick="deleteSelected()" id="btn-delete" />
@@ -32,8 +35,11 @@
     'moduleId' => null,
     'checkPermission' => null,
     'icon' => 'fa-trash',
-    'iconColor' => 'text-red-600',
-    'hoverBg' => 'hover:bg-red-100'
+    'iconColor' => 'text-white',
+    'hoverBg' => 'hover:bg-blue-600',
+    'bg' => 'bg-blue-500',
+    'text' => null,
+    'class' => ''
 ])
 
 @php
@@ -71,6 +77,37 @@
     if (!str_starts_with($iconNormalized, 'fa-')) {
         $iconNormalized = 'fa-' . $iconNormalized;
     }
+
+    // Si hay texto, ajustar el padding
+    $paddingClass = $text ? 'px-3 py-2' : 'p-2';
+@endphp
+
+@php
+    // Extraer hover del class si está presente (tiene prioridad)
+    $hoverFromClass = '';
+    if ($class && preg_match('/hover:[^\s]+/', $class, $matches)) {
+        $hoverFromClass = $matches[0];
+    }
+
+    // Lógica para hoverBg: si hay hover en class, usarlo; si no, usar la lógica normal
+    $finalHoverBg = $hoverBg;
+    if ($hoverFromClass) {
+        // Si hay hover en class, usarlo (tiene máxima prioridad)
+        $finalHoverBg = $hoverFromClass;
+    } elseif ($bg) {
+        // Si hay un fondo personalizado y no hay hover en class
+        if ($hoverBg === 'hover:bg-red-100') {
+            // Si hoverBg es el default antiguo, usar hover más oscuro automáticamente
+            $finalHoverBg = 'hover:opacity-90';
+        }
+        // Si hoverBg es diferente al default (se proporcionó uno personalizado), se mantiene el proporcionado
+    }
+
+    // Remover el hover del class para evitar duplicados
+    if ($hoverFromClass) {
+        $class = preg_replace('/hover:[^\s]+/', '', $class);
+        $class = preg_replace('/\s+/', ' ', trim($class));
+    }
 @endphp
 
 @if($hasPermission)
@@ -78,10 +115,13 @@
     type="button"
     @if($id) id="{{ $id }}" @endif
     onclick="{{ $onclick }}"
-    class="p-2 rounded-lg transition {{ $hoverBg }} disabled:opacity-50 disabled:cursor-not-allowed"
+    class="{{ $paddingClass }} {{ $text ? 'rounded-lg' : 'rounded-full' }} transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $bg }} {{ !$text ? 'w-9 h-9' : '' }} {{ $class }}"
     @if($disabled) disabled @endif
     title="{{ $title }}">
-    <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} text-lg"></i>
+    <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} {{ $text ? 'text-base' : 'text-lg' }}"></i>
+    @if($text)
+        <span class="text-sm font-medium">{{ $text }}</span>
+    @endif
 </button>
 @endif
 

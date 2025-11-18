@@ -829,7 +829,7 @@ class ReservarProgramarController extends Controller
     private function baseQuery()
     {
         return TejInventarioTelares::query()
-            ->where('status', self::STATUS_ACTIVO)
+            ->where('status', '=', self::STATUS_ACTIVO) // Solo mostrar registros con status = 'Activo'
             ->select(self::COLS_TELARES);
     }
 
