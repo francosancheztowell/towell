@@ -2,55 +2,49 @@
 
 @section('page-title', 'Consultar Marcas Finales')
 
-@section('navbar-right')
 @php
-    $permisosMarcas = userPermissions('Marcas Finales') ?? userPermissions('Nuevas Marcas Finales');
-    $puedeCrear      = (bool)($permisosMarcas->crear     ?? false);
-    $puedeModificar  = (bool)($permisosMarcas->modificar ?? false);
-    $puedeEliminar   = (bool)($permisosMarcas->eliminar  ?? false);
+    use Carbon\Carbon;
 @endphp
 
+@section('navbar-right')
 <div class="flex items-center gap-2">
-    @if($puedeCrear)
-        <a href="{{ route('marcas.nuevo') }}" id="btn-nuevo" class="p-2 rounded-lg transition hover:bg-blue-100" title="Nuevo">
-            <i class="fas fa-plus text-blue-600 text-lg"></i>
-        </a>
-    @else
-        <button id="btn-nuevo" disabled class="p-2 rounded-lg cursor-not-allowed opacity-50" title="Nuevo (Sin permisos)">
-            <i class="fas fa-lock text-gray-400 text-lg"></i>
-        </button>
-    @endif
+    <x-navbar.button-create
+      id="btn-nuevo"
+      title="Nuevo"
+      module="Marcas Finales"
+      :disabled="false"
+      icon="fa-plus"
+      iconColor="text-green-600"
+      hoverBg="hover:bg-green-100" />
 
-    <button id="btn-editar-global"
-            onclick="editarMarcaSeleccionada()"
-            class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            {{ $puedeModificar ? '' : 'disabled' }}
-            title="Editar">
-        <i class="fas fa-edit text-yellow-500 text-lg"></i>
-    </button>
+    <x-navbar.button-edit
+      id="btn-editar"
+      title="Editar"
+      module="Marcas Finales"
+      :disabled="false"
+      icon="fa-pen-to-square"
+      iconColor="text-blue-600"
+      hoverBg="hover:bg-blue-100" />
 
-    <button id="btn-finalizar-global"
-            onclick="finalizarMarcaSeleccionada()"
-            class="p-2 rounded-lg transition hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            {{ ($puedeModificar || $puedeEliminar) ? '' : 'disabled' }}
-            title="Finalizar">
-        <i class="fas fa-check text-green-500 text-lg"></i>
-    </button>
+    <x-navbar.button-report
+      id="btn-finalizar"
+      title="Finalizar"
+      :moduleId="25"
+      :disabled="false"
+      icon="fa-check"
+      iconColor="text-orange-600"
+      hoverBg="hover:bg-orange-100" />
 </div>
 @endsection
 
 @section('content')
-<!-- CONTENEDOR A TODO LO ANCHO Y ALTO (OPTIMIZADO PARA TABLET) -->
-<div class="w-full ">
-  <!-- Dos paneles en columna, cada uno con altura fija para que quepan en pantalla -->
-  <div class="flex flex-col gap-3 w-full"
-       style="max-height: calc(100vh - 140px);">
-
+<div class="w-full">
+    <div class="flex flex-col gap-3 w-full max-h-[calc(100vh-140px)]">
     @if(isset($marcas) && $marcas->count() > 0)
-      <!-- PANEL SUPERIOR: LISTA DE FOLIOS -->
+            <!-- Panel Superior: Lista de Folios -->
       <div class="bg-white rounded-md shadow-sm overflow-hidden w-full flex-shrink-0">
-        <div class="overflow-auto" style="max-height: calc((100vh - 200px) / 2);">
-          <table class="w-full table-fixed text-xs">
+                <div class="overflow-auto max-h-[calc((100vh-200px)/2)]">
+                    <table class="w-full table-fixed text-xs border-separate border-spacing-0">
             <thead class="bg-blue-600 text-white sticky top-0 z-10">
               <tr>
                 <th class="px-2 py-2 text-left uppercase text-[11px] w-24">Folio</th>
@@ -62,12 +56,18 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
               @foreach($marcas as $marca)
-              <tr class="hover:bg-blue-50 cursor-pointer {{ isset($ultimoFolio) && $ultimoFolio->Folio == $marca->Folio ? 'fila-seleccionada' : '' }}"
+                            <tr class="hover:bg-blue-50 cursor-pointer transition-colors {{ isset($ultimoFolio) && $ultimoFolio->Folio == $marca->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
                   data-folio="{{ $marca->Folio }}"
-                  onclick="seleccionarMarca('{{ $marca->Folio }}', this)">
+                                onclick="MarcasConsultar.seleccionar('{{ $marca->Folio }}', this)">
                 <td class="px-2 py-2 font-semibold text-gray-900 truncate">{{ $marca->Folio }}</td>
-                <td class="px-2 py-2 text-gray-900 truncate">{{ \Carbon\Carbon::parse($marca->Date)->format('d/m/Y') }}</td>
-                <td class="px-2 py-2 text-gray-900 truncate">T{{ $marca->Turno }}</td>
+                                <td class="px-2 py-2 text-gray-900 truncate">
+                                    @if($marca->Date)
+                                        {{ Carbon::parse($marca->Date)->format('d/m/Y') }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="px-2 py-2 text-gray-900 truncate">{{ $marca->Turno }}</td>
                 <td class="px-2 py-2 text-gray-900 truncate">{{ $marca->numero_empleado ?? 'N/A' }}</td>
                 <td class="px-2 py-2">
                   @if($marca->Status === 'Finalizado')
@@ -85,9 +85,8 @@
         </div>
       </div>
 
-      <!-- PANEL INFERIOR: PREVIEW / DETALLE -->
+            <!-- Panel Inferior: Preview / Detalle -->
       <div id="preview-panel" class="bg-white rounded-md shadow-sm overflow-hidden w-full hidden flex-shrink-0">
-        <!-- Header compacto -->
         <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-1.5 border-b border-blue-700 flex-shrink-0">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-3 min-w-0 flex-1">
@@ -102,8 +101,8 @@
           </div>
         </div>
 
-        <div class="overflow-auto" style="max-height: calc((100vh - 200px) / 2);">
-          <table class="w-full table-fixed text-xs">
+                <div class="overflow-auto max-h-[calc((100vh-200px)/2)]">
+                    <table class="w-full table-fixed text-xs border-separate border-spacing-0">
             <thead class="bg-blue-600 text-white sticky top-0 z-10">
               <tr>
                 <th class="px-2 py-2 text-left uppercase text-[11px] w-20">Telar</th>
@@ -119,174 +118,325 @@
           </table>
         </div>
       </div>
-
     @else
-      <!-- SIN REGISTROS -->
+            <!-- Sin Registros -->
       <div class="bg-white rounded-md shadow-sm p-8 text-center w-full">
         <h3 class="text-lg font-semibold text-gray-700 mb-2">No hay marcas registradas</h3>
-        <p class="text-gray-500">Toca “Nueva Marca” para crear el primer registro.</p>
-        @if($puedeCrear)
-        <a href="{{ route('marcas.nuevo') }}" class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-          <i class="fas fa-plus mr-2"></i> Nueva Marca
-        </a>
-        @endif
+                <p class="text-gray-500 mb-4">Toca "Nueva Marca" para crear el primer registro.</p>
+        <x-navbar.button-create
+                  id="btn-nuevo-empty"
+          title="Nuevo"
+          module="Marcas Finales"
+          :disabled="false"
+          icon="fa-plus"
+          iconColor="text-green-600"
+          hoverBg="hover:bg-green-100" />
       </div>
     @endif
-
   </div>
 </div>
 
 <style>
-  /* Ocupa todo el ancho del layout */
-  section.content{ width:100%!important; max-width:100%!important }
-
-  /* Selección */
-  .fila-seleccionada{ background:#e6f0ff!important; border-left:4px solid #3b82f6 }
-
-  /* Scrollbar discreto (opcional) */
-  table{ border-collapse:separate; border-spacing:0 }
+section.content { width: 100% !important; max-width: 100% !important; }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-let marcaSeleccionada = null;
-let statusSeleccionado = null;
+(() => {
+    'use strict';
 
-function seleccionarMarca(folio, row){
-  // Resalta fila
-  document.querySelectorAll('tbody tr').forEach(tr => tr.classList.remove('fila-seleccionada'));
-  row.classList.add('fila-seleccionada');
+    const MarcasConsultar = {
+        marcaSeleccionada: null,
+        statusSeleccionado: null,
+        timeoutId: null,
+        abortController: null,
 
-  marcaSeleccionada = folio;
+        init() {
+            this.setupEventListeners();
+            this.setupInitialState();
+            this.autoSelectLastFolio();
+        },
 
-  const controller = new AbortController();
-  const t = setTimeout(()=>controller.abort(), 10000);
+        setupEventListeners() {
+            const btnEditar = document.getElementById('btn-editar');
+            const btnFinalizar = document.getElementById('btn-finalizar');
 
-  fetch(`/modulo-marcas/${folio}`, { headers:{'Accept':'application/json'}, signal:controller.signal })
-    .then(r => { clearTimeout(t); if(!r.ok) throw new Error(r.statusText); return r.json(); })
+            if (btnEditar) {
+                btnEditar.addEventListener('click', () => this.editarMarca());
+            }
+
+            if (btnFinalizar) {
+                btnFinalizar.addEventListener('click', () => this.finalizarMarca());
+            }
+        },
+
+        setupInitialState() {
+            const btnEditar = document.getElementById('btn-editar');
+            const btnFinalizar = document.getElementById('btn-finalizar');
+
+            if (btnEditar) btnEditar.disabled = true;
+            if (btnFinalizar) btnFinalizar.disabled = true;
+        },
+
+        autoSelectLastFolio() {
+            @if(isset($ultimoFolio))
+            window.addEventListener('load', () => {
+                const folio = '{{ $ultimoFolio->Folio }}';
+                const tr = document.querySelector(`tr[data-folio="${folio}"]`);
+                if (tr) {
+                    try {
+                        this.seleccionar(folio, tr);
+                    } catch (e) {
+                        console.error('Error al auto-seleccionar:', e);
+                    }
+                }
+            });
+            @endif
+        },
+
+        seleccionar(folio, row) {
+            this.marcaSeleccionada = folio;
+            this.highlightRow(row);
+
+            if (this.abortController) {
+                this.abortController.abort();
+            }
+
+            this.abortController = new AbortController();
+            this.timeoutId = setTimeout(() => this.abortController.abort(), 10000);
+
+            fetch(`/modulo-marcas/${folio}`, {
+                headers: { 'Accept': 'application/json' },
+                signal: this.abortController.signal
+            })
+            .then(response => {
+                clearTimeout(this.timeoutId);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
     .then(data => {
-      if(!data.success) return;
-
-      statusSeleccionado = data.marca.Status;
-      configurarBotonesSegunStatus(statusSeleccionado);
-      mostrarDetalles(data.marca, data.lineas || data.marca.marcas_line || []);
+                if (!data.success) {
+                    throw new Error(data.message || 'Error al cargar los detalles');
+                }
+                this.statusSeleccionado = data.marca?.Status;
+                this.configurarBotones(this.statusSeleccionado);
+                this.mostrarDetalles(data.marca, data.lineas || []);
     })
-    .catch(err => {
-      Swal.fire({ icon:'warning', title:'Error', text:'No se pudieron cargar los detalles.' });
-      console.error(err);
+            .catch(error => {
+                if (error.name === 'AbortError') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Tiempo agotado',
+                        text: 'La solicitud tardó demasiado. Intenta nuevamente.'
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: error.message || 'No se pudieron cargar los detalles.'
+                    });
+                }
+                console.error('Error al cargar marca:', error);
     });
-}
+        },
 
-function configurarBotonesSegunStatus(status){
+        highlightRow(row) {
+            document.querySelectorAll('tbody tr').forEach(tr => {
+                tr.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-600');
+            });
+            row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-600');
+        },
+
+        configurarBotones(status) {
   const btnNuevo = document.getElementById('btn-nuevo');
-  const btnEdit  = document.getElementById('btn-editar-global');
-  const btnEnd   = document.getElementById('btn-finalizar-global');
+            const btnEditar = document.getElementById('btn-editar');
+            const btnFinalizar = document.getElementById('btn-finalizar');
 
-  if(status === 'Finalizado'){
-    if(btnNuevo && btnNuevo.tagName==='BUTTON'){ btnNuevo.disabled = true; btnNuevo.classList.add('opacity-50','cursor-not-allowed'); }
-    btnEdit.disabled = true; btnEnd.disabled = true;
-  }else if(status === 'En Proceso'){
-    if(btnNuevo && btnNuevo.tagName==='BUTTON'){ btnNuevo.disabled = true; btnNuevo.classList.add('opacity-50','cursor-not-allowed'); }
-    btnEdit.disabled = false; btnEnd.disabled = false;
-  }else{
-    if(btnNuevo && btnNuevo.tagName==='BUTTON'){ btnNuevo.disabled = false; btnNuevo.classList.remove('opacity-50','cursor-not-allowed'); }
-    btnEdit.disabled = false; btnEnd.disabled = false;
-  }
-}
+            if (!btnEditar || !btnFinalizar) return;
 
- function mostrarDetalles(marca, lineas){
+            const isFinalizado = status === 'Finalizado';
+            const isEnProceso = status === 'En Proceso';
+
+            if (btnNuevo) {
+                btnNuevo.disabled = isFinalizado || isEnProceso;
+            }
+
+            btnEditar.disabled = isFinalizado;
+            btnFinalizar.disabled = isFinalizado;
+        },
+
+        mostrarDetalles(marca, lineas) {
    const panel = document.getElementById('preview-panel');
+            if (!panel) return;
+
    panel.classList.remove('hidden');
+            this.updateHeader(marca);
+            this.updateTable(lineas);
+        },
 
-   document.getElementById('preview-folio').textContent = marca.Folio ?? '-';
-   const fecha = marca.Date ? new Date(marca.Date).toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit'}) : '-';
-   document.getElementById('preview-meta').textContent = `${fecha} · T${marca.Turno ?? '-'} · ${marca.numero_empleado ?? 'N/A'}`;
-
+        updateHeader(marca) {
+            const folioEl = document.getElementById('preview-folio');
+            const metaEl = document.getElementById('preview-meta');
    const statusEl = document.getElementById('preview-status');
-   const status = marca.Status ?? '-';
+
+            if (folioEl) {
+                folioEl.textContent = marca?.Folio ?? '-';
+            }
+
+            if (metaEl) {
+                const fecha = marca?.Date ? this.formatFecha(marca.Date) : '-';
+                const turno = marca?.Turno ?? '-';
+                const empleado = marca?.numero_empleado ?? 'N/A';
+                metaEl.textContent = `${fecha} · T${turno} · ${empleado}`;
+            }
+
+            if (statusEl) {
+                const status = marca?.Status ?? '-';
    statusEl.textContent = status;
-   // Actualizar colores del badge según status
    statusEl.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border border-white/30 whitespace-nowrap';
-   if(status === 'Finalizado') {
+
+                if (status === 'Finalizado') {
      statusEl.classList.add('bg-green-500/30', 'text-white');
-   } else if(status === 'En Proceso') {
+                } else if (status === 'En Proceso') {
      statusEl.classList.add('bg-yellow-500/30', 'text-white');
    } else {
      statusEl.classList.add('bg-white/20', 'text-white');
    }
+            }
+        },
 
+        formatFecha(dateString) {
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return '-';
+                return date.toLocaleDateString('es-MX', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+            } catch (e) {
+                return '-';
+            }
+        },
+
+        updateTable(lineas) {
   const tbody = document.getElementById('preview-lineas');
+            if (!tbody) return;
+
   tbody.innerHTML = '';
 
-  if(!lineas || !lineas.length){
-    tbody.innerHTML = `<tr><td colspan="7" class="px-3 py-6 text-center text-gray-500">Sin líneas capturadas</td></tr>`;
+            if (!lineas || !lineas.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-3 py-6 text-center text-gray-500">Sin líneas capturadas</td></tr>';
     return;
   }
 
-  lineas.forEach((l, i) => {
+            lineas.forEach((linea, index) => {
     const tr = document.createElement('tr');
-    tr.className = i%2===0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50 hover:bg-gray-100';
+                tr.className = index % 2 === 0
+                    ? 'bg-white hover:bg-gray-50'
+                    : 'bg-gray-50 hover:bg-gray-100';
 
-    const eVal = l.Eficiencia ?? l.EficienciaSTD ?? l.EficienciaStd ?? null;
-    const ef   = eVal !== null ? (isNaN(eVal) ? eVal : (Number(eVal)*100).toFixed(0)+'%') : '-';
+                const eficiencia = this.formatEficiencia(linea);
 
     tr.innerHTML = `
-      <td class="px-2 py-2 font-semibold text-gray-900 truncate">${l.NoTelarId ?? '-'}</td>
-      <td class="px-2 py-2 text-center">${ef}</td>
-      <td class="px-2 py-2 text-center">${l.Marcas ?? '-'}</td>
-      <td class="px-2 py-2 text-center">${l.Trama ?? '-'}</td>
-      <td class="px-2 py-2 text-center">${l.Pie ?? '-'}</td>
-      <td class="px-2 py-2 text-center">${l.Rizo ?? '-'}</td>
-      <td class="px-2 py-2 text-center">${l.Otros ?? '-'}</td>`;
+                    <td class="px-2 py-2 font-semibold text-gray-900 truncate">${linea.NoTelarId ?? '-'}</td>
+                    <td class="px-2 py-2 text-center">${eficiencia}</td>
+                    <td class="px-2 py-2 text-center">${linea.Marcas ?? '-'}</td>
+                    <td class="px-2 py-2 text-center">${linea.Trama ?? '-'}</td>
+                    <td class="px-2 py-2 text-center">${linea.Pie ?? '-'}</td>
+                    <td class="px-2 py-2 text-center">${linea.Rizo ?? '-'}</td>
+                    <td class="px-2 py-2 text-center">${linea.Otros ?? '-'}</td>
+                `;
     tbody.appendChild(tr);
   });
-}
+        },
 
-function editarMarcaSeleccionada(){
-  if(!marcaSeleccionada) return Swal.fire('Sin selección','Selecciona un folio para editar','warning');
-  window.location.href = `{{ url('/modulo-marcas') }}?folio=${marcaSeleccionada}`;
-}
+        formatEficiencia(linea) {
+            const eVal = linea.Eficiencia ?? linea.EficienciaSTD ?? linea.EficienciaStd ?? null;
+            if (eVal === null) return '-';
+            if (isNaN(eVal)) return eVal;
+            return `${(Number(eVal) * 100).toFixed(0)}%`;
+        },
 
-function finalizarMarcaSeleccionada(){
-  if(!marcaSeleccionada) return Swal.fire('Sin selección','Selecciona un folio para finalizar','warning');
+        editarMarca() {
+            if (!this.marcaSeleccionada) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin selección',
+                    text: 'Selecciona un folio para editar'
+                });
+                return;
+            }
+            window.location.href = `{{ url('/modulo-marcas') }}?folio=${this.marcaSeleccionada}`;
+        },
+
+        finalizarMarca() {
+            if (!this.marcaSeleccionada) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin selección',
+                    text: 'Selecciona un folio para finalizar'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Finalizar Marca',
+                text: `¿Deseas finalizar el folio ${this.marcaSeleccionada}?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, finalizar',
+                cancelButtonText: 'Cancelar'
+            }).then(result => {
+                if (!result.isConfirmed) return;
 
   Swal.fire({
-    title:'Finalizar Marca', text:`¿Deseas finalizar el folio ${marcaSeleccionada}?`,
-    icon:'warning', showCancelButton:true, confirmButtonText:'Sí, finalizar', cancelButtonText:'Cancelar'
-  }).then(r=>{
-    if(!r.isConfirmed) return;
-    Swal.fire({ title:'Finalizando...', didOpen:()=>Swal.showLoading(), allowOutsideClick:false });
-    fetch(`/modulo-marcas/${marcaSeleccionada}/finalizar`,{
-      method:'POST',
-      headers:{
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-        'Accept':'application/json','Content-Type':'application/json'
+                    title: 'Finalizando...',
+                    didOpen: () => Swal.showLoading(),
+                    allowOutsideClick: false
+                });
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                fetch(`/modulo-marcas/${this.marcaSeleccionada}/finalizar`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
       }
     })
-    .then(r=>r.json())
-    .then(d=>{
-      if(d.success){ Swal.fire('Finalizado', d.message || 'Marca finalizada','success').then(()=>location.reload()); }
-      else         { Swal.fire('Error', d.message || 'No se pudo finalizar','error'); }
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Finalizado',
+                            text: data.message || 'Marca finalizada correctamente'
+                        }).then(() => location.reload());
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'No se pudo finalizar'
+                        });
+                    }
     })
-    .catch(err=> Swal.fire('Error', err.message || 'Error de conexión','error'));
+                .catch(error => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: error.message || 'Error de conexión'
+                    });
+                });
   });
 }
+    };
 
-document.addEventListener('DOMContentLoaded', ()=>{
-  // Estado inicial (sin selección)
-  const btnEdit = document.getElementById('btn-editar-global');
-  const btnEnd  = document.getElementById('btn-finalizar-global');
-  if(btnEdit) btnEdit.disabled = true;
-  if(btnEnd)  btnEnd.disabled  = true;
-
-  // Autoseleccionar último folio si existe
-  @if(isset($ultimoFolio))
-    window.addEventListener('load', ()=>{
-      const folio = '{{ $ultimoFolio->Folio }}';
-      const tr = document.querySelector(`tr[data-folio="${folio}"]`);
-      if(tr){ try{ seleccionarMarca(folio, tr); }catch(e){ console.error(e); } }
-    });
-  @endif
-});
+    document.addEventListener('DOMContentLoaded', () => MarcasConsultar.init());
+    window.MarcasConsultar = MarcasConsultar;
+})();
 </script>
 @endsection

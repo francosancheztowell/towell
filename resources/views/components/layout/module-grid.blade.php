@@ -53,9 +53,18 @@
                 $imagenUrl = !empty($modulo['imagen'])
                     ? asset('images/' . $imageFolder . '/' . $modulo['imagen']) . '?v=' . $timestamp
                     : $imagenFallback;
+                
+                // Verificar si es el módulo de Notificar Montado de Julio
+                $esNotificarMontado = in_array($modulo['nombre'], ['Notificar Montado de Julio', 'Notificar Montado de Julio (Tej.)']);
             @endphp
-            <a href="{{ isset($modulo['ruta_tipo']) && $modulo['ruta_tipo'] === 'route' ? route($modulo['ruta'], $modulo['params'] ?? []) : url($modulo['ruta']) }}"
-               class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
+            
+            @if($esNotificarMontado)
+                <a href="javascript:void(0)" onclick="abrirModalTelares()"
+                   class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
+            @else
+                <a href="{{ isset($modulo['ruta_tipo']) && $modulo['ruta_tipo'] === 'route' ? route($modulo['ruta'], $modulo['params'] ?? []) : url($modulo['ruta']) }}"
+                   class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
+            @endif
                 <div class="p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center min-h-[10rem] md:min-h-[13rem] lg:min-h-[12rem] transition-all duration-300 transform hover:scale-105 active:scale-[0.98]">
 
                     <!-- Contenedor de imagen optimizado para tablet -->

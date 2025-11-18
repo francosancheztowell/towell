@@ -3,10 +3,7 @@
 @section('page-title', 'Alta de Pronósticos')
 
 @section('navbar-right')
-    <button id="btnProgramar" type="button" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-gray-400 hover:bg-gray-500 cursor-not-allowed mr-2 disabled:opacity-50 disabled:cursor-not-allowed" title="Programar" disabled>
-        <i class="fa-solid fa-calendar-check mr-2"></i>
-        Programar
-    </button>
+    <x-navbar.button-create id="btnProgramar" onclick="handleProgramarPronosticos()" title="Programar" module="Programa Tejido" icon="fa-calendar-check" bg="bg-gray-400" iconColor="text-white" hoverBg="hover:bg-gray-500" disabled />
     <button id="btnFiltros" type="button" class="inline-flex items-center justify-center w-9 h-9 text-base rounded-full text-white bg-blue-600 hover:bg-blue-700" title="Filtros">
         <i class="fa-solid fa-filter"></i>
     </button>

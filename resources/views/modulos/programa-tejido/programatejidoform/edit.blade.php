@@ -3,12 +3,16 @@
 @section('page-title', 'Editar Programa de Tejido')
 
 @section('navbar-right')
-<div class="flex items-center gap-2">
-    <button onclick="ProgramaTejidoCRUD.actualizar()" class="bg-blue-600 hover:bg-blue-700 flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors">
-        <i class="fas fa-edit"></i>
-        Actualizar
-    </button>
-</div>
+<x-navbar.button-edit
+    onclick="ProgramaTejidoCRUD.actualizar()"
+    title="Actualizar"
+    module="Programa Tejido"
+    :disabled="false"
+    icon="fa-edit"
+    text="Actualizar"
+    bg="bg-blue-600"
+    iconColor="text-white"
+    hoverBg="hover:bg-blue-700" />
 @endsection
 
 @section('content')

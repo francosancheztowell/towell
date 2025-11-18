@@ -1,3 +1,7 @@
+@php
+    use App\Services\ModuloService;
+@endphp
+
 <!-- NAVBAR -->
 <nav class="bg-white sticky top-0 z-50">
     <div class="container mx-auto px-4 md:px-6 py-2">
@@ -30,17 +34,60 @@
             <div class="flex items-center gap-4">
                @section('navbar-right')
 
+              @php
+                  // Verificar si el usuario tiene acceso al módulo Configuración
+                $mostrarIconoConfiguracion = Route::currentRouteName() === 'produccion.index';
+                $tieneConfiguracion = false;
+                if (Auth::check() && $mostrarIconoConfiguracion) {
+                    $moduloService = app(ModuloService::class);
+                    $modulos = $moduloService->getModulosPrincipalesPorUsuario(Auth::id());
+                    $tieneConfiguracion = $modulos->contains('nombre', 'Configuración');
+                }
+              @endphp
+
+              @if($tieneConfiguracion)
+                <a href="{{ route('configuracion.index') }}"
+                   class="w-10 h-10 bg-blue-100 hover:bg-blue-200 rounded-full flex items-center justify-center text-blue-800 hover:text-blue-900 transition-all duration-200 shadow-sm hover:shadow-md"
+                   title="Configuración">
+                    <i class="fas fa-cog"></i>
+                </a>
+              @endif
+
               @if(request()->routeIs('catalogos.req-programa-tejido') || (request()->is('planeacion/programa-tejido') && !request()->is('*programa-tejido/*/editar') && !request()->is('*programa-tejido/nuevo*')))
                 <div class="flex items-center gap-1">
 
                   <!-- Controles de columnas -->
                   <div class="flex items-center gap-2 mr-2">
-                    <!-- Grupo 1: Dropdown Agregar + Editar + Eliminar (compacto, solo íconos) -->
+                    <!-- Grupo 1: Descargar programa + Liberar órdenes + Dropdown Agregar + Editar + Eliminar (compacto, solo íconos) -->
                     <div class="flex items-center gap-2 mr-2">
+                      <!-- Descargar programa -->
+                    <x-navbar.button-report
+                        onclick="descargarPrograma()"
+                        title="Descargar programa"
+                        module="Programa Tejido"
+                        icon="fa-download"
+                        bg="bg-blue-500"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-blue-600" />
+                      <!-- Liberar órdenes -->
+                    <x-navbar.button-report
+                        onclick="mostrarModalDiasLiberar()"
+                        title="Liberar órdenes"
+                        module="Programa Tejido"
+                        icon="fa-unlock"
+                        bg="bg-stone-500"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-stone-600" />
                       <div class="relative">
-                        <button id="layoutBtnAddMenu" type="button" class="w-9 h-9 flex items-center justify-center rounded-full bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400" title="Agregar" aria-label="Agregar">
-                          <i class="fa-solid fa-plus"></i>
-                        </button>
+                        <x-navbar.button-create
+                          id="layoutBtnAddMenu"
+                          onclick="document.getElementById('layoutAddMenu').classList.toggle('hidden')"
+                          title="Agregar"
+                          module="Programa Tejido"
+                          icon="fa-plus"
+                          bg="bg-green-600"
+                          iconColor="text-white"
+                          hoverBg="hover:bg-green-700" />
                         <div id="layoutAddMenu" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 origin-top-right transform transition ease-out duration-150 scale-95 opacity-0 z-50">
                           <div class="py-1">
                             <button type="button" id="menuNuevoRegistro" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
@@ -62,12 +109,22 @@
                           </div>
                         </div>
                       </div>
-                      <button type="button" id="layoutBtnEditar" class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar" aria-label="Editar" disabled>
-                        <i class="fa-solid fa-pen-to-square"></i>
-                      </button>
-                      <button type="button" id="layoutBtnEliminar" class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar" aria-label="Eliminar" disabled>
-                        <i class="fa-solid fa-trash"></i>
-                      </button>
+                      <x-navbar.button-edit
+                        id="layoutBtnEditar"
+                        onclick="const selected = document.querySelectorAll('.selectable-row')[selectedRowIndex]; const id = selected ? selected.getAttribute('data-id') : null; if(id) window.location.href = `/planeacion/programa-tejido/${encodeURIComponent(id)}/editar`;"
+                        title="Editar"
+                        module="Programa Tejido"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-yellow-600"
+                        bg="bg-yellow-500" />
+                      <x-navbar.button-delete
+                        id="layoutBtnEliminar"
+                        onclick="const selected = document.querySelectorAll('.selectable-row')[selectedRowIndex]; const id = selected ? selected.getAttribute('data-id') : null; if(id) eliminarRegistro(id);"
+                        title="Eliminar"
+                        module="Programa Tejido"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-red-600"
+                        bg="bg-red-500" />
                     </div>
 
                     <!-- Grupo 2: Controles de columnas -->
@@ -97,17 +154,25 @@
                   <!-- Prioridad (solo si hay selección) -->
                   <div id="rowPriorityControls" class="flex items-center gap-2 hidden">
                     <!-- Subir (verde) -->
-                    <button type="button" onclick="moveRowUp()"
-                            class="w-9 h-9 flex items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors"
-                            title="Subir prioridad" aria-label="Subir prioridad">
-                      <i class="fa-solid fa-arrow-up"></i>
-                    </button>
+                    <x-navbar.button-edit
+                      onclick="moveRowUp()"
+                      title="Subir prioridad"
+                      module="Programa Tejido"
+                      :disabled="false"
+                      icon="fa-arrow-up"
+                      iconColor="text-white"
+                      hoverBg="hover:bg-green-600"
+                      bg="bg-green-500" />
                     <!-- Bajar (rojo) -->
-                    <button type="button" onclick="moveRowDown()"
-                            class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
-                            title="Bajar prioridad" aria-label="Bajar prioridad">
-                      <i class="fa-solid fa-arrow-down"></i>
-                    </button>
+                    <x-navbar.button-edit
+                      onclick="moveRowDown()"
+                      title="Bajar prioridad"
+                      module="Programa Tejido"
+                      :disabled="false"
+                      icon="fa-arrow-down"
+                      iconColor="text-white"
+                      hoverBg="hover:bg-red-600"
+                      bg="bg-red-500" />
                         </div>
 
                   <!-- Filtros (reactivo) -->
@@ -119,12 +184,136 @@
                     <span id="filterCount"
                           class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white rounded-full text-xs font-bold hidden">0</span>
                   </button>
+
+
+                </div>
+              @endif
+
+              @if(request()->is('simulacion') && !request()->is('*simulacion/*/editar') && !request()->is('*simulacion/nuevo*'))
+                <div class="flex items-center gap-1">
+
+                  <!-- Controles de columnas -->
+                  <div class="flex items-center gap-2 mr-2">
+                    <!-- Grupo 1: Dropdown Agregar + Editar + Eliminar (compacto, solo íconos) -->
+                    <div class="flex items-center gap-2 mr-2">
+                      <div class="relative">
+                        <x-navbar.button-create
+                          id="layoutBtnAddMenu"
+                          onclick="document.getElementById('layoutAddMenu').classList.toggle('hidden')"
+                          title="Agregar"
+                          module="Programa Tejido"
+                          :disabled="false"
+                          icon="fa-plus"
+                          bg="bg-green-600"
+                          iconColor="text-white"
+                          hoverBg="hover:bg-green-700" />
+                        <div id="layoutAddMenu" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 origin-top-right transform transition ease-out duration-150 scale-95 opacity-0 z-50">
+                          <div class="py-1">
+                            <button type="button" id="menuNuevoRegistro" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                              <i class="fa-solid fa-file-circle-plus text-gray-500"></i>
+                              Nuevo registro
+                            </button>
+                            <a href="{{ route('simulacion.altas-especiales') }}" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                              <i class="fa-solid fa-layer-group text-stone-600"></i>
+                              Alta C.E.
+                            </a>
+                            <button type="button" id="menuAltaPronosticos" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                              <i class="fa-solid fa-chart-line text-green-600"></i>
+                              Alta de pronósticos
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <x-navbar.button-edit
+                        id="layoutBtnEditar"
+                        onclick="if(typeof selectedRowId !== 'undefined' && selectedRowId) { const selected = document.querySelector(`.selectable-row[data-id='${selectedRowId}']`); if(selected) { const id = selected.getAttribute('data-id'); if(id) window.location.href = `/simulacion/${encodeURIComponent(id)}/editar`; } }"
+                        title="Editar"
+                        module="Programa Tejido"
+                        :disabled="true"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-yellow-600"
+                        bg="bg-yellow-500" />
+                      <x-navbar.button-delete
+                        id="layoutBtnEliminar"
+                        onclick="if(typeof selectedRowId !== 'undefined' && selectedRowId) { const selected = document.querySelector(`.selectable-row[data-id='${selectedRowId}']`); if(selected) { const id = selected.getAttribute('data-id'); if(id && typeof eliminarRegistro === 'function') eliminarRegistro(id); } }"
+                        title="Eliminar"
+                        module="Programa Tejido"
+                        :disabled="true"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-red-600"
+                        bg="bg-red-500" />
+                    </div>
+
+                    <!-- Grupo 2: Controles de columnas -->
+                    <button type="button" onclick="openPinColumnsModal()"
+                            class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-colors border-0"
+                            style="border-radius: 50%;"
+                            title="Fijar columnas" aria-label="Fijar columnas">
+                      <i class="fa-solid fa-thumbtack"></i>
+                    </button>
+                    <button type="button" onclick="openHideColumnsModal()"
+                            class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
+                            title="Ocultar columnas" aria-label="Ocultar columnas">
+                      <i class="fa-solid fa-eye-slash"></i>
+                    </button>
+                    <button type="button" onclick="resetColumnsSpin()"
+                            class="w-9 h-9 flex items-center justify-center rounded-full bg-gray-500 text-white hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors"
+                            title="Restablecer columnas" aria-label="Restablecer columnas">
+                      <i id="iconResetColumns" class="fa-solid fa-rotate"></i>
+                    </button>
+
+
+                    <!-- Grupo 4: Actualizar Simulación (icono de subir) -->
+                    <x-navbar.button-create
+                      id="btnActualizarSimulacion"
+                      title="Actualizar Simulación (eliminar y duplicar datos)"
+                      module="Programa Tejido"
+                      :disabled="false"
+                      icon="fa-upload"
+                      bg="bg-blue-500"
+                      iconColor="text-white"
+                      hoverBg="hover:bg-blue-600" />
+                  </div>
+
+                  <!-- Prioridad (solo si hay selección) -->
+                  <div id="rowPriorityControls" class="flex items-center gap-2 hidden">
+                    <!-- Subir (verde) -->
+                    <x-navbar.button-edit
+                      onclick="moveRowUp()"
+                      title="Subir prioridad"
+                      module="Programa Tejido"
+                      :disabled="false"
+                      icon="fa-arrow-up"
+                      iconColor="text-white"
+                      hoverBg="hover:bg-green-600"
+                      bg="bg-green-500" />
+                    <!-- Bajar (rojo) -->
+                    <x-navbar.button-edit
+                      onclick="moveRowDown()"
+                      title="Bajar prioridad"
+                      module="Programa Tejido"
+                      :disabled="false"
+                      icon="fa-arrow-down"
+                      iconColor="text-white"
+                      hoverBg="hover:bg-red-600"
+                      bg="bg-red-500" />
+                        </div>
+
+                  <!-- Filtros (reactivo) -->
+                  <button type="button" id="btnFilters"
+                          class="relative w-9 h-9 flex items-center justify-center rounded-full bg-stone-700 text-white hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-500 transition-colors"
+                          title="Filtros" aria-label="Filtros">
+                    <i class="fa-solid fa-filter"></i>
+                    <!-- Badge con número (solo cuando hay filtros activos) -->
+                    <span id="filterCount"
+                          class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white rounded-full text-xs font-bold hidden">0</span>
+                  </button>
                 </div>
               @endif
 
                             @yield('navbar-right')
 
-              @if(!request()->routeIs('catalogos.req-programa-tejido') && !request()->routeIs('programa.urd.eng.reservar.programar'))
+              @if(!request()->routeIs('catalogos.req-programa-tejido') && !request()->routeIs('programa.urd.eng.reservar.programar') && !request()->is('simulacion*'))
                 <a href="{{ url('mantenimiento/nuevo-paro') }}"
                         class="bg-yellow-400 hover:bg-yellow-500 flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors">
                   <i class="fas fa-exclamation-triangle"></i>
@@ -140,13 +329,6 @@
                 </button>
                             @endif
 
-                            @if(isset($tieneConfiguracion) && $tieneConfiguracion)
-                <a href="{{ route('configuracion.index') }}"
-                   class="w-10 h-10 bg-blue-100 hover:bg-blue-200 rounded-full flex items-center justify-center text-blue-800 hover:text-blue-900 transition-all duration-200 shadow-sm hover:shadow-md"
-                   title="Configuración">
-                    <i class="fas fa-cog"></i>
-                </a>
-                            @endif
 
               <!-- Usuario -->
                             <div class="relative">
@@ -213,4 +395,67 @@
                 </div>
             </div>
         </div>
+
+<script>
+function mostrarModalDiasLiberar() {
+    const diasActual = {{ session('liberar_ordenes_dias', 10.999) }};
+
+    Swal.fire({
+        title: 'Rango de días a considerar',
+        html: `
+            <div class="text-left">
+                <label for="rangoDias" class="block text-sm font-medium text-gray-700 mb-2">
+                    Ingrese el número de días (decimales permitidos, máx. 3)
+                </label>
+                <input
+                    type="number"
+                    id="rangoDias"
+                    step="0.001"
+                    min="0"
+                    max="999.999"
+                    value="${diasActual}"
+                    class="swal2-input w-full"
+                    placeholder="10.999"
+                    style="margin: 0; width: 100%;"
+                >
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Aceptar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#22c55e',
+        cancelButtonColor: '#6b7280',
+        focusConfirm: false,
+        didOpen: () => {
+            document.getElementById('rangoDias').focus();
+            document.getElementById('rangoDias').select();
+        },
+        preConfirm: () => {
+            const dias = document.getElementById('rangoDias').value;
+
+            // Validar que sea un número válido
+            if (!dias || isNaN(dias) || dias < 0) {
+                Swal.showValidationMessage('Por favor ingrese un número válido');
+                return false;
+            }
+
+            // Validar máximo 3 decimales
+            const partes = dias.toString().split('.');
+            if (partes.length > 1 && partes[1].length > 3) {
+                Swal.showValidationMessage('Máximo 3 decimales permitidos');
+                return false;
+            }
+
+            return dias;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const dias = result.value;
+            // Redirigir con el parámetro
+            window.location.href = '/planeacion/programa-tejido/liberar-ordenes?dias=' + dias;
+        }
+    });
+}
+</script>
 

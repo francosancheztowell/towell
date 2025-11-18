@@ -7,7 +7,7 @@ window.ProgramaTejidoCRUD = {
      * Guardar nuevo programa (CREATE)
      */
     async guardar() {
-        console.log('💾 Iniciando proceso de guardado...');
+        console.log('Info: Iniciando proceso de guardado...');
 
         // Validar formulario
         if (!this.validarFormulario()) {
@@ -50,11 +50,13 @@ window.ProgramaTejidoCRUD = {
 
             // Redireccionar después de 2 segundos
             setTimeout(() => {
-                window.location.href = '/planeacion/programa-tejido';
+                const isSimulacion = window.location.pathname.includes('/simulacion');
+                const redirectPath = isSimulacion ? '/simulacion' : '/planeacion/programa-tejido';
+                window.location.href = redirectPath;
             }, 2000);
 
         } catch (error) {
-            console.error('❌ Error al guardar:', error);
+            console.error(' Error al guardar:', error);
             ProgramaTejidoUtils.mostrarAlerta('error', 'Error', error.message || 'Error al guardar');
         } finally {
             ProgramaTejidoUtils.cerrarLoading();
@@ -65,7 +67,7 @@ window.ProgramaTejidoCRUD = {
      * Actualizar programa existente (UPDATE)
      */
     async actualizar() {
-        console.log('🔄 Iniciando proceso de actualización...');
+        console.log('Info: Iniciando proceso de actualización...');
 
         const registroId = ProgramaTejidoForm.state.registroId;
         if (!registroId) {
@@ -108,11 +110,13 @@ window.ProgramaTejidoCRUD = {
 
             // Redireccionar después de mostrar el mensaje
             setTimeout(() => {
-                window.location.href = '/planeacion/programa-tejido';
+                const isSimulacion = window.location.pathname.includes('/simulacion');
+                const redirectPath = isSimulacion ? '/simulacion' : '/planeacion/programa-tejido';
+                window.location.href = redirectPath;
             }, 2000);
 
         } catch (error) {
-            console.error('❌ Error al actualizar:', error);
+            console.error(' Error al actualizar:', error);
             ProgramaTejidoUtils.mostrarAlerta('error', 'Error', error.message || 'Error al actualizar');
         } finally {
             ProgramaTejidoUtils.cerrarLoading();
@@ -146,7 +150,7 @@ window.ProgramaTejidoCRUD = {
         // Buscar salón en select o input (para modo pronósticos)
         const salon = ProgramaTejidoUtils.obtenerValorCampo('salon-select') ||
                       ProgramaTejidoUtils.obtenerValorCampo('salon-input');
-        console.log('🏢 Salón obtenido:', salon, {
+        console.log('Info: Salón obtenido:', salon, {
             'salon-select': ProgramaTejidoUtils.obtenerValorCampo('salon-select'),
             'salon-input': ProgramaTejidoUtils.obtenerValorCampo('salon-input')
         });
@@ -155,12 +159,12 @@ window.ProgramaTejidoCRUD = {
         // Buscar IdFlog en select o input (para modo edición)
         const idflog = ProgramaTejidoUtils.obtenerValorCampo('idflog-select') ||
                        ProgramaTejidoUtils.obtenerValorCampo('idflog-input');
-        console.log('📋 Campos principales:', { salon, tamanoClave, hilo, idflog });
+        console.log('Info: Campos principales:', { salon, tamanoClave, hilo, idflog });
         const calendarioId = ProgramaTejidoUtils.obtenerValorCampo('calendario-select');
         const aplicacionId = ProgramaTejidoUtils.obtenerValorCampo('aplicacion-select');
 
         const telares = TelarManager.obtenerDatosTelares();
-        console.log('🔧 Datos de telares:', telares);
+        console.log('Info: Datos de telares:', telares);
         const datosFormulario = this.obtenerDatosFormulario();
         const datosModelo = ProgramaTejidoForm.state.datosModeloActual || {};
 
@@ -184,7 +188,7 @@ window.ProgramaTejidoCRUD = {
 
             // Actualizar el campo maquina en el formulario
             ProgramaTejidoUtils.establecerValorCampo('maquina', maquina, true);
-            console.log(`🏭 Máquina generada: ${maquina}`);
+            console.log(`Info: Máquina generada: ${maquina}`);
         }
 
         // Verificar si hay cambio de hilo en alguno de los telares
@@ -207,18 +211,18 @@ window.ProgramaTejidoCRUD = {
         const descripcion = ProgramaTejidoUtils.obtenerValorCampo('descripcion') || null;
 
         // Obtener ancho explícitamente del campo oculto o del modelo
-        const ancho = ProgramaTejidoUtils.obtenerValorCampo('ancho') || 
-                      datosModelo?.AnchoToalla || 
-                      datosFormulario?.AnchoToalla || 
+        const ancho = ProgramaTejidoUtils.obtenerValorCampo('ancho') ||
+                      datosModelo?.AnchoToalla ||
+                      datosFormulario?.AnchoToalla ||
                       null;
-        console.log('📏 Ancho obtenido:', ancho, {
+        console.log('Info: Ancho obtenido:', ancho, {
             'campo-ancho': ProgramaTejidoUtils.obtenerValorCampo('ancho'),
             'modelo-AnchoToalla': datosModelo?.AnchoToalla,
             'formulario-AnchoToalla': datosFormulario?.AnchoToalla
         });
 
         // Verificar cambio de hilo con más detalle
-        console.log('🧵 Verificando cambio de hilo:', {
+        console.log('Info: Verificando cambio de hilo:', {
             telares: telares.map(t => ({ no_telar_id: t.no_telar_id, cambio_hilo: t.cambio_hilo })),
             tieneCambioHilo
         });
@@ -261,7 +265,7 @@ window.ProgramaTejidoCRUD = {
             Object.assign(payload, formulas);
         }
 
-        console.log('📦 Payload construido:', payload);
+        console.log('Info: Payload construido:', payload);
         return payload;
     },
 
@@ -326,7 +330,7 @@ window.ProgramaTejidoCRUD = {
         });
 
         // Log para depuración
-        console.log('📦 Payload de actualización:', payload);
+        console.log('Info: Payload de actualización:', payload);
 
         // Agregar fórmulas calculadas
         if (formulas) {
@@ -348,7 +352,7 @@ window.ProgramaTejidoCRUD = {
             });
         }
 
-        console.log('📦 Payload de actualización:', payload);
+        console.log('Info: Payload de actualización:', payload);
         return payload;
     },
 
@@ -404,7 +408,7 @@ window.ProgramaTejidoCRUD = {
             datos['NombreProyecto'] = descripcionEl.value;
         }
 
-        console.log('📦 Datos recopilados del formulario:', datos);
+        console.log('Info: Datos recopilados del formulario:', datos);
         return datos;
     },
 
@@ -543,6 +547,11 @@ window.ProgramaTejidoCRUD = {
      * Mostrar tabla de líneas diarias después de crear
      */
     mostrarLineasDiarias(programaId) {
+        // No mostrar tabla de líneas diarias en simulación
+        if (window.location.pathname.includes('/simulacion')) {
+            return;
+        }
+
         const contenedorLineas = document.getElementById('contenedor-lineas-diarias');
         if (!contenedorLineas || !programaId) return;
 

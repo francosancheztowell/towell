@@ -59,15 +59,33 @@
 
                     <!-- Acciones dinámicas -->
                     <div class="flex flex-col space-y-2 lg:min-w-48" id="acciones-contenedor">
-                        <button id="btn-solicitar" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                            <i class="fas fa-list mr-2"></i>Solicitar consumo
-                        </button>
-                        <button id="btn-editar" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                            <i class="fas fa-edit mr-2"></i>Editar
-                        </button>
-                        <button id="btn-cancelar" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
-                            <i class="fas fa-times mr-2"></i>Cancelar
-                        </button>
+                        <x-navbar.button-report
+                            id="btn-solicitar"
+                            title="Solicitar consumo"
+                            text="Solicitar consumo"
+                            module="Inv Trama"
+                            :disabled="false"
+                            icon="fa-list"
+                            class="bg-green-500 text-white hover:bg-green-600 rounded-md w-full"
+                        />
+                        <x-navbar.button-edit
+                            id="btn-editar"
+                            title="Editar"
+                            text="Editar"
+                            module="Inv Trama"
+                            :disabled="false"
+                            icon="fa-pen-to-square"
+                            class="bg-blue-500 text-white hover:bg-blue-600 rounded-md w-full"
+                        />
+                        <x-navbar.button-delete
+                            id="btn-cancelar"
+                            title="Cancelar"
+                            text="Cancelar"
+                            module="Inv Trama"
+                            :disabled="false"
+                            icon="fa-times"
+                            class="bg-gray-500 text-white hover:bg-gray-600 rounded-md w-full"
+                        />
                         <button id="btn-resumen" class="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors">
                             <i class="fas fa-eye mr-2"></i>Resumen de articulo
                         </button>

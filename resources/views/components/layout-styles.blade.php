@@ -1,5 +1,8 @@
 @props(['simple' => false])
 
+<!-- Tailwind CSS compilado a través de Vite -->
+@vite(['resources/css/app.css'])
+
 @if(!$simple)
     <!-- Estilos PWA y optimización -->
     <style>
@@ -117,6 +120,7 @@
         to { opacity: 1; transform: translateY(0); }
     }
 </style>
+
 
 
 

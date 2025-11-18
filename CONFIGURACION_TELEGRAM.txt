@@ -6,8 +6,8 @@
 
 IMPORTANTE: Configura estas variables en tu archivo .env
 
-TELEGRAM_BOT_TOKEN=8202582254:AAHW_BsOuWZ1BeQqjdndgeNIplS6Ptf-wG4
-TELEGRAM_CHAT_ID=TU_CHAT_ID_AQUI (obtenerlo con el método abajo)
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
 
 ═══════════════════════════════════════════════════════════════
 PASOS PARA CONFIGURAR:
@@ -26,13 +26,12 @@ PASOS PARA CONFIGURAR:
 
    MÉTODO ALTERNATIVO:
    - Envía un mensaje a tu bot
-   - Visita: https://api.telegram.org/bot8202582254:AAHW_BsOuWZ1BeQqjdndgeNIplS6Ptf-wG4/getUpdates
+   - Visita: https://api.telegram.org/bot/getUpdates
    - Busca "chat":{"id":123456789} en la respuesta
-   - ⚠️ El número de teléfono 2223217136 NO es el chat_id
 
 3. Agrega al archivo .env:
-   TELEGRAM_BOT_TOKEN=8202582254:AAHW_BsOuWZ1BeQqjdndgeNIplS6Ptf-wG4
-   TELEGRAM_CHAT_ID=el_chat_id_que_obtuviste_en_el_paso_2
+   TELEGRAM_BOT_TOKEN=
+   TELEGRAM_CHAT_ID=2221130412
 
 4. Limpia la caché:
    php artisan config:clear
@@ -44,7 +43,7 @@ PASOS PARA CONFIGURAR:
 NOTAS:
 ═══════════════════════════════════════════════════════════════
 
-- El chat_id 2223217136 ya está configurado como destino
+- El chat_id 2221130412 está configurado como destino
 - El mensaje por defecto es "Hola Mundo 👋"
 - Los mensajes están limitados a 4096 caracteres (límite de Telegram)
 - Las rutas están protegidas por autenticación

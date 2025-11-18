@@ -1,176 +1,92 @@
-@extends('layouts.simple')
+@extends('layouts.app')
 
 @section('title', 'Gestión de Módulos')
 
-
-@section('menu-planeacion')
-<!-- Botones específicos para Gestión de Módulos -->
-<div class="flex items-center gap-2">
-    <a href="{{ route('modulos.sin.auth.create') }}"
-       class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-        </svg>
-        Crear Módulo
-    </a>
-
-    <button type="button" onclick="editarModuloSeleccionado()"
-            class="inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            id="btnEditarSeleccionado" disabled>
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-        </svg>
-        Editar
-        <span id="countEditar" class="ml-2 bg-yellow-500 text-white text-xs rounded-full px-2 py-0.5 hidden">1</span>
-    </button>
-
-    <button type="button" onclick="eliminarModulosSeleccionados()"
-            class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            id="btnEliminarSeleccionado" disabled>
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-        Eliminar
-        <span id="countEliminar" class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5 hidden">0</span>
-    </button>
-</div>
+@section('navbar-right')
+    <x-navbar.button-create href="{{ route('modulos.sin.auth.create') }}" title="Crear Módulo" />
+    <x-navbar.button-edit id="btnEditarSeleccionado" onclick="editarModuloSeleccionado()" title="Editar" />
+    <x-navbar.button-delete id="btnEliminarSeleccionado" onclick="eliminarModulosSeleccionados()" title="Eliminar" />
 @endsection
 
 @section('content')
-<div class="container mx-auto px-2 py-8 max-w-full -mt-6">
+<div class="w-full h-full flex flex-col overflow-hidden">
+    @php
+        function organizarModulos($modulos) {
+            $modulosPorDependencia = [];
+            foreach($modulos as $modulo) {
+                $dependencia = $modulo->Dependencia ?? 'sin_dependencia';
+                $modulosPorDependencia[$dependencia][] = $modulo;
+            }
+            $resultado = [];
+            function organizarRecursivo($dependencia, $modulosPorDependencia, &$resultado) {
+                if(isset($modulosPorDependencia[$dependencia])) {
+                    foreach($modulosPorDependencia[$dependencia] as $modulo) {
+                        $resultado[] = $modulo;
+                        organizarRecursivo($modulo->orden, $modulosPorDependencia, $resultado);
+                    }
+                }
+            }
+            organizarRecursivo('sin_dependencia', $modulosPorDependencia, $resultado);
+            return $resultado;
+        }
 
-<!-- Estilos personalizados -->
-<style>
-    #tablaModulos tbody tr {
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
+        $modulosOrganizados = organizarModulos($modulos);
 
-    #tablaModulos tbody tr:hover {
-        background-color: #f3f4f6 !important;
-    }
+        function obtenerClaseFila($nivel) {
+            return match($nivel) {
+                1 => 'bg-blue-50',
+                2 => 'bg-green-50',
+                3 => 'bg-yellow-50',
+                default => ''
+            };
+        }
 
-    #tablaModulos tbody tr.selected {
-        background-color: #dbeafe !important;
-        border-left: 4px solid #3b82f6;
-    }
+        function obtenerBadgeClasses($nivel) {
+            return match($nivel) {
+                1 => 'bg-blue-100 text-blue-800',
+                2 => 'bg-green-100 text-green-800',
+                3 => 'bg-yellow-100 text-yellow-800',
+                default => 'bg-gray-100 text-gray-800'
+            };
+        }
+    @endphp
 
-    .modulo-checkbox:checked + * {
-        background-color: #dbeafe;
-    }
-
-    /* Sticky header para la tabla */
-    #tablaModulos thead th {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        background-color: #3b82f6 !important;
-        border-bottom: 2px solid #1d4ed8;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Asegurar que el contenedor tenga altura máxima para el scroll */
-    .table-container {
-        max-height: 83vh;
-        overflow-y: auto;
-        border: 1px solid #e5e7eb;
-        border-radius: 0.5rem;
-    }
-
-    /* Mejorar la apariencia del scroll */
-    .table-container::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .table-container::-webkit-scrollbar-track {
-        background: #f1f5f9;
-        border-radius: 4px;
-    }
-
-    .table-container::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-    }
-
-    .table-container::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-    }
-</style>
-
-
-    <!-- Tabla de módulos -->
-    <div class=" rounded-lg shadow overflow-hidden">
-        @if($modulos->count() > 0)
-            <div class="table-container overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200" id="tablaModulos">
+    @if($modulos->count() > 0)
+        <div class="flex-1 flex flex-col overflow-hidden bg-white">
+            <div class="flex-1 overflow-y-auto overflow-x-auto">
+                <table class="w-full divide-y divide-gray-200" id="tablaModulos">
                     <thead class="bg-blue-500">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-12">
+                            <th class="sticky top-0 z-10 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-12 bg-blue-500 border-b-2 border-blue-700 shadow-sm">
                                 <input type="checkbox" id="selectAll" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-16">Imagen</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Orden</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Módulo</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Acceso</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Crear</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Modificar</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Eliminar</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Registrar</th>
+                            <th class="sticky top-0 z-10 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-16 bg-blue-500 border-b-2 border-blue-700 shadow-sm">Imagen</th>
+                            <th class="sticky top-0 z-10 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500 border-b-2 border-blue-700 shadow-sm">ID</th>
+                            <th class="sticky top-0 z-10 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500 border-b-2 border-blue-700 shadow-sm">Orden</th>
+                            <th class="sticky top-0 z-10 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500 border-b-2 border-blue-700 shadow-sm">Módulo</th>
+                            <th class="sticky top-0 z-10 px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-blue-500 border-b-2 border-blue-700 shadow-sm">Acceso</th>
+                            <th class="sticky top-0 z-10 px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-blue-500 border-b-2 border-blue-700 shadow-sm">Crear</th>
+                            <th class="sticky top-0 z-10 px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-blue-500 border-b-2 border-blue-700 shadow-sm">Modificar</th>
+                            <th class="sticky top-0 z-10 px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-blue-500 border-b-2 border-blue-700 shadow-sm">Eliminar</th>
+                            <th class="sticky top-0 z-10 px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-blue-500 border-b-2 border-blue-700 shadow-sm">Registrar</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @php
-                            // Organizar módulos jerárquicamente: 100 -> 101,102 -> 102_1,102_2
-                            $modulosOrganizados = [];
-                            $modulosPorDependencia = [];
-
-                            // Agrupar por dependencia
-                            foreach($modulos as $modulo) {
-                                $dependencia = $modulo->Dependencia ?? 'sin_dependencia';
-                                $modulosPorDependencia[$dependencia][] = $modulo;
-                            }
-
-                            // Función recursiva para organizar jerárquicamente
-                            function organizarModulos($dependencia, $modulosPorDependencia, &$resultado) {
-                                if(isset($modulosPorDependencia[$dependencia])) {
-                                    foreach($modulosPorDependencia[$dependencia] as $modulo) {
-                                        $resultado[] = $modulo;
-                                        // Llamar recursivamente para los hijos
-                                        organizarModulos($modulo->orden, $modulosPorDependencia, $resultado);
-                                    }
-                                }
-                            }
-
-                            // Empezar con módulos sin dependencia (nivel 1)
-                            organizarModulos('sin_dependencia', $modulosPorDependencia, $modulosOrganizados);
-                        @endphp
-
                         @foreach($modulosOrganizados as $modulo)
                             @php
-                                // Calcular indentación basada en el nivel
                                 $indentacion = str_repeat('&nbsp;&nbsp;&nbsp;&nbsp;', $modulo->Nivel - 1);
-                                $claseFila = '';
-                                $colorBadge = '';
-
-                                switch($modulo->Nivel) {
-                                    case 1:
-                                        $claseFila = 'bg-blue-50';
-                                        $colorBadge = 'blue';
-                                        break;
-                                    case 2:
-                                        $claseFila = 'bg-green-50';
-                                        $colorBadge = 'green';
-                                        break;
-                                    case 3:
-                                        $claseFila = 'bg-yellow-50';
-                                        $colorBadge = 'yellow';
-                                        break;
-                                }
+                                $claseFila = obtenerClaseFila($modulo->Nivel);
+                                $badgeClasses = obtenerBadgeClasses($modulo->Nivel);
                             @endphp
-                            <tr class=" hover:bg-gray-50" data-nivel="{{ $modulo->Nivel }}" data-acceso="{{ $modulo->acceso }}" data-nombre="{{ strtolower($modulo->modulo) }}">
+                            <tr class="cursor-pointer transition-colors duration-200 hover:bg-gray-50 {{ $claseFila }}"
+                                data-nivel="{{ $modulo->Nivel }}"
+                                data-acceso="{{ $modulo->acceso }}"
+                                data-nombre="{{ strtolower($modulo->modulo) }}">
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 modulo-checkbox" value="{{ $modulo->idrol }}" data-id="{{ $modulo->idrol }}">
+                                    <input type="checkbox"
+                                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 modulo-checkbox"
+                                           value="{{ $modulo->idrol }}"
+                                           data-id="{{ $modulo->idrol }}">
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @if($modulo->imagen)
@@ -188,41 +104,58 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $modulo->idrol }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-{{ $colorBadge }}-100 text-{{ $colorBadge }}-800">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $badgeClasses }}">
                                         {{ $modulo->orden }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         {!! $indentacion !!}
-                                        <span class="text-sm font-medium text-gray-900">
-                                            {{ $modulo->modulo }}
-                                        </span>
+                                        <span class="text-sm font-medium text-gray-900">{{ $modulo->modulo }}</span>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <label class="inline-flex items-center">
-                                        <input type="checkbox" class="toggle-acceso rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="{{ $modulo->idrol }}" {{ $modulo->acceso ? 'checked' : '' }}>
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox"
+                                               class="toggle-acceso rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                               data-id="{{ $modulo->idrol }}"
+                                               {{ $modulo->acceso ? 'checked' : '' }}>
                                     </label>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <label class="inline-flex items-center">
-                                        <input type="checkbox" class="toggle-permiso rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="{{ $modulo->idrol }}" data-campo="crear" {{ $modulo->crear ? 'checked' : '' }}>
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox"
+                                               class="toggle-permiso rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                               data-id="{{ $modulo->idrol }}"
+                                               data-campo="crear"
+                                               {{ $modulo->crear ? 'checked' : '' }}>
                                     </label>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <label class="inline-flex items-center">
-                                        <input type="checkbox" class="toggle-permiso rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="{{ $modulo->idrol }}" data-campo="modificar" {{ $modulo->modificar ? 'checked' : '' }}>
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox"
+                                               class="toggle-permiso rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                               data-id="{{ $modulo->idrol }}"
+                                               data-campo="modificar"
+                                               {{ $modulo->modificar ? 'checked' : '' }}>
                                     </label>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <label class="inline-flex items-center">
-                                        <input type="checkbox" class="toggle-permiso rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="{{ $modulo->idrol }}" data-campo="eliminar" {{ $modulo->eliminar ? 'checked' : '' }}>
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox"
+                                               class="toggle-permiso rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                               data-id="{{ $modulo->idrol }}"
+                                               data-campo="eliminar"
+                                               {{ $modulo->eliminar ? 'checked' : '' }}>
                                     </label>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <label class="inline-flex items-center">
-                                        <input type="checkbox" class="toggle-permiso rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="{{ $modulo->idrol }}" data-campo="reigstrar" {{ $modulo->reigstrar ? 'checked' : '' }}>
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox"
+                                               class="toggle-permiso rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                               data-id="{{ $modulo->idrol }}"
+                                               data-campo="reigstrar"
+                                               {{ $modulo->reigstrar ? 'checked' : '' }}>
                                     </label>
                                 </td>
                             </tr>
@@ -230,7 +163,10 @@
                     </tbody>
                 </table>
             </div>
-        @else
+        </div>
+    @else
+        {{-- Estado vacío --}}
+        <div class="flex-1 flex items-center justify-center">
             <div class="text-center py-12">
                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -238,7 +174,8 @@
                 <h3 class="mt-2 text-sm font-medium text-gray-900">No hay módulos registrados</h3>
                 <p class="mt-1 text-sm text-gray-500">Comienza creando tu primer módulo</p>
                 <div class="mt-6">
-                    <a href="{{ route('modulos.sin.auth.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <a href="{{ route('modulos.sin.auth.create') }}"
+                       class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
@@ -246,423 +183,312 @@
                     </a>
                 </div>
             </div>
-        @endif
-    </div>
+        </div>
+    @endif
 </div>
 
-<!-- Scripts -->
+{{-- Scripts --}}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-$(document).ready(function() {
-    // Mostrar SweetAlert de éxito si viene de crear/editar módulo
-    @if(session('success') && session('show_sweetalert'))
-        Swal.fire({
-            icon: 'success',
-            title: '¡Éxito!',
-            text: '{{ session('success') }}',
-            timer: 3000,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end'
-        });
-    @endif
+(function() {
+    'use strict';
 
-    // Toggle acceso
-    $('.toggle-acceso').on('change', function() {
-        const id = $(this).data('id');
-        const acceso = $(this).is(':checked');
+    // ==================== CONSTANTES ====================
+    const SELECTORS = {
+        selectAll: '#selectAll',
+        moduloCheckbox: '.modulo-checkbox',
+        toggleAcceso: '.toggle-acceso',
+        togglePermiso: '.toggle-permiso',
+        tablaModulos: '#tablaModulos',
+        btnEditar: '#btnEditarSeleccionado',
+        btnEliminar: '#btnEliminarSeleccionado'
+    };
 
-        $.ajax({
-            url: `/configuracion/utileria/modulos/${id}/toggle-acceso`,
-            method: 'POST',
-            data: {
-                _token: $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Éxito',
-                        text: response.message,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: response.message
-                    });
-                    // Revertir el toggle
-                    $(`.toggle-acceso[data-id="${id}"]`).prop('checked', !acceso);
-                }
-            },
-            error: function() {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error al cambiar el estado de acceso'
+    const RUTAS = {
+        toggleAcceso: (id) => `/configuracion/utileria/modulos/${id}/toggle-acceso`,
+        togglePermiso: (id) => `/configuracion/utileria/modulos/${id}/toggle-permiso`,
+        eliminar: (id) => `/modulos-sin-auth/${id}`,
+        editar: (id) => `/modulos-sin-auth/${id}/edit`
+    };
+
+    // ==================== UTILIDADES ====================
+    const Utils = {
+        getCSRFToken() {
+            return $('meta[name="csrf-token"]').attr('content');
+        },
+
+        mostrarAlerta(icono, titulo, texto, opciones = {}) {
+            return Swal.fire({
+                icon: icono,
+                title: titulo,
+                text: texto,
+                timer: opciones.timer || null,
+                showConfirmButton: opciones.showConfirmButton !== false,
+                toast: opciones.toast || false,
+                position: opciones.position || 'center',
+                ...opciones
+            });
+        },
+
+        revertirToggle(selector, valor) {
+            $(selector).prop('checked', !valor);
+        }
+    };
+
+    // ==================== GESTIÓN DE TOGGLES ====================
+    const ToggleManager = {
+        async cambiarAcceso(id, acceso) {
+            try {
+                const response = await $.ajax({
+                    url: RUTAS.toggleAcceso(id),
+                    method: 'POST',
+                    data: { _token: Utils.getCSRFToken() }
                 });
-                // Revertir el toggle
-                $(`.toggle-acceso[data-id="${id}"]`).prop('checked', !acceso);
-            }
-        });
-    });
 
-    // Toggle permisos (crear, modificar, eliminar, registrar)
-    $(document).on('change', '.toggle-permiso', function() {
-        const id = $(this).data('id');
-        const campo = $(this).data('campo');
-        const valor = $(this).is(':checked');
-
-        $.ajax({
-            url: `/configuracion/utileria/modulos/${id}/toggle-permiso`,
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'Content-Type': 'application/json'
-            },
-            data: JSON.stringify({
-                _token: $('meta[name="csrf-token"]').attr('content'),
-                campo: campo,
-                valor: valor ? 1 : 0
-            }),
-            success: function(response) {
                 if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Éxito',
-                        text: response.message,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
+                    Utils.mostrarAlerta('success', 'Éxito', response.message, { timer: 2000, showConfirmButton: false });
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: response.message
-                    });
-                    // Revertir el toggle
-                    $(`.toggle-permiso[data-id="${id}"][data-campo="${campo}"]`).prop('checked', !valor);
+                    Utils.mostrarAlerta('error', 'Error', response.message);
+                    Utils.revertirToggle(`${SELECTORS.toggleAcceso}[data-id="${id}"]`, acceso);
                 }
-            },
-            error: function(xhr, status, error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error al cambiar el permiso: ' + (xhr.responseJSON?.message || error)
-                });
-                // Revertir el toggle
-                $(`.toggle-permiso[data-id="${id}"][data-campo="${campo}"]`).prop('checked', !valor);
+            } catch (error) {
+                Utils.mostrarAlerta('error', 'Error', 'Error al cambiar el estado de acceso');
+                Utils.revertirToggle(`${SELECTORS.toggleAcceso}[data-id="${id}"]`, acceso);
             }
-        });
-    });
+        },
 
-    // Selección múltiple de módulos
-    $('#selectAll').on('change', function() {
-        const isChecked = $(this).is(':checked');
-        $('.modulo-checkbox').prop('checked', isChecked);
-        actualizarBotonesAccion();
-    });
+        async cambiarPermiso(id, campo, valor) {
+            try {
+                const response = await $.ajax({
+                    url: RUTAS.togglePermiso(id),
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': Utils.getCSRFToken(),
+                        'Content-Type': 'application/json'
+                    },
+                    data: JSON.stringify({
+                        _token: Utils.getCSRFToken(),
+                        campo: campo,
+                        valor: valor ? 1 : 0
+                    })
+                });
 
-    // Selección individual de módulos
-    $(document).on('change', '.modulo-checkbox', function() {
-        const totalCheckboxes = $('.modulo-checkbox').length;
-        const checkedCheckboxes = $('.modulo-checkbox:checked').length;
+                if (response.success) {
+                    Utils.mostrarAlerta('success', 'Éxito', response.message, { timer: 2000, showConfirmButton: false });
+                } else {
+                    Utils.mostrarAlerta('error', 'Error', response.message);
+                    Utils.revertirToggle(`${SELECTORS.togglePermiso}[data-id="${id}"][data-campo="${campo}"]`, valor);
+                }
+            } catch (xhr) {
+                const mensaje = xhr.responseJSON?.message || 'Error al cambiar el permiso';
+                Utils.mostrarAlerta('error', 'Error', `Error al cambiar el permiso: ${mensaje}`);
+                Utils.revertirToggle(`${SELECTORS.togglePermiso}[data-id="${id}"][data-campo="${campo}"]`, valor);
+            }
+        }
+    };
 
-        // Actualizar checkbox "Seleccionar todo"
-        $('#selectAll').prop('checked', totalCheckboxes === checkedCheckboxes);
-        $('#selectAll').prop('indeterminate', checkedCheckboxes > 0 && checkedCheckboxes < totalCheckboxes);
+    // ==================== GESTIÓN DE SELECCIÓN ====================
+    const SelectionManager = {
+        actualizarSelectAll() {
+            const total = $(SELECTORS.moduloCheckbox).length;
+            const checked = $(SELECTORS.moduloCheckbox + ':checked').length;
+            const selectAll = $(SELECTORS.selectAll);
 
-        actualizarBotonesAccion();
-    });
+            selectAll.prop('checked', total === checked);
+            selectAll.prop('indeterminate', checked > 0 && checked < total);
+        },
 
-    // Filtros de búsqueda
-    $('#filtroNivel, #filtroAcceso, #buscarModulo').on('change keyup', function() {
-        filtrarModulos();
-    });
+        actualizarFilasSeleccionadas() {
+            $(SELECTORS.tablaModulos + ' tbody tr').each(function() {
+                const checkbox = $(this).find(SELECTORS.moduloCheckbox);
+                const fila = $(this);
 
-    // Click en fila para seleccionar/deseleccionar
-    $(document).on('click', '#tablaModulos tbody tr', function(e) {
-        // No activar si se hace click en un checkbox o input
-        if (e.target.type === 'checkbox' || e.target.tagName === 'INPUT') {
+                if (checkbox.is(':checked')) {
+                    fila.addClass('bg-blue-100 border-l-4 border-blue-500');
+                } else {
+                    fila.removeClass('bg-blue-100 border-l-4 border-blue-500');
+                }
+            });
+        },
+
+        toggleFila(fila) {
+            const checkbox = fila.find(SELECTORS.moduloCheckbox);
+            checkbox.prop('checked', !checkbox.prop('checked'));
+            this.actualizarSelectAll();
+            ButtonManager.actualizarEstado();
+            this.actualizarFilasSeleccionadas();
+        }
+    };
+
+    // ==================== GESTIÓN DE BOTONES ====================
+    const ButtonManager = {
+        actualizarEstado() {
+            const checkedBoxes = $(SELECTORS.moduloCheckbox + ':checked');
+            const count = checkedBoxes.length;
+            const btnEditar = document.querySelector(SELECTORS.btnEditar);
+            const btnEliminar = document.querySelector(SELECTORS.btnEliminar);
+
+            if (!btnEditar || !btnEliminar) return;
+
+            if (count === 0) {
+                btnEditar.disabled = true;
+                btnEliminar.disabled = true;
+            } else if (count === 1) {
+                btnEditar.disabled = false;
+                btnEliminar.disabled = false;
+            } else {
+                btnEditar.disabled = true;
+                btnEliminar.disabled = false;
+            }
+        }
+    };
+
+    // ==================== GESTIÓN DE ELIMINACIÓN ====================
+    const DeleteManager = {
+        async eliminarModulos(ids) {
+            let eliminados = 0;
+            let errores = 0;
+
+            Utils.mostrarAlerta('info', 'Eliminando...', 'Por favor espera', {
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            const promesas = ids.map(id => this.eliminarModulo(id));
+
+            try {
+                const resultados = await Promise.allSettled(promesas);
+
+                resultados.forEach(resultado => {
+                    if (resultado.status === 'fulfilled' && resultado.value) {
+                        eliminados++;
+                    } else {
+                        errores++;
+                    }
+                });
+
+                Swal.close();
+                this.mostrarResultado(eliminados, errores);
+            } catch (error) {
+                Swal.close();
+                Utils.mostrarAlerta('error', 'Error', 'Error al eliminar los módulos');
+            }
+        },
+
+        eliminarModulo(id) {
+            return $.ajax({
+                url: RUTAS.eliminar(id),
+                method: 'DELETE',
+                data: { _token: Utils.getCSRFToken() }
+            }).then(response => response.success);
+        },
+
+        mostrarResultado(eliminados, errores) {
+            if (errores === 0) {
+                Utils.mostrarAlerta('success', 'Éxito', `${eliminados} módulo(s) eliminado(s) correctamente`, {
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => window.location.href = '/produccionProceso');
+            } else if (eliminados > 0) {
+                Utils.mostrarAlerta('warning', 'Parcialmente completado', `${eliminados} módulo(s) eliminado(s), ${errores} error(es)`)
+                    .then(() => window.location.href = '/produccionProceso');
+            } else {
+                Utils.mostrarAlerta('error', 'Error', 'Error al eliminar los módulos');
+            }
+        }
+    };
+
+    // ==================== FUNCIONES GLOBALES ====================
+    window.editarModuloSeleccionado = function() {
+        const checkedBoxes = $(SELECTORS.moduloCheckbox + ':checked');
+        if (checkedBoxes.length === 1) {
+            const id = checkedBoxes.first().data('id');
+            window.location.href = RUTAS.editar(id);
+        }
+    };
+
+    window.eliminarModulosSeleccionados = function() {
+        const checkedBoxes = $(SELECTORS.moduloCheckbox + ':checked');
+        const ids = checkedBoxes.map(function() {
+            return $(this).data('id');
+        }).get();
+
+        if (ids.length === 0) {
+            Utils.mostrarAlerta('warning', 'Advertencia', 'Selecciona al menos un módulo para eliminar');
             return;
         }
 
-        const checkbox = $(this).find('.modulo-checkbox');
-        checkbox.prop('checked', !checkbox.prop('checked'));
+        const mensaje = ids.length === 1
+            ? '¿Estás seguro de eliminar este módulo?'
+            : `¿Estás seguro de eliminar ${ids.length} módulos?`;
 
-        // Actualizar estado del checkbox "Seleccionar todo"
-        const totalCheckboxes = $('.modulo-checkbox').length;
-        const checkedCheckboxes = $('.modulo-checkbox:checked').length;
-        $('#selectAll').prop('checked', totalCheckboxes === checkedCheckboxes);
-        $('#selectAll').prop('indeterminate', checkedCheckboxes > 0 && checkedCheckboxes < totalCheckboxes);
-
-        actualizarBotonesAccion();
-    });
-});
-
-// Función para actualizar el estado de los botones
-function actualizarBotonesAccion() {
-    const checkedBoxes = $('.modulo-checkbox:checked');
-    const count = checkedBoxes.length;
-
-    // Actualizar botones
-    const btnEditar = document.getElementById('btnEditarSeleccionado');
-    const btnEliminar = document.getElementById('btnEliminarSeleccionado');
-
-    if (count === 0) {
-        btnEditar.disabled = true;
-        btnEliminar.disabled = true;
-        btnEditar.classList.add('opacity-50', 'cursor-not-allowed');
-        btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
-        btnEditar.classList.remove('hover:bg-yellow-700');
-        btnEliminar.classList.remove('hover:bg-red-700');
-    } else if (count === 1) {
-        btnEditar.disabled = false;
-        btnEliminar.disabled = false;
-        btnEditar.classList.remove('opacity-50', 'cursor-not-allowed');
-        btnEliminar.classList.remove('opacity-50', 'cursor-not-allowed');
-        btnEditar.classList.add('hover:bg-yellow-700');
-        btnEliminar.classList.add('hover:bg-red-700');
-    } else {
-        btnEditar.disabled = true; // Solo permitir editar uno a la vez
-        btnEliminar.disabled = false;
-        btnEditar.classList.add('opacity-50', 'cursor-not-allowed');
-        btnEliminar.classList.remove('opacity-50', 'cursor-not-allowed');
-        btnEditar.classList.remove('hover:bg-yellow-700');
-        btnEliminar.classList.add('hover:bg-red-700');
-    }
-
-    // Actualizar badges de conteo en los botones
-    const countEditar = document.getElementById('countEditar');
-    const countEliminar = document.getElementById('countEliminar');
-
-    if (count === 0) {
-        countEditar.classList.add('hidden');
-        countEliminar.classList.add('hidden');
-    } else {
-        countEliminar.classList.remove('hidden');
-        countEliminar.textContent = count;
-
-        if (count === 1) {
-            countEditar.classList.remove('hidden');
-            countEditar.textContent = '1';
-        } else {
-            countEditar.classList.add('hidden');
-        }
-    }
-
-    // Actualizar clases CSS de las filas seleccionadas
-    $('#tablaModulos tbody tr').each(function() {
-        const checkbox = $(this).find('.modulo-checkbox');
-        if (checkbox.is(':checked')) {
-            $(this).addClass('selected');
-        } else {
-            $(this).removeClass('selected');
-        }
-    });
-
-    // Actualizar contador en el título de la tabla
-    const totalModulos = $('#tablaModulos tbody tr').length;
-    if (count > 0) {
-        $('#totalModulos').text(`${count}/${totalModulos} seleccionado(s)`);
-    } else {
-        $('#totalModulos').text(`${totalModulos} módulos`);
-    }
-}
-
-// Función para editar módulo seleccionado
-function editarModuloSeleccionado() {
-    const checkedBoxes = $('.modulo-checkbox:checked');
-    if (checkedBoxes.length === 1) {
-        const id = checkedBoxes.first().data('id');
-        window.location.href = `/modulos-sin-auth/${id}/edit`;
-    }
-}
-
-// Función para eliminar módulos seleccionados con SweetAlert
-function eliminarModulosSeleccionados() {
-    const checkedBoxes = $('.modulo-checkbox:checked');
-    const ids = checkedBoxes.map(function() { return $(this).data('id'); }).get();
-    const count = ids.length;
-
-    if (count === 0) {
         Swal.fire({
+            title: '¿Estás seguro?',
+            text: mensaje,
             icon: 'warning',
-            title: 'Advertencia',
-            text: 'Selecciona al menos un módulo para eliminar'
-        });
-        return;
-    }
-
-    const mensaje = count === 1
-        ? '¿Estás seguro de eliminar este módulo?'
-        : `¿Estás seguro de eliminar ${count} módulos?`;
-
-    Swal.fire({
-        title: '¿Estás seguro?',
-        text: mensaje,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            eliminarModulos(ids);
-        }
-    });
-}
-
-// Función para eliminar múltiples módulos
-function eliminarModulos(ids) {
-    let eliminados = 0;
-    let errores = 0;
-
-    // Mostrar indicador de carga
-    Swal.fire({
-        title: 'Eliminando...',
-        text: 'Por favor espera',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
-    });
-
-    // Eliminar cada módulo
-    ids.forEach(function(id, index) {
-        $.ajax({
-            url: `/modulos-sin-auth/${id}`,
-            method: 'DELETE',
-            data: {
-                _token: $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    eliminados++;
-                } else {
-                    errores++;
-                }
-
-                if (eliminados + errores === ids.length) {
-                    Swal.close();
-                    if (errores === 0) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Éxito',
-                            text: `${eliminados} módulo(s) eliminado(s) correctamente`,
-                            timer: 2000,
-                            showConfirmButton: false
-                        }).then(() => window.location.href = '/produccionProceso');
-                    } else {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Parcialmente completado',
-                            text: `${eliminados} módulo(s) eliminado(s), ${errores} error(es)`
-                        }).then(() => window.location.href = '/produccionProceso');
-                    }
-                }
-            },
-            error: function(xhr, status, error) {
-                errores++;
-                if (eliminados + errores === ids.length) {
-                    Swal.close();
-                    if (eliminados > 0) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Parcialmente completado',
-                            text: `${eliminados} módulo(s) eliminado(s), ${errores} error(es)`
-                        }).then(() => window.location.href = '/produccionProceso');
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: 'Error al eliminar los módulos'
-                        });
-                    }
-                }
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                DeleteManager.eliminarModulos(ids);
             }
         });
+    };
+
+    window.actualizarBotonesAccion = function() {
+        ButtonManager.actualizarEstado();
+        SelectionManager.actualizarFilasSeleccionadas();
+    };
+
+    // ==================== INICIALIZACIÓN ====================
+    $(document).ready(function() {
+        @if(session('success') && session('show_sweetalert'))
+            Utils.mostrarAlerta('success', '¡Éxito!', '{{ session('success') }}', {
+                timer: 3000,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end'
+            });
+        @endif
+
+        $(document).on('change', SELECTORS.toggleAcceso, function() {
+            const id = $(this).data('id');
+            const acceso = $(this).is(':checked');
+            ToggleManager.cambiarAcceso(id, acceso);
+        });
+
+        $(document).on('change', SELECTORS.togglePermiso, function() {
+            const id = $(this).data('id');
+            const campo = $(this).data('campo');
+            const valor = $(this).is(':checked');
+            ToggleManager.cambiarPermiso(id, campo, valor);
+        });
+
+        $(SELECTORS.selectAll).on('change', function() {
+            const isChecked = $(this).is(':checked');
+            $(SELECTORS.moduloCheckbox).prop('checked', isChecked);
+            window.actualizarBotonesAccion();
+        });
+
+        $(document).on('change', SELECTORS.moduloCheckbox, function() {
+            SelectionManager.actualizarSelectAll();
+            window.actualizarBotonesAccion();
+        });
+
+        $(document).on('click', SELECTORS.tablaModulos + ' tbody tr', function(e) {
+            if (e.target.type === 'checkbox' || e.target.tagName === 'INPUT') {
+                return;
+            }
+            SelectionManager.toggleFila($(this));
+        });
+
+        window.actualizarBotonesAccion();
     });
-}
-
-// Función para limpiar filtros
-function limpiarFiltros() {
-    $('#filtroNivel').val('');
-    $('#filtroAcceso').val('');
-    $('#buscarModulo').val('');
-    $('#selectAll').prop('checked', false);
-    $('.modulo-checkbox').prop('checked', false);
-    actualizarBotonesAccion();
-
-    // Mostrar todas las filas
-    $('#tablaModulos tbody tr').show();
-    const totalModulos = $('#tablaModulos tbody tr').length;
-    $('#totalModulos').text(`${totalModulos} módulos`);
-
-    Swal.fire({
-        icon: 'success',
-        title: 'Filtros limpiados',
-        timer: 1500,
-        showConfirmButton: false
-    });
-}
-
-// Función para exportar módulos
-function exportarModulos() {
-    Swal.fire({
-        icon: 'info',
-        title: 'Exportar Módulos',
-        text: 'Esta funcionalidad estará disponible próximamente',
-        timer: 2000,
-        showConfirmButton: false
-    });
-}
-
-// Función de filtrado
-function filtrarModulos() {
-    const nivel = $('#filtroNivel').val();
-    const acceso = $('#filtroAcceso').val();
-    const buscar = $('#buscarModulo').val().toLowerCase();
-
-    $('#tablaModulos tbody tr').each(function() {
-        const fila = $(this);
-        const filaNivel = fila.data('nivel');
-        const filaAcceso = fila.data('acceso');
-        const filaNombre = fila.data('nombre');
-
-        let mostrar = true;
-
-        // Filtro por nivel
-        if (nivel && filaNivel != nivel) {
-            mostrar = false;
-        }
-
-        // Filtro por acceso
-        if (acceso !== '' && filaAcceso != acceso) {
-            mostrar = false;
-        }
-
-        // Filtro por búsqueda
-        if (buscar && !filaNombre.includes(buscar)) {
-            mostrar = false;
-        }
-
-        if (mostrar) {
-            fila.show();
-        } else {
-            fila.hide();
-        }
-    });
-
-    // Actualizar contador
-    const filasVisibles = $('#tablaModulos tbody tr:visible').length;
-    const totalModulos = $('#tablaModulos tbody tr').length;
-    $('#totalModulos').text(`${filasVisibles}/${totalModulos} módulos`);
-}
+})();
 </script>
 @endsection
