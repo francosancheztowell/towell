@@ -46,18 +46,23 @@ class DescargarProgramaController extends Controller
                 ], 404);
             }
 
-            // Obtener columnas de ReqProgramaTejido (excluyendo Id y EnProceso)
-            $columnasPrograma = $this->getColumnasProgramaTejido();
-            // Excluir Id y EnProceso
-            $columnasPrograma = array_filter($columnasPrograma, function($col) {
-                return $col !== 'Id' && $col !== 'EnProceso';
+            // Obtener mapeo de columnas
+            $mapeoColumnas = $this->getMapeoColumnas();
+
+            // Obtener TODAS las columnas de ReqProgramaTejido (excluyendo Id, EnProceso, CreatedAt, UpdatedAt, RowNum)
+            $todasLasColumnas = DB::getSchemaBuilder()->getColumnListing('ReqProgramaTejido');
+            $columnasPrograma = array_filter($todasLasColumnas, function($col) {
+                return $col !== 'Id'
+                    && $col !== 'EnProceso'
+                    && $col !== 'CreatedAt'
+                    && $col !== 'UpdatedAt'
+                    && $col !== 'RowNum';
             });
-            // Reindexar el array
             $columnasPrograma = array_values($columnasPrograma);
 
-            // Columnas de ReqProgramaTejidoLine
+            // Columnas de ReqProgramaTejidoLine (sin Id)
             $columnasLine = [
-                'Id', 'Fecha', 'Cantidad', 'Kilos', 'Aplicacion',
+                'Fecha', 'Cantidad', 'Kilos', 'Aplicacion',
                 'Trama', 'Combina1', 'Combina2', 'Combina3', 'Combina4', 'Combina5',
                 'Pie', 'Rizo', 'MtsRizo', 'MtsPie'
             ];
@@ -67,11 +72,9 @@ class DescargarProgramaController extends Controller
 
             // Agregar encabezado con nombres de columnas
             $encabezados = [];
-            // Agregar ProgramaId primero (es el Id de ReqProgramaTejido)
-            $encabezados[] = 'ProgramaId';
-            // Encabezados de ReqProgramaTejido (sin Id y EnProceso)
+            // Encabezados de ReqProgramaTejido: aplicar mapeo solo si existe, sino usar nombre original
             foreach ($columnasPrograma as $columna) {
-                $encabezados[] = $columna;
+                $encabezados[] = $mapeoColumnas[$columna] ?? $columna;
             }
             // Encabezados de ReqProgramaTejidoLine
             foreach ($columnasLine as $columna) {
@@ -89,10 +92,7 @@ class DescargarProgramaController extends Controller
                     continue; // Saltar si no hay programa relacionado
                 }
 
-                // Agregar ProgramaId (Id de ReqProgramaTejido)
-                $valores[] = $this->formatearValor($programa->Id, 'Id');
-
-                // Agregar valores de ReqProgramaTejido (sin Id y EnProceso)
+                // Agregar valores de ReqProgramaTejido (todas las columnas excepto las excluidas)
                 foreach ($columnasPrograma as $columna) {
                     $valor = $programa->{$columna} ?? null;
                     $valores[] = $this->formatearValor($valor, $columna);
@@ -146,15 +146,84 @@ class DescargarProgramaController extends Controller
     }
 
     /**
-     * Obtiene todas las columnas de ReqProgramaTejido
+     * Obtiene el mapeo de columnas a etiquetas personalizadas
      */
-    private function getColumnasProgramaTejido(): array
+    private function getMapeoColumnas(): array
     {
-        // Obtener todas las columnas de la tabla
-        $columnas = DB::getSchemaBuilder()->getColumnListing('ReqProgramaTejido');
+        return [
 
-        // Retornar todas las columnas en orden
-        return $columnas;
+            'CuentaRizo' => 'Cuenta',
+            'CalibreRizo' => 'CalibreRizo',
+            'SalonTejidoId' => 'Salon',
+            'NoTelarId' => 'Telar',
+            'Ultimo' => 'Ultimo',
+            'CambioHilo' => 'CambioHilo',
+            'Maquina' => 'Maquina',
+            'Ancho' => 'Ancho',
+            'EficienciaSTD' => 'EficienciaSTD',
+            'VelocidadSTD' => 'VelocidadSTD',
+            'FibraRizo' => 'Hilo',
+            'CalibrePie' => 'CalibrePie',
+            'CalendarioId' => 'Jornada',
+            'TamanoClave' => 'Clave mod',
+            'NoExisteBase' => 'NoExisteBase',
+            'ItemId' => 'Clave AX',
+            'InventSizeId' => 'Tamaño AX',
+            'Rasurado' => 'Rasurado',
+            'NombreProducto' => 'Producto',
+            'TotalPedido' => 'Pedido',
+            'Produccion' => 'Producción',
+            'SaldoPedido' => 'Saldos',
+            'SaldoMarbete' => 'SaldoMarbetes',
+            'ProgramarProd' => 'Day Sheduling',
+            'NoProduccion' => 'Orden Produccion',
+            'Programado' => 'INN',
+            'FlogsId' => 'IdFlog',
+            'NombreProyecto' => 'Descripcion',
+            'CustName' => 'CustName',
+            'AplicacionId' => 'Aplicación',
+            'Observaciones' => 'Observaciones',
+        ];
+    }
+
+    /**
+     * Obtiene el orden específico de las columnas
+     */
+    private function getColumnasOrdenadas(): array
+    {
+        return [
+            'CuentaRizo',
+            'CalibreRizo',
+            'SalonTejidoId',
+            'NoTelarId',
+            'Ultimo',
+            'CambioHilo',
+            'Maquina',
+            'Ancho',
+            'EficienciaSTD',
+            'VelocidadSTD',
+            'FibraRizo',
+            'CalibrePie',
+            'CalendarioId',
+            'TamanoClave',
+            'NoExisteBase',
+            'ItemId',
+            'InventSizeId',
+            'Rasurado',
+            'NombreProducto',
+            'TotalPedido',
+            'Produccion',
+            'SaldoPedido',
+            'SaldoMarbete',
+            'ProgramarProd',
+            'NoProduccion',
+            'Programado',
+            'FlogsId',
+            'NombreProyecto',
+            'CustName',
+            'AplicacionId',
+            'Observaciones',
+        ];
     }
 
     /**
