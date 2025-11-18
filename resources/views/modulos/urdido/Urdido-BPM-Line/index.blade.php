@@ -101,7 +101,7 @@
     </div>
 
     <!-- Checklist de Actividades -->
-    <div class="bg-white rounded-lg shadow-sm border p-2 mx-40 my-4">
+    <div class="bg-white rounded-lg shadow-sm border p-2 mx-40 mb-30 ">
         <h2 class="text-base font-bold text-gray-800 mb-2 border-b pb-1.5 px-2">Actividades</h2>
         
         <div class="overflow-y-auto" style="max-height: calc(100vh - 280px);">

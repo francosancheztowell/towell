@@ -13,14 +13,16 @@ class UrdBpmLineController extends Controller
 {
     public function index(string $folio)
     {
-        $header = UrdBpmModel::with('maquina')->where('Folio', $folio)->firstOrFail();
+        $header = UrdBpmModel::where('Folio', $folio)->firstOrFail();
         $actividades = UrdActividadesBpmModel::orderBy('Orden')->get();
-        
-        // Obtener nombre de máquina
-        $nombreMaquina = $header->maquina->Nombre ?? ($header->MaquinaId ?? 'Máquina');
         
         // Verificar si ya existen registros para este folio
         $existingLines = UrdBpmLineModel::where('Folio', $folio)->count();
+        
+        // Obtener MaquinaId y Departamento de la sesión o de las líneas existentes
+        $primeraLinea = UrdBpmLineModel::where('Folio', $folio)->first();
+        $maquinaId = $primeraLinea->MaquinaId ?? session('bpm_maquina_id');
+        $departamento = $primeraLinea->Departamento ?? session('bpm_departamento', 'Urdido');
         
         // Si no existen registros, crear todos con Valor=0
         if ($existingLines === 0) {
@@ -28,13 +30,22 @@ class UrdBpmLineController extends Controller
                 UrdBpmLineModel::create([
                     'Folio' => $folio,
                     'TurnoRecibe' => $header->TurnoRecibe,
-                    'MaquinaId' => $header->MaquinaId,
-                    'Departamento' => $header->Departamento ?? 'Urdido',
+                    'MaquinaId' => $maquinaId,
+                    'Departamento' => $departamento,
                     'Orden' => $actividad->Orden,
                     'Actividad' => $actividad->Actividad,
                     'Valor' => 0,
                 ]);
             }
+            // Limpiar sesión después de usar
+            session()->forget(['bpm_maquina_id', 'bpm_departamento']);
+        }
+        
+        // Obtener nombre de máquina desde URDCatalogoMaquina
+        $nombreMaquina = 'Máquina';
+        if ($maquinaId) {
+            $maquina = \App\Models\URDCatalogoMaquina::where('MaquinaId', $maquinaId)->first();
+            $nombreMaquina = $maquina->Nombre ?? $maquinaId;
         }
         
         // Obtener las líneas con sus valores actuales

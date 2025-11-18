@@ -27,10 +27,8 @@ class UrdBpmModel extends Model
         'NombreEmplEnt',
         'TurnoEntrega',
         'CveEmplAutoriza',
-        'NombreEmplAutoriza',   // según tu mockup/consulta
+        'NombreEmplAutoriza',
         'Status',
-        'MaquinaId',
-        'Departamento',
     ];
 
     protected $casts = [

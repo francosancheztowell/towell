@@ -51,11 +51,19 @@ class UrdBpmController extends Controller
         ]);
 
         try {
+            // Extraer MaquinaId y Departamento para usar en las líneas (no se guardan en UrdBPM)
+            $maquinaId = $validated['MaquinaId'];
+            $departamento = $validated['Departamento'] ?? 'Urdido';
+            unset($validated['MaquinaId'], $validated['Departamento']);
+            
             // Generar folio automáticamente con el módulo "Urdido BPM"
             $folio = FolioHelper::obtenerSiguienteFolio('Urdido BPM', 3);
             $validated['Folio'] = $folio;
             
-            UrdBpmModel::create($validated);
+            $header = UrdBpmModel::create($validated);
+            
+            // Guardar MaquinaId y Departamento en sesión para usarlos en las líneas
+            session(['bpm_maquina_id' => $maquinaId, 'bpm_departamento' => $departamento]);
             
             // Redirigir a la vista de líneas del folio creado
             return redirect()->route('urd-bpm-line.index', $folio)
