@@ -370,6 +370,8 @@ Route::middleware(['auth'])->group(function () {
     // Redirects para submódulos de Atadores
     Route::redirect('/submodulos-nivel3/502', '/atadores/configuracion', 301);
     Route::redirect('/submodulos-nivel3/503', '/atadores/catalogos', 301);
+    // Redirects para submódulos de Engomado
+    Route::redirect('/submodulos-nivel3/404', '/engomado/configuracion', 301);
 
     // Redirects para módulo producción urdido (compatibilidad con URLs antiguas)
     Route::get('/modulo-produccion-urdido', function () {
@@ -403,13 +405,25 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/urdido/configuracion', fn() => app(UsuarioController::class)->showSubModulosNivel3('304'))
         ->name('urdido.configuracion');
 
+    // Configuración de Engomado
+    Route::get('/engomado/configuracion', fn() => app(UsuarioController::class)->showSubModulosNivel3('404'))
+        ->name('engomado.configuracion');
+
     // BPM Urdido - Redirigir al controlador
     Route::get('/urdido/bpm', [UrdBpmController::class, 'index'])->name('urdido.bpm');
+
+    // BPM Engomado - Redirigir al controlador
+    Route::get('/engomado/bpm', [App\Http\Controllers\EngBpmController::class, 'index'])->name('engomado.bpm');
 
     // Actividades BPM Urdido - Redirigir al CRUD
     Route::get('/urdido/configuracion/actividades-bpm', function() {
         return redirect()->route('urd-actividades-bpm.index');
     })->name('urdido.configuracion.actividades-bpm');
+
+    // Actividades BPM Engomado - Redirigir al CRUD
+    Route::get('/engomado/configuracion/actividades-bpm', function() {
+        return redirect()->route('eng-actividades-bpm.index');
+    })->name('engomado.configuracion.actividades-bpm');
 
     // Ruta genérica para compatibilidad (solo para otros IDs no especificados arriba)
     Route::get('/submodulos-nivel3/{moduloPadre}', [UsuarioController::class, 'showSubModulosNivel3'])->name('submodulos.nivel3');
@@ -571,6 +585,11 @@ Route::middleware(['auth'])->group(function () {
         ->parameters(['urd-actividades-bpm' => 'urdActividadesBpm'])
         ->names('urd-actividades-bpm');
 
+    // Actividades BPM Engomado
+    Route::resource('eng-actividades-bpm', App\Http\Controllers\EngActividadesBpmController::class)
+        ->parameters(['eng-actividades-bpm' => 'engActividadesBpm'])
+        ->names('eng-actividades-bpm');
+
     // BPM Urdido
     Route::resource('urd-bpm', UrdBpmController::class)
         ->parameters(['urd-bpm' => 'id'])
@@ -582,6 +601,18 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('urd-bpm-line/{folio}/terminar', [UrdBpmLineController::class, 'terminar'])->name('urd-bpm-line.terminar');
     Route::patch('urd-bpm-line/{folio}/autorizar', [UrdBpmLineController::class, 'autorizar'])->name('urd-bpm-line.autorizar');
     Route::patch('urd-bpm-line/{folio}/rechazar', [UrdBpmLineController::class, 'rechazar'])->name('urd-bpm-line.rechazar');
+
+    // BPM Engomado
+    Route::resource('eng-bpm', App\Http\Controllers\EngBpmController::class)
+        ->parameters(['eng-bpm' => 'id'])
+        ->names('eng-bpm');
+
+    // BPM Engomado - Líneas (checklist)
+    Route::get('eng-bpm-line/{folio}', [App\Http\Controllers\EngBpmLineController::class, 'index'])->name('eng-bpm-line.index');
+    Route::post('eng-bpm-line/{folio}/toggle', [App\Http\Controllers\EngBpmLineController::class, 'toggleActividad'])->name('eng-bpm-line.toggle');
+    Route::patch('eng-bpm-line/{folio}/terminar', [App\Http\Controllers\EngBpmLineController::class, 'terminar'])->name('eng-bpm-line.terminar');
+    Route::patch('eng-bpm-line/{folio}/autorizar', [App\Http\Controllers\EngBpmLineController::class, 'autorizar'])->name('eng-bpm-line.autorizar');
+    Route::patch('eng-bpm-line/{folio}/rechazar', [App\Http\Controllers\EngBpmLineController::class, 'rechazar'])->name('eng-bpm-line.rechazar');
 
         Route::resource('tel-bpm', TelBpmController::class)
     ->parameters(['tel-bpm' => 'folio'])   // PK string

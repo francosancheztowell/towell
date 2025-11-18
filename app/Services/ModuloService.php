@@ -343,6 +343,19 @@ class ModuloService
             return '/tejido/configurar';
         }
 
+        // Caso especial: Configuración puede estar en Urdido o Engomado
+        if (strtolower(trim($nombreModulo)) === 'configuracion' || strtolower(trim($nombreModulo)) === 'configuración') {
+            // Si viene de Engomado (dependencia 400)
+            if ($dependencia == 400 || (is_string($dependencia) && strpos($dependencia, '400') === 0)) {
+                return '/submodulos-nivel3/404'; // Configuración de Engomado
+            }
+            // Si viene de Urdido (dependencia 300)
+            if ($dependencia == 300 || (is_string($dependencia) && strpos($dependencia, '300') === 0)) {
+                return '/urdido/configuracion';
+            }
+            // Si viene de Atadores (dependencia 500) - ya se maneja abajo
+        }
+
         // Caso especial: Catalogos y Configuracion de Atadores (dependencia 500)
         // SOLO aplicar si la dependencia es 500 (Atadores), NO para otros módulos
         if ($dependencia == 500 || (is_string($dependencia) && strpos($dependencia, '500') === 0)) {
@@ -444,6 +457,7 @@ class ModuloService
             // Módulos de Engomado
             'Programa Engomado' => '/engomado/programar-engomado',
             'BPM (Buenas Practicas Manufactura) Eng' => '/engomado/bpm',
+            'BPM Engomado' => '/engomado/bpm',
             'Reportes Engomado' => '/engomado/reportes',
             'Producción Engomado' => '/engomado/produccion',
 
@@ -492,6 +506,10 @@ class ModuloService
             'Catálogo Máquinas' => '/urdido/catalogo-maquinas',
             'Catálogo Maquinas' => '/urdido/catalogo-maquinas',
             'Actividades BPM Urdido'=> '/urdido/configuracion/actividades-bpm',
+
+            // Catálogos de Engomado (nivel 3)
+            'Actividades BPM Engomado' => '/engomado/configuracion/actividades-bpm',
+            'Actividades Engomado' => '/engomado/configuracion/actividades-bpm',
 
         ];
 

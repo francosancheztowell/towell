@@ -4,9 +4,6 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        {{-- <a href="{{ route('urd-bpm.index') }}" class="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
-            ← Volver
-        </a> --}}
         
         @if($header->Status === 'Creado')
             <form action="{{ route('urd-bpm-line.terminar', $header->Folio) }}" method="POST" class="inline" id="form-terminar">
