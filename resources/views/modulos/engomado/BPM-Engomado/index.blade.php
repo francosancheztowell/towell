@@ -107,108 +107,87 @@
 
             <form action="{{ route('eng-bpm.store') }}" method="POST" class="p-4">
                 @csrf
+                <!-- Status oculto, siempre será "Creado" -->
+                <input type="hidden" name="Status" value="Creado">
+                
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Fecha *</label>
+                        <input type="date" name="Fecha" value="{{ date('Y-m-d') }}" required readonly class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    </div>
+                </div>
 
-                <!-- Fecha -->
+                <!-- Sección: Quien Entrega -->
                 <div class="mb-3">
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Fecha <span class="text-red-500">*</span></label>
-                    <input type="datetime-local" name="Fecha" required
-                           value="{{ old('Fecha', now()->format('Y-m-d\TH:i')) }}"
-                           class="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 @error('Fecha') border-red-500 @enderror">
-                    @error('Fecha')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <!-- Máquina y Departamento -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Máquina <span class="text-red-500">*</span></label>
-                        <select name="MaquinaId" id="create_maquina_id" required onchange="fillMaquina(this)"
-                                class="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 @error('MaquinaId') border-red-500 @enderror">
-                            <option value="">Seleccione máquina...</option>
-                            @foreach($maquinas as $maquina)
-                                <option value="{{ $maquina->MaquinaId }}" 
-                                        data-departamento="{{ $maquina->Departamento }}"
-                                        {{ old('MaquinaId') == $maquina->MaquinaId ? 'selected' : '' }}>
-                                    {{ $maquina->Nombre }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('MaquinaId')
-                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Departamento</label>
-                        <input type="text" name="Departamento" id="create_departamento" readonly
-                               value="{{ old('Departamento') }}"
-                               class="w-full px-2 py-1.5 text-sm border rounded-lg bg-gray-100">
-                    </div>
-                </div>
-
-                <!-- Quien Entrega (Usuario Actual) -->
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
                     <h4 class="text-sm font-semibold text-blue-700 mb-2">Quien Entrega</h4>
                     <div class="grid grid-cols-3 gap-2">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
-                            <input type="text" value="{{ auth()->user()->nombre }}" readonly
-                                   class="w-full px-2 py-1.5 text-sm border rounded-lg bg-gray-100">
-                            <input type="hidden" name="NombreEmplEnt" value="{{ auth()->user()->nombre }}">
+                            <input type="text" id="create_NombreEmplEnt" name="NombreEmplEnt" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
-                            <input type="text" value="{{ auth()->user()->numero_empleado }}" readonly
-                                   class="w-full px-2 py-1.5 text-sm border rounded-lg bg-gray-100">
-                            <input type="hidden" name="CveEmplEnt" value="{{ auth()->user()->numero_empleado }}">
+                            <input type="text" id="create_CveEmplEnt" name="CveEmplEnt" value="{{ auth()->user()->numero_empleado ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
-                            <input type="text" value="{{ auth()->user()->turno }}" readonly
-                                   class="w-full px-2 py-1.5 text-sm border rounded-lg bg-gray-100">
-                            <input type="hidden" name="TurnoEntrega" value="{{ auth()->user()->turno }}">
+                            <input type="text" id="create_TurnoEntrega" name="TurnoEntrega" value="{{ auth()->user()->turno ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
                     </div>
                 </div>
 
-                <!-- Quien Recibe -->
-                <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                <!-- Sección: Quien Recibe -->
+                <div class="mb-3">
                     <h4 class="text-sm font-semibold text-green-700 mb-2">Quien Recibe</h4>
                     <div class="grid grid-cols-3 gap-2">
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Nombre <span class="text-red-500">*</span></label>
-                            <select name="NombreEmplRec" id="create_nombre_rec" required onchange="fillRecibe(this)"
-                                    class="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 @error('NombreEmplRec') border-red-500 @enderror">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Nombre <span class="text-red-600">*</span></label>
+                            <select id="select_NombreEmplRec" name="NombreEmplRec" onchange="fillRecibe(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('NombreEmplRec') border-red-500 @enderror">
                                 <option value="">Seleccione...</option>
                                 @foreach($usuarios as $usuario)
                                     <option value="{{ $usuario->nombre }}" 
-                                            data-numero="{{ $usuario->numero_empleado }}"
-                                            data-turno="{{ $usuario->turno }}"
-                                            {{ old('NombreEmplRec') == $usuario->nombre ? 'selected' : '' }}>
+                                            data-numero="{{ $usuario->numero_empleado }}" 
+                                            data-turno="{{ $usuario->turno }}">
                                         {{ $usuario->nombre }}
                                     </option>
                                 @endforeach
                             </select>
                             @error('NombreEmplRec')
-                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                                <div class="text-red-600 text-xs mt-1">{{ $message }}</div>
                             @enderror
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
-                            <input type="text" name="CveEmplRec" id="create_cve_rec" readonly
-                                   value="{{ old('CveEmplRec') }}"
-                                   class="w-full px-2 py-1.5 text-sm border rounded-lg bg-gray-100">
+                            <input type="text" id="input_CveEmplRec" name="CveEmplRec" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
-                            <input type="text" name="TurnoRecibe" id="create_turno_rec" readonly
-                                   value="{{ old('TurnoRecibe') }}"
-                                   class="w-full px-2 py-1.5 text-sm border rounded-lg bg-gray-100">
+                            <input type="text" id="input_TurnoRecibe" name="TurnoRecibe" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div> 
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Máquina <span class="text-red-600">*</span></label>
+                            <select id="select_Maquina" name="MaquinaId" onchange="fillMaquina(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('MaquinaId') border-red-500 @enderror">
+                                <option value="">Seleccione...</option>
+                                @foreach($maquinas as $maquina)
+                                    <option value="{{ $maquina->MaquinaId }}" 
+                                            data-nombre="{{ $maquina->Nombre }}" 
+                                            data-departamento="{{ $maquina->Departamento }}">
+                                        {{ $maquina->Nombre }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('MaquinaId')
+                                <div class="text-red-600 text-xs mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div> 
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Departamento</label>
+                            <input type="text" id="input_Departamento" name="Departamento" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">                
                         </div>
                     </div>
                 </div>
-
-                <input type="hidden" name="Status" value="Creado">
 
                 <!-- Botones -->
                 <div class="flex gap-2 justify-end pt-3 border-t">
@@ -397,15 +376,20 @@
             });
         }
 
-        function fillMaquina(select) {
-            const option = select.options[select.selectedIndex];
-            document.getElementById('create_departamento').value = option.getAttribute('data-departamento') || '';
+        function fillRecibe(select) {
+            const selectedOption = select.options[select.selectedIndex];
+            const numero = selectedOption.getAttribute('data-numero');
+            const turno = selectedOption.getAttribute('data-turno');
+            
+            document.getElementById('input_CveEmplRec').value = numero || '';
+            document.getElementById('input_TurnoRecibe').value = turno || '';
         }
 
-        function fillRecibe(select) {
-            const option = select.options[select.selectedIndex];
-            document.getElementById('create_cve_rec').value = option.getAttribute('data-numero') || '';
-            document.getElementById('create_turno_rec').value = option.getAttribute('data-turno') || '';
+        function fillMaquina(select) {
+            const selectedOption = select.options[select.selectedIndex];
+            const departamento = selectedOption.getAttribute('data-departamento');
+            
+            document.getElementById('input_Departamento').value = departamento || '';
         }
 
         function fillRecibeEdit(select) {

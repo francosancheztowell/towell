@@ -127,7 +127,7 @@
                     </div> --}}
                     <div class="col-span-2">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Fecha *</label>
-                        <input type="date" name="Fecha" value="{{ date('Y-m-d') }}" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500">
+                        <input type="date" name="Fecha" value="{{ date('Y-m-d') }}" required readonly class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                     </div>
                     
                 </div>

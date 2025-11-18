@@ -115,7 +115,15 @@ class UrdBpmLineController extends Controller
             return redirect()->back()->with('error', 'Solo se puede autorizar un registro Terminado');
         }
 
-        $header->update(['Status' => 'Autorizado']);
+        // Obtener información del usuario actual que autoriza
+        $usuario = Auth::user();
+        $usuarioDb = \App\Models\SYSUsuario::where('idusuario', $usuario->idusuario)->first();
+
+        $header->update([
+            'Status' => 'Autorizado',
+            'CveEmplAutoriza' => $usuarioDb->numero_empleado ?? null,
+            'NombreEmplAutoriza' => $usuarioDb->nombre ?? null
+        ]);
         
         return redirect()->back()->with('success', 'Registro Autorizado exitosamente');
     }
