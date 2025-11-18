@@ -37,14 +37,15 @@ use App\Http\Controllers\TelActividadesBPMController;
 use App\Http\Controllers\TelBpmController;
 use App\Http\Controllers\TelBpmLineController;
 use App\Http\Controllers\TelTelaresOperadorController;
+use App\Http\Controllers\UrdActividadesBpmController;
+use App\Http\Controllers\UrdBpmController;
+use App\Http\Controllers\UrdBpmLineController;
 use App\Http\Controllers\MantenimientoParosController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoController;
-use App\Http\Controllers\Simulaciones\SimulacionComprasEspecialesController;
 use App\Http\Controllers\MarcasFinalesController;
 use App\Http\Controllers\MarcasController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Auth;
 
 
 //Rutas de login, con logout, no protegidas por middleware
@@ -373,6 +374,8 @@ Route::middleware(['auth'])->group(function () {
     // Redirects para submódulos de Atadores
     Route::redirect('/submodulos-nivel3/502', '/atadores/configuracion', 301);
     Route::redirect('/submodulos-nivel3/503', '/atadores/catalogos', 301);
+    // Redirects para submódulos de Engomado
+    Route::redirect('/submodulos-nivel3/404', '/engomado/configuracion', 301);
 
     // Redirects para módulo producción urdido (compatibilidad con URLs antiguas)
     Route::get('/modulo-produccion-urdido', function () {
@@ -405,6 +408,26 @@ Route::middleware(['auth'])->group(function () {
     // Configuración de Urdido
     Route::get('/urdido/configuracion', fn() => app(UsuarioController::class)->showSubModulosNivel3('304'))
         ->name('urdido.configuracion');
+
+    // Configuración de Engomado
+    Route::get('/engomado/configuracion', fn() => app(UsuarioController::class)->showSubModulosNivel3('404'))
+        ->name('engomado.configuracion');
+
+    // BPM Urdido - Redirigir al controlador
+    Route::get('/urdido/bpm', [UrdBpmController::class, 'index'])->name('urdido.bpm');
+
+    // BPM Engomado - Redirigir al controlador
+    Route::get('/engomado/bpm', [App\Http\Controllers\EngBpmController::class, 'index'])->name('engomado.bpm');
+
+    // Actividades BPM Urdido - Redirigir al CRUD
+    Route::get('/urdido/configuracion/actividades-bpm', function() {
+        return redirect()->route('urd-actividades-bpm.index');
+    })->name('urdido.configuracion.actividades-bpm');
+
+    // Actividades BPM Engomado - Redirigir al CRUD
+    Route::get('/engomado/configuracion/actividades-bpm', function() {
+        return redirect()->route('eng-actividades-bpm.index');
+    })->name('engomado.configuracion.actividades-bpm');
 
     // Ruta genérica para compatibilidad (solo para otros IDs no especificados arriba)
     Route::get('/submodulos-nivel3/{moduloPadre}', [UsuarioController::class, 'showSubModulosNivel3'])->name('submodulos.nivel3');
@@ -561,6 +584,40 @@ Route::middleware(['auth'])->group(function () {
         ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
         ->names('tel-actividades-bpm');
 
+    // Actividades BPM Urdido
+    Route::resource('urd-actividades-bpm', UrdActividadesBpmController::class)
+        ->parameters(['urd-actividades-bpm' => 'urdActividadesBpm'])
+        ->names('urd-actividades-bpm');
+
+    // Actividades BPM Engomado
+    Route::resource('eng-actividades-bpm', App\Http\Controllers\EngActividadesBpmController::class)
+        ->parameters(['eng-actividades-bpm' => 'engActividadesBpm'])
+        ->names('eng-actividades-bpm');
+
+    // BPM Urdido
+    Route::resource('urd-bpm', UrdBpmController::class)
+        ->parameters(['urd-bpm' => 'id'])
+        ->names('urd-bpm');
+
+    // BPM Urdido - Líneas (checklist)
+    Route::get('urd-bpm-line/{folio}', [UrdBpmLineController::class, 'index'])->name('urd-bpm-line.index');
+    Route::post('urd-bpm-line/{folio}/toggle', [UrdBpmLineController::class, 'toggleActividad'])->name('urd-bpm-line.toggle');
+    Route::patch('urd-bpm-line/{folio}/terminar', [UrdBpmLineController::class, 'terminar'])->name('urd-bpm-line.terminar');
+    Route::patch('urd-bpm-line/{folio}/autorizar', [UrdBpmLineController::class, 'autorizar'])->name('urd-bpm-line.autorizar');
+    Route::patch('urd-bpm-line/{folio}/rechazar', [UrdBpmLineController::class, 'rechazar'])->name('urd-bpm-line.rechazar');
+
+    // BPM Engomado
+    Route::resource('eng-bpm', App\Http\Controllers\EngBpmController::class)
+        ->parameters(['eng-bpm' => 'id'])
+        ->names('eng-bpm');
+
+    // BPM Engomado - Líneas (checklist)
+    Route::get('eng-bpm-line/{folio}', [App\Http\Controllers\EngBpmLineController::class, 'index'])->name('eng-bpm-line.index');
+    Route::post('eng-bpm-line/{folio}/toggle', [App\Http\Controllers\EngBpmLineController::class, 'toggleActividad'])->name('eng-bpm-line.toggle');
+    Route::patch('eng-bpm-line/{folio}/terminar', [App\Http\Controllers\EngBpmLineController::class, 'terminar'])->name('eng-bpm-line.terminar');
+    Route::patch('eng-bpm-line/{folio}/autorizar', [App\Http\Controllers\EngBpmLineController::class, 'autorizar'])->name('eng-bpm-line.autorizar');
+    Route::patch('eng-bpm-line/{folio}/rechazar', [App\Http\Controllers\EngBpmLineController::class, 'rechazar'])->name('eng-bpm-line.rechazar');
+
         Route::resource('tel-bpm', TelBpmController::class)
     ->parameters(['tel-bpm' => 'folio'])   // PK string
     ->names('tel-bpm');                    // tel-bpm.index, tel-bpm.store, etc.
@@ -678,12 +735,11 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
         Route::get('/bpm', function () {
             return redirect()->route('tel-bpm.index');
         })->name('bpm');
-
-        // Notificar Montado de Julios
-        Route::get('/notificar-montado-julios', function () {
-            return view('modulos.notificar-montado-julios.index');
-        })->name('notificar.montado.julios');
     });
+
+    // Notificar Montado de Julios (fuera del grupo para acceso desde módulos)
+    Route::get('/tejedores/notificar-montado-julios', [App\Http\Controllers\NotificarMontadoJulioController::class, 'index'])->name('notificar.montado.julios');
+    Route::post('/tejedores/notificar-montado-julios/notificar', [App\Http\Controllers\NotificarMontadoJulioController::class, 'notificar'])->name('notificar.montado.julios.notificar');
 
     // ============================================
     // RUTAS DIRECTAS (COMPATIBILIDAD)
