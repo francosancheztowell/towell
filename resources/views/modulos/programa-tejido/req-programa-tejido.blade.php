@@ -10,7 +10,7 @@
 
 		@php
 		$columns = [
-            	['field' => 'EnProceso', 'label' => 'Estado'],
+            ['field' => 'EnProceso', 'label' => 'Estado'],
 			['field' => 'CuentaRizo', 'label' => 'Cuenta'],
 			['field' => 'CalibreRizo2', 'label' => 'Calibre Rizo'],
 			['field' => 'SalonTejidoId', 'label' => 'Salón'],
@@ -948,6 +948,12 @@ function moveRowDown() {
 		console.error('Error:', error);
 		showToast('Ocurrió un error al procesar la solicitud', 'error');
 	});
+}
+
+// ===== Función para descargar programa =====
+function descargarPrograma() {
+	// Función para descargar el programa
+	console.log('Descargar programa');
 }
 
 // ===== Función para abrir nuevo registro =====

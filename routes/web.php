@@ -700,6 +700,10 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
         Route::post('/pronosticos/sincronizar', [\App\Http\Controllers\PronosticosController::class, 'sincronizar'])->name('pronosticos.sincronizar');
         Route::get('/pronosticos', [\App\Http\Controllers\PronosticosController::class, 'get'])->name('pronosticos.get');
 
+// Liberar órdenes
+Route::get('/planeacion/programa-tejido/liberar-ordenes', [\App\Http\Controllers\ProgramaTejido\LiberarOrdenesController::class, 'index'])->name('programa-tejido.liberar-ordenes');
+Route::post('/planeacion/programa-tejido/liberar-ordenes/procesar', [\App\Http\Controllers\ProgramaTejido\LiberarOrdenesController::class, 'liberar'])->name('programa-tejido.liberar-ordenes.procesar');
+
         // Nueva ruta para crear/editar programa de tejido
         Route::get('/planeacion/programa-tejido/nuevo', function() {
         return view('modulos.programa-tejido.programatejidoform.create');

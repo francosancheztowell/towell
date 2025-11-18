@@ -59,8 +59,26 @@
 
                   <!-- Controles de columnas -->
                   <div class="flex items-center gap-2 mr-2">
-                    <!-- Grupo 1: Dropdown Agregar + Editar + Eliminar (compacto, solo íconos) -->
+                    <!-- Grupo 1: Descargar programa + Liberar órdenes + Dropdown Agregar + Editar + Eliminar (compacto, solo íconos) -->
                     <div class="flex items-center gap-2 mr-2">
+                      <!-- Descargar programa -->
+                    <x-navbar.button-report
+                        onclick="descargarPrograma()"
+                        title="Descargar programa"
+                        module="Programa Tejido"
+                        icon="fa-download"
+                        bg="bg-blue-500"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-blue-600" />
+                      <!-- Liberar órdenes -->
+                    <x-navbar.button-report
+                        onclick="mostrarModalDiasLiberar()"
+                        title="Liberar órdenes"
+                        module="Programa Tejido"
+                        icon="fa-unlock"
+                        bg="bg-stone-500"
+                        iconColor="text-white"
+                        hoverBg="hover:bg-stone-600" />
                       <div class="relative">
                         <x-navbar.button-create
                           id="layoutBtnAddMenu"
@@ -167,6 +185,8 @@
                     <span id="filterCount"
                           class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white rounded-full text-xs font-bold hidden">0</span>
                   </button>
+
+
                 </div>
               @endif
 
@@ -376,4 +396,67 @@
                 </div>
             </div>
         </div>
+
+<script>
+function mostrarModalDiasLiberar() {
+    const diasActual = {{ session('liberar_ordenes_dias', 10.999) }};
+
+    Swal.fire({
+        title: 'Rango de días a considerar',
+        html: `
+            <div class="text-left">
+                <label for="rangoDias" class="block text-sm font-medium text-gray-700 mb-2">
+                    Ingrese el número de días (decimales permitidos, máx. 3)
+                </label>
+                <input
+                    type="number"
+                    id="rangoDias"
+                    step="0.001"
+                    min="0"
+                    max="999.999"
+                    value="${diasActual}"
+                    class="swal2-input w-full"
+                    placeholder="10.999"
+                    style="margin: 0; width: 100%;"
+                >
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Aceptar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#22c55e',
+        cancelButtonColor: '#6b7280',
+        focusConfirm: false,
+        didOpen: () => {
+            document.getElementById('rangoDias').focus();
+            document.getElementById('rangoDias').select();
+        },
+        preConfirm: () => {
+            const dias = document.getElementById('rangoDias').value;
+
+            // Validar que sea un número válido
+            if (!dias || isNaN(dias) || dias < 0) {
+                Swal.showValidationMessage('Por favor ingrese un número válido');
+                return false;
+            }
+
+            // Validar máximo 3 decimales
+            const partes = dias.toString().split('.');
+            if (partes.length > 1 && partes[1].length > 3) {
+                Swal.showValidationMessage('Máximo 3 decimales permitidos');
+                return false;
+            }
+
+            return dias;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const dias = result.value;
+            // Redirigir con el parámetro
+            window.location.href = '/planeacion/programa-tejido/liberar-ordenes?dias=' + dias;
+        }
+    });
+}
+</script>
 

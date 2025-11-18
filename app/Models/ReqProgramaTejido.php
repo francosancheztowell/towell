@@ -40,7 +40,9 @@ class ReqProgramaTejido extends Model
         // Nuevos
         'CalibreRizo2','CalibrePie2','CalibreTrama2','CalibreComb1','CalibreComb2','CalibreComb3','CalibreComb4','CalibreComb5',
         // Campos que también usas aunque no estuvieran arriba en fillable en tu código previo
-        'ItemId','Rasurado','NombreProducto','TotalPedido'
+        'ItemId','Rasurado','NombreProducto','TotalPedido',
+        // Prioridad
+        'Prioridad'
     ];
 
     /**
