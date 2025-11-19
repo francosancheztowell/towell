@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
-use App\Models\ReqProgramaTejido;
 use App\Models\ReqProgramaTejidoLine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -49,16 +48,8 @@ class DescargarProgramaController extends Controller
             // Obtener mapeo de columnas
             $mapeoColumnas = $this->getMapeoColumnas();
 
-            // Obtener TODAS las columnas de ReqProgramaTejido (excluyendo Id, EnProceso, CreatedAt, UpdatedAt, RowNum)
-            $todasLasColumnas = DB::getSchemaBuilder()->getColumnListing('ReqProgramaTejido');
-            $columnasPrograma = array_filter($todasLasColumnas, function($col) {
-                return $col !== 'Id'
-                    && $col !== 'EnProceso'
-                    && $col !== 'CreatedAt'
-                    && $col !== 'UpdatedAt'
-                    && $col !== 'RowNum';
-            });
-            $columnasPrograma = array_values($columnasPrograma);
+            // Utilizar la lista explícita de columnas del ProgramaTejidoController para mantener el orden y consistencia
+            $columnasPrograma = $this->getColumnasOrdenadas();
 
             // Columnas de ReqProgramaTejidoLine (sin Id)
             $columnasLine = [
@@ -147,26 +138,26 @@ class DescargarProgramaController extends Controller
 
     /**
      * Obtiene el mapeo de columnas a etiquetas personalizadas
+     * Coincide con getTableColumns de ProgramaTejidoController
      */
     private function getMapeoColumnas(): array
     {
         return [
-
             'CuentaRizo' => 'Cuenta',
-            'CalibreRizo' => 'CalibreRizo',
-            'SalonTejidoId' => 'Salon',
+            'CalibreRizo2' => 'Calibre Rizo',
+            'SalonTejidoId' => 'Salón',
             'NoTelarId' => 'Telar',
-            'Ultimo' => 'Ultimo',
-            'CambioHilo' => 'CambioHilo',
-            'Maquina' => 'Maquina',
+            'Ultimo' => 'Último',
+            'CambioHilo' => 'Cambios Hilo',
+            'Maquina' => 'Maq',
             'Ancho' => 'Ancho',
-            'EficienciaSTD' => 'EficienciaSTD',
-            'VelocidadSTD' => 'VelocidadSTD',
+            'EficienciaSTD' => 'Ef Std',
+            'VelocidadSTD' => 'Vel',
             'FibraRizo' => 'Hilo',
-            'CalibrePie' => 'CalibrePie',
+            'CalibrePie2' => 'Calibre Pie',
             'CalendarioId' => 'Jornada',
-            'TamanoClave' => 'Clave mod',
-            'NoExisteBase' => 'NoExisteBase',
+            'TamanoClave' => 'Clave Mod.',
+            'NoExisteBase' => 'Usar cuando no existe en base',
             'ItemId' => 'Clave AX',
             'InventSizeId' => 'Tamaño AX',
             'Rasurado' => 'Rasurado',
@@ -174,26 +165,84 @@ class DescargarProgramaController extends Controller
             'TotalPedido' => 'Pedido',
             'Produccion' => 'Producción',
             'SaldoPedido' => 'Saldos',
-            'SaldoMarbete' => 'SaldoMarbetes',
-            'ProgramarProd' => 'Day Sheduling',
-            'NoProduccion' => 'Orden Produccion',
+            'SaldoMarbete' => 'Saldo Marbetes',
+            'ProgramarProd' => 'Día Scheduling',
+            'NoProduccion' => 'Orden Prod.',
             'Programado' => 'INN',
-            'FlogsId' => 'IdFlog',
-            'NombreProyecto' => 'Descripcion',
-            'CustName' => 'CustName',
-            'AplicacionId' => 'Aplicación',
-            'Observaciones' => 'Observaciones',
+            'FlogsId' => 'Id Flog',
+            'NombreProyecto' => 'Descrip.',
+            'CustName' => 'Nombre Cliente',
+            'AplicacionId' => 'Aplic.',
+            'Observaciones' => 'Obs',
+            'TipoPedido' => 'Tipo Ped.',
+            'NoTiras' => 'Tiras',
+            'Peine' => 'Pei.',
+            'LargoCrudo' => 'Lcr',
+            'Luchaje' => 'Luc',
+            'PesoCrudo' => 'Pcr',
+            'CalibreTrama2' => 'Calibre Tra',
+            'FibraTrama' => 'Fibra Trama',
+            'DobladilloId' => 'Dob',
+            'PasadasTrama' => 'Pasadas Tra',
+            'PasadasComb1' => 'Pasadas C1',
+            'PasadasComb2' => 'Pasadas C2',
+            'PasadasComb3' => 'Pasadas C3',
+            'PasadasComb4' => 'Pasadas C4',
+            'PasadasComb5' => 'Pasadas C5',
+            'AnchoToalla' => 'Ancho por Toalla',
+            'CodColorTrama' => 'Código Color Tra',
+            'ColorTrama' => 'Color Tra',
+            'CalibreComb1' => 'Calibre C1',
+            'FibraComb1' => 'Fibra C1',
+            'CodColorComb1' => 'Código Color C1',
+            'NombreCC1' => 'Color C1',
+            'CalibreComb2' => 'Calibre C2',
+            'FibraComb2' => 'Fibra C2',
+            'CodColorComb2' => 'Código Color C2',
+            'NombreCC2' => 'Color C2',
+            'CalibreComb3' => 'Calibre C3',
+            'FibraComb3' => 'Fibra C3',
+            'CodColorComb3' => 'Código Color C3',
+            'NombreCC3' => 'Color C3',
+            'CalibreComb4' => 'Calibre C4',
+            'FibraComb4' => 'Fibra C4',
+            'CodColorComb4' => 'Código Color C4',
+            'NombreCC4' => 'Color C4',
+            'CalibreComb5' => 'Calibre C5',
+            'FibraComb5' => 'Fibra C5',
+            'CodColorComb5' => 'Código Color C5',
+            'NombreCC5' => 'Color C5',
+            'MedidaPlano' => 'Plano',
+            'CuentaPie' => 'Cuenta Pie',
+            'CodColorCtaPie' => 'Código Color Pie',
+            'NombreCPie' => 'Color Pie',
+            'PesoGRM2' => 'Peso (gr/m²)',
+            'DiasEficiencia' => 'Días Ef.',
+            'ProdKgDia' => 'Prod (Kg)/Día',
+            'StdDia' => 'Std/Día',
+            'ProdKgDia2' => 'Prod (Kg)/Día 2',
+            'StdToaHra' => 'Std (Toa/Hr) 100%',
+            'DiasJornada' => 'Días Jornada',
+            'HorasProd' => 'Horas',
+            'StdHrsEfect' => 'Std/Hr Efectivo',
+            'FechaInicio' => 'Inicio',
+            'FechaFinal' => 'Fin',
+            'EntregaProduc' => 'Fecha Compromiso Prod.',
+            'EntregaPT' => 'Fecha Compromiso PT',
+            'EntregaCte' => 'Entrega',
+            'PTvsCte' => 'Dif vs Compromiso',
         ];
     }
 
     /**
      * Obtiene el orden específico de las columnas
+     * Coincide con ProgramaTejidoController@index
      */
     private function getColumnasOrdenadas(): array
     {
         return [
             'CuentaRizo',
-            'CalibreRizo',
+            'CalibreRizo2',
             'SalonTejidoId',
             'NoTelarId',
             'Ultimo',
@@ -203,7 +252,7 @@ class DescargarProgramaController extends Controller
             'EficienciaSTD',
             'VelocidadSTD',
             'FibraRizo',
-            'CalibrePie',
+            'CalibrePie2',
             'CalendarioId',
             'TamanoClave',
             'NoExisteBase',
@@ -212,7 +261,6 @@ class DescargarProgramaController extends Controller
             'Rasurado',
             'NombreProducto',
             'TotalPedido',
-            'Produccion',
             'SaldoPedido',
             'SaldoMarbete',
             'ProgramarProd',
@@ -220,9 +268,68 @@ class DescargarProgramaController extends Controller
             'Programado',
             'FlogsId',
             'NombreProyecto',
-            'CustName',
             'AplicacionId',
             'Observaciones',
+            'TipoPedido',
+            'NoTiras',
+            'Peine',
+            'Luchaje',
+            'PesoCrudo',
+            'LargoCrudo',
+            'CalibreTrama2',
+            'FibraTrama',
+            'DobladilloId',
+            'PasadasTrama',
+            'PasadasComb1',
+            'PasadasComb2',
+            'PasadasComb3',
+            'PasadasComb4',
+            'PasadasComb5',
+            'AnchoToalla',
+            'CodColorTrama',
+            'ColorTrama',
+            'CalibreComb1',
+            'FibraComb1',
+            'CodColorComb1',
+            'NombreCC1',
+            'CalibreComb2',
+            'FibraComb2',
+            'CodColorComb2',
+            'NombreCC2',
+            'CalibreComb3',
+            'FibraComb3',
+            'CodColorComb3',
+            'NombreCC3',
+            'CalibreComb4',
+            'FibraComb4',
+            'CodColorComb4',
+            'NombreCC4',
+            'CalibreComb5',
+            'FibraComb5',
+            'CodColorComb5',
+            'NombreCC5',
+            'MedidaPlano',
+            'CuentaPie',
+            'CodColorCtaPie',
+            'NombreCPie',
+            'PesoGRM2',
+            'DiasEficiencia',
+            'ProdKgDia',
+            'StdDia',
+            'ProdKgDia2',
+            'StdToaHra',
+            'DiasJornada',
+            'HorasProd',
+            'StdHrsEfect',
+            'FechaInicio',
+            'Calc4',
+            'Calc5',
+            'Calc6',
+            'FechaFinal',
+            'EntregaProduc',
+            'EntregaPT',
+            'EntregaCte',
+            'PTvsCte'
         ];
     }
 
@@ -270,4 +377,3 @@ class DescargarProgramaController extends Controller
         return trim($valor);
     }
 }
-

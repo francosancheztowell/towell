@@ -30,20 +30,17 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 	{
 		try {
             $row = $this->normalizeRowKeys($rawRow);
-	$this->rowCounter++;
+	        $this->rowCounter++;
 
-	if ($this->rowCounter === 1) {
-                Log::info('Primer fila: claves normalizadas', [
-                    'count' => count($row),
-                    'keys'  => array_keys($row)
-                ]);
-            }
+            // Detectar si el campo Ultimo contiene "ULTIMO" y establecerlo a '1'
+            $ultimoValue = $this->getValue($row, ['Último','Ultimo','ultimo']);
+            $isUltimo = (strtoupper(trim((string)($ultimoValue ?? ''))) === 'ULTIMO');
 
             $data = [
                 /* ===== PRINCIPALES ===== */
                 'SalonTejidoId'   => $this->parseString($this->getValue($row, ['Salón','Salon','Salon Tejido Id','salon_tejido_id']), 20),
                 'NoTelarId'       => $this->parseString($this->getValue($row, ['Telar','No Telar','no_telar_id']), 20),
-                'Ultimo'          => $this->parseString($this->getValue($row, ['Último','Ultimo','ultimo']), 4),
+                'Ultimo'          => $isUltimo ? '1' : $this->parseString($ultimoValue, 4),
                 'CambioHilo'      => $this->parseString($this->getValue($row, ['Cambios Hilo','Cambio Hilo','CAMBIOS HILO','CAMBIO HILO','cambio_hilo']), 4),
                 'Maquina'         => $this->parseString($this->getValue($row, ['Maq','Máq','Maquina','máquina','maquina']), 30),
 
@@ -119,8 +116,9 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
                 /* ===== NÚMEROS ===== */
                 'Peine'           => $this->parseInteger($this->getValue($row, ['Pei.','Pei','Peine','peine'])),
-                'Luchaje'         => $this->parseInteger($this->getValue($row, ['Lcr','Luchaje','luchaje'])),
+                'Luchaje'         => $this->parseInteger($this->getValue($row, ['Luc','Luchaje','luchaje','LUC','LUCHE','Luch','luc'])),
                 'PesoCrudo'       => $this->parseInteger($this->getValue($row, ['Pcr','Peso Crudo','peso crudo','peso_crudo'])),
+                'LargoCrudo'      => $this->parseInteger($this->getValue($row, ['Lcr','Largo Crudo','largo_crudo'])),
                 'PesoGRM2'        => $this->parseInteger($this->getValue($row, [
                                         'Peso (gr/m²)','Peso GRM2','peso grm2','peso_gr_m_2'
                 ])),
@@ -140,8 +138,8 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 ),
 
                 /* ===== FECHAS (DATETIME) ===== */
-                'FechaInicio'     => $this->parseDateWithLogging($this->getValue($row, ['Inicio','Fecha Inicio','fecha inicio','fecha_inicio']), 'FechaInicio'),
-                'FechaFinal'      => $this->parseDateWithLogging($this->getValue($row, ['Fin','Fecha Final','fecha final','fecha_final']), 'FechaFinal'),
+                'FechaInicio'     => $this->parseDate($this->getValue($row, ['Inicio','Fecha Inicio','fecha inicio','fecha_inicio'])),
+                'FechaFinal'      => $this->parseDate($this->getValue($row, ['Fin','Fecha Final','fecha final','fecha_final'])),
 
                 'EntregaProduc'   => $this->parseDateOnly($this->getValue($row, ['Fecha Compromiso Prod','Fecha Compromiso Prod.','Entrega Producción','Entrega Produccion','entrega_produc'])),
                 'EntregaPT'       => $this->parseDateOnly($this->getValue($row, ['Fecha Compromiso PT','Entrega PT','entrega_pt'])),
@@ -188,16 +186,14 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'Produccion'      => $this->parseFloat($this->getValue($row, ['Producción','Produccion','produccion','Producción'])),
                 'SaldoPedido'     => $this->parseFloat($this->getValue($row, ['Saldos','Saldo Pedido','saldo_pedido','saldos'])),
                 'SaldoMarbete'    => $this->parseInteger($this->getValue($row, ['Saldo Marbete','saldo_marbete','Marbete','marbete'])),
-                'ProgramarProd'   => $this->parseDate($this->getValue($row, ['Day Sheduling','Day Scheduling','Día Scheduling','Dia Scheduling','programar_prod'])),
+                'ProgramarProd'   => $this->parseDateOnly($this->getValue($row, ['Day Sheduling','Day Scheduling','Día Scheduling','Dia Scheduling','programar_prod'])),
                 'NoProduccion'    => $this->parseString($this->getValue($row, ['Orden Prod.','Orden Prod','no_produccion']), 30),
-                'Programado'      => $this->parseDate($this->getValue($row, ['INN','Inn','programado'])),
+                'Programado'      => $this->parseDateOnly($this->getValue($row, ['INN','Inn','programado'])),
 
                 // Calc4..6 en BD son FLOAT
                 'Calc4'           => $this->parseFloat($this->getValue($row, ['Calc4','calc4','Calc 4'])),
                 'Calc5'           => $this->parseFloat($this->getValue($row, ['Calc5','calc5','Calc 5'])),
                 'Calc6'           => $this->parseFloat($this->getValue($row, ['Calc6','calc6','Calc 6'])),
-
-                'RowNum'          => $this->rowCounter,
             ];
 
             // Fallback: si NombreProducto viene nulo, intenta con otras columnas conocidas
@@ -212,7 +208,6 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
             // Si la fila está vacía o sin campos relevantes, se omite
             if ($this->shouldSkipEmptyRow($data)) {
-                Log::info('Fila omitida por estar vacía o sin datos relevantes', ['row_num' => $this->rowCounter]);
                 $this->skippedRows++;
                 return null;
             }
@@ -222,32 +217,6 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
             // Recorta contra el esquema real (INFORMATION_SCHEMA)
             $this->enforceSchemaStringLengths($data);
-
-            // Log post-recorte basado en límites del esquema
-            $violations = [];
-            $lengths = [];
-            foreach ($data as $k => $v) {
-                if (is_string($v)) {
-                    $len = mb_strlen($v, 'UTF-8');
-                    $max = self::$schemaStringLimits[$k] ?? null;
-                    $lengths[$k] = [
-                        'len' => $len,
-                        'max' => $max,
-                        'exceeds' => $max !== null && $len > $max,
-                        'value' => $len > 50 ? mb_substr($v, 0, 50, 'UTF-8') . '...' : $v,
-                    ];
-                    if ($max !== null && $len > $max) {
-                        $violations[] = [$k, $len, $max];
-                    }
-                }
-            }
-            if (!empty($violations)) {
-                Log::error('Aún excede tras recorte (revisar normalización previa)', ['violations' => $violations, 'row' => $this->rowCounter]);
-            }
-            Log::info('DIAGNÓSTICO: Longitudes antes de insertar fila (esquema)', [
-                'row_num' => $this->rowCounter,
-                'lengths' => $lengths
-            ]);
 
             $modelo = new ReqProgramaTejido($data);
 
@@ -324,33 +293,6 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
         $s = preg_replace('/[^\d\-]/', '', (string)$value) ?? '';
         return ($s === '' || $s === '-') ? null : (int)$s;
-    }
-
-    /** Parse date with logging for FechaInicio / FechaFinal */
-    private function parseDateWithLogging($value, string $fieldName): ?string
-    {
-        if ($value === null || $value === '') {
-            Log::info("Campo {$fieldName}: valor vacío o nulo");
-			return null;
-		}
-
-        Log::info("Parseando {$fieldName}", [
-            'valor_original' => $value,
-            'tipo'           => gettype($value),
-            'fila'           => $this->rowCounter
-        ]);
-
-        $result = $this->parseDate($value);
-
-        Log::info("Resultado {$fieldName}", [
-            'valor_original'  => $value,
-            'resultado'       => $result,
-            'fila'            => $this->rowCounter,
-            'es_fecha_inicio' => $fieldName === 'FechaInicio',
-            'es_fecha_final'  => $fieldName === 'FechaFinal'
-        ]);
-
-        return $result;
     }
 
     /**
@@ -528,14 +470,39 @@ private function parseDate($value): ?string
 
     private function getValue(array $row, array $aliases)
     {
+        // Primera pasada: búsqueda exacta normalizada
         foreach ($aliases as $alias) {
             $key = $this->normalizeKey($alias);
             if (array_key_exists($key, $row)) {
                 $val = $this->nullIfPlaceholder($row[$key]);
                 if ($val !== '' && $val !== null) return $val;
             }
-					}
-					return null;
+        }
+
+        // Segunda pasada: búsqueda flexible para casos con espacios/caracteres especiales
+        // Solo para aliases cortos (3-4 caracteres) que podrían tener problemas de normalización
+        foreach ($aliases as $alias) {
+            $normalizedAlias = $this->normalizeKey($alias);
+            $aliasLength = strlen($normalizedAlias);
+
+            // Solo buscar parcialmente si el alias es corto (3-4 chars) para evitar falsos positivos
+            if ($aliasLength >= 3 && $aliasLength <= 4) {
+                foreach ($row as $rowKey => $rowValue) {
+                    // Asegurar que rowKey sea string antes de usar str_starts_with/str_ends_with
+                    $rowKeyStr = (string)$rowKey;
+
+                    // Coincidencia exacta o que empiece/termine con el alias normalizado
+                    if ($rowKeyStr === $normalizedAlias ||
+                        str_starts_with($rowKeyStr, $normalizedAlias) ||
+                        str_ends_with($rowKeyStr, $normalizedAlias)) {
+                        $val = $this->nullIfPlaceholder($rowValue);
+                        if ($val !== '' && $val !== null) return $val;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private function findFirstColumnContaining(array $row, array $mustContain, array $mustNotContain = [])
@@ -611,7 +578,6 @@ private function parseDate($value): ?string
             }
         }
 
-        Log::info('Límites de esquema cargados', ['limits' => self::$schemaStringLimits]);
     }
 
     /** Recorta TODOS los strings según límites reales del esquema */
@@ -630,12 +596,6 @@ private function parseDate($value): ?string
             $s = $this->sanitizeText($s);
 
             if (mb_strlen($s, 'UTF-8') > $max) {
-                Log::warning('Truncando por esquema', [
-                    'campo' => $field,
-                    'len' => mb_strlen($s, 'UTF-8'),
-                    'max' => $max,
-                    'preview' => mb_substr($s, 0, 80, 'UTF-8'),
-                ]);
                 $s = mb_substr($s, 0, $max, 'UTF-8');
             }
             $data[$field] = $s;
@@ -667,51 +627,18 @@ private function parseDate($value): ?string
         $salonId = $data['SalonTejidoId'] ?? null;
         $tamanoClave = $data['TamanoClave'] ?? null;
 
-        Log::info('Buscando en ReqModelosCodificados', [
-            'row_num' => $this->rowCounter,
-            'salon_id' => $salonId,
-            'tamano_clave' => $tamanoClave,
-            'salon_id_type' => gettype($salonId),
-            'tamano_clave_type' => gettype($tamanoClave),
-        ]);
-
         // Si no tenemos los campos necesarios para la búsqueda, salir
         if ($salonId === null || $salonId === '' || $tamanoClave === null || $tamanoClave === '') {
-            Log::info('No se puede buscar en ReqModelosCodificados: faltan SalonTejidoId o TamanoClave', [
-                'row_num' => $this->rowCounter,
-                'salon_id' => $salonId,
-                'tamano_clave' => $tamanoClave
-            ]);
             return;
         }
 
         try {
             // Buscar en ReqModelosCodificados por SalonTejidoId + TamanoClave
-            Log::info('Ejecutando consulta en ReqModelosCodificados', [
-                'row_num' => $this->rowCounter,
-                'salon_id' => $salonId,
-                'tamano_clave' => $tamanoClave,
-            ]);
-
             $modelo = ReqModelosCodificados::where('SalonTejidoId', $salonId)
                 ->where('TamanoClave', $tamanoClave)
                 ->first();
 
             if ($modelo) {
-                Log::info('Registro encontrado en ReqModelosCodificados', [
-                    'row_num' => $this->rowCounter,
-                    'salon_id' => $salonId,
-                    'tamano_clave' => $tamanoClave,
-                    'calibre_rizo' => $modelo->CalibreRizo,
-                    'calibre_pie' => $modelo->CalibrePie,
-                    'calibre_trama' => $modelo->CalibreTrama,
-                    'calibre_comb1' => $modelo->CalibreComb1,
-                    'calibre_comb2' => $modelo->CalibreComb2,
-                    'calibre_comb3' => $modelo->CalibreComb3,
-                    'calibre_comb4' => $modelo->CalibreComb4,
-                    'calibre_comb5' => $modelo->CalibreComb5,
-                ]);
-
                 // Actualizar campos BLANCOS (base) con valores de modelos codificados
                 // Los campos verdes (*2) ya vienen del Excel y NO se sobrescriben
                 $data['CalibreRizo'] = $modelo->CalibreRizo;
@@ -724,38 +651,6 @@ private function parseDate($value): ?string
                 $data['CalibreComb3'] = $modelo->CalibreComb3;
                 $data['CalibreComb4'] = $modelo->CalibreComb4;
                 $data['CalibreComb5'] = $modelo->CalibreComb5;
-
-                Log::info('Campos blancos (base) actualizados desde ReqModelosCodificados', [
-                    'row_num' => $this->rowCounter,
-                    'salon_id' => $salonId,
-                    'tamano_clave' => $tamanoClave,
-                    'calibre_rizo' => $data['CalibreRizo'],
-                    'calibre_pie' => $data['CalibrePie'],
-                    'calibre_trama' => $data['CalibreTrama'],
-                    'calibre_comb1' => $data['CalibreComb1'],
-                    'calibre_comb2' => $data['CalibreComb2'],
-                    'calibre_comb3' => $data['CalibreComb3'],
-                    'calibre_comb4' => $data['CalibreComb4'],
-                    'calibre_comb5' => $data['CalibreComb5'],
-                    'calibre_rizo2' => $data['CalibreRizo2'], // Mantiene valor del Excel
-                    'calibre_pie2' => $data['CalibrePie2'],   // Mantiene valor del Excel
-                    'calibre_trama2' => $data['CalibreTrama2'], // Mantiene valor del Excel
-                    'calibre_comb12' => $data['CalibreComb12'], // Mantiene valor del Excel
-                    'calibre_comb22' => $data['CalibreComb22'], // Mantiene valor del Excel
-                    'calibre_comb32' => $data['CalibreComb32'], // Mantiene valor del Excel
-                    'calibre_comb42' => $data['CalibreComb42'], // Mantiene valor del Excel
-                    'calibre_comb52' => $data['CalibreComb52'], // Mantiene valor del Excel
-                ]);
-            } else {
-                Log::info('No se encontró registro en ReqModelosCodificados', [
-                    'row_num' => $this->rowCounter,
-                    'salon_id' => $salonId,
-                    'tamano_clave' => $tamanoClave,
-                    'query_params' => [
-                        'SalonTejidoId' => $salonId,
-                        'TamanoClave' => $tamanoClave,
-                    ]
-                ]);
             }
         } catch (\Throwable $e) {
             Log::error('Error al buscar en ReqModelosCodificados', [

@@ -19,12 +19,7 @@ class ReqProgramaTejidoObserver
      */
     public function saved(ReqProgramaTejido $programa)
     {
-        // Log para verificar que el ID está disponible
-        Log::debug('ReqProgramaTejidoObserver.saved - Called', [
-            'programa_id' => $programa->Id,
-            'programa_id_type' => gettype($programa->Id),
-        ]);
-
+        // Sin logging excesivo para mejorar rendimiento
         $this->generarLineasDiarias($programa);
     }
 
@@ -46,14 +41,7 @@ class ReqProgramaTejidoObserver
                 return;
             }
 
-            // Log inicial para debug
-            Log::info('ReqProgramaTejidoObserver: Iniciando generarLineasDiarias', [
-                'ProgramaId' => $programa->Id,
-                'FechaInicio' => $programa->FechaInicio,
-                'FechaFinal' => $programa->FechaFinal,
-                'SaldoPedido' => $programa->SaldoPedido,
-                'PesoCrudo' => $programa->PesoCrudo,
-            ]);
+            // Log reducido solo para errores críticos
 
             // ✅ CALCULAR LAS FÓRMULAS DE EFICIENCIA UNA SOLA VEZ
             $formulas = $this->calcularFormulasEficiencia($programa);
@@ -63,7 +51,7 @@ class ReqProgramaTejidoObserver
                 foreach ($formulas as $key => $value) {
                     $programa->{$key} = $value;
                 }
-                Log::info('ReqProgramaTejidoObserver: ✅ Fórmulas asignadas al programa', $formulas);
+                // Sin logging para mejorar rendimiento
             }
 
             // Validar fechas
@@ -118,63 +106,63 @@ class ReqProgramaTejidoObserver
                 return;
             }
 
-            // Verificar si ya existen líneas y eliminarlas si es update
-            $lineasExistentes = ReqProgramaTejidoLine::where('ProgramaId', $programa->Id)->count();
-            if ($lineasExistentes > 0) {
-                Log::info('ReqProgramaTejidoObserver: Eliminando líneas existentes', [
-                    'ProgramaId' => $programa->Id,
-                    'lineasExistentes' => $lineasExistentes,
-                ]);
-                ReqProgramaTejidoLine::where('ProgramaId', $programa->Id)->delete();
-            }
+            // Verificar si ya existen líneas y eliminarlas si es update (sin logging para rendimiento)
+            ReqProgramaTejidoLine::where('ProgramaId', $programa->Id)->delete();
 
-            // Usar CarbonPeriod para iterar por días (IGUAL que en TejidoSchedullingController)
-            $periodo = CarbonPeriod::create($inicio->copy()->startOfDay(), $fin->copy()->endOfDay());
+            // Usar CarbonPeriod para iterar por días - asegurar que incluya el último día
+            // Normalizar ambas fechas al inicio del día para comparación correcta
+            $inicioPeriodo = $inicio->copy()->startOfDay();
+            $finPeriodo = $fin->copy()->startOfDay();
+
+            // Calcular número de días (incluyendo ambos extremos)
+            $diasTotales = $inicioPeriodo->diffInDays($finPeriodo) + 1;
+
+            // Crear periodo que incluya todos los días desde inicio hasta fin (inclusive)
+            // Usar setRecurrences para asegurar que incluya el último día
+            $periodo = CarbonPeriod::create()
+                ->setStartDate($inicioPeriodo)
+                ->setRecurrences($diasTotales)
+                ->setDateInterval('1 day');
 
             $creadas = 0;
-
-            Log::info('ReqProgramaTejidoObserver: Iniciando iteración de días', [
-                'ProgramaId' => $programa->Id,
-                'FechaInicio' => $inicio->toDateString(),
-                'FechaFinal' => $fin->toDateString(),
-                'TotalHoras' => round($totalHoras, 2),
-                'StdHrEfectivo' => round($stdHrEfectivo, 4),
-                'ProdKgDia' => round($prodKgDia, 4),
-            ]);
+            $lineasParaInsertar = []; // Acumular líneas para insertar en batch
 
             foreach ($periodo as $index => $dia) {
-                $inicioDia = $dia->copy()->startOfDay();
-                $finDia = $dia->copy()->endOfDay();
+                $diaNormalizado = $dia->copy()->startOfDay();
+                $inicioDia = $diaNormalizado->copy();
+                $finDia = $diaNormalizado->copy()->endOfDay();
 
                 // Calcular la fracción para cada día
-                if ($index === 0) {
-                    // PRIMER DÍA: desde la hora de inicio hasta fin del día
-                    $inicioTimestamp = $inicio->timestamp;
-                    $finTimestamp = $fin->timestamp;
+                $esPrimerDia = ($index === 0);
+                $esUltimoDia = ($diaNormalizado->toDateString() === $finPeriodo->toDateString());
 
-                    // Extraer fechas sin horas para comparar si son el mismo día
-                    $diaInicio = $inicio->toDateString();
-                    $diaFin = $fin->toDateString();
+                // Comparación más robusta para el último día
+                if (!$esUltimoDia) {
+                    // Verificar si es el último día comparando directamente con la fecha fin
+                    $diaFinComparacion = $fin->copy()->startOfDay();
+                    $esUltimoDia = ($diaNormalizado->toDateString() === $diaFinComparacion->toDateString());
+                }
 
-                    if ($diaInicio === $diaFin) {
-                        // 🟢 Mismo día: diferencia directa entre horas
-                        $segundosDiferencia = $finTimestamp - $inicioTimestamp;
-                        $fraccion = $segundosDiferencia / 86400; // fracción del día
-                    } else {
-                        // 🔵 Días distintos: desde hora de inicio hasta 12:00 AM del día siguiente
-                        $hora = $inicio->hour;
-                        $minuto = $inicio->minute;
-                        $segundo = $inicio->second;
-                        $segundosDesdeMedianoche = ($hora * 3600) + ($minuto * 60) + $segundo;
-                        $segundosRestantes = 86400 - $segundosDesdeMedianoche;
-                        $fraccion = $segundosRestantes / 86400;
-                    }
+                if ($esPrimerDia && $esUltimoDia) {
+                    // 🟢 Mismo día: diferencia directa entre horas
+                    $segundosDiferencia = $fin->timestamp - $inicio->timestamp;
+                    $fraccion = $segundosDiferencia / 86400; // fracción del día
 
-                } elseif ($dia->isSameDay($fin)) {
-                    // ÚLTIMO DÍA: calcular la fracción desde 00:00 hasta la hora fin
+                } elseif ($esPrimerDia) {
+                    // 🔵 PRIMER DÍA (días distintos): desde hora de inicio hasta fin del día
+                    $hora = $inicio->hour;
+                    $minuto = $inicio->minute;
+                    $segundo = $inicio->second;
+                    $segundosDesdeMedianoche = ($hora * 3600) + ($minuto * 60) + $segundo;
+                    $segundosRestantes = 86400 - $segundosDesdeMedianoche;
+                    $fraccion = $segundosRestantes / 86400;
+
+                } elseif ($esUltimoDia) {
+                    // 🔴 ÚLTIMO DÍA: calcular la fracción desde 00:00 hasta la hora fin
                     $realInicio = $inicioDia;
                     $realFin = $fin;
-                    $segundos = $realFin->diffInSeconds($realInicio, true);
+                    $segundos = $realFin->diffInSeconds($realInicio, false);
+                    if ($segundos < 0) $segundos = abs($segundos);
                     $fraccion = $segundos / 86400; // fracción del día
 
                 } else {
@@ -244,8 +232,8 @@ class ReqProgramaTejidoObserver
                     $mtsRizo = $this->calcularMtsRizo($programa, $rizo);
                     $mtsPie = $this->calcularMtsPie($programa, $pie);
 
-                    // Crear registro en ReqProgramaTejidoLine
-                    $line = ReqProgramaTejidoLine::create([
+                    // Acumular línea para inserción en batch
+                    $lineasParaInsertar[] = [
                         'ProgramaId' => (int) $programa->Id,
                         'Fecha' => $dia->toDateString(),
                         'Cantidad' => round($pzasDia, 4),
@@ -261,50 +249,28 @@ class ReqProgramaTejidoObserver
                         'Rizo' => $rizo !== null ? round($rizo, 4) : null,
                         'MtsRizo' => $mtsRizo !== null ? round($mtsRizo, 4) : null,
                         'MtsPie' => $mtsPie !== null ? round($mtsPie, 4) : null,
-                    ]);
+                    ];
                     $creadas++;
-
-                    // Log detallado con atributos calculados y valores crudos que usó la fórmula
-                    Log::debug('ReqProgramaTejidoObserver: Línea creada', [
-                        'ProgramaId' => $programa->Id,
-                        'Fecha' => $dia->toDateString(),
-                        'Fraccion' => round($fraccion, 4),
-                        'HorasDia' => round($horasDia, 2),
-                        'Cantidad' => round($pzasDia, 4),
-                        'Kilos' => $kilosDia !== null ? round($kilosDia, 4) : null,
-                        'FactorAplicacion' => $factorAplicacion,
-                        'Aplicacion_calculada' => $aplicacionValor !== null ? round($aplicacionValor, 4) : null,
-                        'Trama' => $trama,
-                        'Combina1' => $combinacion1,
-                        'Combina2' => $combinacion2,
-                        'Combina3' => $combinacion3,
-                        'Combina4' => $combinacion4,
-                        'Combina5' => $combinacion5,
-                        'Pie' => $pie,
-                        'Rizo' => $rizo,
-                        'MtsRizo' => $mtsRizo !== null ? round($mtsRizo, 4) : null,
-                        'MtsPie' => $mtsPie !== null ? round($mtsPie, 4) : null,
-                    ]);
-
-                    // Adicional: loguear exactamente lo que quedó en la fila guardada (atributos insertados)
-                    try {
-                        Log::debug('ReqProgramaTejidoObserver: Atributos guardados en DB', $line->getAttributes());
-                    } catch (\Throwable $inner) {
-                        Log::warning('ReqProgramaTejidoObserver: No se pudo obtener atributos del modelo guardado', ['error' => $inner->getMessage()]);
-                    }
                 }
             }
 
-            Log::info('ReqProgramaTejidoObserver: Líneas generadas exitosamente', [
-                'ProgramaId' => $programa->Id,
-                'TotalLineas' => $creadas,
-                'FechaInicio' => $inicio->toDateString(),
-                'FechaFinal' => $fin->toDateString(),
-                'TotalHoras' => round($totalHoras, 2),
-                'TotalPiezas' => $totalPzas,
-                'StdHrEfectivo' => round($stdHrEfectivo, 4),
-                'ProdKgDia' => round($prodKgDia, 4),
-            ]);
+            // Insertar todas las líneas en batch para mejor rendimiento
+            if (!empty($lineasParaInsertar)) {
+                // Insertar en chunks de 500 para evitar problemas de memoria
+                $chunks = array_chunk($lineasParaInsertar, 500);
+                foreach ($chunks as $chunk) {
+                    ReqProgramaTejidoLine::insert($chunk);
+                }
+            }
+
+            // Log solo si hay problemas o para debugging crítico
+            if ($creadas === 0) {
+                Log::warning('ReqProgramaTejidoObserver: No se generaron líneas', [
+                    'ProgramaId' => $programa->Id,
+                    'FechaInicio' => $inicio->toDateString(),
+                    'FechaFinal' => $fin->toDateString(),
+                ]);
+            }
 
         } catch (\Throwable $e) {
             Log::error('ReqProgramaTejidoObserver: Error al generar líneas', [
@@ -328,11 +294,7 @@ class ReqProgramaTejidoObserver
             $anchoToalla = $this->resolveField($programa, ['AnchoToalla', 'Ancho', 'AnchoPeineTrama', 'LargoToalla'], 'float');
 
             if ($pasadasTrama <= 0 || $calibreTrama <= 0 || $anchoToalla <= 0) {
-                Log::debug('ReqProgramaTejidoObserver: calcularTrama - valores insuficientes', [
-                    'PasadasTrama' => $pasadasTrama,
-                    'CalibreTrama' => $calibreTrama,
-                    'AnchoToalla' => $anchoToalla,
-                ]);
+                // Sin logging para mejorar rendimiento
                 return null;
             }
 
@@ -360,12 +322,7 @@ class ReqProgramaTejidoObserver
             $anchoToalla = $this->resolveField($programa, ['AnchoToalla', 'Ancho', 'LargoToalla'], 'float');
 
             if ($pasadas <= 0 || $calibre <= 0 || $anchoToalla <= 0) {
-                Log::debug('ReqProgramaTejidoObserver: calcularCombinacion - valores insuficientes', [
-                    'numero' => $numero,
-                    'pasadas' => $pasadas,
-                    'calibre' => $calibre,
-                    'anchoToalla' => $anchoToalla,
-                ]);
+                // Sin logging para mejorar rendimiento
                 return null;
             }
 
@@ -394,13 +351,7 @@ class ReqProgramaTejidoObserver
             $noTiras = $this->resolveField($programa, ['NoTiras', 'No_Tiras'], 'float');
 
             if ($largo <= 0 || $noTiras <= 0 || $calibrePie <= 0 || $cuentaPie <= 0) {
-                Log::debug('ReqProgramaTejidoObserver: calcularPie - valores insuficientes', [
-                    'Largo' => $largo,
-                    'MedidaPlano' => $medidaPlano,
-                    'CalibrePie' => $calibrePie,
-                    'CuentaPie' => $cuentaPie,
-                    'NoTiras' => $noTiras,
-                ]);
+                // Sin logging para mejorar rendimiento
                 return null;
             }
 
@@ -427,11 +378,7 @@ class ReqProgramaTejidoObserver
         $formulas = [];
 
         try {
-            Log::info('ReqProgramaTejidoObserver: Iniciando calcularFormulasEficiencia', [
-                'programa_id' => $programa->Id,
-                'VelocidadSTD' => $programa->VelocidadSTD,
-                'EficienciaSTD' => $programa->EficienciaSTD,
-            ]);
+            // Sin logging para mejorar rendimiento
 
             // Parámetros base
             $vel = (float) ($programa->VelocidadSTD ?? 100);
@@ -442,15 +389,7 @@ class ReqProgramaTejidoObserver
             $luchaje = (float) ($programa->Luchaje ?? 0);
             $repeticiones = (float) ($programa->Repeticiones ?? 1);
 
-            Log::debug('ReqProgramaTejidoObserver: Parámetros calculados', [
-                'vel' => $vel,
-                'efic' => $efic,
-                'cantidad' => $cantidad,
-                'pesoCrudo' => $pesoCrudo,
-                'noTiras' => $noTiras,
-                'luchaje' => $luchaje,
-                'repeticiones' => $repeticiones,
-            ]);
+            // Sin logging para mejorar rendimiento
 
             // Fechas
             $inicio = Carbon::parse($programa->FechaInicio);
@@ -458,11 +397,7 @@ class ReqProgramaTejidoObserver
             $diffSegundos = abs($fin->getTimestamp() - $inicio->getTimestamp());
             $diffHoras = $diffSegundos / 3600; // Horas decimales
 
-            Log::debug('ReqProgramaTejidoObserver: Fechas y diferencia', [
-                'inicio' => $inicio->toDateTimeString(),
-                'fin' => $fin->toDateTimeString(),
-                'diffHoras' => $diffHoras,
-            ]);
+            // Sin logging para mejorar rendimiento
 
             // === PASO 1: Calcular StdToaHra ===
             // StdToaHra = (NoTiras * 60) / (Luchaje * VelocidadSTD / 10000)
@@ -528,7 +463,7 @@ class ReqProgramaTejidoObserver
                 $formulas['HorasProd'] = (float) round($cantidad / ($stdToaHra * $efic), 6);
             }
 
-            Log::info('ReqProgramaTejidoObserver: Fórmulas calculadas exitosamente', $formulas);
+            // Sin logging para mejorar rendimiento
 
         } catch (\Throwable $e) {
             Log::warning('ReqProgramaTejidoObserver: Error al calcular fórmulas de eficiencia', [

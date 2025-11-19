@@ -439,9 +439,6 @@ Route::middleware(['auth'])->group(function () {
     // MÓDULO PLANEACIÓN (100)
     // ============================================
     Route::prefix('planeacion')->name('planeacion.')->group(function () {
-        // Submódulos de Planeación
-        Route::get('/programa-tejido', [ProgramaTejidoController::class, 'index'])->name('programa-tejido.index');
-
         // Catálogos con estructura jerárquica
         Route::prefix('catalogos')->name('catalogos.')->group(function () {
             Route::get('/', fn() => app(UsuarioController::class)->showSubModulosNivel3('104'))->name('index');
@@ -782,6 +779,7 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Control
 
     // Rutas API para los selects del programa de tejido
     Route::get('/programa-tejido/salon-options', [ProgramaTejidoController::class, 'getSalonTejidoOptions']);
+    Route::get('/programa-tejido/salon-tejido-options', [ProgramaTejidoController::class, 'getSalonTejidoOptions'])->name('programa-tejido.salon-tejido-options');
     Route::get('/programa-tejido/tamano-clave-by-salon', [ProgramaTejidoController::class, 'getTamanoClaveBySalon']);
     Route::get('/programa-tejido/flogs-id-options', [ProgramaTejidoController::class, 'getFlogsIdOptions']);
     Route::get('/programa-tejido/flogs-id-from-twflogs', [ProgramaTejidoController::class, 'getFlogsIdFromTwFlogsTable']);

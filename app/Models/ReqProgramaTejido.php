@@ -13,6 +13,9 @@ class ReqProgramaTejido extends Model
     /** @var string */
     protected $primaryKey = 'Id';
 
+    /** @var string */
+    protected $keyType = 'int'; // BIGINT en SQL Server
+
     /** @var bool */
     public $incrementing = true;
 
@@ -42,7 +45,9 @@ class ReqProgramaTejido extends Model
         // Campos que también usas aunque no estuvieran arriba en fillable en tu código previo
         'ItemId','Rasurado','NombreProducto','TotalPedido',
         // Prioridad
-        'Prioridad'
+        'Prioridad',
+        // Nuevo campo
+        'LargoCrudo'
     ];
 
     /**
@@ -52,29 +57,29 @@ class ReqProgramaTejido extends Model
     protected $casts = [
         'EnProceso' => 'boolean',
         'Ultimo' => 'string',
-        'CambioHilo' => 'integer',
+        'CambioHilo' => 'string', // NVARCHAR(4)
 
         'CalibreRizo' => 'float',
-        'CalibreRizo2' => 'float',
+        'CalibreRizo2' => 'float', // REAL en SQL Server
         'Ancho' => 'float',
         'EficienciaSTD' => 'float',
         'VelocidadSTD' => 'integer',
         'CalibrePie' => 'float',
-        'CalibrePie2' => 'float',
+        'CalibrePie2' => 'float', // REAL en SQL Server
         'TotalPedido' => 'float',
         'Produccion' => 'float',
         'SaldoPedido' => 'float',
         'SaldoMarbete' => 'integer',
 
-        'ProgramarProd' => 'datetime',
-        'Programado' => 'datetime',
+        'ProgramarProd' => 'date', // DATE en SQL Server
+        'Programado' => 'date', // DATE en SQL Server
 
         'NoTiras' => 'integer',
         'Peine' => 'integer',
         'Luchaje' => 'integer',
         'PesoCrudo' => 'integer',
         'CalibreTrama' => 'float',
-        'CalibreTrama2' => 'float',
+        'CalibreTrama2' => 'float', // REAL en SQL Server
 
         'PasadasTrama' => 'integer',
         'PasadasComb1' => 'integer',
@@ -84,11 +89,11 @@ class ReqProgramaTejido extends Model
         'PasadasComb5' => 'integer',
         'AnchoToalla' => 'integer',
 
-        'CalibreComb1' => 'float',
-        'CalibreComb2' => 'float',
-        'CalibreComb3' => 'float',
-        'CalibreComb4' => 'float',
-        'CalibreComb5' => 'float',
+        'CalibreComb1' => 'string', // NVARCHAR(40) en SQL Server
+        'CalibreComb2' => 'string', // NVARCHAR(40) en SQL Server
+        'CalibreComb3' => 'string', // NVARCHAR(40) en SQL Server
+        'CalibreComb4' => 'string', // NVARCHAR(40) en SQL Server
+        'CalibreComb5' => 'string', // NVARCHAR(40) en SQL Server
         'CalibreComb12' => 'float',
         'CalibreComb22' => 'float',
         'CalibreComb32' => 'float',
@@ -117,6 +122,7 @@ class ReqProgramaTejido extends Model
         'CreatedAt' => 'datetime',
         'UpdatedAt' => 'datetime',
         'RowNum' => 'integer',
+        'LargoCrudo' => 'integer',
     ];
 
     /* ===========================

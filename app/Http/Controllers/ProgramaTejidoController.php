@@ -23,7 +23,7 @@ class ProgramaTejidoController extends Controller
                 'Ancho','EficienciaSTD','VelocidadSTD','FibraRizo','CalibrePie2','CalendarioId','TamanoClave','NoExisteBase',
                 'ItemId','InventSizeId','Rasurado','NombreProducto','TotalPedido','Produccion','SaldoPedido','SaldoMarbete',
                 'ProgramarProd','NoProduccion','Programado','FlogsId','NombreProyecto','CustName','AplicacionId',
-                'Observaciones','TipoPedido','NoTiras','Peine','Luchaje','PesoCrudo','CalibreTrama2','FibraTrama','DobladilloId',
+                'Observaciones','TipoPedido','NoTiras','Peine','Luchaje','PesoCrudo','LargoCrudo','CalibreTrama2','FibraTrama','DobladilloId',
                 'PasadasTrama','PasadasComb1','PasadasComb2','PasadasComb3','PasadasComb4','PasadasComb5','AnchoToalla',
                 'CodColorTrama','ColorTrama','CalibreComb1','FibraComb1','CodColorComb1','NombreCC1','CalibreComb2',
                 'FibraComb2','CodColorComb2','NombreCC2','CalibreComb3','FibraComb3','CodColorComb3','NombreCC3',
@@ -33,14 +33,126 @@ class ProgramaTejidoController extends Controller
                 'FechaFinal','EntregaProduc','EntregaPT','EntregaCte','PTvsCte'
             ])->ordenado()->get();
 
-            return view('modulos.programa-tejido.req-programa-tejido', compact('registros'));
+            $columns = $this->getTableColumns();
+
+            return view('modulos.programa-tejido.req-programa-tejido', compact('registros', 'columns'));
         } catch (\Throwable $e) {
             Log::error('Error al cargar programa de tejido', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return view('modulos.programa-tejido.req-programa-tejido', [
                 'registros' => collect(),
+                'columns' => $this->getTableColumns(),
                 'error' => 'Error al cargar los datos: '.$e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Define las columnas de la tabla con sus tipos de fecha
+     * DATE: solo fecha (sin hora)
+     * DATETIME: fecha con hora
+     */
+    private function getTableColumns(): array
+    {
+        // Campos DATE (solo fecha, sin hora)
+        $dateFields = ['ProgramarProd', 'Programado', 'EntregaProduc', 'EntregaPT'];
+
+        // Campos DATETIME (fecha con hora)
+        $datetimeFields = ['FechaInicio', 'FechaFinal', 'EntregaCte'];
+
+        return [
+            ['field' => 'EnProceso', 'label' => 'Estado', 'dateType' => null],
+            ['field' => 'CuentaRizo', 'label' => 'Cuenta', 'dateType' => null],
+            ['field' => 'CalibreRizo2', 'label' => 'Calibre Rizo', 'dateType' => null],
+            ['field' => 'SalonTejidoId', 'label' => 'Salón', 'dateType' => null],
+            ['field' => 'NoTelarId', 'label' => 'Telar', 'dateType' => null],
+            ['field' => 'Ultimo', 'label' => 'Último', 'dateType' => null],
+            ['field' => 'CambioHilo', 'label' => 'Cambios Hilo', 'dateType' => null],
+            ['field' => 'Maquina', 'label' => 'Maq', 'dateType' => null],
+            ['field' => 'Ancho', 'label' => 'Ancho', 'dateType' => null],
+            ['field' => 'EficienciaSTD', 'label' => 'Ef Std', 'dateType' => null],
+            ['field' => 'VelocidadSTD', 'label' => 'Vel', 'dateType' => null],
+            ['field' => 'FibraRizo', 'label' => 'Hilo', 'dateType' => null],
+            ['field' => 'CalibrePie2', 'label' => 'Calibre Pie', 'dateType' => null],
+            ['field' => 'CalendarioId', 'label' => 'Jornada', 'dateType' => null],
+            ['field' => 'TamanoClave', 'label' => 'Clave Mod.', 'dateType' => null],
+            ['field' => 'NoExisteBase', 'label' => 'Usar cuando no existe en base', 'dateType' => null],
+            ['field' => 'ItemId', 'label' => 'Clave AX', 'dateType' => null],
+            ['field' => 'InventSizeId', 'label' => 'Tamaño AX', 'dateType' => null],
+            ['field' => 'Rasurado', 'label' => 'Rasurado', 'dateType' => null],
+            ['field' => 'NombreProducto', 'label' => 'Producto', 'dateType' => null],
+            ['field' => 'TotalPedido', 'label' => 'Pedido', 'dateType' => null],
+            ['field' => 'Produccion', 'label' => 'Producción', 'dateType' => null],
+            ['field' => 'SaldoPedido', 'label' => 'Saldos', 'dateType' => null],
+            ['field' => 'SaldoMarbete', 'label' => 'Saldo Marbetes', 'dateType' => null],
+            ['field' => 'ProgramarProd', 'label' => 'Día Scheduling', 'dateType' => 'date'],
+            ['field' => 'NoProduccion', 'label' => 'Orden Prod.', 'dateType' => null],
+            ['field' => 'Programado', 'label' => 'INN', 'dateType' => 'date'],
+            ['field' => 'FlogsId', 'label' => 'Id Flog', 'dateType' => null],
+            ['field' => 'NombreProyecto', 'label' => 'Descrip.', 'dateType' => null],
+            ['field' => 'CustName', 'label' => 'Nombre Cliente', 'dateType' => null],
+            ['field' => 'AplicacionId', 'label' => 'Aplic.', 'dateType' => null],
+            ['field' => 'Observaciones', 'label' => 'Obs', 'dateType' => null],
+            ['field' => 'TipoPedido', 'label' => 'Tipo Ped.', 'dateType' => null],
+            ['field' => 'NoTiras', 'label' => 'Tiras', 'dateType' => null],
+            ['field' => 'Peine', 'label' => 'Pei.', 'dateType' => null],
+            ['field' => 'LargoCrudo', 'label' => 'Lcr', 'dateType' => null],
+            ['field' => 'Luchaje', 'label' => 'Luc', 'dateType' => null],
+            ['field' => 'PesoCrudo', 'label' => 'Pcr', 'dateType' => null],
+            ['field' => 'CalibreTrama2', 'label' => 'Calibre Tra', 'dateType' => null],
+            ['field' => 'FibraTrama', 'label' => 'Fibra Trama', 'dateType' => null],
+            ['field' => 'DobladilloId', 'label' => 'Dob', 'dateType' => null],
+            ['field' => 'PasadasTrama', 'label' => 'Pasadas Tra', 'dateType' => null],
+            ['field' => 'PasadasComb1', 'label' => 'Pasadas C1', 'dateType' => null],
+            ['field' => 'PasadasComb2', 'label' => 'Pasadas C2', 'dateType' => null],
+            ['field' => 'PasadasComb3', 'label' => 'Pasadas C3', 'dateType' => null],
+            ['field' => 'PasadasComb4', 'label' => 'Pasadas C4', 'dateType' => null],
+            ['field' => 'PasadasComb5', 'label' => 'Pasadas C5', 'dateType' => null],
+            ['field' => 'AnchoToalla', 'label' => 'Ancho por Toalla', 'dateType' => null],
+            ['field' => 'CodColorTrama', 'label' => 'Código Color Tra', 'dateType' => null],
+            ['field' => 'ColorTrama', 'label' => 'Color Tra', 'dateType' => null],
+            ['field' => 'CalibreComb1', 'label' => 'Calibre C1', 'dateType' => null],
+            ['field' => 'FibraComb1', 'label' => 'Fibra C1', 'dateType' => null],
+            ['field' => 'CodColorComb1', 'label' => 'Código Color C1', 'dateType' => null],
+            ['field' => 'NombreCC1', 'label' => 'Color C1', 'dateType' => null],
+            ['field' => 'CalibreComb2', 'label' => 'Calibre C2', 'dateType' => null],
+            ['field' => 'FibraComb2', 'label' => 'Fibra C2', 'dateType' => null],
+            ['field' => 'CodColorComb2', 'label' => 'Código Color C2', 'dateType' => null],
+            ['field' => 'NombreCC2', 'label' => 'Color C2', 'dateType' => null],
+            ['field' => 'CalibreComb3', 'label' => 'Calibre C3', 'dateType' => null],
+            ['field' => 'FibraComb3', 'label' => 'Fibra C3', 'dateType' => null],
+            ['field' => 'CodColorComb3', 'label' => 'Código Color C3', 'dateType' => null],
+            ['field' => 'NombreCC3', 'label' => 'Color C3', 'dateType' => null],
+            ['field' => 'CalibreComb4', 'label' => 'Calibre C4', 'dateType' => null],
+            ['field' => 'FibraComb4', 'label' => 'Fibra C4', 'dateType' => null],
+            ['field' => 'CodColorComb4', 'label' => 'Código Color C4', 'dateType' => null],
+            ['field' => 'NombreCC4', 'label' => 'Color C4', 'dateType' => null],
+            ['field' => 'CalibreComb5', 'label' => 'Calibre C5', 'dateType' => null],
+            ['field' => 'FibraComb5', 'label' => 'Fibra C5', 'dateType' => null],
+            ['field' => 'CodColorComb5', 'label' => 'Código Color C5', 'dateType' => null],
+            ['field' => 'NombreCC5', 'label' => 'Color C5', 'dateType' => null],
+            ['field' => 'MedidaPlano', 'label' => 'Plano', 'dateType' => null],
+            ['field' => 'CuentaPie', 'label' => 'Cuenta Pie', 'dateType' => null],
+            ['field' => 'CodColorCtaPie', 'label' => 'Código Color Pie', 'dateType' => null],
+            ['field' => 'NombreCPie', 'label' => 'Color Pie', 'dateType' => null],
+            ['field' => 'PesoGRM2', 'label' => 'Peso (gr/m²)', 'dateType' => null],
+            ['field' => 'DiasEficiencia', 'label' => 'Días Ef.', 'dateType' => null],
+            ['field' => 'ProdKgDia', 'label' => 'Prod (Kg)/Día', 'dateType' => null],
+            ['field' => 'StdDia', 'label' => 'Std/Día', 'dateType' => null],
+            ['field' => 'ProdKgDia2', 'label' => 'Prod (Kg)/Día 2', 'dateType' => null],
+            ['field' => 'StdToaHra', 'label' => 'Std (Toa/Hr) 100%', 'dateType' => null],
+            ['field' => 'DiasJornada', 'label' => 'Días Jornada', 'dateType' => null],
+            ['field' => 'HorasProd', 'label' => 'Horas', 'dateType' => null],
+            ['field' => 'StdHrsEfect', 'label' => 'Std/Hr Efectivo', 'dateType' => null],
+            ['field' => 'FechaInicio', 'label' => 'Inicio', 'dateType' => 'datetime'],
+            ['field' => 'Calc4', 'label' => 'Calc4', 'dateType' => null],
+            ['field' => 'Calc5', 'label' => 'Calc5', 'dateType' => null],
+            ['field' => 'Calc6', 'label' => 'Calc6', 'dateType' => null],
+            ['field' => 'FechaFinal', 'label' => 'Fin', 'dateType' => 'datetime'],
+            ['field' => 'EntregaProduc', 'label' => 'Fecha Compromiso Prod.', 'dateType' => 'date'],
+            ['field' => 'EntregaPT', 'label' => 'Fecha Compromiso PT', 'dateType' => 'date'],
+            ['field' => 'EntregaCte', 'label' => 'Entrega', 'dateType' => 'datetime'],
+            ['field' => 'PTvsCte', 'label' => 'Dif vs Compromiso', 'dateType' => null],
+        ];
     }
 
     /* ======================================
@@ -244,7 +356,13 @@ class ProgramaTejidoController extends Controller
                 $nuevo->FlogsId        = $flogsId;
                 $nuevo->CalendarioId   = $calendarioId;
                 $nuevo->AplicacionId   = $aplicacionId;
-                $nuevo->CambioHilo     = 0; // por defecto
+
+                // CambioHilo: usar valor calculado en frontend por telar, o fallback al global
+                if (isset($fila['cambio_hilo'])) {
+                    $nuevo->CambioHilo = $fila['cambio_hilo'];
+                } else {
+                    $nuevo->CambioHilo = $request->input('CambioHilo', 0);
+                }
 
                 // Fechas/cantidad
                 $nuevo->FechaInicio     = $fila['fecha_inicio'] ?? null;
@@ -260,6 +378,13 @@ class ProgramaTejidoController extends Controller
                 // Maquina opcional
                 if ($request->filled('Maquina')) {
                     $nuevo->Maquina = (string) $request->input('Maquina');
+                }
+
+                // Ancho desde AnchoToalla (mapeo explícito)
+                if ($request->filled('AnchoToalla')) {
+                    $nuevo->Ancho = $request->input('AnchoToalla');
+                } elseif ($request->filled('Ancho')) {
+                    $nuevo->Ancho = $request->input('Ancho');
                 }
 
                 // Mapear campos del formulario (con casteo/truncamiento)
@@ -537,12 +662,12 @@ class ProgramaTejidoController extends Controller
             $ultimo = ReqProgramaTejido::query()->salon($salon)->telar($telar)
                 ->whereNotNull('FechaFinal')
                 ->orderByDesc('FechaFinal')
-                ->select('FechaFinal','FibraTrama','Maquina','Ancho')
+                ->select('FechaFinal','FibraRizo','Maquina','Ancho')
                 ->first();
 
             return response()->json([
                 'ultima_fecha_final' => $ultimo->FechaFinal ?? null,
-                'hilo' => $ultimo->FibraTrama ?? null,
+                'hilo' => $ultimo->FibraRizo ?? null,
                 'maquina' => $ultimo->Maquina ?? null,
                 'ancho' => $ultimo->Ancho ?? null,
             ]);
@@ -739,8 +864,7 @@ class ProgramaTejidoController extends Controller
             $inicioOriginal = $primero->FechaInicio ? \Carbon\Carbon::parse($primero->FechaInicio) : null;
             if (!$inicioOriginal) throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
 
-            // Eliminar líneas y registro
-            DB::table('ReqProgramaTejidoLine')->where('ProgramaId', $registro->Id)->delete();
+            // Eliminar registro (las líneas se eliminan por ON DELETE CASCADE en BD)
             $registro->delete();
 
             $restantes = ReqProgramaTejido::query()->salon($salon)->telar($telar)->orderBy('FechaInicio','asc')->get();
@@ -800,36 +924,58 @@ class ProgramaTejidoController extends Controller
             if ($dst < 0) throw new \RuntimeException('Este registro ya es el primero en la secuencia.');
             if ($dst >= $registros->count()) throw new \RuntimeException('Este registro ya es el último en la secuencia.');
 
+            // Guardar IDs de los registros afectados para regenerar líneas después
+            $idsAfectados = $registros->pluck('Id')->toArray();
+
             // Intercambio
             $tmp = $registros[$idx];
             $registros[$idx] = $registros[$dst];
             $registros[$dst] = $tmp;
             $registros = $registros->values();
 
+            // Deshabilitar observers temporalmente para evitar regeneración duplicada de líneas
             ReqProgramaTejido::unsetEventDispatcher();
 
             [$updates,$detalles] = $this->recalcularFechasSecuencia($registros, $inicioOriginal);
 
+            // Actualizar registros principales (esto cambia las fechas)
             foreach ($updates as $idU => $data) {
                 DB::table('ReqProgramaTejido')->where('Id',$idU)->update($data);
             }
 
             DB::commit();
 
+            // Re-habilitar observer
             ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
 
+            // Regenerar líneas para TODOS los registros afectados (no solo los que cambiaron de posición)
+            // El Observer eliminará las líneas existentes y creará nuevas basadas en las nuevas fechas
             $observer = new \App\Observers\ReqProgramaTejidoObserver();
-            foreach (array_column($detalles,'Id') as $idAct) {
-                if ($r = ReqProgramaTejido::find($idAct)) $observer->saved($r);
+            foreach ($idsAfectados as $idAct) {
+                if ($r = ReqProgramaTejido::find($idAct)) {
+                    // El Observer.saved() eliminará las líneas existentes y creará nuevas
+                    // Esto asegura que las FK se mantengan correctas y no haya duplicados
+                    $observer->saved($r);
+                }
             }
 
-            Log::info('moverPrioridad OK', ['id'=>$registro->Id,'dir'=>$direccion,'n'=>count($detalles)]);
+            Log::info('moverPrioridad OK', [
+                'id'=>$registro->Id,
+                'dir'=>$direccion,
+                'registros_afectados'=>count($idsAfectados),
+                'detalles_cascada'=>count($detalles)
+            ]);
             return ['success'=>true,'detalles'=>$detalles];
 
         } catch (\Throwable $e) {
             DB::rollBack();
             ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
-            Log::error('moverPrioridad error', ['id'=>$registro->Id ?? null,'dir'=>$direccion,'msg'=>$e->getMessage()]);
+            Log::error('moverPrioridad error', [
+                'id'=>$registro->Id ?? null,
+                'dir'=>$direccion,
+                'msg'=>$e->getMessage(),
+                'trace'=>$e->getTraceAsString()
+            ]);
             throw $e;
         }
     }
@@ -852,6 +998,10 @@ class ProgramaTejidoController extends Controller
 
             $detalles = [];
             $finAnterior = $fin;
+            $idsActualizados = [];
+
+            // Deshabilitar observers temporalmente para evitar regeneración durante actualizaciones masivas
+            ReqProgramaTejido::unsetEventDispatcher();
 
             for ($i = $idx + 1; $i < $todos->count(); $i++) {
                 $row = $todos[$i];
@@ -868,11 +1018,14 @@ class ProgramaTejidoController extends Controller
                 $nuevoInicio = clone $finAnterior;
                 $nuevoFin    = (clone $nuevoInicio)->add($dur);
 
-                ReqProgramaTejido::where('Id',$row->Id)->update([
+                // Actualizar usando DB::table para evitar disparar observers
+                DB::table('ReqProgramaTejido')->where('Id',$row->Id)->update([
                     'FechaInicio' => $nuevoInicio->format('Y-m-d H:i:s'),
                     'FechaFinal'  => $nuevoFin->format('Y-m-d H:i:s'),
+                    'UpdatedAt'   => now(),
                 ]);
 
+                $idsActualizados[] = $row->Id;
                 $finAnterior = $nuevoFin;
 
                 $detalles[] = [
@@ -889,11 +1042,34 @@ class ProgramaTejidoController extends Controller
             }
 
             DB::commit();
+
+            // Re-habilitar observer
+            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+
+            // Regenerar líneas para todos los registros actualizados
+            // El Observer eliminará las líneas existentes y creará nuevas basadas en las nuevas fechas
+            if (!empty($idsActualizados)) {
+                $observer = new \App\Observers\ReqProgramaTejidoObserver();
+                foreach ($idsActualizados as $idAct) {
+                    if ($r = ReqProgramaTejido::find($idAct)) {
+                        // El Observer.saved() eliminará las líneas existentes y creará nuevas
+                        // Esto asegura que las FK se mantengan correctas y no haya duplicados
+                        $observer->saved($r);
+                    }
+                }
+                Log::info('cascadeFechas: Líneas regeneradas', ['ids_actualizados'=>count($idsActualizados)]);
+            }
+
             return $detalles;
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('cascadeFechas error', ['id'=>$registroActualizado->Id ?? null, 'msg'=>$e->getMessage()]);
+            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+            Log::error('cascadeFechas error', [
+                'id'=>$registroActualizado->Id ?? null,
+                'msg'=>$e->getMessage(),
+                'trace'=>$e->getTraceAsString()
+            ]);
             throw $e;
         }
     }
@@ -1133,7 +1309,7 @@ class ProgramaTejidoController extends Controller
             'CalibrePie','CalibrePie2','CuentaPie','FibraPie','CodColorCtaPie','NombreCPie',
             'AnchoToalla','PesoCrudo','Peine','MedidaPlano','NoTiras','Luchaje','Rasurado',
             'PasadasTrama','PasadasComb1','PasadasComb2','PasadasComb3','PasadasComb4','PasadasComb5',
-            'DobladilloId',
+            'DobladilloId','LargoCrudo',
             'Produccion','SaldoPedido','SaldoMarbete','ProgramarProd','NoProduccion','Programado',
             'CustName','Observaciones','TipoPedido','PesoGRM2','DiasEficiencia','ProdKgDia','StdDia',
             'ProdKgDia2','StdToaHra','DiasJornada','HorasProd','StdHrsEfect','Calc4','Calc5','Calc6'
@@ -1151,7 +1327,7 @@ class ProgramaTejidoController extends Controller
                 'CalibrePie','CalibrePie2','EficienciaSTD'
             ])) {
                 $valor = is_numeric($valor) ? (float)$valor : null;
-            } elseif (in_array($campo, ['VelocidadSTD','Peine','PesoCrudo','AnchoToalla','MedidaPlano','Ancho','NoTiras','Luchaje'])) {
+            } elseif (in_array($campo, ['VelocidadSTD','Peine','PesoCrudo','AnchoToalla','MedidaPlano','Ancho','NoTiras','Luchaje','LargoCrudo'])) {
                 $valor = is_numeric($valor) ? (int)$valor : null;
             } elseif (in_array($campo, ['TotalPedido','Produccion','SaldoPedido','SaldoMarbete','PesoGRM2','DiasEficiencia','ProdKgDia','StdDia','ProdKgDia2','StdToaHra','DiasJornada','HorasProd','StdHrsEfect','Calc4','Calc5','Calc6'])) {
                 $valor = is_numeric($valor) ? (float)$valor : null;

@@ -204,7 +204,10 @@ window.ProgramaTejidoCRUD = {
             CalibreComb2: datosModelo?.CalibreComb2 ?? null,
             CalibreComb3: datosModelo?.CalibreComb3 ?? null,
             CalibreComb4: datosModelo?.CalibreComb4 ?? null,
-            CalibreComb5: datosModelo?.CalibreComb5 ?? null
+            CalibreComb5: datosModelo?.CalibreComb5 ?? null,
+
+            // Usar LargoToalla como fallback para LargoCrudo si este último no existe
+            LargoCrudo: datosModelo?.LargoToalla ?? null
         };
 
         // Obtener descripción (NombreProyecto) desde el campo descripcion

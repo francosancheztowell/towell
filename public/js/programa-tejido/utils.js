@@ -195,8 +195,9 @@ window.ProgramaTejidoUtils = {
      * @param {string} fieldId - ID del campo
      * @param {*} valor - Valor a establecer
      * @param {boolean} habilitarCampo - Si se debe habilitar el campo
+     * @param {boolean} dispararEvento - Si se debe disparar el evento change (default: true)
      */
-    establecerValorCampo(fieldId, valor, habilitarCampo = true) {
+    establecerValorCampo(fieldId, valor, habilitarCampo = true, dispararEvento = true) {
         const elemento = document.getElementById(fieldId);
         if (!elemento) return;
 
@@ -212,8 +213,8 @@ window.ProgramaTejidoUtils = {
                 if (clase) elemento.classList.add(clase);
             });
 
-            // Si es un select, disparar el evento change
-            if (elemento.tagName === 'SELECT') {
+            // Si es un select, disparar el evento change solo si se solicita
+            if (elemento.tagName === 'SELECT' && dispararEvento) {
                 elemento.dispatchEvent(new Event('change'));
             }
         }

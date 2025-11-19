@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Imports\ReqProgramaTejidoSimpleImport;
+use App\Models\ReqProgramaTejido;
+use App\Models\ReqProgramaTejidoLine;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -31,24 +33,14 @@ class ConfiguracionController extends Controller
     {
         try {
             // Aumentar timeout para procesamiento de Excel grande
-            set_time_limit(300); // 5 minutos
+            set_time_limit(600); // 10 minutos para importación + regeneración de líneas
+            ini_set('max_execution_time', 600);
 
             Log::info("========== INICIO PROCESAMIENTO EXCEL PROGRAMA TEJIDO ==========");
-            Log::info("Método HTTP: {$request->getMethod()}");
-            Log::info("URL completa: " . $request->fullUrl());
-            Log::info("Headers: " . json_encode($request->headers->all()));
-            Log::info("Archivos subidos: " . json_encode($request->files->keys()));
-            Log::info("Datos del request: " . json_encode($request->all()));
-            Log::info("Token CSRF recibido: " . $request->input('_token'));
-            Log::info("Token CSRF esperado: " . csrf_token());
-            Log::info("Usuario autenticado: " . (Auth::check() ? 'Sí' : 'No'));
             if (Auth::check()) {
                 Log::info("ID Usuario: " . Auth::id());
                 Log::info("Usuario: " . Auth::user()->name ?? 'Sin nombre');
             }
-
-            // Validar el archivo
-            Log::info("Iniciando validación del archivo...");
             $validator = Validator::make($request->all(), [
                 'excel_file' => 'required|file|mimes:xlsx,xls|max:10240'
             ]);
@@ -62,61 +54,117 @@ class ConfiguracionController extends Controller
                 ], 400);
             }
 
-            Log::info("✅ Validación del archivo exitosa");
-
             $archivo = $request->file('excel_file');
             $nombreArchivo = $archivo->getClientOriginalName();
             $rutaTemporal = $archivo->getPathname();
 
-            Log::info("Archivo validado correctamente");
-            Log::info("Nombre: {$nombreArchivo}");
-            Log::info("Ruta temporal: {$rutaTemporal}");
-            Log::info("Tamaño: {$archivo->getSize()} bytes");
-
             // Usar transacciones
             DB::beginTransaction();
-            Log::info("Transacción iniciada");
 
             try {
-                Log::info("Importando archivo con ReqProgramaTejidoSimpleImport...");
-
                 // Obtener estadísticas antes de la importación
-                $registrosAntes = \App\Models\ReqProgramaTejido::count();
-                Log::info("Registros existentes antes de la importación: {$registrosAntes}");
+                $registrosAntes = ReqProgramaTejido::count();
+                $lineasAntes = ReqProgramaTejidoLine::count();
+                Log::info("Registros existentes antes de la importación: {$registrosAntes} registros, {$lineasAntes} líneas");
 
-                // Eliminar todos los registros existentes (evitar TRUNCATE por posibles FKs)
-                Log::info("Eliminando registros existentes (DELETE ALL)...");
+                // TRUNCATE para reiniciar los IDs (autoincrementables)
+                // Primero truncar las líneas (tabla dependiente) y luego la tabla principal
+                Log::info("Truncando tablas para reiniciar IDs...");
                 try {
-                    // Borrado en bloque
-                    DB::table('ReqProgramaTejido')->delete();
-                    Log::info("Registros existentes eliminados con DELETE");
-                } catch (\Throwable $delEx) {
-                    Log::warning("Fallo al eliminar con DELETE: " . $delEx->getMessage());
-                    // Fallback: intentar borrado chunked para bases con restricciones/locks
+                    // Primero truncar ReqProgramaTejidoLine (tabla dependiente con FK)
+                    DB::statement('TRUNCATE TABLE ReqProgramaTejidoLine');
+                    Log::info("Tabla ReqProgramaTejidoLine truncada (IDs reiniciados)");
+
+                    // Luego truncar ReqProgramaTejido (tabla principal)
+                    DB::statement('TRUNCATE TABLE ReqProgramaTejido');
+                    Log::info("Tabla ReqProgramaTejido truncada (IDs reiniciados)");
+                } catch (\Throwable $truncEx) {
+                    Log::warning("Fallo al truncar: " . $truncEx->getMessage() . ". Intentando con DELETE...");
+                    // Fallback: usar DELETE si TRUNCATE falla (por ejemplo, si hay otras FKs activas)
                     try {
-                        $totalBefore = \App\Models\ReqProgramaTejido::count();
-                        $chunk = 1000;
-                        \App\Models\ReqProgramaTejido::query()->orderBy('Id')
-                            ->chunkById($chunk, function ($rows) {
-                                $ids = $rows->pluck('Id')->all();
-                                DB::table('ReqProgramaTejido')->whereIn('Id', $ids)->delete();
-                            }, 'Id');
-                        $totalAfter = \App\Models\ReqProgramaTejido::count();
-                        Log::info("Borrado chunked completado", ['antes'=>$totalBefore,'despues'=>$totalAfter]);
-                    } catch (\Throwable $delEx2) {
-                        Log::error("No se pudo limpiar ReqProgramaTejido: " . $delEx2->getMessage());
-                        throw $delEx2;
+                        // Eliminar líneas primero
+                        DB::table('ReqProgramaTejidoLine')->delete();
+                        // Luego eliminar registros principales
+                        DB::table('ReqProgramaTejido')->delete();
+                        // Reiniciar contador de identidad manualmente después de DELETE
+                        DB::statement('DBCC CHECKIDENT (ReqProgramaTejido, RESEED, 0)');
+                        DB::statement('DBCC CHECKIDENT (ReqProgramaTejidoLine, RESEED, 0)');
+                        Log::info("Registros eliminados con DELETE y contadores de identidad reiniciados manualmente");
+                    } catch (\Throwable $delEx) {
+                        Log::error("No se pudo limpiar las tablas: " . $delEx->getMessage());
+                        throw $delEx;
                     }
                 }
+
+                // Deshabilitar Observer temporalmente para evitar regeneración de líneas durante importación masiva
+                \App\Models\ReqProgramaTejido::unsetEventDispatcher();
+
+                Log::info("Observers deshabilitados para importación masiva");
 
                 // Importar usando el importador específico
                 $import = new ReqProgramaTejidoSimpleImport();
                 Excel::import($import, $archivo);
 
+                // Re-habilitar Observer
+                \App\Models\ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+
+                Log::info("Observers re-habilitados después de importación");
+
                 // Obtener estadísticas del importador
                 $estadisticas = $import->getStats();
                 $this->processedRows = $estadisticas['processed_rows'];
                 $this->skippedRows = $estadisticas['skipped_rows'];
+
+                // Regenerar líneas para todos los registros importados (de forma eficiente y en batch)
+                Log::info("Regenerando líneas para registros importados...");
+
+                // Obtener solo registros con fechas válidas en batch
+                $registrosConFechas = ReqProgramaTejido::whereNotNull('FechaInicio')
+                    ->whereNotNull('FechaFinal')
+                    ->where('FechaInicio', '!=', '')
+                    ->where('FechaFinal', '!=', '')
+                    ->select('Id', 'FechaInicio', 'FechaFinal')
+                    ->get();
+
+                $totalRegenerados = 0;
+                $observer = new \App\Observers\ReqProgramaTejidoObserver();
+
+                // Procesar en chunks para evitar sobrecarga de memoria
+                $chunks = $registrosConFechas->chunk(50);
+                foreach ($chunks as $chunk) {
+                    foreach ($chunk as $registro) {
+                        try {
+                            // Validar que las fechas sean razonables (no años antiguos como 1933)
+                            $fechaInicio = \Carbon\Carbon::parse($registro->FechaInicio);
+                            $fechaFinal = \Carbon\Carbon::parse($registro->FechaFinal);
+
+                            // Validar que las fechas sean del año 2000 en adelante
+                            if ($fechaInicio->year < 2000 || $fechaFinal->year < 2000) {
+                                Log::warning("Registro {$registro->Id} tiene fechas inválidas (año < 2000), saltando", [
+                                    'FechaInicio' => $registro->FechaInicio,
+                                    'FechaFinal' => $registro->FechaFinal
+                                ]);
+                                continue;
+                            }
+
+                            // Cargar el registro completo solo cuando sea necesario
+                            $registroCompleto = ReqProgramaTejido::find($registro->Id);
+                            if ($registroCompleto) {
+                                $observer->saved($registroCompleto);
+                                $totalRegenerados++;
+
+                                // Log cada 50 registros para monitorear progreso
+                                if ($totalRegenerados % 50 === 0) {
+                                    Log::info("Progreso regeneración líneas: {$totalRegenerados}/" . $registrosConFechas->count());
+                                }
+                            }
+                        } catch (\Throwable $lineEx) {
+                            Log::warning("Error regenerando líneas para registro {$registro->Id}: " . $lineEx->getMessage());
+                        }
+                    }
+                }
+
+                Log::info("Líneas regeneradas: {$totalRegenerados} registros procesados de " . $registrosConFechas->count() . " con fechas válidas");
 
                 // Actualizar estado EnProceso automáticamente (no romper si el comando no está registrado)
                 try {
@@ -128,14 +176,10 @@ class ConfiguracionController extends Controller
                 }
 
                 // Obtener estadísticas después de la importación
-                $registrosDespues = \App\Models\ReqProgramaTejido::count();
+                $registrosDespues = ReqProgramaTejido::count();
                 Log::info("Registros después de la importación: {$registrosDespues}");
 
                 DB::commit();
-                Log::info("Transacción confirmada exitosamente");
-
-                Log::info("========== FIN PROCESAMIENTO EXCEL ==========");
-                Log::info("Estadísticas finales:", $estadisticas);
 
                 $response = [
                     'success' => true,
@@ -154,24 +198,44 @@ class ConfiguracionController extends Controller
 
                 return response()->json($response);
 
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 DB::rollback();
-                Log::error("Error durante la importación: " . $e->getMessage());
-                Log::error("Stack trace: " . $e->getTraceAsString());
+
+                // Asegurar que el Observer se re-habilite incluso si hay error
+                \App\Models\ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+
+                Log::error("Error durante la importación", [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString()
+                ]);
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error al procesar el archivo: ' . $e->getMessage()
+                    'message' => 'Error al procesar el archivo: ' . $e->getMessage(),
+                    'error_details' => config('app.debug') ? [
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine()
+                    ] : null
                 ], 500);
             }
 
-        } catch (\Exception $e) {
-            Log::error("Error general en procesarExcel: " . $e->getMessage());
-            Log::error("Stack trace: " . $e->getTraceAsString());
+        } catch (\Throwable $e) {
+            Log::error("Error general en procesarExcel", [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error interno del servidor: ' . $e->getMessage()
+                'message' => 'Error interno del servidor: ' . $e->getMessage(),
+                'error_details' => config('app.debug') ? [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ] : null
             ], 500);
         }
     }

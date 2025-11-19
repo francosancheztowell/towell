@@ -38,20 +38,20 @@ class ReqProgramaTejidoLine extends Model
     protected $casts = [
         'Id'         => 'integer',
         'ProgramaId' => 'integer',
-        'Fecha'      => 'date', // Cambiar a 'date' para mejor compatibilidad con SQL Server
-        'Cantidad'   => 'float',
-        'Kilos'      => 'float',
-        'Aplicacion' => 'float',
-        'Trama'      => 'float',
-        'Combina1'   => 'float',
-        'Combina2'   => 'float',
-        'Combina3'   => 'float',
-        'Combina4'   => 'float',
-        'Combina5'   => 'float',
-        'Pie'        => 'float',
-        'Rizo'       => 'float',
-        'MtsRizo'    => 'float',
-        'MtsPie'     => 'float',
+        'Fecha'      => 'date', // DATE en SQL Server
+        'Cantidad'   => 'float', // REAL en SQL Server
+        'Kilos'      => 'float', // REAL en SQL Server
+        'Aplicacion' => 'string', // VARCHAR(50) en SQL Server
+        'Trama'      => 'float', // REAL en SQL Server
+        'Combina1'   => 'float', // REAL en SQL Server
+        'Combina2'   => 'float', // REAL en SQL Server
+        'Combina3'   => 'float', // REAL en SQL Server
+        'Combina4'   => 'float', // REAL en SQL Server
+        'Combina5'   => 'float', // REAL en SQL Server
+        'Pie'        => 'float', // REAL en SQL Server
+        'Rizo'       => 'float', // REAL en SQL Server
+        'MtsRizo'    => 'float', // REAL en SQL Server
+        'MtsPie'     => 'float', // REAL en SQL Server
     ];
 
     /* ---------- Relaciones ---------- */
@@ -73,17 +73,21 @@ class ReqProgramaTejidoLine extends Model
 
     public function scopeBetween(Builder $q, string $from, string $to): Builder
     {
-        return $q->whereBetween('Fecha', [$from, $to]);
+        // Usar whereDate con >= y <= para asegurar que incluya ambos extremos
+        // whereBetween puede excluir el último día en SQL Server con tipo DATE
+        return $q->whereDate('Fecha', '>=', $from)
+                  ->whereDate('Fecha', '<=', $to);
     }
 
     /* ---------- Normalizador de numéricos vacíos -> null ---------- */
     public function setAttribute($key, $value)
     {
         static $numeric = [
-            'Cantidad','Kilos','Aplicacion','Trama',
+            'Cantidad','Kilos','Trama',
             'Combina1','Combina2','Combina3','Combina4','Combina5',
             'Pie','Rizo','MtsRizo','MtsPie',
         ];
+        // Aplicacion ya no es numérico, es VARCHAR(50)
         if (in_array($key, $numeric, true) && ($value === '' || $value === 'null')) {
             $value = null;
         }

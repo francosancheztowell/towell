@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\SYSRoles;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 
 
 class ModuloService
@@ -68,85 +67,55 @@ class ModuloService
     /**
      * Obtener submódulos de un módulo principal para un usuario
      */
-    public function getSubmodulosPorModuloPrincipal(string $moduloPrincipal, int $idusuario): Collection
+    public function getSubmodulosPorModuloPrincipal(string $moduloPrincipal, int $idusuario, ?SYSRoles $moduloPadre = null): Collection
     {
         $cacheKey = "{$this->getCachePrefix()}_submodulos_{$moduloPrincipal}_user_{$idusuario}";
 
-        // TEMPORALMENTE deshabilitar caché para debug - eliminar después
-        // $data = Cache::remember($cacheKey, self::CACHE_TTL, function() use ($moduloPrincipal, $idusuario) {
+        $data = Cache::remember($cacheKey, self::CACHE_TTL, function() use ($moduloPrincipal, $idusuario, $moduloPadre) {
+            $moduloPadreResuelto = $moduloPadre ?: $this->buscarModuloPrincipal($moduloPrincipal);
 
-        // Ejecutar sin caché temporalmente
-        $moduloPadre = $this->buscarModuloPrincipal($moduloPrincipal);
+            if (!$moduloPadreResuelto) {
+                return [];
+            }
 
-        if (!$moduloPadre) {
-            Log::warning("ModuloService: No se encontró módulo principal", [
-                'modulo_principal' => $moduloPrincipal,
-                'idusuario' => $idusuario
-            ]);
-            return collect([]);
-        }
+            // Usar join para optimizar la consulta
+            // Convertir orden a string para asegurar comparación correcta con Dependencia
+            $ordenPadre = (string) $moduloPadreResuelto->orden;
 
-        // Usar join para optimizar la consulta
-        // Convertir orden a string para asegurar comparación correcta con Dependencia
-        $ordenPadre = (string) $moduloPadre->orden;
-
-        Log::info("ModuloService: Buscando submódulos", [
-            'modulo_principal' => $moduloPrincipal,
-            'modulo_padre_id' => $moduloPadre->idrol,
-            'modulo_padre_nombre' => $moduloPadre->modulo,
-            'orden_padre' => $ordenPadre,
-            'idusuario' => $idusuario
-        ]);
-
-        $submodulos = SYSRoles::where('Dependencia', $ordenPadre)
-            ->where('Nivel', 2)
-            ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
-            ->where('SYSUsuariosRoles.idusuario', $idusuario)
-            ->where('SYSUsuariosRoles.acceso', true)
-            ->select(
-                'SYSRoles.*',
-                'SYSUsuariosRoles.acceso as usuario_acceso',
-                'SYSUsuariosRoles.crear as usuario_crear',
-                'SYSUsuariosRoles.modificar as usuario_modificar',
-                'SYSUsuariosRoles.eliminar as usuario_eliminar',
-                'SYSUsuariosRoles.registrar as usuario_registrar'
-            )
-            ->orderBy('SYSRoles.orden')
-            ->get();
-
-        Log::info("ModuloService: Submódulos encontrados", [
-            'modulo_principal' => $moduloPrincipal,
-            'orden_padre' => $ordenPadre,
-            'total_submodulos' => $submodulos->count(),
-            'submodulos' => $submodulos->map(function($m) {
-                return [
-                    'idrol' => $m->idrol,
-                    'modulo' => $m->modulo,
-                    'orden' => $m->orden,
-                    'Dependencia' => $m->Dependencia,
-                    'Nivel' => $m->Nivel
-                ];
-            })->toArray()
-        ]);
-
-        $data = $submodulos->map(function($modulo) {
-                return [
-                    'nombre' => $modulo->modulo,
-                    'imagen' => $modulo->imagen ?? 'default.png',
-                    'ruta' => $this->generarRutaSubModulo($modulo->modulo, $modulo->orden, $modulo->Dependencia),
-                    'ruta_tipo' => 'url',
-                    'orden' => $modulo->orden,
-                    'nivel' => $modulo->Nivel,
-                    'dependencia' => $modulo->Dependencia,
-                    'acceso' => $modulo->usuario_acceso ?? 0,
-                    'crear' => $modulo->usuario_crear ?? 0,
-                    'modificar' => $modulo->usuario_modificar ?? 0,
-                    'eliminar' => $modulo->usuario_eliminar ?? 0,
-                    'registrar' => $modulo->usuario_registrar ?? 0,
-                ];
-            })
-            ->values()
-            ->toArray();
+            return SYSRoles::where('Dependencia', $ordenPadre)
+                ->where('Nivel', 2)
+                ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
+                ->where('SYSUsuariosRoles.idusuario', $idusuario)
+                ->where('SYSUsuariosRoles.acceso', true)
+                ->select(
+                    'SYSRoles.*',
+                    'SYSUsuariosRoles.acceso as usuario_acceso',
+                    'SYSUsuariosRoles.crear as usuario_crear',
+                    'SYSUsuariosRoles.modificar as usuario_modificar',
+                    'SYSUsuariosRoles.eliminar as usuario_eliminar',
+                    'SYSUsuariosRoles.registrar as usuario_registrar'
+                )
+                ->orderBy('SYSRoles.orden')
+                ->get()
+                ->map(function($modulo) {
+                    return [
+                        'nombre' => $modulo->modulo,
+                        'imagen' => $modulo->imagen ?? 'default.png',
+                        'ruta' => $this->generarRutaSubModulo($modulo->modulo, $modulo->orden, $modulo->Dependencia),
+                        'ruta_tipo' => 'url',
+                        'orden' => $modulo->orden,
+                        'nivel' => $modulo->Nivel,
+                        'dependencia' => $modulo->Dependencia,
+                        'acceso' => $modulo->usuario_acceso ?? 0,
+                        'crear' => $modulo->usuario_crear ?? 0,
+                        'modificar' => $modulo->usuario_modificar ?? 0,
+                        'eliminar' => $modulo->usuario_eliminar ?? 0,
+                        'registrar' => $modulo->usuario_registrar ?? 0,
+                    ];
+                })
+                ->values()
+                ->toArray();
+        });
 
         // Siempre devolver como Collection
         return collect($data);
@@ -228,62 +197,53 @@ class ModuloService
      */
     public function buscarModuloPrincipal(string $moduloPrincipal): ?SYSRoles
     {
-        $slugToNombre = [
-            'planeacion' => 'Planeación',
-            'tejido' => 'Tejido',
-            'urdido' => 'Urdido',
-            'engomado' => 'Engomado',
-            'atadores' => 'Atadores',
-            'tejedores' => 'Tejedores',
-            'mantenimiento' => 'Mantenimiento',
-            'programa-urd-eng' => 'Programa Urd / Eng',
-            'configuracion' => 'Configuración',
-        ];
+        $cacheKey = "{$this->getCachePrefix()}_modulo_principal_{$moduloPrincipal}";
 
-        $buscado = $slugToNombre[$moduloPrincipal] ?? $moduloPrincipal;
-
-        // Buscar primero por nombre, sin filtrar por acceso (para encontrar el módulo padre)
-        $modulo = SYSRoles::where('Nivel', 1)
-            ->whereNull('Dependencia')
-            ->where('modulo', $buscado)
-            ->first();
-
-        if (!$modulo) {
-            $rangos = [
-                'planeacion' => 100,
-                'tejido' => 200,
-                'urdido' => 300,
-                'engomado' => 400,
-                'atadores' => 500,
-                'tejedores' => 600,
-                'programa-urd-eng' => 700,
-                'mantenimiento' => 800,
-                'configuracion' => 900,
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($moduloPrincipal) {
+            $slugToNombre = [
+                'planeacion' => 'Planeación',
+                'tejido' => 'Tejido',
+                'urdido' => 'Urdido',
+                'engomado' => 'Engomado',
+                'atadores' => 'Atadores',
+                'tejedores' => 'Tejedores',
+                'mantenimiento' => 'Mantenimiento',
+                'programa-urd-eng' => 'Programa Urd / Eng',
+                'configuracion' => 'Configuración',
             ];
 
-            if (isset($rangos[$moduloPrincipal])) {
-                // Buscar por orden, sin filtrar por acceso
-                $modulo = SYSRoles::where('Nivel', 1)
-                    ->whereNull('Dependencia')
-                    ->where('orden', $rangos[$moduloPrincipal])
-                    ->first();
+            $buscado = $slugToNombre[$moduloPrincipal] ?? $moduloPrincipal;
+
+            // Buscar primero por nombre, sin filtrar por acceso (para encontrar el módulo padre)
+            $modulo = SYSRoles::where('Nivel', 1)
+                ->whereNull('Dependencia')
+                ->where('modulo', $buscado)
+                ->first();
+
+            if (!$modulo) {
+                $rangos = [
+                    'planeacion' => 100,
+                    'tejido' => 200,
+                    'urdido' => 300,
+                    'engomado' => 400,
+                    'atadores' => 500,
+                    'tejedores' => 600,
+                    'programa-urd-eng' => 700,
+                    'mantenimiento' => 800,
+                    'configuracion' => 900,
+                ];
+
+                if (isset($rangos[$moduloPrincipal])) {
+                    // Buscar por orden, sin filtrar por acceso
+                    $modulo = SYSRoles::where('Nivel', 1)
+                        ->whereNull('Dependencia')
+                        ->where('orden', $rangos[$moduloPrincipal])
+                        ->first();
+                }
             }
-        }
 
-        Log::info("ModuloService: buscarModuloPrincipal", [
-            'modulo_principal' => $moduloPrincipal,
-            'buscado' => $buscado,
-            'modulo_encontrado' => $modulo ? [
-                'idrol' => $modulo->idrol,
-                'modulo' => $modulo->modulo,
-                'orden' => $modulo->orden,
-                'Nivel' => $modulo->Nivel,
-                'Dependencia' => $modulo->Dependencia,
-                'acceso' => $modulo->acceso
-            ] : null
-        ]);
-
-        return $modulo;
+            return $modulo;
+        });
     }
 
     /**
@@ -291,20 +251,13 @@ class ModuloService
      */
     public function limpiarCacheUsuario(int $idusuario): void
     {
-        $patterns = [
-            "{$this->getCachePrefix()}_principales_user_{$idusuario}",
-            "{$this->getCachePrefix()}_submodulos_*_user_{$idusuario}",
-        ];
+        $prefix = $this->getCachePrefix();
 
-        foreach ($patterns as $pattern) {
-            // Limpiar caché específico
-            Cache::forget("{$this->getCachePrefix()}_principales_user_{$idusuario}");
+        Cache::forget("{$prefix}_principales_user_{$idusuario}");
 
-            // Limpiar submódulos de todos los módulos
-            $modulos = ['planeacion', 'tejido', 'urdido', 'engomado', 'atadores', 'tejedores', 'mantenimiento', 'programa-urd-eng'];
-            foreach ($modulos as $modulo) {
-                Cache::forget("{$this->getCachePrefix()}_submodulos_{$modulo}_user_{$idusuario}");
-            }
+        $modulos = ['planeacion', 'tejido', 'urdido', 'engomado', 'atadores', 'tejedores', 'mantenimiento', 'programa-urd-eng', 'configuracion'];
+        foreach ($modulos as $modulo) {
+            Cache::forget("{$prefix}_submodulos_{$modulo}_user_{$idusuario}");
         }
     }
 
@@ -333,12 +286,6 @@ class ModuloService
      */
     private function generarRutaSubModulo(string $nombreModulo, string $orden, ?string $dependencia = null): string
     {
-        Log::info("ModuloService: generarRutaSubModulo", [
-            'nombre_modulo' => $nombreModulo,
-            'orden' => $orden,
-            'dependencia' => $dependencia
-        ]);
-
         // Caso especial: Configurar puede estar en Tejido o Tejedores
         if (strtolower(trim($nombreModulo)) === 'configurar') {
             if ($dependencia == 600 || (is_string($dependencia) && strpos($dependencia, '600') === 0)) {

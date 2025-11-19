@@ -235,10 +235,21 @@ window.ProgramaTejidoForm = {
         const container = document.getElementById('clave-modelo-suggestions');
         if (!input || !container) return;
 
-        // Input con debounce
+        // Input con debounce - siempre usar el salón seleccionado del select
         const buscarConDebounce = ProgramaTejidoUtils.debounce((valor) => {
             if (valor.length >= ProgramaTejidoConfig.ui.minimoCaracteresAutocompletado) {
-                this.cargarOpcionesTamanoClave(this.state.salonSeleccionado, valor);
+                // Obtener salón directamente del select para asegurar que esté actualizado
+                const salonSelect = document.getElementById('salon-select');
+                const salonValue = salonSelect ? salonSelect.value : '';
+                const salonParaBuscar = salonValue || this.state.salonSeleccionado;
+
+                if (!salonParaBuscar) {
+                    container.classList.add('hidden');
+                    console.warn(' Seleccione un salón antes de buscar la clave modelo');
+                    return;
+                }
+
+                this.cargarOpcionesTamanoClave(salonParaBuscar, valor);
             } else {
                 container.classList.add('hidden');
             }
@@ -246,10 +257,23 @@ window.ProgramaTejidoForm = {
 
         input.addEventListener('input', (e) => buscarConDebounce(e.target.value));
 
-        // Focus - mostrar sugerencias si existen
+        // Focus - recargar sugerencias con el salón seleccionado si hay texto
         input.addEventListener('focus', () => {
-            if (this.state.sugerenciasClaveModelo.length > 0) {
-                this.mostrarSugerenciasClaveModelo(this.state.sugerenciasClaveModelo);
+            const valor = input.value.trim();
+            const salonSelect = document.getElementById('salon-select');
+            const salonValue = salonSelect ? salonSelect.value : '';
+            const salonParaBuscar = salonValue || this.state.salonSeleccionado;
+
+            if (valor.length >= ProgramaTejidoConfig.ui.minimoCaracteresAutocompletado && salonParaBuscar) {
+                // Recargar sugerencias con el salón actual
+                this.cargarOpcionesTamanoClave(salonParaBuscar, valor);
+            } else if (this.state.sugerenciasClaveModelo.length > 0) {
+                // Si hay sugerencias en cache pero no hay salón, limpiarlas
+                if (!salonParaBuscar) {
+                    container.classList.add('hidden');
+                } else {
+                    this.mostrarSugerenciasClaveModelo(this.state.sugerenciasClaveModelo);
+                }
             }
         });
 
@@ -268,16 +292,53 @@ window.ProgramaTejidoForm = {
             }
         });
 
-        // Change event
+        // Change event - también se dispara cuando pierde el foco
         input.addEventListener('change', () => {
             const valor = input.value.trim();
             if (valor) {
                 input.classList.add(...ProgramaTejidoConfig.ui.clasesInputSeleccionado.split(' '));
-                if (this.state.salonSeleccionado && valor) {
-                    this.cargarDatosRelacionados(this.state.salonSeleccionado, valor);
+
+                // Verificar salón tanto del estado como directamente del select
+                const salonSelect = document.getElementById('salon-select');
+                const salonValue = salonSelect ? salonSelect.value : '';
+                const salonSeleccionado = salonValue || this.state.salonSeleccionado;
+
+                if (salonSeleccionado && valor) {
+                    // Actualizar estado si no estaba sincronizado
+                    if (!this.state.salonSeleccionado && salonValue) {
+                        this.state.salonSeleccionado = salonValue;
+                    }
+                    this.cargarDatosRelacionados(salonSeleccionado, valor);
+                } else if (!salonSeleccionado) {
+                    console.warn('⚠️ Seleccione un salón antes de buscar la clave modelo');
                 }
             } else {
                 input.classList.remove(...ProgramaTejidoConfig.ui.clasesInputSeleccionado.split(' '));
+            }
+        });
+
+        // Blur event - cuando pierde el foco, intentar cargar datos si hay salón
+        input.addEventListener('blur', () => {
+            const valor = input.value.trim();
+            if (valor) {
+                // Verificar salón tanto del estado como directamente del select
+                const salonSelect = document.getElementById('salon-select');
+                const salonValue = salonSelect ? salonSelect.value : '';
+                const salonSeleccionado = salonValue || this.state.salonSeleccionado;
+
+                if (salonSeleccionado) {
+                    // Actualizar estado si no estaba sincronizado
+                    if (!this.state.salonSeleccionado && salonValue) {
+                        this.state.salonSeleccionado = salonValue;
+                    }
+                    // Pequeño delay para permitir que el evento change se procese primero
+                    setTimeout(() => {
+                        const valorActual = input.value.trim();
+                        if (valorActual && salonSeleccionado) {
+                            this.cargarDatosRelacionados(salonSeleccionado, valorActual);
+                        }
+                    }, 100);
+                }
             }
         });
     },
@@ -342,8 +403,17 @@ window.ProgramaTejidoForm = {
                 input.classList.add(...ProgramaTejidoConfig.ui.clasesInputSeleccionado.split(' '));
                 container.classList.add('hidden');
 
-                if (this.state.salonSeleccionado && sugerencia) {
-                    this.cargarDatosRelacionados(this.state.salonSeleccionado, sugerencia);
+                // Verificar salón tanto del estado como directamente del select
+                const salonSelect = document.getElementById('salon-select');
+                const salonValue = salonSelect ? salonSelect.value : '';
+                const salonSeleccionado = salonValue || this.state.salonSeleccionado;
+
+                if (salonSeleccionado && sugerencia) {
+                    // Actualizar estado si no estaba sincronizado
+                    if (!this.state.salonSeleccionado && salonValue) {
+                        this.state.salonSeleccionado = salonValue;
+                    }
+                    this.cargarDatosRelacionados(salonSeleccionado, sugerencia);
                 }
             });
             container.appendChild(div);
@@ -370,6 +440,21 @@ window.ProgramaTejidoForm = {
 
         const container = document.getElementById('clave-modelo-suggestions');
         if (container) container.classList.add('hidden');
+
+        // Verificar salón tanto del estado como directamente del select
+        const salonSelect = document.getElementById('salon-select');
+        const salonValue = salonSelect ? salonSelect.value : '';
+        const salonSeleccionado = salonValue || this.state.salonSeleccionado;
+
+        // Cargar datos relacionados si hay salón seleccionado
+        if (salonSeleccionado && valor) {
+            // Actualizar estado si no estaba sincronizado
+            if (!this.state.salonSeleccionado && salonValue) {
+                this.state.salonSeleccionado = salonValue;
+            }
+            this.cargarDatosRelacionados(salonSeleccionado, valor);
+        }
+
         return true;
     },
 
@@ -563,14 +648,41 @@ window.ProgramaTejidoForm = {
             salonSelect.classList.remove(...ProgramaTejidoConfig.ui.clasesInputSeleccionado.split(' '));
         }
 
+        // Guardar clave modelo antes de limpiar
+        const claveModeloInput = document.getElementById('clave-modelo-input');
+        const claveModeloValor = claveModeloInput ? claveModeloInput.value.trim() : '';
+
         // Limpiar formulario
         this.limpiarFormulario();
+
+        // Restaurar clave modelo si había una seleccionada
+        if (claveModeloInput && claveModeloValor) {
+            claveModeloInput.value = claveModeloValor;
+            claveModeloInput.classList.add(...ProgramaTejidoConfig.ui.clasesInputSeleccionado.split(' '));
+        }
+
+        // Limpiar cache de sugerencias de clave modelo para forzar recarga con nuevo salón
+        this.state.cacheClaveModelo.clear();
+        this.state.sugerenciasClaveModelo = [];
 
         // Cargar telares del salón
         if (salonTejidoId) {
             await this.cargarTelaresPorSalon(salonTejidoId);
+
+            // Si hay salón y clave modelo, cargar datos relacionados
+            if (claveModeloValor) {
+                this.cargarDatosRelacionados(salonTejidoId, claveModeloValor);
+            }
+
+            // Si hay texto en el campo de clave modelo, recargar sugerencias filtradas por el nuevo salón
+            if (claveModeloValor && claveModeloValor.length >= ProgramaTejidoConfig.ui.minimoCaracteresAutocompletado) {
+                this.cargarOpcionesTamanoClave(salonTejidoId, claveModeloValor);
+            }
         } else {
             this.state.telaresDisponibles = [];
+            // Ocultar sugerencias si no hay salón seleccionado
+            const container = document.getElementById('clave-modelo-suggestions');
+            if (container) container.classList.add('hidden');
         }
     },
 
@@ -596,19 +708,66 @@ window.ProgramaTejidoForm = {
         try {
             if (!salonTejidoId) {
                 this.state.telaresDisponibles = [];
+                this.actualizarBotonesTelar(false);
                 return;
             }
 
-            const telares = await ProgramaTejidoUtils.fetchConCSRF(
-                `${ProgramaTejidoConfig.api.telaresBySalon}?salon_tejido_id=${salonTejidoId}`,
-                { method: 'GET' }
-            );
+            console.log('🔍 Cargando telares para salón:', salonTejidoId);
+            const url = `${ProgramaTejidoConfig.api.telaresBySalon}?salon_tejido_id=${encodeURIComponent(salonTejidoId)}`;
+            console.log('📡 URL:', url);
 
-            this.state.telaresDisponibles = telares;
+            const telares = await ProgramaTejidoUtils.fetchConCSRF(url, { method: 'GET' });
+
+            console.log('📦 Respuesta del servidor:', telares);
+            console.log('📦 Tipo de respuesta:', typeof telares, Array.isArray(telares));
+
+            // Manejar diferentes formatos de respuesta
+            let telaresArray = [];
+            if (Array.isArray(telares)) {
+                telaresArray = telares;
+            } else if (telares && typeof telares === 'object') {
+                // Si es un objeto con error
+                if (telares.error) {
+                    console.error('❌ Error del servidor:', telares.error);
+                    this.state.telaresDisponibles = [];
+                    this.actualizarBotonesTelar(false);
+                    return;
+                }
+                // Si es un objeto con datos
+                if (telares.data && Array.isArray(telares.data)) {
+                    telaresArray = telares.data;
+                } else if (telares.telares && Array.isArray(telares.telares)) {
+                    telaresArray = telares.telares;
+                }
+            }
+
+            this.state.telaresDisponibles = telaresArray;
+            // Asegurar que se actualice en el objeto global por si acaso se perdió la referencia this
+            if (window.ProgramaTejidoForm) {
+                window.ProgramaTejidoForm.state.telaresDisponibles = telaresArray;
+            }
+
+            console.log('✅ Telares procesados y guardados en estado:', this.state.telaresDisponibles.length);
+            console.log('📊 Estado global:', window.ProgramaTejidoForm ? window.ProgramaTejidoForm.state.telaresDisponibles : 'No disponible');
+
             this.actualizarFilasTelaresExistentes();
+
+            // Habilitar botones si hay telares disponibles
+            if (this.state.telaresDisponibles.length > 0) {
+                this.actualizarBotonesTelar(true);
+                console.log('✅ Telares cargados:', this.state.telaresDisponibles.length);
+            } else {
+                this.actualizarBotonesTelar(false);
+                console.warn('⚠️ No hay telares disponibles para este salón:', salonTejidoId);
+            }
         } catch (error) {
-            console.error('Error al cargar telares:', error);
+            console.error('❌ Error al cargar telares:', error);
+            console.error('❌ Detalles del error:', {
+                message: error.message,
+                stack: error.stack
+            });
             this.state.telaresDisponibles = [];
+            this.actualizarBotonesTelar(false);
         }
     },
 
@@ -671,11 +830,20 @@ window.ProgramaTejidoForm = {
     /**
      * Llenar campos del formulario con datos
      */
-    llenarCamposConDatos(datos) {
+    async llenarCamposConDatos(datos) {
         console.log('📝 Llenando campos con datos:', datos);
 
         // Guardar datos del modelo
         this.state.datosModeloActual = { ...datos };
+
+        // Establecer salón primero sin disparar evento change para evitar limpieza
+        if (datos.SalonTejidoId) {
+            ProgramaTejidoUtils.establecerValorCampo('salon-select', datos.SalonTejidoId, true, false);
+            this.state.salonSeleccionado = datos.SalonTejidoId;
+
+            // Cargar telares explícitamente
+            await this.cargarTelaresPorSalon(datos.SalonTejidoId);
+        }
 
         // Llenar campos según mapeo
         Object.entries(ProgramaTejidoConfig.fieldMappings).forEach(([campoDB, campoInput]) => {
@@ -691,8 +859,14 @@ window.ProgramaTejidoForm = {
             }
         });
 
-        // Habilitar botones de telar
-        this.actualizarBotonesTelar(true);
+        // Habilitar botones de telar solo si hay telares disponibles
+        if (this.state.telaresDisponibles && this.state.telaresDisponibles.length > 0) {
+            this.actualizarBotonesTelar(true);
+        } else {
+            // Si no hay telares, mantener deshabilitados (o deshabilitar por si acaso)
+            // Pero permitir que cargarTelaresPorSalon maneje esto si está en proceso
+            console.log('⚠️ Datos cargados pero no hay telares disponibles para habilitar botones');
+        }
     },
 
     /**
@@ -835,6 +1009,8 @@ window.ProgramaTejidoForm = {
                 ProgramaTejidoConfig.ui.clasesBotonEliminarHabilitado :
                 ProgramaTejidoConfig.ui.clasesBotonDeshabilitado;
         }
+
+        console.log('🔘 Botones de telar', habilitar ? 'habilitados' : 'deshabilitados');
     },
 
     /**

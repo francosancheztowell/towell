@@ -52,7 +52,12 @@ class ReqProgramaTejidoLineController extends Controller
     /* -------------------- Index (con filtros) -------------------- */
     public function index(Request $request): JsonResponse
     {
-        $perPage = max(1, min((int)$request->query('per_page', 25), 500));
+        // Si se consulta por programa_id sin filtros de fecha, aumentar el límite de paginación
+        $defaultPerPage = $request->filled('programa_id') && !$request->filled('fecha') && (!$request->filled('desde') || !$request->filled('hasta'))
+            ? 1000
+            : 25;
+
+        $perPage = max(1, min((int)$request->query('per_page', $defaultPerPage), 5000));
 
         $q = ReqProgramaTejidoLine::query();
 

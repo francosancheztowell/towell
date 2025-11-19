@@ -220,9 +220,7 @@ class UsuarioController extends Controller
     public function showConfiguracion()
     {
         $usuarioActual = Auth::user();
-        $moduloConfiguracion = SYSRoles::modulosPrincipales()
-            ->where('modulo', 'Configuración')
-            ->first();
+        $moduloConfiguracion = $this->moduloService->buscarModuloPrincipal('configuracion');
 
         if (!$moduloConfiguracion) {
             return redirect('/produccionProceso')
@@ -231,7 +229,8 @@ class UsuarioController extends Controller
 
         $subModulos = $this->moduloService->getSubmodulosPorModuloPrincipal(
             'configuracion',
-            $usuarioActual->idusuario
+            $usuarioActual->idusuario,
+            $moduloConfiguracion
         );
 
         return view('modulos.configuracion', [
@@ -280,7 +279,8 @@ class UsuarioController extends Controller
 
         $subModulos = $this->moduloService->getSubmodulosPorModuloPrincipal(
             $moduloPrincipal,
-            $usuarioActual->idusuario
+            $usuarioActual->idusuario,
+            $moduloPadre
         );
 
         return view('modulos.submodulos', [

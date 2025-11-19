@@ -7,6 +7,9 @@ window.TelarManager = {
      * Agregar nueva fila a la tabla de telares
      */
     agregarFilaTelar() {
+        console.log('➕ Agregando fila de telar...');
+        console.log('📊 Estado actual de telares:', ProgramaTejidoForm.state.telaresDisponibles);
+
         const contadorFilas = ++ProgramaTejidoForm.state.contadorFilasTelar;
         const tbody = document.getElementById('tbodyTelares');
         const mensajeVacio = document.getElementById('mensaje-vacio-telares');
@@ -18,9 +21,13 @@ window.TelarManager = {
 
         // Crear opciones de telares
         let opcionesTelares = '<option value="">Seleccione...</option>';
-        ProgramaTejidoForm.state.telaresDisponibles.forEach(telar => {
-            opcionesTelares += `<option value="${telar}">${telar}</option>`;
-        });
+        if (ProgramaTejidoForm.state.telaresDisponibles && Array.isArray(ProgramaTejidoForm.state.telaresDisponibles)) {
+            ProgramaTejidoForm.state.telaresDisponibles.forEach(telar => {
+                opcionesTelares += `<option value="${telar}">${telar}</option>`;
+            });
+        } else {
+            console.error('❌ No hay telares disponibles o el formato es incorrecto');
+        }
 
         const nuevaFila = document.createElement('tr');
         nuevaFila.id = `fila-telar-${contadorFilas}`;

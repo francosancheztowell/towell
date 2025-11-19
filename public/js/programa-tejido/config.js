@@ -15,7 +15,7 @@ window.ProgramaTejidoConfig = {
         ultimaFechaFinalTelar: `${apiBasePath}/ultima-fecha-final-telar`,
         hilos: `${apiBasePath}/hilos-options`,
         flogsId: `${apiBasePath}/flogs-id-options`,
-        flogsIdFromTwFlogs: `${apiBasePath}/flogs-id-from-twflogs-table`,
+        flogsIdFromTwFlogs: `${apiBasePath}/flogs-id-from-twflogs`,
         descripcionByIdFlog: `${apiBasePath}/descripcion-by-idflog`,
         calendarioId: `${apiBasePath}/calendario-id-options`,
         aplicacionId: `${apiBasePath}/aplicacion-id-options`,
