@@ -3,7 +3,7 @@
 @section('title', 'Gestión de Módulos')
 
 @section('navbar-right')
-    <x-navbar.button-create href="{{ route('modulos.sin.auth.create') }}" title="Crear Módulo" />
+    <x-navbar.button-create onclick="abrirModalCrearModulo()" title="Crear Módulo" />
     <x-navbar.button-edit id="btnEditarSeleccionado" onclick="editarModuloSeleccionado()" title="Editar" />
     <x-navbar.button-delete id="btnEliminarSeleccionado" onclick="eliminarModulosSeleccionados()" title="Eliminar" />
 @endsection
@@ -185,6 +185,203 @@
             </div>
         </div>
     @endif
+</div>
+
+{{-- Modal Crear Módulo --}}
+<div id="modalCrearModulo" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <!-- Header -->
+        <div class="bg-blue-600 text-white px-6 py-4 rounded-t-lg flex justify-between items-center">
+            <h3 class="text-lg font-semibold">Crear Nuevo Módulo</h3>
+            <button onclick="cerrarModalCrearModulo()" class="text-white hover:text-gray-200 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form id="formCrearModulo" action="{{ route('modulos.sin.auth.store') }}" method="POST" enctype="multipart/form-data" class="p-6">
+            @csrf
+
+            <!-- Campos principales -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <!-- Orden -->
+                <div>
+                    <label for="modal_orden" class="block text-sm font-medium text-gray-700 mb-1">
+                        Orden <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           id="modal_orden"
+                           name="orden"
+                           required
+                           placeholder="Ej: 600, 601">
+                    <p class="text-xs text-gray-500 mt-1">Debe ser único</p>
+                </div>
+
+                <!-- Nombre del Módulo -->
+                <div>
+                    <label for="modal_modulo" class="block text-sm font-medium text-gray-700 mb-1">
+                        Nombre del Módulo <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           id="modal_modulo"
+                           name="modulo"
+                           required
+                           placeholder="Ej: Nuevo Módulo">
+                </div>
+            </div>
+
+            <!-- Sistema de Selección Jerárquica -->
+            <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h4 class="text-sm font-semibold text-gray-700 mb-3">Ubicación en la Jerarquía</h4>
+                
+                <!-- Nivel 1: Selección de tipo de módulo -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Select Nivel -->
+                    <div>
+                        <label for="modal_nivel_select" class="block text-sm font-medium text-gray-700 mb-1">
+                            1. Tipo de Módulo <span class="text-red-500">*</span>
+                        </label>
+                        <select class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                id="modal_nivel_select"
+                                required
+                                onchange="cambiarNivelModulo()">
+                            <option value="">Seleccionar tipo</option>
+                            <option value="1">Módulo Principal (Nivel 1)</option>
+                            <option value="2">Submódulo (Nivel 2)</option>
+                            <option value="3">Sub-submódulo (Nivel 3)</option>
+                        </select>
+                    </div>
+
+                    <!-- Select Módulo Nivel 1 (Solo visible para niveles 2 y 3) -->
+                    <div id="container_modulo_nivel1" class="hidden">
+                        <label for="modal_modulo_nivel1" class="block text-sm font-medium text-gray-700 mb-1">
+                            2. Módulo Principal <span class="text-red-500">*</span>
+                        </label>
+                        <select class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                id="modal_modulo_nivel1"
+                                onchange="cargarModulosNivel2()">
+                            <option value="">Seleccionar módulo principal</option>
+                            @foreach($modulos->where('Nivel', 1)->whereNull('Dependencia')->sortBy('orden') as $moduloPrincipal)
+                                <option value="{{ $moduloPrincipal->orden }}" data-nombre="{{ $moduloPrincipal->modulo }}">
+                                    {{ $moduloPrincipal->modulo }} ({{ $moduloPrincipal->orden }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Select Módulo Nivel 2 (Solo visible para nivel 3) -->
+                    <div id="container_modulo_nivel2" class="hidden">
+                        <label for="modal_modulo_nivel2" class="block text-sm font-medium text-gray-700 mb-1">
+                            3. Submódulo <span class="text-red-500">*</span>
+                        </label>
+                        <select class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                id="modal_modulo_nivel2"
+                                onchange="establecerDependenciaFinal()">
+                            <option value="">Seleccionar submódulo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Información de ubicación -->
+                <div id="info_ubicacion" class="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700 hidden">
+                    <strong>Ubicación:</strong> <span id="texto_ubicacion"></span>
+                </div>
+            </div>
+
+            <!-- Campos ocultos para el formulario -->
+            <input type="hidden" id="modal_Nivel" name="Nivel">
+            <input type="hidden" id="modal_Dependencia" name="Dependencia">
+
+            <!-- Permisos -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Permisos del Módulo</label>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox"
+                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                               name="acceso"
+                               value="1"
+                               checked>
+                        <span class="text-sm text-gray-700">Acceso</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox"
+                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                               name="crear"
+                               value="1">
+                        <span class="text-sm text-gray-700">Crear</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox"
+                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                               name="modificar"
+                               value="1">
+                        <span class="text-sm text-gray-700">Modificar</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox"
+                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                               name="eliminar"
+                               value="1">
+                        <span class="text-sm text-gray-700">Eliminar</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox"
+                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                               name="reigstrar"
+                               value="1">
+                        <span class="text-sm text-gray-700">Registrar</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Imagen -->
+            <div class="mb-4">
+                <label for="modal_imagen_archivo" class="block text-sm font-medium text-gray-700 mb-1">
+                    Imagen del Módulo (Opcional)
+                </label>
+                
+                <!-- Preview -->
+                <div id="modal_imagen_preview" class="hidden mb-3">
+                    <div class="flex items-center space-x-3">
+                        <img id="modal_preview_img"
+                             alt="Vista previa"
+                             class="w-16 h-16 object-cover rounded-lg border border-gray-200">
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">Vista previa</p>
+                            <p id="modal_preview_filename" class="text-xs text-gray-500"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <input type="file"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       id="modal_imagen_archivo"
+                       name="imagen_archivo"
+                       accept="image/*"
+                       onchange="previsualizarImagen(this)">
+                <p class="text-xs text-gray-500 mt-1">JPG, PNG, GIF. Máximo: 2MB</p>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex justify-end space-x-3 pt-4 border-t">
+                <button type="button"
+                        onclick="cerrarModalCrearModulo()"
+                        class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
+                    Cancelar
+                </button>
+                <button type="button"
+                        onclick="confirmarCreacionModal()"
+                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                    Crear Módulo
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 {{-- Scripts --}}
@@ -401,6 +598,288 @@
     };
 
     // ==================== FUNCIONES GLOBALES ====================
+    
+    // Función para abrir el modal de crear módulo
+    window.abrirModalCrearModulo = function() {
+        document.getElementById('modalCrearModulo').classList.remove('hidden');
+        document.getElementById('formCrearModulo').reset();
+        document.getElementById('modal_imagen_preview').classList.add('hidden');
+        
+        // Resetear sistema jerárquico
+        resetearSistemaJerarquico();
+    };
+
+    // Función para cerrar el modal
+    window.cerrarModalCrearModulo = function() {
+        document.getElementById('modalCrearModulo').classList.add('hidden');
+        document.getElementById('formCrearModulo').reset();
+        document.getElementById('modal_imagen_preview').classList.add('hidden');
+        resetearSistemaJerarquico();
+    };
+
+    // Resetear sistema jerárquico
+    function resetearSistemaJerarquico() {
+        // Ocultar contenedores
+        document.getElementById('container_modulo_nivel1').classList.add('hidden');
+        document.getElementById('container_modulo_nivel2').classList.add('hidden');
+        document.getElementById('info_ubicacion').classList.add('hidden');
+        
+        // Resetear selects
+        document.getElementById('modal_nivel_select').value = '';
+        document.getElementById('modal_modulo_nivel1').value = '';
+        document.getElementById('modal_modulo_nivel2').value = '';
+        
+        // Limpiar campos ocultos
+        document.getElementById('modal_Nivel').value = '';
+        document.getElementById('modal_Dependencia').value = '';
+        
+        // Limpiar opciones dinámicas
+        const nivel2Select = document.getElementById('modal_modulo_nivel2');
+        nivel2Select.innerHTML = '<option value="">Seleccionar submódulo</option>';
+    }
+
+    // Cambio de nivel principal
+    window.cambiarNivelModulo = function() {
+        const nivel = document.getElementById('modal_nivel_select').value;
+        
+        // Resetear estado
+        resetearSistemaJerarquico();
+        
+        // Establecer nivel en campo oculto
+        document.getElementById('modal_Nivel').value = nivel;
+        
+        if (nivel === '1') {
+            // Nivel 1 - No necesita dependencia
+            document.getElementById('modal_Dependencia').value = '';
+            mostrarUbicacion('Módulo Principal (sin dependencia)');
+            
+        } else if (nivel === '2') {
+            // Nivel 2 - Mostrar selector de módulos nivel 1
+            document.getElementById('container_modulo_nivel1').classList.remove('hidden');
+            document.getElementById('info_ubicacion').classList.add('hidden');
+            
+        } else if (nivel === '3') {
+            // Nivel 3 - Mostrar selectores de nivel 1 y 2
+            document.getElementById('container_modulo_nivel1').classList.remove('hidden');
+            document.getElementById('info_ubicacion').classList.add('hidden');
+        }
+    };
+
+    // Cargar módulos de nivel 2 cuando se selecciona un módulo de nivel 1
+    window.cargarModulosNivel2 = function() {
+        const nivelSeleccionado = document.getElementById('modal_nivel_select').value;
+        const moduloNivel1 = document.getElementById('modal_modulo_nivel1');
+        const moduloNivel1Valor = moduloNivel1.value;
+        const moduloNivel1Nombre = moduloNivel1.options[moduloNivel1.selectedIndex]?.getAttribute('data-nombre') || '';
+        
+        if (nivelSeleccionado === '2') {
+            // Para nivel 2, establecer dependencia directamente
+            document.getElementById('modal_Dependencia').value = moduloNivel1Valor;
+            
+            if (moduloNivel1Valor) {
+                mostrarUbicacion(`${moduloNivel1Nombre} > [Nuevo Submódulo]`);
+            }
+            
+        } else if (nivelSeleccionado === '3') {
+            // Para nivel 3, cargar submódulos disponibles
+            if (moduloNivel1Valor) {
+                cargarSubmodolosDisponibles(moduloNivel1Valor);
+                document.getElementById('container_modulo_nivel2').classList.remove('hidden');
+            } else {
+                document.getElementById('container_modulo_nivel2').classList.add('hidden');
+                document.getElementById('modal_modulo_nivel2').innerHTML = '<option value="">Seleccionar submódulo</option>';
+            }
+        }
+    };
+
+    // Cargar submódulos disponibles para el nivel 3
+    function cargarSubmodolosDisponibles(ordenPadre) {
+        const nivel2Select = document.getElementById('modal_modulo_nivel2');
+        nivel2Select.innerHTML = '<option value="">Seleccionar submódulo</option>';
+        
+        // Buscar módulos de nivel 2 que dependan del módulo de nivel 1 seleccionado
+        @php
+            $modulosNivel2JSON = $modulos->where('Nivel', 2)->values()->toJson();
+        @endphp
+        
+        const modulosNivel2 = @json($modulos->where('Nivel', 2)->values());
+        
+        modulosNivel2.forEach(modulo => {
+            if (modulo.Dependencia == ordenPadre) {
+                const option = document.createElement('option');
+                option.value = modulo.orden;
+                option.setAttribute('data-nombre', modulo.modulo);
+                option.textContent = `${modulo.modulo} (${modulo.orden})`;
+                nivel2Select.appendChild(option);
+            }
+        });
+        
+        if (nivel2Select.children.length === 1) {
+            // No hay submódulos disponibles
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No hay submódulos disponibles';
+            option.disabled = true;
+            nivel2Select.appendChild(option);
+        }
+    }
+
+    // Establecer dependencia final para nivel 3
+    window.establecerDependenciaFinal = function() {
+        const moduloNivel1 = document.getElementById('modal_modulo_nivel1');
+        const moduloNivel2 = document.getElementById('modal_modulo_nivel2');
+        
+        const moduloNivel1Nombre = moduloNivel1.options[moduloNivel1.selectedIndex]?.getAttribute('data-nombre') || '';
+        const moduloNivel2Nombre = moduloNivel2.options[moduloNivel2.selectedIndex]?.getAttribute('data-nombre') || '';
+        const moduloNivel2Valor = moduloNivel2.value;
+        
+        if (moduloNivel2Valor) {
+            document.getElementById('modal_Dependencia').value = moduloNivel2Valor;
+            mostrarUbicacion(`${moduloNivel1Nombre} > ${moduloNivel2Nombre} > [Nuevo Sub-submódulo]`);
+        } else {
+            document.getElementById('modal_Dependencia').value = '';
+            document.getElementById('info_ubicacion').classList.add('hidden');
+        }
+    };
+
+    // Mostrar información de ubicación
+    function mostrarUbicacion(texto) {
+        document.getElementById('texto_ubicacion').textContent = texto;
+        document.getElementById('info_ubicacion').classList.remove('hidden');
+    }
+
+    // Actualizar dependencias según nivel (función legacy - mantenida por compatibilidad)
+    window.actualizarDependencias = function() {
+        // Esta función se mantiene por compatibilidad pero ya no se usa
+        // El nuevo sistema jerárquico maneja esto automáticamente
+    };
+
+    // Previsualizar imagen
+    window.previsualizarImagen = function(input) {
+        const file = input.files[0];
+        if (file) {
+            // Validar tamaño (2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                Utils.mostrarAlerta('error', 'Error', 'La imagen no debe superar los 2MB');
+                input.value = '';
+                return;
+            }
+
+            // Validar tipo
+            const tiposPermitidos = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'];
+            if (!tiposPermitidos.includes(file.type)) {
+                Utils.mostrarAlerta('error', 'Error', 'Solo se permiten imágenes JPG, PNG o GIF');
+                input.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('modal_preview_img').src = e.target.result;
+                document.getElementById('modal_preview_filename').textContent = file.name;
+                document.getElementById('modal_imagen_preview').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            document.getElementById('modal_imagen_preview').classList.add('hidden');
+        }
+    };
+
+    // Confirmar creación con validación
+    window.confirmarCreacionModal = function() {
+        const orden = document.getElementById('modal_orden').value.trim();
+        const modulo = document.getElementById('modal_modulo').value.trim();
+        const nivelSeleccionado = document.getElementById('modal_nivel_select').value;
+        const nivel = document.getElementById('modal_Nivel').value;
+        const dependencia = document.getElementById('modal_Dependencia').value;
+
+        // Validar campos requeridos básicos
+        if (!orden || !modulo || !nivelSeleccionado) {
+            Utils.mostrarAlerta('warning', 'Campos requeridos', 'Por favor completa todos los campos obligatorios (Orden, Nombre del Módulo y Tipo de Módulo).');
+            return;
+        }
+
+        // Validaciones específicas por nivel
+        if (nivelSeleccionado === '2') {
+            const moduloNivel1 = document.getElementById('modal_modulo_nivel1').value;
+            if (!moduloNivel1) {
+                Utils.mostrarAlerta('warning', 'Módulo Principal requerido', 'Debes seleccionar un módulo principal para el Nivel 2.');
+                return;
+            }
+        }
+
+        if (nivelSeleccionado === '3') {
+            const moduloNivel1 = document.getElementById('modal_modulo_nivel1').value;
+            const moduloNivel2 = document.getElementById('modal_modulo_nivel2').value;
+            
+            if (!moduloNivel1) {
+                Utils.mostrarAlerta('warning', 'Módulo Principal requerido', 'Debes seleccionar un módulo principal para el Nivel 3.');
+                return;
+            }
+            
+            if (!moduloNivel2) {
+                Utils.mostrarAlerta('warning', 'Submódulo requerido', 'Debes seleccionar un submódulo para el Nivel 3.');
+                return;
+            }
+        }
+
+        // Construir información de ubicación para confirmación
+        let ubicacionTexto = '';
+        if (nivelSeleccionado === '1') {
+            ubicacionTexto = 'Módulo Principal (sin dependencia)';
+        } else {
+            const textoUbicacion = document.getElementById('texto_ubicacion').textContent;
+            ubicacionTexto = textoUbicacion || 'Ubicación no definida';
+        }
+
+        // Confirmar con SweetAlert
+        Swal.fire({
+            title: '¿Confirmar creación?',
+            html: `
+                <div class="text-left">
+                    <p class="mb-2"><strong>Orden:</strong> ${orden}</p>
+                    <p class="mb-2"><strong>Módulo:</strong> ${modulo}</p>
+                    <p class="mb-2"><strong>Nivel:</strong> ${nivel}</p>
+                    <p class="mb-2"><strong>Ubicación:</strong> ${ubicacionTexto}</p>
+                    ${dependencia ? `<p class="mb-2"><strong>Dependencia:</strong> ${dependencia}</p>` : ''}
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#16a34a',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Sí, crear',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Mostrar loader
+                Swal.fire({
+                    title: 'Creando módulo...',
+                    text: 'Por favor espera',
+                    icon: 'info',
+                    allowOutsideClick: false,
+                    showConfirmButton: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Enviar formulario
+                document.getElementById('formCrearModulo').submit();
+            }
+        });
+    };
+
+    // Cerrar modal con tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('modalCrearModulo');
+            if (modal && !modal.classList.contains('hidden')) {
+                window.cerrarModalCrearModulo();
+            }
+        }
+    });
+
     window.editarModuloSeleccionado = function() {
         const checkedBoxes = $(SELECTORS.moduloCheckbox + ':checked');
         if (checkedBoxes.length === 1) {
