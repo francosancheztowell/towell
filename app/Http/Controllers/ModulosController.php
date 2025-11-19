@@ -7,7 +7,6 @@ use App\Models\SYSRoles;
 use App\Models\SYSUsuario;
 use App\Services\ModuloService;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 
@@ -26,13 +25,14 @@ class ModulosController extends Controller
     public function index()
     {
         try {
-            // Obtener todos los módulos ordenados jerárquicamente
-            $modulos = SYSRoles::orderBy('Dependencia', 'ASC')
-                ->orderBy('Nivel', 'ASC')
+            // Obtener todos los módulos y módulos principales para selects
+            $modulos = SYSRoles::orderBy('orden', 'ASC')->get();
+            $modulosPrincipales = SYSRoles::where('Nivel', 1)
+                ->whereNull('Dependencia')
                 ->orderBy('orden', 'ASC')
                 ->get();
 
-            return view('modulos.gestion-modulos.index', compact('modulos'));
+            return view('modulos.gestion-modulos.index', compact('modulos', 'modulosPrincipales'));
         } catch (\Exception $e) {
             Log::error('Error al cargar módulos: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Error al cargar los módulos');
@@ -206,8 +206,8 @@ class ModulosController extends Controller
             // Limpiar caché de módulos para todos los usuarios
             $this->limpiarCacheTodosUsuarios();
 
-            return redirect()->route('modulos.sin.auth.edit', $modulo->idrol)
-                ->with('success', "Módulo '{$modulo->modulo}' creado exitosamente")
+            return redirect()->route('configuracion.utileria.modulos')
+                ->with('success', 'Módulo creado correctamente')
                 ->with('show_sweetalert', true);
 
         } catch (\Exception $e) {
@@ -387,8 +387,9 @@ class ModulosController extends Controller
             // Limpiar caché de módulos para todos los usuarios
             $this->limpiarCacheTodosUsuarios();
 
-            return redirect()->route('configuracion.utileria.modulos.edit', $modulo->idrol)
-                ->with('success', "Módulo '{$modulo->modulo}' actualizado exitosamente");
+            return redirect()->route('configuracion.utileria.modulos')
+                ->with('success', 'Módulo actualizado correctamente')
+                ->with('show_sweetalert', true);
 
         } catch (\Exception $e) {
             Log::error('Error al actualizar módulo: ' . $e->getMessage(), [

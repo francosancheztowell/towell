@@ -57,7 +57,7 @@ Actividades BPM Engomado
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
-                <thead class="bg-gradient-to-r bg-blue-500 text-white sticky top-0 z-10">
+                    <thead class="bg-gradient-to-r bg-blue-500 text-white sticky top-0 z-10">
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold w-24">Orden</th>
                         <th class="px-4 py-3 text-left font-semibold">Actividad</th>
