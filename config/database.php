@@ -125,6 +125,18 @@ return [
             'trust_server_certificate' => true, // Permite confiar en el certificado del servidor
         ],
 
+        'sqlsrv_tow_pro' => [
+            'driver' => 'sqlsrv',
+            'host' => env('DB_HOST_TOW_PRO', '192.168.2.24'),
+            'port' => env('DB_PORT_TOW_PRO', '1433'),
+            'database' => env('DB_DATABASE_TOW_PRO', 'TOW_PRO'),
+            'username' => env('DB_USERNAME_TOW_PRO', 'ax'),
+            'password' => env('DB_PASSWORD_TOW_PRO', 'TWPL-sql2k8'),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'trust_server_certificate' => true,
+        ],
 
     ],
 

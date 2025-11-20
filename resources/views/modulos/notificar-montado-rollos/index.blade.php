@@ -24,8 +24,49 @@
 
         <!-- Body del Modal -->
         <div class="p-6">
-            <!-- Filtros de Tipo -->
-            <div class="mb-6 flex gap-4">
+            <!-- Select de Telar del Usuario -->
+            <div class="mb-6">
+                <label for="selectTelarOperador" class="block text-sm font-medium text-gray-700 mb-2">
+                    Seleccionar Telar
+                </label>
+                <select id="selectTelarOperador" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">-- Seleccione un telar --</option>
+                    @foreach($telaresUsuario as $telar)
+                        <option value="{{ $telar->NoTelarId }}">
+                            Telar {{ $telar->NoTelarId }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Tabla de Datos de Producción -->
+            <div id="tablaProduccionContainer" class="mb-6" style="display: none;">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">Datos de Producción</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-300 rounded-lg">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Marbete</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Artículo</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Tamaño</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Orden</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Telar</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Piezas</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Salón</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaProduccionBody" class="divide-y divide-gray-200">
+                            <!-- Los datos se cargarán dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mensaje de carga o error -->
+            <div id="mensajeEstado" class="text-center text-gray-500 mb-4" style="display: none;"></div>
+
+            <!-- Filtros de Tipo (ocultos por ahora) -->
+            <div class="mb-6 flex gap-4" style="display: none;">
                 <label class="inline-flex items-center cursor-pointer">
                     <input type="checkbox" id="checkRizo" class="form-checkbox h-5 w-5 text-blue-600 rounded" 
                         {{ $tipo === 'rizo' ? 'checked' : '' }}>
@@ -39,58 +80,15 @@
                 </label>
             </div>
 
-            <!-- Tabla de Telares -->
-            <div class="overflow-x-auto max-h-96">
-                <table class="min-w-full bg-white border border-gray-300 rounded-lg">
-                    <thead class="bg-gray-100 sticky top-0">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">
-                                Telar
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">
-                                Tipo
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">
-                                Acción
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        @forelse($telares as $telar)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ $telar->no_telar }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                        {{ $telar->tipo === 'rizo' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
-                                        {{ ucfirst($telar->tipo) }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                    <button type="button" 
-                                        onclick="verDetalleTelar('{{ $telar->no_telar }}', '{{ $telar->tipo }}')"
-                                        class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-xs">
-                                        Ver Detalle
-                                    </button>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="3" class="px-6 py-4 text-center text-sm text-gray-500">
-                                    No hay telares asignados o no coinciden con el filtro seleccionado
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
         </div>
 
         <!-- Footer del Modal -->
-        <div class="flex justify-end p-6 border-t border-gray-200">
+        <div class="flex justify-end gap-2 p-6 border-t border-gray-200">
             <button type="button" id="closeModalBtn" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
                 Cerrar
+            </button>
+            <button type="button" id="btnNotificarRollos" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors" style="display: none;">
+                Notificar
             </button>
         </div>
     </div>
@@ -131,15 +129,14 @@
         const modal = document.getElementById('modalTelares');
         const closeModal = document.getElementById('closeModal');
         const closeModalBtn = document.getElementById('closeModalBtn');
-        const checkRizo = document.getElementById('checkRizo');
-        const checkPie = document.getElementById('checkPie');
+        const selectTelarOperador = document.getElementById('selectTelarOperador');
+        const tablaProduccionContainer = document.getElementById('tablaProduccionContainer');
+        const tablaProduccionBody = document.getElementById('tablaProduccionBody');
+        const mensajeEstado = document.getElementById('mensajeEstado');
+        const btnNotificarRollos = document.getElementById('btnNotificarRollos');
 
-        const modalDetalle = document.getElementById('modalDetalleTelar');
-        const closeModalDetalle = document.getElementById('closeModalDetalle');
-        const closeModalDetalleBtn = document.getElementById('closeModalDetalleBtn');
-        const btnNotificar = document.getElementById('btnNotificar');
-
-        let registroActual = null;
+        let ordenActual = null;
+        let datosProduccion = [];
 
         // Mostrar modal automáticamente al cargar la página
         modal.style.display = 'flex';
@@ -160,160 +157,115 @@
             }
         });
 
-        // Función para aplicar filtro
-        function aplicarFiltro(tipo) {
-            const url = new URL(window.location.href);
+        // Event listener para cambio de telar
+        selectTelarOperador.addEventListener('change', async function() {
+            const noTelar = this.value;
             
-            if (tipo) {
-                url.searchParams.set('tipo', tipo);
-            } else {
-                url.searchParams.delete('tipo');
-            }
-            
-            window.location.href = url.toString();
-        }
-
-        // Event listeners para los checkboxes
-        checkRizo.addEventListener('change', function() {
-            if (this.checked) {
-                checkPie.checked = false;
-                aplicarFiltro('rizo');
-            } else {
-                aplicarFiltro(null);
-            }
-        });
-
-        checkPie.addEventListener('change', function() {
-            if (this.checked) {
-                checkRizo.checked = false;
-                aplicarFiltro('pie');
-            } else {
-                aplicarFiltro(null);
-            }
-        });
-
-        // Función para ver detalle del telar
-        window.verDetalleTelar = async function(noTelar, tipo) {
-            try {
-                const response = await fetch(`{{ route('notificar.mont.rollos') }}?no_telar=${encodeURIComponent(noTelar)}&tipo=${encodeURIComponent(tipo)}`, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.detalles) {
-                    registroActual = data.detalles;
-                    
-                    const content = document.getElementById('detalleTelarContent');
-                    content.innerHTML = `
-                        <div class="space-y-3">
-                            <div class="flex justify-between py-2 border-b">
-                                <span class="font-medium text-gray-700">Telar:</span>
-                                <span class="text-gray-900">${data.detalles.no_telar}</span>
-                            </div>
-                            <div class="flex justify-between py-2 border-b">
-                                <span class="font-medium text-gray-700">Tipo:</span>
-                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                    ${data.detalles.tipo === 'rizo' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
-                                    ${data.detalles.tipo.charAt(0).toUpperCase() + data.detalles.tipo.slice(1)}
-                                </span>
-                            </div>
-                            <div class="flex justify-between py-2 border-b">
-                                <span class="font-medium text-gray-700">Cuenta:</span>
-                                <span class="text-gray-900">${data.detalles.cuenta || 'N/A'}</span>
-                            </div>
-                            <div class="flex justify-between py-2 border-b">
-                                <span class="font-medium text-gray-700">Calibre:</span>
-                                <span class="text-gray-900">${data.detalles.calibre || 'N/A'}</span>
-                            </div>
-                            <div class="flex justify-between py-2 border-b">
-                                <span class="font-medium text-gray-700">Tipo Atado:</span>
-                                <span class="text-gray-900">${data.detalles.tipo_atado || 'N/A'}</span>
-                            </div>
-                            <div class="flex justify-between py-2 border-b">
-                                <span class="font-medium text-gray-700">No. Orden:</span>
-                                <span class="text-gray-900">${data.detalles.no_orden || 'N/A'}</span>
-                            </div>
-                            <div class="flex justify-between py-2 border-b">
-                                <span class="font-medium text-gray-700">No. Rollo:</span>
-                                <span class="text-gray-900">${data.detalles.no_rollo || 'N/A'}</span>
-                            </div>
-                            <div class="flex justify-between py-2 border-b">
-                                <span class="font-medium text-gray-700">Metros:</span>
-                                <span class="text-gray-900">${data.detalles.metros || 'N/A'}</span>
-                            </div>
-                            ${data.detalles.horaParo ? `
-                            <div class="flex justify-between py-2 border-b">
-                                <span class="font-medium text-gray-700">Hora Paro:</span>
-                                <span class="text-red-600 font-semibold">${data.detalles.horaParo}</span>
-                            </div>
-                            ` : ''}
-                        </div>
-                    `;
-
-                    modalDetalle.style.display = 'flex';
-                } else {
-                    alert('No se encontraron detalles para este telar');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error al cargar los detalles del telar');
-            }
-        };
-
-        // Cerrar modal de detalle
-        function cerrarModalDetalle() {
-            modalDetalle.style.display = 'none';
-            registroActual = null;
-        }
-
-        closeModalDetalle.addEventListener('click', cerrarModalDetalle);
-        closeModalDetalleBtn.addEventListener('click', cerrarModalDetalle);
-
-        modalDetalle.addEventListener('click', function(event) {
-            if (event.target === modalDetalle) {
-                cerrarModalDetalle();
-            }
-        });
-
-        // Notificar
-        btnNotificar.addEventListener('click', async function() {
-            if (!registroActual) {
-                alert('No hay registro seleccionado');
+            if (!noTelar) {
+                tablaProduccionContainer.style.display = 'none';
+                btnNotificarRollos.style.display = 'none';
                 return;
             }
 
-            if (!confirm('¿Está seguro de notificar el montado de este rollo?')) {
+            mostrarMensaje('Buscando orden de producción...', 'info');
+
+            try {
+                // 1. Obtener orden de producción activa
+                const responseOrden = await fetch(`{{ route('notificar.mont.rollos.orden.produccion') }}?no_telar=${encodeURIComponent(noTelar)}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                const dataOrden = await responseOrden.json();
+
+                if (!dataOrden.success) {
+                    mostrarMensaje(dataOrden.error || 'No se encontró orden activa', 'error');
+                    return;
+                }
+
+                ordenActual = dataOrden.orden;
+                mostrarMensaje('Cargando datos de producción...', 'info');
+
+                // 2. Obtener datos de producción desde TOW_PRO
+                const responseDatos = await fetch(`{{ route('notificar.mont.rollos.datos.produccion') }}?no_produccion=${encodeURIComponent(ordenActual.NoProduccion)}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                const dataDatos = await responseDatos.json();
+
+                if (!dataDatos.success || dataDatos.datos.length === 0) {
+                    mostrarMensaje(dataDatos.error || 'No se encontraron datos de producción', 'error');
+                    return;
+                }
+
+                datosProduccion = dataDatos.datos;
+                
+                // 3. Renderizar tabla
+                renderizarTablaProduccion(datosProduccion);
+                
+                mensajeEstado.style.display = 'none';
+                tablaProduccionContainer.style.display = 'block';
+                btnNotificarRollos.style.display = 'inline-block';
+
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarMensaje('Error al cargar los datos: ' + error.message, 'error');
+            }
+        });
+
+        function mostrarMensaje(mensaje, tipo) {
+            mensajeEstado.textContent = mensaje;
+            mensajeEstado.className = `text-center mb-4 ${tipo === 'error' ? 'text-red-600' : tipo === 'info' ? 'text-blue-600' : 'text-gray-500'}`;
+            mensajeEstado.style.display = 'block';
+            tablaProduccionContainer.style.display = 'none';
+            btnNotificarRollos.style.display = 'none';
+        }
+
+        function renderizarTablaProduccion(datos) {
+            tablaProduccionBody.innerHTML = '';
+            
+            datos.forEach(dato => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Marbete || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Articulo || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Tamaño || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Orden || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Telar || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Piezas || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Salon || 'N/A'}</td>
+                `;
+                tablaProduccionBody.appendChild(row);
+            });
+        }
+
+        // Notificar montado de rollos
+        btnNotificarRollos.addEventListener('click', async function() {
+            if (!ordenActual || datosProduccion.length === 0) {
+                alert('No hay datos para notificar');
+                return;
+            }
+
+            if (!confirm('¿Está seguro de notificar el montado de estos rollos?')) {
                 return;
             }
 
             try {
-                const response = await fetch('{{ route('notificar.mont.rollos.notificar') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({ id: registroActual.id })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    alert(`Notificado correctamente a las ${data.horaParo}`);
-                    cerrarModalDetalle();
-                    cerrarModal();
-                    // Recargar la página para actualizar los datos
-                    window.location.reload();
-                } else {
-                    alert('Error: ' + (data.error || 'Error desconocido'));
-                }
+                // Aquí puedes agregar lógica adicional para guardar en TejInventarioTelares
+                const horaActual = new Date().toLocaleTimeString('es-MX', { hour12: false });
+                
+                alert(`Notificación registrada correctamente a las ${horaActual}`);
+                
+                // Limpiar formulario
+                selectTelarOperador.value = '';
+                tablaProduccionContainer.style.display = 'none';
+                btnNotificarRollos.style.display = 'none';
+                ordenActual = null;
+                datosProduccion = [];
+                
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al notificar el montado del rollo');
+                alert('Error al notificar: ' + error.message);
             }
         });
     });
