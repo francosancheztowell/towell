@@ -129,7 +129,15 @@ class ReqProgramaTejidoObserver
             $creadas = 0;
             $lineasParaInsertar = []; // Acumular líneas para insertar en batch
 
+            /** @var Carbon|\DateTimeInterface|string|int|float|null $dia */
             foreach ($periodo as $index => $dia) {
+                if (!$dia instanceof Carbon) {
+                    if ($dia instanceof \DateTimeInterface) {
+                        $dia = Carbon::instance($dia);
+                    } else {
+                        $dia = Carbon::parse($dia);
+                    }
+                }
                 $diaNormalizado = $dia->copy()->startOfDay();
                 $inicioDia = $diaNormalizado->copy();
                 $finDia = $diaNormalizado->copy()->endOfDay();
