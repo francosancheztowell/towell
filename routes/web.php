@@ -42,7 +42,6 @@ use App\Http\Controllers\UrdBpmController;
 use App\Http\Controllers\UrdBpmLineController;
 use App\Http\Controllers\MantenimientoParosController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoController;
-use App\Http\Controllers\MarcasFinalesController;
 use App\Http\Controllers\MarcasController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
@@ -559,13 +558,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/inventario-telas/jacquard', [TelaresController::class, 'inventarioJacquard'])->name('inventario.jacquard');
         Route::get('/inventario-telas/itema', [TelaresController::class, 'inventarioItema'])->name('inventario.itema');
 
-        // Marcas Finales
-        Route::get('/inventario/marcas-finales', [App\Http\Controllers\MarcasFinalesController::class, 'index'])->name('inventario.marcas.finales');
-        Route::post('/inventario/marcas-finales', [App\Http\Controllers\MarcasFinalesController::class, 'store'])->name('inventario.marcas.finales.store');
-        Route::get('/inventario/marcas-finales/{folio}', [App\Http\Controllers\MarcasFinalesController::class, 'show'])->name('inventario.marcas.finales.show');
-        Route::put('/inventario/marcas-finales/{folio}', [App\Http\Controllers\MarcasFinalesController::class, 'update'])->name('inventario.marcas.finales.update');
-        Route::post('/inventario/marcas-finales/{folio}/finalizar', [App\Http\Controllers\MarcasFinalesController::class, 'finalizar'])->name('inventario.marcas.finales.finalizar');
-
         // Trama - Nuevo y Consultar Requerimientos
         Route::get('/inventario/trama/nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('inventario.trama.nuevo.requerimiento');
         Route::post('/inventario/trama/nuevo-requerimiento', [NuevoRequerimientoController::class, 'guardarRequerimientos'])->name('inventario.trama.nuevo.requerimiento.store');
@@ -864,14 +856,6 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/planeacion/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad.index');
     Route::get('/planeacion/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');
     Route::get('/planeacion/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones.index');
-
-    // Rutas legacy de tejido (mantener por compatibilidad, pero ya están dentro del grupo tejido arriba)
-    // Estas rutas están duplicadas - las de arriba dentro del grupo tejido tienen prioridad
-    Route::get('/modulo-marcas-finales', [MarcasFinalesController::class, 'index'])->name('modulo.marcas.finales');
-    Route::post('/modulo-marcas-finales', [MarcasFinalesController::class, 'store'])->name('modulo.marcas.finales.store');
-    Route::get('/modulo-marcas-finales/{folio}', [MarcasFinalesController::class, 'show'])->name('modulo.marcas.finales.show');
-    Route::put('/modulo-marcas-finales/{folio}', [MarcasFinalesController::class, 'update'])->name('modulo.marcas.finales.update');
-    Route::post('/modulo-marcas-finales/{folio}/finalizar', [MarcasFinalesController::class, 'finalizar'])->name('modulo.marcas.finales.finalizar');
 
     // Rutas para Marcas (Nuevas Marcas Finales y Consultar Marcas Finales)
     Route::get('/modulo-marcas', [MarcasController::class, 'index'])->name('marcas.nuevo');

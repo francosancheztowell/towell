@@ -22,9 +22,9 @@ window.TelarManager = {
         // Crear opciones de telares
         let opcionesTelares = '<option value="">Seleccione...</option>';
         if (ProgramaTejidoForm.state.telaresDisponibles && Array.isArray(ProgramaTejidoForm.state.telaresDisponibles)) {
-            ProgramaTejidoForm.state.telaresDisponibles.forEach(telar => {
-                opcionesTelares += `<option value="${telar}">${telar}</option>`;
-            });
+        ProgramaTejidoForm.state.telaresDisponibles.forEach(telar => {
+            opcionesTelares += `<option value="${telar}">${telar}</option>`;
+        });
         } else {
             console.error('❌ No hay telares disponibles o el formato es incorrecto');
         }

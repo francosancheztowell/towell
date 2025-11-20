@@ -87,7 +87,7 @@ class ReqProgramaTejido extends Model
         'PasadasComb3' => 'integer',
         'PasadasComb4' => 'integer',
         'PasadasComb5' => 'integer',
-        'AnchoToalla' => 'integer',
+        'AnchoToalla' => 'float',
 
         'CalibreComb1' => 'string', // NVARCHAR(40) en SQL Server
         'CalibreComb2' => 'string', // NVARCHAR(40) en SQL Server
@@ -100,8 +100,9 @@ class ReqProgramaTejido extends Model
         'CalibreComb42' => 'float',
         'CalibreComb52' => 'float',
 
-        'MedidaPlano' => 'integer',
+        'MedidaPlano' => 'float',
         'PesoGRM2' => 'integer',
+        'CuentaPie' => 'integer',
         'DiasEficiencia' => 'float',
         'ProdKgDia' => 'float',
         'StdDia' => 'float',

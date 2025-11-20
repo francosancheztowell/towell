@@ -21,7 +21,7 @@
       id="btn-editar"
       title="Editar"
       module="Marcas Finales"
-      :disabled="false"
+      :disabled="true"
       icon="fa-pen-to-square"
       iconColor="text-blue-600"
       hoverBg="hover:bg-blue-100" />
@@ -29,11 +29,12 @@
     <x-navbar.button-report
       id="btn-finalizar"
       title="Finalizar"
-      :moduleId="25"
+      module="Marcas Finales"
       :disabled="false"
       icon="fa-check"
       iconColor="text-orange-600"
-      hoverBg="hover:bg-orange-100" />
+      hoverBg="hover:bg-orange-100"
+      />
 </div>
 @endsection
 
@@ -56,9 +57,10 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
               @foreach($marcas as $marca)
-                            <tr class="hover:bg-blue-50 cursor-pointer transition-colors {{ isset($ultimoFolio) && $ultimoFolio->Folio == $marca->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
+                            <tr class="hover:bg-blue-50 cursor-pointer transition-colors marca-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $marca->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
+                  id="row-{{ $marca->Folio }}"
                   data-folio="{{ $marca->Folio }}"
-                                onclick="MarcasConsultar.seleccionar('{{ $marca->Folio }}', this)">
+                  onclick="MarcasManager.seleccionar('{{ $marca->Folio }}', this)">
                 <td class="px-2 py-2 font-semibold text-gray-900 truncate">{{ $marca->Folio }}</td>
                                 <td class="px-2 py-2 text-gray-900 truncate">
                                     @if($marca->Date)
@@ -92,12 +94,12 @@
             <div class="flex items-center gap-3 min-w-0 flex-1">
               <div class="flex items-center gap-2 min-w-0">
                 <i class="fas fa-file-alt text-white text-xs"></i>
-                <span id="preview-folio" class="text-xs font-bold text-white truncate">-</span>
+                <span id="prev-folio" class="text-xs font-bold text-white truncate">-</span>
               </div>
               <span class="text-white/80 text-[10px] hidden sm:inline">·</span>
-              <span id="preview-meta" class="text-[10px] text-white/90 truncate hidden sm:inline">-</span>
+              <span id="prev-meta" class="text-[10px] text-white/90 truncate hidden sm:inline">-</span>
             </div>
-            <span id="preview-status" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/20 text-white border border-white/30 whitespace-nowrap">-</span>
+            <span id="prev-status-container" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/20 text-white border border-white/30 whitespace-nowrap">-</span>
           </div>
         </div>
 
@@ -114,10 +116,15 @@
                 <th class="px-2 py-2 text-center uppercase text-[11px] w-20">Otros</th>
               </tr>
             </thead>
-            <tbody id="preview-lineas" class="divide-y divide-gray-100"></tbody>
+            <tbody id="preview-body" class="divide-y divide-gray-100">
+                        <tr>
+                            <td colspan="7" class="px-3 py-6 text-center text-gray-500">Haga clic en un registro de la lista superior para ver los detalles.</td>
+                        </tr>
+                    </tbody>
           </table>
         </div>
       </div>
+
     @else
             <!-- Sin Registros -->
       <div class="bg-white rounded-md shadow-sm p-8 text-center w-full">
@@ -145,167 +152,167 @@ section.content { width: 100% !important; max-width: 100% !important; }
 (() => {
     'use strict';
 
-    const MarcasConsultar = {
-        marcaSeleccionada: null,
-        statusSeleccionado: null,
-        timeoutId: null,
-        abortController: null,
+    const CONFIG = {
+        urls: {
+            detalle: '/modulo-marcas/',
+            editar: '{{ url("/modulo-marcas") }}?folio=',
+            finalizar: '/modulo-marcas/{folio}/finalizar'
+        },
+        timeout: 30000, // 30 segundos (suficiente para cualquier petición)
+        ultimoFolio: @json(isset($ultimoFolio) ? $ultimoFolio->Folio : null)
+    };
+
+    class MarcasManager {
+        constructor() {
+            this.state = {
+                folio: null,
+                status: null,
+                abortController: null
+            };
+
+            this.dom = {
+                panel: document.getElementById('preview-panel'),
+                loader: document.getElementById('preview-loader'),
+                body: document.getElementById('preview-body'),
+                header: {
+                    folio: document.getElementById('prev-folio'),
+                    meta: document.getElementById('prev-meta'),
+                    status: document.getElementById('prev-status-container')
+                },
+                btns: {
+                    nuevo: document.getElementById('btn-nuevo'),
+                    editar: document.getElementById('btn-editar'),
+                    finalizar: document.getElementById('btn-finalizar')
+                }
+            };
+
+            this.init();
+        }
 
         init() {
-            this.setupEventListeners();
-            this.setupInitialState();
-            this.autoSelectLastFolio();
-        },
-
-        setupEventListeners() {
-            const btnEditar = document.getElementById('btn-editar');
-            const btnFinalizar = document.getElementById('btn-finalizar');
-
-            if (btnEditar) {
-                btnEditar.addEventListener('click', () => this.editarMarca());
-            }
-
-            if (btnFinalizar) {
-                btnFinalizar.addEventListener('click', () => this.finalizarMarca());
-            }
-        },
-
-        setupInitialState() {
-            const btnEditar = document.getElementById('btn-editar');
-            const btnFinalizar = document.getElementById('btn-finalizar');
-
-            if (btnEditar) btnEditar.disabled = true;
-            if (btnFinalizar) btnFinalizar.disabled = true;
-        },
-
-        autoSelectLastFolio() {
-            @if(isset($ultimoFolio))
-            window.addEventListener('load', () => {
-                const folio = '{{ $ultimoFolio->Folio }}';
-                const tr = document.querySelector(`tr[data-folio="${folio}"]`);
-                if (tr) {
-                    try {
-                        this.seleccionar(folio, tr);
-                    } catch (e) {
-                        console.error('Error al auto-seleccionar:', e);
+            this.bindEvents();
+            if (CONFIG.ultimoFolio) {
+                setTimeout(() => {
+                    const tr = document.querySelector(`tr[data-folio="${CONFIG.ultimoFolio}"]`);
+                    if (tr) {
+                        this.seleccionar(CONFIG.ultimoFolio, tr);
                     }
-                }
-            });
-            @endif
-        },
+                }, 100);
+            }
+        }
+
+        bindEvents() {
+            this.dom.btns.editar?.addEventListener('click', () => this.accionEditar());
+            this.dom.btns.finalizar?.addEventListener('click', () => this.accionFinalizar());
+        }
 
         seleccionar(folio, row) {
-            this.marcaSeleccionada = folio;
+            if (this.state.folio === folio) return;
+
+            this.state.folio = folio;
             this.highlightRow(row);
-
-            if (this.abortController) {
-                this.abortController.abort();
-            }
-
-            this.abortController = new AbortController();
-            this.timeoutId = setTimeout(() => this.abortController.abort(), 10000);
-
-            fetch(`/modulo-marcas/${folio}`, {
-                headers: { 'Accept': 'application/json' },
-                signal: this.abortController.signal
-            })
-            .then(response => {
-                clearTimeout(this.timeoutId);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-    .then(data => {
-                if (!data.success) {
-                    throw new Error(data.message || 'Error al cargar los detalles');
-                }
-                this.statusSeleccionado = data.marca?.Status;
-                this.configurarBotones(this.statusSeleccionado);
-                this.mostrarDetalles(data.marca, data.lineas || []);
-    })
-            .catch(error => {
-                if (error.name === 'AbortError') {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Tiempo agotado',
-                        text: 'La solicitud tardó demasiado. Intenta nuevamente.'
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: error.message || 'No se pudieron cargar los detalles.'
-                    });
-                }
-                console.error('Error al cargar marca:', error);
-    });
-        },
+            this.cargarDetalles(folio);
+        }
 
         highlightRow(row) {
             document.querySelectorAll('tbody tr').forEach(tr => {
                 tr.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-600');
             });
-            row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-600');
-        },
+            if (row) {
+                row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-600');
+            }
+        }
 
-        configurarBotones(status) {
-  const btnNuevo = document.getElementById('btn-nuevo');
-            const btnEditar = document.getElementById('btn-editar');
-            const btnFinalizar = document.getElementById('btn-finalizar');
-
-            if (!btnEditar || !btnFinalizar) return;
-
-            const isFinalizado = status === 'Finalizado';
-            const isEnProceso = status === 'En Proceso';
-
-            if (btnNuevo) {
-                btnNuevo.disabled = isFinalizado || isEnProceso;
+        async cargarDetalles(folio) {
+            if (this.state.abortController) {
+                this.state.abortController.abort();
             }
 
-            btnEditar.disabled = isFinalizado;
-            btnFinalizar.disabled = isFinalizado;
-        },
+            this.state.abortController = new AbortController();
+            this.activarPanel(true);
 
-        mostrarDetalles(marca, lineas) {
-   const panel = document.getElementById('preview-panel');
-            if (!panel) return;
+            try {
+                const res = await fetch(`${CONFIG.urls.detalle}${folio}`, {
+                    headers: { 'Accept': 'application/json' },
+                    signal: this.state.abortController.signal
+                });
 
-   panel.classList.remove('hidden');
-            this.updateHeader(marca);
-            this.updateTable(lineas);
-        },
+                if (!res.ok) {
+                    throw new Error(`Error HTTP: ${res.status}`);
+                }
 
-        updateHeader(marca) {
-            const folioEl = document.getElementById('preview-folio');
-            const metaEl = document.getElementById('preview-meta');
-   const statusEl = document.getElementById('preview-status');
+                const data = await res.json();
 
-            if (folioEl) {
-                folioEl.textContent = marca?.Folio ?? '-';
+                if (!data.success) {
+                    throw new Error(data.message || 'Error al cargar los detalles');
+                }
+
+                this.state.status = data.marca.Status;
+                this.renderizarDetalle(data.marca, data.lineas || []);
+                this.actualizarBotones();
+
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+                this.mostrarError(err.message);
+            }
+        }
+
+        activarPanel(activo) {
+            if (activo) {
+                this.dom.panel.classList.remove('hidden');
+            } else {
+                this.dom.panel.classList.add('hidden');
+            }
+        }
+
+        renderizarDetalle(marca, lineas) {
+            if (this.dom.header.folio) {
+                this.dom.header.folio.textContent = marca?.Folio ?? '-';
             }
 
-            if (metaEl) {
+            if (this.dom.header.meta) {
                 const fecha = marca?.Date ? this.formatFecha(marca.Date) : '-';
                 const turno = marca?.Turno ?? '-';
                 const empleado = marca?.numero_empleado ?? 'N/A';
-                metaEl.textContent = `${fecha} · T${turno} · ${empleado}`;
+                this.dom.header.meta.textContent = `${fecha} · T${turno} · ${empleado}`;
             }
 
-            if (statusEl) {
+            if (this.dom.header.status) {
                 const status = marca?.Status ?? '-';
-   statusEl.textContent = status;
-   statusEl.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border border-white/30 whitespace-nowrap';
+                this.dom.header.status.textContent = status;
+                this.dom.header.status.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border border-white/30 whitespace-nowrap';
 
                 if (status === 'Finalizado') {
-     statusEl.classList.add('bg-green-500/30', 'text-white');
+                    this.dom.header.status.classList.add('bg-green-500/30', 'text-white');
                 } else if (status === 'En Proceso') {
-     statusEl.classList.add('bg-yellow-500/30', 'text-white');
-   } else {
-     statusEl.classList.add('bg-white/20', 'text-white');
-   }
+                    this.dom.header.status.classList.add('bg-yellow-500/30', 'text-white');
+                } else {
+                    this.dom.header.status.classList.add('bg-white/20', 'text-white');
+                }
             }
-        },
+
+            if (!lineas || !lineas.length) {
+                this.dom.body.innerHTML = '<tr><td colspan="7" class="px-3 py-6 text-center text-gray-500">Sin líneas capturadas</td></tr>';
+                return;
+            }
+
+            const html = lineas.map((linea, index) => {
+                const eficiencia = this.formatEficiencia(linea);
+                return `
+                    <tr class="${index % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50 hover:bg-gray-100'}">
+                        <td class="px-2 py-2 font-semibold text-gray-900 truncate">${linea.NoTelarId ?? '-'}</td>
+                        <td class="px-2 py-2 text-center">${eficiencia}</td>
+                        <td class="px-2 py-2 text-center">${linea.Marcas ?? '-'}</td>
+                        <td class="px-2 py-2 text-center">${linea.Trama ?? '-'}</td>
+                        <td class="px-2 py-2 text-center">${linea.Pie ?? '-'}</td>
+                        <td class="px-2 py-2 text-center">${linea.Rizo ?? '-'}</td>
+                        <td class="px-2 py-2 text-center">${linea.Otros ?? '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            this.dom.body.innerHTML = html;
+        }
 
         formatFecha(dateString) {
             try {
@@ -319,49 +326,25 @@ section.content { width: 100% !important; max-width: 100% !important; }
             } catch (e) {
                 return '-';
             }
-        },
-
-        updateTable(lineas) {
-  const tbody = document.getElementById('preview-lineas');
-            if (!tbody) return;
-
-  tbody.innerHTML = '';
-
-            if (!lineas || !lineas.length) {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-3 py-6 text-center text-gray-500">Sin líneas capturadas</td></tr>';
-    return;
-  }
-
-            lineas.forEach((linea, index) => {
-    const tr = document.createElement('tr');
-                tr.className = index % 2 === 0
-                    ? 'bg-white hover:bg-gray-50'
-                    : 'bg-gray-50 hover:bg-gray-100';
-
-                const eficiencia = this.formatEficiencia(linea);
-
-    tr.innerHTML = `
-                    <td class="px-2 py-2 font-semibold text-gray-900 truncate">${linea.NoTelarId ?? '-'}</td>
-                    <td class="px-2 py-2 text-center">${eficiencia}</td>
-                    <td class="px-2 py-2 text-center">${linea.Marcas ?? '-'}</td>
-                    <td class="px-2 py-2 text-center">${linea.Trama ?? '-'}</td>
-                    <td class="px-2 py-2 text-center">${linea.Pie ?? '-'}</td>
-                    <td class="px-2 py-2 text-center">${linea.Rizo ?? '-'}</td>
-                    <td class="px-2 py-2 text-center">${linea.Otros ?? '-'}</td>
-                `;
-    tbody.appendChild(tr);
-  });
-        },
+        }
 
         formatEficiencia(linea) {
             const eVal = linea.Eficiencia ?? linea.EficienciaSTD ?? linea.EficienciaStd ?? null;
             if (eVal === null) return '-';
             if (isNaN(eVal)) return eVal;
             return `${(Number(eVal) * 100).toFixed(0)}%`;
-        },
+        }
 
-        editarMarca() {
-            if (!this.marcaSeleccionada) {
+        actualizarBotones() {
+            const isFinalizado = this.state.status === 'Finalizado';
+
+            if (this.dom.btns.nuevo) this.dom.btns.nuevo.disabled = false;
+            if (this.dom.btns.editar) this.dom.btns.editar.disabled = isFinalizado;
+            if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = isFinalizado;
+        }
+
+        accionEditar() {
+            if (!this.state.folio) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Sin selección',
@@ -369,11 +352,11 @@ section.content { width: 100% !important; max-width: 100% !important; }
                 });
                 return;
             }
-            window.location.href = `{{ url('/modulo-marcas') }}?folio=${this.marcaSeleccionada}`;
-        },
+            window.location.href = CONFIG.urls.editar + this.state.folio;
+        }
 
-        finalizarMarca() {
-            if (!this.marcaSeleccionada) {
+        accionFinalizar() {
+            if (!this.state.folio) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Sin selección',
@@ -383,60 +366,59 @@ section.content { width: 100% !important; max-width: 100% !important; }
             }
 
             Swal.fire({
-                title: 'Finalizar Marca',
-                text: `¿Deseas finalizar el folio ${this.marcaSeleccionada}?`,
+                title: '¿Finalizar Marca?',
+                text: `El folio ${this.state.folio} quedará cerrado y no podrá editarse.`,
                 icon: 'warning',
                 showCancelButton: true,
+                confirmButtonColor: '#ea580c',
                 confirmButtonText: 'Sí, finalizar',
                 cancelButtonText: 'Cancelar'
-            }).then(result => {
-                if (!result.isConfirmed) return;
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    this.procesarFinalizado();
+                }
+            });
+        }
 
-  Swal.fire({
-                    title: 'Finalizando...',
-                    didOpen: () => Swal.showLoading(),
-                    allowOutsideClick: false
-                });
+        async procesarFinalizado() {
+            Swal.fire({ title: 'Finalizando...', didOpen: () => Swal.showLoading() });
 
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            try {
+                const url = CONFIG.urls.finalizar.replace('{folio}', this.state.folio);
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-                fetch(`/modulo-marcas/${this.marcaSeleccionada}/finalizar`, {
+                const res = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-      }
-    })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Finalizado',
-                            text: data.message || 'Marca finalizada correctamente'
-                        }).then(() => location.reload());
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: data.message || 'No se pudo finalizar'
-                        });
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
                     }
-    })
-                .catch(error => {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: error.message || 'Error de conexión'
-                    });
                 });
-  });
-}
-    };
 
-    document.addEventListener('DOMContentLoaded', () => MarcasConsultar.init());
-    window.MarcasConsultar = MarcasConsultar;
+                const data = await res.json();
+
+                if (data.success) {
+                    await Swal.fire('¡Finalizado!', 'El registro se ha cerrado correctamente.', 'success');
+                    window.location.reload();
+                } else {
+                    throw new Error(data.message || 'No se pudo finalizar');
+                }
+
+            } catch (err) {
+                Swal.fire('Error', err.message, 'error');
+            }
+        }
+
+        mostrarError(msg) {
+            this.dom.body.innerHTML = `<tr><td colspan="7" class="px-3 py-6 text-center text-gray-500">${msg}</td></tr>`;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        window.MarcasManager = new MarcasManager();
+    });
+
 })();
 </script>
 @endsection

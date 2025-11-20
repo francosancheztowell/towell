@@ -36,8 +36,8 @@
     'checkPermission' => null,
     'icon' => 'fa-trash',
     'iconColor' => 'text-white',
-    'hoverBg' => 'hover:bg-blue-600',
-    'bg' => 'bg-blue-500',
+    'hoverBg' => '',
+    'bg' => '',
     'text' => null,
     'class' => ''
 ])

@@ -4,16 +4,26 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button id="btn-editar-folio" onclick="editarFolioSeleccionado()" disabled
-        title="Editar Folio"
-            class="px-3 py-2 text-blue-600 rounded-md hover:text-blue-700 disabled:text-gray-300 disabled:cursor-not-allowed text-sm">
-            <i class="fas fa-edit mr-2"></i>
-        </button>
-        <button id="btn-terminar-folio" onclick="terminarFolioSeleccionado()" disabled
-        title="Terminar Corte"
-            class="px-3 py-2 text-emerald-600 rounded-md hover:text-emerald-700 disabled:text-gray-300 disabled:cursor-not-allowed text-sm">
-            <i class="fas fa-check mr-2"></i>
-        </button>
+        <x-navbar.button-edit
+            id="btn-editar-folio"
+            title="Editar Folio"
+            onclick="editarFolioSeleccionado()"
+            module="Cortes de Eficiencia"
+            :disabled="true"
+            icon="fa-edit"
+            iconColor="text-blue-600"
+            hoverBg="hover:bg-blue-100"
+        />
+        <x-navbar.button-report
+            id="btn-terminar-folio"
+            title="Terminar Corte"
+            onclick="terminarFolioSeleccionado()"
+            module="Cortes de Eficiencia"
+            :disabled="true"
+            icon="fa-check"
+            iconColor="text-blue-600"
+            hoverBg="hover:bg-blue-100"
+        />
     </div>
 @endsection
 
@@ -104,10 +114,14 @@
         <div class="bg-white rounded-md border p-8 text-center w-full">
             <h3 class="text-base md:text-lg font-semibold text-gray-700 mb-2">No hay cortes de eficiencia</h3>
             <p class="text-gray-500">Crea el primero con “Nuevo Corte”.</p>
-            <a href="{{ route('cortes.eficiencia') }}"
-               class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                <i class="fas fa-plus mr-2"></i> Nuevo Corte
-            </a>
+            <x-navbar.button-create href="{{ route('cortes.eficiencia') }}"
+                title="Nuevo Corte"
+                module="Cortes de Eficiencia"
+                icon="fa-plus"
+                iconColor="text-white"
+                hoverBg="hover:bg-blue-700"
+                bg="bg-blue-600"
+            />
         </div>
     @endif
 </div>

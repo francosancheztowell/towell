@@ -50,22 +50,21 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                     'Nombre del Producto','Producto Final','Producto/Nombre','prod'
                 ]), 200),
                 'TamanoClave'     => $this->parseString($this->getValue($row, ['Clave Mod.','Clave mod.','Clave Mod','Tamaño Clave','Tamano Clave','tamano_clave']), 40),
-                'MedidaPlano'     => $this->parseInteger($this->getValue($row, ['Plano','Medida Plano','medida_plano'])),
+                'MedidaPlano'     => $this->parseFloat($this->getValue($row, ['Plano','Medida Plano','medida_plano'])),
 
                 /* ===== PIE ===== */
-                'CuentaPie'       => $this->parseString($this->getValue($row, ['Cuenta Pie','cuenta_pie']), 20),
+                'CuentaPie'       => $this->parseInteger($this->getValue($row, ['Cuenta Pie','cuenta_pie'])),
                 'CodColorCtaPie'  => $this->parseString($this->getValue($row, ['Código Color Pie','Codigo Color Pie','Cod Color Cta Pie','cod color cta pie','cod_color_cta_pie']), 20),
                 'NombreCPie'      => $this->parseString($this->getValue($row, ['Color Pie','Nombre C Pie','nombre c pie','nombre_cpie']), 120),
                 'FibraPie'        => $this->parseString($this->getValue($row, ['Fibra Pie','fibra_pie','Hilo Pie','hilo_pie']), 30),
-                'AnchoToalla'     => $this->parseInteger($this->getValue($row, ['Ancho por Toalla','Ancho Toalla','ancho_toalla'])),
+                'AnchoToalla'     => $this->parseFloat($this->getValue($row, ['Ancho por Toalla','Ancho Toalla','ancho_toalla'])),
 
                 /* ===== TRAMA ===== */
-                'CodColorTrama'   => $this->parseString($this->getValue($row, ['Código Color Tra','Codigo Color Tra','Cod Color Trama','cod_color_trama']), 20),
-                'ColorTrama'      => $this->parseString($this->getValue($row, ['Color Tra','Color Trama','color_trama']), 120),
+                'CodColorTrama'   => null,
+                'ColorTrama'      => null,
                 // Campo verde (*2): viene del Excel
                 'CalibreTrama2'   => $this->parseFloat($this->getValue($row, [
-                                        'Calibre Tra','Calibre Trama','CalibreTrama','calibre_trama',
-                                        'Calibre Tra 2','Calibre Trama 2','Calibre Trama/2','CalibreTrama2','calibre_trama2','calibre_trama_2','calibre trama/2'
+                                        'CALIBRE TRA','Calibre Trama','CalibreTrama','calibre_trama',
                                     ])),
                 // Campo blanco (base): se rellena desde ReqModelosCodificados
                 'CalibreTrama'    => null,
@@ -77,57 +76,60 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 // C1
                 'CalibreComb1'    => null,
                 'CalibreComb12'   => $this->parseFloat($this->getValue($row, ['Calibre C1'])),
-                'FibraComb1'      => $this->parseString($this->getValue($row, ['Fibra C1','Fibra Comb1','fibra comb1','fibra_comb1']), 30),
-                'CodColorComb1'   => $this->parseString($this->getValue($row, ['Código Color C1','Codigo Color C1','Cod Color C1','cod color c1','cod_color_c1']), 20),
-                'NombreCC1'       => $this->parseString($this->getValue($row, ['Color C1','Nombre C1','nombre c1','nombre_c1']), 120),
+                'FibraComb1'      => $this->parseString($this->getValue($row, ['FIBRA C1','Fibra Comb1','fibra comb1','fibra_comb1']), 30),
+
+                // Campos ahora provienen de modelos codificados
+                'CodColorComb1'   => null,
+                'NombreCC1'       => null,
+
                 'PasadasComb1'    => $this->parseInteger($this->getValue($row, ['Pasadas C1','Pasadas Comb1','pasadas c1','pasadas_comb1'])),
 
                 // C2
                 'CalibreComb2'    => null,
                 'CalibreComb22'   => $this->parseFloat($this->getValue($row, ['Calibre C2'])),
-                'FibraComb2'      => $this->parseString($this->getValue($row, ['Fibra C2','Fibra Comb2','fibra comb2','fibra_comb2']), 30),
-                'CodColorComb2'   => $this->parseString($this->getValue($row, ['Código Color C2','Codigo Color C2','Cod Color C2','cod color c2','cod_color_c2']), 20),
-                'NombreCC2'       => $this->parseString($this->getValue($row, ['Color C2','Nombre C2','nombre c2','nombre_c2']), 120),
+                'FibraComb2'      => $this->parseString($this->getValue($row, ['FIBRA C2','Fibra Comb2','fibra comb2','fibra_comb2']), 30),
+                'CodColorComb2'   => null,
+                'NombreCC2'       => null,
                 'PasadasComb2'    => $this->parseInteger($this->getValue($row, ['Pasadas C2','Pasadas Comb2','pasadas c2','pasadas_comb2'])),
 
                 // C3
                 'CalibreComb3'    => null,
                 'CalibreComb32'   => $this->parseFloat($this->getValue($row, ['Calibre C3'])),
-                'FibraComb3'      => $this->parseString($this->getValue($row, ['Fibra C3','Fibra Comb3','fibra comb3','fibra_comb3']), 30),
-                'CodColorComb3'   => $this->parseString($this->getValue($row, ['Código Color C3','Codigo Color C3','Cod Color C3','cod color c3','cod_color_c3']), 20),
-                'NombreCC3'       => $this->parseString($this->getValue($row, ['Color C3','Nombre C3','nombre c3','nombre_c3']), 120),
+                'FibraComb3'      => $this->parseString($this->getValue($row, ['FIBRA C3','Fibra Comb3','fibra comb3','fibra_comb3']), 30),
+                'CodColorComb3'   => null,
+                'NombreCC3'       => null,
                 'PasadasComb3'    => $this->parseInteger($this->getValue($row, ['Pasadas C3','Pasadas Comb3','pasadas c3','pasadas_comb3'])),
 
                 // C4
                 'CalibreComb4'    => null,
                 'CalibreComb42'   => $this->parseFloat($this->getValue($row, ['Calibre C4'])),
-                'FibraComb4'      => $this->parseString($this->getValue($row, ['Fibra C4','Fibra Comb4','fibra comb4','fibra_comb4']), 30),
-                'CodColorComb4'   => $this->parseString($this->getValue($row, ['Código Color C4','Codigo Color C4','Cod Color C4','cod color c4','cod_color_c4']), 20),
-                'NombreCC4'       => $this->parseString($this->getValue($row, ['Color C4','Nombre C4','nombre c4','nombre_c4']), 120),
+                'FibraComb4'      => $this->parseString($this->getValue($row, ['FIBRA C4','Fibra Comb4','fibra comb4','fibra_comb4']), 30),
+                'CodColorComb4'   => null,
+                'NombreCC4'       => null,
                 'PasadasComb4'    => $this->parseInteger($this->getValue($row, ['Pasadas C4','Pasadas Comb4','pasadas c4','pasadas_comb4'])),
 
                 // C5
                 'CalibreComb5'    => null,
                 'CalibreComb52'   => $this->parseFloat($this->getValue($row, ['Calibre C5'])),
-                'FibraComb5'      => $this->parseString($this->getValue($row, ['Fibra C5','Fibra Comb5','fibra comb5','fibra_comb5']), 30),
-                'CodColorComb5'   => $this->parseString($this->getValue($row, ['Código Color C5','Codigo Color C5','Cod Color C5','cod color c5','cod_color_c5']), 20),
-                'NombreCC5'       => $this->parseString($this->getValue($row, ['Color C5','Nombre C5','nombre c5','nombre_c5']), 120),
+                'FibraComb5'      => $this->parseString($this->getValue($row, ['FIBRA C5','Fibra Comb5','fibra comb5','fibra_comb5']), 30),
+                'CodColorComb5'   => null,
+                'NombreCC5'       => null,
                 'PasadasComb5'    => $this->parseInteger($this->getValue($row, ['Pasadas C5','Pasadas Comb5','pasadas c5','pasadas_comb5'])),
 
                 /* ===== NÚMEROS ===== */
                 'Peine'           => $this->parseInteger($this->getValue($row, ['Pei.','Pei','Peine','peine'])),
                 'Luchaje'         => $this->parseInteger($this->getValue($row, ['Luc','Luchaje','luchaje','LUC','LUCHE','Luch','luc'])),
-                'PesoCrudo'       => $this->parseInteger($this->getValue($row, ['Pcr','Peso Crudo','peso crudo','peso_crudo'])),
                 'LargoCrudo'      => $this->parseInteger($this->getValue($row, ['Lcr','Largo Crudo','largo_crudo'])),
+                'PesoCrudo'       => $this->parseInteger($this->getValue($row, ['Pcr','Peso Crudo','peso crudo','peso_crudo'])),
                 'PesoGRM2'        => $this->parseInteger($this->getValue($row, [
-                                        'Peso (gr/m²)','Peso GRM2','peso grm2','peso_gr_m_2'
+                                        'PesoGRM2','Peso GRM2','peso grm2','peso_gr_m_2'
                 ])),
                 'DiasEficiencia'  => $this->parseFloat($this->getValue($row, ['Días Ef.','Dias Ef.','Días Eficiencia','Dias Eficiencia','dias_eficiencia'])),
 
                 /* ===== TÍTULOS SIMILARES ===== */
-                'ProdKgDia'       => $this->parseFloat($this->findFirstColumnContaining($row, ['prod','kg','dia'], ['2'])),
-                'StdDia'          => $this->parseFloat($this->findFirstColumnContaining($row, ['std','dia'], ['toa','hr','100','efectivo'])),
-                'ProdKgDia2'      => $this->parseFloat($this->findFirstColumnContaining($row, ['prod','kg','dia','2'])),
+                'ProdKgDia'       => $this->parseFloat($this->findFirstColumnContaining($row, ['ProdKgDia'])),
+                'StdDia'          => $this->parseFloat($this->findFirstColumnContaining($row, ['StdDia'], ['toa','hr','100','efectivo'])),
+                'ProdKgDia2'      => $this->parseFloat($this->findFirstColumnContaining($row, ['ProdKgDia2'])),
                 'StdToaHra'       => $this->parseFloat($this->findFirstColumnContaining($row, ['std','toa','hr','100'])),
 
                 'DiasJornada'     => $this->parseFloat($this->getValue($row, ['Días Jornada','Dias Jornada Completa','Dias jornada completa','dias_jornada','Jornada','jornada','dias jornada completa'])),
@@ -141,8 +143,8 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'FechaInicio'     => $this->parseDate($this->getValue($row, ['Inicio','Fecha Inicio','fecha inicio','fecha_inicio'])),
                 'FechaFinal'      => $this->parseDate($this->getValue($row, ['Fin','Fecha Final','fecha final','fecha_final'])),
 
-                'EntregaProduc'   => $this->parseDateOnly($this->getValue($row, ['Fecha Compromiso Prod','Fecha Compromiso Prod.','Entrega Producción','Entrega Produccion','entrega_produc'])),
-                'EntregaPT'       => $this->parseDateOnly($this->getValue($row, ['Fecha Compromiso PT','Entrega PT','entrega_pt'])),
+                'EntregaProduc'   => $this->parseDateOnly($this->getValue($row, ['EntregaProduc','Fecha Compromiso Prod.','Entrega Producción','Entrega Produccion','entrega_produc'])),
+                'EntregaPT'       => $this->parseDateOnly($this->getValue($row, ['EntregaPT','Fecha Compromiso PT','Entrega PT','entrega_pt'])),
                 'EntregaCte'      => $this->parseDate($this->getValue($row, ['Entrega','Entrega Cte','entrega_cte'])),
                 'PTvsCte'         => $this->parseInteger($this->getValue($row, ['Dif vs Compromiso','PT vs Cte','pt vs cte','pt_vs_cte'])),
 
@@ -152,37 +154,32 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 /* ===== ADICIONALES ===== */
                 'CuentaRizo'      => $this->parseString($this->getValue($row, ['Cuenta','Cuenta Rizo','cuenta_rizo']), 20),
                 // Campo verde (*2): viene del Excel
-                'CalibreRizo2'    => $this->parseFloat($this->getValue($row, [
-                                        'Calibre Rizo','CalibreRizo','calibre_rizo',
-                                    ])),
+                'CalibreRizo2'    => null,
                 // Campo blanco (base): se rellena desde ReqModelosCodificados
                 'CalibreRizo'     => null,
                 'CalendarioId'    => $this->parseString($this->getValue($row, ['Jornada','jornada','calendario_id']), 30),
                 'NoExisteBase'    => $this->parseString($this->getValue($row, ['Usar cuando no existe en base','no_existe_base']), 40),
-                'ItemId'          => $this->parseString($this->getValue($row, ['Clave AX','item_id']), 40),
-                'InventSizeId'    => $this->parseString($this->getValue($row, ['Tamaño AX','Tamano AX','invent_size_id']), 20),
-                'Rasurado'        => $this->parseString($this->getValue($row, ['Rasurado','rasurado']), 4),
+                'ItemId'          => null,
+                'InventSizeId'    => null,
+                'Rasurado'        => null,
                 'Ancho'           => $this->parseFloat($this->getValue($row, ['Ancho','ancho'])),
                 'EficienciaSTD'   => $this->parseFloat($this->getValue($row, ['Ef Std','ef std','ef_std','eficiencia std','eficiencia_std','eficiencia'])),
                 'VelocidadSTD'    => $this->parseInteger($this->getValue($row, ['Vel','vel','velocidad','velocidad_std'])),
                 'FibraRizo'       => $this->parseString($this->getValue($row, ['Hilo','hilo','Fibra Rizo','fibra rizo','fibra_rizo']), 30),
                 // Campo verde (*2): viene del Excel
-                'CalibrePie2'     => $this->parseFloat($this->getValue($row, [
-                    'Calibre Pie','CalibrePie','calibre_pie',
-                    'CalibrePie2','Calibre Pie 2','Calibre Pie/2','calibre_pie2','calibre pie 2'
-                ])),
+                'CalibrePie2'     => $this->parseFloat($this->getValue($row, ['Calibre Pie'])),
                 // Campo blanco (base): se rellena desde ReqModelosCodificados
                 'CalibrePie'      => null,
                 'FlogsId'         => $this->parseString($this->getValue($row, ['Id Flog','flogs_id']), 40),
                 'NombreProyecto'  => $this->parseString($this->getValue($row, ['Descrip.','Descrip','Descripción','Descripcion','nombre_proyecto']), 120),
-                'CustName'        => $this->parseString($this->getValue($row, ['Nombre Cliente','cust_name']), 120),
+                'CustName'        => $this->parseString($this->getValue($row, ['CustName','cust_name']), 120),
                 'AplicacionId'    => $this->parseString($this->getValue($row, ['Aplic.','Aplic','aplicacion_id']), 20),
                 'Observaciones'   => $this->parseString($this->getValue($row, ['Obs','Observaciones','observaciones']), 200),
                 'TipoPedido'      => $this->parseString($this->getValue($row, ['Tipo Ped.','Tipo Ped','tipo_pedido']), 40),
                 'NoTiras'         => $this->parseInteger($this->getValue($row, ['Tiras','No Tiras','no_tiras'])),
 
                 // Pedido / Producción
-                'TotalPedido'     => $this->parseFloat($this->getValue($row, ['Total Pedido','Total Ped','total_pedido','total pedido','Total'])),
+                'TotalPedido'     => $this->parseFloat($this->getValue($row, ['TotalPedido','Total Ped','total_pedido','total pedido','Total'])),
                 'Produccion'      => $this->parseFloat($this->getValue($row, ['Producción','Produccion','produccion','Producción'])),
                 'SaldoPedido'     => $this->parseFloat($this->getValue($row, ['Saldos','Saldo Pedido','saldo_pedido','saldos'])),
                 'SaldoMarbete'    => $this->parseInteger($this->getValue($row, ['Saldo Marbete','saldo_marbete','Marbete','marbete'])),
@@ -642,8 +639,11 @@ private function parseDate($value): ?string
                 // Actualizar campos BLANCOS (base) con valores de modelos codificados
                 // Los campos verdes (*2) ya vienen del Excel y NO se sobrescriben
                 $data['CalibreRizo'] = $modelo->CalibreRizo;
+                $data['CalibreRizo2'] = $modelo->CalibreRizo2;
                 $data['CalibrePie'] = $modelo->CalibrePie;
                 $data['CalibreTrama'] = $modelo->CalibreTrama;
+                $data['CodColorTrama'] = $modelo->CodColorTrama;
+                $data['ColorTrama'] = $modelo->ColorTrama;
 
                 // Actualizar campos Comb base (1-5) desde modelos codificados
                 $data['CalibreComb1'] = $modelo->CalibreComb1;
@@ -651,6 +651,23 @@ private function parseDate($value): ?string
                 $data['CalibreComb3'] = $modelo->CalibreComb3;
                 $data['CalibreComb4'] = $modelo->CalibreComb4;
                 $data['CalibreComb5'] = $modelo->CalibreComb5;
+
+                // Colores y nombres de combinaciones
+                $data['CodColorComb1'] = $modelo->CodColorC1;
+                $data['NombreCC1'] = $modelo->NomColorC1;
+                $data['CodColorComb2'] = $modelo->CodColorC2;
+                $data['NombreCC2'] = $modelo->NomColorC2;
+                $data['CodColorComb3'] = $modelo->CodColorC3;
+                $data['NombreCC3'] = $modelo->NomColorC3;
+                $data['CodColorComb4'] = $modelo->CodColorC4;
+                $data['NombreCC4'] = $modelo->NomColorC4;
+                $data['CodColorComb5'] = $modelo->CodColorC5;
+                $data['NombreCC5'] = $modelo->NomColorC5;
+
+                // Datos generales adicionales
+                $data['ItemId'] = $modelo->ItemId;
+                $data['InventSizeId'] = $modelo->InventSizeId;
+                $data['Rasurado'] = $modelo->Rasurado;
             }
         } catch (\Throwable $e) {
             Log::error('Error al buscar en ReqModelosCodificados', [

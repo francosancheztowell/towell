@@ -35,9 +35,9 @@
     'moduleId' => null,
     'checkPermission' => null,
     'icon' => 'fa-pen-to-square',
-    'iconColor' => 'text-white',
-    'hoverBg' => 'hover:bg-blue-600',
-    'bg' => 'bg-blue-500',
+    'iconColor' => 'text-blue-600',
+    'hoverBg' => '',
+    'bg' => '',
     'text' => null,
     'class' => ''
 ])
@@ -85,7 +85,7 @@
 @php
     // Si hay fondo personalizado, ajustar hoverBg si es necesario
     $finalHoverBg = $hoverBg;
-    if ($bg && $hoverBg === 'hover:bg-yellow-100') {
+    if ($bg && $hoverBg === '') {
         // Si hay bg pero hoverBg es el default antiguo, usar hover más oscuro
         $finalHoverBg = 'hover:opacity-90';
     }

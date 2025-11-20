@@ -32,7 +32,7 @@ class ReqProgramaTejidoObserver
     private function generarLineasDiarias(ReqProgramaTejido $programa)
     {
         try {
-            // ✅ VERIFICAR QUE EL ID EXISTE
+            // Verificar que el ID existe
             if (!$programa->Id || $programa->Id <= 0) {
                 Log::warning('ReqProgramaTejidoObserver: ID del programa no está disponible', [
                     'programa_id' => $programa->Id,
@@ -43,7 +43,7 @@ class ReqProgramaTejidoObserver
 
             // Log reducido solo para errores críticos
 
-            // ✅ CALCULAR LAS FÓRMULAS DE EFICIENCIA UNA SOLA VEZ
+            // Calcular las fórmulas de eficiencia una sola vez
             $formulas = $this->calcularFormulasEficiencia($programa);
 
             // Guardar las fórmulas en el modelo del programa (para acceso posterior)
@@ -94,6 +94,8 @@ class ReqProgramaTejidoObserver
             // Calcular StdHrEfectivo (piezas por hora)
             $stdHrEfectivo = ($totalHoras > 0) ? ($totalPzas / $totalHoras) : 0;
             $prodKgDia = ($stdHrEfectivo > 0 && $pesoCrudo > 0) ? ($stdHrEfectivo * $pesoCrudo) / 1000.0 : 0;
+            $prodKgDia2Calc = (float)($formulas['ProdKgDia2'] ?? $programa->ProdKgDia2 ?? 0);
+            $stdHrsEfectCalc = (float)($formulas['StdHrsEfect'] ?? $programa->StdHrsEfect ?? 0);
 
             // Si no hay datos para distribuir, no hacer nada
             if ($totalHoras <= 0 || $totalPzas <= 0) {
@@ -177,7 +179,9 @@ class ReqProgramaTejidoObserver
 
                     // Piezas y kilos base proporcionales
                     $pzasDia = $stdHrEfectivo * $horasDia;
-                    $kilosBase = ($prodKgDia > 0) ? ($prodKgDia / 24) * $horasDia : 0;
+                    $kilosBase = ($prodKgDia2Calc > 0 && $stdHrsEfectCalc > 0)
+                        ? (($pzasDia * $prodKgDia2Calc) / ($stdHrsEfectCalc * 24))
+                        : (($prodKgDia > 0) ? ($prodKgDia / 24) * $horasDia : 0);
 
                     // Calcular componentes (proporcional a piezas)
                     // IMPORTANTE: Buscar el Factor desde ReqAplicaciones usando AplicacionId
@@ -205,24 +209,30 @@ class ReqProgramaTejidoObserver
                     $pie = $this->calcularPie($programa, $pzasDia);
 
                     // Sumar todos los componentes (excepto Rizo)
-                    $totalComponentes = ($trama ?? 0) + ($combinacion1 ?? 0) + ($combinacion2 ?? 0) +
-                                       ($combinacion3 ?? 0) + ($combinacion4 ?? 0) + ($combinacion5 ?? 0) + ($pie ?? 0);
+                    $totalComponentes = ($trama ?? 0)
+                        + ($combinacion1 ?? 0)
+                        + ($combinacion2 ?? 0)
+                        + ($combinacion3 ?? 0)
+                        + ($combinacion4 ?? 0)
+                        + ($combinacion5 ?? 0)
+                        + ($pie ?? 0);
 
-                    // Rizo = Factor * Kilos (donde Factor viene de ReqAplicaciones)
-                    // Si Factor es null (AplicacionId no existe en tabla), usar la fórmula anterior
-                    // IMPORTANTE: Si Factor = 0, entonces Rizo = 0 (no usar fallback)
-                    if ($factorAplicacion !== null) {
-                        // Factor existe (puede ser 0, 1, 2, etc.) → usar Factor × Kilos
-                        $rizo = $factorAplicacion * $kilosBase;
-                    } else {
-                        // Factor no encontrado en ReqAplicaciones → fallback: lo que queda
-                        $rizo = max(0, $kilosBase - $totalComponentes);
-                    }
+                    // Nueva fórmula exacta: Rizo = Kilos - (Pie + Comb3 + Comb2 + Comb1 + Trama + Comb4)
+                    $componentesParaRizo = array_sum([
+                        $pie ?? 0,
+                        $combinacion3 ?? 0,
+                        $combinacion2 ?? 0,
+                        $combinacion1 ?? 0,
+                        $trama ?? 0,
+                        $combinacion4 ?? 0,
+                    ]);
+
+                    $rizo = max(0.0, $kilosBase - $componentesParaRizo);
 
                     // Kilos es la suma de TODOS los componentes (incluyendo Rizo)
                     $kilosDia = $totalComponentes + $rizo;
 
-                    // ✅ APLICACION: Guardar Factor * Kilos (multiplicación del factor por el total de kilos del día)
+                    //  APLICACION: Guardar Factor * Kilos (multiplicación del factor por el total de kilos del día)
                     $aplicacionValor = null;
                     if ($factorAplicacion !== null && $kilosDia > 0) {
                         $aplicacionValor = $factorAplicacion * $kilosDia;
@@ -287,23 +297,17 @@ class ReqProgramaTejidoObserver
      */
     private function calcularTrama(ReqProgramaTejido $programa, float $pzasDia): ?float
     {
-        try {
             // Resolver aliases comunes de campos
-            $pasadasTrama = $this->resolveField($programa, ['PasadasTrama', 'Pasadas_Trama', 'PASADAS_TRAMA', 'PasadasTramaFondoC1', 'PasadasTramaFondoC12'], 'float');
-            $calibreTrama = $this->resolveField($programa, ['CalibreTrama', 'CalibreTrama2', 'CALIBRE_TRA', 'Calibre_Trama'], 'float');
-            $anchoToalla = $this->resolveField($programa, ['AnchoToalla', 'Ancho', 'AnchoPeineTrama', 'LargoToalla'], 'float');
+            $pasadasTrama = $this->resolveField($programa, ['PasadasTrama'], 'int');
+            $calibreTrama = $this->resolveField($programa, ['CalibreTrama'], 'float');
+            $anchoToalla = $this->resolveField($programa, ['AnchoToalla'], 'float');
 
             if ($pasadasTrama <= 0 || $calibreTrama <= 0 || $anchoToalla <= 0) {
                 // Sin logging para mejorar rendimiento
                 return null;
             }
-
-            $trama = ((((0.59 * ((($pasadasTrama * 1.001) * $anchoToalla) / 100)) / $calibreTrama) * $pzasDia) / 1000);
+            $trama = ((((0.59*((( $pasadasTrama*1.001) * $anchoToalla)/100))/$calibreTrama)*$pzasDia)/1000);
             return $trama > 0 ? $trama : null;
-        } catch (\Throwable $e) {
-            Log::warning('ReqProgramaTejidoObserver: Error al calcular trama', ['error' => $e->getMessage()]);
-            return null;
-        }
     }
 
     /**
@@ -338,28 +342,32 @@ class ReqProgramaTejidoObserver
 
     /**
      * Calcula el pie proporcionalmente - FÓRMULA EXACTA DEL CONTROLLER
-     * Pie = (((((Largo + MedidaPlano) / 100) * 1.055) * 0.00059) / ((0.00059 * 1) / (0.00059 / CalibrePie))) *
-     *       (((CuentaPie - 32) / NoTiras)) * piezas
+ * Pie = ((((((LargoCrudo + Plano) / 100) * 1.055) * 0.00059) / ((0.00059 * 1) / (0.00059 / CalibrePie)))
+ *        * ((CuentaPie - 32) / NoTiras)) * Piezas
      */
     private function calcularPie(ReqProgramaTejido $programa, float $pzasDia): ?float
     {
         try {
-            $largo = $this->resolveField($programa, ['Largo', 'LargoToalla', 'Luchaje', 'LargoToalla'], 'float');
-            $medidaPlano = $this->resolveField($programa, ['MedidaPlano', 'Plano', 'Medida_Plano'], 'float');
-            $calibrePie = $this->resolveField($programa, ['CalibrePie', 'CalibrePie2'], 'float');
-            $cuentaPie = $this->resolveField($programa, ['CuentaPie', 'Cuenta_Pie'], 'float');
-            $noTiras = $this->resolveField($programa, ['NoTiras', 'No_Tiras'], 'float');
+            $largo = $this->resolveField($programa, ['LargoCrudo'], 'integer');
+            $medidaPlano = $this->resolveField($programa, ['MedidaPlano'], 'float');
+            $calibrePie = $this->resolveField($programa, ['CalibrePie2'], 'integer') ;
+            $cuentaPie = $this->resolveField($programa, ['CuentaPie'], 'integer');
+            $noTiras = $this->resolveField($programa, ['NoTiras'], 'integer');
 
             if ($largo <= 0 || $noTiras <= 0 || $calibrePie <= 0 || $cuentaPie <= 0) {
                 // Sin logging para mejorar rendimiento
                 return null;
             }
 
-            // FÓRMULA EXACTA DEL CONTROLLER TRANSCRITA:
-            $pie = (
-                ((((($largo + $medidaPlano) / 100) * 1.055) * 0.00059) / ((0.00059 * 1) / (0.00059 / $calibrePie))) *
-                ((($cuentaPie - 32) / $noTiras)) * $pzasDia
-            );
+            $baseLongitud = ($largo + $medidaPlano) / 100;
+            $ajuste = $baseLongitud * 1.055;
+            $numerador = $ajuste * 0.00059;
+            $divisor = (0.00059 * 1.0) / (0.00059 / $calibrePie);
+            if ($divisor == 0.0) {
+                return null;
+            }
+            $fraccionCuenta = ($cuentaPie - 32.0) / $noTiras;
+            $pie = ($numerador / $divisor) * $fraccionCuenta * $pzasDia;
 
             return $pie > 0 ? $pie : null;
         } catch (\Throwable $e) {

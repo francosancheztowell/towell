@@ -11,6 +11,34 @@ use Carbon\Carbon;
 
 class DescargarProgramaController extends Controller
 {
+    private const COLUMNAS_FECHA_HORA = [
+        'FechaInicio',
+        'FechaFinal',
+    ];
+
+    private const COLUMNAS_FECHA = [
+        'Fecha',
+        'ProgramarProd',
+        'Programado',
+        'EntregaProduc',
+        'EntregaPT',
+        'EntregaCte',
+        'ProgramarProd',
+    ];
+
+    private const COLUMNAS_DECIMALES = [
+        'Cantidad', 'Kilos', 'Aplicacion', 'Trama',
+        'Combina1', 'Combina2', 'Combina3', 'Combina4', 'Combina5',
+        'Pie', 'Rizo', 'MtsRizo', 'MtsPie',
+        'TotalPedido', 'Produccion', 'SaldoPedido', 'SaldoMarbete',
+        'LargoCrudo', 'PesoCrudo', 'Luchaje', 'MedidaPlano',
+        'CalibreTrama2', 'CalibrePie2', 'CalibreRizo2',
+        'CalibreComb1', 'CalibreComb2', 'CalibreComb3', 'CalibreComb4', 'CalibreComb5',
+        'AnchoToalla', 'PesoGRM2', 'DiasEficiencia',
+        'ProdKgDia', 'StdDia', 'ProdKgDia2', 'StdToaHra',
+        'DiasJornada', 'HorasProd', 'StdHrsEfect',
+        'Calc4', 'Calc5', 'Calc6', 'ProdKgDia',
+    ];
     /**
      * Descarga el programa de tejido como archivo TXT
      *
@@ -177,10 +205,10 @@ class DescargarProgramaController extends Controller
             'TipoPedido' => 'Tipo Ped.',
             'NoTiras' => 'Tiras',
             'Peine' => 'Pei.',
-            'LargoCrudo' => 'Lcr',
-            'Luchaje' => 'Luc',
-            'PesoCrudo' => 'Pcr',
-            'CalibreTrama2' => 'Calibre Tra',
+            'LargoCrudo' => 'Largo Crudo',
+            'Luchaje' => 'Luchaje',
+            'PesoCrudo' => 'Peso Crudo',
+            'CalibreTrama2' => 'Calibre Trama',
             'FibraTrama' => 'Fibra Trama',
             'DobladilloId' => 'Dob',
             'PasadasTrama' => 'Pasadas Tra',
@@ -214,6 +242,7 @@ class DescargarProgramaController extends Controller
             'NombreCC5' => 'Color C5',
             'MedidaPlano' => 'Plano',
             'CuentaPie' => 'Cuenta Pie',
+
             'CodColorCtaPie' => 'Código Color Pie',
             'NombreCPie' => 'Color Pie',
             'PesoGRM2' => 'Peso (gr/m²)',
@@ -336,27 +365,24 @@ class DescargarProgramaController extends Controller
     /**
      * Formatea un valor para el TXT
      */
-    private function formatearValor($valor, string $columna, bool $esFechaSimple = false): string
+    private function formatearValor($valor, string $columna, bool $forzarFechaSimple = false): string
     {
         if ($valor === null) {
             return '';
         }
 
-        // Detectar si es una fecha por el nombre de la columna
-        $esFecha = $esFechaSimple || in_array($columna, [
-            'FechaInicio', 'FechaFinal', 'ProgramarProd', 'Programado',
-            'EntregaProduc', 'EntregaPT', 'EntregaCte', 'CreatedAt', 'UpdatedAt'
-        ]);
+        $esFechaHora = in_array($columna, self::COLUMNAS_FECHA_HORA, true);
+        $esSoloFecha = $forzarFechaSimple || in_array($columna, self::COLUMNAS_FECHA, true);
 
-        if ($esFecha) {
+        if ($esFechaHora || $esSoloFecha) {
             try {
                 if ($valor instanceof Carbon) {
-                    return $esFechaSimple
+                    return $esSoloFecha
                         ? $valor->format('Y-m-d')
                         : $valor->format('Y-m-d H:i:s');
                 } elseif (is_string($valor) && !empty($valor)) {
                     $carbon = Carbon::parse($valor);
-                    return $esFechaSimple
+                    return $esSoloFecha
                         ? $carbon->format('Y-m-d')
                         : $carbon->format('Y-m-d H:i:s');
                 }
@@ -370,9 +396,12 @@ class DescargarProgramaController extends Controller
             return $valor ? '1' : '0';
         }
 
-        // Convertir a string y limpiar
+        if (is_numeric($valor) && in_array($columna, self::COLUMNAS_DECIMALES, true)) {
+            $valor = round((float) $valor, 3);
+            return number_format($valor, 3, '.', '');
+        }
+
         $valor = (string) $valor;
-        // Remover saltos de línea y pipes que podrían romper el formato
         $valor = str_replace(["\n", "\r", "|"], [' ', ' ', ''], $valor);
         return trim($valor);
     }

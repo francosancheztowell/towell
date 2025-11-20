@@ -19,7 +19,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Throwable;
-use Maatwebsite\Excel\Events\BeforeSheet;
 
 class ReqModelosCodificadosImport implements
     ToCollection,
