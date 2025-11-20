@@ -6,6 +6,7 @@ use App\Models\ReqAplicaciones;
 use App\Imports\ReqAplicacionesImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
@@ -110,9 +111,14 @@ class AplicacionesController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'AplicacionId' => 'required|string|unique:dbo.ReqAplicaciones,AplicacionId|max:50',
+                'AplicacionId' => [
+                    'required',
+                    'string',
+                    'max:50',
+                    Rule::unique(ReqAplicaciones::class, 'AplicacionId'),
+                ],
                 'Nombre'       => 'required|string|max:100',
-                'Factor'       => 'nullable|numeric'
+                'Factor'       => 'nullable|numeric',
             ]);
 
             if ($validator->fails()) {
@@ -166,9 +172,14 @@ class AplicacionesController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'AplicacionId' => 'required|string|max:50|unique:dbo.ReqAplicaciones,AplicacionId,' . $aplicacion->Id . ',Id',
+                'AplicacionId' => [
+                    'required',
+                    'string',
+                    'max:50',
+                    Rule::unique(ReqAplicaciones::class, 'AplicacionId')->ignore($aplicacion->Id, 'Id'),
+                ],
                 'Nombre'       => 'required|string|max:100',
-                'Factor'       => 'nullable|numeric'
+                'Factor'       => 'nullable|numeric',
             ]);
 
             if ($validator->fails()) {

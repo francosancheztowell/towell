@@ -437,6 +437,7 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
 
             $datos = $q->select(
                 'TamanoClave','SalonTejidoId','FlogsId','Nombre','NombreProyecto','InventSizeId',
+                'ItemId','CustName',  // Campos agregados: Clave AX y Nombre Cliente
                 'CuentaRizo','CalibreRizo','CalibreRizo2','FibraRizo',
                 'CalibreTrama','CalibreTrama2','CodColorTrama','ColorTrama','FibraId',
                 'CalibrePie','CalibrePie2','CuentaPie','FibraPie',

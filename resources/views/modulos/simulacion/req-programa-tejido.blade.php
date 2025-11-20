@@ -258,10 +258,8 @@ const COLUMN_OPTIONS = @json(
 );
 
 // ===== Estado =====
-let filters = [];
 let hiddenColumns = [];
 let pinnedColumns = [];
-let allRows = [];
 let selectedRowIndex = -1;
 let selectedRowId = null;
 
@@ -269,246 +267,6 @@ let selectedRowId = null;
 const $  = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
 const tbodyEl = () => $('#mainTable tbody');
-
-// ===================== Filtros =====================
-function renderFilterModalContent() {
-    const options = COLUMN_OPTIONS;
-
-    const filtrosHTML = filters.length
-        ? `<div class="mb-4 p-3 bg-gray-50 rounded-lg">
-                <h4 class="text-sm font-medium text-gray-700 mb-2">Filtros Activos:</h4>
-                <div class="space-y-1">
-                    ${filters.map((f, i) => `
-                        <div class="flex items-center justify-between bg-white p-2 rounded border">
-                            <span class="text-xs">${f.column}: ${f.value}</span>
-                            <button onclick="removeFilter(${i})" class="text-red-500 hover:text-red-700 text-xs">×</button>
-                        </div>
-                    `).join('')}
-                </div>
-           </div>`
-        : '';
-
-    return `
-        ${filtrosHTML}
-        <div class="text-left space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Columna</label>
-                <select id="filtro-columna" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-stone-500">
-                    <option value="">Selecciona una columna...</option>
-                    ${options.map(col => `<option value="${col.field}">${col.label}</option>`).join('')}
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Valor a buscar</label>
-                <input type="text" id="filtro-valor" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-stone-500" placeholder="Ingresa el valor a buscar">
-            </div>
-            <div class="flex gap-2 pt-2">
-                <button type="button" id="btn-agregar-otro" class="flex-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">
-                    + Agregar Otro Filtro
-                </button>
-            </div>
-        </div>
-    `;
-}
-
-function openFilterModal() {
-    Swal.fire({
-        title: 'Filtrar por Columna',
-        html: renderFilterModalContent(),
-        showCancelButton: true,
-        confirmButtonText: 'Agregar Filtro',
-        cancelButtonText: 'Cerrar',
-        confirmButtonColor: '#44403c',
-        cancelButtonColor: '#6b7280',
-        width: '450px',
-        didOpen: () => {
-            const btnAgregarOtro = $('#btn-agregar-otro');
-            if (!btnAgregarOtro) return;
-
-            btnAgregarOtro.addEventListener('click', () => {
-                const col = $('#filtro-columna').value;
-                const val = $('#filtro-valor').value;
-                if (!col || !val) {
-                    Swal.showValidationMessage('Selecciona columna y valor');
-                    return;
-                }
-                if (filters.some(f => f.column === col && f.value === val)) {
-                    Swal.showValidationMessage('Este filtro ya está activo');
-                    return;
-                }
-
-                filters.push({ column: col, value: val });
-                applyFilters();
-                showToast('Filtro agregado correctamente', 'success');
-                Swal.update({ html: renderFilterModalContent() });
-            });
-        },
-        preConfirm: () => {
-            const col = $('#filtro-columna').value;
-            const val = $('#filtro-valor').value;
-            if (!col || !val) {
-                Swal.showValidationMessage('Selecciona columna y valor');
-                return false;
-            }
-            if (filters.some(f => f.column === col && f.value === val)) {
-                Swal.showValidationMessage('Este filtro ya está activo');
-                return false;
-            }
-            return { column: col, value: val };
-        }
-    }).then(res => {
-        if (res.isConfirmed && res.value) {
-            filters.push(res.value);
-            applyFilters();
-            showToast('Filtro agregado correctamente', 'success');
-        }
-    });
-}
-
-function removeFilter(index) {
-    filters.splice(index, 1);
-    applyFilters();
-    showToast('Filtro eliminado', 'info');
-    Swal.update({ html: renderFilterModalContent() });
-}
-
-function applyFilters() {
-    const tb = tbodyEl();
-    if (!tb) return;
-
-    let rows = allRows.slice();
-
-    if (filters.length) {
-        rows = rows.filter(tr =>
-            filters.every(f => {
-                const cell = tr.querySelector(`[data-column="${f.column}"]`);
-                return cell
-                    ? (cell.textContent || '').toLowerCase().includes(f.value.toLowerCase())
-                    : false;
-            })
-        );
-    }
-
-    tb.innerHTML = '';
-    let newSelectedIndex = -1;
-    rows.forEach((r, i) => {
-        r.onclick = () => selectRow(r, i);
-        tb.appendChild(r);
-        // Si esta fila tiene el ID seleccionado, actualizar el índice
-        if (selectedRowId && r.getAttribute('data-id') === selectedRowId) {
-            newSelectedIndex = i;
-        }
-    });
-
-    // Actualizar el índice seleccionado si la fila sigue visible
-    if (newSelectedIndex >= 0) {
-        selectedRowIndex = newSelectedIndex;
-        // Reseleccionar visualmente la fila
-        const selectedRow = rows[newSelectedIndex];
-        if (selectedRow) {
-            selectedRow.classList.add('bg-stone-500', 'text-white');
-            selectedRow.classList.remove('hover:bg-stone-50');
-            $$('td', selectedRow).forEach(td => {
-                td.classList.add('text-white');
-                td.classList.remove('text-gray-700');
-            });
-        }
-    } else if (selectedRowId) {
-        // Si la fila seleccionada no está en los resultados filtrados, deseleccionar
-        selectedRowIndex = -1;
-        selectedRowId = null;
-        const rpc = $('#rowPriorityControls');
-        if (rpc) rpc.classList.add('hidden');
-        const btnEditarLayout = document.getElementById('layoutBtnEditar');
-        const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
-        if (btnEditarLayout) {
-            btnEditarLayout.disabled = true;
-            btnEditarLayout.classList.add('opacity-50', 'cursor-not-allowed');
-        }
-        if (btnEliminarLayout) {
-            btnEliminarLayout.disabled = true;
-            btnEliminarLayout.classList.add('opacity-50', 'cursor-not-allowed');
-        }
-    }
-
-    updateFilterCount();
-
-    if (filters.length) {
-        showToast(
-            `Filtros aplicados<br>${filters.length} filtro(s) · ${rows.length} resultado(s)`,
-            'success'
-        );
-    }
-}
-
-function updateFilterCount() {
-    const badge = $('#filterCount');
-    if (!badge) return;
-    if (filters.length > 0) {
-        badge.textContent = filters.length;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
-    }
-}
-
-function resetFilters() {
-    const tb = tbodyEl();
-    if (!tb) return;
-
-    // Restaurar filas originales
-    tb.innerHTML = '';
-    allRows.forEach((r, i) => {
-        r.classList.remove('bg-stone-500', 'text-white', 'hover:bg-stone-50');
-        r.classList.add('hover:bg-stone-50');
-        $$('td', r).forEach(td => {
-            td.classList.remove('text-white');
-            td.classList.add('text-gray-700');
-        });
-        r.onclick = () => selectRow(r, i);
-        tb.appendChild(r);
-    });
-
-    // Mostrar columnas ocultas
-    hiddenColumns.forEach(idx => {
-        showColumn(idx);
-        const hideBtn = $(`th.column-${idx} .hide-btn`);
-        if (hideBtn) {
-            hideBtn.classList.remove('bg-red-600');
-            hideBtn.classList.add('bg-red-500');
-            hideBtn.title = 'Ocultar columna';
-        }
-    });
-    hiddenColumns = [];
-
-    // Desfijar columnas
-    pinnedColumns = [];
-    updatePinnedColumnsPositions();
-
-    filters = [];
-    updateFilterCount();
-
-    const rpc = $('#rowPriorityControls');
-    if (rpc) rpc.classList.add('hidden');
-
-    selectedRowIndex = -1;
-    selectedRowId = null;
-
-    // Deshabilitar botón Programar
-    const btnProgramar = document.getElementById('btnProgramar');
-    if (btnProgramar) {
-        btnProgramar.disabled = true;
-        btnProgramar.classList.remove('bg-stone-700', 'hover:bg-stone-800', 'cursor-pointer');
-        btnProgramar.classList.add('bg-gray-400', 'hover:bg-gray-500', 'cursor-not-allowed');
-    }
-
-    const btnEditar = document.getElementById('btn-editar-programa');
-    if (btnEditar) btnEditar.disabled = true;
-    const btnEliminar = document.getElementById('btn-eliminar-programa');
-    if (btnEliminar) btnEliminar.disabled = true;
-
-    showToast('Restablecido<br>Se limpiaron filtros, fijados y columnas ocultas', 'success');
-}
 
 // ===================== Columnas: fijar / ocultar =====================
 function getColumnsData() {
@@ -1080,18 +838,11 @@ function eliminarRegistro(id) {
 document.addEventListener('DOMContentLoaded', () => {
     const tb = tbodyEl();
     if (tb) {
-        allRows = $$('.selectable-row', tb);
-        allRows.forEach((row, i) => row.addEventListener('click', () => selectRow(row, i)));
+        const rows = $$('.selectable-row', tb);
+        rows.forEach((row, i) => row.addEventListener('click', () => selectRow(row, i)));
     }
 
-    updateFilterCount();
     window.addEventListener('resize', updatePinnedColumnsPositions);
-
-    // Conectar botón de filtros del navbar
-    const btnFilters = document.getElementById('btnFilters');
-    if (btnFilters) {
-        btnFilters.addEventListener('click', openFilterModal);
-    }
 
     const btnEditarLayout = document.getElementById('layoutBtnEditar');
     const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
@@ -1238,35 +989,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// === Filtros compactos desde layout: values = { columna: valor, ... } ===
-window.applyTableFilters = function (values) {
-    try {
+// ===== Callback para cuando se aplican filtros =====
+window.onFiltersApplied = function(filters) {
+    console.log('Filtros aplicados en la tabla:', filters);
+
+    // Intentar mantener la selección si la fila aún está visible
+    if (selectedRowId) {
         const tb = tbodyEl();
-        if (!tb) return;
+        if (tb) {
+            const rows = $$('.selectable-row', tb);
+            let found = false;
 
-        const rows = allRows.slice();
-        const entries = Object.entries(values || {});
-        let filtered = rows;
+            rows.forEach((row, index) => {
+                if (row.getAttribute('data-id') === selectedRowId) {
+                    selectRow(row, index);
+                    found = true;
+                }
+            });
 
-        if (entries.length) {
-            filtered = rows.filter(tr =>
-                entries.every(([col, val]) => {
-                    const cell = tr.querySelector(`[data-column="${CSS.escape(col)}"]`);
-                    if (!cell) return false;
-                    return (cell.textContent || '')
-                        .toLowerCase()
-                        .includes(String(val).toLowerCase());
-                })
-            );
+            if (!found) {
+                deselectRow();
+            }
         }
-
-        tb.innerHTML = '';
-        filtered.forEach((r, i) => {
-            r.onclick = () => selectRow(r, i);
-            tb.appendChild(r);
-        });
-    } catch (e) {
-        console.error('applyTableFilters error:', e);
     }
 };
 

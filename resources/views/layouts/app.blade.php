@@ -4,6 +4,16 @@
     <x-layout-head />
     <x-layout-styles />
     <x-layout-scripts />
+    <style>
+        /* Animación de spin para iconos */
+        .fa-spin {
+            animation: fa-spin 1s linear infinite;
+        }
+        @keyframes fa-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 
 <body class="min-h-screen flex flex-col overflow-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative" style="touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;">
@@ -51,7 +61,7 @@
       <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
         <button id="btnResetFilters"
                 class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all"
-                onclick="resetFiltersSpin()" title="Restablecer">
+                onclick="resetFiltersAndReload()" title="Restablecer">
           <i id="iconReset" class="fas fa-redo w-4 h-4"></i>
           Restablecer
         </button>
@@ -101,7 +111,7 @@
                 <input type="radio" name="tipoTelar" id="radioRizo" value="rizo" class="form-radio h-5 w-5 text-blue-600">
                 <span class="ml-2 text-gray-700 font-medium">Rizo</span>
               </label>
-              
+
               <label class="inline-flex items-center cursor-pointer">
                 <input type="radio" name="tipoTelar" id="radioPie" value="pie" class="form-radio h-5 w-5 text-blue-600">
                 <span class="ml-2 text-gray-700 font-medium">Pie</span>
@@ -181,6 +191,60 @@
     </div>
   </div>
 
+  <!-- ====== Polyfill CSS.escape (debe estar ANTES de los scripts) ====== -->
+  <script>
+    (function () {
+      if (typeof window.CSS === 'undefined') {
+        window.CSS = {};
+      }
+      if (typeof window.CSS.escape !== 'function') {
+        window.CSS.escape = function (value) {
+          if (arguments.length === 0) {
+            throw new TypeError('CSS.escape requires an argument.');
+          }
+          var string = String(value);
+          var length = string.length;
+          var index = -1;
+          var codeUnit;
+          var result = '';
+          var firstCodeUnit = string.charCodeAt(0);
+          while (++index < length) {
+            codeUnit = string.charCodeAt(index);
+            if (codeUnit === 0x0000) {
+              result += '\uFFFD';
+              continue;
+            }
+            if (
+              (codeUnit >= 0x0001 && codeUnit <= 0x001F) ||
+              codeUnit === 0x007F ||
+              (index === 0 && codeUnit >= 0x0030 && codeUnit <= 0x0039) ||
+              (index === 1 &&
+                codeUnit >= 0x0030 &&
+                codeUnit <= 0x0039 &&
+                firstCodeUnit === 0x002D)
+            ) {
+              result += '\\' + codeUnit.toString(16).toUpperCase() + ' ';
+              continue;
+            }
+            if (
+              codeUnit >= 0x0080 ||
+              codeUnit === 0x002D ||
+              codeUnit === 0x005F ||
+              (codeUnit >= 0x0030 && codeUnit <= 0x0039) ||
+              (codeUnit >= 0x0041 && codeUnit <= 0x005A) ||
+              (codeUnit >= 0x0061 && codeUnit <= 0x007A)
+            ) {
+              result += string.charAt(index);
+              continue;
+            }
+            result += '\\' + string.charAt(index);
+          }
+          return result;
+        };
+      }
+    })();
+  </script>
+
   <!-- ====== Scripts ====== -->
     <script src="{{ asset('js/app-core.js') }}"></script>
     <script src="{{ asset('js/app-filters.js') }}"></script>
@@ -215,18 +279,18 @@
         });
         const data = await response.json();
         telaresUsuario = data.telares;
-        
+
         // Llenar el select con los telares
         const select = document.getElementById('selectTelar');
         select.innerHTML = '<option value="">-- Seleccione un telar --</option>';
-        
+
         telaresUsuario.forEach(telar => {
           const option = document.createElement('option');
           option.value = telar;
           option.textContent = telar;
           select.appendChild(option);
         });
-        
+
         document.getElementById('modalTelaresNotificar').style.display = 'flex';
       } catch (error) {
         console.error('Error al cargar telares:', error);
@@ -262,7 +326,7 @@
 
         // Ocultar mensaje de error
         document.getElementById('mensajeNoData').classList.add('hidden');
-        
+
         if (data.detalles) {
           registroActualId = data.detalles.id;
           mostrarDetallesTelar(data.detalles);
@@ -295,7 +359,7 @@
 
       // Obtener la hora actual del input
       const horaParo = document.getElementById('detalle_hora_paro').value;
-      
+
       if (!horaParo) {
         Swal.fire({
           icon: 'warning',
@@ -353,11 +417,11 @@
       document.getElementById('detalle_no_orden').value = detalles.no_orden || '';
       document.getElementById('detalle_no_julio').value = detalles.no_julio || '';
       document.getElementById('detalle_metros').value = detalles.metros || '';
-      
+
       // Siempre insertar la hora actual
       const horaParo = new Date().toLocaleTimeString('es-MX', { hour12: false });
       document.getElementById('detalle_hora_paro').value = horaParo;
-      
+
       document.getElementById('detallesTelar').classList.remove('hidden');
     }
 
