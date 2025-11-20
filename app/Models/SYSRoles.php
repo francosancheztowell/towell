@@ -142,6 +142,14 @@ class SYSRoles extends Model
     }
 
     /**
+     * Relación con permisos de usuarios
+     */
+    public function usuariosRoles()
+    {
+        return $this->hasMany(SYSUsuariosRoles::class, 'idrol', 'idrol');
+    }
+
+    /**
      * Obtener la estructura jerárquica completa
      */
     public static function getEstructuraJerarquica()

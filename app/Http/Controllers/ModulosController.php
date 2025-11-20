@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\SYSRoles;
 use App\Models\SYSUsuario;
+use App\Models\SYSUsuariosRoles;
 use App\Services\ModuloService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -25,13 +26,14 @@ class ModulosController extends Controller
     public function index()
     {
         try {
-            // Obtener todos los módulos ordenados jerárquicamente
-            $modulos = SYSRoles::orderBy('Dependencia', 'ASC')
-                ->orderBy('Nivel', 'ASC')
+            // Obtener todos los módulos y módulos principales para selects
+            $modulos = SYSRoles::orderBy('orden', 'ASC')->get();
+            $modulosPrincipales = SYSRoles::where('Nivel', 1)
+                ->whereNull('Dependencia')
                 ->orderBy('orden', 'ASC')
                 ->get();
 
-            return view('modulos.gestion-modulos.index', compact('modulos'));
+            return view('modulos.gestion-modulos.index', compact('modulos', 'modulosPrincipales'));
         } catch (\Exception $e) {
             Log::error('Error al cargar módulos: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Error al cargar los módulos');
@@ -54,6 +56,41 @@ class ModulosController extends Controller
 
     /**
      * Almacenar un nuevo módulo
+     * 
+     * LÓGICA DE CREACIÓN DE MÓDULOS:
+     * ================================
+     * 
+     * 1. CAMPOS REQUERIDOS:
+     *    - orden: Identificador único (ej: "300", "304", "401-1")
+     *    - modulo: Nombre descriptivo del módulo
+     *    - Nivel: 1 (Principal), 2 (Submódulo nivel 2), 3 (Submódulo nivel 3)
+     * 
+     * 2. JERARQUÍA DE MÓDULOS:
+     *    - Nivel 1: Módulos principales (Dependencia = NULL)
+     *      Ejemplo: orden="300", modulo="Reportes Urdido", Nivel=1, Dependencia=NULL
+     *    
+     *    - Nivel 2: Submódulos que dependen de un módulo Nivel 1
+     *      Ejemplo: orden="304", modulo="Catálogos Julios", Nivel=2, Dependencia="300"
+     *    
+     *    - Nivel 3: Submódulos que dependen de un módulo Nivel 2
+     *      Ejemplo: orden="401-1", modulo="Producción Engomado", Nivel=3, Dependencia="401"
+     * 
+     * 3. REGLAS DE VALIDACIÓN:
+     *    - El campo "orden" debe ser único en toda la tabla
+     *    - Si Nivel=1, entonces Dependencia debe ser NULL
+     *    - Si Nivel=2 o 3, entonces Dependencia debe existir en otro módulo
+     *    - La Dependencia debe apuntar al campo "orden" del módulo padre
+     * 
+     * 4. PERMISOS (CHECKBOXES):
+     *    - acceso: Permite acceder al módulo
+     *    - crear: Permite crear registros en el módulo
+     *    - modificar: Permite modificar registros
+     *    - eliminar: Permite eliminar registros
+     *    - reigstrar: Permiso especial de registro
+     * 
+     * 5. IMAGEN (OPCIONAL):
+     *    - Se almacena en public/images/fotos_modulos/
+     *    - El nombre del archivo se guarda en el campo "imagen"
      */
     public function store(Request $request)
     {
@@ -64,9 +101,7 @@ class ModulosController extends Controller
                 'request_data' => $request->all()
             ]);
 
-            Log::info('Store request recibido:', $request->all());
-            Log::info('Usuario autenticado:', ['user_id' => Auth::id(), 'user' => Auth::user()]);
-
+            // Validar campos básicos
             $validator = Validator::make($request->all(), [
                 'orden' => 'required|string|max:50',
                 'modulo' => 'required|string|max:255',
@@ -87,42 +122,114 @@ class ModulosController extends Controller
             // Verificar que el orden no exista
             $ordenExistente = SYSRoles::where('orden', $request->orden)->exists();
             if ($ordenExistente) {
-                return back()->withErrors(['orden' => 'El orden ya existe'])->withInput();
+                return back()
+                    ->withErrors(['orden' => 'El orden "' . $request->orden . '" ya existe. Debe ser único.'])
+                    ->withInput();
             }
 
-            $data = $request->except(['imagen_archivo']);
+            // Validar jerarquía de módulos
+            $nivel = (int) $request->Nivel;
+            $dependencia = $request->Dependencia;
 
-            // Asegurar que los checkboxes tengan valores booleanos correctos
-            $data['acceso'] = $request->has('acceso') ? true : false;
-            $data['crear'] = $request->has('crear') ? true : false;
-            $data['modificar'] = $request->has('modificar') ? true : false;
-            $data['eliminar'] = $request->has('eliminar') ? true : false;
-            $data['reigstrar'] = $request->has('reigstrar') ? true : false;
+            if ($nivel === 1 && !empty($dependencia)) {
+                return back()
+                    ->withErrors(['Dependencia' => 'Los módulos de Nivel 1 no deben tener dependencia.'])
+                    ->withInput();
+            }
+
+            if ($nivel > 1 && empty($dependencia)) {
+                return back()
+                    ->withErrors(['Dependencia' => 'Los módulos de Nivel ' . $nivel . ' deben tener una dependencia.'])
+                    ->withInput();
+            }
+
+            // Si tiene dependencia, verificar que el módulo padre exista
+            if (!empty($dependencia)) {
+                $moduloPadre = SYSRoles::where('orden', $dependencia)->first();
+                
+                if (!$moduloPadre) {
+                    return back()
+                        ->withErrors(['Dependencia' => 'El módulo padre con orden "' . $dependencia . '" no existe.'])
+                        ->withInput();
+                }
+
+                // Validar que el nivel sea correcto respecto al padre
+                if ($nivel <= $moduloPadre->Nivel) {
+                    return back()
+                        ->withErrors(['Nivel' => 'El nivel del submódulo debe ser mayor que el nivel del módulo padre (' . $moduloPadre->Nivel . ').'])
+                        ->withInput();
+                }
+            }
+
+            // Preparar datos para inserción
+            $data = $request->except(['imagen_archivo', 'from_sweetalert']);
+
+            // Convertir checkboxes a valores booleanos (0 o 1)
+            $data['acceso'] = $request->has('acceso') ? 1 : 0;
+            $data['crear'] = $request->has('crear') ? 1 : 0;
+            $data['modificar'] = $request->has('modificar') ? 1 : 0;
+            $data['eliminar'] = $request->has('eliminar') ? 1 : 0;
+            $data['reigstrar'] = $request->has('reigstrar') ? 1 : 0;
+
+            // Si nivel es 1, asegurar que Dependencia sea NULL
+            if ($nivel === 1) {
+                $data['Dependencia'] = null;
+            }
 
             // Manejar subida de imagen
             if ($request->hasFile('imagen_archivo')) {
                 $imagen = $request->file('imagen_archivo');
                 $nombreImagen = time() . '_' . $imagen->getClientOriginalName();
-                $imagen->move(public_path('images/fotos_modulos'), $nombreImagen);
+                
+                // Crear directorio si no existe
+                $rutaImagenes = public_path('images/fotos_modulos');
+                if (!file_exists($rutaImagenes)) {
+                    mkdir($rutaImagenes, 0777, true);
+                }
+                
+                $imagen->move($rutaImagenes, $nombreImagen);
                 $data['imagen'] = $nombreImagen;
+            } else {
+                $data['imagen'] = null;
             }
 
-            Log::info('Datos a crear:', $data);
+            Log::info('Datos a crear módulo:', $data);
+            
+            // Crear el módulo
             $modulo = SYSRoles::create($data);
+
+            Log::info('Módulo creado exitosamente', [
+                'idrol' => $modulo->idrol,
+                'orden' => $modulo->orden,
+                'modulo' => $modulo->modulo
+            ]);
+
+            // Actualizar permisos en SYSUsuariosRoles para el nuevo módulo
+            $permisosActualizados = $this->actualizarPermisosNuevoModulo($modulo);
 
             // Limpiar caché de módulos para todos los usuarios
             $this->limpiarCacheTodosUsuarios();
 
-            return redirect()->route('configuracion.utileria.modulos.edit', $modulo->idrol)
-                ->with('success', "Módulo '{$modulo->modulo}' creado exitosamente");
+            $mensaje = 'Módulo creado correctamente';
+            if ($permisosActualizados > 0) {
+                $mensaje .= " y permisos actualizados para {$permisosActualizados} usuario(s)";
+            }
+
+            return redirect()->route('configuracion.utileria.modulos')
+                ->with('success', $mensaje)
+                ->with('show_sweetalert', true);
 
         } catch (\Exception $e) {
             Log::error('Error al crear módulo: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
-                'user_authenticated' => Auth::check()
+                'user_authenticated' => Auth::check(),
+                'request_data' => $request->all()
             ]);
-            return back()->with('error', 'Error al crear el módulo: ' . $e->getMessage())->withInput();
+            
+            return back()
+                ->with('error', 'Error al crear el módulo: ' . $e->getMessage())
+                ->withInput();
         }
     }
 
@@ -289,8 +396,9 @@ class ModulosController extends Controller
             // Limpiar caché de módulos para todos los usuarios
             $this->limpiarCacheTodosUsuarios();
 
-            return redirect()->route('configuracion.utileria.modulos.edit', $modulo->idrol)
-                ->with('success', "Módulo '{$modulo->modulo}' actualizado exitosamente");
+            return redirect()->route('configuracion.utileria.modulos')
+                ->with('success', 'Módulo actualizado correctamente')
+                ->with('show_sweetalert', true);
 
         } catch (\Exception $e) {
             Log::error('Error al actualizar módulo: ' . $e->getMessage(), [
@@ -319,14 +427,45 @@ class ModulosController extends Controller
             }
 
             $nombreModulo = $modulo->modulo;
+            
+            // Eliminar registros relacionados en SYSUsuariosRoles
+            SYSUsuariosRoles::where('idrol', $modulo->idrol)->delete();
+            Log::info("Registros de permisos eliminados para el módulo {$modulo->idrol}");
+
             $modulo->delete();
 
+            // Limpiar caché
+            $this->limpiarCacheTodosUsuarios();
+
             return redirect()->route('configuracion.utileria.modulos')
-                ->with('success', "Módulo '{$nombreModulo}' eliminado exitosamente");
+                ->with('success', "Módulo '{$nombreModulo}' y permisos asociados eliminados correctamente");
 
         } catch (\Exception $e) {
             Log::error('Error al eliminar módulo: ' . $e->getMessage());
             return back()->with('error', 'Error al eliminar el módulo');
+        }
+    }
+
+    /**
+     * Sincronizar permisos de un módulo para todos los usuarios (vía AJAX)
+     */
+    public function sincronizarPermisos($id)
+    {
+        try {
+            $modulo = SYSRoles::findOrFail($id);
+            $registrosActualizados = $this->actualizarPermisosNuevoModulo($modulo);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Permisos sincronizados para {$registrosActualizados} usuario(s)",
+                'registros' => $registrosActualizados
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al sincronizar permisos: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al sincronizar permisos: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -474,6 +613,60 @@ class ModulosController extends Controller
                 'success' => false,
                 'message' => 'Error al cambiar el permiso: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Actualizar permisos para todos los usuarios cuando se crea un nuevo módulo
+     * 
+     * @param SYSRoles $modulo El módulo recién creado
+     * @return int Número de registros actualizados
+     */
+    private function actualizarPermisosNuevoModulo(SYSRoles $modulo): int
+    {
+        try {
+            // Obtener todos los usuarios
+            $usuarios = SYSUsuario::select('idusuario')->get();
+            $registrosActualizados = 0;
+
+            foreach ($usuarios as $usuario) {
+                // Verificar si ya existe un registro para este usuario y módulo
+                $permisoExistente = SYSUsuariosRoles::where('idusuario', $usuario->idusuario)
+                    ->where('idrol', $modulo->idrol)
+                    ->first();
+
+                if ($permisoExistente) {
+                    // Si existe, actualizar los permisos a 1
+                    $permisoExistente->update([
+                        'acceso' => 1,
+                        'crear' => 1,
+                        'modificar' => 1,
+                        'eliminar' => 1,
+                        'registrar' => 1
+                    ]);
+                    $registrosActualizados++;
+                } else {
+                    // Si no existe, crear el registro con permisos en 1
+                    SYSUsuariosRoles::create([
+                        'idusuario' => $usuario->idusuario,
+                        'idrol' => $modulo->idrol,
+                        'acceso' => 1,
+                        'crear' => 1,
+                        'modificar' => 1,
+                        'eliminar' => 1,
+                        'registrar' => 1,
+                        'assigned_at' => now()
+                    ]);
+                    $registrosActualizados++;
+                }
+            }
+
+            Log::info("Permisos actualizados para {$registrosActualizados} usuarios del módulo {$modulo->idrol}");
+            
+            return $registrosActualizados;
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar permisos del nuevo módulo: ' . $e->getMessage());
+            return 0;
         }
     }
 

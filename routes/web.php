@@ -44,6 +44,8 @@ use App\Http\Controllers\MantenimientoParosController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoController;
 use App\Http\Controllers\MarcasFinalesController;
 use App\Http\Controllers\MarcasController;
+use App\Http\Controllers\NotificarMontadoJulioController;
+use App\Http\Controllers\NotificarMontRollosController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
 
@@ -97,148 +99,8 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
         return view('modulos.gestion-modulos.create', compact('modulosPrincipales'));
     })->name('create');
 
-    // Guardar módulo
-    Route::post('/', function(\Illuminate\Http\Request $request) {
-        try {
-            $data = $request->validate([
-                'orden' => 'required|string|max:255',
-                'modulo' => 'required|string|max:255',
-                'Nivel' => 'required|string',
-                'Dependencia' => 'nullable|string',
-                'acceso' => 'boolean',
-                'crear' => 'boolean',
-                'modificar' => 'boolean',
-                'eliminar' => 'boolean',
-                'reigstrar' => 'boolean',
-                'imagen_archivo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
-            ]);
-
-            // Convertir checkboxes a boolean
-            $data['acceso'] = $request->has('acceso');
-            $data['crear'] = $request->has('crear');
-            $data['modificar'] = $request->has('modificar');
-            $data['eliminar'] = $request->has('eliminar');
-            $data['reigstrar'] = $request->has('reigstrar');
-
-            // Manejar imagen
-            $imagenActualizada = false;
-            if ($request->hasFile('imagen_archivo')) {
-                $file = $request->file('imagen_archivo');
-                $filename = time() . '.' . $file->getClientOriginalExtension();
-                $file->move(public_path('images/fotos_modulos/'), $filename);
-                $data['imagen'] = $filename;
-                $imagenActualizada = true;
-            }
-
-            $nuevoModulo = SYSRoles::create($data);
-
-            // Asignar permisos del nuevo módulo a todos los usuarios existentes usando SQL robusto
-            $acceso = $data['acceso'] ? 1 : 0;
-            $crear = $data['crear'] ? 1 : 0;
-            $modificar = $data['modificar'] ? 1 : 0;
-            $eliminar = $data['eliminar'] ? 1 : 0;
-            $registrar = $data['reigstrar'] ? 1 : 0;
-            $fechaActual = now()->format('Y-m-d H:i:s');
-
-
-
-            // SQL robusto para insertar y forzar permisos a todos los usuarios existentes
-            $sql = "
-                SET XACT_ABORT ON;
-                BEGIN TRAN;
-
-                DECLARE @idrol INT = {$nuevoModulo->idrol};
-
-                -- 1) Insertar asignaciones faltantes a TODOS los usuarios con permisos del formulario
-                INSERT INTO SYSUsuariosRoles
-                    (idusuario, idrol, acceso, crear, modificar, eliminar, registrar, assigned_at)
-                SELECT
-                    u.idusuario,
-                    @idrol,
-                    {$acceso}, {$crear}, {$modificar}, {$eliminar}, {$registrar},
-                    '{$fechaActual}'
-                FROM SYSUsuario u
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM SYSUsuariosRoles ur
-                    WHERE ur.idusuario = u.idusuario
-                      AND ur.idrol = @idrol
-                );
-
-                -- 2) Forzar permisos del formulario para cualquier asignación existente de ese rol
-                UPDATE ur
-                SET acceso = {$acceso}, crear = {$crear}, modificar = {$modificar}, eliminar = {$eliminar}, registrar = {$registrar}
-                FROM SYSUsuariosRoles ur
-                WHERE ur.idrol = @idrol;
-
-                COMMIT;
-
-                -- 3) Resumen de verificación
-                DECLARE @total_usuarios INT = (SELECT COUNT(*) FROM SYSUsuario);
-                DECLARE @asignados INT = (SELECT COUNT(*) FROM SYSUsuariosRoles WHERE idrol = @idrol);
-                DECLARE @con_permisos_correctos INT = (
-                    SELECT COUNT(*)
-                    FROM SYSUsuariosRoles
-                    WHERE idrol = @idrol
-                      AND acceso={$acceso} AND crear={$crear} AND modificar={$modificar} AND eliminar={$eliminar} AND registrar={$registrar}
-                );
-
-                SELECT
-                    @idrol AS idrol_creado_o_usado,
-                    @total_usuarios AS total_usuarios,
-                    @asignados AS total_asignados_en_pivote,
-                    @con_permisos_correctos AS total_con_permisos_correctos;
-            ";
-
-            \Illuminate\Support\Facades\Log::info('SQL robusto a ejecutar', ['sql' => $sql]);
-
-            $resultado = \Illuminate\Support\Facades\DB::statement($sql);
-
-            \Illuminate\Support\Facades\Log::info('Resultado de la asignación de permisos', ['resultado' => $resultado]);
-
-            // Verificar cuántos registros se insertaron
-            $permisosAsignados = \Illuminate\Support\Facades\DB::table('SYSUsuariosRoles')
-                ->where('idrol', $nuevoModulo->idrol)
-                ->count();
-
-            \Illuminate\Support\Facades\Log::info('Permisos asignados después de la inserción', ['count' => $permisosAsignados]);
-
-            // Limpiar caché automáticamente si se subió una imagen
-            if ($imagenActualizada) {
-                Artisan::call('cache:clear');
-                Artisan::call('view:clear');
-
-                // Limpiar caché específico de módulos
-                $usuarios = \App\Models\SYSUsuario::all();
-                foreach($usuarios as $usuario) {
-                    $cacheKeys = [
-                        "modulos_principales_user_{$usuario->idusuario}",
-                        "submodulos_planeacion_user_{$usuario->idusuario}",
-                        "submodulos_tejido_user_{$usuario->idusuario}",
-                        "submodulos_urdido_user_{$usuario->idusuario}",
-                        "submodulos_engomado_user_{$usuario->idusuario}",
-                        "submodulos_atadores_user_{$usuario->idusuario}",
-                        "submodulos_tejedores_user_{$usuario->idusuario}",
-                        "submodulos_mantenimiento_user_{$usuario->idusuario}",
-                        "submodulos_configuracion_user_{$usuario->idusuario}",
-                    ];
-
-                    foreach($cacheKeys as $cacheKey) {
-                        cache()->forget($cacheKey);
-                    }
-                }
-            }
-
-            return redirect()->route('modulos.sin.auth.index')
-                ->with('success', "Módulo creado exitosamente y permisos asignados a todos los usuarios. Permisos asignados: {$permisosAsignados}")
-                ->with('show_sweetalert', true);
-
-        } catch (\Exception $e) {
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Error al crear módulo: ' . $e->getMessage());
-        }
-    })->name('store');
+    // Guardar módulo - Usa el controlador ModulosController
+    Route::post('/', [App\Http\Controllers\ModulosController::class, 'store'])->name('store');
 
     // Editar módulo
     Route::get('/{id}/edit', function($id) {
@@ -698,6 +560,7 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
                 Route::delete('/{id}', 'destroy')->whereNumber('id')->name('destroy');
                 Route::post('/{id}/toggle-acceso', 'toggleAcceso')->whereNumber('id')->name('toggle.acceso');
                 Route::post('/{id}/toggle-permiso', 'togglePermiso')->whereNumber('id')->name('toggle.permiso');
+                Route::post('/{id}/sincronizar-permisos', 'sincronizarPermisos')->whereNumber('id')->name('sincronizar.permisos');
                 Route::get('/{modulo}/duplicar', 'duplicar')->whereNumber('modulo')->name('duplicar');
             });
 
@@ -738,8 +601,14 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
     });
 
     // Notificar Montado de Julios (fuera del grupo para acceso desde módulos)
-    Route::get('/tejedores/notificar-montado-julios', [App\Http\Controllers\NotificarMontadoJulioController::class, 'index'])->name('notificar.montado.julios');
-    Route::post('/tejedores/notificar-montado-julios/notificar', [App\Http\Controllers\NotificarMontadoJulioController::class, 'notificar'])->name('notificar.montado.julios.notificar');
+    Route::get('/tejedores/notificar-montado-julios', [NotificarMontadoJulioController::class, 'index'])->name('notificar.montado.julios');
+    Route::get('/tejedores/notificar-montado-julios/telares', [NotificarMontadoJulioController::class, 'telares'])->name('notificar.montado.julios.telares');
+    Route::get('/tejedores/notificar-montado-julios/detalle', [NotificarMontadoJulioController::class, 'detalle'])->name('notificar.montado.julios.detalle');
+    Route::post('/tejedores/notificar-montado-julios/notificar', [NotificarMontadoJulioController::class, 'notificar'])->name('notificar.montado.julios.notificar');
+
+    // Notificar Montado de Rollos
+    Route::get('/tejedores/notificar-mont-rollos', [NotificarMontRollosController::class, 'index'])->name('notificar.mont.rollos');
+    Route::post('/tejedores/notificar-mont-rollos/notificar', [NotificarMontRollosController::class, 'notificar'])->name('notificar.mont.rollos.notificar');
 
     // ============================================
     // RUTAS DIRECTAS (COMPATIBILIDAD)
@@ -748,13 +617,13 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
     // Rutas directas de catálogos
     Route::get('/planeacion/programa-tejido', [ProgramaTejidoController::class, 'index'])->name('catalogos.req-programa-tejido');
 
-        // Altas especiales
-        Route::get('/planeacion/programa-tejido/altas-especiales', [\App\Http\Controllers\ComprasEspecialesController::class, 'index'])->name('programa-tejido.altas-especiales');
+    Route::get('/planeacion/programa-tejido/altas-especiales', [\App\Http\Controllers\ComprasEspecialesController::class, 'index'])->name('programa-tejido.altas-especiales');
+    // Altas especiales
 
-        // Alta de pronósticos
-        Route::get('/planeacion/programa-tejido/alta-pronosticos', [\App\Http\Controllers\PronosticosController::class, 'index'])->name('programa-tejido.alta-pronosticos');
-        Route::post('/pronosticos/sincronizar', [\App\Http\Controllers\PronosticosController::class, 'sincronizar'])->name('pronosticos.sincronizar');
-        Route::get('/pronosticos', [\App\Http\Controllers\PronosticosController::class, 'get'])->name('pronosticos.get');
+    // Alta de pronósticos
+    Route::get('/planeacion/programa-tejido/alta-pronosticos', [\App\Http\Controllers\PronosticosController::class, 'index'])->name('programa-tejido.alta-pronosticos');
+    Route::post('/pronosticos/sincronizar', [\App\Http\Controllers\PronosticosController::class, 'sincronizar'])->name('pronosticos.sincronizar');
+    Route::get('/pronosticos', [\App\Http\Controllers\PronosticosController::class, 'get'])->name('pronosticos.get');
 
 // Liberar órdenes
 Route::get('/planeacion/programa-tejido/liberar-ordenes', [\App\Http\Controllers\ProgramaTejido\LiberarOrdenesController::class, 'index'])->name('programa-tejido.liberar-ordenes');
