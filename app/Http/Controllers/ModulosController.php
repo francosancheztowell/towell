@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\SYSRoles;
 use App\Models\SYSUsuario;
+use App\Models\SYSUsuariosRoles;
 use App\Services\ModuloService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -203,11 +204,19 @@ class ModulosController extends Controller
                 'modulo' => $modulo->modulo
             ]);
 
+            // Actualizar permisos en SYSUsuariosRoles para el nuevo módulo
+            $permisosActualizados = $this->actualizarPermisosNuevoModulo($modulo);
+
             // Limpiar caché de módulos para todos los usuarios
             $this->limpiarCacheTodosUsuarios();
 
+            $mensaje = 'Módulo creado correctamente';
+            if ($permisosActualizados > 0) {
+                $mensaje .= " y permisos actualizados para {$permisosActualizados} usuario(s)";
+            }
+
             return redirect()->route('configuracion.utileria.modulos')
-                ->with('success', 'Módulo creado correctamente')
+                ->with('success', $mensaje)
                 ->with('show_sweetalert', true);
 
         } catch (\Exception $e) {
@@ -418,14 +427,45 @@ class ModulosController extends Controller
             }
 
             $nombreModulo = $modulo->modulo;
+            
+            // Eliminar registros relacionados en SYSUsuariosRoles
+            SYSUsuariosRoles::where('idrol', $modulo->idrol)->delete();
+            Log::info("Registros de permisos eliminados para el módulo {$modulo->idrol}");
+
             $modulo->delete();
 
+            // Limpiar caché
+            $this->limpiarCacheTodosUsuarios();
+
             return redirect()->route('configuracion.utileria.modulos')
-                ->with('success', "Módulo '{$nombreModulo}' eliminado exitosamente");
+                ->with('success', "Módulo '{$nombreModulo}' y permisos asociados eliminados correctamente");
 
         } catch (\Exception $e) {
             Log::error('Error al eliminar módulo: ' . $e->getMessage());
             return back()->with('error', 'Error al eliminar el módulo');
+        }
+    }
+
+    /**
+     * Sincronizar permisos de un módulo para todos los usuarios (vía AJAX)
+     */
+    public function sincronizarPermisos($id)
+    {
+        try {
+            $modulo = SYSRoles::findOrFail($id);
+            $registrosActualizados = $this->actualizarPermisosNuevoModulo($modulo);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Permisos sincronizados para {$registrosActualizados} usuario(s)",
+                'registros' => $registrosActualizados
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al sincronizar permisos: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al sincronizar permisos: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -573,6 +613,60 @@ class ModulosController extends Controller
                 'success' => false,
                 'message' => 'Error al cambiar el permiso: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Actualizar permisos para todos los usuarios cuando se crea un nuevo módulo
+     * 
+     * @param SYSRoles $modulo El módulo recién creado
+     * @return int Número de registros actualizados
+     */
+    private function actualizarPermisosNuevoModulo(SYSRoles $modulo): int
+    {
+        try {
+            // Obtener todos los usuarios
+            $usuarios = SYSUsuario::select('idusuario')->get();
+            $registrosActualizados = 0;
+
+            foreach ($usuarios as $usuario) {
+                // Verificar si ya existe un registro para este usuario y módulo
+                $permisoExistente = SYSUsuariosRoles::where('idusuario', $usuario->idusuario)
+                    ->where('idrol', $modulo->idrol)
+                    ->first();
+
+                if ($permisoExistente) {
+                    // Si existe, actualizar los permisos a 1
+                    $permisoExistente->update([
+                        'acceso' => 1,
+                        'crear' => 1,
+                        'modificar' => 1,
+                        'eliminar' => 1,
+                        'registrar' => 1
+                    ]);
+                    $registrosActualizados++;
+                } else {
+                    // Si no existe, crear el registro con permisos en 1
+                    SYSUsuariosRoles::create([
+                        'idusuario' => $usuario->idusuario,
+                        'idrol' => $modulo->idrol,
+                        'acceso' => 1,
+                        'crear' => 1,
+                        'modificar' => 1,
+                        'eliminar' => 1,
+                        'registrar' => 1,
+                        'assigned_at' => now()
+                    ]);
+                    $registrosActualizados++;
+                }
+            }
+
+            Log::info("Permisos actualizados para {$registrosActualizados} usuarios del módulo {$modulo->idrol}");
+            
+            return $registrosActualizados;
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar permisos del nuevo módulo: ' . $e->getMessage());
+            return 0;
         }
     }
 

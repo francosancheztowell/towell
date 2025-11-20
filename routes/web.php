@@ -44,6 +44,8 @@ use App\Http\Controllers\MantenimientoParosController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoController;
 use App\Http\Controllers\MarcasFinalesController;
 use App\Http\Controllers\MarcasController;
+use App\Http\Controllers\NotificarMontadoJulioController;
+use App\Http\Controllers\NotificarMontRollosController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
 
@@ -558,6 +560,7 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
                 Route::delete('/{id}', 'destroy')->whereNumber('id')->name('destroy');
                 Route::post('/{id}/toggle-acceso', 'toggleAcceso')->whereNumber('id')->name('toggle.acceso');
                 Route::post('/{id}/toggle-permiso', 'togglePermiso')->whereNumber('id')->name('toggle.permiso');
+                Route::post('/{id}/sincronizar-permisos', 'sincronizarPermisos')->whereNumber('id')->name('sincronizar.permisos');
                 Route::get('/{modulo}/duplicar', 'duplicar')->whereNumber('modulo')->name('duplicar');
             });
 
@@ -598,8 +601,14 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
     });
 
     // Notificar Montado de Julios (fuera del grupo para acceso desde módulos)
-    Route::get('/tejedores/notificar-montado-julios', [App\Http\Controllers\NotificarMontadoJulioController::class, 'index'])->name('notificar.montado.julios');
-    Route::post('/tejedores/notificar-montado-julios/notificar', [App\Http\Controllers\NotificarMontadoJulioController::class, 'notificar'])->name('notificar.montado.julios.notificar');
+    Route::get('/tejedores/notificar-montado-julios', [NotificarMontadoJulioController::class, 'index'])->name('notificar.montado.julios');
+    Route::get('/tejedores/notificar-montado-julios/telares', [NotificarMontadoJulioController::class, 'telares'])->name('notificar.montado.julios.telares');
+    Route::get('/tejedores/notificar-montado-julios/detalle', [NotificarMontadoJulioController::class, 'detalle'])->name('notificar.montado.julios.detalle');
+    Route::post('/tejedores/notificar-montado-julios/notificar', [NotificarMontadoJulioController::class, 'notificar'])->name('notificar.montado.julios.notificar');
+
+    // Notificar Montado de Rollos
+    Route::get('/tejedores/notificar-mont-rollos', [NotificarMontRollosController::class, 'index'])->name('notificar.mont.rollos');
+    Route::post('/tejedores/notificar-mont-rollos/notificar', [NotificarMontRollosController::class, 'notificar'])->name('notificar.mont.rollos.notificar');
 
     // ============================================
     // RUTAS DIRECTAS (COMPATIBILIDAD)
@@ -608,13 +617,13 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
     // Rutas directas de catálogos
     Route::get('/planeacion/programa-tejido', [ProgramaTejidoController::class, 'index'])->name('catalogos.req-programa-tejido');
 
-        // Altas especiales
-        Route::get('/planeacion/programa-tejido/altas-especiales', [\App\Http\Controllers\ComprasEspecialesController::class, 'index'])->name('programa-tejido.altas-especiales');
+    Route::get('/planeacion/programa-tejido/altas-especiales', [\App\Http\Controllers\ComprasEspecialesController::class, 'index'])->name('programa-tejido.altas-especiales');
+    // Altas especiales
 
-        // Alta de pronósticos
-        Route::get('/planeacion/programa-tejido/alta-pronosticos', [\App\Http\Controllers\PronosticosController::class, 'index'])->name('programa-tejido.alta-pronosticos');
-        Route::post('/pronosticos/sincronizar', [\App\Http\Controllers\PronosticosController::class, 'sincronizar'])->name('pronosticos.sincronizar');
-        Route::get('/pronosticos', [\App\Http\Controllers\PronosticosController::class, 'get'])->name('pronosticos.get');
+    // Alta de pronósticos
+    Route::get('/planeacion/programa-tejido/alta-pronosticos', [\App\Http\Controllers\PronosticosController::class, 'index'])->name('programa-tejido.alta-pronosticos');
+    Route::post('/pronosticos/sincronizar', [\App\Http\Controllers\PronosticosController::class, 'sincronizar'])->name('pronosticos.sincronizar');
+    Route::get('/pronosticos', [\App\Http\Controllers\PronosticosController::class, 'get'])->name('pronosticos.get');
 
 // Liberar órdenes
 Route::get('/planeacion/programa-tejido/liberar-ordenes', [\App\Http\Controllers\ProgramaTejido\LiberarOrdenesController::class, 'index'])->name('programa-tejido.liberar-ordenes');

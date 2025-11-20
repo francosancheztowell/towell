@@ -4,19 +4,14 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button onclick="openModal('createModal')" class="p-2 rounded-lg transition hover:bg-green-100" title="Nuevo Módulo">
-            <i class="fa-solid fa-plus text-green-600 text-lg"></i>
+        <x-navbar.button-create onclick="openModal('createModal')"/>
+        <x-navbar.button-edit id="btn-top-edit" onclick="handleTopEdit('editModal')" :disabled="true" class="transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"/>
+        <button id="btn-top-sync" type="button" onclick="handleSyncPermisos()" disabled
+            class="p-2 rounded-full transition hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed w-9 h-9 flex items-center justify-center"
+            title="Sincronizar Permisos">
+            <i class="fa-solid fa-sync text-purple-600 text-lg"></i>
         </button>
-        <button id="btn-top-edit" type="button"
-            class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            onclick="handleTopEdit()" disabled title="Editar Módulo">
-            <i class="fa-solid fa-pen-to-square text-yellow-500 text-lg"></i>
-        </button>
-        <button id="btn-top-delete" type="button"
-            class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            onclick="handleTopDelete()" disabled title="Eliminar Módulo">
-            <i class="fa-solid fa-trash text-red-600 text-lg"></i>
-        </button>
+        <x-navbar.button-delete id="btn-top-delete" onclick="handleTopDelete()" :disabled="true"/>
     </div>
 @endsection
 
@@ -45,14 +40,14 @@
             @endif
 
             <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto ">
                     <table class="min-w-full text-sm">
                         <thead class="bg-blue-600 text-white sticky top-0 z-10">
                             <tr>
                                 <th class="px-4 py-3 text-left font-semibold w-28">Orden</th>
                                 <th class="px-4 py-3 text-left font-semibold">Módulo</th>
                                 <th class="px-4 py-3 text-left font-semibold w-28">Nivel</th>
-                                <th class="px-4 py-3 text-left font-semibold w-40">Dependencia</th>
+                                <th class="px-4 py-3 text-center font-semibold w-40">Dependencia</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -77,7 +72,7 @@
                                             Nivel {{ $m->Nivel }}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3 align-middle text-gray-700">{{ $m->Dependencia ?? '—' }}</td>
+                                    <td class="px-4 py-3 align-middle text-center text-gray-700">{{ $m->Dependencia ?? '—' }}</td>
                                 </tr>
                             @empty
                                 <tr>
@@ -99,7 +94,7 @@
 
             <!-- Modal Crear -->
                     <!-- Modal Crear -->
-        <div id="createModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 items-center justify-center">
+        <div id="createModal" class="fixed inset-0 bg-gray-400 bg-opacity-10 hidden z-50 items-center justify-center">
                 <div class="bg-white rounded-lg shadow-2xl w-full max-w-3xl mx-4 transform transition-all">
                     <div class="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-t-lg">
                         <h2 class="text-xl font-bold flex items-center gap-2">
@@ -113,7 +108,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">Orden <span class="text-red-500">*</span></label>
-                                <input type="text" name="orden" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Ej: 100, 200, 201, 401-1">
+                                <input type="text" id="createOrden" name="orden" required readonly class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Se calculará automáticamente">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">Nombre del Módulo <span class="text-red-500">*</span></label>
@@ -131,11 +126,9 @@
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">Dependencia</label>
                                 <select name="Dependencia" id="createDependencia" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
-                                    <option value="">Sin dependencia</option>
-                                    @foreach(($modulosPrincipales ?? []) as $mp)
-                                        <option value="{{ $mp->orden }}">{{ $mp->modulo }} ({{ $mp->orden }})</option>
-                                    @endforeach
+                                    <option value="">Seleccionar dependencia</option>
                                 </select>
+                                <p id="createDependenciaHelp" class="text-xs text-gray-500 mt-1">Selecciona primero el nivel</p>
                             </div>
                         </div>
 
@@ -185,7 +178,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">Orden <span class="text-red-500">*</span></label>
-                                <input type="text" id="editOrden" name="orden" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                <input type="text" id="editOrden" name="orden" required readonly class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none focus:ring-2 focus:ring-yellow-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">Nombre del Módulo <span class="text-red-500">*</span></label>
@@ -202,11 +195,9 @@
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">Dependencia</label>
                                 <select id="editDependencia" name="Dependencia" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
-                                    <option value="">Sin dependencia</option>
-                                    @foreach(($modulosPrincipales ?? []) as $mp)
-                                        <option value="{{ $mp->orden }}">{{ $mp->modulo }} ({{ $mp->orden }})</option>
-                                    @endforeach
+                                    <option value="">Seleccionar dependencia</option>
                                 </select>
+                                <p id="editDependenciaHelp" class="text-xs text-gray-500 mt-1">Selecciona primero el nivel</p>
                             </div>
                         </div>
 
@@ -251,15 +242,181 @@
         <script>
             const updateUrl = @json(route('configuracion.utileria.modulos.update', 'PLACEHOLDER'));
             const destroyUrl = @json(route('configuracion.utileria.modulos.destroy', 'PLACEHOLDER'));
+            const modulosData = @json($modulos);
 
             let selectedRow = null;
             let selectedKey = null;
 
+            // Función para poblar el select de dependencia según el nivel
+            function poblarDependencias(selectId, nivel, helpId) {
+                const select = document.getElementById(selectId);
+                const help = document.getElementById(helpId);
+                select.innerHTML = '<option value="">Seleccionar dependencia</option>';
+                
+                if (nivel === '1') {
+                    help.textContent = 'Los módulos de Nivel 1 no tienen dependencia';
+                    select.disabled = true;
+                    return;
+                }
+                
+                if (nivel === '2') {
+                    // Para Nivel 2: mostrar solo módulos de Nivel 1
+                    const nivel1 = modulosData.filter(m => String(m.Nivel) === '1');
+                    if (nivel1.length === 0) {
+                        help.textContent = 'No hay módulos de Nivel 1 disponibles';
+                        select.disabled = true;
+                        return;
+                    }
+                    nivel1.forEach(m => {
+                        const option = document.createElement('option');
+                        option.value = m.orden;
+                        option.textContent = `${m.modulo} (${m.orden})`;
+                        select.appendChild(option);
+                    });
+                    help.textContent = 'Selecciona el módulo principal (Nivel 1)';
+                    select.disabled = false;
+                    return;
+                }
+                
+                if (nivel === '3') {
+                    // Para Nivel 3: mostrar solo módulos de Nivel 2
+                    const nivel2 = modulosData.filter(m => String(m.Nivel) === '2');
+                    if (nivel2.length === 0) {
+                        help.textContent = 'No hay submódulos de Nivel 2 disponibles';
+                        select.disabled = true;
+                        return;
+                    }
+                    nivel2.forEach(m => {
+                        const option = document.createElement('option');
+                        option.value = m.orden;
+                        // Buscar el módulo padre para mostrarlo
+                        const padre = modulosData.find(p => String(p.orden) === String(m.Dependencia));
+                        const padreNombre = padre ? ` [${padre.modulo}]` : '';
+                        option.textContent = `${m.modulo} (${m.orden})${padreNombre}`;
+                        select.appendChild(option);
+                    });
+                    help.textContent = 'Selecciona el submódulo (Nivel 2) donde agregar este elemento';
+                    select.disabled = false;
+                    return;
+                }
+            }
+
+            // Función para calcular el orden automáticamente
+            function calcularOrden(nivel, dependencia) {
+                if (!nivel) return '';
+                
+                nivel = String(nivel);
+                
+                // Nivel 1: Buscar el siguiente múltiplo de 100 disponible
+                if (nivel === '1') {
+                    let maxOrden = 0;
+                    modulosData.forEach(m => {
+                        if (String(m.Nivel) === '1') {
+                            const orden = parseInt(m.orden);
+                            if (!isNaN(orden) && orden > maxOrden) {
+                                maxOrden = orden;
+                            }
+                        }
+                    });
+                    return maxOrden === 0 ? 100 : maxOrden + 100;
+                }
+                
+                // Nivel 2 o 3: Requiere dependencia
+                if (!dependencia) return '';
+                
+                // Nivel 2: orden = dependencia + 1
+                if (nivel === '2') {
+                    const depInt = parseInt(dependencia);
+                    if (isNaN(depInt)) return '';
+                    
+                    // Buscar el siguiente orden disponible basado en la dependencia
+                    let maxOrden = depInt;
+                    modulosData.forEach(m => {
+                        if (String(m.Dependencia) === String(dependencia) && String(m.Nivel) === '2') {
+                            const orden = parseInt(m.orden);
+                            if (!isNaN(orden) && orden > maxOrden) {
+                                maxOrden = orden;
+                            }
+                        }
+                    });
+                    return maxOrden === depInt ? depInt + 1 : maxOrden + 1;
+                }
+                
+                // Nivel 3: orden = dependencia-N (donde N es secuencial)
+                if (nivel === '3') {
+                    let maxSubOrden = 0;
+                    const depStr = String(dependencia);
+                    modulosData.forEach(m => {
+                        if (String(m.Dependencia) === depStr && String(m.Nivel) === '3') {
+                            const ordenStr = String(m.orden);
+                            // Extraer el número después del guion (ej: "101-1" -> 1)
+                            const match = ordenStr.match(/-([0-9]+)$/);
+                            if (match) {
+                                const subOrden = parseInt(match[1]);
+                                if (subOrden > maxSubOrden) {
+                                    maxSubOrden = subOrden;
+                                }
+                            }
+                        }
+                    });
+                    return `${depStr}-${maxSubOrden + 1}`;
+                }
+                
+                return '';
+            }
+
+            // Listeners para el modal de crear
+            document.getElementById('createNivel').addEventListener('change', function() {
+                const nivel = this.value;
+                const dependenciaSelect = document.getElementById('createDependencia');
+                const ordenInput = document.getElementById('createOrden');
+                
+                // Poblar el select de dependencia según el nivel
+                poblarDependencias('createDependencia', nivel, 'createDependenciaHelp');
+                
+                if (nivel === '1') {
+                    ordenInput.value = calcularOrden(nivel, null);
+                } else {
+                    ordenInput.value = '';
+                }
+            });
+
+            document.getElementById('createDependencia').addEventListener('change', function() {
+                const nivel = document.getElementById('createNivel').value;
+                const dependencia = this.value;
+                const ordenInput = document.getElementById('createOrden');
+                ordenInput.value = calcularOrden(nivel, dependencia);
+            });
+
+            // Listeners para el modal de editar
+            document.getElementById('editNivel').addEventListener('change', function() {
+                const nivel = this.value;
+                const dependenciaSelect = document.getElementById('editDependencia');
+                const ordenInput = document.getElementById('editOrden');
+                
+                // Poblar el select de dependencia según el nivel
+                poblarDependencias('editDependencia', nivel, 'editDependenciaHelp');
+                
+                if (nivel === '1') {
+                    ordenInput.value = calcularOrden(nivel, null);
+                } else {
+                    ordenInput.value = '';
+                }
+            });
+
+            document.getElementById('editDependencia').addEventListener('change', function() {
+                const nivel = document.getElementById('editNivel').value;
+                const dependencia = this.value;
+                const ordenInput = document.getElementById('editOrden');
+                ordenInput.value = calcularOrden(nivel, dependencia);
+            });
+
             function updateTopButtonsState() {
                 const btnEdit = document.getElementById('btn-top-edit');
                 const btnDelete = document.getElementById('btn-top-delete');
+                const btnSync = document.getElementById('btn-top-sync');
                 const hasSelection = !!selectedKey;
-                [btnEdit, btnDelete].forEach(btn => {
+                [btnEdit, btnDelete, btnSync].forEach(btn => {
                     if (!btn) return;
                     if (hasSelection) { btn.removeAttribute('disabled'); btn.classList.remove('opacity-50','cursor-not-allowed'); }
                     else { btn.setAttribute('disabled','disabled'); btn.classList.add('opacity-50','cursor-not-allowed'); }
@@ -281,12 +438,22 @@
             function closeModal(modalId) { const el=document.getElementById(modalId); el.classList.add('hidden'); el.classList.remove('flex'); document.body.style.overflow='auto'; }
 
             function handleTopEdit() {
-                if (!selectedRow || !selectedKey) return;
+                if (!selectedRow || !selectedKey) {
+                    Swal.fire({icon: 'warning', title: 'Selecciona un módulo', text: 'Debes seleccionar un módulo de la tabla para editarlo', confirmButtonText: 'Entendido'});
+                    return;
+                }
+                const nivel = selectedRow.dataset.nivel || '1';
+                const dependencia = selectedRow.dataset.dependencia || '';
+                
                 document.getElementById('editForm').action = updateUrl.replace('PLACEHOLDER', encodeURIComponent(selectedKey));
                 document.getElementById('editOrden').value = selectedRow.dataset.orden || '';
                 document.getElementById('editModulo').value = selectedRow.dataset.modulo || '';
-                document.getElementById('editNivel').value = selectedRow.dataset.nivel || '1';
-                document.getElementById('editDependencia').value = selectedRow.dataset.dependencia || '';
+                document.getElementById('editNivel').value = nivel;
+                
+                // Poblar dependencias según el nivel y luego establecer el valor
+                poblarDependencias('editDependencia', nivel, 'editDependenciaHelp');
+                document.getElementById('editDependencia').value = dependencia;
+                
                 document.getElementById('edit_acceso').checked = (selectedRow.dataset.acceso === '1');
                 document.getElementById('edit_crear').checked = (selectedRow.dataset.crear === '1');
                 document.getElementById('edit_modificar').checked = (selectedRow.dataset.modificar === '1');
@@ -296,7 +463,10 @@
             }
 
             function handleTopDelete() {
-                if (!selectedKey) return;
+                if (!selectedKey) {
+                    Swal.fire({icon: 'warning', title: 'Selecciona un módulo', text: 'Debes seleccionar un módulo de la tabla para eliminarlo', confirmButtonText: 'Entendido'});
+                    return;
+                }
                 Swal.fire({
                     title: '¿Eliminar módulo?',
                     text: 'Esta acción no se puede deshacer',
@@ -308,6 +478,71 @@
                         const form = document.getElementById('globalDeleteForm');
                         form.action = destroyUrl.replace('PLACEHOLDER', encodeURIComponent(selectedKey));
                         form.submit();
+                    }
+                });
+            }
+
+            function handleSyncPermisos() {
+                if (!selectedKey) {
+                    Swal.fire({icon: 'warning', title: 'Selecciona un módulo', text: 'Debes seleccionar un módulo de la tabla para sincronizar sus permisos', confirmButtonText: 'Entendido'});
+                    return;
+                }
+                
+                Swal.fire({
+                    title: '¿Sincronizar permisos?',
+                    text: 'Se actualizarán los permisos de todos los usuarios para este módulo',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#8b5cf6',
+                    cancelButtonColor: '#6b7280',
+                    confirmButtonText: 'Sí, sincronizar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Mostrar loading
+                        Swal.fire({
+                            title: 'Sincronizando...',
+                            text: 'Por favor espera',
+                            allowOutsideClick: false,
+                            didOpen: () => { Swal.showLoading(); }
+                        });
+
+                        // Hacer petición AJAX
+                        fetch(`{{ url('configuracion/utileria/modulos') }}/${selectedKey}/sincronizar-permisos`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Éxito',
+                                    text: data.message,
+                                    confirmButtonText: 'Aceptar',
+                                    timer: 3000
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: data.message || 'Error al sincronizar permisos',
+                                    confirmButtonText: 'Aceptar'
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: 'Error de conexión al sincronizar permisos',
+                                confirmButtonText: 'Aceptar'
+                            });
+                            console.error('Error:', error);
+                        });
                     }
                 });
             }
