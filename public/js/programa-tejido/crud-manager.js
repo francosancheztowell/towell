@@ -211,13 +211,13 @@ window.ProgramaTejidoCRUD = {
         const formulas = this.calcularFormulas(datosModelo, totalPedido, primerTelar, ultimoTelar);
         if (formulas) Object.assign(payload, formulas);
 
-        // ⭐ VERIFICACIÓN FINAL: Asegurar que AnchoToalla tenga el valor correcto
-        console.log('✅ Payload final - AnchoToalla:', {
+        //  VERIFICACIÓN FINAL: Asegurar que AnchoToalla tenga el valor correcto
+        console.log(' Payload final - AnchoToalla:', {
             valor: payload.AnchoToalla,
             calculado_desde: anchoToallaCalculado !== null ? 'fórmula' : 'null',
             NoTiras: datosModelo?.NoTiras,
             AnchoPeineTrama: datosModelo?.AnchoPeineTrama,
-            AnchoToalla_del_modelo: datosModelo?.AnchoToalla,  // ⚠️ Solo referencia, no se usa para AnchoToalla
+            AnchoToalla_del_modelo: datosModelo?.AnchoToalla,  //  Solo referencia, no se usa para AnchoToalla
             Ancho_base_enviado: payload.Ancho
         });
 
@@ -330,16 +330,16 @@ window.ProgramaTejidoCRUD = {
 
         const stdDia = stdToaHra * eficiencia * 24;
 
-        // ⭐ PesoCrudo viene de ReqProgramaTejido (pero en alta coincide con el modelo)
+        //  PesoCrudo viene de ReqProgramaTejido (pero en alta coincide con el modelo)
         const pesoCrudo = Number(datosModelo.PesoCrudo || 0);
         const stdHrsEfect = diasEficiencia > 0 ? (totalPedido / diasEficiencia) / 24 : 0;
 
         const prodKgDia = (stdDia * pesoCrudo) / 1000;
         const prodKgDia2 = ((pesoCrudo * stdHrsEfect) * 24) / 1000;
-        const diasJornada = velocidad / 24;
         const horasProd = (stdToaHra > 0 && eficiencia > 0) ? totalPedido / (stdToaHra * eficiencia) : 0;
+        const diasJornada = horasProd / 24;
 
-        // ⭐ PesoGRM2 = (PesoCrudo * 1000) / (LargoToalla_codificado * AnchoToalla_codificado)
+        //  PesoGRM2 = (PesoCrudo * 1000) / (LargoToalla_codificado * AnchoToalla_codificado)
         // LargoToalla y AnchoToalla se leen de ReqModelosCodificados
         const largoToallaModelo = Number(datosModelo.LargoToalla || 0);
         const anchoToallaModelo = Number(datosModelo.AnchoToalla || 0);
@@ -347,9 +347,9 @@ window.ProgramaTejidoCRUD = {
 
         if (pesoCrudo > 0 && largoToallaModelo > 0 && anchoToallaModelo > 0) {
             const pesoGrm2Raw = (pesoCrudo * 10000) / (largoToallaModelo * anchoToallaModelo);
-            // ⭐ La columna PesoGRM2 en BD ahora es FLOAT: conservamos decimales (6 cifras)
+            //  La columna PesoGRM2 en BD ahora es FLOAT: conservamos decimales (6 cifras)
             pesoGrm2 = Number(pesoGrm2Raw.toFixed(6));
-            console.log('✅ PesoGRM2 calculado (frontend):', {
+            console.log(' PesoGRM2 calculado (frontend):', {
                 formula: '(PesoCrudo * 1000) / (LargoToalla_cod * AnchoToalla_cod)',
                 PesoCrudo: pesoCrudo,
                 LargoToalla_cod: largoToallaModelo,
@@ -358,7 +358,7 @@ window.ProgramaTejidoCRUD = {
                 resultado_redondeado_6_decimales: pesoGrm2
             });
         } else {
-            console.warn('⚠️ No se pudo calcular PesoGRM2 (frontend). Valores:', {
+            console.warn(' No se pudo calcular PesoGRM2 (frontend). Valores:', {
                 PesoCrudo: pesoCrudo,
                 LargoToalla_cod: largoToallaModelo,
                 AnchoToalla_cod: anchoToallaModelo
