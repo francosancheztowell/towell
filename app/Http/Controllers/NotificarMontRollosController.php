@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\TelTelaresOperador;
 use App\Models\TejInventarioTelares;
+use App\Models\TelMarbeteLiberadoModel;
 use Carbon\Carbon;
 
 class NotificarMontRollosController extends Controller
@@ -102,6 +103,14 @@ class NotificarMontRollosController extends Controller
                 return response()->json(['error' => 'No se proporcionó el número de telar'], 400);
             }
 
+            // Probar conexión a TOW_PRO
+            try {
+                $testConexion = DB::connection('sqlsrv_tow_pro')->select('SELECT @@VERSION as version');
+                $conexionTowPro = 'OK - ' . ($testConexion[0]->version ?? 'Conectado');
+            } catch (\Exception $e) {
+                $conexionTowPro = 'ERROR: ' . $e->getMessage();
+            }
+
             // Buscar orden activa en ReqProgramaTejido para el telar
             $ordenActiva = DB::table('ReqProgramaTejido')
                 ->where('NoTelarId', $noTelar)
@@ -111,13 +120,20 @@ class NotificarMontRollosController extends Controller
 
             if (!$ordenActiva) {
                 return response()->json([
-                    'error' => 'No se encontró orden de producción activa para este telar'
+                    'error' => 'No se encontró orden de producción activa para este telar',
+                    'debug' => [
+                        'telar_buscado' => $noTelar,
+                        'conexion_tow_pro' => $conexionTowPro
+                    ]
                 ], 404);
             }
 
             return response()->json([
                 'success' => true,
-                'orden' => $ordenActiva
+                'orden' => $ordenActiva,
+                'debug' => [
+                    'conexion_tow_pro' => $conexionTowPro
+                ]
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -127,74 +143,133 @@ class NotificarMontRollosController extends Controller
     }
 
     /**
-     * Obtener datos de producción desde TOW_PRO y validar marbetes
+     * Obtener datos de producción desde TI_PRO para mostrar en modal
      */
     public function getDatosProduccion(Request $request)
     {
         try {
             $noProduccion = $request->query('no_produccion');
+            $noTelar = $request->query('no_telar');
+            $salon = $request->query('salon');
 
-            if (!$noProduccion) {
-                return response()->json(['error' => 'No se proporcionó el número de producción'], 400);
+            if (!$noProduccion || !$noTelar) {
+                return response()->json(['error' => 'Faltan parámetros requeridos (no_produccion, no_telar)'], 400);
             }
 
-            // Consultar ProdTable e InventDim en TOW_PRO
+            // Consultar TOW_PRO con el INNER JOIN correcto
             $datosProduccion = DB::connection('sqlsrv_tow_pro')
-                ->table('ProdTable as p')
-                ->join('InventDim as i', 'p.InventDimId', '=', 'i.InventDimId')
+                ->table('ProdTable as P')
+                ->join('InventDim as I', 'P.InventDimId', '=', 'I.InventDimId')
                 ->select(
-                    'p.ProdId',
-                    'p.ItemId',
-                    'i.InventSizeId',
-                    'i.inventBatchId as PurchBarCode',
-                    'i.inventBatchId as InventBatchId',
-                    'p.QtySched',
-                    'i.WMSLocationId'
+                    'P.PurchBarCode',
+                    'P.ItemId',
+                    'P.QtySched',
+                    'P.CUANTAS',
+                    'I.InventSizeId',
+                    'I.InventBatchId',
+                    'I.WMSLocationId'
                 )
-                ->where('p.impreso', 'SI')
-                ->where('p.ProdStatus', 0)
-                ->where('p.DATAAREAID', 'PRO')
-                ->where('i.InventDimId', DB::raw('p.inventDimId'))
-                ->where('i.WMSLocationId', DB::raw('SUBSTRING(p.ItemId, 1, 1)'))
-                ->where('i.inventBatchId', $noProduccion) // Filtrar por NoProduccion (Orden Activa)
-                ->where('i.DATAAREAID', 'PRO')
+                ->where('P.impreso', 'SI')
+                ->where('P.ProdStatus', 0)
+                ->where('P.DATAAREAID', 'PRO')
+                ->where('I.InventBatchId', $noProduccion)
+                ->where('I.WMSLocationId', $noTelar)
+                ->where('I.DATAAREAID', 'PRO')
                 ->get();
 
             if ($datosProduccion->isEmpty()) {
                 return response()->json([
-                    'error' => 'No se encontraron datos de producción para esta orden'
+                    'error' => 'No se encontraron datos de producción en TOW_PRO',
+                    'debug' => [
+                        'no_produccion' => $noProduccion,
+                        'no_telar' => $noTelar,
+                        'query' => 'ProdTable INNER JOIN InventDim con filtros: impreso=SI, ProdStatus=0'
+                    ]
                 ], 404);
             }
 
-            // Validar cada marbete contra TelMarbeteLiberado
-            $datosValidados = [];
+            // Formatear datos para el modal (sin insertar aún)
+            $datosFormateados = [];
             foreach ($datosProduccion as $dato) {
-                $marbeteValido = DB::table('TelMarbeteLiberado')
-                    ->where('PurchBarCode', $dato->PurchBarCode)
-                    ->exists();
+                $datosFormateados[] = [
+                    'PurchBarCode' => $dato->PurchBarCode,
+                    'ItemId' => $dato->ItemId,
+                    'QtySched' => $dato->QtySched,
+                    'CUANTAS' => $dato->CUANTAS,
+                    'InventSizeId' => $dato->InventSizeId,
+                    'InventBatchId' => $dato->InventBatchId,
+                    'WMSLocationId' => $dato->WMSLocationId,
+                    'Salon' => $salon
+                ];
+            }
 
-                if ($marbeteValido) {
-                    $datosValidados[] = [
-                        'Marbete' => $dato->PurchBarCode,
-                        'Articulo' => $dato->ItemId,
-                        'Tamaño' => $dato->InventSizeId,
-                        'Orden' => $dato->InventBatchId,
-                        'Telar' => '', // Se puede agregar si está disponible
-                        'Piezas' => $dato->QtySched,
-                        'Salon' => $dato->WMSLocationId,
-                        'valido' => true
+            return response()->json([
+                'success' => true,
+                'datos' => $datosFormateados,
+                'total' => count($datosFormateados),
+                'mensaje' => "Se encontraron {$datosProduccion->count()} registros en TI_PRO"
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al obtener datos de producción: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    }
+
+    /**
+     * Insertar registros seleccionados en TelMarbeteLiberado
+     */
+    public function insertarMarbetes(Request $request)
+    {
+        try {
+            $marbetesSeleccionados = $request->input('marbetes');
+
+            if (empty($marbetesSeleccionados)) {
+                return response()->json(['error' => 'No se proporcionaron marbetes para insertar'], 400);
+            }
+
+            $insertados = 0;
+            $actualizados = 0;
+            $errores = [];
+
+            foreach ($marbetesSeleccionados as $marbete) {
+                try {
+                    // Verificar si ya existe
+                    $marbeteExistente = TelMarbeteLiberadoModel::where('PurchBarCode', $marbete['PurchBarCode'])->first();
+
+                    $datosAGuardar = [
+                        'ItemId' => $marbete['ItemId'],
+                        'InventSizeId' => $marbete['InventSizeId'],
+                        'InventBatchId' => $marbete['InventBatchId'],
+                        'WMSLocationId' => $marbete['WMSLocationId'],
+                        'QtySched' => $marbete['QtySched'],
+                        'Salon' => $marbete['Salon'] ?? '',
                     ];
+
+                    if ($marbeteExistente) {
+                        $marbeteExistente->update($datosAGuardar);
+                        $actualizados++;
+                    } else {
+                        $datosAGuardar['PurchBarCode'] = $marbete['PurchBarCode'];
+                        TelMarbeteLiberadoModel::create($datosAGuardar);
+                        $insertados++;
+                    }
+                } catch (\Exception $e) {
+                    $errores[] = "Error en marbete {$marbete['PurchBarCode']}: " . $e->getMessage();
                 }
             }
 
             return response()->json([
                 'success' => true,
-                'datos' => $datosValidados,
-                'total' => count($datosValidados)
+                'insertados' => $insertados,
+                'actualizados' => $actualizados,
+                'errores' => $errores,
+                'mensaje' => "Insertados: {$insertados}, Actualizados: {$actualizados}"
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Error al obtener datos de producción: ' . $e->getMessage()
+                'error' => 'Error al insertar marbetes: ' . $e->getMessage()
             ], 500);
         }
     }

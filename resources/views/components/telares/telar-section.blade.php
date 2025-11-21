@@ -133,7 +133,7 @@
                         <span class="text-sm font-semibold text-gray-900 ml-2">
                             @php
                                 $cuentaRizo = $telar->Cuenta ?? '';
-                                $calibreRizo = $telar->Calibre_Rizo ? number_format((float)$telar->Calibre_Rizo, 2, '.', '') : '';
+                                $calibreRizo = $telar->CalibreRizo2 ? number_format((float)$telar->CalibreRizo2, 2, '.', '') : '';
                                 $fibraRizo = $telar->Fibra_Rizo ?? '';
                                 $rizoCompleto = $cuentaRizo . ($calibreRizo ? ' - ' . $calibreRizo : '') . ($fibraRizo ? ' - ' . $fibraRizo : '');
                             @endphp
@@ -145,7 +145,7 @@
                         <span class="text-sm font-semibold text-gray-900 ml-2">
                             @php
                                 $cuentaPie = $telar->Cuenta_Pie ?? '';
-                                $calibrePie = $telar->Calibre_Pie ? number_format((float)$telar->Calibre_Pie, 2, '.', '') : '';
+                                $calibrePie = $telar->CalibrePie2 ? number_format((float)$telar->CalibrePie2, 2, '.', '') : '';
                                 $fibraPie = $telar->Fibra_Pie ?? '';
                                 $pieCompleto = $cuentaPie . ($calibrePie ? ' - ' . $calibrePie : '') . ($fibraPie ? ' - ' . $fibraPie : '');
                             @endphp
@@ -156,7 +156,7 @@
                         <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Trama:</span>
                         <span class="text-sm font-semibold text-gray-900 ml-2">
                             @php
-                                $calibreTrama = $telar->CALIBRE_TRA ?? null;
+                                $calibreTrama = $telar->CalibreTrama2 ?? null;
                                 $calibreFormateado = $calibreTrama ? number_format((float)$calibreTrama, 2, '.', '') : '';
                                 $colorTrama = $telar->COLOR_TRAMA ?? '';
                                 $tramaCompleto = $calibreFormateado . ($colorTrama ? ' - ' . $colorTrama : '');
@@ -253,7 +253,7 @@
                                 <span class="text-sm font-semibold text-gray-900 ml-2">
                                     @php
                                         $cuentaRizoSig = $ordenSig->Cuenta ?? '';
-                                        $calibreRizoSig = $ordenSig->Calibre_Rizo ? number_format((float)$ordenSig->Calibre_Rizo, 2, '.', '') : '';
+                                        $calibreRizoSig = $ordenSig->CalibreRizo2 ? number_format((float)$ordenSig->CalibreRizo2, 2, '.', '') : '';
                                         $fibraRizoSig = $ordenSig->Fibra_Rizo ?? '';
                                         $rizoCompletoSig = $cuentaRizoSig . ($calibreRizoSig ? ' - ' . $calibreRizoSig : '') . ($fibraRizoSig ? ' - ' . $fibraRizoSig : '');
                                     @endphp
@@ -265,7 +265,7 @@
                                 <span class="text-sm font-semibold text-gray-900 ml-2">
                                     @php
                                         $cuentaPieSig = $ordenSig->Cuenta_Pie ?? '';
-                                        $calibrePieSig = $ordenSig->Calibre_Pie ? number_format((float)$ordenSig->Calibre_Pie, 2, '.', '') : '';
+                                        $calibrePieSig = $ordenSig->CalibrePie2 ? number_format((float)$ordenSig->CalibrePie2, 2, '.', '') : '';
                                         $fibraPieSig = $ordenSig->Fibra_Pie ?? '';
                                         $pieCompletoSig = $cuentaPieSig . ($calibrePieSig ? ' - ' . $calibrePieSig : '') . ($fibraPieSig ? ' - ' . $fibraPieSig : '');
                                     @endphp

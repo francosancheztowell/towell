@@ -41,7 +41,7 @@
                         type="button"
                         class="ml-2 md:ml-1 lg:ml-2 p-1 md:p-0.5 lg:p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         title="Seleccionar cuenta RIZO"
-                        onclick="abrirModalSeleccion('{{ $telar->Telar }}', 'rizo', '{{ $telar->Cuenta ?? '' }}', '{{ $telar->Calibre_Rizo ?? '' }}', '{{ $telar->Fibra_Rizo ?? '' }}')"
+                        onclick="abrirModalSeleccion('{{ $telar->Telar }}', 'rizo', '{{ $telar->Cuenta ?? '' }}', '{{ $telar->CalibreRizo2 ?? '' }}', '{{ $telar->Fibra_Rizo ?? '' }}')"
                     >
                         <i class="fas fa-chevron-right text-sm"></i>
                     </button>
@@ -57,7 +57,7 @@
                         type="button"
                         class="ml-2 md:ml-1 lg:ml-2 p-1 md:p-0.5 lg:p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         title="Seleccionar cuenta PIE"
-                        onclick="abrirModalSeleccion('{{ $telar->Telar }}', 'pie', '{{ $telar->Cuenta_Pie ?? '' }}', '{{ $telar->Calibre_Pie ?? '' }}', '{{ $telar->Fibra_Pie ?? '' }}')"
+                        onclick="abrirModalSeleccion('{{ $telar->Telar }}', 'pie', '{{ $telar->Cuenta_Pie ?? '' }}', '{{ $telar->CalibrePie2 ?? '' }}', '{{ $telar->Fibra_Pie ?? '' }}')"
                     >
                         <i class="fas fa-chevron-right text-sm"></i>
                     </button>
@@ -280,8 +280,8 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
 
     const cuentaRizo = datos.Cuenta || '';
     const cuentaPie = datos.Cuenta_Pie || '';
-    const calibreRizo = datos.Calibre_Rizo || 0;
-    const calibrePie = datos.Calibre_Pie || 0;
+    const calibreRizo = datos.CalibreRizo2 || 0;
+    const calibrePie = datos.CalibrePie2 || 0;
     const hilo = datos.Hilo || '';
 
     // Extraer el número de turno del valor del checkbox (ej: "rizo1" -> 1, "pie2" -> 2)
@@ -800,8 +800,8 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
                 (datosProceso?.Cuenta && datosProceso.Cuenta.trim() !== '' ? datosProceso.Cuenta : '-') :
                 (datosProceso?.Cuenta_Pie && datosProceso.Cuenta_Pie.trim() !== '' ? datosProceso.Cuenta_Pie : '-'),
             calibre: tipo === 'rizo' ?
-                (datosProceso?.Calibre_Rizo && datosProceso.Calibre_Rizo !== '' ? datosProceso.Calibre_Rizo : '-') :
-                (datosProceso?.Calibre_Pie && datosProceso.Calibre_Pie !== '' ? datosProceso.Calibre_Pie : '-'),
+                (datosProceso?.CalibreRizo2 && datosProceso.CalibreRizo2 !== '' ? datosProceso.CalibreRizo2 : '-') :
+                (datosProceso?.CalibrePie2 && datosProceso.CalibrePie2 !== '' ? datosProceso.CalibrePie2 : '-'),
             fibra: tipo === 'rizo' ?
                 (datosProceso?.Fibra_Rizo && datosProceso.Fibra_Rizo.trim() !== '' ? datosProceso.Fibra_Rizo : '-') :
                 (datosProceso?.Fibra_Pie && datosProceso.Fibra_Pie.trim() !== '' ? datosProceso.Fibra_Pie : '-'),
@@ -814,8 +814,8 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
                 (datosSiguiente?.Cuenta && datosSiguiente.Cuenta.trim() !== '' ? datosSiguiente.Cuenta : '-') :
                 (datosSiguiente?.Cuenta_Pie && datosSiguiente.Cuenta_Pie.trim() !== '' ? datosSiguiente.Cuenta_Pie : '-'),
             calibre: tipo === 'rizo' ?
-                (datosSiguiente?.Calibre_Rizo && datosSiguiente.Calibre_Rizo !== '' ? datosSiguiente.Calibre_Rizo : '-') :
-                (datosSiguiente?.Calibre_Pie && datosSiguiente.Calibre_Pie !== '' ? datosSiguiente.Calibre_Pie : '-'),
+                (datosSiguiente?.CalibreRizo2 && datosSiguiente.CalibreRizo2 !== '' ? datosSiguiente.CalibreRizo2 : '-') :
+                (datosSiguiente?.CalibrePie2 && datosSiguiente.CalibrePie2 !== '' ? datosSiguiente.CalibrePie2 : '-'),
             fibra: tipo === 'rizo' ?
                 (datosSiguiente?.Fibra_Rizo && datosSiguiente.Fibra_Rizo.trim() !== '' ? datosSiguiente.Fibra_Rizo : '-') :
                 (datosSiguiente?.Fibra_Pie && datosSiguiente.Fibra_Pie.trim() !== '' ? datosSiguiente.Fibra_Pie : '-'),

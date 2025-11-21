@@ -60,7 +60,8 @@
                         <h2 class="text-[2.5rem] font-extrabold text-white leading-none py-3 text-center drop-shadow-sm">{{ $telar['numero'] }}</h2>
                     </div>
                     @if(!empty($telar['ordenSig']))
-                        <div class="absolute left-0 right-0 text-white text-sm tracking-wider text-center pointer-events-none opacity-95 font-bold top-1/2 -translate-y-1/2">SIG. ORDEN</div>
+                        <div class="absolute left-0 right-0 text-white text-sm tracking-wider text-center pointer-events-none opacity-95 font-bold top-1/2 -translate-y-1/2">
+                        </div>
                     @endif
                     <div class="w-full mt-auto">
                         <button type="button" onclick="agregarNuevoRequerimiento(this); return false;"
@@ -148,7 +149,7 @@
                             <tbody>
                             @foreach(($telar['rows'] ?? []) as $row)
                                 <tr class="{{ $loop->even ? 'bg-gray-50' : 'bg-white' }} hover:bg-blue-50" @if(!empty($row['id'])) data-consumo-id="{{ $row['id'] }}" @endif>
-                                    <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $row['calibre'] !== null ? number_format((float)$row['calibre'], 2) : '-' }}</td>
+                                        <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $row['calibre'] !== null ? number_format((float)$row['calibre'], 2) : '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $row['fibra'] ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $row['cod_color'] ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $row['color'] ?? '-' }}</td>

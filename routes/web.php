@@ -611,6 +611,7 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
     Route::post('/tejedores/notificar-mont-rollos/notificar', [NotificarMontRollosController::class, 'notificar'])->name('notificar.mont.rollos.notificar');
     Route::get('/tejedores/notificar-mont-rollos/orden-produccion', [NotificarMontRollosController::class, 'getOrdenProduccion'])->name('notificar.mont.rollos.orden.produccion');
     Route::get('/tejedores/notificar-mont-rollos/datos-produccion', [NotificarMontRollosController::class, 'getDatosProduccion'])->name('notificar.mont.rollos.datos.produccion');
+    Route::post('/tejedores/notificar-mont-rollos/insertar', [NotificarMontRollosController::class, 'insertarMarbetes'])->name('notificar.mont.rollos.insertar');
 
     // ============================================
     // RUTAS DIRECTAS (COMPATIBILIDAD)

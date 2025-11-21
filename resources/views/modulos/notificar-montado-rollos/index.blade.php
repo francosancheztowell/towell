@@ -3,7 +3,7 @@
 @section('page-title', 'Notificar Montado de Rollos')
 
 @section('content')
-<div class="container mx-auto px-4 py-4">
+<div class="container mx-auto px-4 py-2">
     <div class="bg-white rounded-lg shadow-md p-6">
         <h1 class="text-2xl font-bold text-gray-800 mb-6">Notificar Montado de Rollos</h1>
     </div>
@@ -11,7 +11,7 @@
 
 <!-- Modal de Telares -->
 <div id="modalTelares" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
-    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 my-8">
         <!-- Header del Modal -->
         <div class="flex items-center justify-between p-6 border-b border-gray-200">
             <h2 class="text-xl font-bold text-gray-800">Telares Asignados - Rollos</h2>
@@ -41,11 +41,12 @@
 
             <!-- Tabla de Datos de Producción -->
             <div id="tablaProduccionContainer" class="mb-6" style="display: none;">
-                <h3 class="text-lg font-semibold text-gray-800 mb-3">Datos de Producción</h3>
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">Seleccionar Marbetes a Liberar</h3>
                 <div class="overflow-x-auto">
                     <table class="min-w-full bg-white border border-gray-300 rounded-lg">
                         <thead class="bg-gray-100">
                             <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Cuantas</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Marbete</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Artículo</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Tamaño</th>
@@ -98,7 +99,7 @@
 <div id="modalDetalleTelar" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[60] flex items-center justify-center" style="display: none;">
     <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
         <!-- Header -->
-        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <div class="flex items-center justify-between p-2 border-b border-gray-200">
             <h2 class="text-xl font-bold text-gray-800">Detalle del Telar</h2>
             <button type="button" id="closeModalDetalle" class="text-gray-400 hover:text-gray-600 transition-colors">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,16 +109,16 @@
         </div>
 
         <!-- Body -->
-        <div class="p-6" id="detalleTelarContent">
+        <div class="p-2" id="detalleTelarContent">
             <div class="text-center text-gray-500">Cargando...</div>
         </div>
 
         <!-- Footer -->
         <div class="flex justify-end gap-2 p-6 border-t border-gray-200">
-            <button type="button" id="closeModalDetalleBtn" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+            <button type="button" id="closeModalDetalleBtn" class="px-4 py-0 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
                 Cancelar
             </button>
-            <button type="button" id="btnNotificar" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+            <button type="button" id="btnNotificar" class="px-4 py-0 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
                 Notificar
             </button>
         </div>
@@ -143,7 +144,7 @@
 
         // Función para cerrar el modal principal
         function cerrarModal() {
-            modal.style.display = 'none';
+            window.location.href = '/submodulos/tejedores';
         }
 
         // Event listeners para cerrar el modal principal
@@ -172,28 +173,45 @@
             try {
                 // 1. Obtener orden de producción activa
                 const responseOrden = await fetch(`{{ route('notificar.mont.rollos.orden.produccion') }}?no_telar=${encodeURIComponent(noTelar)}`, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
                 });
 
                 const dataOrden = await responseOrden.json();
 
                 if (!dataOrden.success) {
                     mostrarMensaje(dataOrden.error || 'No se encontró orden activa', 'error');
+                    console.log('Debug orden:', dataOrden.debug);
                     return;
                 }
 
                 ordenActual = dataOrden.orden;
-                mostrarMensaje('Cargando datos de producción...', 'info');
+                console.log('Orden activa encontrada:', ordenActual);
+                console.log('Debug conexión:', dataOrden.debug);
+                mostrarMensaje('Cargando datos de producción desde TOW_PRO...', 'info');
 
-                // 2. Obtener datos de producción desde TOW_PRO
-                const responseDatos = await fetch(`{{ route('notificar.mont.rollos.datos.produccion') }}?no_produccion=${encodeURIComponent(ordenActual.NoProduccion)}`, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                // 2. Obtener datos de producción desde TOW_PRO (sin insertar aún)
+                const responseDatos = await fetch(`{{ route('notificar.mont.rollos.datos.produccion') }}?no_produccion=${encodeURIComponent(ordenActual.NoProduccion)}&no_telar=${encodeURIComponent(noTelar)}&salon=${encodeURIComponent(ordenActual.SalonTejidoId || '')}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
                 });
 
                 const dataDatos = await responseDatos.json();
+                console.log('Datos de producción:', dataDatos);
 
                 if (!dataDatos.success || dataDatos.datos.length === 0) {
-                    mostrarMensaje(dataDatos.error || 'No se encontraron datos de producción', 'error');
+                    let mensajeError = dataDatos.error || 'No se encontraron datos de producción';
+                    if (dataDatos.mensaje) {
+                        mensajeError += '\n' + dataDatos.mensaje;
+                    }
+                    mostrarMensaje(mensajeError, 'error');
+                    console.log('Debug validación:', dataDatos.debug);
                     return;
                 }
 
@@ -223,49 +241,86 @@
         function renderizarTablaProduccion(datos) {
             tablaProduccionBody.innerHTML = '';
             
-            datos.forEach(dato => {
+            datos.forEach((dato, index) => {
                 const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
+                row.className = 'hover:bg-blue-50 cursor-pointer transition-colors';
+                row.dataset.marbete = JSON.stringify(dato);
+                row.dataset.index = index;
+                
                 row.innerHTML = `
-                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Marbete || 'N/A'}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Articulo || 'N/A'}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Tamaño || 'N/A'}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Orden || 'N/A'}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Telar || 'N/A'}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${dato.Piezas || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.CUANTAS || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.PurchBarCode || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.ItemId || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.InventSizeId || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.InventBatchId || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.WMSLocationId || 'N/A'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${dato.QtySched || 'N/A'}</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${dato.Salon || 'N/A'}</td>
                 `;
+                
+                // Click en la fila para seleccionar
+                row.addEventListener('click', function() {
+                    // Remover selección previa
+                    document.querySelectorAll('#tablaProduccionBody tr').forEach(r => {
+                        r.classList.remove('bg-blue-200', 'selected');
+                    });
+                    
+                    // Seleccionar esta fila
+                    this.classList.add('bg-blue-200', 'selected');
+                });
+                
                 tablaProduccionBody.appendChild(row);
             });
         }
 
-        // Notificar montado de rollos
+        // Notificar montado de rollos (insertar marbete seleccionado)
         btnNotificarRollos.addEventListener('click', async function() {
-            if (!ordenActual || datosProduccion.length === 0) {
-                alert('No hay datos para notificar');
+            // Obtener fila seleccionada
+            const filaSeleccionada = document.querySelector('#tablaProduccionBody tr.selected');
+            
+            if (!filaSeleccionada) {
+                alert('Debe seleccionar un marbete de la tabla');
                 return;
             }
 
-            if (!confirm('¿Está seguro de notificar el montado de estos rollos?')) {
+            const marbete = JSON.parse(filaSeleccionada.dataset.marbete);
+            const marbetesSeleccionados = [marbete];
+
+            if (!confirm(`¿Está seguro de liberar el marbete ${marbete.PurchBarCode}?`)) {
                 return;
             }
 
             try {
-                // Aquí puedes agregar lógica adicional para guardar en TejInventarioTelares
-                const horaActual = new Date().toLocaleTimeString('es-MX', { hour12: false });
+                mostrarMensaje('Insertando marbetes en TelMarbeteLiberado...', 'info');
+
+                const response = await fetch('{{ route('notificar.mont.rollos.insertar') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        marbetes: marbetesSeleccionados
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    alert('Error: ' + (data.error || 'No se pudieron insertar los marbetes'));
+                    mostrarMensaje('Error al insertar: ' + (data.error || 'Error desconocido'), 'error');
+                    return;
+                }
+
+                alert(`✓ Marbete liberado correctamente\n${data.mensaje}`);
                 
-                alert(`Notificación registrada correctamente a las ${horaActual}`);
-                
-                // Limpiar formulario
-                selectTelarOperador.value = '';
-                tablaProduccionContainer.style.display = 'none';
-                btnNotificarRollos.style.display = 'none';
-                ordenActual = null;
-                datosProduccion = [];
+                // Redirigir a tejedores
+                window.location.href = '/submodulos/tejedores';
                 
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al notificar: ' + error.message);
+                alert('Error al insertar marbetes: ' + error.message);
             }
         });
     });
