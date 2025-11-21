@@ -237,34 +237,7 @@
 
 
 <script>
-    // --- Navbar: Dropdown Telares
-    (function(){
-        const btnDropdown = document.getElementById('btnDropdownTelares');
-        const menuDropdown = document.getElementById('menuDropdownTelares');
-        const iconDropdown = document.getElementById('iconDropdown');
-        btnDropdown?.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const isHidden = menuDropdown.classList.contains('hidden');
-            menuDropdown.classList.toggle('hidden');
-            if (iconDropdown) iconDropdown.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-        });
-        document.addEventListener('click', function(e) {
-            if (btnDropdown && !btnDropdown.contains(e.target) && menuDropdown && !menuDropdown.contains(e.target)) {
-                menuDropdown.classList.add('hidden');
-                if (iconDropdown) iconDropdown.style.transform = 'rotate(0deg)';
-            }
-        });
-        window.addEventListener('DOMContentLoaded', function(){
-            const url = new URL(location.href);
-            let t = url.searchParams.get('telar');
-            if(!t && location.hash.startsWith('#telar-')){
-                t = location.hash.replace('#telar-', '');
-            }
-            if(t){ setTimeout(() => irATelar(t), 300); }
-        });
-    })();
-
-    // --- Scroll to telar & URL sync
+    // --- Scroll to telar & URL sync (función debe estar antes de DOMContentLoaded)
     (function(){
         function getScrollable(node){
             let n = node ? node.parentElement : null;
@@ -285,8 +258,8 @@
             if (!noTelar) {
                 const u0 = new URL(location.href); u0.search = ''; u0.hash = ''; history.replaceState(null,'',u0.toString());
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-                    return;
-                }
+                return;
+            }
             const el = document.getElementById('telar-'+noTelar);
             if (!el) return;
             const sticky = document.querySelector('nav.sticky, nav.fixed, .sticky.top-0, .fixed.top-16');
@@ -325,18 +298,47 @@
 
     // --- App boot
     document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar Dropdown de Telares
+        const btnDropdown = document.getElementById('btnDropdownTelares');
+        const menuDropdown = document.getElementById('menuDropdownTelares');
+        const iconDropdown = document.getElementById('iconDropdown');
+        
+        if (btnDropdown && menuDropdown) {
+            btnDropdown.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isHidden = menuDropdown.classList.contains('hidden');
+                menuDropdown.classList.toggle('hidden');
+                if (iconDropdown) iconDropdown.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+            });
+            
+            document.addEventListener('click', function(e) {
+                if (!btnDropdown.contains(e.target) && !menuDropdown.contains(e.target)) {
+                    menuDropdown.classList.add('hidden');
+                    if (iconDropdown) iconDropdown.style.transform = 'rotate(0deg)';
+                }
+            });
+        }
+
+        // Auto-enfocar si viene ?telar=### o hash #telar-###
+        const url = new URL(location.href);
+        let t = url.searchParams.get('telar');
+        if(!t && location.hash.startsWith('#telar-')){
+            t = location.hash.replace('#telar-', '');
+        }
+        if(t){ setTimeout(() => irATelar(t), 300); }
+
         // Redirigir si hay En Proceso y no estamos en edición
         try {
             if (!window.NR_VM.hasQueryFolio && window.NR_VM.enProcesoExists) {
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Orden en Proceso',
-                            text: 'Aún sigue en proceso esta orden. Será redirigido a Consultar Requerimiento.',
-                            timer: 8000,
-                            timerProgressBar: true,
-                            showConfirmButton: false,
-                            allowOutsideClick: false,
-                            allowEscapeKey: false
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Orden en Proceso',
+                    text: 'Aún sigue en proceso esta orden. Será redirigido a Consultar Requerimiento.',
+                    timer: 8000,
+                    timerProgressBar: true,
+                    showConfirmButton: false,
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
                 }).then(() => { window.location.href = window.NR_VM.consultaUrl; });
             }
         } catch (e) {}
@@ -664,91 +666,7 @@
             if (display) display.classList.remove('hidden');
         }, true);
 
-        // Dropdown y navegación tipo Jacquard
-        (function(){
-            const btnDropdown = document.getElementById('btnDropdownTelares');
-            const menuDropdown = document.getElementById('menuDropdownTelares');
-            const iconDropdown = document.getElementById('iconDropdown');
 
-            btnDropdown?.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const isHidden = menuDropdown.classList.contains('hidden');
-                if (isHidden) {
-                    menuDropdown.classList.remove('hidden');
-                    if (iconDropdown) iconDropdown.style.transform = 'rotate(180deg)';
-                } else {
-                    menuDropdown.classList.add('hidden');
-                    if (iconDropdown) iconDropdown.style.transform = 'rotate(0deg)';
-                }
-            });
-
-            // Cerrar dropdown al hacer clic fuera
-            document.addEventListener('click', function(e) {
-                if (btnDropdown && !btnDropdown.contains(e.target) && menuDropdown && !menuDropdown.contains(e.target)) {
-                    menuDropdown.classList.add('hidden');
-                    if (iconDropdown) iconDropdown.style.transform = 'rotate(0deg)';
-                }
-            });
-
-            // Auto-enfocar si viene ?telar=### o hash #telar-###
-            window.addEventListener('DOMContentLoaded', function(){
-                const url = new URL(location.href);
-                let t = url.searchParams.get('telar');
-                if(!t && location.hash.startsWith('#telar-')){
-                    t = location.hash.replace('#telar-', '');
-                }
-                if(t){
-                    setTimeout(() => irATelar(t), 500);
-                }
-            });
-        })();
-
-        // Scroll suave a un telar específico y actualización de URL/hash
-        (function(){
-          function getScrollable(node){
-            let n = node ? node.parentElement : null;
-            while (n && n !== document.body) {
-              const cs = getComputedStyle(n);
-              const oy = cs.overflowY;
-              if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight) return n;
-              n = n.parentElement;
-            }
-            return document.scrollingElement || document.documentElement;
-          }
-          window.irATelar = function(noTelar){
-            // Cerrar dropdown si existe
-            const menu = document.getElementById('menuDropdownTelares');
-            const icon = document.getElementById('iconDropdown');
-            if (menu) menu.classList.add('hidden');
-            if (icon) icon.style.transform = 'rotate(0deg)';
-
-            // Mostrar todos por si hay filtro
-            document.querySelectorAll('[id^="telar-"]').forEach(el => el.classList.remove('hidden'));
-            if (!noTelar) {
-              const u0 = new URL(location.href); u0.search = ''; u0.hash = ''; history.replaceState(null,'',u0.toString());
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-              return;
-            }
-
-            const el = document.getElementById('telar-'+noTelar);
-            if (!el) return;
-
-            const sticky = document.querySelector('nav.sticky, nav.fixed, .sticky.top-0, .fixed.top-16');
-            const stickyH = sticky ? sticky.getBoundingClientRect().height : 0;
-            const extra = -50; // espacio adicional
-
-            const scroller = getScrollable(el);
-            const scRect = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : { top: 0 };
-            const tRect = el.getBoundingClientRect();
-            const current = scroller.scrollTop || window.pageYOffset || document.documentElement.scrollTop || 0;
-            const targetTop = tRect.top - scRect.top + current - stickyH - extra;
-
-            if (scroller.scrollTo) scroller.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
-            else window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
-
-            const url = new URL(location.href); url.search = ''; url.hash = 'telar-'+noTelar; history.replaceState(null,'',url.toString());
-          }
-        })();
 
     function actualizarCantidadEnBD(consumoId, cantidad){
         fetch(window.ACTUALIZAR_CANTIDAD_URL, {
