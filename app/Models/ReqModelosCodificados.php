@@ -10,11 +10,13 @@ class ReqModelosCodificados extends Model
     use HasFactory;
 
     protected $table = 'ReqModelosCodificados';
-    protected $primaryKey = 'TamanoClave';
-    public $incrementing = false;
+    protected $primaryKey = 'Id';
+    public $incrementing = true;
+    protected $keyType = 'int';
     public $timestamps = false;
 
     protected $fillable = [
+        'Id',
         'TamanoClave',
         'OrdenTejido',
         'FechaTejido',

@@ -27,12 +27,12 @@ if (!function_exists('fmtDateDMY')) {
 }
 @endphp
 
-<div class="container-fluid px-4 py-6 -mt-6">
+<div class="container-fluid px-4 py-4 ">
 
-    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="overflow-x-auto h-[600px]">
-			<table id="mainTable" class=" border-collapse">
-                <thead>
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="overflow-auto" style="height: 560px; max-height: 560px;">
+			<table id="mainTable" class="w-full">
+                <thead class="sticky-header">
 					<tr class="border border-gray-300 px-2 py-2 text-center font-light text-white text-sm bg-blue-500">
 						<th>Clave mod.</th>
 						<th>NoProduccion</th>
@@ -170,12 +170,13 @@ if (!function_exists('fmtDateDMY')) {
 
                 <tbody id="codificacion-body">
                     @forelse($codificaciones as $cod)
-                        <tr class="hover:bg-gray-50 border px-2 py-2 text-center text-sm cursor-pointer"
+                        <tr class="data-row hover:bg-gray-50  px-2 py-2 text-center text-sm cursor-pointer"
                             onclick="selectRow(this, {{ $cod->Id }})"
                             data-id="{{ $cod->Id }}"
                             data-tamano-clave="{{ $cod->TamanoClave }}"
                             data-orden-tejido="{{ $cod->OrdenTejido }}"
-                            data-nombre="{{ $cod->Nombre }}">
+                            data-nombre="{{ $cod->Nombre }}"
+                            style="display: none;">
                             <td class="column-0">{{ $cod->TamanoClave }}</td>
                             <td class="column-1">{{ $cod->OrdenTejido }}</td>
                             <td class="column-2">{{ fmtDateDMY($cod->FechaTejido) }}</td>
@@ -316,21 +317,136 @@ if (!function_exists('fmtDateDMY')) {
                 </tbody>
             </table>
         </div>
+
+        {{-- Paginación unificada: Cliente controla Servidor --}}
+        <div id="pagination-container" class="px-4 py-3 border-t border-gray-200 bg-white sticky bottom-0 z-20">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <div class="text-sm text-gray-700">
+                    Mostrando
+                    <span id="pagination-from" class="font-medium">0</span>
+                    a
+                    <span id="pagination-to" class="font-medium">0</span>
+                    de
+                    <span id="pagination-total" class="font-medium">0</span>
+                    registros
+                    @if(method_exists($codificaciones, 'links'))
+                        <span class="text-gray-500">(Bloque {{ $codificaciones->currentPage() }}/{{ $codificaciones->lastPage() }})</span>
+                    @endif
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="pagination-prev" class="px-3 py-1 border rounded text-sm hover:bg-blue-600 bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="pagination-info" class="px-3 py-1 text-sm text-gray-700">Página 1</span>
+                    <button id="pagination-next" class="px-3 py-1 border rounded text-sm hover:bg-blue-600 bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed">
+                        Siguiente <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 
 <style>
-	/* Mantiene encabezados pegados arriba y columnas fijadas a la izquierda */
-	#mainTable thead th { position: sticky; top: 0; z-index: 30; background-color: #3b82f6; }
-	.pinned-column { position: sticky !important; background: #3b82f6 !important; color: #fff !important; }
-	.pinned-column.is-header { background: #3b82f6 !important; color: #fff !important; }
+	/* Contenedor con altura fija y scroll */
+	.overflow-auto {
+		position: relative;
+		overflow: auto;
+		height: 560px;
+		max-height: 560px;
+	}
+
+	/* Mantiene encabezados pegados arriba */
+	#mainTable {
+		border-collapse: collapse;
+		width: 100%;
+	}
+
+	#mainTable thead {
+		position: sticky;
+		top: 0;
+		z-index: 100;
+		background-color: #3b82f6;
+	}
+
+	#mainTable thead.sticky-header {
+		position: sticky !important;
+		top: 0 !important;
+		z-index: 100 !important;
+		background-color: #3b82f6 !important;
+	}
+
+	#mainTable thead th {
+		position: sticky !important;
+		top: 0 !important;
+		z-index: 101 !important;
+		background-color: #3b82f6 !important;
+		color: white !important;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+	}
+
+	.pinned-column {
+		position: sticky !important;
+		background: #3b82f6 !important;
+		color: #fff !important;
+	}
+
+	.pinned-column.is-header {
+		background: #3b82f6 !important;
+		color: #fff !important;
+	}
+
 	/* Botón minimal en headers */
 	.th-action {
 		@apply p-1.5 rounded-md transition-shadow shadow-sm hover:shadow-md;
 	}
+
 	/* Oculta texto que se desborde en headers muy largos */
-	th .th-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	th .th-label {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/* Estilos para paginación rápida */
+	.pagination {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+	.pagination li {
+		display: inline-block;
+	}
+	.pagination a, .pagination span {
+		display: inline-block;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid #d1d5db;
+		border-radius: 0.375rem;
+		text-decoration: none;
+		color: #374151;
+		background: white;
+		transition: all 0.2s;
+		font-size: 0.875rem;
+	}
+	.pagination a:hover {
+		background: #f3f4f6;
+		border-color: #9ca3af;
+	}
+	.pagination .active span {
+		background: #3b82f6;
+		color: white;
+		border-color: #3b82f6;
+		font-weight: 600;
+	}
+	.pagination .disabled span {
+		opacity: 0.5;
+		cursor: not-allowed;
+		background: #f9fafb;
+	}
 </style>
 
 <script>
@@ -381,7 +497,7 @@ function enhanceHeaders() {
 		const label = th.textContent.trim();
 		th.textContent = '';
 
-		// Controles: Fijar, Ocultar, Orden ASC, Orden DESC
+		// Controles: Solo Ordenamiento (ASC/DESC)
 		th.innerHTML = `
 			<div class="flex items-center justify-between gap-2">
 				<span class="th-label flex-1">${label}</span>
@@ -392,48 +508,35 @@ function enhanceHeaders() {
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 14l5-5 5 5M7 20h10" />
 						</svg>
 					</button>
-					<!-- Fijar -->
-					<button type="button" class="pin-btn th-action bg-yellow-500 hover:bg-yellow-600 text-white rounded-md" title="Fijar columna" data-pin="toggle">
-						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-						</svg>
-					</button>
-					<!-- Ocultar -->
-					<button type="button" class="hide-btn th-action bg-red-500 hover:bg-red-600 text-white rounded-md" title="Ocultar columna" data-hide="true">
-						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-						</svg>
-					</button>
 				</div>
 			</div>
 		`;
 
-		// Eventos
+		// Eventos - Solo ordenamiento
 		const sortBtn = th.querySelector('.sort-btn');
-		const pinBtn = th.querySelector('[data-pin="toggle"]');
-		const hideBtn = th.querySelector('[data-hide]');
 
-		sortBtn.addEventListener('click', e => {
-			e.stopPropagation();
-			const current = sortBtn.dataset.current;
-			const newSort = current === 'asc' ? 'desc' : 'asc';
-			sortBtn.dataset.current = newSort;
-			sortBtn.dataset.sort = newSort;
-			sortBtn.title = newSort === 'asc' ? 'Ordenar ascendente' : 'Ordenar descendente';
+		if (sortBtn) {
+			sortBtn.addEventListener('click', e => {
+				e.stopPropagation();
+				const current = sortBtn.dataset.current;
+				const newSort = current === 'asc' ? 'desc' : 'asc';
+				sortBtn.dataset.current = newSort;
+				sortBtn.dataset.sort = newSort;
+				sortBtn.title = newSort === 'asc' ? 'Ordenar ascendente' : 'Ordenar descendente';
 
-			// Cambiar icono
-			const svg = sortBtn.querySelector('svg path');
-			if (newSort === 'asc') {
-				svg.setAttribute('d', 'M7 14l5-5 5 5M7 20h10');
-			} else {
-				svg.setAttribute('d', 'M7 10l5 5 5-5M7 4h10');
-			}
+				// Cambiar icono
+				const svg = sortBtn.querySelector('svg path');
+				if (svg) {
+					if (newSort === 'asc') {
+						svg.setAttribute('d', 'M7 14l5-5 5 5M7 20h10');
+					} else {
+						svg.setAttribute('d', 'M7 10l5 5 5-5M7 4h10');
+					}
+				}
 
-			sortColumn(i, newSort);
-		});
-		pinBtn.addEventListener('click', e => { e.stopPropagation(); togglePinColumn(i); });
-		hideBtn.addEventListener('click', e => { e.stopPropagation(); hideColumn(i); });
+				sortColumn(i, newSort);
+			});
+		}
 	});
 }
 
@@ -524,7 +627,7 @@ function updatePinnedPositions() {
  *  ========================= */
 function sortColumn(index, dir) {
 	const tbody = $('#mainTable tbody');
-	const rows = $$('#mainTable tbody tr');
+	const rows = Array.from(filteredRows.length > 0 ? filteredRows : allRows);
 
 	// Detectar tipo de dato predominante
 	let numericCount = 0, dateCount = 0, total = 0;
@@ -557,8 +660,16 @@ function sortColumn(index, dir) {
 		return dir === 'asc' ? cmp(va, vb) : cmp(vb, va);
 	});
 
-	tbody.innerHTML = '';
-	sorted.forEach(r => tbody.appendChild(r));
+	// Reordenar en el DOM
+	sorted.forEach((r, i) => {
+		tbody.appendChild(r);
+	});
+
+	// Actualizar arrays y paginación
+	allRows = Array.from(document.querySelectorAll('#codificacion-body tr.data-row'));
+	filteredRows = sorted;
+	currentPage = 1;
+	showPage(1);
 
 	currentSort = { index, dir };
 }
@@ -611,6 +722,7 @@ function editarCodificacion() {
 		showToast('Por favor selecciona un registro para editar', 'warning');
 		return;
 	}
+	// Usar Id como identificador (primary key)
 	window.location.href = `/planeacion/catalogos/codificacion-modelos/${selectedId}/edit`;
 }
 
@@ -1312,8 +1424,8 @@ function getColumnasDisponibles() {
 }
 
 function aplicarFiltrosDinamicos(filtros) {
-    const filas = document.querySelectorAll('#codificacion-body tr');
-    let filasVisibles = 0;
+    const filas = Array.from(document.querySelectorAll('#codificacion-body tr.data-row'));
+    let filasFiltradas = [];
 
     filas.forEach(fila => {
         const celdas = fila.querySelectorAll('td');
@@ -1331,14 +1443,13 @@ function aplicarFiltrosDinamicos(filtros) {
         });
 
         if (mostrarFila) {
-            fila.style.display = '';
-            filasVisibles++;
-        } else {
-            fila.style.display = 'none';
+            filasFiltradas.push(fila);
         }
     });
 
-    showToast(`Filtros aplicados: ${filtros.length} criterios. Mostrando ${filasVisibles} de ${filas.length} registros`, 'success');
+    // Actualizar filas filtradas y resetear paginación
+    updateFilteredRows(filasFiltradas);
+    showToast(`Filtros aplicados: ${filtros.length} criterios. Mostrando ${filasFiltradas.length} de ${filas.length} registros`, 'success');
 }
 
 
@@ -1359,11 +1470,9 @@ function limpiarFiltrosCodificacion() {
     // Limpiar filtros dinámicos
     filtrosDinamicos = [];
 
-    // Mostrar todas las filas
-    const filas = document.querySelectorAll('#codificacion-body tr');
-    filas.forEach(fila => {
-        fila.style.display = '';
-    });
+    // Resetear paginación con todas las filas
+    allRows = Array.from(document.querySelectorAll('#codificacion-body tr.data-row'));
+    updateFilteredRows(allRows);
 
     showToast('Filtros limpiados. Mostrando todos los registros', 'info');
 }
@@ -1402,6 +1511,138 @@ function enableButtons() {
 }
 
 /** =========================
+ *  Paginación unificada: Cliente controla Servidor
+ *  ========================= */
+let currentPage = 1;
+let itemsPerPage = 500;
+let allRows = [];
+let filteredRows = [];
+
+// Información del servidor (paginación de bloques de 2000)
+const serverPagination = {
+	@if(method_exists($codificaciones, 'links'))
+		currentPage: {{ $codificaciones->currentPage() }},
+		lastPage: {{ $codificaciones->lastPage() }},
+		hasMorePages: {{ $codificaciones->hasMorePages() ? 'true' : 'false' }},
+		hasPreviousPage: {{ !$codificaciones->onFirstPage() ? 'true' : 'false' }},
+		nextPageUrl: @json($codificaciones->nextPageUrl()),
+		previousPageUrl: @json($codificaciones->previousPageUrl()),
+		total: {{ $codificaciones->total() }}
+	@else
+		currentPage: 1,
+		lastPage: 1,
+		hasMorePages: false,
+		hasPreviousPage: false,
+		nextPageUrl: null,
+		previousPageUrl: null,
+		total: 0
+	@endif
+};
+
+function initClientPagination() {
+	// Obtener todas las filas de datos
+	allRows = Array.from(document.querySelectorAll('#codificacion-body tr.data-row'));
+	filteredRows = allRows.slice(); // Copia para filtros
+
+	// Inicializar paginación
+	updatePagination();
+	showPage(1);
+
+	// Event listeners para botones de paginación
+	const prevBtn = document.getElementById('pagination-prev');
+	const nextBtn = document.getElementById('pagination-next');
+
+	if (prevBtn) {
+		prevBtn.addEventListener('click', () => {
+			// Si está en la primera página del cliente y hay página anterior del servidor
+			if (currentPage === 1 && serverPagination.hasPreviousPage && serverPagination.previousPageUrl) {
+				// Ir al bloque anterior del servidor
+				window.location.href = serverPagination.previousPageUrl;
+			} else if (currentPage > 1) {
+				// Ir a la página anterior del cliente
+				showPage(currentPage - 1);
+			}
+		});
+	}
+
+	if (nextBtn) {
+		nextBtn.addEventListener('click', () => {
+			const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+			// Si está en la última página del cliente y hay más páginas del servidor
+			if (currentPage >= totalPages && serverPagination.hasMorePages && serverPagination.nextPageUrl) {
+				// Ir al siguiente bloque del servidor
+				window.location.href = serverPagination.nextPageUrl;
+			} else if (currentPage < totalPages) {
+				// Ir a la siguiente página del cliente
+				showPage(currentPage + 1);
+			}
+		});
+	}
+}
+
+function showPage(page) {
+	currentPage = page;
+	const start = (page - 1) * itemsPerPage;
+	const end = start + itemsPerPage;
+	const pageRows = filteredRows.slice(start, end);
+
+	// Ocultar todas las filas
+	allRows.forEach(row => {
+		row.style.display = 'none';
+	});
+
+	// Mostrar solo las filas de la página actual
+	pageRows.forEach(row => {
+		row.style.display = '';
+	});
+
+	updatePagination();
+}
+
+function updatePagination() {
+	const total = filteredRows.length;
+	const totalPages = Math.ceil(total / itemsPerPage);
+	const start = total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+	const end = Math.min(currentPage * itemsPerPage, total);
+
+	// Calcular el número de registro global (considerando el bloque del servidor)
+	const serverBlockStart = (serverPagination.currentPage - 1) * 2000;
+	const globalStart = serverBlockStart + start;
+	const globalEnd = serverBlockStart + end;
+	const globalTotal = serverPagination.total;
+
+	// Actualizar información de paginación
+	const fromEl = document.getElementById('pagination-from');
+	const toEl = document.getElementById('pagination-to');
+	const totalEl = document.getElementById('pagination-total');
+	const infoEl = document.getElementById('pagination-info');
+	const prevBtn = document.getElementById('pagination-prev');
+	const nextBtn = document.getElementById('pagination-next');
+
+	if (fromEl) fromEl.textContent = globalStart;
+	if (toEl) toEl.textContent = globalEnd;
+	if (totalEl) totalEl.textContent = globalTotal;
+	if (infoEl) infoEl.textContent = `Página ${currentPage} de ${totalPages || 1}`;
+
+	// Habilitar/deshabilitar botones
+	// Anterior: deshabilitado solo si está en primera página del cliente Y no hay página anterior del servidor
+	if (prevBtn) {
+		prevBtn.disabled = currentPage <= 1 && (!serverPagination.hasPreviousPage || !serverPagination.previousPageUrl);
+	}
+	// Siguiente: deshabilitado solo si está en última página del cliente Y no hay más páginas del servidor
+	if (nextBtn) {
+		nextBtn.disabled = currentPage >= totalPages && (!serverPagination.hasMorePages || !serverPagination.nextPageUrl);
+	}
+}
+
+// Función para actualizar filtros y resetear paginación
+function updateFilteredRows(rows) {
+	filteredRows = rows;
+	currentPage = 1;
+	showPage(1);
+}
+
+/** =========================
  *  Init
  *  ========================= */
 document.addEventListener('DOMContentLoaded', () => {
@@ -1410,6 +1651,9 @@ document.addEventListener('DOMContentLoaded', () => {
 		tr.querySelectorAll('td').forEach((td, i) => td.classList.add(`column-${i}`));
 	});
 	enhanceHeaders();
+
+	// Inicializar paginación del lado del cliente
+	initClientPagination();
 });
 </script>
 

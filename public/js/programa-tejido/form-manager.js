@@ -1111,8 +1111,8 @@ window.ProgramaTejidoForm = {
 
             console.log(' Horas necesarias:', horasProd);
 
-            // Calcular fecha final sumando horas al calendario
-            const fechaFinal = CalendarioManager.sumarHorasCalendario(fechaInicio, horasProd, calendario);
+            // Calcular fecha final sumando horas al calendario (ahora es async)
+            const fechaFinal = await CalendarioManager.sumarHorasCalendario(fechaInicio, horasProd, calendario);
             const fechaFinalFormateada = ProgramaTejidoUtils.formatearFechaParaInput(fechaFinal);
 
             const fechaFinalInput = inputs[2];

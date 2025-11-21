@@ -55,7 +55,8 @@
                                         <div id="clave-modelo-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-b shadow-lg hidden max-h-40 overflow-y-auto"></div>
                                     </td>
                                     <td class="px-2 py-1 font-medium text-gray-800">Cuenta Rizo</td>
-                                <td class="px-2 py-1"><input disabled type="text" id="cuenta-rizo" placeholder="Ingrese cuenta" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
+                                    <td class="px-2 py-1"><input disabled type="text" id="cuenta-rizo" placeholder="Ingrese cuenta" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
+                                    <!-- esta falla, hilo trama no se muestra -->
                                     <td class="px-2 py-1 font-medium text-gray-800">Hilo Trama</td>
                                 <td class="px-2 py-1"><input type="text" id="hilo-trama" placeholder="Ingrese hilo" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
                                     <td class="px-2 py-1 font-medium text-gray-800">Hilo C2</td>
@@ -70,12 +71,15 @@
                                 <td class="px-2 py-1"><input disabled type="text" id="nombre-modelo" placeholder="Ingrese nombre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
                                     <td class="px-2 py-1 font-medium text-gray-800">Calibre Rizo</td>
                                 <td class="px-2 py-1"><input disabled type="text" id="calibre-rizo" placeholder="Ingrese calibre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
-                                <td class="px-2 py-1"><input type="text" id="cod-color-1" placeholder="Ingrese código" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
+                                    <!-- esta falla, cod color no se muestra -->
+                                <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
+                                <td class="px-2 py-1"><input type="text" id="cod-color" placeholder="Ingrese código" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
+
+
+                                <td class="px-2 py-1 font-medium text-gray-800">Cod Color 2</td>
                                 <td class="px-2 py-1"><input type="text" id="cod-color-2" placeholder="Ingrese código" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
-                                <td class="px-2 py-1"><input type="text" id="cod-color-3" placeholder="Ingrese código" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
+                                    <td class="px-2 py-1 font-medium text-gray-800">Cod Color 4</td>
+                                <td class="px-2 py-1"><input type="text" id="cod-color-4" placeholder="Ingrese código" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
                                 </tr>
 
                             <!-- Fila 4: Tamaño, Hilo Rizo, Nombre Color 1-3 -->
@@ -84,12 +88,13 @@
                                 <td class="px-2 py-1"><input disabled type="text" id="tamano" placeholder="Ingrese tamaño" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
                                     <td class="px-2 py-1 font-medium text-gray-800">Hilo Rizo</td>
                                 <td class="px-2 py-1"><input disabled type="text" id="hilo-rizo" placeholder="Ingrese hilo" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
-                                <td class="px-2 py-1"><input type="text" id="nombre-color-1" placeholder="Ingrese nombre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
+                                    <!-- nombre color  -->
+                                <td class="px-2 py-1 font-medium text-gray-800">Nombre Color </td>
+                                <td class="px-2 py-1"><input type="text" id="nombre-color" placeholder="Ingrese nombre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
+                                    <td class="px-2 py-1 font-medium text-gray-800">Nombre Color 2</td>
                                 <td class="px-2 py-1"><input type="text" id="nombre-color-2" placeholder="Ingrese nombre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
-                                <td class="px-2 py-1"><input type="text" id="nombre-color-3" placeholder="Ingrese nombre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
+                                    <td class="px-2 py-1 font-medium text-gray-800">Nombre Color 4</td>
+                                <td class="px-2 py-1"><input type="text" id="nombre-color-4" placeholder="Ingrese nombre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
                                 </tr>
 
                             <!-- Fila 5: Hilo, Cuenta Pie, Calibres C1-C3-C5 -->
@@ -133,12 +138,12 @@
                                 <td class="px-2 py-1"><textarea disabled id="descripcion" rows="1" placeholder="Ingrese descripción" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs resize-none"></textarea></td>
                                     <td class="px-2 py-1 font-medium text-gray-800">Hilo Pie</td>
                                 <td class="px-2 py-1"><input disabled type="text" id="hilo-pie" placeholder="Ingrese hilo" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
-                                <td class="px-2 py-1"><input type="text" id="cod-color-4" placeholder="Ingrese código" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
+                                    <td class="px-2 py-1 font-medium text-gray-800">Cod Color 1</td>
+                                <td class="px-2 py-1"><input type="text" id="cod-color-1" placeholder="Ingrese código" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
+                                    <td class="px-2 py-1 font-medium text-gray-800">Cod Color 3</td>
+                                <td class="px-2 py-1"><input type="text" id="cod-color-3" placeholder="Ingrese código" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
+                                    <td class="px-2 py-1 font-medium text-gray-800">Cod Color 5</td>
                                 <td class="px-2 py-1"><input type="text" id="cod-color-5" placeholder="Ingrese código" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Cod Color</td>
-                                <td class="px-2 py-1"><input type="text" id="cod-color-6" placeholder="Ingrese código" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
                                 </tr>
 
                             <!-- Fila 8: Calendario, Rasurado, Nombre Color 4-6 -->
@@ -151,12 +156,12 @@
                                     </td>
                                     <td class="px-2 py-1 font-medium text-gray-800">Rasurado</td>
                                 <td class="px-2 py-1"><input disabled type="text" id="rasurado" placeholder="Ingrese rasurado" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
-                                <td class="px-2 py-1"><input type="text" id="nombre-color-4" placeholder="Ingrese nombre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
+                                    <td class="px-2 py-1 font-medium text-gray-800">Nombre Color 1</td>
+                                <td class="px-2 py-1"><input type="text" id="nombre-color-1" placeholder="Ingrese nombre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
+                                    <td class="px-2 py-1 font-medium text-gray-800">Nombre Color 3</td>
+                                <td class="px-2 py-1"><input type="text" id="nombre-color-3" placeholder="Ingrese nombre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
+                                    <td class="px-2 py-1 font-medium text-gray-800">Nombre Color 5</td>
                                 <td class="px-2 py-1"><input type="text" id="nombre-color-5" placeholder="Ingrese nombre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
-                                    <td class="px-2 py-1 font-medium text-gray-800">Nombre Color</td>
-                                <td class="px-2 py-1"><input type="text" id="nombre-color-6" placeholder="Ingrese nombre" disabled class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100"></td>
                                 </tr>
 
                             <!-- Campos ocultos para cálculos -->

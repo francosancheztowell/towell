@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ReqModelosCodificadosImport;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -18,19 +19,65 @@ use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 
 class CodificacionController extends Controller
 {
-    /** Vista principal - Optimizado para rendimiento */
+    /** Vista principal - Paginación híbrida: servidor (2000) + cliente */
     public function index()
     {
         try {
-            // Una sola consulta optimizada: usar TamanoClave (primary key indexada) o intentar Id
-            // TamanoClave es más rápido porque es la primary key
-            try {
-                // Intentar primero con Id si existe (puede ser más reciente)
-                $codificaciones = ReqModelosCodificados::orderBy('Id', 'desc')->get();
-            } catch (\Exception $e) {
-                // Si falla, usar TamanoClave (primary key, indexada, más rápido)
-                $codificaciones = ReqModelosCodificados::orderBy('TamanoClave', 'desc')->get();
-            }
+            // Paginación del servidor: 2000 registros por página
+            $perPage = 2000;
+            $page = request()->get('page', 1);
+            $offset = ($page - 1) * $perPage;
+            $startRow = $offset + 1;
+            $endRow = $offset + $perPage;
+
+            // Obtener total de registros
+            $total = ReqModelosCodificados::count();
+
+            // Consulta compatible con SQL Server 2008 usando ROW_NUMBER()
+            $sql = "
+                SELECT * FROM (
+                    SELECT
+                        [Id], [TamanoClave], [OrdenTejido], [FechaTejido], [FechaCumplimiento], [SalonTejidoId], [NoTelarId],
+                        [Prioridad], [Nombre], [ClaveModelo], [ItemId], [InventSizeId], [Tolerancia], [CodigoDibujo],
+                        [FechaCompromiso], [FlogsId], [NombreProyecto], [Clave], [Pedido], [Peine], [AnchoToalla],
+                        [LargoToalla], [PesoCrudo], [Luchaje], [CalibreTrama], [CalibreTrama2], [CodColorTrama],
+                        [ColorTrama], [FibraId], [DobladilloId], [MedidaPlano], [TipoRizo], [AlturaRizo], [Obs],
+                        [VelocidadSTD], [CalibreRizo], [CalibreRizo2], [CuentaRizo], [FibraRizo], [CalibrePie],
+                        [CalibrePie2], [CuentaPie], [FibraPie], [Comb1], [Obs1], [Comb2], [Obs2], [Comb3], [Obs3],
+                        [Comb4], [Obs4], [MedidaCenefa], [MedIniRizoCenefa], [Rasurado], [NoTiras], [Repeticiones],
+                        [TotalMarbetes], [CambioRepaso], [Vendedor], [CatCalidad], [Obs5], [AnchoPeineTrama],
+                        [LogLuchaTotal], [CalTramaFondoC1], [CalTramaFondoC12], [FibraTramaFondoC1], [PasadasTramaFondoC1],
+                        [CalibreComb1], [CalibreComb12], [FibraComb1], [CodColorC1], [NomColorC1], [PasadasComb1],
+                        [CalibreComb2], [CalibreComb22], [FibraComb2], [CodColorC2], [NomColorC2], [PasadasComb2],
+                        [CalibreComb3], [CalibreComb32], [FibraComb3], [CodColorC3], [NomColorC3], [PasadasComb3],
+                        [CalibreComb4], [CalibreComb42], [FibraComb4], [CodColorC4], [NomColorC4], [PasadasComb4],
+                        [CalibreComb5], [CalibreComb52], [FibraComb5], [CodColorC5], [NomColorC5], [PasadasComb5],
+                        [Total], [PasadasDibujo], [Contraccion], [TramasCMTejido], [ContracRizo], [ClasificacionKG],
+                        [KGDia], [Densidad], [PzasDiaPasadas], [PzasDiaFormula], [DIF], [EFIC], [Rev], [TIRAS],
+                        [PASADAS], [ColumCT], [ColumCU], [ColumCV], [ComprobarModDup],
+                        ROW_NUMBER() OVER (ORDER BY [Id] DESC) AS RowNum
+                    FROM [ReqModelosCodificados]
+                ) AS NumberedTable
+                WHERE RowNum BETWEEN ? AND ?
+                ORDER BY RowNum
+            ";
+
+            $results = DB::select($sql, [$startRow, $endRow]);
+
+            // Convertir resultados a modelos Eloquent
+            $codificaciones = collect($results)->map(function ($item) {
+                unset($item->RowNum);
+                return ReqModelosCodificados::hydrate([(array)$item])->first();
+            });
+
+            // Crear paginador para navegación del servidor
+            $codificaciones = new LengthAwarePaginator(
+                $codificaciones,
+                $total,
+                $perPage,
+                $page,
+                ['path' => request()->url(), 'query' => request()->query()]
+            );
 
             return view('catalagos.catalogoCodificacion', compact('codificaciones'));
         } catch (\Exception $e) {
@@ -52,21 +99,38 @@ class CodificacionController extends Controller
 
     public function edit($id)
     {
+        // Usar TamanoClave como primary key
         $codificacion = ReqModelosCodificados::findOrFail($id);
         return view('catalagos.codificacion-form', compact('codificacion'));
     }
 
-    /** API: todos - Optimizado para rendimiento */
+    /** API: todos - Optimizado para rendimiento máximo */
     public function getAll(): JsonResponse
     {
         try {
-            // Una sola consulta optimizada: usar TamanoClave (primary key indexada) o intentar Id
-            try {
-                $codificaciones = ReqModelosCodificados::orderBy('Id', 'desc')->get();
-            } catch (\Exception $e) {
-                // Si falla, usar TamanoClave (primary key, indexada, más rápido)
-                $codificaciones = ReqModelosCodificados::orderBy('TamanoClave', 'desc')->get();
-            }
+            // Consulta optimizada: solo columnas necesarias + orden por primary key
+            $codificaciones = ReqModelosCodificados::select([
+                'Id', 'TamanoClave', 'OrdenTejido', 'FechaTejido', 'FechaCumplimiento', 'SalonTejidoId', 'NoTelarId',
+                'Prioridad', 'Nombre', 'ClaveModelo', 'ItemId', 'InventSizeId', 'Tolerancia', 'CodigoDibujo',
+                'FechaCompromiso', 'FlogsId', 'NombreProyecto', 'Clave', 'Pedido', 'Peine', 'AnchoToalla',
+                'LargoToalla', 'PesoCrudo', 'Luchaje', 'CalibreTrama', 'CalibreTrama2', 'CodColorTrama',
+                'ColorTrama', 'FibraId', 'DobladilloId', 'MedidaPlano', 'TipoRizo', 'AlturaRizo', 'Obs',
+                'VelocidadSTD', 'CalibreRizo', 'CalibreRizo2', 'CuentaRizo', 'FibraRizo', 'CalibrePie',
+                'CalibrePie2', 'CuentaPie', 'FibraPie', 'Comb1', 'Obs1', 'Comb2', 'Obs2', 'Comb3', 'Obs3',
+                'Comb4', 'Obs4', 'MedidaCenefa', 'MedIniRizoCenefa', 'Rasurado', 'NoTiras', 'Repeticiones',
+                'TotalMarbetes', 'CambioRepaso', 'Vendedor', 'CatCalidad', 'Obs5', 'AnchoPeineTrama',
+                'LogLuchaTotal', 'CalTramaFondoC1', 'CalTramaFondoC12', 'FibraTramaFondoC1', 'PasadasTramaFondoC1',
+                'CalibreComb1', 'CalibreComb12', 'FibraComb1', 'CodColorC1', 'NomColorC1', 'PasadasComb1',
+                'CalibreComb2', 'CalibreComb22', 'FibraComb2', 'CodColorC2', 'NomColorC2', 'PasadasComb2',
+                'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorC3', 'NomColorC3', 'PasadasComb3',
+                'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorC4', 'NomColorC4', 'PasadasComb4',
+                'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5', 'PasadasComb5',
+                'Total', 'PasadasDibujo', 'Contraccion', 'TramasCMTejido', 'ContracRizo', 'ClasificacionKG',
+                'KGDia', 'Densidad', 'PzasDiaPasadas', 'PzasDiaFormula', 'DIF', 'EFIC', 'Rev', 'TIRAS',
+                'PASADAS', 'ColumCT', 'ColumCU', 'ColumCV', 'ComprobarModDup'
+            ])
+            ->orderBy('Id', 'desc')
+            ->get();
 
             return response()->json([
                 'success' => true,
@@ -308,12 +372,8 @@ class CodificacionController extends Controller
         if ($v = $request->get('fecha_hasta'))  $q->where('FechaTejido', '<=', $v);
 
         try {
-            // Intentar ordenar por Id, si falla usar TamanoClave
-            try {
-                $data = $q->orderBy('Id','desc')->get();
-            } catch (\Exception $e) {
-                $data = $q->orderBy('TamanoClave','desc')->get();
-            }
+            // Ordenar directamente por TamanoClave (primary key, más rápido)
+            $data = $q->orderBy('Id', 'desc')->get();
 
             if ($data->isEmpty()) {
                 return response()->json([

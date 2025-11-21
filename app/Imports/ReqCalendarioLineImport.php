@@ -20,22 +20,52 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
 
     public function model(array $row)
     {
-        try {
-            $this->procesados++;
+        $filaNum = $this->procesados + 1;
 
+        try {
             // ⚡ Detección rápida de filas vacías
             if (empty(array_filter($row))) {
+                Log::debug("Fila {$filaNum}: Fila vacía - Saltando");
                 return null;
             }
 
             // ⚡ Extracción directa y rápida
-            $calendarioId = trim((string)($row['no_calendario'] ?? ''));
-            $fechaInicio = trim((string)($row['inicio_fecha_hora'] ?? $row['Inicio (Fecha Hora)'] ?? ''));
-            $fechaFin = trim((string)($row['fin_fecha_hora'] ?? $row['Fin (Fecha Hora)'] ?? ''));
+            $calendarioId = trim((string)($row['no_calendario'] ?? $row['No Calendario'] ?? ''));
+            $fechaInicio = trim((string)($row['inicio_fecha_hora'] ?? $row['Inicio (Fecha Hora)'] ?? $row['Inicio_Fecha_Hora'] ?? ''));
+            $fechaFin = trim((string)($row['fin_fecha_hora'] ?? $row['Fin (Fecha Hora)'] ?? $row['Fin_Fecha_Hora'] ?? ''));
             $horas = trim((string)($row['horas'] ?? ''));
             $turno = trim((string)($row['turno'] ?? ''));
 
+            Log::info("Fila {$filaNum}: Valores extraídos", [
+                'calendarioId' => $calendarioId,
+                'fechaInicio' => $fechaInicio,
+                'fechaFin' => $fechaFin,
+                'horas' => $horas,
+                'turno' => $turno,
+                'claves_disponibles' => array_keys($row),
+                'valores_completos' => $row
+            ]);
+
+            // ⚠️ DETECCIÓN: Si solo tiene no_calendario y nombre, es formato de calendarios, no líneas
+            $tieneSoloCalendario = !empty($calendarioId) && empty($fechaInicio) && empty($fechaFin) && isset($row['nombre']);
+            if ($tieneSoloCalendario) {
+                $this->errores[] = "Fila {$filaNum}: El archivo parece ser de CALENDARIOS (tiene 'no_calendario' y 'nombre'), no de LÍNEAS. Las líneas requieren columnas: 'Inicio (Fecha Hora)', 'Fin (Fecha Hora)', 'Horas', 'Turno'";
+                Log::error("✗✗✗ Fila {$filaNum}: Formato incorrecto - Este archivo es de calendarios, no de líneas", [
+                    'columnas_encontradas' => array_keys($row),
+                    'columnas_requeridas' => ['no_calendario', 'inicio_fecha_hora', 'fin_fecha_hora', 'horas', 'turno']
+                ]);
+                $this->procesados++;
+                return null;
+            }
+
             if (empty($calendarioId) || empty($fechaInicio) || empty($fechaFin)) {
+                Log::warning("Fila {$filaNum}: Campos requeridos vacíos - Saltando", [
+                    'calendarioId_vacio' => empty($calendarioId),
+                    'fechaInicio_vacia' => empty($fechaInicio),
+                    'fechaFin_vacia' => empty($fechaFin),
+                    'sugerencia' => 'Verifica que el Excel tenga las columnas: No Calendario, Inicio (Fecha Hora), Fin (Fecha Hora), Horas, Turno'
+                ]);
+                $this->procesados++;
                 return null;
             }
 
@@ -46,14 +76,26 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
             $fechaInicioFormato = $this->parseDatetime($fechaInicio);
             $fechaFinFormato = $this->parseDatetime($fechaFin);
 
+            Log::info("Fila {$filaNum}: Fechas parseadas", [
+                'fechaInicio_original' => $fechaInicio,
+                'fechaInicio_parseada' => $fechaInicioFormato,
+                'fechaFin_original' => $fechaFin,
+                'fechaFin_parseada' => $fechaFinFormato
+            ]);
+
             if ($fechaInicioFormato === null || $fechaFinFormato === null) {
+                Log::warning("Fila {$filaNum}: No se pudieron parsear las fechas - Saltando", [
+                    'fechaInicio_parseada' => $fechaInicioFormato,
+                    'fechaFin_parseada' => $fechaFinFormato
+                ]);
+                $this->procesados++;
                 return null;
             }
 
             $horasNum = !empty($horas) ? (float)$horas : 0;
             $turnoNum = !empty($turno) ? (int)$turno : 0;
 
-            ReqCalendarioLine::create([
+            Log::info("Fila {$filaNum}: Intentando crear registro", [
                 'CalendarioId' => $calendarioId,
                 'FechaInicio' => $fechaInicioFormato,
                 'FechaFin' => $fechaFinFormato,
@@ -61,12 +103,31 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
                 'Turno' => $turnoNum
             ]);
 
+            $registro = ReqCalendarioLine::create([
+                'CalendarioId' => $calendarioId,
+                'FechaInicio' => $fechaInicioFormato,
+                'FechaFin' => $fechaFinFormato,
+                'HorasTurno' => $horasNum,
+                'Turno' => $turnoNum
+            ]);
+
+            $this->procesados++;
             $this->creados++;
+
+            Log::info("✓✓✓ Fila {$filaNum}: Registro CREADO exitosamente", [
+                'Id' => $registro->Id,
+                'CalendarioId' => $calendarioId
+            ]);
+
             return null;
 
         } catch (\Exception $e) {
-            $this->errores[] = "Fila {$this->procesados}: {$e->getMessage()}";
-            Log::error("Error en fila {$this->procesados}: {$e->getMessage()}");
+            $this->procesados++;
+            $this->errores[] = "Fila {$filaNum}: {$e->getMessage()}";
+            Log::error("✗✗✗ ERROR en fila {$filaNum}: {$e->getMessage()}", [
+                'exception' => $e->getTraceAsString(),
+                'row_data' => $row
+            ]);
             return null;
         }
     }
@@ -79,10 +140,20 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
         return [
             BeforeImport::class => function(BeforeImport $event) {
                 try {
+                    Log::info("🧹 EVENTO BeforeImport ejecutado - Limpiando todas las líneas de calendario ANTES de importar...");
+                    $countBefore = ReqCalendarioLine::count();
+                    Log::info("📊 Registros existentes antes de truncate: {$countBefore}");
+
                     // Limpiar todas las líneas de calendario para evitar duplicados
                     ReqCalendarioLine::truncate();
+
+                    $countAfter = ReqCalendarioLine::count();
+                    Log::info("🗑️ Registros después de truncate: {$countAfter}");
+                    Log::info("✅ Limpieza completada - Iniciando importación de nuevas líneas");
                 } catch (\Exception $e) {
-                    Log::error("Error al limpiar datos: " . $e->getMessage());
+                    Log::error("✗✗✗ Error al limpiar datos en BeforeImport: " . $e->getMessage(), [
+                        'exception' => $e->getTraceAsString()
+                    ]);
                 }
             }
         ];

@@ -390,6 +390,14 @@ class ProgramaTejidoController extends Controller
                 // Mapear campos del formulario (con casteo/truncamiento)
                 $this->aplicarCamposFormulario($nuevo, $request);
 
+                // ⭐ Asignar ItemId y CustName explícitamente (pueden venir del request o del modelo codificado)
+                if ($request->filled('ItemId')) {
+                    $nuevo->ItemId = (string) $request->input('ItemId');
+                }
+                if ($request->filled('CustName')) {
+                    $nuevo->CustName = StringTruncator::truncate('CustName', (string) $request->input('CustName'));
+                }
+
                 // Aplicar aliases (largo->Luchaje, etc.)
                 $this->aplicarAliasesEnNuevo($nuevo, $valoresAlias, $request);
 
@@ -527,6 +535,33 @@ class ProgramaTejidoController extends Controller
         return response()->json($op);
     }
 
+    public function getCalendarioLineas($calendarioId)
+    {
+        try {
+            $lineas = \App\Models\ReqCalendarioLine::where('CalendarioId', $calendarioId)
+                ->orderBy('FechaInicio')
+                ->get()
+                ->map(function($linea) {
+                    return [
+                        'Id' => $linea->Id,
+                        'CalendarioId' => $linea->CalendarioId,
+                        'FechaInicio' => $linea->FechaInicio ? $linea->FechaInicio->format('Y-m-d H:i:s') : null,
+                        'FechaFin' => $linea->FechaFin ? $linea->FechaFin->format('Y-m-d H:i:s') : null,
+                        'HorasTurno' => $linea->HorasTurno,
+                        'Turno' => $linea->Turno
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'lineas' => $lineas
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('getCalendarioLineas error', ['msg' => $e->getMessage()]);
+            return response()->json(['error' => 'Error al obtener líneas del calendario'], 500);
+        }
+    }
+
     public function getAplicacionIdOptions()
     {
         try {
@@ -559,6 +594,7 @@ class ProgramaTejidoController extends Controller
 
             $datos = $q->select(
                 'TamanoClave','SalonTejidoId','FlogsId','Nombre','NombreProyecto','InventSizeId',
+                'ItemId',  //  ItemId existe en ReqModelosCodificados
                 'CuentaRizo','CalibreRizo','CalibreRizo2','FibraRizo',
                 'CalibreTrama','CalibreTrama2','CodColorTrama','ColorTrama','FibraId',
                 'CalibrePie','CalibrePie2','CuentaPie','FibraPie',
@@ -1145,7 +1181,8 @@ class ProgramaTejidoController extends Controller
 
     private function applyCalculados(ReqProgramaTejido $r, array $d): void
     {
-        if (array_key_exists('peso_grm2',$d))           $r->PesoGRM2      = is_null($d['peso_grm2']) ? null : (int) round((float)$d['peso_grm2']);
+        // ⭐ PesoGRM2 ahora es float en BD: respetamos el valor decimal calculado (frontend u observer)
+        if (array_key_exists('peso_grm2',$d))           $r->PesoGRM2      = is_null($d['peso_grm2']) ? null : (float) $d['peso_grm2'];
         if (array_key_exists('dias_eficiencia',$d))     $r->DiasEficiencia= $d['dias_eficiencia'];
         if (array_key_exists('prod_kg_dia',$d))         $r->ProdKgDia     = $d['prod_kg_dia'];
         if (array_key_exists('std_dia',$d))             $r->StdDia        = $d['std_dia'];
@@ -1299,6 +1336,7 @@ class ProgramaTejidoController extends Controller
     {
         $campos = [
             'CuentaRizo','CalibreRizo','CalibreRizo2','InventSizeId','NombreProyecto','NombreProducto',
+            'ItemId',  // ⭐ AGREGADO
             'Ancho','EficienciaSTD','VelocidadSTD','Maquina',
             'CodColorTrama','ColorTrama','CalibreTrama','CalibreTrama2','FibraTrama',
             'CalibreComb1','CalibreComb12','FibraComb1','CodColorComb1','NombreCC1',
@@ -1324,10 +1362,11 @@ class ProgramaTejidoController extends Controller
                 'CalibreRizo','CalibreRizo2','CalibreTrama','CalibreTrama2',
                 'CalibreComb1','CalibreComb12','CalibreComb2','CalibreComb22','CalibreComb3','CalibreComb32',
                 'CalibreComb4','CalibreComb42','CalibreComb5','CalibreComb52',
-                'CalibrePie','CalibrePie2','EficienciaSTD'
+                'CalibrePie','CalibrePie2','EficienciaSTD',
+                'AnchoToalla' // ⭐ Guardar con decimales para evitar truncarlo a 0
             ])) {
                 $valor = is_numeric($valor) ? (float)$valor : null;
-            } elseif (in_array($campo, ['VelocidadSTD','Peine','PesoCrudo','AnchoToalla','MedidaPlano','Ancho','NoTiras','Luchaje','LargoCrudo'])) {
+            } elseif (in_array($campo, ['VelocidadSTD','Peine','PesoCrudo','MedidaPlano','Ancho','NoTiras','Luchaje','LargoCrudo'])) {
                 $valor = is_numeric($valor) ? (int)$valor : null;
             } elseif (in_array($campo, ['TotalPedido','Produccion','SaldoPedido','SaldoMarbete','PesoGRM2','DiasEficiencia','ProdKgDia','StdDia','ProdKgDia2','StdToaHra','DiasJornada','HorasProd','StdHrsEfect','Calc4','Calc5','Calc6'])) {
                 $valor = is_numeric($valor) ? (float)$valor : null;
@@ -1371,6 +1410,11 @@ class ProgramaTejidoController extends Controller
             }
             if (empty($nuevo->NombreProyecto) || $nuevo->NombreProyecto === 'null') {
                 $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', (string)($modeloCod->NombreProyecto ?? $modeloCod->Descrip ?? $modeloCod->Descripcion ?? ''));
+            }
+            //  Asignar ItemId desde modelo codificado si no está ya asignado
+            // Nota: CustName NO existe en ReqModelosCodificados, debe venir del request u otra fuente
+            if (empty($nuevo->ItemId) && !empty($modeloCod->ItemId)) {
+                $nuevo->ItemId = (string) $modeloCod->ItemId;
             }
             if (empty($nuevo->MedidaPlano) && !empty($modeloCod->MedidaPlano)) {
                 $nuevo->MedidaPlano = (int)$modeloCod->MedidaPlano;

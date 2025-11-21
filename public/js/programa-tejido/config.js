@@ -18,6 +18,7 @@ window.ProgramaTejidoConfig = {
         flogsIdFromTwFlogs: `${apiBasePath}/flogs-id-from-twflogs`,
         descripcionByIdFlog: `${apiBasePath}/descripcion-by-idflog`,
         calendarioId: `${apiBasePath}/calendario-id-options`,
+        calendarioLineas: `${apiBasePath}/calendario-lineas`,
         aplicacionId: `${apiBasePath}/aplicacion-id-options`,
         datosRelacionados: `${apiBasePath}/datos-relacionados`,
         eficienciaStd: `${apiBasePath}/eficiencia-std`,
@@ -30,8 +31,8 @@ window.ProgramaTejidoConfig = {
     fieldMappings: {
         // Campos principales básicos
         'CuentaRizo': 'cuenta-rizo',
-        'CalibreRizo2': 'calibre-rizo',
-        'CalibreRizo': 'calibre-rizo',
+        'CalibreRizo2': 'calibre-rizo',  // ⭐ CRÍTICO: Solo CalibreRizo2 debe mapearse a calibre-rizo, NO CalibreRizo
+        // 'CalibreRizo': 'calibre-rizo',  // ⭐ ELIMINADO: CalibreRizo NO debe mapearse a calibre-rizo (es campo base/rosa)
         'FibraRizo': 'hilo-rizo',
         'FlogsId': 'idflog-select',
         'InventSizeId': 'tamano',
@@ -39,12 +40,12 @@ window.ProgramaTejidoConfig = {
         'NombreProyecto': 'nombre-proyecto',
         'Rasurado': 'rasurado',
         'CalibreTrama': 'calibre-trama',
-        'FibraId': 'hilo-trama',
+        'FibraTramaFondoC1': 'hilo-trama',  // ⭐ Campo correcto: FibraTramaFondoC1 de ReqModelosCodificados
         'CalibrePie': 'calibre-pie',
         'CalibrePie2': 'calibre-pie',
         'CuentaPie': 'cuenta-pie',
         'FibraPie': 'hilo-pie',
-        'AnchoToalla': 'ancho',
+        'AnchoToalla': 'ancho',  // ⭐ Mostrar en el input el Ancho original del modelo (se guardará en campo Ancho)
         'EficienciaSTD': 'eficiencia-std',
         'VelocidadSTD': 'velocidad-std',
         'Maquina': 'maquina',
@@ -57,19 +58,19 @@ window.ProgramaTejidoConfig = {
         'Total': 'total',
         'MedidaPlano': 'medida-plano',
         // Colores Trama
-        'CodColorTrama': 'cod-color-1',
-        'ColorTrama': 'nombre-color-1',
+        'CodColorTrama': 'cod-color',  // ⭐ Mapeo corregido: cod-color (sin -1)
+        'ColorTrama': 'nombre-color',  // ⭐ Mapeo corregido: nombre-color (sin -1)
         // Colores C1-C5
-        'CodColorC1': 'cod-color-2',
-        'NomColorC1': 'nombre-color-2',
-        'CodColorC2': 'cod-color-3',
-        'NomColorC2': 'nombre-color-3',
-        'CodColorC3': 'cod-color-4',
-        'NomColorC3': 'nombre-color-4',
-        'CodColorC4': 'cod-color-5',
-        'NomColorC4': 'nombre-color-5',
-        'CodColorC5': 'cod-color-6',
-        'NomColorC5': 'nombre-color-6',
+        'CodColorC1': 'cod-color-1',  // ⭐ Corregido: C1 -> cod-color-1
+        'NomColorC1': 'nombre-color-1',  // ⭐ Corregido: C1 -> nombre-color-1
+        'CodColorC2': 'cod-color-2',  // ⭐ Corregido: C2 -> cod-color-2
+        'NomColorC2': 'nombre-color-2',  // ⭐ Corregido: C2 -> nombre-color-2
+        'CodColorC3': 'cod-color-3',  // ⭐ Corregido: C3 -> cod-color-3
+        'NomColorC3': 'nombre-color-3',  // ⭐ Corregido: C3 -> nombre-color-3
+        'CodColorC4': 'cod-color-4',  // ⭐ Corregido: C4 -> cod-color-4
+        'NomColorC4': 'nombre-color-4',  // ⭐ Corregido: C4 -> nombre-color-4
+        'CodColorC5': 'cod-color-5',  // ⭐ Corregido: C5 -> cod-color-5
+        'NomColorC5': 'nombre-color-5',  // ⭐ Corregido: C5 -> nombre-color-5
         // Calibres C1-C5
         'CalibreComb12': 'calibre-c1',
         'CalibreComb22': 'calibre-c2',

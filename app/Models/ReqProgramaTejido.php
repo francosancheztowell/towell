@@ -101,7 +101,7 @@ class ReqProgramaTejido extends Model
         'CalibreComb52' => 'float',
 
         'MedidaPlano' => 'float',
-        'PesoGRM2' => 'integer',
+        'PesoGRM2' => 'float',   // ⭐ Ahora la columna es float en BD
         'CuentaPie' => 'integer',
         'DiasEficiencia' => 'float',
         'ProdKgDia' => 'float',
