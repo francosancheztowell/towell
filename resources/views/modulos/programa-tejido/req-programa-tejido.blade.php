@@ -6,7 +6,7 @@
 
 @section('content')
 <div class="w-full px-0 py-0 ">
-	<div class="bg-white shadow overflow-hidden w-full" style="max-width: 100%;">
+	<div class="bg-white shadow overflow-hidden w-full" >
 
 		@php
 		// Asegurar que $columns esté definido
@@ -77,13 +77,13 @@
 
 		@if(isset($registros) && $registros->count() > 0)
 			<div class="overflow-x-auto">
-					<div class="overflow-y-auto" style="max-height: 320px;">
+					<div class="overflow-y-auto" style="max-height: calc(100vh - 70px); position: relative;">
 						<table id="mainTable" class="min-w-full divide-y divide-gray-200">
-							<thead class="bg-blue-500 text-white">
+							<thead class="bg-blue-500 text-white" style="position: sticky; top: 0; z-index: 10;">
 								<tr>
 									@foreach($columns as $index => $col)
 									<th class="px-2 py-1 text-left text-xs font-semibold text-white whitespace-nowrap column-{{ $index }}"
-										style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: 80px;"
+										style="position: sticky; top: 0; z-index: 10; background-color: #3b82f6; min-width: 80px;"
 										data-column="{{ $col['field'] }}" data-index="{{ $index }}">
 										{{ $col['label'] }}
 									</th>
@@ -108,17 +108,13 @@
 
 		@else
 			<div class="px-6 py-12 text-center">
-				<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709" />
-				</svg>
+				<i class="fas fa-database text-gray-500 text-4xl mb-4"></i>
 				<h3 class="mt-2 text-sm font-medium text-gray-900">No hay registros</h3>
 				<p class="mt-1 text-sm text-gray-500">No se han importado registros aún. Carga un archivo Excel para comenzar.</p>
 				<div class="mt-6">
 					<a href="{{ route('configuracion.cargar.planeacion') }}"
 					   class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-						</svg>
+						<i class="fas fa-file-excel mr-2"></i>
 						Cargar Archivo Excel
 					</a>
 				</div>
@@ -127,53 +123,51 @@
 	</div>
 </div>
 
-{{-- Tabla detalle ReqProgramaTejidoLine (fuera del contenedor blanco para ver el fondo) --}}
+{{-- Componente para modal de líneas de detalle --}}
 @include('components.tables.req-programa-tejido-line-table')
+        <style>
+            /* Columnas fijadas */
+            .pinned-column {
+                position: sticky !important;
+                background-color: #3b82f6 !important;
+                color: #fff !important;
+            }
 
-<style>
-	/* Igual que tu diseño, con apoyo para "pinned" */
-	.pinned-column { position: sticky !important; background-color: #3b82f6 !important; color: #fff !important; }
+            /* Estilos para drag and drop */
+            .cursor-move {
+                cursor: move !important;
+            }
 
-	/* Estilos para drag and drop */
-	.selectable-row.cursor-move {
-		cursor: move;
-	}
+            .cursor-not-allowed {
+                cursor: not-allowed !important;
+                opacity: 0.6;
+            }
 
-	.selectable-row.cursor-not-allowed {
-		cursor: not-allowed;
-		opacity: 0.6;
-		position: relative;
-	}
+            .selectable-row.dragging {
+                opacity: 0.4;
+                background-color: #e0e7ff !important;
+            }
 
-	.selectable-row.cursor-not-allowed::after {
-		content: 'En proceso';
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		background: rgba(239, 68, 68, 0.9);
-		color: white;
-		padding: 2px 8px;
-		border-radius: 4px;
-		font-size: 10px;
-		font-weight: bold;
-		pointer-events: none;
-		z-index: 10;
-		opacity: 0;
-		transition: opacity 0.2s;
-	}
+            .selectable-row.drag-over {
+                border-top: 3px solid #3b82f6;
+                background-color: #dbeafe;
+            }
 
-	.selectable-row.cursor-not-allowed:hover::after {
-		opacity: 1;
-	}
+            .selectable-row.drop-not-allowed {
+                border-top: 3px solid #ef4444;
+                background-color: #fee2e2;
+                cursor: not-allowed !important;
+            }
 
-	.selectable-row.dragging {
-		opacity: 0.5;
-	}
+            /* Animación de actualización de celdas */
+            td {
+                transition: background-color 0.5s ease-in-out;
+            }
 
-	.selectable-row.drag-over {
-		border-top: 2px solid #3b82f6;
-	}
+            td.bg-yellow-100 {
+                background-color: #fef3c7 !important;
+            }
+
 </style>
 
 <script>
@@ -187,7 +181,6 @@ let dragDropMode = false;
 let draggedRow = null;
 let draggedRowIndex = -1;
 let draggedRowTelar = null;
-let loadingLinesTimeout = null;
 
 // ===== Helpers DOM =====
 const $ = (sel, ctx=document) => ctx.querySelector(sel);
@@ -296,34 +289,34 @@ function applyFilters() {
 	}
 	const tb = tbodyEl();
 	tb.innerHTML = '';
-	rows.forEach((r,i) => {
+	rows.forEach((r) => {
+		const realIndex = allRows.indexOf(r);
+		if (realIndex === -1) return;
+
 		if (dragDropMode) {
-			// Si el modo drag and drop está activo, configurar para drag
 			const enProceso = isRowEnProceso(r);
 			r.draggable = !enProceso;
+			r.onclick = null;
 
 			if (!enProceso) {
 				r.classList.add('cursor-move');
-			} else {
-				r.classList.add('cursor-not-allowed');
-				r.style.opacity = '0.6';
-			}
-
-			r.removeEventListener('click', () => selectRow(r, i));
-
-			// Agregar event listeners de drag solo si no está en proceso
-			if (!enProceso) {
 				r.addEventListener('dragstart', handleDragStart);
 				r.addEventListener('dragover', handleDragOver);
 				r.addEventListener('drop', handleDrop);
 				r.addEventListener('dragend', handleDragEnd);
+			} else {
+				r.classList.add('cursor-not-allowed');
+				r.style.opacity = '0.6';
 			}
 		} else {
-			// Modo normal, solo click
-			r.onclick = () => selectRow(r, i);
+			r.onclick = () => selectRow(r, realIndex);
 		}
 		tb.appendChild(r);
 	});
+
+	// IMPORTANTE: Actualizar allRows después de manipular el DOM
+	allRows = Array.from(tb.querySelectorAll('.selectable-row'));
+
 	updateFilterCount();
 	if (filters.length) showToast(`Filtros aplicados<br>${filters.length} filtro(s) · ${rows.length} resultado(s)`, 'success');
 }
@@ -340,41 +333,38 @@ function updateFilterCount() {
 }
 
 function resetFilters() {
-	// Filas originales
 	const tb = tbodyEl();
 	tb.innerHTML = '';
-	allRows.forEach((r,i) => {
+	allRows.forEach((r) => {
+		const realIndex = allRows.indexOf(r);
+
 		r.classList.remove('bg-blue-500','text-white','hover:bg-blue-50');
 		r.classList.add('hover:bg-blue-50');
 		$$('td', r).forEach(td => td.classList.remove('text-white','text-gray-700'));
 
 		if (dragDropMode) {
-			// Si el modo drag and drop está activo, configurar para drag
 			const enProceso = isRowEnProceso(r);
 			r.draggable = !enProceso;
+			r.onclick = null;
 
 			if (!enProceso) {
 				r.classList.add('cursor-move');
-			} else {
-				r.classList.add('cursor-not-allowed');
-				r.style.opacity = '0.6';
-			}
-
-			r.removeEventListener('click', () => selectRow(r, i));
-
-			// Agregar event listeners de drag solo si no está en proceso
-			if (!enProceso) {
 				r.addEventListener('dragstart', handleDragStart);
 				r.addEventListener('dragover', handleDragOver);
 				r.addEventListener('drop', handleDrop);
 				r.addEventListener('dragend', handleDragEnd);
+			} else {
+				r.classList.add('cursor-not-allowed');
+				r.style.opacity = '0.6';
 			}
 		} else {
-			// Modo normal, solo click
-			r.onclick = () => selectRow(r, i);
+			r.onclick = () => selectRow(r, realIndex);
 		}
 		tb.appendChild(r);
 	});
+
+	// IMPORTANTE: Actualizar allRows después de manipular el DOM
+	allRows = Array.from(tb.querySelectorAll('.selectable-row'));
 
 	// Mostrar columnas ocultas
 	hiddenColumns.forEach(idx => {
@@ -396,10 +386,6 @@ function resetFilters() {
 	filters = [];
     updateFilterCount();
 
-	// Ocultar controles de prioridad
-	const rpc = $('#rowPriorityControls');
-	if (rpc) rpc.classList.add('hidden');
-
 	selectedRowIndex = -1;
 
 	// Deshabilitar botones
@@ -407,6 +393,10 @@ function resetFilters() {
 	if (btnEditar) btnEditar.disabled = true;
 	const btnEliminar = document.getElementById('btn-eliminar-programa');
 	if (btnEliminar) btnEliminar.disabled = true;
+	const btnVerLineas = document.getElementById('btn-ver-lineas');
+	if (btnVerLineas) btnVerLineas.disabled = true;
+	const btnVerLineasLayoutReset = document.getElementById('layoutBtnVerLineas');
+	if (btnVerLineasLayoutReset) btnVerLineasLayoutReset.disabled = true;
 
 	showToast('Restablecido<br>Se limpiaron filtros, fijados y columnas ocultas', 'success');
 }
@@ -597,7 +587,7 @@ function updatePinnedColumnsPositions() {
 			if (el.tagName === 'TH') {
 				el.style.top = '0';
                 el.style.position = 'sticky';
-                el.style.zIndex = '30';
+                el.style.zIndex = '10';
                 el.style.backgroundColor = '#3b82f6';
 				el.style.color = '#fff';
             } else {
@@ -624,10 +614,10 @@ function updatePinnedColumnsPositions() {
 			el.style.left = left + 'px';
 			if (el.tagName === 'TH') {
 				el.style.top = '0';
-				el.style.zIndex = String(40 + order);
+				el.style.zIndex = String(20 + order);
             el.style.position = 'sticky';
             } else {
-				el.style.zIndex = String(35 + order);
+				el.style.zIndex = String(15 + order);
 				el.style.position = 'sticky';
 			}
 		});
@@ -635,7 +625,7 @@ function updatePinnedColumnsPositions() {
 	});
 }
 
-// ===== Selección de filas / prioridad =====
+// ===== Selección de filas =====
 function selectRow(rowElement, rowIndex) {
 	try {
 		// Toggle si ya estaba seleccionada
@@ -663,26 +653,7 @@ function selectRow(rowElement, rowIndex) {
 
 		selectedRowIndex = rowIndex;
 
-		// Mostrar controles
-		const rpc = $('#rowPriorityControls');
-		if (rpc) rpc.classList.remove('hidden');
-
-		// Cargar detalle de líneas filtradas por ProgramaId
-		if (window.loadReqProgramaTejidoLines) {
-			// Cancelar timeout anterior si existe
-			if (loadingLinesTimeout) {
-				clearTimeout(loadingLinesTimeout);
-			}
-
-			const id = rowElement.getAttribute('data-id');
-			// Pequeño debounce para evitar múltiples cargas muy rápidas
-			loadingLinesTimeout = setTimeout(() => {
-				window.loadReqProgramaTejidoLines({ programa_id: id });
-				loadingLinesTimeout = null;
-			}, 100);
-		}
-
-		// Habilitar botones editar y eliminar (local y layout)
+		// Habilitar botones editar, eliminar y ver líneas (local y layout)
 		const btnEditar = document.getElementById('btn-editar-programa');
 		const btnEditarLayout = document.getElementById('layoutBtnEditar');
 		if (btnEditar) btnEditar.disabled = false;
@@ -697,6 +668,12 @@ function selectRow(rowElement, rowIndex) {
 
 		if (btnEliminar) btnEliminar.disabled = estaEnProceso;
 		if (btnEliminarLayout) btnEliminarLayout.disabled = estaEnProceso;
+
+		// Habilitar botón de ver líneas de detalle
+		const btnVerLineas = document.getElementById('btn-ver-lineas');
+		const btnVerLineasLayoutSelect = document.getElementById('layoutBtnVerLineas');
+		if (btnVerLineas) btnVerLineas.disabled = false;
+		if (btnVerLineasLayoutSelect) btnVerLineasLayoutSelect.disabled = false;
 	} catch(e) {
 		console.error('Error en selectRow:', e);
 	}
@@ -713,8 +690,6 @@ function deselectRow() {
 			});
 		});
 		selectedRowIndex = -1;
-		const rpc = $('#rowPriorityControls');
-		if (rpc) rpc.classList.add('hidden');
 
 		// Deshabilitar botones editar y eliminar (local y layout)
 		const btnEditar = document.getElementById('btn-editar-programa');
@@ -726,6 +701,12 @@ function deselectRow() {
 		const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
 		if (btnEliminar) btnEliminar.disabled = true;
 		if (btnEliminarLayout) btnEliminarLayout.disabled = true;
+
+		// Deshabilitar botón de ver líneas de detalle
+		const btnVerLineas = document.getElementById('btn-ver-lineas');
+		const btnVerLineasLayoutDeselect = document.getElementById('layoutBtnVerLineas');
+		if (btnVerLineas) btnVerLineas.disabled = true;
+		if (btnVerLineasLayoutDeselect) btnVerLineasLayoutDeselect.disabled = true;
 	} catch(e) {
 		console.error('Error en deselectRow:', e);
 	}
@@ -748,108 +729,6 @@ function showLoading() {
 function hideLoading() {
 	const loader = document.getElementById('priority-loader');
 	if (loader) loader.style.display = 'none';
-}
-
-function moveRowUp() {
-	const tb = tbodyEl();
-	if (selectedRowIndex <= 0) {
-		showToast('No se puede subir<br>El registro ya es el primero', 'error');
-		return;
-	}
-	const rows = $$('.selectable-row', tb);
-	const selectedRow = rows[selectedRowIndex];
-	const id = selectedRow.getAttribute('data-id');
-
-	if (!id) {
-		showToast('Error<br>No se pudo obtener el ID del registro', 'error');
-		return;
-	}
-
-	// Mostrar loading rápido
-	showLoading();
-
-	// Ejecutar directamente sin confirmación
-	fetch(`/planeacion/programa-tejido/${id}/prioridad/subir`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-		}
-	})
-	.then(response => response.json())
-	.then(data => {
-		hideLoading();
-		if (data.success) {
-			// Guardar el ID del registro movido en sessionStorage para después de recargar
-			if (data.registro_id) {
-				sessionStorage.setItem('scrollToRegistroId', data.registro_id);
-				sessionStorage.setItem('selectRegistroId', data.registro_id);
-			}
-			// Guardar mensaje de éxito para mostrar después de recargar
-			sessionStorage.setItem('priorityChangeMessage', 'Prioridad actualizada correctamente');
-			sessionStorage.setItem('priorityChangeType', 'success');
-			// Recargar la página para mostrar los cambios
-			window.location.href = '/planeacion/programa-tejido';
-		} else {
-			showToast(data.message || 'No se pudo actualizar la prioridad', 'error');
-		}
-	})
-	.catch(error => {
-		hideLoading();
-		console.error('Error:', error);
-		showToast('Ocurrió un error al procesar la solicitud', 'error');
-	});
-}
-
-function moveRowDown() {
-	const tb = tbodyEl();
-	const rows = $$('.selectable-row', tb);
-	if (selectedRowIndex < 0 || selectedRowIndex >= rows.length - 1) {
-		showToast('No se puede bajar<br>El registro ya es el último', 'error');
-		return;
-	}
-	const selectedRow = rows[selectedRowIndex];
-	const id = selectedRow.getAttribute('data-id');
-
-	if (!id) {
-		showToast('Error<br>No se pudo obtener el ID del registro', 'error');
-		return;
-	}
-
-	// Mostrar loading rápido
-	showLoading();
-
-	// Ejecutar directamente sin confirmación
-	fetch(`/planeacion/programa-tejido/${id}/prioridad/bajar`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-		}
-	})
-	.then(response => response.json())
-	.then(data => {
-		hideLoading();
-		if (data.success) {
-			// Guardar el ID del registro movido en sessionStorage para después de recargar
-			if (data.registro_id) {
-				sessionStorage.setItem('scrollToRegistroId', data.registro_id);
-				sessionStorage.setItem('selectRegistroId', data.registro_id);
-			}
-			// Guardar mensaje de éxito para mostrar después de recargar
-			sessionStorage.setItem('priorityChangeMessage', 'Prioridad actualizada correctamente');
-			sessionStorage.setItem('priorityChangeType', 'success');
-			// Recargar la página para mostrar los cambios
-			window.location.href = '/planeacion/programa-tejido';
-		} else {
-			showToast(data.message || 'No se pudo actualizar la prioridad', 'error');
-		}
-	})
-	.catch(error => {
-		hideLoading();
-		console.error('Error:', error);
-		showToast('Ocurrió un error al procesar la solicitud', 'error');
-	});
 }
 
 // ===== Función para descargar programa =====
@@ -1000,6 +879,26 @@ function eliminarRegistro(id) {
 }
 
 // ===== Drag and Drop =====
+// Variables globales para drag and drop
+let dragStartPosition = null; // Guardar posición inicial del drag
+
+// Función helper para obtener el telar de una fila
+function getRowTelar(row) {
+	const telarCell = row.querySelector('[data-column="NoTelarId"]');
+	return telarCell ? telarCell.textContent.trim() : null;
+}
+
+// Función helper para verificar si una fila está en proceso
+function isRowEnProceso(row) {
+	const enProcesoCell = row.querySelector('[data-column="EnProceso"]');
+	if (enProcesoCell) {
+		const checkbox = enProcesoCell.querySelector('input[type="checkbox"]');
+		return checkbox && checkbox.checked;
+	}
+	return false;
+}
+
+// Activar/Desactivar modo drag and drop
 function toggleDragDropMode() {
 	dragDropMode = !dragDropMode;
 	const btn = $('#btnDragDrop');
@@ -1013,31 +912,21 @@ function toggleDragDropMode() {
 		btn.classList.add('bg-gray-400', 'hover:bg-gray-500', 'ring-2', 'ring-gray-300');
 		btn.title = 'Desactivar arrastrar filas';
 
-		// Agregar atributos draggable y event listeners a todas las filas
 		const rows = $$('.selectable-row', tb);
-		rows.forEach((row, index) => {
-			// Solo hacer draggable si no está en proceso
+		rows.forEach(row => {
 			const enProceso = isRowEnProceso(row);
 			row.draggable = !enProceso;
+			row.onclick = null; // Remover click mientras está en modo drag
 
 			if (!enProceso) {
 				row.classList.add('cursor-move');
-			} else {
-				row.classList.add('cursor-not-allowed');
-				row.style.opacity = '0.6';
-			}
-
-			row.style.opacity = row.style.opacity || '1';
-
-			// Remover event listener de click temporalmente
-			row.removeEventListener('click', () => selectRow(row, index));
-
-			// Agregar event listeners de drag solo si no está en proceso
-			if (!enProceso) {
 				row.addEventListener('dragstart', handleDragStart);
 				row.addEventListener('dragover', handleDragOver);
 				row.addEventListener('drop', handleDrop);
 				row.addEventListener('dragend', handleDragEnd);
+			} else {
+				row.classList.add('cursor-not-allowed');
+				row.style.opacity = '0.6';
 			}
 		});
 
@@ -1048,234 +937,91 @@ function toggleDragDropMode() {
 		btn.classList.add('bg-black', 'hover:bg-gray-800', 'focus:ring-gray-500');
 		btn.title = 'Activar/Desactivar arrastrar filas';
 
-		// Remover atributos draggable y event listeners
+		// IMPORTANTE: Primero actualizar allRows con el orden actual del DOM
+		allRows = Array.from(tb.querySelectorAll('.selectable-row'));
+
 		const rows = $$('.selectable-row', tb);
-		rows.forEach((row, index) => {
+		rows.forEach(row => {
+			// Usar el índice actualizado de allRows
+			const realIndex = allRows.indexOf(row);
+
+			// Limpiar atributos y estilos de drag
 			row.draggable = false;
 			row.classList.remove('cursor-move', 'cursor-not-allowed');
 			row.style.opacity = '';
+			row.onclick = null;
 
-			// Restaurar event listener de click
-			row.addEventListener('click', () => selectRow(row, index));
-
-			// Remover event listeners de drag
+			// Remover todos los event listeners de drag
 			row.removeEventListener('dragstart', handleDragStart);
 			row.removeEventListener('dragover', handleDragOver);
 			row.removeEventListener('drop', handleDrop);
 			row.removeEventListener('dragend', handleDragEnd);
+
+			// IMPORTANTE: Restaurar el onclick para selección de TODAS las filas
+			if (realIndex !== -1) {
+				row.onclick = () => selectRow(row, realIndex);
+			}
 		});
 
 		showToast('Modo arrastrar desactivado', 'info');
 	}
 }
 
-// Función helper para obtener el telar de una fila
-function getRowTelar(row) {
-	const telarCell = row.querySelector('[data-column="NoTelarId"]');
-	if (telarCell) {
-		return telarCell.textContent.trim();
-	}
-	return null;
-}
-
-// Función helper para verificar si una fila está en proceso
-function isRowEnProceso(row) {
-	const enProcesoCell = row.querySelector('[data-column="EnProceso"]');
-	if (enProcesoCell) {
-		const checkbox = enProcesoCell.querySelector('input[type="checkbox"]');
-		return checkbox && checkbox.checked;
-	}
-	return false;
-}
-
+// Manejador de inicio de drag
 function handleDragStart(e) {
-	// Validar que la fila no esté en proceso
+	// Validación: no permitir drag si está en proceso
 	if (isRowEnProceso(this)) {
 		e.preventDefault();
-		showToast('No se puede mover un registro en proceso<br>Debe finalizar el proceso antes de moverlo', 'error');
+		showToast('No se puede mover un registro en proceso', 'error');
 		return false;
 	}
 
 	draggedRow = this;
-	draggedRowIndex = Array.from(this.parentNode.children).indexOf(this);
 	draggedRowTelar = getRowTelar(this);
-	this.style.opacity = '0.5';
+	dragStartPosition = this.rowIndex; // Guardar posición inicial
+
+	this.classList.add('dragging');
+	this.style.opacity = '0.4';
+
 	e.dataTransfer.effectAllowed = 'move';
-	e.dataTransfer.setData('text/html', this.outerHTML);
+	e.dataTransfer.setData('text/html', this.innerHTML);
 }
 
+// Manejador de drag over (feedback visual Y reordenamiento temporal)
 function handleDragOver(e) {
-	if (e.preventDefault) {
-		e.preventDefault();
-	}
+	e.preventDefault();
 
-	// Solo procesar si no es la fila que se está arrastrando
-	if (this === draggedRow) {
-		return false;
-	}
+	if (this === draggedRow) return false;
 
-	// Validar que ambas filas pertenezcan al mismo telar
-	const targetRowTelar = getRowTelar(this);
+	const targetTelar = getRowTelar(this);
 
-	if (draggedRowTelar !== null && targetRowTelar !== null && draggedRowTelar !== targetRowTelar) {
-		// No permitir drop si son telares diferentes
+	// Validación: telares diferentes
+	if (draggedRowTelar !== targetTelar) {
 		e.dataTransfer.dropEffect = 'none';
-		this.style.cursor = 'not-allowed';
-		// Mostrar mensaje de error
-		if (!this.hasAttribute('data-telar-warning-shown')) {
-			showToast('No se puede mover entre diferentes telares<br>Las filas deben pertenecer al mismo telar', 'error');
-			this.setAttribute('data-telar-warning-shown', 'true');
-			setTimeout(() => {
-				this.removeAttribute('data-telar-warning-shown');
-			}, 2000);
-		}
+		this.classList.add('drop-not-allowed');
+		this.classList.remove('drag-over');
 		return false;
 	}
 
-	// Si son del mismo telar, permitir el movimiento
+	// Validación pasada: permitir movimiento
 	e.dataTransfer.dropEffect = 'move';
-	this.style.cursor = '';
+	this.classList.remove('drop-not-allowed');
+	this.classList.add('drag-over');
 
+	// Reordenar visualmente en el DOM
 	const tbody = this.parentNode;
 	const afterElement = getDragAfterElement(tbody, e.clientY);
-	const dragging = draggedRow;
 
 	if (afterElement == null) {
-		tbody.appendChild(dragging);
+		tbody.appendChild(draggedRow);
 	} else {
-		tbody.insertBefore(dragging, afterElement);
+		tbody.insertBefore(draggedRow, afterElement);
 	}
 
 	return false;
 }
 
-function handleDrop(e) {
-	if (e.stopPropagation) {
-		e.stopPropagation();
-	}
-
-	if (!draggedRow) {
-		return false;
-	}
-
-	// Validar que la fila arrastrada no esté en proceso
-	if (isRowEnProceso(draggedRow)) {
-		showToast('No se puede mover un registro en proceso<br>Debe finalizar el proceso antes de moverlo', 'error');
-		return false;
-	}
-
-	// Validación adicional: verificar que el telar sea el mismo
-	const targetRowTelar = getRowTelar(this);
-	if (draggedRowTelar !== null && targetRowTelar !== null && draggedRowTelar !== targetRowTelar) {
-		showToast('No se puede mover entre diferentes telares', 'error');
-		return false;
-	}
-
-	const tb = tbodyEl();
-	if (!tb) return false;
-
-	// Obtener todas las filas del mismo telar de allRows (todas las filas originales, no solo visibles)
-	// Esto es importante porque el backend calcula basándose en TODAS las filas del telar
-	const allRowsSameTelar = allRows.filter(row => {
-		const rowTelar = getRowTelar(row);
-		return rowTelar === draggedRowTelar;
-	});
-
-	// Obtener el orden actual en el DOM (después del movimiento visual)
-	const allRowsInDOM = Array.from(tb.querySelectorAll('.selectable-row'));
-
-	// Crear un mapa de posiciones en el DOM para todas las filas del mismo telar
-	const positionMap = new Map();
-	allRowsInDOM.forEach((row, domIndex) => {
-		if (allRowsSameTelar.includes(row)) {
-			positionMap.set(row, domIndex);
-		}
-	});
-
-	// Ordenar las filas del mismo telar por su posición actual en el DOM
-	const rowsOrdered = allRowsSameTelar
-		.filter(row => positionMap.has(row))
-		.sort((a, b) => {
-			const posA = positionMap.get(a) ?? Infinity;
-			const posB = positionMap.get(b) ?? Infinity;
-			return posA - posB;
-		});
-
-	// Si la fila arrastrada no está en el DOM (por filtros), agregarla al final
-	if (!positionMap.has(draggedRow)) {
-		rowsOrdered.push(draggedRow);
-	}
-
-	// Encontrar la nueva posición del registro arrastrado dentro de las filas del mismo telar
-	const nuevaPosicion = rowsOrdered.indexOf(draggedRow);
-
-	if (nuevaPosicion === -1) {
-		showToast('Error al calcular la nueva posición', 'error');
-		return false;
-	}
-
-	// Obtener el ID del registro arrastrado
-	const registroId = draggedRow.getAttribute('data-id');
-	if (!registroId) {
-		showToast('Error: No se pudo obtener el ID del registro', 'error');
-		return false;
-	}
-
-	// Mostrar loading
-	showLoading();
-
-	// Enviar petición al backend para actualizar la prioridad
-	fetch(`/planeacion/programa-tejido/${registroId}/prioridad/mover`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-		},
-		body: JSON.stringify({
-			new_position: nuevaPosicion
-		})
-	})
-	.then(response => response.json())
-	.then(data => {
-		hideLoading();
-		if (data.success) {
-			// Guardar el ID del registro movido en sessionStorage para después de recargar
-			if (data.registro_id) {
-				sessionStorage.setItem('scrollToRegistroId', data.registro_id);
-				sessionStorage.setItem('selectRegistroId', data.registro_id);
-			}
-			// Guardar mensaje de éxito para mostrar después de recargar
-			sessionStorage.setItem('priorityChangeMessage', 'Prioridad actualizada correctamente');
-			sessionStorage.setItem('priorityChangeType', 'success');
-			// Recargar la página para mostrar los cambios
-			window.location.href = '/planeacion/programa-tejido';
-		} else {
-			showToast(data.message || 'No se pudo actualizar la prioridad', 'error');
-		}
-	})
-	.catch(error => {
-		hideLoading();
-		console.error('Error:', error);
-		showToast('Ocurrió un error al procesar la solicitud', 'error');
-	});
-
-	return false;
-}
-
-function handleDragEnd(e) {
-	this.style.opacity = '';
-
-	// Limpiar variables
-	draggedRowTelar = null;
-
-	// Limpiar clases y estilos de todas las filas
-	$$('.selectable-row').forEach(row => {
-		row.classList.remove('drag-over');
-		row.style.cursor = '';
-		row.removeAttribute('data-telar-warning-shown');
-	});
-}
-
+// Helper para determinar después de qué elemento insertar
 function getDragAfterElement(container, y) {
 	const draggableElements = [...container.querySelectorAll('.selectable-row:not(.dragging)')];
 
@@ -1291,12 +1037,197 @@ function getDragAfterElement(container, y) {
 	}, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
+// Manejador de drop (aquí se hace el movimiento real)
+function handleDrop(e) {
+	e.stopPropagation();
+	e.preventDefault();
+
+	if (!draggedRow) return false;
+
+	const targetTelar = getRowTelar(this);
+
+	// Validación final: verificar telar
+	if (draggedRowTelar !== targetTelar) {
+		showToast('No se puede mover entre diferentes telares', 'error');
+		return false;
+	}
+
+	const tb = tbodyEl();
+	if (!tb) return false;
+
+	// Calcular nueva posición
+	const allRowsSameTelar = allRows.filter(row => getRowTelar(row) === draggedRowTelar);
+	const allRowsInDOM = Array.from(tb.querySelectorAll('.selectable-row'));
+
+	const positionMap = new Map();
+	allRowsInDOM.forEach((row, idx) => {
+		if (allRowsSameTelar.includes(row)) {
+			positionMap.set(row, idx);
+		}
+	});
+
+	const rowsOrdered = allRowsSameTelar
+		.filter(row => positionMap.has(row))
+		.sort((a, b) => (positionMap.get(a) ?? Infinity) - (positionMap.get(b) ?? Infinity));
+
+	if (!positionMap.has(draggedRow)) {
+		rowsOrdered.push(draggedRow);
+	}
+
+	const nuevaPosicion = rowsOrdered.indexOf(draggedRow);
+	const registroId = draggedRow.getAttribute('data-id');
+
+	if (nuevaPosicion === -1 || !registroId) {
+		showToast('Error al procesar el movimiento', 'error');
+		return false;
+	}
+
+	// Enviar al backend
+	showLoading();
+	fetch(`/planeacion/programa-tejido/${registroId}/prioridad/mover`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+		},
+		body: JSON.stringify({ new_position: nuevaPosicion })
+	})
+	.then(response => response.json())
+	.then(data => {
+		hideLoading();
+		if (data.success) {
+			// Actualizar el DOM sin recargar la página
+			updateTableAfterDragDrop(data.detalles, registroId);
+
+			// Mostrar mensaje de éxito
+			showToast(`Prioridad actualizada<br>${data.cascaded_records || 0} registro(s) recalculado(s)`, 'success');
+
+			// Mantener seleccionado el registro movido
+			const movedRow = document.querySelector(`.selectable-row[data-id="${registroId}"]`);
+			if (movedRow) {
+				const realIndex = allRows.indexOf(movedRow);
+				if (realIndex !== -1) {
+					// Pequeño delay para que se vea la animación
+					setTimeout(() => {
+						selectRow(movedRow, realIndex);
+						movedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					}, 300);
+				}
+			}
+		} else {
+			showToast(data.message || 'No se pudo actualizar la prioridad', 'error');
+		}
+	})
+	.catch(error => {
+		hideLoading();
+		console.error('Error:', error);
+		showToast('Ocurrió un error al procesar la solicitud', 'error');
+	});
+
+	return false;
+}
+
+// Actualizar tabla después de drag and drop exitoso (sin recargar página)
+function updateTableAfterDragDrop(detalles, registroMovidoId) {
+	if (!detalles || !Array.isArray(detalles)) return;
+
+	// Función helper para formatear fechas
+	const formatDate = (dateStr) => {
+		if (!dateStr) return '';
+		try {
+			const date = new Date(dateStr);
+			if (date.getFullYear() > 1970) {
+				return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' +
+				       date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+			}
+		} catch (e) {}
+		return '';
+	};
+
+	// Actualizar cada registro afectado
+	detalles.forEach(detalle => {
+		const row = document.querySelector(`.selectable-row[data-id="${detalle.Id}"]`);
+		if (!row) return;
+
+		// Destacar visualmente el registro que fue movido
+		const esRegistroMovido = (detalle.Id == registroMovidoId);
+		if (esRegistroMovido) {
+			row.classList.add('bg-green-50');
+			setTimeout(() => row.classList.remove('bg-green-50'), 2000);
+		}
+
+		// Actualizar FechaInicio
+		if (detalle.FechaInicio_nueva) {
+			const fechaInicioCell = row.querySelector('[data-column="FechaInicio"]');
+			if (fechaInicioCell) {
+				fechaInicioCell.textContent = formatDate(detalle.FechaInicio_nueva);
+				fechaInicioCell.classList.add('bg-yellow-100');
+				setTimeout(() => fechaInicioCell.classList.remove('bg-yellow-100'), 1500);
+			}
+		}
+
+		// Actualizar FechaFinal
+		if (detalle.FechaFinal_nueva) {
+			const fechaFinalCell = row.querySelector('[data-column="FechaFinal"]');
+			if (fechaFinalCell) {
+				fechaFinalCell.textContent = formatDate(detalle.FechaFinal_nueva);
+				fechaFinalCell.classList.add('bg-yellow-100');
+				setTimeout(() => fechaFinalCell.classList.remove('bg-yellow-100'), 1500);
+			}
+		}
+
+		// Actualizar EnProceso
+		if (detalle.hasOwnProperty('EnProceso')) {
+			const enProcesoCell = row.querySelector('[data-column="EnProceso"]');
+			if (enProcesoCell) {
+				const checkbox = enProcesoCell.querySelector('input[type="checkbox"]');
+				if (checkbox) {
+					checkbox.checked = (detalle.EnProceso == 1 || detalle.EnProceso === true);
+				}
+			}
+		}
+
+		// Actualizar Ultimo
+		if (detalle.hasOwnProperty('Ultimo')) {
+			const ultimoCell = row.querySelector('[data-column="Ultimo"]');
+			if (ultimoCell) {
+				ultimoCell.textContent = detalle.Ultimo === '1' || detalle.Ultimo === 'UL' ? '1' : '';
+			}
+		}
+	});
+
+	// Actualizar allRows para reflejar el orden actual del DOM
+	const tb = tbodyEl();
+	if (tb) {
+		allRows = Array.from(tb.querySelectorAll('.selectable-row'));
+	}
+}
+
+// Manejador de fin de drag
+function handleDragEnd(e) {
+	this.classList.remove('dragging');
+	this.style.opacity = '';
+
+	// Limpiar estilos visuales de todas las filas
+	$$('.selectable-row').forEach(row => {
+		row.classList.remove('drag-over', 'drop-not-allowed');
+	});
+
+	// Limpiar variables
+	draggedRow = null;
+	draggedRowTelar = null;
+	dragStartPosition = null;
+}
+
 // ===== Init =====
 document.addEventListener('DOMContentLoaded', function() {
 	const tb = tbodyEl();
 	if (tb) {
 		allRows = $$('.selectable-row', tb);
-		allRows.forEach((row, i) => row.addEventListener('click', () => selectRow(row, i)));
+		// Usar onclick para consistencia con el resto del código
+		allRows.forEach((row, i) => {
+			row.onclick = () => selectRow(row, i);
+		});
 	}
 	updateFilterCount();
 	window.addEventListener('resize', () => updatePinnedColumnsPositions());
@@ -1304,12 +1235,14 @@ document.addEventListener('DOMContentLoaded', function() {
 	// Inicializar botones del layout como deshabilitados
 	const btnEditarLayout = document.getElementById('layoutBtnEditar');
 	const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
+	const btnVerLineasLayout = document.getElementById('layoutBtnVerLineas');
 	if (btnEditarLayout) {
 		btnEditarLayout.disabled = true;
 	}
 	if (btnEliminarLayout) {
 		btnEliminarLayout.disabled = true;
 	}
+	if (btnVerLineasLayout) btnVerLineasLayout.disabled = true;
 
     const btnEditar = document.getElementById('btn-editar-programa');
     if (btnEditar) {
@@ -1328,6 +1261,35 @@ document.addEventListener('DOMContentLoaded', function() {
             const id = selected ? selected.getAttribute('data-id') : null;
             if (!id) return;
             eliminarRegistro(id);
+        });
+    }
+
+    const btnVerLineas = document.getElementById('btn-ver-lineas');
+    // btnVerLineasLayout ya está declarado arriba en la línea 1396
+    if (btnVerLineas) {
+        btnVerLineas.addEventListener('click', () => {
+            const selected = $$('.selectable-row')[selectedRowIndex];
+            const id = selected ? selected.getAttribute('data-id') : null;
+            if (!id) return;
+            if (typeof window.openLinesModal === 'function') {
+                window.openLinesModal(id);
+            } else {
+                console.error('openLinesModal no está disponible. Asegúrate de que el componente req-programa-tejido-line-table esté incluido.');
+                showToast('Error: No se pudo abrir el modal. Por favor recarga la página.', 'error');
+            }
+        });
+    }
+    if (btnVerLineasLayout) {
+        btnVerLineasLayout.addEventListener('click', () => {
+            const selected = $$('.selectable-row')[selectedRowIndex];
+            const id = selected ? selected.getAttribute('data-id') : null;
+            if (!id) return;
+            if (typeof window.openLinesModal === 'function') {
+                window.openLinesModal(id);
+            } else {
+                console.error('openLinesModal no está disponible. Asegúrate de que el componente req-programa-tejido-line-table esté incluido.');
+                showToast('Error: No se pudo abrir el modal. Por favor recarga la página.', 'error');
+            }
         });
     }
 
@@ -1401,34 +1363,33 @@ window.applyTableFilters = function(values){
         }
         // Render
         tb.innerHTML = '';
-        filtered.forEach((r,i) => {
+        filtered.forEach((r) => {
+            const realIndex = allRows.indexOf(r);
+            if (realIndex === -1) return;
+
             if (dragDropMode) {
-                // Si el modo drag and drop está activo, configurar para drag
                 const enProceso = isRowEnProceso(r);
                 r.draggable = !enProceso;
+                r.onclick = null;
 
                 if (!enProceso) {
                     r.classList.add('cursor-move');
-                } else {
-                    r.classList.add('cursor-not-allowed');
-                    r.style.opacity = '0.6';
-                }
-
-                r.removeEventListener('click', () => selectRow(r, i));
-
-                // Agregar event listeners de drag solo si no está en proceso
-                if (!enProceso) {
                     r.addEventListener('dragstart', handleDragStart);
                     r.addEventListener('dragover', handleDragOver);
                     r.addEventListener('drop', handleDrop);
                     r.addEventListener('dragend', handleDragEnd);
+                } else {
+                    r.classList.add('cursor-not-allowed');
+                    r.style.opacity = '0.6';
                 }
             } else {
-                // Modo normal, solo click
-                r.onclick = () => selectRow(r, i);
+                r.onclick = () => selectRow(r, realIndex);
             }
             tb.appendChild(r);
         });
+
+        // IMPORTANTE: Actualizar allRows después de manipular el DOM
+        allRows = Array.from(tb.querySelectorAll('.selectable-row'));
     }catch(e){}
 }
 

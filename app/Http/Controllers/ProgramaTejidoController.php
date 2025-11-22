@@ -885,7 +885,7 @@ class ProgramaTejidoController extends Controller
 
         $registro = ReqProgramaTejido::findOrFail($id);
 
-        // Validar que el registro no esté en proceso
+        // Validación 1: Registro no debe estar en proceso
         if ($registro->EnProceso == 1) {
             return response()->json([
                 'success' => false,
