@@ -24,11 +24,13 @@ class TelMarbeteLiberadoModel extends Model
         'WMSLocationId',  // NVARCHAR(10)  - Telar
         'QtySched',       // REAL          - Piezas
         'Salon',          // NVARCHAR(20)  - Salón
+        'CUANTAS',        // INT           - Cuantas
     ];
 
     protected $casts = [
         'Id'       => 'integer',
         'QtySched' => 'float',
+        'CUANTAS'  => 'integer',
     ];
 
     /* ===== Scopes útiles (opcionales) ===== */

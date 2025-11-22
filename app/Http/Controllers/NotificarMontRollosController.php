@@ -188,9 +188,19 @@ class NotificarMontRollosController extends Controller
                 ], 404);
             }
 
-            // Formatear datos para el modal (sin insertar aún)
+            // Obtener los PurchBarCode que ya están liberados en TelMarbeteLiberado
+            $marbetesLiberados = TelMarbeteLiberadoModel::pluck('PurchBarCode')->toArray();
+
+            // Formatear datos para el modal, excluyendo los ya liberados
             $datosFormateados = [];
+            $excluidos = 0;
             foreach ($datosProduccion as $dato) {
+                // Saltar este registro si ya fue liberado
+                if (in_array($dato->PurchBarCode, $marbetesLiberados)) {
+                    $excluidos++;
+                    continue;
+                }
+
                 $datosFormateados[] = [
                     'PurchBarCode' => $dato->PurchBarCode,
                     'ItemId' => $dato->ItemId,
@@ -203,11 +213,24 @@ class NotificarMontRollosController extends Controller
                 ];
             }
 
+            // Si no quedan registros después de filtrar
+            if (empty($datosFormateados)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Todos los marbetes ya han sido liberados',
+                    'mensaje' => "Se encontraron {$datosProduccion->count()} registros, pero todos ya fueron liberados anteriormente.",
+                    'debug' => [
+                        'total_encontrados' => $datosProduccion->count(),
+                        'excluidos' => $excluidos
+                    ]
+                ]);
+            }
+
             return response()->json([
                 'success' => true,
                 'datos' => $datosFormateados,
                 'total' => count($datosFormateados),
-                'mensaje' => "Se encontraron {$datosProduccion->count()} registros en TI_PRO"
+                'mensaje' => "Se encontraron " . count($datosFormateados) . " marbetes disponibles" . ($excluidos > 0 ? " ({$excluidos} ya liberados)" : "")
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -230,7 +253,7 @@ class NotificarMontRollosController extends Controller
             }
 
             $insertados = 0;
-            $actualizados = 0;
+            $yaExistian = 0;
             $errores = [];
 
             foreach ($marbetesSeleccionados as $marbete) {
@@ -238,34 +261,42 @@ class NotificarMontRollosController extends Controller
                     // Verificar si ya existe
                     $marbeteExistente = TelMarbeteLiberadoModel::where('PurchBarCode', $marbete['PurchBarCode'])->first();
 
+                    if ($marbeteExistente) {
+                        // Si ya existe, solo contamos pero no actualizamos
+                        $yaExistian++;
+                        continue;
+                    }
+
+                    // Solo insertar si no existe
                     $datosAGuardar = [
+                        'PurchBarCode' => $marbete['PurchBarCode'],
                         'ItemId' => $marbete['ItemId'],
                         'InventSizeId' => $marbete['InventSizeId'],
                         'InventBatchId' => $marbete['InventBatchId'],
                         'WMSLocationId' => $marbete['WMSLocationId'],
                         'QtySched' => $marbete['QtySched'],
                         'Salon' => $marbete['Salon'] ?? '',
+                        'CUANTAS' => $marbete['CUANTAS'] ?? null,
                     ];
 
-                    if ($marbeteExistente) {
-                        $marbeteExistente->update($datosAGuardar);
-                        $actualizados++;
-                    } else {
-                        $datosAGuardar['PurchBarCode'] = $marbete['PurchBarCode'];
-                        TelMarbeteLiberadoModel::create($datosAGuardar);
-                        $insertados++;
-                    }
+                    TelMarbeteLiberadoModel::create($datosAGuardar);
+                    $insertados++;
                 } catch (\Exception $e) {
                     $errores[] = "Error en marbete {$marbete['PurchBarCode']}: " . $e->getMessage();
                 }
             }
 
+            $mensaje = "Marbete liberado correctamente";
+            if ($yaExistian > 0) {
+                $mensaje .= " (Ya existía en la base de datos)";
+            }
+
             return response()->json([
                 'success' => true,
                 'insertados' => $insertados,
-                'actualizados' => $actualizados,
+                'yaExistian' => $yaExistian,
                 'errores' => $errores,
-                'mensaje' => "Insertados: {$insertados}, Actualizados: {$actualizados}"
+                'mensaje' => $mensaje
             ]);
         } catch (\Exception $e) {
             return response()->json([

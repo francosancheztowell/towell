@@ -279,19 +279,46 @@
             const filaSeleccionada = document.querySelector('#tablaProduccionBody tr.selected');
             
             if (!filaSeleccionada) {
-                alert('Debe seleccionar un marbete de la tabla');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Selección requerida',
+                    text: 'Debe seleccionar un marbete de la tabla',
+                    confirmButtonColor: '#3b82f6'
+                });
                 return;
             }
 
             const marbete = JSON.parse(filaSeleccionada.dataset.marbete);
             const marbetesSeleccionados = [marbete];
 
-            if (!confirm(`¿Está seguro de liberar el marbete ${marbete.PurchBarCode}?`)) {
+            const confirmacion = await Swal.fire({
+                icon: 'question',
+                title: '¿Confirmar liberación?',
+                text: `¿Está seguro de liberar el marbete ${marbete.PurchBarCode}?`,
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Sí, liberar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (!confirmacion.isConfirmed) {
                 return;
             }
 
             try {
                 mostrarMensaje('Insertando marbetes en TelMarbeteLiberado...', 'info');
+
+                // Mostrar loading
+                Swal.fire({
+                    title: 'Procesando...',
+                    text: 'Liberando marbete',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
 
                 const response = await fetch('{{ route('notificar.mont.rollos.insertar') }}', {
                     method: 'POST',
@@ -308,19 +335,36 @@
                 const data = await response.json();
 
                 if (!data.success) {
-                    alert('Error: ' + (data.error || 'No se pudieron insertar los marbetes'));
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.error || 'No se pudieron insertar los marbetes',
+                        confirmButtonColor: '#ef4444'
+                    });
                     mostrarMensaje('Error al insertar: ' + (data.error || 'Error desconocido'), 'error');
                     return;
                 }
 
-                alert(`✓ Marbete liberado correctamente\n${data.mensaje}`);
+                await Swal.fire({
+                    icon: 'success',
+                    title: '¡Marbete liberado!',
+                    text: data.mensaje,
+                    confirmButtonColor: '#22c55e',
+                    timer: 2000,
+                    timerProgressBar: true
+                });
                 
                 // Redirigir a tejedores
                 window.location.href = '/submodulos/tejedores';
                 
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al insertar marbetes: ' + error.message);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de conexión',
+                    text: 'Error al insertar marbetes: ' + error.message,
+                    confirmButtonColor: '#ef4444'
+                });
             }
         });
     });
