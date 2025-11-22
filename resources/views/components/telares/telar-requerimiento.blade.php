@@ -326,8 +326,6 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         return;
     }
 
-    console.log(`💾 Guardando registro con fecha: ${fechaConvertida} (${fechaISO ? 'fecha modificada del header' : 'fecha del calendario'})`);
-
     // Verificar que tenemos cuenta válida (calibre puede ser null)
     if (!cuentaSeleccionada || cuentaSeleccionada === '') {
         alert('No se encontró cuenta para este telar. Verifique los datos del telar.');
@@ -436,14 +434,9 @@ function loadRequerimientos(telarId, salon) {
                 return tieneCheckboxDelTelar;
             });
 
-            console.log(`🔍 Telar ${telarId}: Total de tablas en el documento: ${todasLasTablasDelDocumento.length}`);
-            console.log(`🔍 Telar ${telarId}: Tablas con checkboxes del telar: ${todasLasTablasDelTelar.length}`);
-
             if (todasLasTablasDelTelar.length === 0) {
-                console.error(`❌ ERROR: No se encontraron tablas para el telar ${telarId}`);
                 // Intentar buscar de nuevo después de un delay
                 setTimeout(() => {
-                    console.log(`🔄 Reintentando buscar tablas para telar ${telarId}...`);
                     loadRequerimientos(telarId, salon);
                 }, 500);
                 return;
@@ -455,8 +448,6 @@ function loadRequerimientos(telarId, salon) {
                 const th = table.querySelector('th');
                 if (th) {
                     fechasTablas.push(th);
-                    const fechaTexto = th.innerText.trim();
-                    console.log(`   Tabla ${index + 1}: ${fechaTexto}`);
                 }
             });
 
@@ -464,12 +455,8 @@ function loadRequerimientos(telarId, salon) {
             const primeraTabla = todasLasTablasDelTelar[0];
 
             if (!primeraTabla) {
-                console.error(`❌ ERROR: No se pudo obtener la primera tabla para el telar ${telarId}`);
                 return;
             }
-
-            const primeraTablaFecha = primeraTabla.querySelector('th')?.innerText.trim() || 'N/A';
-            console.log(`✅ Primera tabla del telar ${telarId}: ${primeraTablaFecha}`);
 
             // Limpiar todos los checkboxes de este telar en todas las tablas
             todasLasTablasDelTelar.forEach(table => {
@@ -484,9 +471,6 @@ function loadRequerimientos(telarId, salon) {
             const ultimoDia = new Date(hoy);
             ultimoDia.setDate(hoy.getDate() + 6); // 7 días totales (hoy + 6 días más)
             ultimoDia.setHours(23, 59, 59, 999);
-
-            // Log para depuración
-            console.log(`Telar ${telarId}: Rango del calendario - Desde: ${hoy.toISOString().split('T')[0]}, Hasta: ${ultimoDia.toISOString().split('T')[0]}`);
 
             // Función para convertir fecha ISO (YYYY-MM-DD) a objeto Date
             function parseFechaISO(fechaISO) {
@@ -505,7 +489,6 @@ function loadRequerimientos(telarId, salon) {
                         return fecha;
                     }
                 } catch (e) {
-                    console.error('Error parseando fecha:', fechaISO, e);
                 }
                 return null;
             }
@@ -516,9 +499,6 @@ function loadRequerimientos(telarId, salon) {
             }
 
             // Marcar por coincidencia de telar+tipo+fecha+turno Y SALON
-            console.log(`🔍 Buscando registros para telar ${telarId}, salón esperado: "${salon}"`);
-            console.log(`📊 Total de registros disponibles en inventario: ${registros.length}`);
-
             // Filtrar registros del telar
             const registrosTelar = registros.filter(reg => {
                 const telarCoincide = String(reg.no_telar) === String(telarId);
@@ -546,24 +526,8 @@ function loadRequerimientos(telarId, salon) {
 
                 const coincide = telarCoincide && salonCoincide;
 
-                // Log detallado para cada registro del telar
-                console.log(`  📋 Registro: Telar=${reg.no_telar}, Salon="${reg.salon}" (esperado: "${salon}"), Coincide=${coincide}, Fecha=${reg.fecha}, Tipo=${reg.tipo}, Turno=${reg.turno}, Status=${reg.status || 'N/A'}`);
-
                 return coincide;
             });
-
-            console.log(`✅ Total de registros del telar ${telarId} después de filtrar: ${registrosTelar.length}`);
-
-            if (registrosTelar.length === 0) {
-                console.warn(`⚠️ No se encontraron registros para telar ${telarId} con salón "${salon}"`);
-                // Mostrar todos los registros del telar para depuración
-                const todosRegistrosTelar = registros.filter(reg => String(reg.no_telar) === String(telarId));
-                console.log(`📋 Registros encontrados para telar ${telarId} (sin filtrar por salón):`, todosRegistrosTelar);
-                if (todosRegistrosTelar.length > 0) {
-                    console.log(`💡 Sugerencia: Verificar que el salón del registro coincida con el salón esperado.`);
-                    console.log(`   Salones en registros:`, [...new Set(todosRegistrosTelar.map(r => r.salon))]);
-                }
-            }
 
             // PASO 1: Identificar si hay fechas antiguas para actualizar headers PRIMERO
             let fechaMasAntiguaEnPrimeraTabla = null;
@@ -600,8 +564,6 @@ function loadRequerimientos(telarId, salon) {
 
             // Si hay fechas antiguas, actualizar TODOS los headers primero
             if (fechaMasAntiguaEnPrimeraTabla) {
-                console.log(`📅 Fecha antigua detectada: ${fechaMasAntiguaEnPrimeraTabla.toISOString().split('T')[0]}. Actualizando headers...`);
-
                 // Actualizar la primera tabla con la fecha antigua
                 const thHeaderPrimera = primeraTabla.querySelector('th');
                 if (thHeaderPrimera) {
@@ -620,7 +582,6 @@ function loadRequerimientos(telarId, salon) {
                     thHeaderPrimera.classList.add('fecha-modificada');
                     thHeaderPrimera.style.backgroundColor = '#fef3c7';
                     thHeaderPrimera.style.borderLeft = '3px solid #f59e0b';
-                    console.log(`✅ Primera tabla: "${fechaFormateada1.fechaFormateada} ${fechaFormateada1.diaSemana}" (fecha antigua)`);
                 }
 
                 // Actualizar las demás tablas: segunda = hoy, tercera = hoy+1, etc.
@@ -644,7 +605,6 @@ function loadRequerimientos(telarId, salon) {
 
                     if (nuevaFecha > fechaOriginalUltimaTabla) {
                         tabla.style.display = 'none';
-                        console.log(`📅 Tabla ${index + 1} OCULTADA (excede rango - se recorta)`);
                         return;
                     }
 
@@ -662,10 +622,6 @@ function loadRequerimientos(telarId, salon) {
                     thHeader.classList.remove('fecha-modificada');
                     thHeader.style.backgroundColor = '';
                     thHeader.style.borderLeft = '';
-
-                    if (index === 1) {
-                        console.log(`✅ Segunda tabla: "${fechaFormateada.fechaFormateada} ${fechaFormateada.diaSemana}" (HOY)`);
-                    }
                 });
             } else {
                 // Si no hay fechas antiguas, asegurar que todas las tablas estén visibles
@@ -690,13 +646,10 @@ function loadRequerimientos(telarId, salon) {
                     const fechaEsAnterior = timestampRegistro < timestampHoy;
                     const fechaEsPosterior = timestampRegistro > timestampUltimoDia;
 
-                    console.log(`📅 Procesando: Fecha=${fechaISO}, Anterior=${fechaEsAnterior}, Posterior=${fechaEsPosterior}`);
-
                     if (fechaEsAnterior || fechaEsPosterior) {
                         // Fecha fuera del rango: usar primera tabla
                         usarPrimeraFecha = true;
                         tablaDestino = obtenerPrimeraTabla();
-                        console.log(`✅ Usando primera tabla para fecha ${fechaISO}`);
                     } else {
                         // Fecha dentro del rango: buscar tabla por fecha completa en atributo
                         let thFecha = null;
@@ -713,7 +666,6 @@ function loadRequerimientos(telarId, salon) {
 
                         if (thFecha) {
                             tablaDestino = thFecha.closest('table');
-                            console.log(`✅ Tabla encontrada para fecha ${fechaISO}`);
                         } else {
                             // Buscar por texto como fallback
                             const [y, m, d] = fechaISO.split('-');
@@ -737,7 +689,6 @@ function loadRequerimientos(telarId, salon) {
                 }
 
                 if (!tablaDestino || tablaDestino.style.display === 'none') {
-                    console.warn(`⚠️ No se encontró tabla válida para fecha ${fechaISO}`);
                     return;
                 }
 
@@ -746,7 +697,6 @@ function loadRequerimientos(telarId, salon) {
                 const checkboxes = tablaDestino.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`);
 
                 if (checkboxes.length === 0) {
-                    console.warn(`⚠️ No se encontraron checkboxes para telar ${telarId}, tipo ${tipo}, turno ${reg.turno}`);
                     return;
                 }
 
@@ -757,16 +707,12 @@ function loadRequerimientos(telarId, salon) {
                             cb.title = `Fecha original: ${fechaISO} (mostrado en primera fecha del calendario)`;
                             cb.setAttribute('data-fecha-original', fechaISO);
                             cb.classList.add('fecha-antigua');
-                            console.log(`✅ Checkbox marcado en primera tabla: ${tipo}${reg.turno} (fecha: ${fechaISO})`);
-                        } else {
-                            console.log(`✅ Checkbox marcado: ${tipo}${reg.turno} (fecha: ${fechaISO})`);
                         }
                     }
                 });
             });
         })
         .catch(error => {
-            console.error('Error al cargar requerimientos:', error);
         });
 }
 

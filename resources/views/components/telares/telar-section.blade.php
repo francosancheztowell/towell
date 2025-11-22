@@ -133,7 +133,7 @@
                         <span class="text-sm font-semibold text-gray-900 ml-2">
                             @php
                                 $cuentaRizo = $telar->Cuenta ?? '';
-                                $calibreRizo = $telar->CalibreRizo2 ? number_format((float)$telar->CalibreRizo2, 2, '.', '') : '';
+                                $calibreRizo = isset($telar->CalibreRizo2) && $telar->CalibreRizo2 ? number_format((float)$telar->CalibreRizo2, 2, '.', '') : '';
                                 $fibraRizo = $telar->Fibra_Rizo ?? '';
                                 $rizoCompleto = $cuentaRizo . ($calibreRizo ? ' - ' . $calibreRizo : '') . ($fibraRizo ? ' - ' . $fibraRizo : '');
                             @endphp
@@ -145,7 +145,7 @@
                         <span class="text-sm font-semibold text-gray-900 ml-2">
                             @php
                                 $cuentaPie = $telar->Cuenta_Pie ?? '';
-                                $calibrePie = $telar->CalibrePie2 ? number_format((float)$telar->CalibrePie2, 2, '.', '') : '';
+                                $calibrePie = isset($telar->CalibrePie2) && $telar->CalibrePie2 ? number_format((float)$telar->CalibrePie2, 2, '.', '') : '';
                                 $fibraPie = $telar->Fibra_Pie ?? '';
                                 $pieCompleto = $cuentaPie . ($calibrePie ? ' - ' . $calibrePie : '') . ($fibraPie ? ' - ' . $fibraPie : '');
                             @endphp
@@ -253,7 +253,7 @@
                                 <span class="text-sm font-semibold text-gray-900 ml-2">
                                     @php
                                         $cuentaRizoSig = $ordenSig->Cuenta ?? '';
-                                        $calibreRizoSig = $ordenSig->CalibreRizo2 ? number_format((float)$ordenSig->CalibreRizo2, 2, '.', '') : '';
+                                        $calibreRizoSig = isset($ordenSig->CalibreRizo2) && $ordenSig->CalibreRizo2 ? number_format((float)$ordenSig->CalibreRizo2, 2, '.', '') : '';
                                         $fibraRizoSig = $ordenSig->Fibra_Rizo ?? '';
                                         $rizoCompletoSig = $cuentaRizoSig . ($calibreRizoSig ? ' - ' . $calibreRizoSig : '') . ($fibraRizoSig ? ' - ' . $fibraRizoSig : '');
                                     @endphp
@@ -265,7 +265,7 @@
                                 <span class="text-sm font-semibold text-gray-900 ml-2">
                                     @php
                                         $cuentaPieSig = $ordenSig->Cuenta_Pie ?? '';
-                                        $calibrePieSig = $ordenSig->CalibrePie2 ? number_format((float)$ordenSig->CalibrePie2, 2, '.', '') : '';
+                                        $calibrePieSig = isset($ordenSig->CalibrePie2) && $ordenSig->CalibrePie2 ? number_format((float)$ordenSig->CalibrePie2, 2, '.', '') : '';
                                         $fibraPieSig = $ordenSig->Fibra_Pie ?? '';
                                         $pieCompletoSig = $cuentaPieSig . ($calibrePieSig ? ' - ' . $calibrePieSig : '') . ($fibraPieSig ? ' - ' . $fibraPieSig : '');
                                     @endphp
