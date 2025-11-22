@@ -30,19 +30,48 @@
 </div>
 
 <script>
+// Controlador para cancelar peticiones anteriores
+let currentAbortController = null;
+let currentRequestId = 0;
+
 async function loadReqProgramaTejidoLines(params = {}) {
     const wrap = document.getElementById('reqpt-line-wrapper');
     const body = document.getElementById('reqpt-line-body');
     const meta = document.getElementById('reqpt-line-meta');
     if (!wrap || !body) return;
 
+    // Cancelar petición anterior si existe
+    if (currentAbortController) {
+        currentAbortController.abort();
+    }
+
+    // Crear nuevo controlador de aborto
+    currentAbortController = new AbortController();
+    const requestId = ++currentRequestId;
+
     const qs = new URLSearchParams(params).toString();
     const url = '/planeacion/req-programa-tejido-line' + (qs ? ('?' + qs) : '');
-    body.innerHTML = `<tr><td colspan="14" class="px-3 py-4 text-center text-sm text-gray-500">Cargando...</td></tr>`;
+
+    // Mostrar estado de carga
+    body.innerHTML = `<tr><td colspan="14" class="px-3 py-4 text-center text-sm text-gray-500">
+        <div class="flex items-center justify-center gap-2">
+            <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <span>Cargando...</span>
+        </div>
+    </td></tr>`;
     wrap.classList.remove('hidden');
 
     try {
-        const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        const r = await fetch(url, {
+            headers: { 'Accept': 'application/json' },
+            signal: currentAbortController.signal
+        });
+
+        // Verificar si esta petición sigue siendo la más reciente
+        if (requestId !== currentRequestId) {
+            return; // Ignorar respuesta si hay una petición más reciente
+        }
+
         if (!r.ok) {
             body.innerHTML = `<tr><td colspan="14" class="px-3 py-6">
                 <div class="max-w-xl mx-auto  text-blue-800 rounded-md p-4 text-sm text-center">
@@ -53,7 +82,14 @@ async function loadReqProgramaTejidoLines(params = {}) {
             meta && (meta.textContent = '');
             return;
         }
+
         const data = await r.json();
+
+        // Verificar nuevamente si esta petición sigue siendo la más reciente
+        if (requestId !== currentRequestId) {
+            return; // Ignorar respuesta si hay una petición más reciente
+        }
+
         const page = data?.data ?? data; // soporta paginate o arreglo simple
         const items = page?.data ?? page; // paginate.data o arreglo
 
@@ -64,7 +100,15 @@ async function loadReqProgramaTejidoLines(params = {}) {
         }
 
         const rows = items.map(it => {
-            const f = (v) => (v === null || v === undefined || v === '') ? '' : (isNaN(v) ? String(v) : Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 }));
+            const f = (v) => {
+                if (v === null || v === undefined || v === '') return '';
+                if (isNaN(v)) return String(v);
+                const num = Number(v);
+                return num.toLocaleString('en-US', {
+                    minimumFractionDigits: num % 1 === 0 ? 0 : 2,
+                    maximumFractionDigits: 2
+                });
+            };
             const fecha = it.Fecha ? new Date(it.Fecha).toLocaleDateString() : '';
             return `
                 <tr class="hover:bg-blue-50">
@@ -84,9 +128,23 @@ async function loadReqProgramaTejidoLines(params = {}) {
                     <td class="px-2 py-1 text-xs text-right">${f(it.MtsRizo)}</td>
                 </tr>`;
         }).join('');
-        body.innerHTML = rows;
-        meta && (meta.textContent = `${items.length} registro(s)`);
+
+        // Verificar una última vez antes de renderizar
+        if (requestId === currentRequestId) {
+            body.innerHTML = rows;
+            meta && (meta.textContent = `${items.length} registro(s)`);
+        }
     } catch(e) {
+        // Ignorar errores de aborto
+        if (e.name === 'AbortError') {
+            return;
+        }
+
+        // Verificar si esta petición sigue siendo la más reciente antes de mostrar error
+        if (requestId !== currentRequestId) {
+            return;
+        }
+
         body.innerHTML = `<tr><td colspan="14" class="px-3 py-6">
             <div class="max-w-xl mx-auto  text-red-700 rounded-md p-4 text-sm text-center">
                 <div class="font-semibold mb-1">No se pudo cargar el detalle</div>

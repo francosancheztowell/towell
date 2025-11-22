@@ -870,6 +870,46 @@ class ProgramaTejidoController extends Controller
     public function moveUp(Request $request, int $id)   { return $this->move($id, 'up'); }
     public function moveDown(Request $request, int $id) { return $this->move($id, 'down'); }
 
+    /**
+     * Mover registro a una posición específica (drag and drop)
+     *
+     * @param Request $request
+     * @param int $id ID del registro a mover
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function moveToPosition(Request $request, int $id)
+    {
+        $request->validate([
+            'new_position' => 'required|integer|min:0'
+        ]);
+
+        $registro = ReqProgramaTejido::findOrFail($id);
+
+        // Validar que el registro no esté en proceso
+        if ($registro->EnProceso == 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede mover un registro en proceso. Debe finalizar el proceso antes de moverlo.'
+            ], 422);
+        }
+
+        try {
+            $res = $this->moverAposicion($registro, $request->input('new_position'));
+            return response()->json([
+                'success' => true,
+                'message' => 'Prioridad actualizada correctamente',
+                'cascaded_records' => count($res['detalles']),
+                'detalles' => $res['detalles'],
+                'registro_id' => $registro->Id
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e instanceof \RuntimeException ? 422 : 500);
+        }
+    }
+
     private function move(int $id, string $dir)
     {
         $registro = ReqProgramaTejido::findOrFail($id);
@@ -1157,6 +1197,109 @@ class ProgramaTejidoController extends Controller
         }
 
         return [$updates,$detalles];
+    }
+
+    /**
+     * Mover un registro a una posición específica y recalcular fechas
+     *
+     * @param ReqProgramaTejido $registro
+     * @param int $nuevaPosicion
+     * @return array
+     */
+    private function moverAposicion(ReqProgramaTejido $registro, int $nuevaPosicion): array
+    {
+        DB::beginTransaction();
+        try {
+            $salon = $registro->SalonTejidoId;
+            $telar = $registro->NoTelarId;
+
+            $registros = ReqProgramaTejido::query()
+                ->salon($salon)
+                ->telar($telar)
+                ->orderBy('FechaInicio', 'asc')
+                ->lockForUpdate()
+                ->get();
+
+            if ($registros->count() < 2) {
+                throw new \RuntimeException('Se requieren al menos dos registros para reordenar la prioridad.');
+            }
+
+            $inicioOriginal = optional($registros->first()->FechaInicio)
+                ? \Carbon\Carbon::parse($registros->first()->FechaInicio)
+                : null;
+
+            if (!$inicioOriginal) {
+                throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
+            }
+
+            // Encontrar la posición actual del registro
+            $idxActual = $registros->search(fn($r) => $r->Id === $registro->Id);
+            if ($idxActual === false) {
+                throw new \RuntimeException('No se encontró el registro a reordenar dentro del telar.');
+            }
+
+            // Validar nueva posición
+            if ($nuevaPosicion < 0 || $nuevaPosicion >= $registros->count()) {
+                throw new \RuntimeException('La nueva posición está fuera del rango válido.');
+            }
+
+            if ($idxActual === $nuevaPosicion) {
+                throw new \RuntimeException('El registro ya está en esa posición.');
+            }
+
+            // Guardar IDs de los registros afectados para regenerar líneas después
+            $idsAfectados = $registros->pluck('Id')->toArray();
+
+            // Mover el registro a la nueva posición
+            $registroMovido = $registros->splice($idxActual, 1)->first();
+            $registros->splice($nuevaPosicion, 0, [$registroMovido]);
+            $registros = $registros->values();
+
+            // Deshabilitar observers temporalmente para evitar regeneración duplicada de líneas
+            ReqProgramaTejido::unsetEventDispatcher();
+
+            // Recalcular fechas para toda la secuencia
+            [$updates, $detalles] = $this->recalcularFechasSecuencia($registros, $inicioOriginal);
+
+            // Actualizar registros principales (esto cambia las fechas)
+            foreach ($updates as $idU => $data) {
+                DB::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+            }
+
+            DB::commit();
+
+            // Re-habilitar observer
+            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+
+            // Regenerar líneas para TODOS los registros afectados
+            $observer = new \App\Observers\ReqProgramaTejidoObserver();
+            foreach ($idsAfectados as $idAct) {
+                if ($r = ReqProgramaTejido::find($idAct)) {
+                    $observer->saved($r);
+                }
+            }
+
+            Log::info('moverAposicion OK', [
+                'id' => $registro->Id,
+                'posicion_anterior' => $idxActual,
+                'posicion_nueva' => $nuevaPosicion,
+                'registros_afectados' => count($idsAfectados),
+                'detalles_cascada' => count($detalles)
+            ]);
+
+            return ['success' => true, 'detalles' => $detalles];
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+            Log::error('moverAposicion error', [
+                'id' => $registro->Id ?? null,
+                'nueva_posicion' => $nuevaPosicion,
+                'msg' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 
     /* ======================================

@@ -60,6 +60,13 @@
                   <div class="flex items-center gap-2 mr-2">
                     <!-- Grupo 1: Descargar programa + Liberar órdenes + Dropdown Agregar + Editar + Eliminar (compacto, solo íconos) -->
                     <div class="flex items-center gap-2 mr-2">
+                    <!-- Botón Drag and Drop -->
+                        <button type="button" id="btnDragDrop"
+                        onclick="toggleDragDropMode()"
+                        class="relative w-9 h-9 flex items-center justify-center rounded-full bg-black text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                        title="Activar/Desactivar arrastrar filas" aria-label="Drag and Drop">
+                        <i class="fa-solid fa-arrows-alt-v"></i>
+                        </button>
                       <!-- Descargar programa -->
                     <x-navbar.button-report
                         onclick="descargarPrograma()"
@@ -145,6 +152,8 @@
                     <a href="{{ route('submodulos.nivel3', '104') }}" class="w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors" title="Catálogos" aria-label="Catálogos">
                       <i class="fa-solid fa-database"></i>
                     </a>
+
+
                   </div>
 
                   <!-- Prioridad (solo si hay selección) -->
@@ -304,6 +313,7 @@
                     <span id="filterCount"
                           class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white rounded-full text-xs font-bold hidden">0</span>
                   </button>
+
                 </div>
               @endif
 

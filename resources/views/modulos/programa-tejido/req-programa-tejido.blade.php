@@ -131,8 +131,49 @@
 @include('components.tables.req-programa-tejido-line-table')
 
 <style>
-	/* Igual que tu diseño, con apoyo para “pinned” */
+	/* Igual que tu diseño, con apoyo para "pinned" */
 	.pinned-column { position: sticky !important; background-color: #3b82f6 !important; color: #fff !important; }
+
+	/* Estilos para drag and drop */
+	.selectable-row.cursor-move {
+		cursor: move;
+	}
+
+	.selectable-row.cursor-not-allowed {
+		cursor: not-allowed;
+		opacity: 0.6;
+		position: relative;
+	}
+
+	.selectable-row.cursor-not-allowed::after {
+		content: 'En proceso';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		background: rgba(239, 68, 68, 0.9);
+		color: white;
+		padding: 2px 8px;
+		border-radius: 4px;
+		font-size: 10px;
+		font-weight: bold;
+		pointer-events: none;
+		z-index: 10;
+		opacity: 0;
+		transition: opacity 0.2s;
+	}
+
+	.selectable-row.cursor-not-allowed:hover::after {
+		opacity: 1;
+	}
+
+	.selectable-row.dragging {
+		opacity: 0.5;
+	}
+
+	.selectable-row.drag-over {
+		border-top: 2px solid #3b82f6;
+	}
 </style>
 
 <script>
@@ -142,6 +183,11 @@ let hiddenColumns = [];
 let pinnedColumns = [];
 let allRows = [];
 let selectedRowIndex = -1;
+let dragDropMode = false;
+let draggedRow = null;
+let draggedRowIndex = -1;
+let draggedRowTelar = null;
+let loadingLinesTimeout = null;
 
 // ===== Helpers DOM =====
 const $ = (sel, ctx=document) => ctx.querySelector(sel);
@@ -251,7 +297,31 @@ function applyFilters() {
 	const tb = tbodyEl();
 	tb.innerHTML = '';
 	rows.forEach((r,i) => {
-		r.onclick = () => selectRow(r, i);
+		if (dragDropMode) {
+			// Si el modo drag and drop está activo, configurar para drag
+			const enProceso = isRowEnProceso(r);
+			r.draggable = !enProceso;
+
+			if (!enProceso) {
+				r.classList.add('cursor-move');
+			} else {
+				r.classList.add('cursor-not-allowed');
+				r.style.opacity = '0.6';
+			}
+
+			r.removeEventListener('click', () => selectRow(r, i));
+
+			// Agregar event listeners de drag solo si no está en proceso
+			if (!enProceso) {
+				r.addEventListener('dragstart', handleDragStart);
+				r.addEventListener('dragover', handleDragOver);
+				r.addEventListener('drop', handleDrop);
+				r.addEventListener('dragend', handleDragEnd);
+			}
+		} else {
+			// Modo normal, solo click
+			r.onclick = () => selectRow(r, i);
+		}
 		tb.appendChild(r);
 	});
 	updateFilterCount();
@@ -277,7 +347,32 @@ function resetFilters() {
 		r.classList.remove('bg-blue-500','text-white','hover:bg-blue-50');
 		r.classList.add('hover:bg-blue-50');
 		$$('td', r).forEach(td => td.classList.remove('text-white','text-gray-700'));
-		r.onclick = () => selectRow(r, i);
+
+		if (dragDropMode) {
+			// Si el modo drag and drop está activo, configurar para drag
+			const enProceso = isRowEnProceso(r);
+			r.draggable = !enProceso;
+
+			if (!enProceso) {
+				r.classList.add('cursor-move');
+			} else {
+				r.classList.add('cursor-not-allowed');
+				r.style.opacity = '0.6';
+			}
+
+			r.removeEventListener('click', () => selectRow(r, i));
+
+			// Agregar event listeners de drag solo si no está en proceso
+			if (!enProceso) {
+				r.addEventListener('dragstart', handleDragStart);
+				r.addEventListener('dragover', handleDragOver);
+				r.addEventListener('drop', handleDrop);
+				r.addEventListener('dragend', handleDragEnd);
+			}
+		} else {
+			// Modo normal, solo click
+			r.onclick = () => selectRow(r, i);
+		}
 		tb.appendChild(r);
 	});
 
@@ -574,8 +669,17 @@ function selectRow(rowElement, rowIndex) {
 
 		// Cargar detalle de líneas filtradas por ProgramaId
 		if (window.loadReqProgramaTejidoLines) {
+			// Cancelar timeout anterior si existe
+			if (loadingLinesTimeout) {
+				clearTimeout(loadingLinesTimeout);
+			}
+
 			const id = rowElement.getAttribute('data-id');
-			window.loadReqProgramaTejidoLines({ programa_id: id });
+			// Pequeño debounce para evitar múltiples cargas muy rápidas
+			loadingLinesTimeout = setTimeout(() => {
+				window.loadReqProgramaTejidoLines({ programa_id: id });
+				loadingLinesTimeout = null;
+			}, 100);
 		}
 
 		// Habilitar botones editar y eliminar (local y layout)
@@ -895,6 +999,298 @@ function eliminarRegistro(id) {
 	}
 }
 
+// ===== Drag and Drop =====
+function toggleDragDropMode() {
+	dragDropMode = !dragDropMode;
+	const btn = $('#btnDragDrop');
+	const tb = tbodyEl();
+
+	if (!btn || !tb) return;
+
+	if (dragDropMode) {
+		// Activar modo drag and drop
+		btn.classList.remove('bg-black', 'hover:bg-gray-800', 'focus:ring-gray-500');
+		btn.classList.add('bg-gray-400', 'hover:bg-gray-500', 'ring-2', 'ring-gray-300');
+		btn.title = 'Desactivar arrastrar filas';
+
+		// Agregar atributos draggable y event listeners a todas las filas
+		const rows = $$('.selectable-row', tb);
+		rows.forEach((row, index) => {
+			// Solo hacer draggable si no está en proceso
+			const enProceso = isRowEnProceso(row);
+			row.draggable = !enProceso;
+
+			if (!enProceso) {
+				row.classList.add('cursor-move');
+			} else {
+				row.classList.add('cursor-not-allowed');
+				row.style.opacity = '0.6';
+			}
+
+			row.style.opacity = row.style.opacity || '1';
+
+			// Remover event listener de click temporalmente
+			row.removeEventListener('click', () => selectRow(row, index));
+
+			// Agregar event listeners de drag solo si no está en proceso
+			if (!enProceso) {
+				row.addEventListener('dragstart', handleDragStart);
+				row.addEventListener('dragover', handleDragOver);
+				row.addEventListener('drop', handleDrop);
+				row.addEventListener('dragend', handleDragEnd);
+			}
+		});
+
+		showToast('Modo arrastrar activado<br>Arrastra las filas para reorganizarlas', 'info');
+	} else {
+		// Desactivar modo drag and drop
+		btn.classList.remove('bg-gray-400', 'hover:bg-gray-500', 'ring-2', 'ring-gray-300');
+		btn.classList.add('bg-black', 'hover:bg-gray-800', 'focus:ring-gray-500');
+		btn.title = 'Activar/Desactivar arrastrar filas';
+
+		// Remover atributos draggable y event listeners
+		const rows = $$('.selectable-row', tb);
+		rows.forEach((row, index) => {
+			row.draggable = false;
+			row.classList.remove('cursor-move', 'cursor-not-allowed');
+			row.style.opacity = '';
+
+			// Restaurar event listener de click
+			row.addEventListener('click', () => selectRow(row, index));
+
+			// Remover event listeners de drag
+			row.removeEventListener('dragstart', handleDragStart);
+			row.removeEventListener('dragover', handleDragOver);
+			row.removeEventListener('drop', handleDrop);
+			row.removeEventListener('dragend', handleDragEnd);
+		});
+
+		showToast('Modo arrastrar desactivado', 'info');
+	}
+}
+
+// Función helper para obtener el telar de una fila
+function getRowTelar(row) {
+	const telarCell = row.querySelector('[data-column="NoTelarId"]');
+	if (telarCell) {
+		return telarCell.textContent.trim();
+	}
+	return null;
+}
+
+// Función helper para verificar si una fila está en proceso
+function isRowEnProceso(row) {
+	const enProcesoCell = row.querySelector('[data-column="EnProceso"]');
+	if (enProcesoCell) {
+		const checkbox = enProcesoCell.querySelector('input[type="checkbox"]');
+		return checkbox && checkbox.checked;
+	}
+	return false;
+}
+
+function handleDragStart(e) {
+	// Validar que la fila no esté en proceso
+	if (isRowEnProceso(this)) {
+		e.preventDefault();
+		showToast('No se puede mover un registro en proceso<br>Debe finalizar el proceso antes de moverlo', 'error');
+		return false;
+	}
+
+	draggedRow = this;
+	draggedRowIndex = Array.from(this.parentNode.children).indexOf(this);
+	draggedRowTelar = getRowTelar(this);
+	this.style.opacity = '0.5';
+	e.dataTransfer.effectAllowed = 'move';
+	e.dataTransfer.setData('text/html', this.outerHTML);
+}
+
+function handleDragOver(e) {
+	if (e.preventDefault) {
+		e.preventDefault();
+	}
+
+	// Solo procesar si no es la fila que se está arrastrando
+	if (this === draggedRow) {
+		return false;
+	}
+
+	// Validar que ambas filas pertenezcan al mismo telar
+	const targetRowTelar = getRowTelar(this);
+
+	if (draggedRowTelar !== null && targetRowTelar !== null && draggedRowTelar !== targetRowTelar) {
+		// No permitir drop si son telares diferentes
+		e.dataTransfer.dropEffect = 'none';
+		this.style.cursor = 'not-allowed';
+		// Mostrar mensaje de error
+		if (!this.hasAttribute('data-telar-warning-shown')) {
+			showToast('No se puede mover entre diferentes telares<br>Las filas deben pertenecer al mismo telar', 'error');
+			this.setAttribute('data-telar-warning-shown', 'true');
+			setTimeout(() => {
+				this.removeAttribute('data-telar-warning-shown');
+			}, 2000);
+		}
+		return false;
+	}
+
+	// Si son del mismo telar, permitir el movimiento
+	e.dataTransfer.dropEffect = 'move';
+	this.style.cursor = '';
+
+	const tbody = this.parentNode;
+	const afterElement = getDragAfterElement(tbody, e.clientY);
+	const dragging = draggedRow;
+
+	if (afterElement == null) {
+		tbody.appendChild(dragging);
+	} else {
+		tbody.insertBefore(dragging, afterElement);
+	}
+
+	return false;
+}
+
+function handleDrop(e) {
+	if (e.stopPropagation) {
+		e.stopPropagation();
+	}
+
+	if (!draggedRow) {
+		return false;
+	}
+
+	// Validar que la fila arrastrada no esté en proceso
+	if (isRowEnProceso(draggedRow)) {
+		showToast('No se puede mover un registro en proceso<br>Debe finalizar el proceso antes de moverlo', 'error');
+		return false;
+	}
+
+	// Validación adicional: verificar que el telar sea el mismo
+	const targetRowTelar = getRowTelar(this);
+	if (draggedRowTelar !== null && targetRowTelar !== null && draggedRowTelar !== targetRowTelar) {
+		showToast('No se puede mover entre diferentes telares', 'error');
+		return false;
+	}
+
+	const tb = tbodyEl();
+	if (!tb) return false;
+
+	// Obtener todas las filas del mismo telar de allRows (todas las filas originales, no solo visibles)
+	// Esto es importante porque el backend calcula basándose en TODAS las filas del telar
+	const allRowsSameTelar = allRows.filter(row => {
+		const rowTelar = getRowTelar(row);
+		return rowTelar === draggedRowTelar;
+	});
+
+	// Obtener el orden actual en el DOM (después del movimiento visual)
+	const allRowsInDOM = Array.from(tb.querySelectorAll('.selectable-row'));
+
+	// Crear un mapa de posiciones en el DOM para todas las filas del mismo telar
+	const positionMap = new Map();
+	allRowsInDOM.forEach((row, domIndex) => {
+		if (allRowsSameTelar.includes(row)) {
+			positionMap.set(row, domIndex);
+		}
+	});
+
+	// Ordenar las filas del mismo telar por su posición actual en el DOM
+	const rowsOrdered = allRowsSameTelar
+		.filter(row => positionMap.has(row))
+		.sort((a, b) => {
+			const posA = positionMap.get(a) ?? Infinity;
+			const posB = positionMap.get(b) ?? Infinity;
+			return posA - posB;
+		});
+
+	// Si la fila arrastrada no está en el DOM (por filtros), agregarla al final
+	if (!positionMap.has(draggedRow)) {
+		rowsOrdered.push(draggedRow);
+	}
+
+	// Encontrar la nueva posición del registro arrastrado dentro de las filas del mismo telar
+	const nuevaPosicion = rowsOrdered.indexOf(draggedRow);
+
+	if (nuevaPosicion === -1) {
+		showToast('Error al calcular la nueva posición', 'error');
+		return false;
+	}
+
+	// Obtener el ID del registro arrastrado
+	const registroId = draggedRow.getAttribute('data-id');
+	if (!registroId) {
+		showToast('Error: No se pudo obtener el ID del registro', 'error');
+		return false;
+	}
+
+	// Mostrar loading
+	showLoading();
+
+	// Enviar petición al backend para actualizar la prioridad
+	fetch(`/planeacion/programa-tejido/${registroId}/prioridad/mover`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+		},
+		body: JSON.stringify({
+			new_position: nuevaPosicion
+		})
+	})
+	.then(response => response.json())
+	.then(data => {
+		hideLoading();
+		if (data.success) {
+			// Guardar el ID del registro movido en sessionStorage para después de recargar
+			if (data.registro_id) {
+				sessionStorage.setItem('scrollToRegistroId', data.registro_id);
+				sessionStorage.setItem('selectRegistroId', data.registro_id);
+			}
+			// Guardar mensaje de éxito para mostrar después de recargar
+			sessionStorage.setItem('priorityChangeMessage', 'Prioridad actualizada correctamente');
+			sessionStorage.setItem('priorityChangeType', 'success');
+			// Recargar la página para mostrar los cambios
+			window.location.href = '/planeacion/programa-tejido';
+		} else {
+			showToast(data.message || 'No se pudo actualizar la prioridad', 'error');
+		}
+	})
+	.catch(error => {
+		hideLoading();
+		console.error('Error:', error);
+		showToast('Ocurrió un error al procesar la solicitud', 'error');
+	});
+
+	return false;
+}
+
+function handleDragEnd(e) {
+	this.style.opacity = '';
+
+	// Limpiar variables
+	draggedRowTelar = null;
+
+	// Limpiar clases y estilos de todas las filas
+	$$('.selectable-row').forEach(row => {
+		row.classList.remove('drag-over');
+		row.style.cursor = '';
+		row.removeAttribute('data-telar-warning-shown');
+	});
+}
+
+function getDragAfterElement(container, y) {
+	const draggableElements = [...container.querySelectorAll('.selectable-row:not(.dragging)')];
+
+	return draggableElements.reduce((closest, child) => {
+		const box = child.getBoundingClientRect();
+		const offset = y - box.top - box.height / 2;
+
+		if (offset < 0 && offset > closest.offset) {
+			return { offset: offset, element: child };
+		} else {
+			return closest;
+		}
+	}, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
 // ===== Init =====
 document.addEventListener('DOMContentLoaded', function() {
 	const tb = tbodyEl();
@@ -1005,7 +1401,34 @@ window.applyTableFilters = function(values){
         }
         // Render
         tb.innerHTML = '';
-        filtered.forEach((r,i) => { r.onclick = () => selectRow(r, i); tb.appendChild(r); });
+        filtered.forEach((r,i) => {
+            if (dragDropMode) {
+                // Si el modo drag and drop está activo, configurar para drag
+                const enProceso = isRowEnProceso(r);
+                r.draggable = !enProceso;
+
+                if (!enProceso) {
+                    r.classList.add('cursor-move');
+                } else {
+                    r.classList.add('cursor-not-allowed');
+                    r.style.opacity = '0.6';
+                }
+
+                r.removeEventListener('click', () => selectRow(r, i));
+
+                // Agregar event listeners de drag solo si no está en proceso
+                if (!enProceso) {
+                    r.addEventListener('dragstart', handleDragStart);
+                    r.addEventListener('dragover', handleDragOver);
+                    r.addEventListener('drop', handleDrop);
+                    r.addEventListener('dragend', handleDragEnd);
+                }
+            } else {
+                // Modo normal, solo click
+                r.onclick = () => selectRow(r, i);
+            }
+            tb.appendChild(r);
+        });
     }catch(e){}
 }
 

@@ -765,6 +765,7 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Control
     Route::put('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'update'])->name('programa-tejido.update');
     Route::post('/planeacion/programa-tejido/{id}/prioridad/subir', [ProgramaTejidoController::class, 'moveUp'])->name('programa-tejido.prioridad.subir');
     Route::post('/planeacion/programa-tejido/{id}/prioridad/bajar', [ProgramaTejidoController::class, 'moveDown'])->name('programa-tejido.prioridad.bajar');
+    Route::post('/planeacion/programa-tejido/{id}/prioridad/mover', [ProgramaTejidoController::class, 'moveToPosition'])->name('programa-tejido.prioridad.mover');
     Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'destroy'])->name('programa-tejido.destroy');
         // JSON: ReqProgramaTejidoLine dentro de planeación
         Route::get('/planeacion/req-programa-tejido-line', [\App\Http\Controllers\ReqProgramaTejidoLineController::class, 'index']);
