@@ -181,6 +181,7 @@ let dragDropMode = false;
 let draggedRow = null;
 let draggedRowIndex = -1;
 let draggedRowTelar = null;
+let draggedRowCambioHilo = null;
 
 // ===== Helpers DOM =====
 const $ = (sel, ctx=document) => ctx.querySelector(sel);
@@ -888,6 +889,12 @@ function getRowTelar(row) {
 	return telarCell ? telarCell.textContent.trim() : null;
 }
 
+// Función helper para obtener el cambio de hilo de una fila
+function getRowCambioHilo(row) {
+	const cambioHiloCell = row.querySelector('[data-column="CambioHilo"]');
+	return cambioHiloCell ? cambioHiloCell.textContent.trim() : null;
+}
+
 // Función helper para verificar si una fila está en proceso
 function isRowEnProceso(row) {
 	const enProcesoCell = row.querySelector('[data-column="EnProceso"]');
@@ -978,6 +985,7 @@ function handleDragStart(e) {
 
 	draggedRow = this;
 	draggedRowTelar = getRowTelar(this);
+	draggedRowCambioHilo = getRowCambioHilo(this);
 	dragStartPosition = this.rowIndex; // Guardar posición inicial
 
 	this.classList.add('dragging');
@@ -1046,7 +1054,7 @@ function handleDrop(e) {
 
 	const targetTelar = getRowTelar(this);
 
-	// Validación final: verificar telar
+	// Validación: verificar telar
 	if (draggedRowTelar !== targetTelar) {
 		showToast('No se puede mover entre diferentes telares', 'error');
 		return false;
@@ -1144,7 +1152,37 @@ function updateTableAfterDragDrop(detalles, registroMovidoId) {
 		return '';
 	};
 
-	// Actualizar cada registro afectado
+	// Obtener el telar de los registros afectados (todos deberían ser del mismo telar)
+	const telarAfectado = detalles.length > 0 ? detalles[0].NoTelar : null;
+
+	// PASO 1: Limpiar TODOS los "Ultimo" y "EnProceso" del telar afectado
+	if (telarAfectado) {
+		const todasLasFilas = document.querySelectorAll('.selectable-row');
+		todasLasFilas.forEach(row => {
+			const telarCell = row.querySelector('[data-column="NoTelarId"]');
+			const telarDeRow = telarCell ? telarCell.textContent.trim() : null;
+
+			// Solo limpiar filas del mismo telar
+			if (telarDeRow === telarAfectado) {
+				// Limpiar Ultimo
+				const ultimoCell = row.querySelector('[data-column="Ultimo"]');
+				if (ultimoCell) {
+					ultimoCell.textContent = '';
+				}
+
+				// Limpiar EnProceso (todos en false excepto el primero)
+				const enProcesoCell = row.querySelector('[data-column="EnProceso"]');
+				if (enProcesoCell) {
+					const checkbox = enProcesoCell.querySelector('input[type="checkbox"]');
+					if (checkbox) {
+						checkbox.checked = false;
+					}
+				}
+			}
+		});
+	}
+
+	// PASO 2: Actualizar cada registro afectado con los nuevos valores
 	detalles.forEach(detalle => {
 		const row = document.querySelector(`.selectable-row[data-id="${detalle.Id}"]`);
 		if (!row) return;
@@ -1176,22 +1214,44 @@ function updateTableAfterDragDrop(detalles, registroMovidoId) {
 			}
 		}
 
-		// Actualizar EnProceso
-		if (detalle.hasOwnProperty('EnProceso')) {
+		// Actualizar EnProceso (buscar tanto 'EnProceso' como 'EnProceso_nuevo')
+		const enProcesoNuevo = detalle.EnProceso_nuevo !== undefined ? detalle.EnProceso_nuevo : detalle.EnProceso;
+		if (enProcesoNuevo !== undefined) {
 			const enProcesoCell = row.querySelector('[data-column="EnProceso"]');
 			if (enProcesoCell) {
 				const checkbox = enProcesoCell.querySelector('input[type="checkbox"]');
 				if (checkbox) {
-					checkbox.checked = (detalle.EnProceso == 1 || detalle.EnProceso === true);
+					checkbox.checked = (enProcesoNuevo == 1 || enProcesoNuevo === true);
 				}
 			}
 		}
 
-		// Actualizar Ultimo
-		if (detalle.hasOwnProperty('Ultimo')) {
+		// Actualizar Ultimo (buscar tanto 'Ultimo' como 'Ultimo_nuevo')
+		const ultimoNuevo = detalle.Ultimo_nuevo !== undefined ? detalle.Ultimo_nuevo : detalle.Ultimo;
+		if (ultimoNuevo !== undefined) {
 			const ultimoCell = row.querySelector('[data-column="Ultimo"]');
 			if (ultimoCell) {
-				ultimoCell.textContent = detalle.Ultimo === '1' || detalle.Ultimo === 'UL' ? '1' : '';
+				const valor = ultimoNuevo === '1' || ultimoNuevo === 'UL' || ultimoNuevo === 1 ? '1' : '';
+				ultimoCell.textContent = valor;
+
+				// Animación solo si se pone en "1" (para destacar el nuevo último)
+				if (valor === '1') {
+					ultimoCell.classList.add('bg-yellow-100');
+					setTimeout(() => ultimoCell.classList.remove('bg-yellow-100'), 1500);
+				}
+			}
+		}
+
+		// Actualizar CambioHilo (buscar tanto 'CambioHilo' como 'CambioHilo_nuevo')
+		const cambioHiloNuevo = detalle.CambioHilo_nuevo !== undefined ? detalle.CambioHilo_nuevo : detalle.CambioHilo;
+		if (cambioHiloNuevo !== undefined) {
+			const cambioHiloCell = row.querySelector('[data-column="CambioHilo"]');
+			if (cambioHiloCell) {
+				cambioHiloCell.textContent = cambioHiloNuevo;
+
+				// Animación si cambió de valor
+				cambioHiloCell.classList.add('bg-yellow-100');
+				setTimeout(() => cambioHiloCell.classList.remove('bg-yellow-100'), 1500);
 			}
 		}
 	});
@@ -1216,6 +1276,7 @@ function handleDragEnd(e) {
 	// Limpiar variables
 	draggedRow = null;
 	draggedRowTelar = null;
+	draggedRowCambioHilo = null;
 	dragStartPosition = null;
 }
 

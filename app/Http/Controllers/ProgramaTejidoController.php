@@ -1175,11 +1175,23 @@ class ProgramaTejidoController extends Controller
             }
             $nuevoFin = (clone $nuevoInicio)->add($dur);
 
+            // Calcular CambioHilo: comparar FibraRizo con el registro anterior
+            $cambioHilo = '0'; // Por defecto 0
+            if ($i > 0) {
+                $registroAnterior = $registrosOrdenados[$i - 1];
+                $fibraRizoActual = trim((string)$r->FibraRizo);
+                $fibraRizoAnterior = trim((string)$registroAnterior->FibraRizo);
+
+                // Si FibraRizo es diferente al anterior → CambioHilo = 1
+                $cambioHilo = ($fibraRizoActual !== $fibraRizoAnterior) ? '1' : '0';
+            }
+
             $updates[$r->Id] = [
                 'FechaInicio' => $nuevoInicio->format('Y-m-d H:i:s'),
                 'FechaFinal'  => $nuevoFin->format('Y-m-d H:i:s'),
                 'EnProceso'   => $i === 0 ? 1 : 0,
                 'Ultimo'      => $i === ($n - 1) ? '1' : '0',
+                'CambioHilo'  => $cambioHilo,
                 'UpdatedAt'   => $now,
             ];
 
@@ -1191,6 +1203,7 @@ class ProgramaTejidoController extends Controller
                 'FechaFinal_nueva'  => $updates[$r->Id]['FechaFinal'],
                 'EnProceso_nuevo'   => $updates[$r->Id]['EnProceso'],
                 'Ultimo_nuevo'      => $updates[$r->Id]['Ultimo'],
+                'CambioHilo_nuevo'  => $cambioHilo,
             ];
 
             $lastFin = $nuevoFin;
