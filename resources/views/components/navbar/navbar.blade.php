@@ -101,6 +101,8 @@
                         iconColor="text-white"
                         hoverBg="hover:bg-stone-600"
                         class="text-sm" />
+                        <!-- Crear por el momento esto se va a Ocultar -->
+                        <!--
                       <div class="relative">
                         <x-navbar.button-create
                           id="layoutBtnAddMenu"
@@ -128,8 +130,11 @@
                             </button>
                           </div>
                         </div>
-                      </div>
-                      <x-navbar.button-edit
+                    </div>
+                -->
+                    <!-- Editar por el momento esto se va a Ocultar -->
+                        <!--
+                            <x-navbar.button-edit
                         id="layoutBtnEditar"
                         onclick="const selected = document.querySelectorAll('.selectable-row')[selectedRowIndex]; const id = selected ? selected.getAttribute('data-id') : null; if(id) window.location.href = `/planeacion/programa-tejido/${encodeURIComponent(id)}/editar`;"
                         title="Editar"
@@ -137,7 +142,8 @@
                         iconColor="text-white"
                         hoverBg="hover:bg-yellow-600"
                         bg="bg-yellow-500"
-                        class="text-sm" />
+                            class="text-sm" />
+                        -->
                       <x-navbar.button-delete
                         id="layoutBtnEliminar"
                         onclick="const selected = document.querySelectorAll('.selectable-row')[selectedRowIndex]; const id = selected ? selected.getAttribute('data-id') : null; if(id) eliminarRegistro(id);"
