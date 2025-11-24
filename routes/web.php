@@ -763,9 +763,9 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Control
         Route::post('/planeacion/programa-tejido', [ProgramaTejidoController::class, 'store'])->name('programa-tejido.store');
         Route::get('/planeacion/programa-tejido/{id}/editar', [ProgramaTejidoController::class, 'edit'])->name('programa-tejido.edit');
     Route::put('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'update'])->name('programa-tejido.update');
-    Route::post('/planeacion/programa-tejido/{id}/prioridad/subir', [ProgramaTejidoController::class, 'moveUp'])->name('programa-tejido.prioridad.subir');
-    Route::post('/planeacion/programa-tejido/{id}/prioridad/bajar', [ProgramaTejidoController::class, 'moveDown'])->name('programa-tejido.prioridad.bajar');
     Route::post('/planeacion/programa-tejido/{id}/prioridad/mover', [ProgramaTejidoController::class, 'moveToPosition'])->name('programa-tejido.prioridad.mover');
+    Route::post('/planeacion/programa-tejido/{id}/verificar-cambio-telar', [ProgramaTejidoController::class, 'verificarCambioTelar'])->name('programa-tejido.verificar-cambio-telar');
+    Route::post('/planeacion/programa-tejido/{id}/cambiar-telar', [ProgramaTejidoController::class, 'cambiarTelar'])->name('programa-tejido.cambiar-telar');
     Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'destroy'])->name('programa-tejido.destroy');
         // JSON: ReqProgramaTejidoLine dentro de planeación
         Route::get('/planeacion/req-programa-tejido-line', [\App\Http\Controllers\ReqProgramaTejidoLineController::class, 'index']);
@@ -783,9 +783,7 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Control
     Route::post('/programa-tejido/datos-relacionados', [ProgramaTejidoController::class, 'getDatosRelacionados']);
 Route::get('/programa-tejido/telares-by-salon', [ProgramaTejidoController::class, 'getTelaresBySalon']);
 Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoController::class, 'getUltimaFechaFinalTelar']);
-Route::get('/programa-tejido/ultimo-registro-salon', [ProgramaTejidoController::class, 'getUltimoRegistroSalon']);
 Route::get('/programa-tejido/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
-Route::post('/programa-tejido/calcular-fecha-fin', [ProgramaTejidoController::class, 'calcularFechaFin']);
 Route::get('/programa-tejido/eficiencia-std', [ProgramaTejidoController::class, 'getEficienciaStd']);
 Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, 'getVelocidadStd']);
 

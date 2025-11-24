@@ -222,11 +222,6 @@
             </div>
         </div>
     </div>
-
-    {{-- Tabla de Líneas Diarias (visible después de crear) --}}
-    <div id="contenedor-lineas-diarias" style="display:none;" class="mt-6">
-        @include('components.tables.req-programa-tejido-line-table')
-    </div>
     </div>
 
 {{-- Scripts modulares --}}

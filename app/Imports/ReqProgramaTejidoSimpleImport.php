@@ -121,7 +121,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'Luchaje'         => $this->parseInteger($this->getValue($row, ['Luc','Luchaje','luchaje','LUC','LUCHE','Luch','luc'])),
                 'LargoCrudo'      => $this->parseInteger($this->getValue($row, ['Lcr','Largo Crudo','largo_crudo'])),
                 'PesoCrudo'       => $this->parseInteger($this->getValue($row, ['Pcr','Peso Crudo','peso crudo','peso_crudo'])),
-                'PesoGRM2'        => $this->parseInteger($this->getValue($row, [
+                'PesoGRM2'        => $this->parseFloat($this->getValue($row, [
                                         'PesoGRM2','Peso GRM2','peso grm2','peso_gr_m_2'
                 ])),
                 'DiasEficiencia'  => $this->parseFloat($this->getValue($row, ['Días Ef.','Dias Ef.','Días Eficiencia','Dias Eficiencia','dias_eficiencia'])),

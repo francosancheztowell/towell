@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Helpers\StringTruncator;
 use App\Models\ReqModelosCodificados;
 use App\Models\ReqProgramaTejido;
+use App\Models\ReqEficienciaStd;
+use App\Models\ReqVelocidadStd;
+use App\Observers\ReqProgramaTejidoObserver;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,7 +21,6 @@ class ProgramaTejidoController extends Controller
     public function index()
     {
         try {
-            // Mantengo tu selección explícita pero encapsulo el ORDER en scopeOrdenado()
             $registros = ReqProgramaTejido::select([
                 'Id','EnProceso','CuentaRizo','CalibreRizo2','SalonTejidoId','NoTelarId','Ultimo','CambioHilo','Maquina',
                 'Ancho','EficienciaSTD','VelocidadSTD','FibraRizo','CalibrePie2','CalendarioId','TamanoClave','NoExisteBase',
@@ -53,12 +56,6 @@ class ProgramaTejidoController extends Controller
      */
     private function getTableColumns(): array
     {
-        // Campos DATE (solo fecha, sin hora)
-        $dateFields = ['ProgramarProd', 'Programado', 'EntregaProduc', 'EntregaPT'];
-
-        // Campos DATETIME (fecha con hora)
-        $datetimeFields = ['FechaInicio', 'FechaFinal', 'EntregaCte'];
-
         return [
             ['field' => 'EnProceso', 'label' => 'Estado', 'dateType' => null],
             ['field' => 'CuentaRizo', 'label' => 'Cuenta', 'dateType' => null],
@@ -144,9 +141,6 @@ class ProgramaTejidoController extends Controller
             ['field' => 'HorasProd', 'label' => 'Horas', 'dateType' => null],
             ['field' => 'StdHrsEfect', 'label' => 'Std/Hr Efectivo', 'dateType' => null],
             ['field' => 'FechaInicio', 'label' => 'Inicio', 'dateType' => 'datetime'],
-            ['field' => 'Calc4', 'label' => 'Calc4', 'dateType' => null],
-            ['field' => 'Calc5', 'label' => 'Calc5', 'dateType' => null],
-            ['field' => 'Calc6', 'label' => 'Calc6', 'dateType' => null],
             ['field' => 'FechaFinal', 'label' => 'Fin', 'dateType' => 'datetime'],
             ['field' => 'EntregaProduc', 'label' => 'Fecha Compromiso Prod.', 'dateType' => 'date'],
             ['field' => 'EntregaPT', 'label' => 'Fecha Compromiso PT', 'dateType' => 'date'],
@@ -158,12 +152,6 @@ class ProgramaTejidoController extends Controller
     /* ======================================
      |  SHOW / EDIT
      |======================================*/
-    public function showJson(int $id)
-    {
-        $registro = ReqProgramaTejido::findOrFail($id);
-        return response()->json(['success' => true, 'data' => $registro]);
-    }
-
     public function edit(int $id)
     {
         $registro = ReqProgramaTejido::findOrFail($id);
@@ -226,7 +214,7 @@ class ProgramaTejidoController extends Controller
         $this->applyCantidad($registro, $data);
 
         // 2) Guardar original de FechaFinal
-        $fechaFinalOriginal = $registro->FechaFinal ? \Carbon\Carbon::parse($registro->FechaFinal) : null;
+        $fechaFinalOriginal = $registro->FechaFinal ? Carbon::parse($registro->FechaFinal) : null;
 
         // 3) Fechas (campo libre)
         if (!empty($data['fecha_fin'] ?? null)) {
@@ -264,7 +252,7 @@ class ProgramaTejidoController extends Controller
         // 10) Detectar cambio real de FechaFinal para cascada
         $fechaFinalCambiada = false;
         if (array_key_exists('fecha_fin', $data) && !empty($data['fecha_fin'])) {
-            $nueva = \Carbon\Carbon::parse($data['fecha_fin']);
+            $nueva = Carbon::parse($data['fecha_fin']);
             if (!$fechaFinalOriginal || !$fechaFinalOriginal->equalTo($nueva)) {
                 $registro->FechaFinal = $nueva;
                 $fechaFinalCambiada = true;
@@ -390,7 +378,7 @@ class ProgramaTejidoController extends Controller
                 // Mapear campos del formulario (con casteo/truncamiento)
                 $this->aplicarCamposFormulario($nuevo, $request);
 
-                // ⭐ Asignar ItemId y CustName explícitamente (pueden venir del request o del modelo codificado)
+                // Asignar ItemId y CustName explícitamente (pueden venir del request o del modelo codificado)
                 if ($request->filled('ItemId')) {
                     $nuevo->ItemId = (string) $request->input('ItemId');
                 }
@@ -444,15 +432,6 @@ class ProgramaTejidoController extends Controller
         $modelos  = ReqModelosCodificados::query()->select('SalonTejidoId')->whereNotNull('SalonTejidoId')->distinct()->pluck('SalonTejidoId');
 
         return response()->json($programa->merge($modelos)->filter()->unique()->sort()->values());
-    }
-
-    public function getTamanoClaveOptions()
-    {
-        $op = ReqModelosCodificados::query()
-            ->select('TamanoClave')->whereNotNull('TamanoClave')->where('TamanoClave','!=','')
-            ->distinct()->pluck('TamanoClave')->filter()->values();
-
-        return response()->json($op);
     }
 
     public function getTamanoClaveBySalon(Request $request)
@@ -712,29 +691,6 @@ class ProgramaTejidoController extends Controller
         }
     }
 
-    public function getUltimoRegistroSalon(Request $request)
-    {
-        try {
-            $salon = $request->input('salon_tejido_id');
-            if (!$salon) return response()->json(['error' => 'SalonTejidoId es requerido'], 400);
-
-            $ultimo = ReqProgramaTejido::query()->salon($salon)
-                ->orderByDesc('Id')
-                ->select('Hilo','Id','FechaInicio')
-                ->first();
-
-            if (!$ultimo) return response()->json(['message' => 'No hay registros previos en este salón'], 200);
-
-            return response()->json([
-                'Hilo' => $ultimo->Hilo,
-                'Id' => $ultimo->Id,
-                'FechaInicio' => $ultimo->FechaInicio
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al obtener último registro: '.$e->getMessage()], 500);
-        }
-    }
-
     public function getHilosOptions()
     {
         try {
@@ -754,121 +710,371 @@ class ProgramaTejidoController extends Controller
     }
 
     /* ======================================
-     |  CÁLCULO FECHA FIN (igual a tu lógica)
+     |  PRIORIDAD (DRAG AND DROP)
      |======================================*/
-    public function calcularFechaFin(Request $request)
+    /**
+     * Verificar si se puede mover un registro a otro telar/salón
+     *
+     * @param Request $request
+     * @param int $id ID del registro a mover
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function verificarCambioTelar(Request $request, int $id)
     {
+        $request->validate([
+            'nuevo_salon' => 'required|string',
+            'nuevo_telar' => 'required|string'
+        ]);
+
         try {
-            $request->validate([
-                'telar' => 'required|string',
-                'hilo' => 'required|string',
-                'cantidad' => 'required|numeric|min:1',
-                'fecha_inicio' => 'required|date',
-                'calendario' => 'required|string',
-                'salon_tejido_id' => 'required|string',
-                'tamano_clave' => 'required|string'
+            $registro = ReqProgramaTejido::findOrFail($id);
+            $nuevoSalon = $request->input('nuevo_salon');
+            $nuevoTelar = $request->input('nuevo_telar');
+
+            // Si es el mismo telar y salón, no requiere validación
+            if ($registro->SalonTejidoId === $nuevoSalon && $registro->NoTelarId === $nuevoTelar) {
+                return response()->json([
+                    'puede_mover' => true,
+                    'requiere_confirmacion' => false,
+                    'mensaje' => 'Mismo telar'
+                ]);
+            }
+
+            // Validar que la clave modelo exista en el salón destino
+            // NOTA: Se valida solo por SalonTejidoId y ClaveModelo/TamanoClave
+            // No se valida por NoTelarId para permitir cambios entre telares del mismo salón
+            $modeloDestino = ReqModelosCodificados::where('SalonTejidoId', $nuevoSalon)
+                // ->where('NoTelarId', $nuevoTelar) // COMENTADO: Ya no se valida por telar específico
+                ->where(function ($q) use ($registro) {
+                    $q->where('ClaveModelo', $registro->TamanoClave)
+                        ->orWhere('TamanoClave', $registro->TamanoClave);
+                })
+                ->first();
+
+            if (!$modeloDestino) {
+                return response()->json([
+                    'puede_mover' => false,
+                    'requiere_confirmacion' => false,
+                    'mensaje' => 'La clave modelo no existe en el telar destino. No se puede realizar el cambio.',
+                    'clave_modelo' => $registro->TamanoClave,
+                    'telar_destino' => $nuevoTelar,
+                    'salon_destino' => $nuevoSalon
+                ]);
+            }
+
+            // Calcular valores que cambiarán
+            [$nuevaEficiencia, $nuevaVelocidad] = $this->resolverStdSegunTelar($registro, $modeloDestino, $nuevoTelar, $nuevoSalon);
+
+            // Identificar cambios
+            $cambios = [];
+
+            // Cambio de Salón
+            if ($registro->SalonTejidoId !== $nuevoSalon) {
+                $cambios[] = [
+                    'campo' => 'Salón',
+                    'actual' => $registro->SalonTejidoId,
+                    'nuevo' => $nuevoSalon
+                ];
+            }
+
+            // Cambio de Telar
+            if ($registro->NoTelarId !== $nuevoTelar) {
+                $cambios[] = [
+                    'campo' => 'Telar',
+                    'actual' => $registro->NoTelarId,
+                    'nuevo' => $nuevoTelar
+                ];
+            }
+
+            // Cambio de Ultimo (siempre se resetea)
+            if ($registro->Ultimo == 1 || $registro->Ultimo == 'UL' || $registro->Ultimo == '1') {
+                $cambios[] = [
+                    'campo' => 'Último',
+                    'actual' => $registro->Ultimo,
+                    'nuevo' => '0'
+                ];
+            }
+
+            // Cambio de CambioHilo (siempre se resetea a 0)
+            if ($registro->CambioHilo != 0 && $registro->CambioHilo != null) {
+                $cambios[] = [
+                    'campo' => 'Cambio Hilo',
+                    'actual' => $registro->CambioHilo,
+                    'nuevo' => '0'
+                ];
+            }
+
+            // Cambio de Ancho (del modelo codificado)
+            if ($modeloDestino->AnchoToalla && $registro->Ancho != $modeloDestino->AnchoToalla) {
+                $cambios[] = [
+                    'campo' => 'Ancho',
+                    'actual' => $registro->Ancho ?? 'N/A',
+                    'nuevo' => $modeloDestino->AnchoToalla
+                ];
+            }
+
+            // Nota: Máquina se mantiene igual (no está en modelos codificados)
+
+            // Cambio de Eficiencia
+            if ($nuevaEficiencia !== null && $registro->EficienciaSTD != $nuevaEficiencia) {
+                $cambios[] = [
+                    'campo' => 'Eficiencia STD',
+                    'actual' => $registro->EficienciaSTD ?? 'N/A',
+                    'nuevo' => number_format($nuevaEficiencia, 2)
+                ];
+            }
+
+            // Cambio de Velocidad
+            if ($nuevaVelocidad !== null && $registro->VelocidadSTD != $nuevaVelocidad) {
+                $cambios[] = [
+                    'campo' => 'Velocidad STD',
+                    'actual' => $registro->VelocidadSTD ?? 'N/A',
+                    'nuevo' => $nuevaVelocidad
+                ];
+            }
+
+            // Cambio de Calibre Rizo (comparar con CalibreRizo2 del modelo)
+            if (isset($modeloDestino->CalibreRizo2) && $modeloDestino->CalibreRizo2 !== null) {
+                $calibreRizoActual = $registro->CalibreRizo2 ?? $registro->CalibreRizo ?? null;
+                if ($calibreRizoActual != $modeloDestino->CalibreRizo2) {
+                    $cambios[] = [
+                        'campo' => 'Calibre Rizo',
+                        'actual' => $calibreRizoActual ?? 'N/A',
+                        'nuevo' => $modeloDestino->CalibreRizo2
+                    ];
+                }
+            }
+
+            // Cambio de Calibre Pie (comparar con CalibrePie2 del modelo)
+            if (isset($modeloDestino->CalibrePie2) && $modeloDestino->CalibrePie2 !== null) {
+                $calibrePieActual = $registro->CalibrePie2 ?? $registro->CalibrePie ?? null;
+                if ($calibrePieActual != $modeloDestino->CalibrePie2) {
+                    $cambios[] = [
+                        'campo' => 'Calibre Pie',
+                        'actual' => $calibrePieActual ?? 'N/A',
+                        'nuevo' => $modeloDestino->CalibrePie2
+                    ];
+                }
+            }
+
+            // Fechas se recalcularán (siempre cambian)
+            $cambios[] = [
+                'campo' => 'Fecha Inicio',
+                'actual' => $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->format('d/m/Y H:i') : 'N/A',
+                'nuevo' => 'Se recalculará'
+            ];
+
+            $cambios[] = [
+                'campo' => 'Fecha Final',
+                'actual' => $registro->FechaFinal ? Carbon::parse($registro->FechaFinal)->format('d/m/Y H:i') : 'N/A',
+                'nuevo' => 'Se recalculará'
+            ];
+
+            // Cálculos se recalcularán
+            if ($registro->Calc4 || $registro->Calc5 || $registro->Calc6) {
+                $cambios[] = [
+                    'campo' => 'Cálculos (Calc4, Calc5, Calc6)',
+                    'actual' => 'Tienen valores',
+                    'nuevo' => 'Se recalcularán'
+                ];
+            }
+
+            return response()->json([
+                'puede_mover' => true,
+                'requiere_confirmacion' => true,
+                'mensaje' => 'Se moverá el registro a otro telar. Se aplicarán los siguientes cambios:',
+                'clave_modelo' => $registro->TamanoClave,
+                'telar_origen' => $registro->NoTelarId,
+                'salon_origen' => $registro->SalonTejidoId,
+                'telar_destino' => $nuevoTelar,
+                'salon_destino' => $nuevoSalon,
+                'cambios' => $cambios
             ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'puede_mover' => false,
+                'mensaje' => 'Error al verificar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
-            $telar  = $request->input('telar');
-            $hilo   = $request->input('hilo');
-            $cant   = $request->input('cantidad');
-            $inicio = $request->input('fecha_inicio');
-            $cal    = $request->input('calendario');
-            $salon  = $request->input('salon_tejido_id');
-            $tc     = $request->input('tamano_clave');
+    public function cambiarTelar(Request $request, int $id)
+    {
+        $request->validate([
+            'nuevo_salon' => 'required|string',
+            'nuevo_telar' => 'required|string',
+            'target_position' => 'required|integer|min:0'
+        ]);
 
-            $modelo = ReqModelosCodificados::where('SalonTejidoId',$salon)->where('TamanoClave',$tc)->first();
-            if (!$modelo) return response()->json(['error'=>true,'message'=>'No se encontró un modelo con los datos proporcionados.'],404);
+        $registro = ReqProgramaTejido::findOrFail($id);
 
-            $densidad = (isset($modelo->Tra) && $modelo->Tra > 40) ? 'Alta' : 'Normal';
+        if ($registro->EnProceso == 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede mover un registro en proceso. Debe finalizar el proceso antes de moverlo.'
+            ], 422);
+        }
 
-            $velocidad = \App\Models\CatalagoVelocidad::where('telar',$telar)->where('tipo_hilo',$hilo)->where('densidad',$densidad)->value('velocidad');
-            $eficiencia = \App\Models\CatalagoEficiencia::where('telar',$telar)->where('tipo_hilo',$hilo)->where('densidad',$densidad)->value('eficiencia');
+        $nuevoSalon = $request->input('nuevo_salon');
+        $nuevoTelar = $request->input('nuevo_telar');
+        $targetPosition = max(0, (int)$request->input('target_position'));
 
-            if (!$velocidad || !$eficiencia) return response()->json(['error'=>true,'message'=>'No se encontraron datos de velocidad o eficiencia para el telar y hilo seleccionados.'],404);
+        if ($registro->SalonTejidoId === $nuevoSalon && $registro->NoTelarId === $nuevoTelar) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selecciona un telar diferente para aplicar el cambio.'
+            ], 422);
+        }
 
-            $std_toa_hr_100 = (($modelo->NoTiras * 60) / (((($modelo->Total / 1) + (($modelo->Luchaje * 0.5) / 0.0254) / $modelo->Repeticiones) / $velocidad)));
+        // Validar que la clave modelo exista en el salón destino
+        // NOTA: Se valida solo por SalonTejidoId y ClaveModelo/TamanoClave
+        // No se valida por NoTelarId para permitir cambios entre telares del mismo salón
+        $modeloDestino = ReqModelosCodificados::where('SalonTejidoId', $nuevoSalon)
+            // ->where('NoTelarId', $nuevoTelar) // COMENTADO: Ya no se valida por telar específico
+            ->where(function ($q) use ($registro) {
+                $q->where('ClaveModelo', $registro->TamanoClave)
+                    ->orWhere('TamanoClave', $registro->TamanoClave);
+            })
+            ->first();
 
-            $horas = $cant / ($std_toa_hr_100 * $eficiencia);
+        if (!$modeloDestino) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La clave modelo no existe en el telar destino.'
+            ], 422);
+        }
 
-            $fecha_final = $this->sumarHorasCalendario($inicio, $horas, $cal);
+        DB::beginTransaction();
+        ReqProgramaTejido::unsetEventDispatcher();
+
+        try {
+            $idsAfectados = [];
+            $detallesTotales = [];
+
+            $origenSalon = $registro->SalonTejidoId;
+            $origenTelar = $registro->NoTelarId;
+
+            $origenRegistros = ReqProgramaTejido::query()
+                ->salon($origenSalon)
+                ->telar($origenTelar)
+                ->orderBy('FechaInicio', 'asc')
+                ->lockForUpdate()
+                ->get();
+
+            $inicioOrigen = $origenRegistros->first()?->FechaInicio;
+            $origenSin = $origenRegistros->reject(fn ($item) => $item->Id === $registro->Id)->values();
+
+            $destRegistrosOriginal = ReqProgramaTejido::query()
+                ->salon($nuevoSalon)
+                ->telar($nuevoTelar)
+                ->orderBy('FechaInicio', 'asc')
+                ->lockForUpdate()
+                ->get();
+            $destInicio = $destRegistrosOriginal->first()?->FechaInicio ?? $registro->FechaInicio ?? now();
+
+            // VALIDACIÓN: No se puede colocar antes de un registro en proceso
+            // Encontrar el último registro en proceso del telar destino
+            $ultimoEnProcesoIndex = -1;
+            foreach ($destRegistrosOriginal as $index => $regDestino) {
+                if ($regDestino->EnProceso == 1) {
+                    $ultimoEnProcesoIndex = $index;
+                }
+            }
+
+            // Si hay registros en proceso, la posición mínima debe ser después del último
+            if ($ultimoEnProcesoIndex !== -1) {
+                $posicionMinima = $ultimoEnProcesoIndex + 1;
+                if ($targetPosition < $posicionMinima) {
+                    DB::rollBack();
+                    ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se puede colocar un registro antes de uno que está en proceso. La posición mínima permitida es ' . ($posicionMinima + 1) . '.'
+                    ], 422);
+                }
+            }
+
+            $registro->SalonTejidoId = $nuevoSalon;
+            $registro->NoTelarId = $nuevoTelar;
+            $registro->CambioHilo = 0;
+
+            [$nuevaEficiencia, $nuevaVelocidad] = $this->resolverStdSegunTelar($registro, $modeloDestino, $nuevoTelar, $nuevoSalon);
+            if (!is_null($nuevaEficiencia)) {
+                $registro->EficienciaSTD = $nuevaEficiencia;
+            }
+            if (!is_null($nuevaVelocidad)) {
+                $registro->VelocidadSTD = $nuevaVelocidad;
+            }
+
+            $destRegistros = $destRegistrosOriginal->values();
+            $targetPosition = min(max($targetPosition, 0), $destRegistros->count());
+            $destRegistros->splice($targetPosition, 0, [$registro]);
+            $destRegistros = $destRegistros->values();
+
+            if ($origenSin->count() > 0) {
+                $inicioOrigenCarbon = Carbon::parse($inicioOrigen ?? $registro->FechaInicio ?? now());
+                [$updatesOrigen, $detallesOrigen] = $this->recalcularFechasSecuencia($origenSin, $inicioOrigenCarbon);
+                foreach ($updatesOrigen as $idU => $data) {
+                    DB::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+                    $idsAfectados[] = $idU;
+                }
+                $detallesTotales = array_merge($detallesTotales, $detallesOrigen);
+            }
+
+            $destInicioCarbon = Carbon::parse($destInicio ?? now());
+            [$updatesDestino, $detallesDestino] = $this->recalcularFechasSecuencia($destRegistros, $destInicioCarbon);
+
+            $updatesDestino[$registro->Id] = array_merge(
+                $updatesDestino[$registro->Id] ?? [],
+                [
+                    'SalonTejidoId' => $nuevoSalon,
+                    'NoTelarId' => $nuevoTelar,
+                    'EficienciaSTD' => $registro->EficienciaSTD,
+                    'VelocidadSTD' => $registro->VelocidadSTD,
+                    'UpdatedAt' => now(),
+                ]
+            );
+
+            foreach ($updatesDestino as $idU => $data) {
+                DB::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+                $idsAfectados[] = $idU;
+            }
+            $detallesTotales = array_merge($detallesTotales, $detallesDestino);
+
+            DB::commit();
+
+            $idsAfectados = array_values(array_unique($idsAfectados));
+
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            $observer = new ReqProgramaTejidoObserver();
+            foreach ($idsAfectados as $idAfectado) {
+                if ($r = ReqProgramaTejido::find($idAfectado)) {
+                    $observer->saved($r);
+                }
+            }
 
             return response()->json([
                 'success' => true,
-                'fecha_final' => $fecha_final,
-                'horas_calculadas' => round($horas,2),
-                'std_toa_hr_100' => round($std_toa_hr_100,3),
-                'velocidad' => $velocidad,
-                'eficiencia' => $eficiencia,
-                'densidad' => $densidad
+                'message' => 'Telar actualizado correctamente',
+                'registros_afectados' => count($idsAfectados),
+                'detalles' => $detallesTotales,
+                'registro_id' => $registro->Id
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            Log::error('cambiarTelar error', [
+                'id' => $id ?? null,
+                'mensaje' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
-        } catch (\Throwable $e) {
-            return response()->json(['error'=>true,'message'=>'Error al calcular fecha final: '.$e->getMessage()],500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cambiar de telar: ' . $e->getMessage()
+            ], 500);
         }
     }
-
-    private function sumarHorasCalendario($fecha_inicio, $horas, $tipo_calendario)
-    {
-        $dias = floor($horas / 24);
-        $horas_rest = floor($horas % 24);
-        $mins = round(($horas - floor($horas)) * 60);
-        $fecha = \Carbon\Carbon::parse($fecha_inicio);
-
-        switch ($tipo_calendario) {
-            case 'Calendario Tej1':
-                $fecha->addDays($dias)->addHours($horas_rest)->addMinutes($mins);
-                break;
-            case 'Calendario Tej2':
-                for ($i=0;$i<$dias;$i++) {
-                    $fecha->addDay();
-                    if ($fecha->dayOfWeek == \Carbon\CarbonInterface::SUNDAY) $fecha->addDay();
-                }
-                $fecha = $this->sumarHorasSinDomingo($fecha, $horas_rest, $mins);
-                break;
-            case 'Calendario Tej3':
-                $fecha = $this->sumarHorasTej3($fecha, $dias, $horas_rest, $mins);
-                break;
-            default:
-                $fecha->addDays($dias)->addHours($horas_rest)->addMinutes($mins);
-        }
-
-        return $fecha->format('Y-m-d H:i:s');
-    }
-
-    private function sumarHorasSinDomingo($fecha, $horas, $minutos)
-    {
-        for ($i=0;$i<$horas;$i++) {
-            $fecha->addHour();
-            if ($fecha->dayOfWeek == \Carbon\CarbonInterface::SUNDAY) { $fecha->addDay()->setTime(0,0); }
-        }
-        for ($i=0;$i<$minutos;$i++) {
-            $fecha->addMinute();
-            if ($fecha->dayOfWeek == \Carbon\CarbonInterface::SUNDAY) { $fecha->addDay()->setTime(0,0); }
-        }
-        return $fecha;
-    }
-
-    private function sumarHorasTej3($fecha, $dias, $horas, $minutos)
-    {
-        for ($i=0;$i<$dias;$i++) {
-            $fecha->addDay();
-            if ($fecha->dayOfWeek == \Carbon\CarbonInterface::SUNDAY) $fecha->addDay();
-            if (
-                $fecha->dayOfWeek == \Carbon\CarbonInterface::SATURDAY && $fecha->hour > 18 ||
-                ($fecha->hour == 18 && $fecha->minute > 29)
-            ) {
-                $fecha->addDays(2)->setTime(7,0);
-            }
-        }
-        return $this->sumarHorasSinDomingo($fecha, $horas, $minutos);
-    }
-
-    /* ======================================
-     |  PRIORIDAD (UP/DOWN)
-     |======================================*/
-    public function moveUp(Request $request, int $id)   { return $this->move($id, 'up'); }
-    public function moveDown(Request $request, int $id) { return $this->move($id, 'down'); }
 
     /**
      * Mover registro a una posición específica (drag and drop)
@@ -910,17 +1116,6 @@ class ProgramaTejidoController extends Controller
         }
     }
 
-    private function move(int $id, string $dir)
-    {
-        $registro = ReqProgramaTejido::findOrFail($id);
-        try {
-            $res = $this->moverPrioridad($registro, $dir);
-            return response()->json(['success'=>true,'message'=>"Prioridad ".($dir==='up'?'incrementada':'decrementada'),'cascaded_records'=>count($res['detalles']),'detalles'=>$res['detalles'],'registro_id'=>$registro->Id,'direccion'=>$dir]);
-        } catch (\Throwable $e) {
-            return response()->json(['success'=>false,'message'=>$e->getMessage()], $e instanceof \RuntimeException ? 422 : 500);
-        }
-    }
-
     public function destroy(int $id)
     {
         DB::beginTransaction();
@@ -930,14 +1125,13 @@ class ProgramaTejidoController extends Controller
 
             $salon = $registro->SalonTejidoId;
             $telar = $registro->NoTelarId;
-            $esUltimo = ($registro->Ultimo == '1');
 
             $registros = ReqProgramaTejido::query()->salon($salon)->telar($telar)->orderBy('FechaInicio','asc')->lockForUpdate()->get();
             $idx = $registros->search(fn($r) => $r->Id === $registro->Id);
             if ($idx === false) throw new \RuntimeException('No se encontró el registro a eliminar dentro del telar.');
 
             $primero = $registros->first();
-            $inicioOriginal = $primero->FechaInicio ? \Carbon\Carbon::parse($primero->FechaInicio) : null;
+            $inicioOriginal = $primero->FechaInicio ? Carbon::parse($primero->FechaInicio) : null;
             if (!$inicioOriginal) throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
 
             // Eliminar registro (las líneas se eliminan por ON DELETE CASCADE en BD)
@@ -961,98 +1155,22 @@ class ProgramaTejidoController extends Controller
             DB::commit();
 
             // Re-habilitar observer
-            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
             // Regenerar líneas
-            $observer = new \App\Observers\ReqProgramaTejidoObserver();
+            $observer = new ReqProgramaTejidoObserver();
             foreach (array_column($detalles,'Id') as $idAct) {
                 if ($r = ReqProgramaTejido::find($idAct)) $observer->saved($r);
             }
 
-            Log::info('destroy OK', ['id'=>$id,'salon'=>$salon,'telar'=>$telar,'esUltimo'=>$esUltimo,'n'=>count($detalles)]);
+            Log::info('destroy OK', ['id'=>$id,'salon'=>$salon,'telar'=>$telar,'n'=>count($detalles)]);
             return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente','cascaded_records'=>count($detalles),'detalles'=>$detalles]);
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
             Log::error('destroy error', ['id'=>$id,'msg'=>$e->getMessage()]);
             return response()->json(['success'=>false,'message'=>$e->getMessage()], $e instanceof \RuntimeException ? 422 : 500);
-        }
-    }
-
-    private function moverPrioridad(ReqProgramaTejido $registro, string $direccion): array
-    {
-        DB::beginTransaction();
-        try {
-            $salon = $registro->SalonTejidoId;
-            $telar = $registro->NoTelarId;
-
-            $registros = ReqProgramaTejido::query()->salon($salon)->telar($telar)->orderBy('FechaInicio','asc')->lockForUpdate()->get();
-            if ($registros->count() < 2) throw new \RuntimeException('Se requieren al menos dos registros para reordenar la prioridad.');
-
-            $inicioOriginal = optional($registros->first()->FechaInicio) ? \Carbon\Carbon::parse($registros->first()->FechaInicio) : null;
-            if (!$inicioOriginal) throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
-
-            $idx = $registros->search(fn($r) => $r->Id === $registro->Id);
-            if ($idx === false) throw new \RuntimeException('No se encontró el registro a reordenar dentro del telar.');
-
-            $dst = $direccion === 'up' ? $idx - 1 : $idx + 1;
-            if ($dst < 0) throw new \RuntimeException('Este registro ya es el primero en la secuencia.');
-            if ($dst >= $registros->count()) throw new \RuntimeException('Este registro ya es el último en la secuencia.');
-
-            // Guardar IDs de los registros afectados para regenerar líneas después
-            $idsAfectados = $registros->pluck('Id')->toArray();
-
-            // Intercambio
-            $tmp = $registros[$idx];
-            $registros[$idx] = $registros[$dst];
-            $registros[$dst] = $tmp;
-            $registros = $registros->values();
-
-            // Deshabilitar observers temporalmente para evitar regeneración duplicada de líneas
-            ReqProgramaTejido::unsetEventDispatcher();
-
-            [$updates,$detalles] = $this->recalcularFechasSecuencia($registros, $inicioOriginal);
-
-            // Actualizar registros principales (esto cambia las fechas)
-            foreach ($updates as $idU => $data) {
-                DB::table('ReqProgramaTejido')->where('Id',$idU)->update($data);
-            }
-
-            DB::commit();
-
-            // Re-habilitar observer
-            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
-
-            // Regenerar líneas para TODOS los registros afectados (no solo los que cambiaron de posición)
-            // El Observer eliminará las líneas existentes y creará nuevas basadas en las nuevas fechas
-            $observer = new \App\Observers\ReqProgramaTejidoObserver();
-            foreach ($idsAfectados as $idAct) {
-                if ($r = ReqProgramaTejido::find($idAct)) {
-                    // El Observer.saved() eliminará las líneas existentes y creará nuevas
-                    // Esto asegura que las FK se mantengan correctas y no haya duplicados
-                    $observer->saved($r);
-                }
-            }
-
-            Log::info('moverPrioridad OK', [
-                'id'=>$registro->Id,
-                'dir'=>$direccion,
-                'registros_afectados'=>count($idsAfectados),
-                'detalles_cascada'=>count($detalles)
-            ]);
-            return ['success'=>true,'detalles'=>$detalles];
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
-            Log::error('moverPrioridad error', [
-                'id'=>$registro->Id ?? null,
-                'dir'=>$direccion,
-                'msg'=>$e->getMessage(),
-                'trace'=>$e->getTraceAsString()
-            ]);
-            throw $e;
         }
     }
 
@@ -1065,7 +1183,7 @@ class ProgramaTejidoController extends Controller
         try {
             $salon = $registroActualizado->SalonTejidoId;
             $telar = $registroActualizado->NoTelarId;
-            $fin   = \Carbon\Carbon::parse($registroActualizado->FechaFinal);
+            $fin   = Carbon::parse($registroActualizado->FechaFinal);
 
             $todos = ReqProgramaTejido::query()->salon($salon)->telar($telar)->orderBy('FechaInicio','asc')->get()->values();
 
@@ -1087,8 +1205,8 @@ class ProgramaTejidoController extends Controller
                     continue;
                 }
 
-                $dInicio = \Carbon\Carbon::parse($row->FechaInicio);
-                $dFinal  = \Carbon\Carbon::parse($row->FechaFinal);
+                $dInicio = Carbon::parse($row->FechaInicio);
+                $dFinal  = Carbon::parse($row->FechaFinal);
                 $dur     = $dInicio->diff($dFinal);
 
                 $nuevoInicio = clone $finAnterior;
@@ -1120,12 +1238,12 @@ class ProgramaTejidoController extends Controller
             DB::commit();
 
             // Re-habilitar observer
-            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
             // Regenerar líneas para todos los registros actualizados
             // El Observer eliminará las líneas existentes y creará nuevas basadas en las nuevas fechas
             if (!empty($idsActualizados)) {
-                $observer = new \App\Observers\ReqProgramaTejidoObserver();
+                $observer = new ReqProgramaTejidoObserver();
                 foreach ($idsActualizados as $idAct) {
                     if ($r = ReqProgramaTejido::find($idAct)) {
                         // El Observer.saved() eliminará las líneas existentes y creará nuevas
@@ -1140,7 +1258,7 @@ class ProgramaTejidoController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
             Log::error('cascadeFechas error', [
                 'id'=>$registroActualizado->Id ?? null,
                 'msg'=>$e->getMessage(),
@@ -1150,7 +1268,7 @@ class ProgramaTejidoController extends Controller
         }
     }
 
-    private function recalcularFechasSecuencia($registrosOrdenados, \Carbon\Carbon $inicioOriginal)
+    private function recalcularFechasSecuencia($registrosOrdenados, Carbon $inicioOriginal)
     {
         $updates = [];
         $detalles = [];
@@ -1159,8 +1277,8 @@ class ProgramaTejidoController extends Controller
         $n = $registrosOrdenados->count();
 
         foreach ($registrosOrdenados as $i => $r) {
-            $ini = $r->FechaInicio ? \Carbon\Carbon::parse($r->FechaInicio) : null;
-            $fin = $r->FechaFinal ? \Carbon\Carbon::parse($r->FechaFinal) : null;
+            $ini = $r->FechaInicio ? Carbon::parse($r->FechaInicio) : null;
+            $fin = $r->FechaFinal ? Carbon::parse($r->FechaFinal) : null;
             if (!$ini || !$fin) throw new \RuntimeException("El registro {$r->Id} debe tener FechaInicio y FechaFinal completas.");
 
             $dur = $ini->diff($fin);
@@ -1238,7 +1356,7 @@ class ProgramaTejidoController extends Controller
             }
 
             $inicioOriginal = optional($registros->first()->FechaInicio)
-                ? \Carbon\Carbon::parse($registros->first()->FechaInicio)
+                ? Carbon::parse($registros->first()->FechaInicio)
                 : null;
 
             if (!$inicioOriginal) {
@@ -1249,6 +1367,23 @@ class ProgramaTejidoController extends Controller
             $idxActual = $registros->search(fn($r) => $r->Id === $registro->Id);
             if ($idxActual === false) {
                 throw new \RuntimeException('No se encontró el registro a reordenar dentro del telar.');
+            }
+
+            // VALIDACIÓN: No se puede colocar antes de un registro en proceso
+            // Encontrar el último registro en proceso
+            $ultimoEnProcesoIndex = -1;
+            foreach ($registros as $index => $reg) {
+                if ($reg->EnProceso == 1) {
+                    $ultimoEnProcesoIndex = $index;
+                }
+            }
+
+            // Si hay registros en proceso, la posición mínima debe ser después del último
+            if ($ultimoEnProcesoIndex !== -1) {
+                $posicionMinima = $ultimoEnProcesoIndex + 1;
+                if ($nuevaPosicion < $posicionMinima) {
+                    throw new \RuntimeException('No se puede colocar un registro antes de uno que está en proceso. La posición mínima permitida es ' . ($posicionMinima + 1) . '.');
+                }
             }
 
             // Validar nueva posición
@@ -1282,10 +1417,10 @@ class ProgramaTejidoController extends Controller
             DB::commit();
 
             // Re-habilitar observer
-            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
             // Regenerar líneas para TODOS los registros afectados
-            $observer = new \App\Observers\ReqProgramaTejidoObserver();
+            $observer = new ReqProgramaTejidoObserver();
             foreach ($idsAfectados as $idAct) {
                 if ($r = ReqProgramaTejido::find($idAct)) {
                     $observer->saved($r);
@@ -1304,7 +1439,7 @@ class ProgramaTejidoController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
             Log::error('moverAposicion error', [
                 'id' => $registro->Id ?? null,
                 'nueva_posicion' => $nuevaPosicion,
@@ -1332,12 +1467,12 @@ class ProgramaTejidoController extends Controller
 
     private function setSafeDate(ReqProgramaTejido $r, string $attr, $value): void
     {
-        try { $r->{$attr} = \Carbon\Carbon::parse($value); } catch (\Throwable $e) { /* silent */ }
+        try { $r->{$attr} = Carbon::parse($value); } catch (\Throwable $e) { /* silent */ }
     }
 
     private function applyCalculados(ReqProgramaTejido $r, array $d): void
     {
-        // ⭐ PesoGRM2 ahora es float en BD: respetamos el valor decimal calculado (frontend u observer)
+        // PesoGRM2 es float en BD: respetamos el valor decimal calculado (frontend u observer)
         if (array_key_exists('peso_grm2',$d))           $r->PesoGRM2      = is_null($d['peso_grm2']) ? null : (float) $d['peso_grm2'];
         if (array_key_exists('dias_eficiencia',$d))     $r->DiasEficiencia= $d['dias_eficiencia'];
         if (array_key_exists('prod_kg_dia',$d))         $r->ProdKgDia     = $d['prod_kg_dia'];
@@ -1471,6 +1606,45 @@ class ProgramaTejidoController extends Controller
         return $out;
     }
 
+    private function resolverStdSegunTelar(ReqProgramaTejido $registro, ?ReqModelosCodificados $modeloDestino, string $nuevoTelar, string $nuevoSalon): array
+    {
+        $fibra = $registro->FibraRizo
+            ?? $registro->FibraTrama
+            ?? ($modeloDestino->FibraRizo ?? null)
+            ?? ($modeloDestino->FibraId ?? null);
+
+        $calibreTrama = $registro->CalibreTrama
+            ?? $registro->CalibreTrama2
+            ?? ($modeloDestino->CalibreTrama ?? null)
+            ?? ($modeloDestino->CalibreTrama2 ?? null);
+
+        $densidad = ($calibreTrama !== null && (float) $calibreTrama > 40) ? 'Alta' : 'Normal';
+
+        $eficiencia = null;
+        $velocidad = null;
+
+        if ($fibra) {
+            $eficiencia = ReqEficienciaStd::where('NoTelarId', $nuevoTelar)
+                ->where('FibraId', $fibra)
+                ->where('Densidad', $densidad)
+                ->value('Eficiencia');
+
+            $velocidad = ReqVelocidadStd::where('NoTelarId', $nuevoTelar)
+                ->where('FibraId', $fibra)
+                ->where('Densidad', $densidad)
+                ->value('Velocidad');
+        }
+
+        if (is_null($velocidad) && $modeloDestino && !is_null($modeloDestino->VelocidadSTD)) {
+            $velocidad = (float) $modeloDestino->VelocidadSTD;
+        }
+
+        return [
+            $eficiencia ?? $registro->EficienciaSTD,
+            $velocidad ?? $registro->VelocidadSTD,
+        ];
+    }
+
     private function marcarCambioHiloAnterior(string $salon, $noTelarId, ?string $nuevoHilo): void
     {
         try {
@@ -1492,7 +1666,7 @@ class ProgramaTejidoController extends Controller
     {
         $campos = [
             'CuentaRizo','CalibreRizo','CalibreRizo2','InventSizeId','NombreProyecto','NombreProducto',
-            'ItemId',  // ⭐ AGREGADO
+            'ItemId',
             'Ancho','EficienciaSTD','VelocidadSTD','Maquina',
             'CodColorTrama','ColorTrama','CalibreTrama','CalibreTrama2','FibraTrama',
             'CalibreComb1','CalibreComb12','FibraComb1','CodColorComb1','NombreCC1',
@@ -1519,7 +1693,7 @@ class ProgramaTejidoController extends Controller
                 'CalibreComb1','CalibreComb12','CalibreComb2','CalibreComb22','CalibreComb3','CalibreComb32',
                 'CalibreComb4','CalibreComb42','CalibreComb5','CalibreComb52',
                 'CalibrePie','CalibrePie2','EficienciaSTD',
-                'AnchoToalla' // ⭐ Guardar con decimales para evitar truncarlo a 0
+                'AnchoToalla' // Guardar con decimales para evitar truncarlo a 0
             ])) {
                 $valor = is_numeric($valor) ? (float)$valor : null;
             } elseif (in_array($campo, ['VelocidadSTD','Peine','PesoCrudo','MedidaPlano','Ancho','NoTiras','Luchaje','LargoCrudo'])) {
@@ -1567,7 +1741,7 @@ class ProgramaTejidoController extends Controller
             if (empty($nuevo->NombreProyecto) || $nuevo->NombreProyecto === 'null') {
                 $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', (string)($modeloCod->NombreProyecto ?? $modeloCod->Descrip ?? $modeloCod->Descripcion ?? ''));
             }
-            //  Asignar ItemId desde modelo codificado si no está ya asignado
+            // Asignar ItemId desde modelo codificado si no está ya asignado
             // Nota: CustName NO existe en ReqModelosCodificados, debe venir del request u otra fuente
             if (empty($nuevo->ItemId) && !empty($modeloCod->ItemId)) {
                 $nuevo->ItemId = (string) $modeloCod->ItemId;

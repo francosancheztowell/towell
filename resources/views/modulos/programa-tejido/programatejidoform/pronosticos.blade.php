@@ -3,8 +3,8 @@
 @section('page-title', 'Programar Pronóstico')
 
 @section('navbar-right')
-<x-navbar.button-create 
-    onclick="ProgramaTejidoCRUD.guardar()" 
+<x-navbar.button-create
+    onclick="ProgramaTejidoCRUD.guardar()"
     title="Guardar"
     module="Programa Tejido"
     :disabled="false"
@@ -220,11 +220,6 @@
                         </table>
             </div>
         </div>
-    </div>
-
-    {{-- Tabla de Líneas Diarias (visible después de crear) --}}
-    <div id="contenedor-lineas-diarias" style="display:none;" class="mt-6">
-        @include('components.tables.req-programa-tejido-line-table')
     </div>
     </div>
 
