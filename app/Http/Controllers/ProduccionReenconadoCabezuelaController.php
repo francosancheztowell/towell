@@ -40,6 +40,16 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 return back()->withErrors(['folio' => 'Error generando folio: '.$e->getMessage()])->withInput();
             }
 
+            // Calcular capacidad: Horas * 9.3
+            $horas = isset($data['Horas']) ? (float)$data['Horas'] : null;
+            $capacidad = $horas !== null ? round($horas * 9.3, 2) : null;
+
+            // Calcular eficiencia: Cantidad / Capacidad
+            $cantidad = isset($data['Cantidad']) ? (float)$data['Cantidad'] : null;
+            $eficiencia = ($cantidad !== null && $capacidad !== null && $capacidad > 0) 
+                ? round($cantidad / $capacidad, 2) 
+                : null;
+
             $clean = [
                 'Folio'           => $folioGenerado,
                 'Date'            => isset($data['Date']) && $data['Date'] ? date('Y-m-d', strtotime($data['Date'])) : null,
@@ -50,15 +60,17 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 'FibraTrama'      => $data['FibraTrama']       ?? null,
                 'CodColor'        => $data['CodColor']         ?? null,
                 'Color'           => $data['Color']            ?? null,
-                'Cantidad'        => isset($data['Cantidad']) ? (float)$data['Cantidad'] : null,
+                'Cantidad'        => $cantidad,
                 'Conos'           => isset($data['Conos']) ? (int)$data['Conos'] : null,
-                'Horas'           => isset($data['Horas']) ? (float)$data['Horas'] : null,
-                'Eficiencia'      => isset($data['Eficiencia']) ? (float)$data['Eficiencia'] : null,
+                'Horas'           => $horas,
+                'Eficiencia'      => $eficiencia, // Calculada automáticamente
                 'Obs'             => $data['Obs']              ?? null,
                 'status'          => 'Creado', // Inicializar con estado "Creado"
+                'capacidad'       => $capacidad, // Horas * 9.3
             ];
 
-            // Reglas: Calibre, FibraTrama, CodColor y Color son opcionales
+            // Reglas: Calibre, FibraTrama, CodColor, Color y Obs son opcionales
+            // Eficiencia es calculada automáticamente (Cantidad / Capacidad)
             $rules = [
                 'Folio'            => ['required','string','max:10'],
                 'Date'             => ['required','date'],
@@ -72,8 +84,8 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 'Cantidad'         => ['required','numeric'],
                 'Conos'            => ['required','integer'],
                 'Horas'            => ['required','numeric'],
-                'Eficiencia'       => ['required','numeric'],
-                'Obs'              => ['required','string','max:60'],
+                'Eficiencia'       => ['nullable','numeric'],
+                'Obs'              => ['nullable','string','max:60'],
             ];
 
             $validator = Validator::make($clean, $rules);
@@ -248,14 +260,24 @@ class ProduccionReenconadoCabezuelaController extends Controller
             'Cantidad'         => ['required','numeric'],
             'Conos'            => ['required','integer'],
             'Horas'            => ['required','numeric'],
-            'Eficiencia'       => ['required','numeric'],
-            'Obs'              => ['required','string','max:60'],
+            'Eficiencia'       => ['nullable','numeric'],
+            'Obs'              => ['nullable','string','max:60'],
         ];
 
         $validator = Validator::make($data, $rules);
         if ($validator->fails()) {
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
+
+        // Calcular capacidad: Horas * 9.3
+        $horas = isset($data['Horas']) ? (float)$data['Horas'] : null;
+        $capacidad = $horas !== null ? round($horas * 9.3, 2) : null;
+
+        // Calcular eficiencia: Cantidad / Capacidad
+        $cantidad = isset($data['Cantidad']) ? (float)$data['Cantidad'] : null;
+        $eficiencia = ($cantidad !== null && $capacidad !== null && $capacidad > 0) 
+            ? round($cantidad / $capacidad, 2) 
+            : null;
 
         $clean = [
             'Date'            => isset($data['Date']) && $data['Date'] ? date('Y-m-d', strtotime($data['Date'])) : null,
@@ -266,11 +288,12 @@ class ProduccionReenconadoCabezuelaController extends Controller
             'FibraTrama'      => $data['FibraTrama']       ?? null,
             'CodColor'        => $data['CodColor']         ?? null,
             'Color'           => $data['Color']            ?? null,
-            'Cantidad'        => isset($data['Cantidad']) ? (float)$data['Cantidad'] : null,
+            'Cantidad'        => $cantidad,
             'Conos'           => isset($data['Conos']) ? (int)$data['Conos'] : null,
-            'Horas'           => isset($data['Horas']) ? (float)$data['Horas'] : null,
-            'Eficiencia'      => isset($data['Eficiencia']) ? (float)$data['Eficiencia'] : null,
+            'Horas'           => $horas,
+            'Eficiencia'      => $eficiencia, // Calculada automáticamente
             'Obs'             => $data['Obs']              ?? null,
+            'capacidad'       => $capacidad, // Horas * 9.3
         ];
 
         try {

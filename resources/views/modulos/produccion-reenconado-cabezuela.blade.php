@@ -43,24 +43,24 @@ Producción Reenconado Cabezuela
 @section('content')
 <div class="w-full ">
         <div class="overflow-x-auto rounded shadow bg-white w-full">
-                <table class="min-w-full table-capture text-sm" id="tabla-registros">
+                <table class="min-w-full table-capture text-base" id="tabla-registros">
                         <thead class="text-white">
                 <tr class="text-center align-middle">
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Folio</th>
-                    <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Estatus</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Fecha</th>
-                    <th class="w-[72px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Turno</th>
-                    <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Operador</th>
-                    <th class="w-[72px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Calibre</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Fibra</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Cód. Color</th>
-                    <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Color</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Cantidad</th>
-                    <th class="w-[72px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Conos</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Hrs</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Capacidad</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Eficiencia</th>
-                    <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Observaciones</th>
+                    <th class="w-[120px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Folio</th>
+                    <th class="min-w-[180px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Estatus</th>
+                    <th class="w-[120px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Fecha</th>
+                    <th class="w-[100px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Turno</th>
+                    <th class="min-w-[200px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Operador</th>
+                    <th class="w-[100px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Calibre</th>
+                    <th class="w-[120px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Fibra</th>
+                    <th class="w-[120px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Cód. Color</th>
+                    <th class="min-w-[180px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Color</th>
+                    <th class="w-[120px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Cantidad</th>
+                    <th class="w-[100px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Conos</th>
+                    <th class="w-[120px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Hrs</th>
+                    <th class="w-[120px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Capacidad</th>
+                    <th class="w-[120px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Eficiencia</th>
+                    <th class="min-w-[200px] bg-blue-500 whitespace-nowrap px-4 py-4 border-b-2 border-gray-200">Observaciones</th>
                 </tr>
                         </thead>
                         <tbody id="rows-body" class="text-gray-800">
@@ -90,24 +90,24 @@ Producción Reenconado Cabezuela
                                             data-capacidad="{{ $r->capacidad ?? '' }}"
                                             data-eficiencia="{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2, '.', '') }}"
                                             data-obs="{{ $r->Obs }}">
-                                                <td class="text-center whitespace-nowrap">{{ $r->Folio }}</td>
-                                                <td class="text-center whitespace-nowrap {{ $statusClass }}">{{ $status }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ $r->Turno }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ $r->nombreEmpl }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ is_null($r->Calibre) ? '' : number_format($r->Calibre, 2) }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ $r->FibraTrama }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ $r->CodColor }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ $r->Color }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ is_null($r->Cantidad) ? '' : number_format($r->Cantidad, 2) }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ $r->Conos }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2) }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ $r->capacidad ?? '' }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2) }}</td>
-                                                <td class="text-center whitespace-nowrap">{{ $r->Obs }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Folio }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3 {{ $statusClass }}">{{ $status }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Turno }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->nombreEmpl }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Calibre) ? '' : number_format($r->Calibre, 2) }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->FibraTrama }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->CodColor }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Color }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Cantidad) ? '' : number_format($r->Cantidad, 2) }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Conos }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2) }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ !is_null($r->Horas) ? number_format($r->Horas * 9.3, 2) : '' }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ (!is_null($r->Cantidad) && !is_null($r->Horas) && $r->Horas > 0) ? number_format(($r->Cantidad / ($r->Horas * 9.3)) * 100, 2) . '%' : '' }}</td>
+                                                <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Obs }}</td>
                                         </tr>
                                 @empty
-                                        <tr class="odd:bg-white even:bg-gray-50"><td colspan="15" class="text-center text-gray-500 py-3">Sin registros</td></tr>
+                                        <tr class="odd:bg-white even:bg-gray-50"><td colspan="15" class="text-center text-gray-500 py-4">Sin registros</td></tr>
                                 @endforelse
                         </tbody>
                 </table>
@@ -166,30 +166,6 @@ Producción Reenconado Cabezuela
                         <input type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_nombreEmpl">
                     </div>
 
-                    <!-- Sección: Detalles del Material -->
-                    <div class="col-span-12 mt-2">
-                        <h6 class="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">
-                            <i class="fa fa-box mr-2 text-blue-500"></i>Detalles del Material
-                        </h6>
-                    </div>
-
-                    <div class="col-span-6 md:col-span-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Calibre <span class="text-gray-400 text-xs">(opcional)</span></label>
-                        <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Calibre">
-                    </div>
-                    <div class="col-span-6 md:col-span-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Fibra <span class="text-gray-400 text-xs">(opcional)</span></label>
-                        <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_FibraTrama">
-                    </div>
-                    <div class="col-span-6 md:col-span-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Cód. Color <span class="text-gray-400 text-xs">(opcional)</span></label>
-                        <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_CodColor">
-                    </div>
-                    <div class="col-span-6 md:col-span-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Color <span class="text-gray-400 text-xs">(opcional)</span></label>
-                        <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Color">
-                    </div>
-
                     <!-- Sección: Producción -->
                     <div class="col-span-12 mt-2">
                         <h6 class="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">
@@ -210,12 +186,12 @@ Producción Reenconado Cabezuela
                         <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Horas">
                     </div>
                     <div class="col-span-6 md:col-span-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Eficiencia (%)</label>
-                        <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Eficiencia">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Capacidad (Auto) <span class="text-gray-400 text-xs">(Hrs×9.3)</span></label>
+                        <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50" id="f_Capacidad" readonly>
                     </div>
-                    <div class="col-span-12">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-                        <textarea class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-8" id="f_Obs" rows="2"></textarea>
+                    <div class="col-span-6 md:col-span-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Eficiencia (%) <span class="text-gray-400 text-xs">(Cantidad/Capacidad)×100</span></label>
+                        <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50" id="f_Eficiencia" readonly>
                     </div>
                 </div>
             </div>
@@ -286,21 +262,21 @@ Producción Reenconado Cabezuela
                 data-capacidad="${r.capacidad??''}"
                 data-eficiencia="${r.Eficiencia??''}"
                 data-obs="${r.Obs??''}">
-                <td class="text-center whitespace-nowrap">${r.Folio??''}</td>
-                <td class="text-center whitespace-nowrap ${statusColor}">${status}</td>
-                <td class="text-center whitespace-nowrap">${r.Date??''}</td>
-                <td class="text-center whitespace-nowrap">${r.Turno??''}</td>
-                <td class="text-center whitespace-nowrap">${r.nombreEmpl??''}</td>
-                <td class="text-center whitespace-nowrap">${nf(r.Calibre)}</td>
-                <td class="text-center whitespace-nowrap">${r.FibraTrama??''}</td>
-                <td class="text-center whitespace-nowrap">${r.CodColor??''}</td>
-                <td class="text-center whitespace-nowrap">${r.Color??''}</td>
-                <td class="text-center whitespace-nowrap">${nf(r.Cantidad)}</td>
-                <td class="text-center whitespace-nowrap">${r.Conos??''}</td>
-                <td class="text-center whitespace-nowrap">${nf(r.Horas)}</td>
-                <td class="text-center whitespace-nowrap">${r.capacidad??''}</td>
-                <td class="text-center whitespace-nowrap">${nf(r.Eficiencia)}</td>
-                <td class="text-center whitespace-nowrap">${r.Obs??''}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${r.Folio??''}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3 ${statusColor}">${status}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${r.Date??''}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${r.Turno??''}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${r.nombreEmpl??''}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${nf(r.Calibre)}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${r.FibraTrama??''}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${r.CodColor??''}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${r.Color??''}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${nf(r.Cantidad)}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${r.Conos??''}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${nf(r.Horas)}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${r.capacidad??''}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${(r.Cantidad && r.capacidad && r.capacidad > 0) ? nf((r.Cantidad / r.capacidad) * 100) + '%' : ''}</td>
+                <td class="text-center whitespace-nowrap px-4 py-3">${r.Obs??''}</td>
             </tr>`;
     }
 
@@ -327,6 +303,24 @@ Producción Reenconado Cabezuela
             return 3;                                                     // 22:30 - 6:30
     }
 
+        // Función para calcular capacidad y eficiencia automáticamente
+        function calcularCamposAuto(){
+            const horas = parseFloat(document.getElementById('f_Horas').value) || 0;
+            const cantidad = parseFloat(document.getElementById('f_Cantidad').value) || 0;
+            
+            // Calcular Capacidad = Horas * 9.3
+            const capacidad = horas > 0 ? (horas * 9.3) : 0;
+            document.getElementById('f_Capacidad').value = capacidad > 0 ? capacidad.toFixed(2) : '';
+            
+            // Calcular Eficiencia = (Cantidad / Capacidad) * 100
+            const eficiencia = (cantidad > 0 && capacidad > 0) ? ((cantidad / capacidad) * 100) : 0;
+            document.getElementById('f_Eficiencia').value = eficiencia > 0 ? eficiencia.toFixed(2) + '%' : '';
+        }
+
+        // Agregar event listeners para cálculo automático
+        document.getElementById('f_Horas').addEventListener('input', calcularCamposAuto);
+        document.getElementById('f_Cantidad').addEventListener('input', calcularCamposAuto);
+
         async function guardar(){
         const record = {
             Folio: document.getElementById('f_Folio').value || null,
@@ -334,18 +328,19 @@ Producción Reenconado Cabezuela
             Turno: document.getElementById('f_Turno').value || null,
             numero_empleado: document.getElementById('f_numero_empleado').value || null,
             nombreEmpl: document.getElementById('f_nombreEmpl').value || null,
-            Calibre: document.getElementById('f_Calibre').value || null,
-            FibraTrama: document.getElementById('f_FibraTrama').value || null,
-            CodColor: document.getElementById('f_CodColor').value || null,
-            Color: document.getElementById('f_Color').value || null,
+            Calibre: null,
+            FibraTrama: null,
+            CodColor: null,
+            Color: null,
             Cantidad: document.getElementById('f_Cantidad').value || null,
             Conos: document.getElementById('f_Conos').value || null,
             Horas: document.getElementById('f_Horas').value || null,
-            Eficiencia: document.getElementById('f_Eficiencia').value || null,
-            Obs: document.getElementById('f_Obs').value || null,
+            Obs: null,
+            // Eficiencia y Capacidad se calculan automáticamente en el servidor
         };
 
-        // Validación básica: Calibre, FibraTrama, CodColor y Color son opcionales
+        // Validación básica
+        // Eficiencia y Capacidad son calculadas automáticamente
         const requiredFields = [
             ['Date','La fecha es requerida'],
             ['Turno','El turno es requerido'],
@@ -354,8 +349,6 @@ Producción Reenconado Cabezuela
             ['Cantidad','La cantidad es requerida'],
             ['Conos','Los conos son requeridos'],
             ['Horas','Las horas son requeridas'],
-            ['Eficiencia','La eficiencia es requerida'],
-            ['Obs','Las observaciones son requeridas'],
         ];
         for(const [key, msg] of requiredFields){
             if(!record[key] && record[key] !== 0){ toastr.warning(msg); return; }
@@ -377,18 +370,21 @@ Producción Reenconado Cabezuela
                         const cells = selectedRow.querySelectorAll('td');
                         const nf = (v, d=2) => (v===null||v===undefined||v==='') ? '' : Number(v).toFixed(d);
                         cells[0].textContent = updated.Folio ?? '';
-                        cells[1].textContent = updated.Date ?? '';
-                        cells[2].textContent = updated.Turno ?? '';
-                        cells[3].textContent = updated.nombreEmpl ?? '';
-                        cells[4].textContent = nf(updated.Calibre);
-                        cells[5].textContent = updated.FibraTrama ?? '';
-                        cells[6].textContent = updated.CodColor ?? '';
-                        cells[7].textContent = updated.Color ?? '';
-                        cells[8].textContent = nf(updated.Cantidad);
-                        cells[9].textContent = updated.Conos ?? '';
-                        cells[10].textContent = nf(updated.Horas);
-                        cells[11].textContent = nf(updated.Eficiencia);
-                        cells[12].textContent = updated.Obs ?? '';
+                        cells[1].textContent = updated.status ?? 'Creado'; // Status
+                        cells[2].textContent = updated.Date ?? '';
+                        cells[3].textContent = updated.Turno ?? '';
+                        cells[4].textContent = updated.nombreEmpl ?? '';
+                        cells[5].textContent = nf(updated.Calibre);
+                        cells[6].textContent = updated.FibraTrama ?? '';
+                        cells[7].textContent = updated.CodColor ?? '';
+                        cells[8].textContent = updated.Color ?? '';
+                        cells[9].textContent = nf(updated.Cantidad);
+                        cells[10].textContent = updated.Conos ?? '';
+                        cells[11].textContent = nf(updated.Horas);
+                        const capacidadCalc = updated.Horas ? Number(updated.Horas) * 9.3 : 0;
+                        cells[12].textContent = capacidadCalc ? nf(capacidadCalc) : ''; // Capacidad calculada
+                        cells[13].textContent = (updated.Cantidad && capacidadCalc > 0) ? nf((Number(updated.Cantidad) / capacidadCalc) * 100) + '%' : ''; // Eficiencia en porcentaje
+                        cells[14].textContent = updated.Obs ?? '';
 
                         // actualizar data-* atributos
                         selectedRow.dataset.folio = updated.Folio ?? '';
@@ -403,6 +399,7 @@ Producción Reenconado Cabezuela
                         selectedRow.dataset.cantidad = updated.Cantidad ?? '';
                         selectedRow.dataset.conos = updated.Conos ?? '';
                         selectedRow.dataset.horas = updated.Horas ?? '';
+                        selectedRow.dataset.capacidad = updated.Horas ? (Number(updated.Horas) * 9.3).toFixed(2) : '';
                         selectedRow.dataset.eficiencia = updated.Eficiencia ?? '';
                         selectedRow.dataset.obs = updated.Obs ?? '';
                     }
@@ -497,17 +494,6 @@ Producción Reenconado Cabezuela
     modalCloseBtn.addEventListener('click', hideModal);
     modalCancelBtn.addEventListener('click', hideModal);
 
-    // Evitar salto de línea en Observaciones con Enter y cerrar teclado
-    const obsEl = document.getElementById('f_Obs');
-    if (obsEl) {
-        obsEl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                obsEl.blur();
-            }
-        });
-    }
-
     function bindRowClicks(){
         const rows = tbody.querySelectorAll('tr');
         rows.forEach(row => {
@@ -533,15 +519,11 @@ Producción Reenconado Cabezuela
         document.getElementById('f_Turno').value = selectedRow.dataset.turno || '';
         document.getElementById('f_numero_empleado').value = selectedRow.dataset.numero_empleado || '';
         document.getElementById('f_nombreEmpl').value = selectedRow.dataset.nombreempl || '';
-        document.getElementById('f_Calibre').value = selectedRow.dataset.calibre || '';
-        document.getElementById('f_FibraTrama').value = selectedRow.dataset.fibratrama || '';
-        document.getElementById('f_CodColor').value = selectedRow.dataset.codcolor || '';
-        document.getElementById('f_Color').value = selectedRow.dataset.color || '';
         document.getElementById('f_Cantidad').value = selectedRow.dataset.cantidad || '';
         document.getElementById('f_Conos').value = selectedRow.dataset.conos || '';
         document.getElementById('f_Horas').value = selectedRow.dataset.horas || '';
-        document.getElementById('f_Eficiencia').value = selectedRow.dataset.eficiencia || '';
-        document.getElementById('f_Obs').value = selectedRow.dataset.obs || '';
+        // Calcular automáticamente capacidad y eficiencia
+        calcularCamposAuto();
         modalTitle.innerHTML = `<i class="fa fa-edit mr-2"></i>Editar Registro · Folio ${selectedRow.dataset.folio || ''}`;
     });
 
