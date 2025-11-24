@@ -74,6 +74,13 @@
                         title="Activar/Desactivar arrastrar filas" aria-label="Drag and Drop">
                         <i class="fa-solid fa-arrows-alt-v text-sm"></i>
                         </button>
+                      <!-- Botón Edición Inline -->
+                        <button type="button" id="btnInlineEdit"
+                        onclick="toggleInlineEditMode()"
+                        class="relative w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+                        title="Activar/Desactivar edición en línea" aria-label="Edición en línea">
+                        <i class="fa-solid fa-pen text-sm"></i>
+                        </button>
                       <!-- Descargar programa -->
                     <x-navbar.button-report
                         onclick="descargarPrograma()"

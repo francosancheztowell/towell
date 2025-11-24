@@ -101,8 +101,15 @@
 						@foreach($registros as $index => $registro)
 						<tr class="hover:bg-blue-50 cursor-pointer selectable-row" data-row-index="{{ $index }}" data-id="{{ $registro->Id ?? $registro->id ?? '' }}">
 							@foreach($columns as $colIndex => $col)
+							@php
+								$rawValue = $registro->{$col['field']} ?? '';
+								if ($rawValue instanceof \Carbon\Carbon) {
+									$rawValue = $rawValue->format('Y-m-d H:i:s');
+								}
+							@endphp
 							<td class="px-3 py-2 text-sm text-gray-700 {{ ($col['dateType'] ?? null) ? 'whitespace-normal' : 'whitespace-nowrap' }} column-{{ $colIndex }}"
-								data-column="{{ $col['field'] }}">
+								data-column="{{ $col['field'] }}"
+								data-value="{{ e(is_scalar($rawValue) ? $rawValue : json_encode($rawValue)) }}">
 								{!! $formatValue($registro, $col['field'], $col['dateType'] ?? null) !!}
 							</td>
 							@endforeach
@@ -174,611 +181,42 @@
 	td.bg-yellow-100 {
 		background-color: #fef3c7 !important;
 	}
+
+	.inline-edit-mode .selectable-row {
+		cursor: text !important;
+	}
+
+	.inline-edit-input {
+		width: 100%;
+		border: 1px solid #cbd5f5;
+		border-radius: 0.375rem;
+		padding: 0.25rem 0.5rem;
+		font-size: 0.85rem;
+		color: #1f2937;
+		background-color: #f9fafb;
+		transition: border 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	.inline-edit-input:focus {
+		outline: none;
+		border-color: #2563eb;
+		box-shadow: 0 0 0 1px #2563eb33;
+		background-color: #fff;
+	}
+
+	.inline-edit-row.inline-saving {
+		opacity: 0.7;
+	}
 </style>
 
 <script>
-	// ===== Estado =====
-	let filters = [];
-	let hiddenColumns = [];
-	let pinnedColumns = [];
-	let allRows = [];
-	let selectedRowIndex = -1;
-	let dragDropMode = false;
-	let draggedRow = null;
-	let draggedRowIndex = -1;
-	let draggedRowTelar = null;
-	let draggedRowSalon = null;
-	let draggedRowCambioHilo = null;
+	@include('modulos.programa-tejido.scripts.state')
 
-	// Cache para optimización de drag and drop
-	let rowCache = new Map(); // Cache de datos de filas (telar, salon, etc)
-	let dragOverThrottle = null;
-	let lastDragOverTime = 0;
+	@include('modulos.programa-tejido.scripts.filters')
 
-	// ===== Helpers DOM =====
-	const $ = (sel, ctx = document) => ctx.querySelector(sel);
-	const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
-	const tbodyEl = () => $('#mainTable tbody');
+	@include('modulos.programa-tejido.scripts.columns')
 
-	// ===== Columnas desde PHP =====
-	const columnsData = @json($columns ?? []);
-
-	// ===== Filtros =====
-	function renderFilterModalContent() {
-		const options = columnsData.map(c => ({
-			field: c.field,
-			label: c.label
-		}));
-		const filtrosHTML = filters.length ?
-			`<div class="mb-4 p-3 bg-gray-50 rounded-lg">
-                <h4 class="text-sm font-medium text-gray-700 mb-2">Filtros Activos:</h4>
-                <div class="space-y-1">
-					${filters.map((f,i)=>`
-                        <div class="flex items-center justify-between bg-white p-2 rounded border">
-							<span class="text-xs">${f.column}: ${f.value}</span>
-							<button onclick="removeFilter(${i})" class="text-red-500 hover:text-red-700 text-xs">×</button>
-                        </div>
-                    `).join('')}
-                </div>
-		   </div>` :
-			'';
-
-		return `
-		${filtrosHTML}
-            <div class="text-left space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Columna</label>
-                    <select id="filtro-columna" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Selecciona una columna...</option>
-					${options.map(col=>`<option value="${col.field}">${col.label}</option>`).join('')}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor a buscar</label>
-                    <input type="text" id="filtro-valor" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresa el valor a buscar">
-                </div>
-                <div class="flex gap-2 pt-2">
-                    <button type="button" id="btn-agregar-otro" class="flex-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">
-                        Agregar Otro Filtro
-                    </button>
-                </div>
-            </div>
-	`;
-	}
-
-	function openFilterModal() {
-		Swal.fire({
-			title: 'Filtrar por Columna',
-			html: renderFilterModalContent(),
-			showCancelButton: true,
-			confirmButtonText: 'Agregar Filtro',
-			cancelButtonText: 'Cerrar',
-			confirmButtonColor: '#3b82f6',
-			cancelButtonColor: '#6b7280',
-			width: '450px',
-			didOpen: () => {
-				$('#btn-agregar-otro').addEventListener('click', () => {
-					const col = $('#filtro-columna').value;
-					const val = $('#filtro-valor').value;
-					if (!col || !val) return Swal.showValidationMessage('Selecciona columna y valor');
-					if (filters.some(f => f.column === col && f.value === val)) return Swal.showValidationMessage('Este filtro ya está activo');
-
-					filters.push({
-						column: col,
-						value: val
-					});
-					applyFilters();
-					showToast('Filtro agregado correctamente', 'success');
-					Swal.update({
-						html: renderFilterModalContent()
-					});
-					openFilterModal(); // re-abre para re-inyectar listeners
-				});
-			},
-			preConfirm: () => {
-				const col = $('#filtro-columna').value;
-				const val = $('#filtro-valor').value;
-				if (!col || !val) {
-					Swal.showValidationMessage('Selecciona columna y valor');
-					return false;
-				}
-				if (filters.some(f => f.column === col && f.value === val)) {
-					Swal.showValidationMessage('Este filtro ya está activo');
-					return false;
-				}
-				return {
-					column: col,
-					value: val
-				};
-			}
-		}).then(res => {
-			if (res.isConfirmed) {
-				filters.push(res.value);
-				applyFilters();
-				showToast('Filtro agregado correctamente', 'success');
-			}
-		});
-	}
-
-	function removeFilter(index) {
-		filters.splice(index, 1);
-		applyFilters();
-		showToast('Filtro eliminado', 'info');
-		Swal.update({
-			html: renderFilterModalContent()
-		});
-	}
-
-	function applyFilters() {
-		let rows = allRows.slice();
-		if (filters.length) {
-			// Pre-calcular valores en minúsculas para mejor rendimiento
-			const filterValues = filters.map(f => ({
-				column: f.column,
-				value: f.value.toLowerCase()
-			}));
-
-			rows = rows.filter(tr => {
-				return filterValues.every(f => {
-					const cell = tr.querySelector(`[data-column="${f.column}"]`);
-					return cell ? cell.textContent.toLowerCase().includes(f.value) : false;
-				});
-			});
-		}
-		const tb = tbodyEl();
-		tb.innerHTML = '';
-
-		// Crear fragmento para mejor rendimiento en inserción masiva
-		const fragment = document.createDocumentFragment();
-		for (let i = 0; i < rows.length; i++) {
-			const r = rows[i];
-			const realIndex = allRows.indexOf(r);
-			if (realIndex === -1) continue;
-
-			if (dragDropMode) {
-				const enProceso = isRowEnProceso(r);
-				r.draggable = !enProceso;
-				r.onclick = null;
-
-				if (!enProceso) {
-					r.classList.add('cursor-move');
-					r.addEventListener('dragstart', handleDragStart);
-					r.addEventListener('dragover', handleDragOver);
-					r.addEventListener('drop', handleDrop);
-					r.addEventListener('dragend', handleDragEnd);
-				} else {
-					r.classList.add('cursor-not-allowed');
-					r.style.opacity = '0.6';
-				}
-			} else {
-				r.onclick = () => selectRow(r, realIndex);
-			}
-			fragment.appendChild(r);
-		}
-		tb.appendChild(fragment);
-
-		// IMPORTANTE: Actualizar allRows después de manipular el DOM
-		allRows = Array.from(tb.querySelectorAll('.selectable-row'));
-		clearRowCache(); // Limpiar cache después de filtrar
-
-		updateFilterCount();
-		if (filters.length) showToast(`Filtros aplicados<br>${filters.length} filtro(s) · ${rows.length} resultado(s)`, 'success');
-	}
-
-	function updateFilterCount() {
-		const badge = $('#filterCount');
-		if (!badge) return;
-		if (filters.length > 0) {
-			badge.textContent = filters.length;
-			badge.classList.remove('hidden');
-		} else {
-			badge.classList.add('hidden');
-		}
-	}
-
-	function resetFilters() {
-		const tb = tbodyEl();
-		tb.innerHTML = '';
-
-		// Usar fragmento para mejor rendimiento
-		const fragment = document.createDocumentFragment();
-		for (let i = 0; i < allRows.length; i++) {
-			const r = allRows[i];
-			const realIndex = i;
-
-			r.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-50');
-			r.classList.add('hover:bg-blue-50');
-			const tds = r.querySelectorAll('td');
-			for (let j = 0; j < tds.length; j++) {
-				const td = tds[j];
-				td.classList.remove('text-white', 'text-gray-700');
-			}
-
-			if (dragDropMode) {
-				const enProceso = isRowEnProceso(r);
-				r.draggable = !enProceso;
-				r.onclick = null;
-
-				if (!enProceso) {
-					r.classList.add('cursor-move');
-					r.addEventListener('dragstart', handleDragStart);
-					r.addEventListener('dragover', handleDragOver);
-					r.addEventListener('drop', handleDrop);
-					r.addEventListener('dragend', handleDragEnd);
-				} else {
-					r.classList.add('cursor-not-allowed');
-					r.style.opacity = '0.6';
-				}
-			} else {
-				r.onclick = () => selectRow(r, realIndex);
-			}
-			fragment.appendChild(r);
-		}
-		tb.appendChild(fragment);
-
-		// IMPORTANTE: Actualizar allRows después de manipular el DOM
-		allRows = Array.from(tb.querySelectorAll('.selectable-row'));
-		clearRowCache(); // Limpiar cache después de reset
-
-		// Mostrar columnas ocultas
-		hiddenColumns.forEach(idx => {
-			$$(`.column-${idx}`).forEach(el => el.style.display = '');
-			const hideBtn = $(`th.column-${idx} .hide-btn`);
-			if (hideBtn) {
-				hideBtn.classList.remove('bg-red-600');
-				hideBtn.classList.add('bg-red-500');
-				hideBtn.title = 'Ocultar columna';
-			}
-		});
-		hiddenColumns = [];
-
-		// Desfijar columnas
-		pinnedColumns = [];
-		updatePinnedColumnsPositions(); // limpiará estilos
-
-		// UI filtros
-		filters = [];
-		updateFilterCount();
-
-		selectedRowIndex = -1;
-
-		// Deshabilitar botones
-		const btnEditar = document.getElementById('btn-editar-programa');
-		if (btnEditar) btnEditar.disabled = true;
-		const btnEliminar = document.getElementById('btn-eliminar-programa');
-		if (btnEliminar) btnEliminar.disabled = true;
-		const btnVerLineas = document.getElementById('btn-ver-lineas');
-		if (btnVerLineas) btnVerLineas.disabled = true;
-		const btnVerLineasLayoutReset = document.getElementById('layoutBtnVerLineas');
-		if (btnVerLineasLayoutReset) btnVerLineasLayoutReset.disabled = true;
-
-		showToast('Restablecido<br>Se limpiaron filtros, fijados y columnas ocultas', 'success');
-	}
-
-	// ===== Controles de columnas desde navbar =====
-	function openPinColumnsModal() {
-		const columns = getColumnsData();
-		const pinnedColumns = getPinnedColumns();
-
-		const columnOptions = columns.map((col, index) => {
-			const isPinned = pinnedColumns.includes(index);
-			return `
-			<div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
-				<span class="text-sm font-medium text-gray-700">${col.label}</span>
-				<input type="checkbox" ${isPinned ? 'checked' : ''}
-					   class="w-4 h-4 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500"
-					   data-column-index="${index}">
-			</div>
-		`;
-		}).join('');
-
-		Swal.fire({
-			title: 'Fijar Columnas',
-			html: `
-			<div class="text-left">
-				<p class="text-sm text-gray-600 mb-4">Selecciona las columnas que deseas fijar a la izquierda de la tabla:</p>
-				<div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-					${columnOptions}
-				</div>
-			</div>
-		`,
-			showCancelButton: true,
-			confirmButtonText: 'Aplicar',
-			cancelButtonText: 'Cancelar',
-			confirmButtonColor: '#f59e0b',
-			cancelButtonColor: '#6b7280',
-			width: '500px',
-			didOpen: () => {
-				// Agregar event listeners a los checkboxes
-				const checkboxes = document.querySelectorAll('#swal2-html-container input[type="checkbox"]');
-				checkboxes.forEach(checkbox => {
-					checkbox.addEventListener('change', function() {
-						const columnIndex = parseInt(this.dataset.columnIndex);
-						if (this.checked) {
-							pinColumn(columnIndex);
-						} else {
-							unpinColumn(columnIndex);
-						}
-					});
-				});
-			}
-		});
-	}
-
-	function openHideColumnsModal() {
-		const columns = getColumnsData();
-		const hiddenColumns = getHiddenColumns();
-
-		const columnOptions = columns.map((col, index) => {
-			const isHidden = hiddenColumns.includes(index);
-			return `
-			<div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
-				<span class="text-sm font-medium text-gray-700">${col.label}</span>
-				<input type="checkbox" ${isHidden ? 'checked' : ''}
-					   class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500"
-					   data-column-index="${index}">
-			</div>
-		`;
-		}).join('');
-
-		Swal.fire({
-			title: 'Ocultar Columnas',
-			html: `
-			<div class="text-left">
-				<p class="text-sm text-gray-600 mb-4">Selecciona las columnas que deseas ocultar:</p>
-				<div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-					${columnOptions}
-				</div>
-			</div>
-		`,
-			showCancelButton: true,
-			confirmButtonText: 'Aplicar',
-			cancelButtonText: 'Cancelar',
-			confirmButtonColor: '#ef4444',
-			cancelButtonColor: '#6b7280',
-			width: '500px',
-			didOpen: () => {
-				// Agregar event listeners a los checkboxes
-				const checkboxes = document.querySelectorAll('#swal2-html-container input[type="checkbox"]');
-				checkboxes.forEach(checkbox => {
-					checkbox.addEventListener('change', function() {
-						const columnIndex = parseInt(this.dataset.columnIndex);
-						if (this.checked) {
-							hideColumn(columnIndex);
-						} else {
-							showColumn(columnIndex);
-						}
-					});
-				});
-			}
-		});
-	}
-
-	function getColumnsData() {
-		return columnsData.map(c => ({
-			label: c.label,
-			field: c.field
-		}));
-	}
-
-	function getPinnedColumns() {
-		return pinnedColumns || [];
-	}
-
-	function getHiddenColumns() {
-		return hiddenColumns || [];
-	}
-
-	function pinColumn(index) {
-		if (!pinnedColumns.includes(index)) {
-			pinnedColumns.push(index);
-			pinnedColumns.sort((a, b) => a - b);
-			updatePinnedColumnsPositions();
-		}
-	}
-
-	function unpinColumn(index) {
-		pinnedColumns = pinnedColumns.filter(i => i !== index);
-		updatePinnedColumnsPositions();
-	}
-
-	function resetColumnVisibility() {
-		// Mostrar todas las columnas
-		const allColumns = $$('th[class*="column-"]');
-		allColumns.forEach((th, index) => {
-			showColumn(index);
-		});
-		// Desfijar todas las columnas
-		pinnedColumns = [];
-		updatePinnedColumnsPositions();
-
-		Swal.fire({
-			title: 'Columnas Restablecidas',
-			text: 'Todas las columnas han sido mostradas y desfijadas',
-			icon: 'success',
-			timer: 2000,
-			showConfirmButton: false
-		});
-	}
-
-	function showColumn(index) {
-		$$(`.column-${index}`).forEach(el => el.style.display = '');
-	}
-
-	// ===== Columnas: ocultar / fijar =====
-	function hideColumn(index) {
-		$$(`.column-${index}`).forEach(el => el.style.display = 'none');
-		const hideBtn = $(`th.column-${index} .hide-btn`);
-		if (hideBtn) {
-			hideBtn.classList.remove('bg-red-500');
-			hideBtn.classList.add('bg-red-600');
-			hideBtn.title = 'Columna oculta';
-		}
-		if (!hiddenColumns.includes(index)) hiddenColumns.push(index);
-		showToast(`Columna oculta`, 'info');
-	}
-
-	function togglePinColumn(index) {
-		const exists = pinnedColumns.includes(index);
-		if (exists) pinnedColumns = pinnedColumns.filter(i => i !== index);
-		else pinnedColumns.push(index);
-		pinnedColumns.sort((a, b) => a - b);
-
-		// Botón estado
-		const pinBtn = $(`th.column-${index} .pin-btn`);
-		if (pinBtn) {
-			pinBtn.classList.toggle('bg-yellow-600', !exists);
-			pinBtn.classList.toggle('bg-yellow-500', exists);
-			pinBtn.title = exists ? 'Fijar columna' : 'Desfijar columna';
-		}
-
-		updatePinnedColumnsPositions();
-	}
-
-	function updatePinnedColumnsPositions() {
-		// Limpia estilos de todas primero
-		const allIdx = [...new Set($$('th[class*="column-"]').map(th => +th.dataset.index))];
-		allIdx.forEach(idx => {
-			$$(`.column-${idx}`).forEach(el => {
-				// Mantén sticky top en TH, pero quita left/zIndex/background si no está fijada
-				if (el.tagName === 'TH') {
-					el.style.top = '0';
-					el.style.position = 'sticky';
-					el.style.zIndex = '10';
-					el.style.backgroundColor = '#3b82f6';
-					el.style.color = '#fff';
-				} else {
-					el.style.position = '';
-					el.style.top = '';
-					el.style.zIndex = '';
-					el.style.backgroundColor = '';
-					el.style.color = '';
-				}
-				el.style.left = '';
-				el.classList.remove('pinned-column');
-			});
-		});
-
-		// Aplica fijados en orden
-		let left = 0;
-		pinnedColumns.forEach((idx, order) => {
-			const th = $(`th.column-${idx}`);
-			if (!th || th.style.display === 'none') return;
-
-			const width = th.offsetWidth;
-			$$(`.column-${idx}`).forEach(el => {
-				el.classList.add('pinned-column');
-				el.style.left = left + 'px';
-				if (el.tagName === 'TH') {
-					el.style.top = '0';
-					el.style.zIndex = String(20 + order);
-					el.style.position = 'sticky';
-				} else {
-					el.style.zIndex = String(15 + order);
-					el.style.position = 'sticky';
-				}
-			});
-			left += width;
-		});
-	}
-
-	// ===== Selección de filas - OPTIMIZADO =====
-	function selectRow(rowElement, rowIndex) {
-		try {
-			// Toggle si ya estaba seleccionada
-			if (selectedRowIndex === rowIndex && rowElement.classList.contains('bg-blue-500')) {
-				return deselectRow();
-			}
-
-			// Limpiar selección previa (optimizado con allRows)
-			const rows = allRows.length > 0 ? allRows : $$('.selectable-row');
-			for (let i = 0; i < rows.length; i++) {
-				const row = rows[i];
-				row.classList.remove('bg-blue-500', 'text-white');
-				row.classList.add('hover:bg-blue-50');
-				const tds = row.querySelectorAll('td');
-				for (let j = 0; j < tds.length; j++) {
-					const td = tds[j];
-					td.classList.remove('text-white');
-					td.classList.add('text-gray-700');
-				}
-			}
-
-			// Seleccionar actual
-			rowElement.classList.add('bg-blue-500', 'text-white');
-			rowElement.classList.remove('hover:bg-blue-50');
-			const tds = rowElement.querySelectorAll('td');
-			for (let i = 0; i < tds.length; i++) {
-				const td = tds[i];
-				td.classList.add('text-white');
-				td.classList.remove('text-gray-700');
-			}
-
-			selectedRowIndex = rowIndex;
-
-			// Habilitar botones editar, eliminar y ver líneas (local y layout)
-			const btnEditar = document.getElementById('btn-editar-programa');
-			const btnEditarLayout = document.getElementById('layoutBtnEditar');
-			if (btnEditar) btnEditar.disabled = false;
-			if (btnEditarLayout) btnEditarLayout.disabled = false;
-
-			const btnEliminar = document.getElementById('btn-eliminar-programa');
-			const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
-
-			// Verificar si el registro está en proceso (una sola vez)
-			const enProceso = rowElement.querySelector('[data-column="EnProceso"]');
-			const estaEnProceso = enProceso && enProceso.querySelector('input[type="checkbox"]')?.checked;
-
-			if (btnEliminar) btnEliminar.disabled = estaEnProceso;
-			if (btnEliminarLayout) btnEliminarLayout.disabled = estaEnProceso;
-
-			// Habilitar botón de ver líneas de detalle
-			const btnVerLineas = document.getElementById('btn-ver-lineas');
-			const btnVerLineasLayoutSelect = document.getElementById('layoutBtnVerLineas');
-			if (btnVerLineas) btnVerLineas.disabled = false;
-			if (btnVerLineasLayoutSelect) btnVerLineasLayoutSelect.disabled = false;
-		} catch (e) {
-			// Error silencioso para mejor rendimiento
-		}
-	}
-
-	function deselectRow() {
-		try {
-			// Optimizado con allRows
-			const rows = allRows.length > 0 ? allRows : $$('.selectable-row');
-			for (let i = 0; i < rows.length; i++) {
-				const row = rows[i];
-				row.classList.remove('bg-blue-500', 'text-white');
-				row.classList.add('hover:bg-blue-50');
-				const tds = row.querySelectorAll('td');
-				for (let j = 0; j < tds.length; j++) {
-					const td = tds[j];
-					td.classList.remove('text-white');
-					td.classList.add('text-gray-700');
-				}
-			}
-			selectedRowIndex = -1;
-
-			// Deshabilitar botones editar y eliminar (local y layout)
-			const btnEditar = document.getElementById('btn-editar-programa');
-			const btnEditarLayout = document.getElementById('layoutBtnEditar');
-			if (btnEditar) btnEditar.disabled = true;
-			if (btnEditarLayout) btnEditarLayout.disabled = true;
-
-			const btnEliminar = document.getElementById('btn-eliminar-programa');
-			const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
-			if (btnEliminar) btnEliminar.disabled = true;
-			if (btnEliminarLayout) btnEliminarLayout.disabled = true;
-
-			// Deshabilitar botón de ver líneas de detalle
-			const btnVerLineas = document.getElementById('btn-ver-lineas');
-			const btnVerLineasLayoutDeselect = document.getElementById('layoutBtnVerLineas');
-			if (btnVerLineas) btnVerLineas.disabled = true;
-			if (btnVerLineasLayoutDeselect) btnVerLineasLayoutDeselect.disabled = true;
-		} catch (e) {
-			// Error silencioso para mejor rendimiento
-		}
-	}
+	@include('modulos.programa-tejido.scripts.selection')
 
 	// Función para mostrar/ocultar loading rápido
 	function showLoading() {
@@ -797,6 +235,325 @@
 	function hideLoading() {
 		const loader = document.getElementById('priority-loader');
 		if (loader) loader.style.display = 'none';
+	}
+
+	// ===== Inline Editing =====
+	function toggleInlineEditMode() {
+		const btn = document.getElementById('btnInlineEdit');
+		if (!btn) {
+			console.error('btnInlineEdit no encontrado');
+			return;
+		}
+
+		inlineEditMode = !inlineEditMode;
+		console.log('toggleInlineEditMode:', inlineEditMode);
+
+		if (inlineEditMode) {
+			if (dragDropMode) {
+				toggleDragDropMode(); // Desactivar drag&drop antes de editar
+			}
+			deselectRow();
+			document.body.classList.add('inline-edit-mode');
+
+			// Actualizar botón en navbar (solo icono, sin span)
+			btn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+			btn.classList.add('bg-yellow-600', 'ring-2', 'ring-yellow-300');
+			btn.title = 'Desactivar edición en línea';
+
+			applyInlineModeToRows();
+			showToast('Modo edición activado. Los cambios se guardan al salir de cada campo.', 'info');
+		} else {
+			document.body.classList.remove('inline-edit-mode');
+			restoreInlineEditing();
+
+			// Restaurar botón en navbar
+			btn.classList.remove('bg-yellow-600', 'ring-2', 'ring-yellow-300');
+			btn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+			btn.title = 'Activar edición en línea';
+
+			showToast('Modo edición desactivado', 'info');
+		}
+	}
+
+	function applyInlineModeToRows() {
+		if (!inlineEditMode) return;
+		console.log('applyInlineModeToRows: activando modo inline');
+		const rows = allRows.length ? allRows : $$('.selectable-row');
+		console.log('Filas encontradas:', rows.length);
+		rows.forEach(row => {
+			// Limpiar estado previo si existe
+			delete row.dataset.inlinePrepared;
+			makeRowInlineEditable(row);
+		});
+	}
+
+	function restoreInlineEditing() {
+		console.log('restoreInlineEditing: restaurando modo normal');
+		const rows = allRows.length ? allRows : $$('.selectable-row');
+		rows.forEach(row => {
+			row.classList.remove('inline-edit-row', 'inline-saving');
+			Object.keys(inlineEditableFields).forEach(field => {
+				const cell = row.querySelector(`[data-column="${field}"]`);
+				if (!cell) return;
+
+				// Restaurar HTML original si existe
+				const original = cell.dataset.originalHtml;
+				if (original !== undefined) {
+					cell.innerHTML = original;
+					delete cell.dataset.originalHtml;
+				} else {
+					// Si no hay HTML original, restaurar desde el valor guardado
+					const savedValue = cell.dataset.value;
+					if (savedValue !== undefined) {
+						cell.textContent = formatInlineDisplay(field, savedValue);
+					}
+				}
+				delete cell.dataset.inlineEditing;
+			});
+			delete row.dataset.inlinePrepared;
+		});
+		console.log('restoreInlineEditing: restauración completada');
+	}
+
+	function makeRowInlineEditable(row) {
+		if (!row) {
+			console.warn('makeRowInlineEditable: row es null');
+			return;
+		}
+
+		if (row.dataset.inlinePrepared === 'true') {
+			console.log('makeRowInlineEditable: fila ya preparada, omitiendo');
+			return;
+		}
+
+		const rowId = row.getAttribute('data-id');
+		if (!rowId) {
+			console.warn('makeRowInlineEditable: fila sin data-id');
+			return;
+		}
+
+		console.log('makeRowInlineEditable: preparando fila', rowId);
+		row.classList.add('inline-edit-row');
+		row.dataset.inlinePrepared = 'true';
+
+		Object.keys(inlineEditableFields).forEach(field => {
+			const cell = row.querySelector(`[data-column="${field}"]`);
+			if (!cell) {
+				console.warn(`makeRowInlineEditable: celda no encontrada para campo ${field}`);
+				return;
+			}
+
+			// Guardar HTML original si no está guardado
+			if (!cell.dataset.originalHtml) {
+				cell.dataset.originalHtml = cell.innerHTML;
+			}
+
+			// Guardar valor original si no está guardado
+			if (!cell.dataset.value) {
+				const textValue = cell.textContent.trim();
+				cell.dataset.value = textValue;
+			}
+
+			cell.dataset.inlineEditing = 'true';
+
+			const cfg = inlineEditableFields[field] || {};
+			const input = document.createElement('input');
+			input.type = cfg.type || 'text';
+			if (cfg.step) input.step = cfg.step;
+			if (cfg.min !== undefined) input.min = cfg.min;
+			if (cfg.max !== undefined) input.max = cfg.max;
+			if (cfg.maxLength) input.maxLength = cfg.maxLength;
+			input.className = 'inline-edit-input w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+			const rawValue = cell.dataset.value ?? cell.textContent.trim();
+			const formattedValue = formatInlineValueForInput(field, rawValue);
+			input.value = formattedValue;
+			input.dataset.originalValue = rawValue ?? '';
+
+			input.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					input.blur();
+				}
+				if (e.key === 'Escape') {
+					e.preventDefault();
+					input.value = formatInlineValueForInput(field, input.dataset.originalValue ?? '');
+					input.blur();
+				}
+			});
+
+			input.addEventListener('blur', () => handleInlineInputChange(row, field, input));
+			input.addEventListener('click', (e) => e.stopPropagation());
+
+			cell.innerHTML = '';
+			cell.appendChild(input);
+			console.log(`makeRowInlineEditable: input creado para ${field} con valor ${formattedValue}`);
+		});
+	}
+
+	function formatInlineValueForInput(field, value) {
+		if (value === null || value === undefined || value === 'null') return '';
+		const cfg = inlineEditableFields[field];
+		if (cfg?.inputFormatter) {
+			try {
+				return cfg.inputFormatter(value);
+			} catch (error) {
+				return value ?? '';
+			}
+		}
+		return value ?? '';
+	}
+
+	function formatInlineDisplay(field, value) {
+		if (value === null || value === undefined || value === '' || value === 'null') return '';
+		const cfg = inlineEditableFields[field];
+		if (cfg?.displayFormatter) {
+			try {
+				return cfg.displayFormatter(value);
+			} catch (error) {
+				return value;
+			}
+		}
+		return value;
+	}
+
+	function convertInputForPayload(field, value) {
+		const cfg = inlineEditableFields[field] || {};
+		if (cfg.toPayload) {
+			return cfg.toPayload(value);
+		}
+		if (cfg.type === 'number') {
+			if (value === '') return null;
+			const parsed = parseFloat(value);
+			return isNaN(parsed) ? null : parsed;
+		}
+		return value === '' ? null : value;
+	}
+
+	function getComparableValue(field, value) {
+		if (value === null || value === undefined || value === '' || value === 'null') return null;
+		const cfg = inlineEditableFields[field] || {};
+		if (cfg.compareFormatter) {
+			try {
+				return cfg.compareFormatter(value);
+			} catch (error) {
+				return value;
+			}
+		}
+		if (cfg.type === 'number') {
+			const parsed = parseFloat(value);
+			return isNaN(parsed) ? null : parsed;
+		}
+		return value;
+	}
+
+	function isNearlyEqual(a, b, tolerance = 0.000001) {
+		return Math.abs(a - b) <= tolerance;
+	}
+
+	function handleInlineInputChange(row, field, input) {
+		const cfg = inlineEditableFields[field] || {};
+		const cell = input.closest('td');
+		if (!cell) return;
+
+		let newValue = (input.value ?? '').trim();
+		if (cfg.type === 'number' && newValue !== '') {
+			newValue = newValue.replace(',', '.');
+		}
+
+		const originalValue = cell.dataset.value ?? '';
+		const normalizedOriginal = getComparableValue(field, originalValue);
+		const normalizedValue = convertInputForPayload(field, newValue);
+
+		if (normalizedValue === null && newValue !== '') {
+			input.classList.add('border-red-500');
+			showToast('Valor no válido para el campo seleccionado', 'error');
+			return;
+		}
+		input.classList.remove('border-red-500');
+
+		const sameValue =
+			(normalizedValue === null && normalizedOriginal === null) ||
+			(typeof normalizedValue === 'number' && typeof normalizedOriginal === 'number'
+				? isNearlyEqual(normalizedValue, normalizedOriginal)
+				: normalizedValue === normalizedOriginal);
+
+		if (sameValue) return;
+
+		const payloadField = inlineFieldPayloadMap[field] || field;
+		const payload = {};
+		payload[payloadField] = normalizedValue;
+
+		saveInlineField(row, field, payload, input, normalizedValue);
+	}
+
+	async function saveInlineField(row, field, payload, input, normalizedValue) {
+		const rowId = row.getAttribute('data-id');
+		if (!rowId) {
+			showToast('No se pudo identificar el registro.', 'error');
+			return;
+		}
+
+		row.classList.add('inline-saving');
+		input.disabled = true;
+
+		try {
+			const response = await fetch(`/planeacion/programa-tejido/${rowId}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'Accept': 'application/json',
+					'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+				},
+				body: JSON.stringify(payload)
+			});
+
+			const data = await response.json();
+
+			if (!response.ok || !data.success) {
+				throw new Error(data.message || 'No se pudo actualizar el registro');
+			}
+
+			updateRowWithResponse(row, data.data || {}, field, normalizedValue);
+			showToast('Registro actualizado correctamente', 'success');
+		} catch (error) {
+			showToast(error.message || 'Error al actualizar el registro', 'error');
+			const cell = input.closest('td');
+			if (cell) {
+				input.value = formatInlineValueForInput(field, cell.dataset.value ?? '');
+			}
+		} finally {
+			input.disabled = false;
+			row.classList.remove('inline-saving');
+		}
+	}
+
+	function updateRowWithResponse(row, updatedData, fallbackField, fallbackValue) {
+		const fields = new Set(Object.keys(updatedData || {}));
+		if (!fields.size && fallbackField) fields.add(fallbackField);
+
+		fields.forEach(field => {
+			const cell = row.querySelector(`[data-column="${field}"]`);
+			if (!cell) return;
+			const newValue = field in updatedData ? updatedData[field] : fallbackValue;
+			cell.dataset.value = newValue ?? '';
+
+			if (inlineEditMode && inlineEditableFields[field]) {
+				const input = cell.querySelector('input');
+				if (input) {
+					input.value = formatInlineValueForInput(field, newValue ?? '');
+					input.dataset.originalValue = newValue ?? '';
+				}
+			} else {
+				cell.textContent = formatInlineDisplay(field, newValue ?? '');
+			}
+			if (cell.dataset.originalHtml !== undefined) {
+				cell.dataset.originalHtml = formatInlineDisplay(field, newValue ?? '');
+			}
+
+			cell.classList.add('bg-yellow-100');
+			setTimeout(() => cell.classList.remove('bg-yellow-100'), 1500);
+		});
 	}
 
 	// ===== Función para descargar programa =====
@@ -2031,6 +1788,7 @@
 			allRows.forEach((row, i) => {
 				row.onclick = () => selectRow(row, i);
 			});
+			if (inlineEditMode) applyInlineModeToRows();
 		}
 		updateFilterCount();
 		window.addEventListener('resize', () => updatePinnedColumnsPositions());
@@ -2041,6 +1799,15 @@
 		const btnVerLineasLayout = document.getElementById('layoutBtnVerLineas');
 		if (btnEditarLayout) {
 			btnEditarLayout.disabled = true;
+		}
+		const btnInlineEdit = document.getElementById('btnInlineEdit');
+		if (btnInlineEdit) {
+			// Remover onclick del HTML si existe para evitar doble ejecución
+			btnInlineEdit.removeAttribute('onclick');
+			btnInlineEdit.addEventListener('click', toggleInlineEditMode);
+			console.log('✅ Event listener agregado a btnInlineEdit');
+		} else {
+			console.warn('⚠️ btnInlineEdit no encontrado en DOMContentLoaded');
 		}
 		if (btnEliminarLayout) {
 			btnEliminarLayout.disabled = true;

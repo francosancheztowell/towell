@@ -1545,6 +1545,12 @@ class ProgramaTejidoController extends Controller
     {
         return [
             'Id' => $r->Id,
+            'Ancho' => $r->Ancho,
+            'EficienciaSTD' => $r->EficienciaSTD,
+            'VelocidadSTD' => $r->VelocidadSTD,
+            'FibraRizo' => $r->FibraRizo,
+            'CalibrePie2' => $r->CalibrePie2,
+            'TotalPedido' => $r->TotalPedido,
             'SaldoPedido' => $r->SaldoPedido,
             'Produccion'  => $r->Produccion,
             'NombreCC1'   => $r->NombreCC1,
