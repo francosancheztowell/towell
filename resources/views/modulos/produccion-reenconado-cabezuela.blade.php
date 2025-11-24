@@ -19,6 +19,9 @@ Producción Reenconado Cabezuela
         <button type="button" id="btn-eliminar" class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar">
             <i class="fa fa-trash text-red-600 text-lg"></i>
         </button>
+        <button type="button" id="btn-autorizar" class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Cambiar Status">
+            <i class="fa-solid fa-user-check text-blue-600 text-lg"></i>
+        </button>
     </div>
 @endsection
 
@@ -44,6 +47,7 @@ Producción Reenconado Cabezuela
                         <thead class="text-white">
                 <tr class="text-center align-middle">
                     <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Folio</th>
+                    <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Estatus</th>
                     <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Fecha</th>
                     <th class="w-[72px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Turno</th>
                     <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Operador</th>
@@ -54,15 +58,25 @@ Producción Reenconado Cabezuela
                     <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Cantidad</th>
                     <th class="w-[72px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Conos</th>
                     <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Hrs</th>
+                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Capacidad</th>
                     <th class="w-[90px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Eficiencia</th>
                     <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-3 py-2 border-b-2 border-gray-200">Observaciones</th>
                 </tr>
                         </thead>
                         <tbody id="rows-body" class="text-gray-800">
                                 @forelse($registros as $r)
+                                        @php
+                                            $status = $r->status ?? 'Creado';
+                                            $statusClass = match($status) {
+                                                'Terminado' => 'text-green-600 font-semibold',
+                                                'En Proceso' => 'text-yellow-600 font-semibold',
+                                                default => 'text-gray-600'
+                                            };
+                                        @endphp
                                         <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50"
                                             data-folio="{{ $r->Folio }}"
                                             data-date="{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}"
+                                            data-status="{{ $status }}"
                                             data-turno="{{ $r->Turno }}"
                                             data-numero_empleado="{{ $r->numero_empleado }}"
                                             data-nombreempl="{{ $r->nombreEmpl }}"
@@ -73,9 +87,11 @@ Producción Reenconado Cabezuela
                                             data-cantidad="{{ is_null($r->Cantidad) ? '' : number_format($r->Cantidad, 2, '.', '') }}"
                                             data-conos="{{ $r->Conos }}"
                                             data-horas="{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2, '.', '') }}"
+                                            data-capacidad="{{ $r->capacidad ?? '' }}"
                                             data-eficiencia="{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2, '.', '') }}"
                                             data-obs="{{ $r->Obs }}">
                                                 <td class="text-center whitespace-nowrap">{{ $r->Folio }}</td>
+                                                <td class="text-center whitespace-nowrap {{ $statusClass }}">{{ $status }}</td>
                                                 <td class="text-center whitespace-nowrap">{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}</td>
                                                 <td class="text-center whitespace-nowrap">{{ $r->Turno }}</td>
                                                 <td class="text-center whitespace-nowrap">{{ $r->nombreEmpl }}</td>
@@ -86,11 +102,12 @@ Producción Reenconado Cabezuela
                                                 <td class="text-center whitespace-nowrap">{{ is_null($r->Cantidad) ? '' : number_format($r->Cantidad, 2) }}</td>
                                                 <td class="text-center whitespace-nowrap">{{ $r->Conos }}</td>
                                                 <td class="text-center whitespace-nowrap">{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2) }}</td>
+                                                <td class="text-center whitespace-nowrap">{{ $r->capacidad ?? '' }}</td>
                                                 <td class="text-center whitespace-nowrap">{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2) }}</td>
                                                 <td class="text-center whitespace-nowrap">{{ $r->Obs }}</td>
                                         </tr>
                                 @empty
-                                        <tr class="odd:bg-white even:bg-gray-50"><td colspan="13" class="text-center text-gray-500 py-3">Sin registros</td></tr>
+                                        <tr class="odd:bg-white even:bg-gray-50"><td colspan="15" class="text-center text-gray-500 py-3">Sin registros</td></tr>
                                 @endforelse
                         </tbody>
                 </table>
@@ -157,19 +174,19 @@ Producción Reenconado Cabezuela
                     </div>
 
                     <div class="col-span-6 md:col-span-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Calibre</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Calibre <span class="text-gray-400 text-xs">(opcional)</span></label>
                         <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Calibre">
                     </div>
                     <div class="col-span-6 md:col-span-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Fibra</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fibra <span class="text-gray-400 text-xs">(opcional)</span></label>
                         <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_FibraTrama">
                     </div>
                     <div class="col-span-6 md:col-span-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Cód. Color</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Cód. Color <span class="text-gray-400 text-xs">(opcional)</span></label>
                         <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_CodColor">
                     </div>
                     <div class="col-span-6 md:col-span-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Color</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Color <span class="text-gray-400 text-xs">(opcional)</span></label>
                         <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Color">
                     </div>
 
@@ -233,6 +250,7 @@ Producción Reenconado Cabezuela
     const nuevoBtn = document.getElementById('btn-nuevo');
     const editarBtn = document.getElementById('btn-editar');
     const eliminarBtn = document.getElementById('btn-eliminar');
+    const autorizarBtn = document.getElementById('btn-autorizar');
     const saveBtn = document.getElementById('btn-guardar-nuevo');
     const tbody = document.getElementById('rows-body');
     const modalEl = document.getElementById('modalNuevo');
@@ -246,10 +264,15 @@ Producción Reenconado Cabezuela
 
     function rowHtml(r){
         const nf = (v, d=2) => (v===null||v===undefined||v==='') ? '' : Number(v).toFixed(d);
+        const status = r.status ?? 'Creado';
+        const statusColor = status === 'Terminado' ? 'text-green-600 font-semibold' : 
+                           status === 'En Proceso' ? 'text-yellow-600 font-semibold' : 
+                           'text-gray-600';
         return `
             <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50"
                 data-folio="${r.Folio??''}"
                 data-date="${r.Date??''}"
+                data-status="${status}"
                 data-turno="${r.Turno??''}"
                 data-numero_empleado="${r.numero_empleado??''}"
                 data-nombreempl="${r.nombreEmpl??''}"
@@ -260,9 +283,11 @@ Producción Reenconado Cabezuela
                 data-cantidad="${r.Cantidad??''}"
                 data-conos="${r.Conos??''}"
                 data-horas="${r.Horas??''}"
+                data-capacidad="${r.capacidad??''}"
                 data-eficiencia="${r.Eficiencia??''}"
                 data-obs="${r.Obs??''}">
                 <td class="text-center whitespace-nowrap">${r.Folio??''}</td>
+                <td class="text-center whitespace-nowrap ${statusColor}">${status}</td>
                 <td class="text-center whitespace-nowrap">${r.Date??''}</td>
                 <td class="text-center whitespace-nowrap">${r.Turno??''}</td>
                 <td class="text-center whitespace-nowrap">${r.nombreEmpl??''}</td>
@@ -273,6 +298,7 @@ Producción Reenconado Cabezuela
                 <td class="text-center whitespace-nowrap">${nf(r.Cantidad)}</td>
                 <td class="text-center whitespace-nowrap">${r.Conos??''}</td>
                 <td class="text-center whitespace-nowrap">${nf(r.Horas)}</td>
+                <td class="text-center whitespace-nowrap">${r.capacidad??''}</td>
                 <td class="text-center whitespace-nowrap">${nf(r.Eficiencia)}</td>
                 <td class="text-center whitespace-nowrap">${r.Obs??''}</td>
             </tr>`;
@@ -319,16 +345,12 @@ Producción Reenconado Cabezuela
             Obs: document.getElementById('f_Obs').value || null,
         };
 
-        // Validación básica: todos requeridos
+        // Validación básica: Calibre, FibraTrama, CodColor y Color son opcionales
         const requiredFields = [
             ['Date','La fecha es requerida'],
             ['Turno','El turno es requerido'],
             ['numero_empleado','El número de empleado es requerido'],
             ['nombreEmpl','El nombre es requerido'],
-            ['Calibre','El calibre es requerido'],
-            ['FibraTrama','La fibra es requerida'],
-            ['CodColor','El código de color es requerido'],
-            ['Color','El color es requerido'],
             ['Cantidad','La cantidad es requerida'],
             ['Conos','Los conos son requeridos'],
             ['Horas','Las horas son requeridas'],
@@ -419,6 +441,7 @@ Producción Reenconado Cabezuela
         const hasSelection = !!selectedRow;
         editarBtn.disabled = !hasSelection;
         eliminarBtn.disabled = !hasSelection;
+        autorizarBtn.disabled = !hasSelection;
         // Las clases disabled:opacity-50 y disabled:cursor-not-allowed ya están en el HTML
     }
 
@@ -555,6 +578,48 @@ Producción Reenconado Cabezuela
             console.error('Error al eliminar:', e);
             const msg = e?.response?.data?.message || 'Error al eliminar el registro';
             Swal.fire({ icon:'error', title:'Error', text: msg });
+        }
+    });
+
+    autorizarBtn.addEventListener('click', async () => {
+        if(!selectedRow){ toastr.info('Selecciona un registro'); return; }
+        const folio = selectedRow.dataset.folio;
+        if(!folio){ toastr.error('Folio inválido'); return; }
+        
+        const statusActual = selectedRow.dataset.status || 'Creado';
+        const proximoStatus = statusActual === 'Creado' ? 'En Proceso' : 
+                             statusActual === 'En Proceso' ? 'Terminado' : 'Creado';
+
+        try{
+            const url = `{{ route('tejido.produccion.reenconado.cambiar-status', ['folio' => '__F__']) }}`.replace('__F__', encodeURIComponent(folio));
+            const {data} = await axios.patch(url);
+            
+            if(data && data.success){
+                const nuevoStatus = data.status;
+                selectedRow.dataset.status = nuevoStatus;
+                
+                // Actualizar la celda de status en la fila (segunda columna)
+                const statusCell = selectedRow.querySelectorAll('td')[1];
+                statusCell.textContent = nuevoStatus;
+                
+                // Aplicar color según el status
+                statusCell.className = 'text-center whitespace-nowrap';
+                if(nuevoStatus === 'Terminado'){
+                    statusCell.classList.add('text-green-600', 'font-semibold');
+                } else if(nuevoStatus === 'En Proceso'){
+                    statusCell.classList.add('text-yellow-600', 'font-semibold');
+                } else {
+                    statusCell.classList.add('text-gray-600');
+                }
+                
+                toastr.success(`Status cambiado a: ${nuevoStatus}`);
+            } else {
+                toastr.error('No se pudo cambiar el status');
+            }
+        }catch(e){
+            console.error('Error al cambiar status:', e);
+            const msg = e?.response?.data?.message || 'Error al cambiar el status';
+            toastr.error(msg);
         }
     });
 })();

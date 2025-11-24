@@ -402,6 +402,8 @@ Route::middleware(['auth'])->group(function () {
             ->name('produccion.reenconado.update');
         Route::delete('/produccion-reenconado/{folio}', [ProduccionReenconadoCabezuelaController::class, 'destroy'])
             ->name('produccion.reenconado.destroy');
+        Route::patch('/produccion-reenconado/{folio}/cambiar-status', [ProduccionReenconadoCabezuelaController::class, 'cambiarStatus'])
+            ->name('produccion.reenconado.cambiar-status');
 
         // Secuencia Inv Telas
         Route::get('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'index'])->name('secuencia-inv-telas.index');
