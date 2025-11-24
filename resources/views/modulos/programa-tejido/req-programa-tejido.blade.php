@@ -296,18 +296,10 @@
 				const cell = row.querySelector(`[data-column="${field}"]`);
 				if (!cell) return;
 
-				// Restaurar HTML original si existe
-				const original = cell.dataset.originalHtml;
-				if (original !== undefined) {
-					cell.innerHTML = original;
-					delete cell.dataset.originalHtml;
-				} else {
-					// Si no hay HTML original, restaurar desde el valor guardado
-					const savedValue = cell.dataset.value;
-					if (savedValue !== undefined) {
-						cell.textContent = formatInlineDisplay(field, savedValue);
-					}
-				}
+				const savedValue = cell.dataset.value;
+				const formatted = formatInlineDisplay(field, savedValue ?? '');
+				cell.textContent = formatted;
+				delete cell.dataset.originalHtml;
 				delete cell.dataset.inlineEditing;
 			});
 			delete row.dataset.inlinePrepared;
@@ -741,8 +733,23 @@
 		rowCache.clear();
 	}
 
+	function normalizeTelarValue(value) {
+		if (value === undefined || value === null) return '';
+		const str = String(value).trim();
+		if (!str) return '';
+		const numericValue = Number(str);
+		if (!Number.isNaN(numericValue)) {
+			return numericValue.toString();
+		}
+		return str.toUpperCase();
+	}
+
+	function isSameTelar(a, b) {
+		return normalizeTelarValue(a) === normalizeTelarValue(b);
+	}
+
 	function getRowsByTelar(telarId) {
-		return allRows.filter(row => getRowTelar(row) === telarId);
+		return allRows.filter(row => isSameTelar(getRowTelar(row), telarId));
 	}
 
 	// Función helper para verificar si una fila está en proceso
@@ -913,7 +920,7 @@
 		const targetTelar = getRowTelar(targetRow);
 
 		// VALIDACIÓN: No permitir colocar antes de un registro en proceso
-		if (draggedRowTelar !== targetTelar) {
+		if (!isSameTelar(draggedRowTelar, targetTelar)) {
 			// Si es telar diferente, validar posición
 			const tb = tbodyEl();
 			if (tb) {
@@ -922,10 +929,10 @@
 
 				if (draggedRowIndex !== -1) {
 					// Verificar si hay registros en proceso antes de la posición objetivo
-					const targetRowsInDOM = allRowsInDOM.filter(row => getRowTelar(row) === targetTelar);
+					const targetRowsInDOM = allRowsInDOM.filter(row => isSameTelar(getRowTelar(row), targetTelar));
 					let posicionObjetivo = 0;
 					for (let i = 0; i < draggedRowIndex; i++) {
-						if (getRowTelar(allRowsInDOM[i]) === targetTelar) {
+						if (isSameTelar(getRowTelar(allRowsInDOM[i]), targetTelar)) {
 							posicionObjetivo++;
 						}
 					}
@@ -952,7 +959,7 @@
 		}
 
 		// Visual feedback: mostrar advertencia si es telar diferente
-		if (draggedRowTelar !== targetTelar) {
+		if (!isSameTelar(draggedRowTelar, targetTelar)) {
 			e.dataTransfer.dropEffect = 'copy';
 			if (targetRow.classList && !targetRow.classList.contains('drag-over-warning')) {
 				targetRow.classList.add('drag-over-warning');
@@ -1017,10 +1024,10 @@
 
 		// Obtener las filas del telar destino ANTES de incluir el draggedRow
 		// Esto es importante porque el draggedRow puede haber sido movido visualmente al telar destino
-		const targetRowsOriginal = allRowsInDOM.filter(row => {
-			const rowTelar = getRowTelar(row);
-			return rowTelar === targetTelar && row !== draggedRow;
-		});
+			const targetRowsOriginal = allRowsInDOM.filter(row => {
+				const rowTelar = getRowTelar(row);
+				return isSameTelar(rowTelar, targetTelar) && row !== draggedRow;
+			});
 
 		// Encontrar la posición del draggedRow en el DOM (después del reordenamiento visual)
 		const draggedRowIndex = allRowsInDOM.indexOf(draggedRow);
@@ -1033,7 +1040,7 @@
 			let posicion = 0;
 			for (let i = 0; i < draggedRowIndex; i++) {
 				const row = allRowsInDOM[i];
-				if (row !== draggedRow && getRowTelar(row) === targetTelar) {
+				if (row !== draggedRow && isSameTelar(getRowTelar(row), targetTelar)) {
 					posicion++;
 				}
 			}
@@ -1110,13 +1117,33 @@
 			return false;
 		}
 
-		// Determinar el telar destino basándose en las filas adyacentes al draggedRow
+		// Determinar el telar destino basándose en la posición final del draggedRow
 		let targetTelar = null;
 		let targetSalon = null;
 		let targetRow = null;
 
+		const prevRow = draggedIndex > 0 ? allRowsInDOM[draggedIndex - 1] : null;
+		const nextRow = draggedIndex < allRowsInDOM.length - 1 ? allRowsInDOM[draggedIndex + 1] : null;
+		const sameTelarPrev = prevRow && isSameTelar(getRowTelar(prevRow), draggedRowTelar);
+		const sameTelarNext = nextRow && isSameTelar(getRowTelar(nextRow), draggedRowTelar);
+		const forcedSameTelar = sameTelarPrev || sameTelarNext;
+
+		if (forcedSameTelar) {
+			targetTelar = draggedRowTelar;
+			if (sameTelarPrev) {
+				targetRow = prevRow;
+				targetSalon = getRowSalon(prevRow) || draggedRowSalon;
+			} else if (sameTelarNext) {
+				targetRow = nextRow;
+				targetSalon = getRowSalon(nextRow) || draggedRowSalon;
+			} else {
+				targetSalon = draggedRowSalon;
+			}
+			console.log(' Telar destino determinado por vecinos del mismo telar:', targetTelar);
+		}
+
 		// Estrategia 1: Buscar la fila más cercana al punto donde se soltó (e.clientY)
-		if (e.clientY) {
+		if (!targetTelar && e.clientY) {
 			let closestRow = null;
 			let closestDistance = Infinity;
 
@@ -1140,17 +1167,12 @@
 
 		// Estrategia 2: Si no se encontró, usar las filas adyacentes al draggedRow
 		if (!targetTelar) {
-			// Buscar fila anterior (si existe)
-			if (draggedIndex > 0) {
-				const prevRow = allRowsInDOM[draggedIndex - 1];
+			if (prevRow) {
 				targetRow = prevRow;
 				targetTelar = getRowTelar(prevRow);
 				targetSalon = getRowSalon(prevRow);
 				console.log('✅ Telar destino detectado por fila anterior:', targetTelar);
-			}
-			// Si no hay anterior, buscar fila siguiente
-			else if (draggedIndex < allRowsInDOM.length - 1) {
-				const nextRow = allRowsInDOM[draggedIndex + 1];
+			} else if (nextRow) {
 				targetRow = nextRow;
 				targetTelar = getRowTelar(nextRow);
 				targetSalon = getRowSalon(nextRow);
@@ -1165,7 +1187,7 @@
 				if (i === draggedIndex) continue;
 				const row = allRowsInDOM[i];
 				const rowTelar = getRowTelar(row);
-				if (rowTelar && rowTelar !== draggedRowTelar) {
+				if (rowTelar && !isSameTelar(rowTelar, draggedRowTelar)) {
 					targetRow = row;
 					targetTelar = rowTelar;
 					targetSalon = getRowSalon(row);
@@ -1199,7 +1221,7 @@
 
 		// Validación adicional: Si el telar destino es igual al origen, verificar si realmente es el mismo
 		// o si el draggedRow se movió visualmente a otro telar
-		if (draggedRowTelar === targetTelar) {
+		if (isSameTelar(draggedRowTelar, targetTelar) && !forcedSameTelar) {
 			// Verificar si hay filas de otros telares cerca del draggedRow
 			const nearbyRows = [];
 			const checkRadius = 5;
@@ -1207,7 +1229,7 @@
 				if (i === draggedIndex) continue;
 				const row = allRowsInDOM[i];
 				const rowTelar = getRowTelar(row);
-				if (rowTelar && rowTelar !== draggedRowTelar) {
+				if (rowTelar && !isSameTelar(rowTelar, draggedRowTelar)) {
 					nearbyRows.push({ row, telar: rowTelar, index: i });
 				}
 			}
@@ -1229,7 +1251,7 @@
 		}
 
 		// CASO 1: Mismo telar → Movimiento normal sin validación
-		if (draggedRowTelar === targetTelar) {
+		if (isSameTelar(draggedRowTelar, targetTelar)) {
 			console.log('📌 Mismo telar - procesando movimiento normal');
 			await procesarMovimientoMismoTelar(registroId);
 			return false;
@@ -1275,7 +1297,7 @@
 		if (!tb) return;
 
 		// Calcular nueva posición
-		const allRowsSameTelar = allRows.filter(row => getRowTelar(row) === draggedRowTelar);
+		const allRowsSameTelar = allRows.filter(row => isSameTelar(getRowTelar(row), draggedRowTelar));
 		const allRowsInDOM = Array.from(tb.querySelectorAll('.selectable-row'));
 
 		const positionMap = new Map();
@@ -1502,7 +1524,7 @@
 				const tb = tbodyEl();
 				if (tb && draggedRow) {
 					// Buscar la posición original del registro arrastrado
-					const originalRows = allRows.filter(row => getRowTelar(row) === draggedRowTelar);
+					const originalRows = allRows.filter(row => isSameTelar(getRowTelar(row), draggedRowTelar));
 					if (originalRows.length > 0) {
 						// Intentar restaurar la posición original
 						const originalIndex = originalRows.indexOf(draggedRow);
@@ -1556,7 +1578,7 @@
 				// Restaurar posición visual
 				const tb = tbodyEl();
 				if (tb && draggedRow) {
-					const originalRows = allRows.filter(row => getRowTelar(row) === draggedRowTelar);
+				const originalRows = allRows.filter(row => isSameTelar(getRowTelar(row), draggedRowTelar));
 					if (originalRows.length > 0) {
 						const originalIndex = originalRows.indexOf(draggedRow);
 						if (originalIndex !== -1 && originalIndex < originalRows.length - 1) {
@@ -1607,7 +1629,7 @@
 			// Restaurar posición visual en caso de error
 			const tb = tbodyEl();
 			if (tb && draggedRow) {
-				const originalRows = allRows.filter(row => getRowTelar(row) === draggedRowTelar);
+				const originalRows = allRows.filter(row => isSameTelar(getRowTelar(row), draggedRowTelar));
 				if (originalRows.length > 0) {
 					const originalIndex = originalRows.indexOf(draggedRow);
 					if (originalIndex !== -1 && originalIndex < originalRows.length - 1) {

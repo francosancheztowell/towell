@@ -172,14 +172,23 @@ class ProgramaTejidoController extends Controller
         $data = $request->validate([
             'cantidad' => ['nullable','numeric','min:0'],
             'fecha_fin' => ['nullable','string'],
+            'fecha_inicio' => ['nullable','date'],
+            'calendario_id' => ['nullable','string'],
+            'tamano_clave' => ['nullable','string'],
+            'no_existe_base' => ['nullable','string'],
+            'rasurado' => ['nullable','string'],
+            'programar_prod' => ['nullable','date'],
             'idflog' => ['nullable','string'],
             'nombre_proyecto' => ['nullable','string'],
             'aplicacion_id' => ['nullable','string'],
-            'nombre_color_1' => ['nullable','string'],
-            'nombre_color_2' => ['nullable','string'],
-            'nombre_color_3' => ['nullable','string'],
-            'nombre_color_6' => ['nullable','string'],
+            'observaciones' => ['nullable','string'],
+            'no_tiras' => ['nullable','numeric'],
+            'peine' => ['nullable','numeric'],
+            'largo_crudo' => ['nullable','numeric'],
+            'luchaje' => ['nullable','numeric'],
+            'peso_crudo' => ['nullable','numeric'],
             'calibre_trama' => ['nullable','numeric'],
+            'calibre_trama2' => ['nullable','numeric'],
             'calibre_c1' => ['nullable','numeric'],
             'calibre_c2' => ['nullable','numeric'],
             'calibre_c3' => ['nullable','numeric'],
@@ -191,6 +200,32 @@ class ProgramaTejidoController extends Controller
             'fibra_c3' => ['nullable','string'],
             'fibra_c4' => ['nullable','string'],
             'fibra_c5' => ['nullable','string'],
+            'cod_color_trama' => ['nullable','string'],
+            'cod_color_comb1' => ['nullable','string'],
+            'cod_color_comb2' => ['nullable','string'],
+            'cod_color_comb3' => ['nullable','string'],
+            'cod_color_comb4' => ['nullable','string'],
+            'cod_color_comb5' => ['nullable','string'],
+            'nombre_cc1' => ['nullable','string'],
+            'nombre_cc2' => ['nullable','string'],
+            'nombre_cc3' => ['nullable','string'],
+            'nombre_cc4' => ['nullable','string'],
+            'nombre_cc5' => ['nullable','string'],
+            'dobladillo_id' => ['nullable','string'],
+            'pasadas_comb1' => ['nullable','numeric'],
+            'pasadas_comb2' => ['nullable','numeric'],
+            'pasadas_comb3' => ['nullable','numeric'],
+            'pasadas_comb4' => ['nullable','numeric'],
+            'pasadas_comb5' => ['nullable','numeric'],
+            'ancho_toalla' => ['nullable','numeric'],
+            'medida_plano' => ['nullable','numeric'],
+            'cuenta_pie' => ['nullable','string'],
+            'cod_color_cta_pie' => ['nullable','string'],
+            'nombre_c_pie' => ['nullable','string'],
+            'nombre_color_1' => ['nullable','string'],
+            'nombre_color_2' => ['nullable','string'],
+            'nombre_color_3' => ['nullable','string'],
+            'nombre_color_6' => ['nullable','string'],
             'cod_color_1' => ['nullable','string'],
             'cod_color_2' => ['nullable','string'],
             'cod_color_3' => ['nullable','string'],
@@ -208,6 +243,10 @@ class ProgramaTejidoController extends Controller
             'dias_jornada' => ['nullable','numeric'],
             'horas_prod' => ['nullable','numeric'],
             'std_hrs_efect' => ['nullable','numeric'],
+            'entrega_produc' => ['nullable','date'],
+            'entrega_pt' => ['nullable','date'],
+            'entrega_cte' => ['nullable','date'],
+            'pt_vs_cte' => ['nullable','numeric'],
         ]);
 
         // 1) Cantidad => SaldoPedido/Produccion
@@ -243,13 +282,16 @@ class ProgramaTejidoController extends Controller
             $registro->NombreProyecto = $data['nombre_proyecto'] ?: null;
         }
 
+        // 10) Campos de edición en línea adicionales
+        $this->applyInlineFieldUpdates($registro, $data);
+
         // Log útil
         Log::info('UPDATE payload', [
             'Id' => $registro->Id,
             'keys' => array_keys($data),
         ]);
 
-        // 10) Detectar cambio real de FechaFinal para cascada
+        // 11) Detectar cambio real de FechaFinal para cascada
         $fechaFinalCambiada = false;
         if (array_key_exists('fecha_fin', $data) && !empty($data['fecha_fin'])) {
             $nueva = Carbon::parse($data['fecha_fin']);
@@ -1453,6 +1495,93 @@ class ProgramaTejidoController extends Controller
     /* ======================================
      |  HELPERS PRIVADOS (reasignan sin romper tu lógica)
      |======================================*/
+    private function applyInlineFieldUpdates(ReqProgramaTejido $registro, array $data): void
+    {
+        $stringFields = [
+            'calendario_id' => 'CalendarioId',
+            'tamano_clave' => 'TamanoClave',
+            'no_existe_base' => 'NoExisteBase',
+            'rasurado' => 'Rasurado',
+            'observaciones' => 'Observaciones',
+            'dobladillo_id' => 'DobladilloId',
+            'cod_color_trama' => 'CodColorTrama',
+            'cod_color_comb1' => 'CodColorComb1',
+            'cod_color_comb2' => 'CodColorComb2',
+            'cod_color_comb3' => 'CodColorComb3',
+            'cod_color_comb4' => 'CodColorComb4',
+            'cod_color_comb5' => 'CodColorComb5',
+            'nombre_cc1' => 'NombreCC1',
+            'nombre_cc2' => 'NombreCC2',
+            'nombre_cc3' => 'NombreCC3',
+            'nombre_cc4' => 'NombreCC4',
+            'nombre_cc5' => 'NombreCC5',
+            'cuenta_pie' => 'CuentaPie',
+            'cod_color_cta_pie' => 'CodColorCtaPie',
+            'nombre_c_pie' => 'NombreCPie',
+        ];
+
+        foreach ($stringFields as $payloadKey => $attribute) {
+            if (!array_key_exists($payloadKey, $data)) {
+                continue;
+            }
+            $value = $data[$payloadKey];
+            $registro->{$attribute} = ($value === null || $value === '')
+                ? null
+                : StringTruncator::truncate($attribute, $value);
+        }
+
+        $numericFields = [
+            'no_tiras' => ['attr' => 'NoTiras', 'type' => 'int'],
+            'peine' => ['attr' => 'Peine', 'type' => 'int'],
+            'largo_crudo' => ['attr' => 'LargoCrudo', 'type' => 'float'],
+            'luchaje' => ['attr' => 'Luchaje', 'type' => 'float'],
+            'peso_crudo' => ['attr' => 'PesoCrudo', 'type' => 'float'],
+            'calibre_trama2' => ['attr' => 'CalibreTrama2', 'type' => 'float'],
+            'pasadas_comb1' => ['attr' => 'PasadasComb1', 'type' => 'int'],
+            'pasadas_comb2' => ['attr' => 'PasadasComb2', 'type' => 'int'],
+            'pasadas_comb3' => ['attr' => 'PasadasComb3', 'type' => 'int'],
+            'pasadas_comb4' => ['attr' => 'PasadasComb4', 'type' => 'int'],
+            'pasadas_comb5' => ['attr' => 'PasadasComb5', 'type' => 'int'],
+            'ancho_toalla' => ['attr' => 'AnchoToalla', 'type' => 'float'],
+            'medida_plano' => ['attr' => 'MedidaPlano', 'type' => 'int'],
+            'pt_vs_cte' => ['attr' => 'PTvsCte', 'type' => 'int'],
+        ];
+
+        foreach ($numericFields as $payloadKey => $config) {
+            if (!array_key_exists($payloadKey, $data)) {
+                continue;
+            }
+            $value = $data[$payloadKey];
+            if ($value === null || $value === '') {
+                $registro->{$config['attr']} = null;
+                continue;
+            }
+            $registro->{$config['attr']} = $config['type'] === 'int'
+                ? (int) $value
+                : (float) $value;
+        }
+
+        $dateFields = [
+            'programar_prod' => 'ProgramarProd',
+            'entrega_produc' => 'EntregaProduc',
+            'entrega_pt' => 'EntregaPT',
+            'entrega_cte' => 'EntregaCte',
+            'fecha_inicio' => 'FechaInicio',
+        ];
+
+        foreach ($dateFields as $payloadKey => $attribute) {
+            if (!array_key_exists($payloadKey, $data)) {
+                continue;
+            }
+            $value = $data[$payloadKey];
+            if ($value === null || $value === '') {
+                $registro->{$attribute} = null;
+                continue;
+            }
+            $this->setSafeDate($registro, $attribute, $value);
+        }
+    }
+
     private function applyCantidad(ReqProgramaTejido $r, array $data): void
     {
         if (!array_key_exists('cantidad', $data)) return;
