@@ -10,6 +10,9 @@
         <button onclick="openEditModal()" id="btn-edit" disabled class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar">
             <i class="fa-solid fa-edit text-yellow-600 text-lg"></i>
         </button>
+        <button onclick="confirmAutorizar()" id="btn-autorizar" disabled class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Autorizar">
+            <i class="fa-solid fa-check-circle text-blue-600 text-lg"></i>
+        </button>
         <button onclick="confirmDelete()" id="btn-delete" disabled class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar">
             <i class="fa-solid fa-trash text-red-600 text-lg"></i>
         </button>
@@ -45,25 +48,31 @@
 
     <div class="overflow-x-auto overflow-y-auto rounded-lg border bg-white shadow-sm mt-4 mx-4" style="max-height: 70vh;">
         <table id="formulaTable" class="min-w-full text-sm">
-            <thead class="sticky top-0 z-10 bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+            <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                 <tr>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Folio</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Orden</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Hr</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Status</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Hora</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Máquina</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Empleado</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Olla</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Fórmula</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Kilos</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Litros</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Cuenta/Titulo</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Calibre</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tipo</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Operador</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Olla</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Formula</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tipo Formula</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Kg.</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Litros</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Prod. AX</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tiempo(Min) Cocinado</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">% Solidos</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Viscocidad</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($items as $item)
-                    <tr class="border-b hover:bg-purple-50 cursor-pointer transition-colors" onclick="selectRow(this, '{{ $item->Folio }}')">
+                    <tr class="border-b hover:bg-blue-100 cursor-pointer transition-colors" onclick="selectRow(this, '{{ $item->Folio }}')">
                         <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Hora }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold
                                 @if($item->Status === 'Creado') bg-yellow-100 text-yellow-800
@@ -73,19 +82,23 @@
                                 {{ $item->Status }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Hora }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->MaquinaId }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Cuenta }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Calibre ?? 0, 2) }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Tipo }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $item->NomEmpl }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $item->Olla }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $item->Formula }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->MaquinaId }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Kilos ?? 0, 2) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Litros ?? 0, 2) }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Calibre ?? 0, 2) }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Tipo }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->ProdId }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->TiempoCocinado ?? 0, 2) }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Solidos ?? 0, 2) }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Viscocidad ?? 0, 2) }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="px-4 py-8 text-center text-gray-500">No hay fórmulas disponibles</td>
+                        <td colspan="16" class="px-4 py-8 text-center text-gray-500">No hay fórmulas disponibles</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -93,113 +106,105 @@
     </div>
 
     <!-- Modal Crear -->
-    <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-3 rounded-t-lg flex justify-between items-center">
-                <h3 class="text-lg font-semibold">Nueva Formulación de Engomado</h3>
-                <button onclick="document.getElementById('createModal').classList.add('hidden')" class="text-white hover:text-gray-200">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
+                <h3 class="text-xl font-semibold">Nueva Formulación de Engomado</h3>
+                <button onclick="document.getElementById('createModal').classList.add('hidden')" class="text-white hover:text-gray-200 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
 
-            <form action="{{ route('eng-formulacion.store') }}" method="POST" class="p-4">
+            <form action="{{ route('eng-formulacion.store') }}" method="POST" class="p-6">
                 @csrf
                 
-                <div class="grid grid-cols-4 gap-3 mb-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Hora</label>
-                        <input type="time" name="Hora" value="{{ date('H:i') }}" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Máquina <span class="text-red-600">*</span></label>
-                        <select name="MaquinaId" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
-                            <option value="">Seleccione...</option>
-                            @foreach($maquinas as $maquina)
-                                <option value="{{ $maquina->MaquinaId }}">{{ $maquina->Nombre }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Cuenta</label>
-                        <input type="text" name="Cuenta" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Calibre</label>
-                        <input type="number" step="0.01" name="Calibre" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
+                <!-- Sección 1: Validación de Folio -->
+                <div class="mb-6">
+                    {{-- <h4 class="text-sm font-semibold text-purple-700 mb-3 pb-2 border-b border-purple-200">Programa de Engomado</h4> --}}
+                    <div class="grid grid-cols-1 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Folio (EngProgramaEngomado) <span class="text-red-600">*</span></label>
+                            <div class="flex gap-3">
+                                <input type="text" name="FolioProg" id="create_folio_prog" required class="flex-1 px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                                <button type="button" onclick="validarFolioPrograma()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                                    <i class="fa-solid fa-search mr-2"></i>Validar
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-3 mb-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Tipo</label>
-                        <input type="text" name="Tipo" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Empleado <span class="text-red-600">*</span></label>
-                        <select name="NomEmpl" id="create_empleado" onchange="fillEmpleado(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
-                            <option value="">Seleccione...</option>
-                            @foreach($usuarios as $usuario)
-                                <option value="{{ $usuario->nombre }}" data-numero="{{ $usuario->numero_empleado }}">
-                                    {{ $usuario->nombre }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Clave Empleado</label>
-                        <input type="text" name="CveEmpl" id="create_cve_empl" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                <!-- Campos ocultos para datos de EngProgramaEngomado -->
+                <input type="hidden" name="Cuenta" id="create_cuenta">
+                <input type="hidden" name="Calibre" id="create_calibre">
+                <input type="hidden" name="Tipo" id="create_tipo">
+                <input type="hidden" name="NomEmpl" id="create_nom_empl">
+                <input type="hidden" name="CveEmpl" id="create_cve_empl">
+                <input type="hidden" name="Formula" id="create_formula">
+
+                <!-- Sección 2: Datos de Captura -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-purple-700 mb-3 pb-2 border-b border-purple-200">Datos de Captura</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Hora <span class="text-red-600">*</span></label>
+                            <input type="time" name="Hora" id="create_hora" value="{{ date('H:i') }}" required class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha <span class="text-red-600">*</span></label>
+                            <input type="date" name="Fecha" id="create_fecha" value="{{ date('Y-m-d') }}" required class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Olla</label>
+                            <input type="text" name="Olla" id="create_olla" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-3 mb-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
-                        <input type="text" name="Olla" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Fórmula</label>
-                        <input type="text" name="Formula" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Producto ID</label>
-                        <input type="text" name="ProdId" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
+                <!-- Sección 3: Mediciones -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-purple-700 mb-3 pb-2 border-b border-purple-200">Mediciones</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Litros</label>
+                            <input type="number" step="0.01" name="Litros" id="create_litros" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Kilos (Kg.)</label>
+                            <input type="number" step="0.01" name="Kilos" id="create_kilos" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tiempo Cocinado (Min)</label>
+                            <input type="number" step="0.01" name="TiempoCocinado" id="create_tiempo" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-5 gap-3 mb-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Kilos</label>
-                        <input type="number" step="0.01" name="Kilos" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Litros</label>
-                        <input type="number" step="0.01" name="Litros" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Tiempo Cocinado</label>
-                        <input type="number" step="0.01" name="TiempoCocinado" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Sólidos</label>
-                        <input type="number" step="0.01" name="Solidos" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Viscosidad</label>
-                        <input type="number" step="0.01" name="Viscocidad" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500">
+                <!-- Sección 4: Propiedades -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-purple-700 mb-3 pb-2 border-b border-purple-200">Propiedades</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">% Sólidos</label>
+                            <input type="number" step="0.01" name="Solidos" id="create_solidos" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Viscosidad</label>
+                            <input type="number" step="0.01" name="Viscocidad" id="create_viscocidad" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
                     </div>
                 </div>
 
                 <!-- Botones -->
-                <div class="flex gap-2 justify-end pt-3 border-t">
+                <div class="flex gap-3 justify-end pt-4 border-t border-gray-200 mt-6">
                     <button type="button" onclick="document.getElementById('createModal').classList.add('hidden')"
-                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-                        Cancelar
+                            class="px-6 py-3 text-base font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                        <i class="fa-solid fa-times mr-2"></i>Cancelar
                     </button>
-                    <button type="submit" class="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                        <i class="fa-solid fa-save mr-1"></i>
-                        Crear Formulación
+                    <button type="submit" class="px-6 py-3 text-base font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-lg hover:shadow-xl">
+                        <i class="fa-solid fa-save mr-2"></i>Crear Formulación
                     </button>
                 </div>
             </form>
@@ -207,116 +212,226 @@
     </div>
 
     <!-- Modal Editar -->
-    <div id="editModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-4 py-3 rounded-t-lg flex justify-between items-center">
-                <h3 class="text-lg font-semibold">Editar Formulación</h3>
-                <button onclick="document.getElementById('editModal').classList.add('hidden')" class="text-white hover:text-gray-200">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div id="editModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
+                <h3 class="text-xl font-semibold">Editar Formulación</h3>
+                <button onclick="document.getElementById('editModal').classList.add('hidden')" class="text-white hover:text-gray-200 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
 
-            <form id="editForm" method="POST" class="p-4">
+            <form id="editForm" method="POST" class="p-6">
                 @csrf
                 @method('PUT')
                 
-                <div class="grid grid-cols-4 gap-3 mb-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Hora</label>
-                        <input type="time" name="Hora" id="edit_hora" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Máquina</label>
-                        <select name="MaquinaId" id="edit_maquina" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                            <option value="">Seleccione...</option>
-                            @foreach($maquinas as $maquina)
-                                <option value="{{ $maquina->MaquinaId }}">{{ $maquina->Nombre }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Cuenta</label>
-                        <input type="text" name="Cuenta" id="edit_cuenta" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Calibre</label>
-                        <input type="number" step="0.01" name="Calibre" id="edit_calibre" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-3 gap-3 mb-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Tipo</label>
-                        <input type="text" name="Tipo" id="edit_tipo" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Empleado</label>
-                        <select name="NomEmpl" id="edit_empleado" onchange="fillEmpleadoEdit(this)" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                            <option value="">Seleccione...</option>
-                            @foreach($usuarios as $usuario)
-                                <option value="{{ $usuario->nombre }}" data-numero="{{ $usuario->numero_empleado }}">
-                                    {{ $usuario->nombre }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Clave Empleado</label>
-                        <input type="text" name="CveEmpl" id="edit_cve_empl" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                <!-- Sección 1: Información General -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Información General</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Hora</label>
+                            <input type="time" name="Hora" id="edit_hora" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo Fórmula (Máquina)</label>
+                            <select name="MaquinaId" id="edit_maquina" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                                <option value="">Seleccione...</option>
+                                @foreach($maquinas as $maquina)
+                                    <option value="{{ $maquina->MaquinaId }}">{{ $maquina->Nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Cuenta/Título</label>
+                            <input type="text" name="Cuenta" id="edit_cuenta" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-3 mb-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
-                        <input type="text" name="Olla" id="edit_olla" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Fórmula</label>
-                        <input type="text" name="Formula" id="edit_formula" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Producto ID</label>
-                        <input type="text" name="ProdId" id="edit_prod_id" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-5 gap-3 mb-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Kilos</label>
-                        <input type="number" step="0.01" name="Kilos" id="edit_kilos" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Litros</label>
-                        <input type="number" step="0.01" name="Litros" id="edit_litros" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Tiempo Cocinado</label>
-                        <input type="number" step="0.01" name="TiempoCocinado" id="edit_tiempo" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Sólidos</label>
-                        <input type="number" step="0.01" name="Solidos" id="edit_solidos" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Viscosidad</label>
-                        <input type="number" step="0.01" name="Viscocidad" id="edit_viscocidad" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
+                <!-- Sección 2: Operador -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Operador</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Empleado</label>
+                            <select name="NomEmpl" id="edit_empleado" onchange="fillEmpleadoEdit(this)" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                                <option value="">Seleccione...</option>
+                                @foreach($usuarios as $usuario)
+                                    <option value="{{ $usuario->nombre }}" data-numero="{{ $usuario->numero_empleado }}">
+                                        {{ $usuario->nombre }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Clave Empleado</label>
+                            <input type="text" name="CveEmpl" id="edit_cve_empl" readonly class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                        </div>
                     </div>
                 </div>
 
-                <div class="flex gap-2 justify-end pt-3 border-t">
+                <!-- Sección 3: Detalles de Formulación -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Detalles de Formulación</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Olla</label>
+                            <input type="text" name="Olla" id="edit_olla" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fórmula</label>
+                            <input type="text" name="Formula" id="edit_formula" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Producto AX</label>
+                            <input type="text" name="ProdId" id="edit_prod_id" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 4: Especificaciones Técnicas -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Especificaciones Técnicas</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Calibre</label>
+                            <input type="number" step="0.01" name="Calibre" id="edit_calibre" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
+                            <input type="text" name="Tipo" id="edit_tipo" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Kilos (Kg.)</label>
+                            <input type="number" step="0.01" name="Kilos" id="edit_kilos" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 5: Mediciones -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Mediciones y Propiedades</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Litros</label>
+                            <input type="number" step="0.01" name="Litros" id="edit_litros" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tiempo Cocinado (Min)</label>
+                            <input type="number" step="0.01" name="TiempoCocinado" id="edit_tiempo" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">% Sólidos</label>
+                            <input type="number" step="0.01" name="Solidos" id="edit_solidos" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Viscosidad</label>
+                            <input type="number" step="0.01" name="Viscocidad" id="edit_viscocidad" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div class="flex gap-3 justify-end pt-4 border-t border-gray-200 mt-6">
                     <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')"
-                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-                        Cancelar
+                            class="px-6 py-3 text-base font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                        <i class="fa-solid fa-times mr-2"></i>Cancelar
                     </button>
-                    <button type="submit" class="px-3 py-1.5 text-sm bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">
-                        <i class="fa-solid fa-check mr-1"></i>
-                        Actualizar
+                    <button type="button" onclick="abrirModalComponentes()" class="px-6 py-3 text-base font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg hover:shadow-xl">
+                        <i class="fa-solid fa-flask mr-2"></i>Ver Componentes
+                    </button>
+                    <button type="submit" class="px-6 py-3 text-base font-medium bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition shadow-lg hover:shadow-xl">
+                        <i class="fa-solid fa-check mr-2"></i>Actualizar
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal Componentes de Fórmula -->
+    <div id="componentesModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-y-auto">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-500 to-blue-700 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-semibold">Componentes de la Fórmula</h3>
+                    <p class="text-sm text-blue-100 mt-1">Fórmula: <span id="modal_formula_nombre">-</span></p>
+                </div>
+                <button onclick="cerrarModalComponentes()" class="text-white hover:text-gray-200 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Contenido -->
+            <div class="p-6">
+                <!-- Loading -->
+                <div id="componentes_loading" class="text-center py-8">
+                    <i class="fa-solid fa-spinner fa-spin text-4xl text-blue-500"></i>
+                    <p class="text-gray-600 mt-3">Cargando componentes...</p>
+                </div>
+
+                <!-- Error -->
+                <div id="componentes_error" class="hidden">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                        <i class="fa-solid fa-exclamation-triangle text-red-500 text-3xl mb-2"></i>
+                        <p class="text-red-700 font-medium" id="error_message">Error al cargar componentes</p>
+                    </div>
+                </div>
+
+                <!-- Tabla de Componentes -->
+                <div id="componentes_tabla_container" class="hidden">
+                    <!-- Toolbar -->
+                    <div class="bg-blue-50 rounded-lg p-4 mb-4 flex justify-between items-center">
+                        <div class="flex gap-3">
+                            <button onclick="nuevoComponente()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                                <i class="fa-solid fa-plus mr-2"></i>Nuevo
+                            </button>
+                            <button id="btn-editar-componente" onclick="editarComponente()" disabled class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fa-solid fa-edit mr-2"></i>Editar
+                            </button>
+                            <button id="btn-eliminar-componente" onclick="eliminarComponenteSeleccionado()" disabled class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fa-solid fa-trash mr-2"></i>Eliminar
+                            </button>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            Total: <span id="total_componentes" class="font-bold text-blue-700">0</span> componentes
+                        </div>
+                    </div>
+
+                    <!-- Tabla -->
+                    <div class="overflow-x-auto border rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold">Folio</th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold">ItemId</th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold">ItemName</th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold">ConfigId</th>
+                                    <th class="px-4 py-3 text-right text-sm font-semibold">Consumo Unitario</th>
+                                    <th class="px-4 py-3 text-right text-sm font-semibold">Consumo Total</th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold">Unidad</th>
+                                    <th class="px-4 py-3 text-center text-sm font-semibold">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="componentes_tbody" class="bg-white divide-y divide-gray-200">
+                                <!-- Se llenará dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="border-t border-gray-200 px-6 py-4 bg-gray-50 rounded-b-xl flex justify-end gap-3">
+                <button type="button" onclick="cerrarModalComponentes()" class="px-6 py-3 text-base font-medium border border-gray-300 rounded-lg hover:bg-gray-100 transition">
+                    <i class="fa-solid fa-times mr-2"></i>Cerrar
+                </button>
+            </div>
         </div>
     </div>
 
@@ -344,7 +459,7 @@
         }
 
         function enableButtons() {
-            ['btn-edit', 'btn-delete'].forEach(id => {
+            ['btn-edit', 'btn-autorizar', 'btn-delete'].forEach(id => {
                 const btn = document.getElementById(id);
                 if (btn) {
                     btn.disabled = false;
@@ -365,22 +480,17 @@
 
             const cells = selectedRow.cells;
             
-            // Folio: cells[0], Status: cells[1], Hora: cells[2], Máquina: cells[3], 
-            // Empleado: cells[4], Olla: cells[5], Fórmula: cells[6], Kilos: cells[7],
-            // Litros: cells[8], Calibre: cells[9], Tipo: cells[10]
+            // Orden: cells[0], Hr: cells[1], Status: cells[2], Cuenta: cells[3], 
+            // Calibre: cells[4], Tipo: cells[5], Operador: cells[6], Olla: cells[7],
+            // Formula: cells[8], TipoFormula: cells[9], Kg: cells[10], Litros: cells[11],
+            // ProdAX: cells[12], Tiempo: cells[13], Solidos: cells[14], Viscocidad: cells[15]
             
-            document.getElementById('edit_hora').value = cells[2].textContent.trim();
-            document.getElementById('edit_maquina').value = cells[3].textContent.trim();
-            document.getElementById('edit_empleado').value = cells[4].textContent.trim();
-            document.getElementById('edit_olla').value = cells[5].textContent.trim();
-            document.getElementById('edit_formula').value = cells[6].textContent.trim();
-            document.getElementById('edit_kilos').value = cells[7].textContent.trim().replace(/,/g, '');
-            document.getElementById('edit_litros').value = cells[8].textContent.trim().replace(/,/g, '');
-            document.getElementById('edit_calibre').value = cells[9].textContent.trim().replace(/,/g, '');
-            document.getElementById('edit_tipo').value = cells[10].textContent.trim();
+            // Obtener fórmula y kilos de la fila seleccionada
+            formulaActual = cells[8].textContent.trim();
+            const kilosValue = cells[10].textContent.trim().replace(/,/g, '');
             
-            document.getElementById('editForm').action = `/eng-formulacion/${selectedFolio}`;
-            document.getElementById('editModal').classList.remove('hidden');
+            // Abrir directamente el modal de componentes
+            abrirModalComponentes(kilosValue);
         }
 
         function confirmDelete() {
@@ -411,15 +521,402 @@
             });
         }
 
-        function fillEmpleado(select) {
-            const selectedOption = select.options[select.selectedIndex];
-            const numero = selectedOption.getAttribute('data-numero');
-            document.getElementById('create_cve_empl').value = numero || '';
+        function validarFolioPrograma() {
+            const folio = document.getElementById('create_folio_prog').value.trim();
+            
+            if (!folio) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Folio requerido',
+                    text: 'Debe ingresar un folio primero',
+                    confirmButtonColor: '#a855f7'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Validando folio...',
+                html: 'Por favor espere',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch(`/eng-formulacion/validar-folio?folio=${encodeURIComponent(folio)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('create_cuenta').value = data.data.Cuenta || '';
+                        document.getElementById('create_calibre').value = data.data.Calibre || '';
+                        document.getElementById('create_tipo').value = data.data.Tipo || '';
+                        document.getElementById('create_nom_empl').value = data.data.NomEmpl || '';
+                        document.getElementById('create_cve_empl').value = data.data.CveEmpl || '';
+                        document.getElementById('create_formula').value = '';
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Folio validado',
+                            html: `<div class="text-left">
+                                <p><strong>Cuenta:</strong> ${data.data.Cuenta || '-'}</p>
+                                <p><strong>Calibre:</strong> ${data.data.Calibre || '-'}</p>
+                                <p><strong>Tipo:</strong> ${data.data.Tipo || '-'}</p>
+                                <p><strong>Operador:</strong> ${data.data.NomEmpl || '-'}</p>
+                            </div>`,
+                            confirmButtonColor: '#a855f7'
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Folio no encontrado',
+                            text: data.error || 'No se encontró el folio en EngProgramaEngomado',
+                            confirmButtonColor: '#dc2626'
+                        });
+                    }
+                })
+                .catch(error => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Error de conexión: ' + error.message,
+                        confirmButtonColor: '#dc2626'
+                    });
+                });
         }
 
         function fillEmpleadoEdit(select) {
             const option = select.options[select.selectedIndex];
             document.getElementById('edit_cve_empl').value = option.getAttribute('data-numero') || '';
+        }
+
+        function confirmAutorizar() {
+            if (!selectedFolio) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Ningún registro seleccionado',
+                    confirmButtonColor: '#a855f7'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: '¿Autorizar esta formulación?',
+                html: `Se autorizará la formulación con folio <strong>${selectedFolio}</strong>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Sí, autorizar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Crear un formulario temporal para enviar la solicitud
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = `/eng-formulacion/${selectedFolio}/autorizar`;
+                    
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '_token';
+                    csrfInput.value = csrfToken;
+                    form.appendChild(csrfInput);
+                    
+                    const methodInput = document.createElement('input');
+                    methodInput.type = 'hidden';
+                    methodInput.name = '_method';
+                    methodInput.value = 'PATCH';
+                    form.appendChild(methodInput);
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+        }
+
+        // ===== FUNCIONES PARA MODAL DE COMPONENTES =====
+        let componentesData = [];
+        let formulaActual = '';
+        let kilosFormula = 0;
+
+        function abrirModalComponentes(kilos = 0) {
+            if (!formulaActual) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Fórmula no especificada',
+                    text: 'Debe seleccionar un registro primero',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return;
+            }
+
+            kilosFormula = parseFloat(kilos) || 0;
+
+            // Mostrar modal
+            document.getElementById('componentesModal').classList.remove('hidden');
+            document.getElementById('modal_formula_nombre').textContent = formulaActual;
+
+            // Mostrar loading
+            document.getElementById('componentes_loading').classList.remove('hidden');
+            document.getElementById('componentes_error').classList.add('hidden');
+            document.getElementById('componentes_tabla_container').classList.add('hidden');
+
+            // Cargar componentes desde el servidor
+            fetch(`/eng-formulacion/componentes/formula?formula=${encodeURIComponent(formulaActual)}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('componentes_loading').classList.add('hidden');
+                    document.getElementById('componentes_error').classList.add('hidden');
+
+                    if (data.success) {
+                        componentesData = data.componentes || [];
+                        document.getElementById('componentes_tabla_container').classList.remove('hidden');
+                        renderizarTablaComponentes();
+                        
+                        // Mostrar alerta si está vacío
+                        if (data.vacio || componentesData.length === 0) {
+                            Swal.fire({
+                                icon: 'info',
+                                title: 'Sin componentes',
+                                text: 'No se encontraron componentes para la fórmula "' + formulaActual + '"',
+                                confirmButtonColor: '#3b82f6',
+                                timer: 3000
+                            });
+                        }
+                    } else {
+                        mostrarErrorComponentes(data.error || 'Error al cargar componentes');
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('componentes_loading').classList.add('hidden');
+                    mostrarErrorComponentes('Error de conexión: ' + error.message);
+                });
+        }
+
+        function cerrarModalComponentes() {
+            document.getElementById('componentesModal').classList.add('hidden');
+            componentesData = [];
+        }
+
+        function mostrarErrorComponentes(mensaje) {
+            document.getElementById('componentes_error').classList.remove('hidden');
+            document.getElementById('error_message').textContent = mensaje;
+        }
+
+        let selectedComponenteIndex = null;
+        let selectedComponenteRow = null;
+
+        function renderizarTablaComponentes() {
+            const tbody = document.getElementById('componentes_tbody');
+            tbody.innerHTML = '';
+            selectedComponenteIndex = null;
+            selectedComponenteRow = null;
+            deshabilitarBotonesComponente();
+
+            if (componentesData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                            No hay componentes para esta fórmula
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            componentesData.forEach((comp, index) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-blue-50 transition-colors cursor-pointer';
+                row.onclick = () => seleccionarComponente(index, row);
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm">${selectedFolio || '-'}</td>
+                    <td class="px-4 py-3 text-sm font-medium">${comp.ItemId || ''}</td>
+                    <td class="px-4 py-3 text-sm">${comp.ItemId || ''}</td>
+                    <td class="px-4 py-3 text-sm">${comp.ConfigId || ''}</td>
+                    <td class="px-4 py-3 text-sm text-right">${(comp.ConsumoUnitario || 0).toFixed(4)}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold text-blue-700">
+                        ${calcularConsumoTotal(comp.ConsumoUnitario).toFixed(4)}
+                    </td>
+                    <td class="px-4 py-3 text-sm">${comp.InventLocationId || ''}</td>
+                    <td class="px-4 py-3 text-center">
+                        <i class="fa-solid fa-bars text-gray-400"></i>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('total_componentes').textContent = componentesData.length;
+        }
+
+        function seleccionarComponente(index, row) {
+            // Limpiar selección anterior
+            if (selectedComponenteRow) {
+                selectedComponenteRow.classList.remove('bg-blue-100');
+            }
+
+            // Nueva selección
+            selectedComponenteIndex = index;
+            selectedComponenteRow = row;
+            row.classList.add('bg-blue-100');
+
+            // Habilitar botones
+            habilitarBotonesComponente();
+        }
+
+        function habilitarBotonesComponente() {
+            document.getElementById('btn-editar-componente').disabled = false;
+            document.getElementById('btn-eliminar-componente').disabled = false;
+        }
+
+        function deshabilitarBotonesComponente() {
+            document.getElementById('btn-editar-componente').disabled = true;
+            document.getElementById('btn-eliminar-componente').disabled = true;
+        }
+
+        function calcularConsumoTotal(consumoUnitario) {
+            return (consumoUnitario || 0) * kilosFormula;
+        }
+
+        function nuevoComponente() {
+            Swal.fire({
+                title: 'Nuevo Componente',
+                html: `
+                    <div class="text-left space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ItemId</label>
+                            <input id="nuevo_itemid" type="text" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ItemName</label>
+                            <input id="nuevo_itemname" type="text" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ConfigId</label>
+                            <input id="nuevo_configid" type="text" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Consumo Unitario</label>
+                            <input id="nuevo_consumo" type="number" step="0.0001" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Unidad</label>
+                            <input id="nuevo_unidad" type="text" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Agregar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    return {
+                        ItemId: document.getElementById('nuevo_itemid').value,
+                        ItemName: document.getElementById('nuevo_itemname').value,
+                        ConfigId: document.getElementById('nuevo_configid').value,
+                        ConsumoUnitario: parseFloat(document.getElementById('nuevo_consumo').value) || 0,
+                        Unidad: document.getElementById('nuevo_unidad').value
+                    };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    componentesData.push(result.value);
+                    renderizarTablaComponentes();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Componente agregado',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            });
+        }
+
+        function editarComponente() {
+            if (selectedComponenteIndex === null) return;
+
+            const comp = componentesData[selectedComponenteIndex];
+
+            Swal.fire({
+                title: 'Editar Componente',
+                html: `
+                    <div class="text-left space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ItemId</label>
+                            <input id="edit_itemid" type="text" value="${comp.ItemId || ''}" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ItemName</label>
+                            <input id="edit_itemname" type="text" value="${comp.ItemName || ''}" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ConfigId</label>
+                            <input id="edit_configid" type="text" value="${comp.ConfigId || ''}" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Consumo Unitario</label>
+                            <input id="edit_consumo" type="number" step="0.0001" value="${comp.ConsumoUnitario || 0}" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Unidad</label>
+                            <input id="edit_unidad" type="text" value="${comp.Unidad || ''}" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonColor: '#f59e0b',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Guardar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    return {
+                        ItemId: document.getElementById('edit_itemid').value,
+                        ItemName: document.getElementById('edit_itemname').value,
+                        ConfigId: document.getElementById('edit_configid').value,
+                        ConsumoUnitario: parseFloat(document.getElementById('edit_consumo').value) || 0,
+                        Unidad: document.getElementById('edit_unidad').value
+                    };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    componentesData[selectedComponenteIndex] = result.value;
+                    renderizarTablaComponentes();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Componente actualizado',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            });
+        }
+
+        function eliminarComponenteSeleccionado() {
+            if (selectedComponenteIndex === null) return;
+
+            const comp = componentesData[selectedComponenteIndex];
+
+            Swal.fire({
+                title: '¿Eliminar componente?',
+                text: `Se eliminará ${comp.ItemName || comp.ItemId}`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    componentesData.splice(selectedComponenteIndex, 1);
+                    renderizarTablaComponentes();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Componente eliminado',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            });
         }
 
         window.addEventListener('pageshow', function(event) {

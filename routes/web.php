@@ -494,6 +494,8 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('eng-formulacion', App\Http\Controllers\EngProduccionFormulacionController::class)
         ->parameters(['eng-formulacion' => 'folio'])
         ->names('eng-formulacion');
+    Route::get('eng-formulacion/validar-folio', [App\Http\Controllers\EngProduccionFormulacionController::class, 'validarFolio'])->name('eng-formulacion.validar-folio');
+    Route::get('eng-formulacion/componentes/formula', [App\Http\Controllers\EngProduccionFormulacionController::class, 'getComponentesFormula'])->name('eng-formulacion.componentes');
 
         Route::resource('tel-bpm', TelBpmController::class)
     ->parameters(['tel-bpm' => 'folio'])   // PK string

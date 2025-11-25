@@ -6,10 +6,12 @@ use App\Models\EngProduccionFormulacionModel;
 use App\Models\EngFormulacionLineModel;
 use App\Models\SYSUsuario;
 use App\Models\URDCatalogoMaquina;
+use App\Models\EngProgramaEngomado;
 use App\Helpers\FolioHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class EngProduccionFormulacionController extends Controller
 {
@@ -22,13 +24,26 @@ class EngProduccionFormulacionController extends Controller
                 ->orderBy('Nombre', 'asc')
                 ->get();
             
-            // Folio sugerido para producción de formulación
-            $folioSugerido = FolioHelper::obtenerFolioSugerido('Eng Formulacion', 3);
+            // Generar folio sugerido
+            $year = date('Y');
+            $prefix = "ENG-FORM-{$year}-";
+            $lastRecord = EngProduccionFormulacionModel::where('Folio', 'like', $prefix . '%')
+                ->orderBy('Folio', 'desc')
+                ->first();
+            
+            if ($lastRecord) {
+                $lastNumber = (int) substr($lastRecord->Folio, strlen($prefix));
+                $nextNumber = $lastNumber + 1;
+            } else {
+                $nextNumber = 1;
+            }
+            
+            $folioSugerido = $prefix . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         } catch (\Exception $e) {
             $items = collect([]);
             $usuarios = collect([]);
             $maquinas = collect([]);
-            $folioSugerido = '';
+            $folioSugerido = 'ENG-FORM-' . date('Y') . '-0001';
             Log::error('Error al cargar Formulación de Engomado: ' . $e->getMessage());
         }
         
@@ -59,8 +74,25 @@ class EngProduccionFormulacionController extends Controller
         ]);
 
         try {
-            // Generar folio automáticamente
-            $folio = FolioHelper::obtenerSiguienteFolio('Eng Formulacion', 3);
+            // Generar folio automáticamente: ENG-FORM-YYYY-####
+            $year = date('Y');
+            $prefix = "ENG-FORM-{$year}-";
+            
+            // Obtener el último folio del año actual
+            $lastRecord = EngProduccionFormulacionModel::where('Folio', 'like', $prefix . '%')
+                ->orderBy('Folio', 'desc')
+                ->first();
+            
+            if ($lastRecord) {
+                // Extraer el número del último folio
+                $lastNumber = (int) substr($lastRecord->Folio, strlen($prefix));
+                $newNumber = $lastNumber + 1;
+            } else {
+                $newNumber = 1;
+            }
+            
+            $folio = $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+            
             $validated['Folio'] = $folio;
             $validated['Status'] = 'Creado';
             
@@ -71,6 +103,91 @@ class EngProduccionFormulacionController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al crear formulación: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Error al crear la formulación: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Validar folio y obtener datos de EngProgramaEngomado
+     */
+    public function validarFolio(Request $request)
+    {
+        try {
+            $folio = $request->query('folio');
+            
+            if (!$folio) {
+                return response()->json(['error' => 'No se proporcionó el folio'], 400);
+            }
+
+            $programa = EngProgramaEngomado::where('Folio', $folio)->first();
+
+            if (!$programa) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se encontró el folio en EngProgramaEngomado'
+                ], 404);
+            }
+
+            // Obtener operador actual del sistema
+            $usuario = Auth::user();
+            $operador = $usuario ? $usuario->nombre : '';
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'Cuenta' => $programa->Cuenta,
+                    'Calibre' => $programa->Calibre,
+                    'Tipo' => $programa->RizoPie,
+                    'NomEmpl' => $operador,
+                    'CveEmpl' => $usuario ? $usuario->numero : '',
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al validar folio: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener componentes de la fórmula desde AX (Bom + InventDim)
+     */
+    public function getComponentesFormula(Request $request)
+    {
+        try {
+            $formula = $request->query('formula');
+            
+            if (!$formula) {
+                return response()->json(['error' => 'No se proporcionó el código de fórmula'], 400);
+            }
+
+            // Consultar TOW_PRO: Bom INNER JOIN InventDim con filtros especificados
+            $componentes = DB::connection('sqlsrv_tow_pro')
+                ->table('Bom as B')
+                ->join('InventDim as I', 'B.InventDimId', '=', 'I.InventDimId')
+                ->select(
+                    'B.BomId',
+                    'B.ItemId',
+                    'B.BomQty as ConsumoUnitario',
+                    'I.ConfigId',
+                    'I.InventLocationId'
+                )
+                ->where('B.BomId', $formula)
+                ->where('B.DATAAREAID', 'PRO')
+                ->where('I.DATAAREAID', 'PRO')
+                ->orderBy('B.LineNum')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'componentes' => $componentes,
+                'total' => $componentes->count(),
+                'vacio' => $componentes->isEmpty()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al obtener componentes: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
         }
     }
 
