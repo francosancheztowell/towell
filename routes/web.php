@@ -281,6 +281,14 @@ Route::middleware(['auth'])->group(function () {
     // BPM Engomado - Redirigir al controlador
     Route::get('/engomado/bpm', [App\Http\Controllers\EngBpmController::class, 'index'])->name('engomado.bpm');
 
+    // Captura de Fórmulas - Redirigir al controlador
+    Route::get('/engomado/captura-formula', [App\Http\Controllers\EngProduccionFormulacionController::class, 'index'])->name('engomado.captura-formula');
+    
+    // Redirección alternativa para captura de fórmulas
+    Route::get('/modulo-captura-de-formula', function() {
+        return redirect('/engomado/captura-formula', 301);
+    });
+
     // Actividades BPM Urdido - Redirigir al CRUD
     Route::get('/urdido/configuracion/actividades-bpm', function() {
         return redirect()->route('urd-actividades-bpm.index');
@@ -481,6 +489,11 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('eng-bpm-line/{folio}/terminar', [App\Http\Controllers\EngBpmLineController::class, 'terminar'])->name('eng-bpm-line.terminar');
     Route::patch('eng-bpm-line/{folio}/autorizar', [App\Http\Controllers\EngBpmLineController::class, 'autorizar'])->name('eng-bpm-line.autorizar');
     Route::patch('eng-bpm-line/{folio}/rechazar', [App\Http\Controllers\EngBpmLineController::class, 'rechazar'])->name('eng-bpm-line.rechazar');
+
+    // Captura de Fórmulas Engomado
+    Route::resource('eng-formulacion', App\Http\Controllers\EngProduccionFormulacionController::class)
+        ->parameters(['eng-formulacion' => 'folio'])
+        ->names('eng-formulacion');
 
         Route::resource('tel-bpm', TelBpmController::class)
     ->parameters(['tel-bpm' => 'folio'])   // PK string

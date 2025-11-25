@@ -464,6 +464,8 @@ class ModuloService
             'BPM Engomado' => '/engomado/bpm',
             'Reportes Engomado' => '/engomado/reportes',
             'Producción Engomado' => '/engomado/produccion',
+            'Captura de Formula' => '/engomado/captura-formula',
+            'Captura de Fórmula' => '/engomado/captura-formula',
 
             // Módulos de Atadores
             'Programa Atadores' => '/atadores/programa',
@@ -529,6 +531,11 @@ class ModuloService
             if (strtolower(trim($key)) === $nombreModuloLower) {
                 return $ruta;
             }
+        }
+        
+        // Búsqueda especial para "Captura de Formula" (con o sin tilde, con o sin espacios extras)
+        if (preg_match('/captura\s+de\s+f[oó]rmula/i', trim($nombreModulo))) {
+            return '/engomado/captura-formula';
         }
 
         // Búsqueda flexible para "Catalogo Maquinas" o variantes
