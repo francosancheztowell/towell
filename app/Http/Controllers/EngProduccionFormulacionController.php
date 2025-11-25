@@ -24,6 +24,11 @@ class EngProduccionFormulacionController extends Controller
                 ->orderBy('Nombre', 'asc')
                 ->get();
             
+            // Obtener folios de EngProgramaEngomado con Status diferente de 'Finalizado'
+            $foliosPrograma = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
+                ->orderBy('Folio', 'desc')
+                ->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula']);
+            
             // Generar folio sugerido
             $year = date('Y');
             $prefix = "ENG-FORM-{$year}-";
@@ -43,23 +48,31 @@ class EngProduccionFormulacionController extends Controller
             $items = collect([]);
             $usuarios = collect([]);
             $maquinas = collect([]);
+            $foliosPrograma = collect([]);
             $folioSugerido = 'ENG-FORM-' . date('Y') . '-0001';
             Log::error('Error al cargar Formulación de Engomado: ' . $e->getMessage());
         }
         
-        return view("modulos.engomado.captura-formula.index", compact("items", "usuarios", "maquinas", "folioSugerido"));
+        return view("modulos.engomado.captura-formula.index", compact("items", "usuarios", "maquinas", "foliosPrograma", "folioSugerido"));
     }
 
     public function store(Request $request)
     {
+        // Validar que se haya seleccionado un folio de programa
+        $request->validate([
+            'FolioProg' => 'required|string|max:50',
+        ], [
+            'FolioProg.required' => 'Debe seleccionar un folio de programa',
+        ]);
+
         $validated = $request->validate([
             'Hora' => 'nullable|string|max:10',
-            'MaquinaId' => 'required|string|max:50',
+            'MaquinaId' => 'nullable|string|max:50',
             'Cuenta' => 'nullable|string|max:50',
             'Calibre' => 'nullable|numeric',
             'Tipo' => 'nullable|string|max:50',
             'CveEmpl' => 'nullable|string|max:50',
-            'NomEmpl' => 'required|string|max:255',
+            'NomEmpl' => 'nullable|string|max:255',
             'Olla' => 'nullable|string|max:50',
             'Formula' => 'nullable|string|max:100',
             'Kilos' => 'nullable|numeric',
@@ -68,33 +81,25 @@ class EngProduccionFormulacionController extends Controller
             'TiempoCocinado' => 'nullable|numeric',
             'Solidos' => 'nullable|numeric',
             'Viscocidad' => 'nullable|numeric',
-        ], [
-            'NomEmpl.required' => 'Debe seleccionar un empleado',
-            'MaquinaId.required' => 'Debe seleccionar una máquina',
         ]);
 
         try {
-            // Generar folio automáticamente: ENG-FORM-YYYY-####
-            $year = date('Y');
-            $prefix = "ENG-FORM-{$year}-";
+            // Usar el FolioProg seleccionado como Folio principal
+            $folio = $request->input('FolioProg');
             
-            // Obtener el último folio del año actual
-            $lastRecord = EngProduccionFormulacionModel::where('Folio', 'like', $prefix . '%')
-                ->orderBy('Folio', 'desc')
-                ->first();
+            // Verificar si ya existe un registro con ese folio
+            $existingRecord = EngProduccionFormulacionModel::where('Folio', $folio)->first();
             
-            if ($lastRecord) {
-                // Extraer el número del último folio
-                $lastNumber = (int) substr($lastRecord->Folio, strlen($prefix));
-                $newNumber = $lastNumber + 1;
-            } else {
-                $newNumber = 1;
+            if ($existingRecord) {
+                return redirect()->back()
+                    ->with('error', 'Ya existe una formulación con el folio: ' . $folio);
             }
-            
-            $folio = $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
             
             $validated['Folio'] = $folio;
             $validated['Status'] = 'Creado';
+            
+            // Log para debug
+            Log::info('Datos a insertar:', $validated);
             
             $formulacion = EngProduccionFormulacionModel::create($validated);
             
@@ -102,6 +107,7 @@ class EngProduccionFormulacionController extends Controller
                 ->with('success', 'Formulación creada exitosamente con folio: ' . $folio);
         } catch (\Exception $e) {
             Log::error('Error al crear formulación: ' . $e->getMessage());
+            Log::error('Trace: ' . $e->getTraceAsString());
             return redirect()->back()->with('error', 'Error al crear la formulación: ' . $e->getMessage());
         }
     }
@@ -149,7 +155,9 @@ class EngProduccionFormulacionController extends Controller
     }
 
     /**
-     * Obtener componentes de la fórmula desde AX (Bom + InventDim)
+     * Obtener componentes de la fórmula desde AX (BOMVersion + Bom + InventTable + InventDim)
+     * JOIN: BOMVersion -> Bom (por BomId) -> InventTable (por ItemId) -> InventDim (por InventDimId)
+     * Filtros: BOMVersion.ItemId = Formula, IT.DATAAREAID = 'PRO', B.DATAAREAID = 'PRO', ID.DATAAREAID = 'PRO'
      */
     public function getComponentesFormula(Request $request)
     {
@@ -160,20 +168,26 @@ class EngProduccionFormulacionController extends Controller
                 return response()->json(['error' => 'No se proporcionó el código de fórmula'], 400);
             }
 
-            // Consultar TOW_PRO: Bom INNER JOIN InventDim con filtros especificados
+            // Consultar TOW_PRO: BOMVersion + Bom + InventTable + InventDim con filtros especificados
             $componentes = DB::connection('sqlsrv_tow_pro')
-                ->table('Bom as B')
-                ->join('InventDim as I', 'B.InventDimId', '=', 'I.InventDimId')
+                ->table('BOMVersion as BV')
+                ->join('Bom as B', 'B.BomId', '=', 'BV.BomId')
+                ->join('InventTable as IT', 'IT.ItemId', '=', 'B.ItemId')
+                ->join('InventDim as ID', 'B.InventDimId', '=', 'ID.InventDimId')
                 ->select(
                     'B.BomId',
                     'B.ItemId',
+                    'IT.ItemName',
+                    'ID.ConfigId',
                     'B.BomQty as ConsumoUnitario',
-                    'I.ConfigId',
-                    'I.InventLocationId'
+                    'B.UnitId as Unidad',
+                    'ID.InventLocationId as Almacen',
+                    'B.InventDimId'
                 )
-                ->where('B.BomId', $formula)
+                ->where('BV.ItemId', $formula)
+                ->where('IT.DATAAREAID', 'PRO')
                 ->where('B.DATAAREAID', 'PRO')
-                ->where('I.DATAAREAID', 'PRO')
+                ->where('ID.DATAAREAID', 'PRO')
                 ->orderBy('B.LineNum')
                 ->get();
 
@@ -184,6 +198,9 @@ class EngProduccionFormulacionController extends Controller
                 'vacio' => $componentes->isEmpty()
             ]);
         } catch (\Exception $e) {
+            Log::error('Error al obtener componentes: ' . $e->getMessage());
+            Log::error('Trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'error' => 'Error al obtener componentes: ' . $e->getMessage(),
                 'trace' => $e->getTraceAsString()

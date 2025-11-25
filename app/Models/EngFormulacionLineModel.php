@@ -25,6 +25,7 @@ class EngFormulacionLineModel extends Model
         'ConsumoUnit',
         'ConsumoTotal',
         'Unidad',
+        'InventLocation', 
     ];
 
     protected $casts = [
