@@ -20,11 +20,6 @@ class SimulacionProgramaTejidoObserver
     public function saved(SimulacionProgramaTejido $programa)
     {
         // Log para verificar que el ID está disponible
-        Log::debug('SimulacionProgramaTejidoObserver.saved - Called', [
-            'programa_id' => $programa->Id,
-            'programa_id_type' => gettype($programa->Id),
-        ]);
-
         $this->generarLineasDiarias($programa);
     }
 
@@ -37,25 +32,12 @@ class SimulacionProgramaTejidoObserver
     private function generarLineasDiarias(SimulacionProgramaTejido $programa)
     {
         try {
-            // ✅ VERIFICAR QUE EL ID EXISTE
+            //  VERIFICAR QUE EL ID EXISTE
             if (!$programa->Id || $programa->Id <= 0) {
-                Log::warning('SimulacionProgramaTejidoObserver: ID del programa no está disponible', [
-                    'programa_id' => $programa->Id,
-                    'programa_id_null' => is_null($programa->Id),
-                ]);
                 return;
             }
 
-            // Log inicial para debug
-            Log::info('SimulacionProgramaTejidoObserver: Iniciando generarLineasDiarias', [
-                'ProgramaId' => $programa->Id,
-                'FechaInicio' => $programa->FechaInicio,
-                'FechaFinal' => $programa->FechaFinal,
-                'SaldoPedido' => $programa->SaldoPedido,
-                'PesoCrudo' => $programa->PesoCrudo,
-            ]);
-
-            // ✅ CALCULAR LAS FÓRMULAS DE EFICIENCIA UNA SOLA VEZ
+            // CALCULAR LAS FÓRMULAS DE EFICIENCIA UNA SOLA VEZ
             $formulas = $this->calcularFormulasEficiencia($programa);
 
             // Guardar las fórmulas en el modelo del programa (para acceso posterior)
@@ -63,7 +45,6 @@ class SimulacionProgramaTejidoObserver
                 foreach ($formulas as $key => $value) {
                     $programa->{$key} = $value;
                 }
-                Log::info('SimulacionProgramaTejidoObserver: ✅ Fórmulas asignadas al programa', $formulas);
             }
 
             // Validar fechas
@@ -78,21 +59,10 @@ class SimulacionProgramaTejidoObserver
                     $fin = Carbon::parse($programa->FechaFinal);
                 }
             } catch (\Throwable $parseError) {
-                Log::warning('SimulacionProgramaTejidoObserver: Error al parsear fechas', [
-                    'ProgramaId' => $programa->Id,
-                    'FechaInicio' => $programa->FechaInicio,
-                    'FechaFinal' => $programa->FechaFinal,
-                    'error' => $parseError->getMessage(),
-                ]);
                 return;
             }
 
             if (!$inicio || !$fin || $fin->lte($inicio)) {
-                Log::warning('SimulacionProgramaTejidoObserver: Fechas inválidas o iguales', [
-                    'ProgramaId' => $programa->Id,
-                    'FechaInicio' => $inicio?->toDateString() ?? 'null',
-                    'FechaFinal' => $fin?->toDateString() ?? 'null',
-                ]);
                 return;
             }
 
@@ -109,22 +79,12 @@ class SimulacionProgramaTejidoObserver
 
             // Si no hay datos para distribuir, no hacer nada
             if ($totalHoras <= 0 || $totalPzas <= 0) {
-                Log::warning('SimulacionProgramaTejidoObserver: Sin datos para distribuir', [
-                    'ProgramaId' => $programa->Id,
-                    'totalHoras' => $totalHoras,
-                    'totalPzas' => $totalPzas,
-                    'pesoCrudo' => $pesoCrudo,
-                ]);
                 return;
             }
 
             // Verificar si ya existen líneas y eliminarlas si es update
             $lineasExistentes = SimulacionProgramaTejidoLine::where('ProgramaId', $programa->Id)->count();
             if ($lineasExistentes > 0) {
-                Log::info('SimulacionProgramaTejidoObserver: Eliminando líneas existentes', [
-                    'ProgramaId' => $programa->Id,
-                    'lineasExistentes' => $lineasExistentes,
-                ]);
                 SimulacionProgramaTejidoLine::where('ProgramaId', $programa->Id)->delete();
             }
 
@@ -132,15 +92,6 @@ class SimulacionProgramaTejidoObserver
             $periodo = CarbonPeriod::create($inicio->copy()->startOfDay(), $fin->copy()->endOfDay());
 
             $creadas = 0;
-
-            Log::info('SimulacionProgramaTejidoObserver: Iniciando iteración de días', [
-                'ProgramaId' => $programa->Id,
-                'FechaInicio' => $inicio->toDateString(),
-                'FechaFinal' => $fin->toDateString(),
-                'TotalHoras' => round($totalHoras, 2),
-                'StdHrEfectivo' => round($stdHrEfectivo, 4),
-                'ProdKgDia' => round($prodKgDia, 4),
-            ]);
 
             foreach ($periodo as $index => $dia) {
                 $inicioDia = $dia->copy()->startOfDay();
@@ -201,10 +152,6 @@ class SimulacionProgramaTejidoObserver
                                 $factorAplicacion = (float) $aplicacionData->Factor;
                             }
                         } catch (\Throwable $e) {
-                            Log::warning('SimulacionProgramaTejidoObserver: Error al buscar Factor en ReqAplicaciones', [
-                                'AplicacionId' => $programa->AplicacionId,
-                                'error' => $e->getMessage(),
-                            ]);
                         }
                     }
 
@@ -234,7 +181,7 @@ class SimulacionProgramaTejidoObserver
                     // Kilos es la suma de TODOS los componentes (incluyendo Rizo)
                     $kilosDia = $totalComponentes + $rizo;
 
-                    // ✅ APLICACION: Guardar Factor * Kilos (multiplicación del factor por el total de kilos del día)
+                    // APLICACION: Guardar Factor * Kilos (multiplicación del factor por el total de kilos del día)
                     $aplicacionValor = null;
                     if ($factorAplicacion !== null && $kilosDia > 0) {
                         $aplicacionValor = $factorAplicacion * $kilosDia;
@@ -244,7 +191,7 @@ class SimulacionProgramaTejidoObserver
                     $mtsRizo = $this->calcularMtsRizo($programa, $rizo);
                     $mtsPie = $this->calcularMtsPie($programa, $pie);
 
-                    // Crear registro en SimulacionProgramaTejidoLine
+                    // CREAR REGISTRO EN SimulacionProgramaTejidoLine
                     $line = SimulacionProgramaTejidoLine::create([
                         'ProgramaId' => (int) $programa->Id,
                         'Fecha' => $dia->toDateString(),
@@ -264,54 +211,15 @@ class SimulacionProgramaTejidoObserver
                     ]);
                     $creadas++;
 
-                    // Log detallado con atributos calculados y valores crudos que usó la fórmula
-                    Log::debug('SimulacionProgramaTejidoObserver: Línea creada', [
-                        'ProgramaId' => $programa->Id,
-                        'Fecha' => $dia->toDateString(),
-                        'Fraccion' => round($fraccion, 4),
-                        'HorasDia' => round($horasDia, 2),
-                        'Cantidad' => round($pzasDia, 4),
-                        'Kilos' => $kilosDia !== null ? round($kilosDia, 4) : null,
-                        'FactorAplicacion' => $factorAplicacion,
-                        'Aplicacion_calculada' => $aplicacionValor !== null ? round($aplicacionValor, 4) : null,
-                        'Trama' => $trama,
-                        'Combina1' => $combinacion1,
-                        'Combina2' => $combinacion2,
-                        'Combina3' => $combinacion3,
-                        'Combina4' => $combinacion4,
-                        'Combina5' => $combinacion5,
-                        'Pie' => $pie,
-                        'Rizo' => $rizo,
-                        'MtsRizo' => $mtsRizo !== null ? round($mtsRizo, 4) : null,
-                        'MtsPie' => $mtsPie !== null ? round($mtsPie, 4) : null,
-                    ]);
 
-                    // Adicional: loguear exactamente lo que quedó en la fila guardada (atributos insertados)
-                    try {
-                        Log::debug('SimulacionProgramaTejidoObserver: Atributos guardados en DB', $line->getAttributes());
-                    } catch (\Throwable $inner) {
-                        Log::warning('SimulacionProgramaTejidoObserver: No se pudo obtener atributos del modelo guardado', ['error' => $inner->getMessage()]);
-                    }
+
+
                 }
             }
 
-            Log::info('SimulacionProgramaTejidoObserver: Líneas generadas exitosamente', [
-                'ProgramaId' => $programa->Id,
-                'TotalLineas' => $creadas,
-                'FechaInicio' => $inicio->toDateString(),
-                'FechaFinal' => $fin->toDateString(),
-                'TotalHoras' => round($totalHoras, 2),
-                'TotalPiezas' => $totalPzas,
-                'StdHrEfectivo' => round($stdHrEfectivo, 4),
-                'ProdKgDia' => round($prodKgDia, 4),
-            ]);
+
 
         } catch (\Throwable $e) {
-            Log::error('SimulacionProgramaTejidoObserver: Error al generar líneas', [
-                'ProgramaId' => $programa->Id ?? null,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
         }
     }
 
@@ -328,18 +236,12 @@ class SimulacionProgramaTejidoObserver
             $anchoToalla = $this->resolveField($programa, ['AnchoToalla', 'Ancho', 'AnchoPeineTrama', 'LargoToalla'], 'float');
 
             if ($pasadasTrama <= 0 || $calibreTrama <= 0 || $anchoToalla <= 0) {
-                Log::debug('SimulacionProgramaTejidoObserver: calcularTrama - valores insuficientes', [
-                    'PasadasTrama' => $pasadasTrama,
-                    'CalibreTrama' => $calibreTrama,
-                    'AnchoToalla' => $anchoToalla,
-                ]);
                 return null;
             }
 
             $trama = ((((0.59 * ((($pasadasTrama * 1.001) * $anchoToalla) / 100)) / $calibreTrama) * $pzasDia) / 1000);
             return $trama > 0 ? $trama : null;
         } catch (\Throwable $e) {
-            Log::warning('SimulacionProgramaTejidoObserver: Error al calcular trama', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -360,12 +262,6 @@ class SimulacionProgramaTejidoObserver
             $anchoToalla = $this->resolveField($programa, ['AnchoToalla', 'Ancho', 'LargoToalla'], 'float');
 
             if ($pasadas <= 0 || $calibre <= 0 || $anchoToalla <= 0) {
-                Log::debug('SimulacionProgramaTejidoObserver: calcularCombinacion - valores insuficientes', [
-                    'numero' => $numero,
-                    'pasadas' => $pasadas,
-                    'calibre' => $calibre,
-                    'anchoToalla' => $anchoToalla,
-                ]);
                 return null;
             }
 
@@ -374,7 +270,6 @@ class SimulacionProgramaTejidoObserver
             $comb = ((((0.59 * ((($pasadas * 1.001) * $anchoToalla) / 100)) / $calibre) * $pzasDia) / 1000);
             return $comb > 0 ? $comb : null;
         } catch (\Throwable $e) {
-            Log::warning("SimulacionProgramaTejidoObserver: Error al calcular combinacion {$numero}", ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -394,13 +289,6 @@ class SimulacionProgramaTejidoObserver
             $noTiras = $this->resolveField($programa, ['NoTiras', 'No_Tiras'], 'float');
 
             if ($largo <= 0 || $noTiras <= 0 || $calibrePie <= 0 || $cuentaPie <= 0) {
-                Log::debug('SimulacionProgramaTejidoObserver: calcularPie - valores insuficientes', [
-                    'Largo' => $largo,
-                    'MedidaPlano' => $medidaPlano,
-                    'CalibrePie' => $calibrePie,
-                    'CuentaPie' => $cuentaPie,
-                    'NoTiras' => $noTiras,
-                ]);
                 return null;
             }
 
@@ -412,7 +300,6 @@ class SimulacionProgramaTejidoObserver
 
             return $pie > 0 ? $pie : null;
         } catch (\Throwable $e) {
-            Log::warning('SimulacionProgramaTejidoObserver: Error al calcular pie', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -427,12 +314,6 @@ class SimulacionProgramaTejidoObserver
         $formulas = [];
 
         try {
-            Log::info('SimulacionProgramaTejidoObserver: Iniciando calcularFormulasEficiencia', [
-                'programa_id' => $programa->Id,
-                'VelocidadSTD' => $programa->VelocidadSTD,
-                'EficienciaSTD' => $programa->EficienciaSTD,
-            ]);
-
             // Parámetros base
             $vel = (float) ($programa->VelocidadSTD ?? 100);
             $efic = (float) ($programa->EficienciaSTD ?? 0.8);
@@ -440,29 +321,12 @@ class SimulacionProgramaTejidoObserver
             $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
             $noTiras = (float) ($programa->NoTiras ?? 1);
             $luchaje = (float) ($programa->Luchaje ?? 0);
-            $repeticiones = (float) ($programa->Repeticiones ?? 1);
-
-            Log::debug('SimulacionProgramaTejidoObserver: Parámetros calculados', [
-                'vel' => $vel,
-                'efic' => $efic,
-                'cantidad' => $cantidad,
-                'pesoCrudo' => $pesoCrudo,
-                'noTiras' => $noTiras,
-                'luchaje' => $luchaje,
-                'repeticiones' => $repeticiones,
-            ]);
 
             // Fechas
             $inicio = Carbon::parse($programa->FechaInicio);
             $fin = Carbon::parse($programa->FechaFinal);
             $diffSegundos = abs($fin->getTimestamp() - $inicio->getTimestamp());
             $diffHoras = $diffSegundos / 3600; // Horas decimales
-
-            Log::debug('SimulacionProgramaTejidoObserver: Fechas y diferencia', [
-                'inicio' => $inicio->toDateTimeString(),
-                'fin' => $fin->toDateTimeString(),
-                'diffHoras' => $diffHoras,
-            ]);
 
             // === PASO 1: Calcular StdToaHra ===
             // StdToaHra = (NoTiras * 60) / (Luchaje * VelocidadSTD / 10000)
@@ -528,14 +392,7 @@ class SimulacionProgramaTejidoObserver
                 $formulas['HorasProd'] = (float) round($cantidad / ($stdToaHra * $efic), 6);
             }
 
-            Log::info('SimulacionProgramaTejidoObserver: Fórmulas calculadas exitosamente', $formulas);
-
         } catch (\Throwable $e) {
-            Log::warning('SimulacionProgramaTejidoObserver: Error al calcular fórmulas de eficiencia', [
-                'error' => $e->getMessage(),
-                'programa_id' => $programa->Id,
-                'trace' => $e->getTraceAsString(),
-            ]);
         }
 
         return $formulas;
@@ -565,19 +422,12 @@ class SimulacionProgramaTejidoObserver
 
             $cuentaRizo = $this->resolveField($programa, ['CuentaRizo', 'Cuenta_Rizo'], 'float');
             if ($cuentaRizo <= 0) {
-                Log::debug('SimulacionProgramaTejidoObserver: calcularMtsRizo - CuentaRizo inválido', [
-                    'CuentaRizo' => $cuentaRizo,
-                ]);
                 return null;
             }
 
             // Obtener Hilo del programa (puede estar en FibraRizo)
             $hilo = $this->resolveField($programa, ['FibraRizo', 'Hilo', 'FibraRizo'], 'string');
             if (empty($hilo)) {
-                Log::debug('SimulacionProgramaTejidoObserver: calcularMtsRizo - Hilo no encontrado', [
-                    'ProgramaId' => $programa->Id,
-                    'FibraRizo' => $programa->FibraRizo ?? null,
-                ]);
                 return null;
             }
 
@@ -585,10 +435,6 @@ class SimulacionProgramaTejidoObserver
             // Intentar primero con Calibre/Calibre2, luego con N1/N2 directamente
             $matrizHilo = ReqMatrizHilos::where('Hilo', $hilo)->first();
             if (!$matrizHilo) {
-                Log::debug('SimulacionProgramaTejidoObserver: calcularMtsRizo - No se encontró registro en ReqMatrizHilos', [
-                    'Hilo' => $hilo,
-                    'ProgramaId' => $programa->Id,
-                ]);
                 return null;
             }
 
@@ -610,43 +456,18 @@ class SimulacionProgramaTejidoObserver
             if ($n1 === null || $n1 <= 0) {
                 if ($matrizHilo->Calibre !== null && $matrizHilo->Calibre !== '' && is_numeric($matrizHilo->Calibre)) {
                     $n1 = (float) $matrizHilo->Calibre;
-                    Log::debug('SimulacionProgramaTejidoObserver: calcularMtsRizo - Usando Calibre como N1 (fallback)', [
-                        'Hilo' => $hilo,
-                        'Calibre' => $matrizHilo->Calibre,
-                        'N1' => $n1,
-                    ]);
                 }
             } else {
-                Log::debug('SimulacionProgramaTejidoObserver: calcularMtsRizo - Usando N1 directo del modelo', [
-                    'Hilo' => $hilo,
-                    'N1' => $n1,
-                ]);
             }
 
             if ($n2 === null || $n2 <= 0) {
                 if ($matrizHilo->Calibre2 !== null && $matrizHilo->Calibre2 !== '' && is_numeric($matrizHilo->Calibre2)) {
                     $n2 = (float) $matrizHilo->Calibre2;
-                    Log::debug('SimulacionProgramaTejidoObserver: calcularMtsRizo - Usando Calibre2 como N2 (fallback)', [
-                        'Hilo' => $hilo,
-                        'Calibre2' => $matrizHilo->Calibre2,
-                        'N2' => $n2,
-                    ]);
                 }
             } else {
-                Log::debug('SimulacionProgramaTejidoObserver: calcularMtsRizo - Usando N2 directo del modelo', [
-                    'Hilo' => $hilo,
-                    'N2' => $n2,
-                ]);
             }
 
             if ($n1 <= 0 || $n2 <= 0) {
-                Log::debug('SimulacionProgramaTejidoObserver: calcularMtsRizo - N1 o N2 inválidos', [
-                    'Hilo' => $hilo,
-                    'N1' => $n1,
-                    'N2' => $n2,
-                    'matrizHilo_id' => $matrizHilo->id ?? null,
-                    'matrizHilo_attributes' => $matrizHilo->getAttributes(),
-                ]);
                 return null;
             }
 
@@ -687,10 +508,6 @@ class SimulacionProgramaTejidoObserver
             $cuentaPie = $this->resolveField($programa, ['CuentaPie', 'Cuenta_Pie'], 'float');
 
             if ($calibrePie <= 0 || $cuentaPie <= 0) {
-                Log::debug('SimulacionProgramaTejidoObserver: calcularMtsPie - Valores insuficientes', [
-                    'CalibrePie' => $calibrePie,
-                    'CuentaPie' => $cuentaPie,
-                ]);
                 return null;
             }
 
@@ -699,7 +516,6 @@ class SimulacionProgramaTejidoObserver
 
             return $mtsPie > 0 ? $mtsPie : null;
         } catch (\Throwable $e) {
-            Log::warning('SimulacionProgramaTejidoObserver: Error al calcular MtsPie', ['error' => $e->getMessage()]);
             return null;
         }
     }

@@ -2072,6 +2072,60 @@
 		// Inicializar menú contextual
 		initContextMenu();
 
+		// ===== Seleccionar registro por parámetros de URL (después de duplicar) =====
+		const urlParams = new URLSearchParams(window.location.search);
+		const registroIdParam = urlParams.get('registro_id');
+		const salonParam = urlParams.get('salon');
+		const telarParam = urlParams.get('telar');
+
+		if (registroIdParam || (salonParam && telarParam)) {
+			// Buscar la fila que coincida con los parámetros
+			setTimeout(() => {
+				let filaEncontrada = null;
+				let filaIndex = -1;
+
+				allRows.forEach((row, idx) => {
+					// Primero intentar por registro_id
+					if (registroIdParam && row.getAttribute('data-id') == registroIdParam) {
+						filaEncontrada = row;
+						filaIndex = idx;
+						return;
+					}
+					// Si no hay registro_id, buscar por salon y telar
+					if (!filaEncontrada && salonParam && telarParam) {
+						const salonCell = row.querySelector('[data-column="SalonTejidoId"]');
+						const telarCell = row.querySelector('[data-column="NoTelarId"]');
+						if (salonCell?.textContent?.trim() === salonParam &&
+							telarCell?.textContent?.trim() === telarParam) {
+							filaEncontrada = row;
+							filaIndex = idx;
+						}
+					}
+				});
+
+				if (filaEncontrada && filaIndex >= 0) {
+					// Seleccionar la fila
+					selectRow(filaEncontrada, filaIndex);
+					// Hacer scroll hacia la fila
+					filaEncontrada.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					// Resaltar brevemente la fila
+					filaEncontrada.classList.add('bg-yellow-100');
+					setTimeout(() => {
+						filaEncontrada.classList.remove('bg-yellow-100');
+					}, 2000);
+				}
+
+				// Limpiar parámetros de la URL sin recargar
+				if (registroIdParam || salonParam || telarParam) {
+					const cleanUrl = new URL(window.location.href);
+					cleanUrl.searchParams.delete('registro_id');
+					cleanUrl.searchParams.delete('salon');
+					cleanUrl.searchParams.delete('telar');
+					window.history.replaceState({}, '', cleanUrl.toString());
+				}
+			}, 100);
+		}
+
 		// Inicializar botones del layout como deshabilitados
 		const btnEditarLayout = document.getElementById('layoutBtnEditar');
 		const btnEliminarLayout = document.getElementById('layoutBtnEliminar');

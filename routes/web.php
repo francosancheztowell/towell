@@ -769,6 +769,10 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Control
     Route::post('/planeacion/programa-tejido/{id}/cambiar-telar', [ProgramaTejidoController::class, 'cambiarTelar'])->name('programa-tejido.cambiar-telar');
     Route::post('/planeacion/programa-tejido/duplicar-telar', [ProgramaTejidoController::class, 'duplicarTelar'])->name('programa-tejido.duplicar-telar');
     Route::post('/planeacion/programa-tejido/dividir-telar', [ProgramaTejidoController::class, 'dividirTelar'])->name('programa-tejido.dividir-telar');
+    Route::post('/planeacion/programa-tejido/dividir-saldo', [ProgramaTejidoController::class, 'dividirSaldo'])->name('programa-tejido.dividir-saldo');
+    Route::get('/planeacion/programa-tejido/balancear', [ProgramaTejidoController::class, 'balancear'])->name('programa-tejido.balancear');
+    Route::get('/planeacion/programa-tejido/{id}/detalles-balanceo', [ProgramaTejidoController::class, 'detallesBalanceo'])->name('programa-tejido.detalles-balanceo');
+    Route::post('/planeacion/programa-tejido/actualizar-pedidos-balanceo', [ProgramaTejidoController::class, 'actualizarPedidosBalanceo'])->name('programa-tejido.actualizar-pedidos-balanceo');
     Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'destroy'])->name('programa-tejido.destroy');
         // JSON: ReqProgramaTejidoLine dentro de planeación
         Route::get('/planeacion/req-programa-tejido-line', [\App\Http\Controllers\ReqProgramaTejidoLineController::class, 'index']);

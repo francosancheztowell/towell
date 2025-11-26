@@ -8,7 +8,6 @@ use App\Models\ReqAplicaciones;
 use App\Models\ReqMatrizHilos;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
-use Illuminate\Support\Facades\Log;
 
 class ReqProgramaTejidoObserver
 {
@@ -74,16 +73,23 @@ class ReqProgramaTejidoObserver
 
             // Calcular totales de referencia (en horas)
             $totalSegundos = $fin->diffInSeconds($inicio, absolute: true);
-            $totalHoras = $totalSegundos / 3600;
+            $totalHoras = $totalSegundos / 3600.0;
 
             $totalPzas = (float) ($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
             $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
 
-            // Calcular StdHrEfectivo (piezas por hora)
-            $stdHrEfectivo = ($totalHoras > 0) ? ($totalPzas / $totalHoras) : 0;
-            $prodKgDia = ($stdHrEfectivo > 0 && $pesoCrudo > 0) ? ($stdHrEfectivo * $pesoCrudo) / 1000.0 : 0;
-            $prodKgDia2Calc = (float)($formulas['ProdKgDia2'] ?? $programa->ProdKgDia2 ?? 0);
-            $stdHrsEfectCalc = (float)($formulas['StdHrsEfect'] ?? $programa->StdHrsEfect ?? 0);
+            // Calcular StdHrEfectivo (piezas por hora) - SIN REDONDEO para máxima precisión
+            $stdHrEfectivo = ($totalHoras > 0) ? ($totalPzas / $totalHoras) : 0.0;
+
+            // Calcular ProdKgDia directamente para máxima precisión
+            $prodKgDia = ($stdHrEfectivo > 0 && $pesoCrudo > 0) ? ($stdHrEfectivo * $pesoCrudo) / 1000.0 : 0.0;
+
+            // Calcular StdHrsEfect y ProdKgDia2 directamente (sin usar valores redondeados de la BD)
+            $diffDias = $totalSegundos / 86400.0; // Días decimales exactos
+            $stdHrsEfectCalc = ($diffDias > 0) ? (($totalPzas / $diffDias) / 24.0) : 0.0;
+            $prodKgDia2Calc = ($pesoCrudo > 0 && $stdHrsEfectCalc > 0)
+                ? ((($pesoCrudo * $stdHrsEfectCalc) * 24.0) / 1000.0)
+                : 0.0;
 
             // Si no hay datos para distribuir, no hacer nada
             if ($totalHoras <= 0 || $totalPzas <= 0) {
@@ -191,29 +197,20 @@ class ReqProgramaTejidoObserver
                     $combinacion5 = $this->calcularCombinacion($programa, 5, $pzasDia);
                     $pie = $this->calcularPie($programa, $pzasDia);
 
-                    // Sumar todos los componentes (excepto Rizo)
-                    $totalComponentes = ($trama ?? 0)
-                        + ($combinacion1 ?? 0)
-                        + ($combinacion2 ?? 0)
+                    // Fórmula exacta: Rizo = Kilos - (Pie + Comb3 + Comb2 + Comb1 + Trama + Comb4)
+                    // Nota: Combinacion5 NO se incluye en el cálculo de Rizo
+                    $componentesParaRizo = ($pie ?? 0)
                         + ($combinacion3 ?? 0)
-                        + ($combinacion4 ?? 0)
-                        + ($combinacion5 ?? 0)
-                        + ($pie ?? 0);
-
-                    // Nueva fórmula exacta: Rizo = Kilos - (Pie + Comb3 + Comb2 + Comb1 + Trama + Comb4)
-                    $componentesParaRizo = array_sum([
-                        $pie ?? 0,
-                        $combinacion3 ?? 0,
-                        $combinacion2 ?? 0,
-                        $combinacion1 ?? 0,
-                        $trama ?? 0,
-                        $combinacion4 ?? 0,
-                    ]);
+                        + ($combinacion2 ?? 0)
+                        + ($combinacion1 ?? 0)
+                        + ($trama ?? 0)
+                        + ($combinacion4 ?? 0);
 
                     $rizo = max(0.0, $kilosBase - $componentesParaRizo);
 
-                    // Kilos es la suma de TODOS los componentes (incluyendo Rizo)
-                    $kilosDia = $totalComponentes + $rizo;
+                    // Kilos = Rizo + Pie + Comb3 + Comb2 + Comb1 + Trama + Comb4 (sin Comb5)
+                    // Es decir: Kilos = kilosBase (que es el valor original)
+                    $kilosDia = $rizo + $componentesParaRizo;
 
                     //  APLICACION: Guardar Factor * Kilos (multiplicación del factor por el total de kilos del día)
                     $aplicacionValor = null;
@@ -225,23 +222,23 @@ class ReqProgramaTejidoObserver
                     $mtsRizo = $this->calcularMtsRizo($programa, $rizo);
                     $mtsPie = $this->calcularMtsPie($programa, $pie);
 
-                    // Acumular línea para inserción en batch
+                    // Acumular línea para inserción en batch (6 decimales para mayor precisión)
                     $lineasParaInsertar[] = [
                         'ProgramaId' => (int) $programa->Id,
                         'Fecha' => $dia->toDateString(),
-                        'Cantidad' => round($pzasDia, 4),
-                        'Kilos' => round($kilosDia, 4),
-                        'Aplicacion' => $aplicacionValor !== null ? round($aplicacionValor, 4) : null,
-                        'Trama' => $trama !== null ? round($trama, 4) : null,
-                        'Combina1' => $combinacion1 !== null ? round($combinacion1, 4) : null,
-                        'Combina2' => $combinacion2 !== null ? round($combinacion2, 4) : null,
-                        'Combina3' => $combinacion3 !== null ? round($combinacion3, 4) : null,
-                        'Combina4' => $combinacion4 !== null ? round($combinacion4, 4) : null,
-                        'Combina5' => $combinacion5 !== null ? round($combinacion5, 4) : null,
-                        'Pie' => $pie !== null ? round($pie, 4) : null,
-                        'Rizo' => $rizo !== null ? round($rizo, 4) : null,
-                        'MtsRizo' => $mtsRizo !== null ? round($mtsRizo, 4) : null,
-                        'MtsPie' => $mtsPie !== null ? round($mtsPie, 4) : null,
+                        'Cantidad' => round($pzasDia, 6),
+                        'Kilos' => round($kilosDia, 6),
+                        'Aplicacion' => $aplicacionValor !== null ? round($aplicacionValor, 6) : null,
+                        'Trama' => $trama !== null ? round($trama, 6) : null,
+                        'Combina1' => $combinacion1 !== null ? round($combinacion1, 6) : null,
+                        'Combina2' => $combinacion2 !== null ? round($combinacion2, 6) : null,
+                        'Combina3' => $combinacion3 !== null ? round($combinacion3, 6) : null,
+                        'Combina4' => $combinacion4 !== null ? round($combinacion4, 6) : null,
+                        'Combina5' => $combinacion5 !== null ? round($combinacion5, 6) : null,
+                        'Pie' => $pie !== null ? round($pie, 6) : null,
+                        'Rizo' => round($rizo, 6),
+                        'MtsRizo' => $mtsRizo !== null ? round($mtsRizo, 6) : null,
+                        'MtsPie' => $mtsPie !== null ? round($mtsPie, 6) : null,
                     ];
                     $creadas++;
                 }
@@ -269,8 +266,8 @@ class ReqProgramaTejidoObserver
      */
     private function calcularTrama(ReqProgramaTejido $programa, float $pzasDia): ?float
     {
-            // Resolver aliases comunes de campos
-            $pasadasTrama = $this->resolveField($programa, ['PasadasTrama'], 'int');
+            // Usar 'float' para todos los campos para mantener precisión
+            $pasadasTrama = $this->resolveField($programa, ['PasadasTrama'], 'float');
             $calibreTrama = $this->resolveField($programa, ['CalibreTrama'], 'float');
             $anchoToalla = $this->resolveField($programa, ['AnchoToalla'], 'float');
 
@@ -278,7 +275,7 @@ class ReqProgramaTejidoObserver
                 // Sin logging para mejorar rendimiento
                 return null;
             }
-            $trama = ((((0.59*((( $pasadasTrama*1.001) * $anchoToalla)/100))/$calibreTrama)*$pzasDia)/1000);
+            $trama = ((((0.59 * ((($pasadasTrama * 1.001) * $anchoToalla) / 100.0)) / $calibreTrama) * $pzasDia) / 1000.0);
             return $trama > 0 ? $trama : null;
     }
 
@@ -304,10 +301,9 @@ class ReqProgramaTejidoObserver
 
             // FÓRMULA EXACTA DEL CONTROLLER TRANSCRITA:
             // ((((0.59 * ((PASADAS * 1.001) * ancho_por_toalla) / 100) / CALIBRE) * piezas) / 1000)
-            $comb = ((((0.59 * ((($pasadas * 1.001) * $anchoToalla) / 100)) / $calibre) * $pzasDia) / 1000);
+            $comb = ((((0.59 * ((($pasadas * 1.001) * $anchoToalla) / 100.0)) / $calibre) * $pzasDia) / 1000.0);
             return $comb > 0 ? $comb : null;
         } catch (\Throwable $e) {
-            Log::warning("ReqProgramaTejidoObserver: Error al calcular combinacion {$numero}", ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -320,18 +316,19 @@ class ReqProgramaTejidoObserver
     private function calcularPie(ReqProgramaTejido $programa, float $pzasDia): ?float
     {
         try {
-            $largo = $this->resolveField($programa, ['LargoCrudo'], 'integer');
+            // Usar 'float' para todos los campos para mantener precisión
+            $largo = $this->resolveField($programa, ['LargoCrudo'], 'float');
             $medidaPlano = $this->resolveField($programa, ['MedidaPlano'], 'float');
-            $calibrePie = $this->resolveField($programa, ['CalibrePie2'], 'integer') ;
-            $cuentaPie = $this->resolveField($programa, ['CuentaPie'], 'integer');
-            $noTiras = $this->resolveField($programa, ['NoTiras'], 'integer');
+            $calibrePie = $this->resolveField($programa, ['CalibrePie2'], 'float');
+            $cuentaPie = $this->resolveField($programa, ['CuentaPie'], 'float');
+            $noTiras = $this->resolveField($programa, ['NoTiras'], 'float');
 
             if ($largo <= 0 || $noTiras <= 0 || $calibrePie <= 0 || $cuentaPie <= 0) {
                 // Sin logging para mejorar rendimiento
                 return null;
             }
 
-            $baseLongitud = ($largo + $medidaPlano) / 100;
+            $baseLongitud = ($largo + $medidaPlano) / 100.0;
             $ajuste = $baseLongitud * 1.055;
             $numerador = $ajuste * 0.00059;
             $divisor = (0.00059 * 1.0) / (0.00059 / $calibrePie);
@@ -343,13 +340,12 @@ class ReqProgramaTejidoObserver
 
             return $pie > 0 ? $pie : null;
         } catch (\Throwable $e) {
-            Log::warning('ReqProgramaTejidoObserver: Error al calcular pie', ['error' => $e->getMessage()]);
             return null;
         }
     }
 
     /**
-     * Calcula las fórmulas de eficiencia y producción (IGUAL QUE EN EDITAR)
+     * Calcula las fórmulas de eficiencia y producción (IGUAL QUE EN FRONTEND crud-manager.js)
      * Basado en la lógica de calcularFormulas() del formulario
      * @return array Con claves: StdToaHra, PesoGRM2, DiasEficiencia, StdDia, ProdKgDia, StdHrsEfect, ProdKgDia2, DiasJornada, HorasProd
      */
@@ -358,98 +354,101 @@ class ReqProgramaTejidoObserver
         $formulas = [];
 
         try {
-            // Sin logging para mejorar rendimiento
-
             // Parámetros base
-            $vel = (float) ($programa->VelocidadSTD ?? 100);
-            $efic = (float) ($programa->EficienciaSTD ?? 0.8);
+            $vel = (float) ($programa->VelocidadSTD ?? 0);
+            $efic = (float) ($programa->EficienciaSTD ?? 0);
             $cantidad = (float) ($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
             $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
-            $noTiras = (float) ($programa->NoTiras ?? 1);
+            $noTiras = (float) ($programa->NoTiras ?? 0);
             $luchaje = (float) ($programa->Luchaje ?? 0);
-            $repeticiones = (float) ($programa->Repeticiones ?? 1);
+            $repeticiones = (float) ($programa->Repeticiones ?? 0);
 
-            // Sin logging para mejorar rendimiento
+            // Normalizar eficiencia si viene en porcentaje (ej: 80 -> 0.8)
+            if ($efic > 1) {
+                $efic = $efic / 100;
+            }
+
+            // Obtener 'Total' del modelo codificado si existe
+            $total = 0;
+            if ($programa->TamanoClave) {
+                $modelo = \App\Models\ReqModelosCodificados::where('TamanoClave', $programa->TamanoClave)->first();
+                if ($modelo) {
+                    $total = (float) ($modelo->Total ?? 0);
+                }
+            }
 
             // Fechas
             $inicio = Carbon::parse($programa->FechaInicio);
             $fin = Carbon::parse($programa->FechaFinal);
             $diffSegundos = abs($fin->getTimestamp() - $inicio->getTimestamp());
-            $diffHoras = $diffSegundos / 3600; // Horas decimales
+            $diffDias = $diffSegundos / (60 * 60 * 24); // Días decimales (igual que frontend)
 
-            // Sin logging para mejorar rendimiento
-
-            // === PASO 1: Calcular StdToaHra ===
-            // StdToaHra = (NoTiras * 60) / (Luchaje * VelocidadSTD / 10000)
-            if ($noTiras > 0 && $luchaje > 0 && $vel > 0) {
-                $stdToaHra = ($noTiras * 60) / ($luchaje * $vel / 10000);
-                $formulas['StdToaHra'] = (float) round($stdToaHra, 6);
+            // === PASO 1: Calcular StdToaHra (fórmula del frontend) ===
+            // StdToaHra = (NoTiras * 60) / ((total + ((luchaje * 0.5) / 0.0254) / repeticiones) / velocidad)
+            $stdToaHra = 0;
+            if ($noTiras > 0 && $total > 0 && $luchaje > 0 && $repeticiones > 0 && $vel > 0) {
+                $parte1 = $total / 1;
+                $parte2 = (($luchaje * 0.5) / 0.0254) / $repeticiones;
+                $denominador = ($parte1 + $parte2) / $vel;
+                if ($denominador > 0) {
+                    $stdToaHra = ($noTiras * 60) / $denominador;
+                    $formulas['StdToaHra'] = (float) round($stdToaHra, 2);
+                }
             }
 
-            $stdToaHra = $formulas['StdToaHra'] ?? 0;
-
-            // === PASO 2: Calcular PesoGRM2 ===
-            // PesoGRM2 = (PesoCrudo * 1000) / (LargoToalla * AnchoToalla)
+            // === PASO 2: Calcular PesoGRM2 (frontend usa 10000, no 1000) ===
+            // PesoGRM2 = (PesoCrudo * 10000) / (LargoToalla * AnchoToalla)
             $largoToalla = (float) ($programa->LargoToalla ?? 0);
             $anchoToalla = (float) ($programa->AnchoToalla ?? 0);
             if ($pesoCrudo > 0 && $largoToalla > 0 && $anchoToalla > 0) {
-                $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 1000) / ($largoToalla * $anchoToalla), 6);
+                $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 10000) / ($largoToalla * $anchoToalla), 2);
             }
 
-            // === PASO 3: Calcular DiasEficiencia (en formato d.HH) ===
-            // DiasEficiencia: días.horas (formato d.HH)
-            if ($diffHoras > 0) {
-                $diasEnteros = (int) floor($diffHoras / 24);
-                $horasRestantes = $diffHoras % 24;
-                $horasEnteras = (int) floor($horasRestantes);
-                $diasEficienciaDH = (float) ("$diasEnteros.$horasEnteras");
-
-                $formulas['DiasEficiencia'] = (float) round($diasEficienciaDH, 2);
-                // Nota: DiasEficienciaHoras no existe como columna en la BD, se omite
+            // === PASO 3: Calcular DiasEficiencia (días decimales como frontend) ===
+            if ($diffDias > 0) {
+                $formulas['DiasEficiencia'] = (float) round($diffDias, 2);
             }
 
             // === PASO 4: Calcular StdDia y ProdKgDia ===
-            // StdDia = StdToaHra * 24
+            // StdDia = StdToaHra * eficiencia * 24 (frontend incluye eficiencia)
             // ProdKgDia = (StdDia * PesoCrudo) / 1000
-            if ($stdToaHra > 0) {
-                $stdDia = $stdToaHra * 24;
-                $formulas['StdDia'] = (float) round($stdDia, 6);
+            if ($stdToaHra > 0 && $efic > 0) {
+                $stdDia = $stdToaHra * $efic * 24;
+                $formulas['StdDia'] = (float) round($stdDia, 2);
 
                 if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 6);
+                    $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 2);
                 }
             }
 
             // === PASO 5: Calcular StdHrsEfect y ProdKgDia2 ===
-            // StdHrsEfect = TotalPedido / HorasDiferencia
+            // StdHrsEfect = (TotalPedido / DiasEficiencia) / 24 (frontend divide entre 24)
             // ProdKgDia2 = ((PesoCrudo * StdHrsEfect) * 24) / 1000
-            if ($diffHoras > 0) {
-                $stdHrsEfect = $cantidad / $diffHoras;
-                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 6);
+            if ($diffDias > 0) {
+                $stdHrsEfect = ($cantidad / $diffDias) / 24;
+                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 2);
 
                 if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 6);
+                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
                 }
             }
 
-            // === PASO 6: Calcular DiasJornada ===
-            // DiasJornada = VelocidadSTD / 24
-            $formulas['DiasJornada'] = (float) round($vel / 24, 6);
-
-            // === PASO 7: Calcular HorasProd ===
+            // === PASO 6: Calcular HorasProd ===
             // HorasProd = TotalPedido / (StdToaHra * EficienciaSTD)
+            $horasProd = 0;
             if ($stdToaHra > 0 && $efic > 0) {
-                $formulas['HorasProd'] = (float) round($cantidad / ($stdToaHra * $efic), 6);
+                $horasProd = $cantidad / ($stdToaHra * $efic);
+                $formulas['HorasProd'] = (float) round($horasProd, 2);
             }
 
-            // Sin logging para mejorar rendimiento
+            // === PASO 7: Calcular DiasJornada ===
+            // DiasJornada = HorasProd / 24 (frontend usa horasProd, no velocidad)
+            if ($horasProd > 0) {
+                $formulas['DiasJornada'] = (float) round($horasProd / 24, 2);
+            }
 
         } catch (\Throwable $e) {
-            Log::warning('ReqProgramaTejidoObserver: Error al calcular fórmulas de eficiencia', [
-                'error' => $e->getMessage(),
-                'programa_id' => $programa->Id,
-                'trace' => $e->getTraceAsString(),
-            ]);
+            // Silenciado para rendimiento
         }
 
         return $formulas;
@@ -479,39 +478,26 @@ class ReqProgramaTejidoObserver
 
             $cuentaRizo = $this->resolveField($programa, ['CuentaRizo', 'Cuenta_Rizo'], 'float');
             if ($cuentaRizo <= 0) {
-                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - CuentaRizo inválido', [
-                    'CuentaRizo' => $cuentaRizo,
-                ]);
                 return null;
             }
 
             // Obtener Hilo del programa (puede estar en FibraRizo)
             $hilo = $this->resolveField($programa, ['FibraRizo', 'Hilo', 'FibraRizo'], 'string');
             if (empty($hilo)) {
-                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Hilo no encontrado', [
-                    'ProgramaId' => $programa->Id,
-                    'FibraRizo' => $programa->FibraRizo ?? null,
-                ]);
                 return null;
             }
 
             // Buscar N1 y N2 en ReqMatrizHilos
-            // Intentar primero con Calibre/Calibre2, luego con N1/N2 directamente
             $matrizHilo = ReqMatrizHilos::where('Hilo', $hilo)->first();
             if (!$matrizHilo) {
-                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - No se encontró registro en ReqMatrizHilos', [
-                    'Hilo' => $hilo,
-                    'ProgramaId' => $programa->Id,
-                ]);
                 return null;
             }
 
             // Obtener N1 y N2 del modelo ReqMatrizHilos
-            // Priorizar N1 y N2, usar Calibre/Calibre2 como fallback solo si N1/N2 no tienen valores válidos
+            // Priorizar N1 y N2, usar Calibre/Calibre2 como fallback
             $n1 = null;
             $n2 = null;
 
-            // Intentar obtener N1 y N2 directamente del modelo
             if ($matrizHilo->N1 !== null && $matrizHilo->N1 !== '' && is_numeric($matrizHilo->N1)) {
                 $n1 = (float) $matrizHilo->N1;
             }
@@ -520,47 +506,20 @@ class ReqProgramaTejidoObserver
                 $n2 = (float) $matrizHilo->N2;
             }
 
-            // Si N1 o N2 no están disponibles, usar Calibre y Calibre2 como fallback
+            // Fallback a Calibre/Calibre2
             if ($n1 === null || $n1 <= 0) {
                 if ($matrizHilo->Calibre !== null && $matrizHilo->Calibre !== '' && is_numeric($matrizHilo->Calibre)) {
                     $n1 = (float) $matrizHilo->Calibre;
-                    Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando Calibre como N1 (fallback)', [
-                        'Hilo' => $hilo,
-                        'Calibre' => $matrizHilo->Calibre,
-                        'N1' => $n1,
-                    ]);
                 }
-            } else {
-                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando N1 directo del modelo', [
-                    'Hilo' => $hilo,
-                    'N1' => $n1,
-                ]);
             }
 
             if ($n2 === null || $n2 <= 0) {
                 if ($matrizHilo->Calibre2 !== null && $matrizHilo->Calibre2 !== '' && is_numeric($matrizHilo->Calibre2)) {
                     $n2 = (float) $matrizHilo->Calibre2;
-                    Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando Calibre2 como N2 (fallback)', [
-                        'Hilo' => $hilo,
-                        'Calibre2' => $matrizHilo->Calibre2,
-                        'N2' => $n2,
-                    ]);
                 }
-            } else {
-                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - Usando N2 directo del modelo', [
-                    'Hilo' => $hilo,
-                    'N2' => $n2,
-                ]);
             }
 
             if ($n1 <= 0 || $n2 <= 0) {
-                Log::debug('ReqProgramaTejidoObserver: calcularMtsRizo - N1 o N2 inválidos', [
-                    'Hilo' => $hilo,
-                    'N1' => $n1,
-                    'N2' => $n2,
-                    'matrizHilo_id' => $matrizHilo->id ?? null,
-                    'matrizHilo_attributes' => $matrizHilo->getAttributes(),
-                ]);
                 return null;
             }
 
@@ -573,7 +532,6 @@ class ReqProgramaTejidoObserver
 
             return $mtsRizo > 0 ? $mtsRizo : null;
         } catch (\Throwable $e) {
-            Log::warning('ReqProgramaTejidoObserver: Error al calcular MtsRizo', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -601,10 +559,6 @@ class ReqProgramaTejidoObserver
             $cuentaPie = $this->resolveField($programa, ['CuentaPie', 'Cuenta_Pie'], 'float');
 
             if ($calibrePie <= 0 || $cuentaPie <= 0) {
-                Log::debug('ReqProgramaTejidoObserver: calcularMtsPie - Valores insuficientes', [
-                    'CalibrePie' => $calibrePie,
-                    'CuentaPie' => $cuentaPie,
-                ]);
                 return null;
             }
 
@@ -613,7 +567,6 @@ class ReqProgramaTejidoObserver
 
             return $mtsPie > 0 ? $mtsPie : null;
         } catch (\Throwable $e) {
-            Log::warning('ReqProgramaTejidoObserver: Error al calcular MtsPie', ['error' => $e->getMessage()]);
             return null;
         }
     }

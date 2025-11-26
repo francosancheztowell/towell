@@ -47,7 +47,9 @@ class ReqProgramaTejido extends Model
         // Prioridad
         'Prioridad',
         // Nuevo campo
-        'LargoCrudo'
+        'LargoCrudo',
+        // Campo para dividir registros (relaciona registros que comparten el mismo origen)
+        'OrdCompartida'
     ];
 
     /**
@@ -124,6 +126,7 @@ class ReqProgramaTejido extends Model
         'UpdatedAt' => 'datetime',
         'RowNum' => 'integer',
         'LargoCrudo' => 'integer',
+        'OrdCompartida' => 'integer', // INT para relacionar registros divididos
     ];
 
     /* ===========================

@@ -36,6 +36,7 @@ class UtilityHelpers
             ['field' => 'SaldoPedido', 'label' => 'Saldos', 'dateType' => null],
             ['field' => 'SaldoMarbete', 'label' => 'Saldo Marbetes', 'dateType' => null],
             ['field' => 'ProgramarProd', 'label' => 'Día Scheduling', 'dateType' => 'date'],
+            ['field' => 'OrdCompartida', 'label' => 'Ord. Comp.', 'dateType' => null],
             ['field' => 'NoProduccion', 'label' => 'Orden Prod.', 'dateType' => null],
             ['field' => 'Programado', 'label' => 'INN', 'dateType' => 'date'],
             ['field' => 'FlogsId', 'label' => 'Id Flog', 'dateType' => null],

@@ -47,9 +47,19 @@ async function duplicarTelar(row) {
 
 	const datos = resultado.value;
 
+	// Determinar endpoint según el modo
+	const endpoint = datos.modo === 'dividir'
+		? '/planeacion/programa-tejido/dividir-saldo'
+		: '/planeacion/programa-tejido/duplicar-telar';
+
+	const mensajeExito = datos.modo === 'dividir'
+		? 'Registro dividido correctamente'
+		: 'Telar duplicado correctamente';
+
+	// Enviar al backend
 	showLoading();
 	try {
-		const response = await fetch('/planeacion/programa-tejido/duplicar-telar', {
+		const response = await fetch(endpoint, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -77,12 +87,23 @@ async function duplicarTelar(row) {
 		hideLoading();
 
 		if (data.success) {
-			showToast(data.message || 'Telar duplicado correctamente', 'success');
-			setTimeout(() => {
+			showToast(data.message || mensajeExito, 'success');
+
+			// Redirigir inmediatamente al registro creado
+			if (data.salon_destino && data.telar_destino) {
+				// Construir URL con parámetros para seleccionar el registro
+				const url = new URL(window.location.href);
+				url.searchParams.set('salon', data.salon_destino);
+				url.searchParams.set('telar', data.telar_destino);
+				if (data.registro_id) {
+					url.searchParams.set('registro_id', data.registro_id);
+				}
+				window.location.href = url.toString();
+			} else {
 				window.location.reload();
-			}, 1000);
+			}
 		} else {
-			showToast(data.message || 'Error al duplicar el telar', 'error');
+			showToast(data.message || 'Error al procesar la solicitud', 'error');
 		}
 	} catch (error) {
 		hideLoading();
@@ -129,7 +150,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 								<div>
 									<label class="block mb-1 text-sm font-medium text-gray-700">Hilo</label>
 									<select id="swal-hilo" data-hilo-actual="${hilo}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-										<option value="">Cargando...</option>
+										${hilo ? `<option value="${hilo}" selected>${hilo}</option>` : '<option value="">Seleccionar...</option>'}
 									</select>
 								</div>
 								<div>
@@ -152,13 +173,13 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 								<div>
 									<label class="block mb-1 text-sm font-medium text-gray-700">Salón</label>
 									<select id="swal-salon" data-salon-actual="${salon}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-										<option value="">Cargando...</option>
+										${salon ? `<option value="${salon}" selected>${salon}</option>` : '<option value="">Seleccionar...</option>'}
 									</select>
 								</div>
 								<div>
 									<label class="block mb-1 text-sm font-medium text-gray-700">Aplicación</label>
 									<select id="swal-aplicacion" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-										<option value="">Cargando...</option>
+										<option value="">Seleccionar...</option>
 									</select>
 								</div>
 							</div>
@@ -198,13 +219,17 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 				</div>
 			</div>
 
+			<!-- Campos ocultos para datos del telar original -->
+			<input type="hidden" id="telar-original" value="${telar}">
+			<input type="hidden" id="pedido-original" value="${pedido}">
+
 			<!-- Tabla de Telar y Pedido -->
 			<div class="border border-gray-300 rounded-lg overflow-hidden">
 				<table class="w-full border-collapse">
 					<thead class="bg-gray-100">
 						<tr>
-							<th class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 w-1/2">Telar</th>
-							<th class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-gray-300 w-1/2">Pedido</th>
+							<th id="th-telar" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 w-1/2">Telar</th>
+							<th id="th-pedido" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-gray-300 w-1/2">Pedido</th>
 							<th class="py-2 px-2 text-center border-b border-gray-300 w-10">
 								<button type="button" id="btn-add-telar-row" class="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Añadir fila">
 									<i class="fas fa-plus-circle text-lg"></i>
@@ -213,10 +238,10 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 						</tr>
 					</thead>
 					<tbody id="telar-pedido-body">
-						<tr class="telar-row">
+						<tr class="telar-row" id="fila-principal">
 							<td class="p-2 border-r border-gray-200">
-								<select name="telar-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
-									<option value="">Seleccionar...</option>
+								<select name="telar-destino[]" data-telar-actual="${telar}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
+									${telar ? `<option value="${telar}" selected>${telar}</option>` : '<option value="">Seleccionar...</option>'}
 								</select>
 							</td>
 							<td class="p-2">
@@ -269,28 +294,61 @@ function initModalDuplicar(telar, hiloActualParam) {
 	const firstPedidoInput = tbody.querySelector('input[name="pedido-destino[]"]');
 
 	function recomputeState() {
-		const telarSelects = document.querySelectorAll('select[name="telar-destino[]"]');
+		const esDuplicar = switchModo?.checked ?? true;
+		const telarInputs = document.querySelectorAll('[name="telar-destino[]"]'); // select o input
 		const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
 
 		let firstComplete = false;
 		let hasAnyFilled = false;
+		let allDestinationsValid = true;
 
-		telarSelects.forEach((select, idx) => {
-			const telarVal = select.value.trim();
+		telarInputs.forEach((input, idx) => {
+			const telarVal = input.value.trim();
 			const pedidoVal = (pedidoInputs[idx]?.value || '').trim();
 
-			if (idx === 0 && telarVal !== '' && pedidoVal !== '') {
-				firstComplete = true;
-			}
-			if (telarVal !== '' || pedidoVal !== '') {
-				hasAnyFilled = true;
+			if (esDuplicar) {
+				// Modo Duplicar: primera fila debe estar completa
+				if (idx === 0 && telarVal !== '' && pedidoVal !== '') {
+					firstComplete = true;
+				}
+				if (telarVal !== '' || pedidoVal !== '') {
+					hasAnyFilled = true;
+				}
+			} else {
+				// Modo Dividir:
+				// - Primera fila (origen) siempre tiene telar (readonly), solo necesita pedido
+				// - Las siguientes filas (destino) necesitan telar Y pedido
+				if (idx === 0) {
+					// El origen siempre tiene telar, verificar si tiene cantidad
+					if (telarVal !== '' && pedidoVal !== '') {
+						firstComplete = true;
+					}
+					hasAnyFilled = telarVal !== '';
+				} else {
+					// Destinos: deben tener telar seleccionado Y cantidad
+					if (telarVal === '' || pedidoVal === '') {
+						allDestinationsValid = false;
+					}
+					if (telarVal !== '' || pedidoVal !== '') {
+						hasAnyFilled = true;
+					}
+				}
 			}
 		});
 
-		// El usuario debe llenar completamente el primer registro
-		btnAdd.disabled = !firstComplete;
-		// Debe existir al menos un registro no vacío para poder aceptar
-		confirmButton.disabled = !hasAnyFilled;
+		// En modo duplicar: primera fila completa habilita agregar más
+		// En modo dividir: siempre puede agregar más destinos
+		btnAdd.disabled = esDuplicar ? !firstComplete : false;
+
+		// En modo duplicar: al menos un registro lleno
+		// En modo dividir: origen con cantidad Y al menos un destino válido
+		if (esDuplicar) {
+			confirmButton.disabled = !hasAnyFilled;
+		} else {
+			const tieneDestinos = telarInputs.length > 1;
+			const origenTieneCantidad = pedidoInputs[0]?.value?.trim() !== '';
+			confirmButton.disabled = !tieneDestinos || !allDestinationsValid || !origenTieneCantidad;
+		}
 	}
 
 	// Función para actualizar todos los selects de telar en la tabla de destinos
@@ -298,19 +356,25 @@ function initModalDuplicar(telar, hiloActualParam) {
 		const telarSelects = document.querySelectorAll('select[name="telar-destino[]"]');
 		telarSelects.forEach((select, idx) => {
 			const valorActual = select.value;
+			const telarOriginal = select.dataset?.telarActual || '';
 			// Para el primer select, preseleccionar el telar actual si se indica
-			const valorPreseleccionar = (idx === 0 && preseleccionarPrimero && !valorActual) ? telarActual : valorActual;
+			const valorPreseleccionar = (idx === 0 && preseleccionarPrimero)
+				? (valorActual || telarOriginal || telarActual)
+				: valorActual;
 
-			select.innerHTML = '<option value="">Seleccionar...</option>';
-			telaresDisponibles.forEach(t => {
-				const option = document.createElement('option');
-				option.value = t;
-				option.textContent = t;
-				if (t == valorPreseleccionar) {
-					option.selected = true;
-				}
-				select.appendChild(option);
-			});
+			// Solo reconstruir si hay telares disponibles
+			if (telaresDisponibles.length > 0) {
+				select.innerHTML = '<option value="">Seleccionar...</option>';
+				telaresDisponibles.forEach(t => {
+					const option = document.createElement('option');
+					option.value = t;
+					option.textContent = t;
+					if (t == valorPreseleccionar) {
+						option.selected = true;
+					}
+					select.appendChild(option);
+				});
+			}
 		});
 	}
 
@@ -618,9 +682,9 @@ function initModalDuplicar(telar, hiloActualParam) {
 		headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
 	}).then(r => r.json()).catch(() => []);
 
-	// Procesar resultados en paralelo
+	// Procesar resultados en paralelo (preservando valores preseleccionados)
 	Promise.all([fetchSalones, fetchHilos, fetchTelares, fetchAplicaciones]).then(([dataSalones, dataHilos, dataTelares, dataAplicaciones]) => {
-		// Procesar salones
+		// Procesar salones - mantener valor actual y agregar opciones
 		let opciones = [];
 		if (Array.isArray(dataSalones)) {
 			opciones = dataSalones;
@@ -630,40 +694,31 @@ function initModalDuplicar(telar, hiloActualParam) {
 			opciones = Object.values(dataSalones).filter(v => typeof v === 'string');
 		}
 
-		selectSalon.innerHTML = '<option value="">Seleccionar...</option>';
+		// Solo reconstruir si hay opciones nuevas
 		if (opciones.length > 0) {
 			salonesDisponibles = opciones;
+			const valorActualSalon = selectSalon.value;
+			selectSalon.innerHTML = '<option value="">Seleccionar...</option>';
 			opciones.forEach(item => {
 				const option = document.createElement('option');
 				option.value = item;
 				option.textContent = item;
-				if (item === salonActual) option.selected = true;
+				if (item === valorActualSalon || item === salonActual) option.selected = true;
 				selectSalon.appendChild(option);
 			});
-		} else if (salonActual) {
-			const option = document.createElement('option');
-			option.value = salonActual;
-			option.textContent = salonActual;
-			option.selected = true;
-			selectSalon.appendChild(option);
 		}
 
-		// Procesar hilos
-		selectHilo.innerHTML = '<option value="">Seleccionar...</option>';
-		if (dataHilos?.success && dataHilos.data) {
+		// Procesar hilos - mantener valor actual y agregar opciones
+		if (dataHilos?.success && dataHilos.data && dataHilos.data.length > 0) {
+			const valorActualHilo = selectHilo.value;
+			selectHilo.innerHTML = '<option value="">Seleccionar...</option>';
 			dataHilos.data.forEach(item => {
 				const option = document.createElement('option');
 				option.value = item.Hilo;
 				option.textContent = item.Hilo + (item.Fibra ? ' - ' + item.Fibra : '');
-				if (item.Hilo === hiloActual) option.selected = true;
+				if (item.Hilo === valorActualHilo || item.Hilo === hiloActual) option.selected = true;
 				selectHilo.appendChild(option);
 			});
-		} else if (hiloActual) {
-			const option = document.createElement('option');
-			option.value = hiloActual;
-			option.textContent = hiloActual;
-			option.selected = true;
-			selectHilo.appendChild(option);
 		}
 
 		// Procesar telares y preseleccionar el telar actual en la primera fila
@@ -671,22 +726,28 @@ function initModalDuplicar(telar, hiloActualParam) {
 		actualizarSelectsTelares(true); // true = preseleccionar telar actual en primera fila
 
 		// Procesar aplicaciones
-		selectAplicacion.innerHTML = '<option value="">Seleccionar...</option>';
-		const aplicacionesArray = Array.isArray(dataAplicaciones) ? dataAplicaciones : [];
-		aplicacionesArray.forEach(item => {
-			const option = document.createElement('option');
-			option.value = item;
-			option.textContent = item;
-			selectAplicacion.appendChild(option);
-		});
-		// Agregar opción NA si no existe
-		if (!aplicacionesArray.includes('NA')) {
-			const optionNA = document.createElement('option');
-			optionNA.value = 'NA';
-			optionNA.textContent = 'NA';
-			selectAplicacion.appendChild(optionNA);
+		if (dataAplicaciones && (Array.isArray(dataAplicaciones) ? dataAplicaciones.length > 0 : true)) {
+			const aplicacionesArray = Array.isArray(dataAplicaciones) ? dataAplicaciones : [];
+			selectAplicacion.innerHTML = '<option value="">Seleccionar...</option>';
+			aplicacionesArray.forEach(item => {
+				const option = document.createElement('option');
+				option.value = item;
+				option.textContent = item;
+				selectAplicacion.appendChild(option);
+			});
+			// Agregar opción NA si no existe
+			if (!aplicacionesArray.includes('NA')) {
+				const optionNA = document.createElement('option');
+				optionNA.value = 'NA';
+				optionNA.textContent = 'NA';
+				selectAplicacion.appendChild(optionNA);
+			}
 		}
 
+		// Aplicar estilo inicial del switch (después de que los telares estén cargados)
+		if (switchModo) {
+			actualizarEstiloSwitch();
+		}
 		recomputeState();
 	});
 
@@ -751,6 +812,16 @@ function initModalDuplicar(telar, hiloActualParam) {
 
 	// Evento para añadir nuevas filas de telar/pedido
 	btnAdd.addEventListener('click', () => {
+		const esDuplicar = switchModo?.checked ?? true;
+
+		if (!esDuplicar) {
+			// Modo dividir: usar la función especializada
+			agregarFilaDividir();
+			recomputeState();
+			return;
+		}
+
+		// Modo duplicar: comportamiento original
 		const newRow = document.createElement('tr');
 		newRow.className = 'telar-row border-t border-gray-200';
 
@@ -794,6 +865,137 @@ function initModalDuplicar(telar, hiloActualParam) {
 	const pillDividir = document.getElementById('pill-dividir');
 	const descDuplicar = document.getElementById('desc-duplicar');
 	const descDividir = document.getElementById('desc-dividir');
+	const thTelar = document.getElementById('th-telar');
+	const thPedido = document.getElementById('th-pedido');
+	const telarOriginal = document.getElementById('telar-original')?.value || telarActual;
+	const pedidoOriginal = document.getElementById('pedido-original')?.value || '';
+
+	// Función para reconstruir la tabla según el modo
+	function reconstruirTablaSegunModo(esDuplicar) {
+		// Limpiar filas adicionales
+		const filasAdicionales = tbody.querySelectorAll('tr:not(#fila-principal)');
+		filasAdicionales.forEach(fila => fila.remove());
+
+		const filaPrincipal = document.getElementById('fila-principal');
+		if (!filaPrincipal) return;
+
+		if (esDuplicar) {
+			// === MODO DUPLICAR ===
+			// Header normal
+			if (thTelar) thTelar.textContent = 'Telar';
+			if (thPedido) thPedido.textContent = 'Pedido';
+
+			// Primera fila: select editable para telar destino
+			filaPrincipal.innerHTML = `
+				<td class="p-2 border-r border-gray-200">
+					<select name="telar-destino[]" data-telar-actual="${telarOriginal}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
+						${telarOriginal ? `<option value="${telarOriginal}" selected>${telarOriginal}</option>` : '<option value="">Seleccionar...</option>'}
+					</select>
+				</td>
+				<td class="p-2">
+					<input type="text" name="pedido-destino[]" value="${pedidoOriginal}"
+						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+				</td>
+				<td class="p-2 text-center w-10"></td>
+			`;
+
+			// Actualizar opciones del select de telar
+			const selectTelar = filaPrincipal.querySelector('select[name="telar-destino[]"]');
+			if (selectTelar && telaresDisponibles.length > 0) {
+				selectTelar.innerHTML = '<option value="">Seleccionar...</option>';
+				telaresDisponibles.forEach(t => {
+					const option = document.createElement('option');
+					option.value = t;
+					option.textContent = t;
+					if (t == telarOriginal) option.selected = true;
+					selectTelar.appendChild(option);
+				});
+			}
+
+			// Re-registrar eventos
+			const telarSelect = filaPrincipal.querySelector('select[name="telar-destino[]"]');
+			const pedidoInput = filaPrincipal.querySelector('input[name="pedido-destino[]"]');
+			if (telarSelect) telarSelect.addEventListener('change', recomputeState);
+			if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
+
+		} else {
+			// === MODO DIVIDIR ===
+			// Header indica origen y destino
+			if (thTelar) thTelar.textContent = 'Telar';
+			if (thPedido) thPedido.textContent = 'Cantidad a asignar';
+
+			// Primera fila: telar ORIGINAL bloqueado (readonly)
+			filaPrincipal.innerHTML = `
+				<td class="p-2 border-r border-gray-200">
+					<div class="flex items-center gap-2">
+						<input type="text" name="telar-destino[]" value="${telarOriginal}" readonly
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+					</div>
+				</td>
+				<td class="p-2">
+					<input type="text" name="pedido-destino[]" value="${pedidoOriginal}" placeholder="Cantidad para este telar..."
+						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+				</td>
+				<td class="p-2 text-center w-10">
+					<i class="fas fa-lock text-gray-400" title="Telar origen"></i>
+				</td>
+			`;
+
+			// Agregar automáticamente una fila para el telar destino
+			agregarFilaDividir();
+
+			// Re-registrar eventos
+			const pedidoInput = filaPrincipal.querySelector('input[name="pedido-destino[]"]:not([readonly])');
+			if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
+		}
+
+		recomputeState();
+	}
+
+	// Función para agregar fila en modo dividir
+	function agregarFilaDividir() {
+		const newRow = document.createElement('tr');
+		newRow.className = 'telar-row border-t border-gray-200';
+
+		let telarOptionsHTML = '<option value="">Seleccionar destino...</option>';
+		telaresDisponibles.forEach(t => {
+			if (t != telarOriginal) { // Excluir el telar original de las opciones
+				telarOptionsHTML += '<option value="' + t + '">' + t + '</option>';
+			}
+		});
+
+		newRow.innerHTML = `
+			<td class="p-2 border-r border-gray-200">
+				<div class="flex items-center gap-2">
+					<select name="telar-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 telar-destino-select">
+						${telarOptionsHTML}
+					</select>
+				</div>
+			</td>
+			<td class="p-2">
+				<input type="text" name="pedido-destino[]" placeholder="Cantidad para este telar..."
+					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+			</td>
+			<td class="p-2 text-center w-10">
+				<button type="button" class="btn-remove-row text-red-500 hover:text-red-700 transition-colors" title="Eliminar fila">
+					<i class="fas fa-times"></i>
+				</button>
+			</td>
+		`;
+
+		tbody.appendChild(newRow);
+
+		// Eventos
+		newRow.querySelector('.btn-remove-row')?.addEventListener('click', () => {
+			newRow.remove();
+			recomputeState();
+		});
+
+		const telarSelect = newRow.querySelector('select[name="telar-destino[]"]');
+		const pedidoInput = newRow.querySelector('input[name="pedido-destino[]"]');
+		if (telarSelect) telarSelect.addEventListener('change', recomputeState);
+		if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
+	}
 
 	function actualizarEstiloSwitch() {
 		const esDuplicar = switchModo.checked;
@@ -839,6 +1041,9 @@ function initModalDuplicar(telar, hiloActualParam) {
 				confirmButton.classList.add('bg-green-500', 'hover:bg-green-600');
 			}
 		}
+
+		// Reconstruir la tabla según el modo
+		reconstruirTablaSegunModo(esDuplicar);
 	}
 
 	if (switchModo) {
@@ -858,8 +1063,8 @@ function initModalDuplicar(telar, hiloActualParam) {
 			});
 		}
 
-		// Estado inicial
-		actualizarEstiloSwitch();
+		// Estado inicial (no reconstruir aún, se hará después de cargar datos)
+		// actualizarEstiloSwitch();
 	}
 
 	// Evaluar estado inicial (por si ya vienen valores prellenados)
@@ -885,12 +1090,13 @@ function validarYCapturarDatosDuplicar() {
 	const inventSizeId = document.getElementById('swal-inventsizeid')?.value || '';
 
 	// Capturar múltiples filas de telar/pedido
-	const telarSelects = document.querySelectorAll('select[name="telar-destino[]"]');
+	// Nota: en modo dividir, el primer telar es un input readonly, no un select
+	const telarInputs = document.querySelectorAll('[name="telar-destino[]"]'); // Captura tanto select como input
 	const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
 	const destinos = [];
 
-	telarSelects.forEach((select, idx) => {
-		const telarVal = select.value.trim();
+	telarInputs.forEach((input, idx) => {
+		const telarVal = input.value.trim();
 		const pedidoVal = pedidoInputs[idx]?.value.trim() || '';
 		if (telarVal || pedidoVal) {
 			destinos.push({ telar: telarVal, pedido: pedidoVal });

@@ -172,7 +172,10 @@
                       <i id="iconResetColumns" class="fa-solid fa-rotate text-sm"></i>
                     </button>
 
-                    <!-- Grupo 3: Catálogos (icono) -->
+                    <!-- Grupo 3: Balancear + Catálogos (iconos) -->
+                    <a href="{{ route('programa-tejido.balancear') }}" class="w-9 h-9 flex items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-colors" title="Balancear" aria-label="Balancear">
+                      <i class="fa-solid fa-scale-balanced text-sm"></i>
+                    </a>
                     <a href="{{ route('submodulos.nivel3', '104') }}" class="w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors" title="Catálogos" aria-label="Catálogos">
                       <i class="fa-solid fa-database text-sm"></i>
                     </a>

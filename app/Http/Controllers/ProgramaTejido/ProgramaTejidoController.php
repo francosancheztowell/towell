@@ -9,6 +9,8 @@ use App\Http\Controllers\ProgramaTejido\funciones\EliminarTejido;
 use App\Http\Controllers\ProgramaTejido\funciones\DragAndDropTejido;
 use App\Http\Controllers\ProgramaTejido\funciones\EditTejido;
 use App\Http\Controllers\ProgramaTejido\funciones\DuplicarTejido;
+use App\Http\Controllers\ProgramaTejido\funciones\DividirTejido;
+use App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\ProgramaTejido\helper\UpdateHelpers;
 use App\Http\Controllers\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\ProgramaTejido\helper\QueryHelpers;
@@ -33,7 +35,7 @@ class ProgramaTejidoController extends Controller
                 'Id','EnProceso','CuentaRizo','CalibreRizo2','SalonTejidoId','NoTelarId','Ultimo','CambioHilo','Maquina',
                 'Ancho','EficienciaSTD','VelocidadSTD','FibraRizo','CalibrePie2','CalendarioId','TamanoClave','NoExisteBase',
                 'ItemId','InventSizeId','Rasurado','NombreProducto','TotalPedido','Produccion','SaldoPedido','SaldoMarbete',
-                'ProgramarProd','NoProduccion','Programado','FlogsId','NombreProyecto','CustName','AplicacionId',
+                'ProgramarProd','OrdCompartida','NoProduccion','Programado','FlogsId','NombreProyecto','CustName','AplicacionId',
                 'Observaciones','TipoPedido','NoTiras','Peine','Luchaje','PesoCrudo','LargoCrudo','CalibreTrama2','FibraTrama','DobladilloId',
                 'PasadasTrama','PasadasComb1','PasadasComb2','PasadasComb3','PasadasComb4','PasadasComb5','AnchoToalla',
                 'CodColorTrama','ColorTrama','CalibreComb1','FibraComb1','CodColorComb1','NombreCC1','CalibreComb2',
@@ -559,7 +561,7 @@ class ProgramaTejidoController extends Controller
                 'CalibreComb3','CalibreComb32','FibraComb3',
                 'CalibreComb4','CalibreComb42','FibraComb4',
                 'CalibreComb5','CalibreComb52','FibraComb5',
-                'AnchoToalla','LargoToalla','PesoCrudo','Luchaje','Peine','NoTiras','Repeticiones','TotalMarbetes',
+                'AnchoToalla','LargoToalla','PesoCrudo','Luchaje','Peine','NoTiras','TotalMarbetes',
                 'CambioRepaso','Vendedor','CatCalidad','AnchoPeineTrama','LogLuchaTotal','MedidaPlano','Rasurado',
                 'CalTramaFondoC1','CalTramaFondoC12','FibraTramaFondoC1','PasadasTramaFondoC1',
                 'PasadasComb1','PasadasComb2','PasadasComb3','PasadasComb4','PasadasComb5',
@@ -1187,5 +1189,81 @@ class ProgramaTejidoController extends Controller
                 'message' => 'Error al dividir el telar: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Dividir el saldo de un registro entre múltiples telares
+     * Usa OrdCompartida para relacionar los registros divididos
+     */
+    public function dividirSaldo(Request $request)
+    {
+        return DividirTejido::dividir($request);
+    }
+
+    /**
+     * Vista de balanceo - muestra registros que comparten OrdCompartida
+     */
+    public function balancear()
+    {
+        // Obtener todos los registros que tienen OrdCompartida (no null)
+        // Incluimos campos adicionales para calcular la fecha final en el frontend
+        $registrosCompartidos = ReqProgramaTejido::select([
+            'Id', 'SalonTejidoId', 'NoTelarId', 'ItemId', 'NombreProducto',
+            'TamanoClave', 'TotalPedido', 'SaldoPedido', 'Produccion',
+            'FechaInicio', 'FechaFinal', 'OrdCompartida',
+            'VelocidadSTD', 'EficienciaSTD', 'NoTiras', 'Luchaje', 'PesoCrudo'
+        ])
+        ->whereNotNull('OrdCompartida')
+        ->orderBy('OrdCompartida')
+        ->orderBy('SalonTejidoId')
+        ->orderBy('NoTelarId')
+        ->get();
+
+        // Agrupar por OrdCompartida
+        $gruposCompartidos = $registrosCompartidos->groupBy('OrdCompartida');
+
+        return view('modulos.programa-tejido.balancear', [
+            'gruposCompartidos' => $gruposCompartidos
+        ]);
+    }
+
+    /**
+     * Obtener detalles de un registro para el modal de balanceo
+     */
+    public function detallesBalanceo($id)
+    {
+        try {
+            $registro = ReqProgramaTejido::select([
+                'Id', 'SalonTejidoId', 'NoTelarId', 'ItemId', 'NombreProducto',
+                'TamanoClave', 'TotalPedido', 'SaldoPedido', 'Produccion',
+                'FechaInicio', 'FechaFinal', 'OrdCompartida', 'FlogsId',
+                'CustName', 'NombreProyecto'
+            ])->find($id);
+
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Registro no encontrado'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'registro' => $registro
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los detalles: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar los pedidos desde la pantalla de balanceo
+     */
+    public function actualizarPedidosBalanceo(Request $request)
+    {
+        return BalancearTejido::actualizarPedidos($request);
     }
 }

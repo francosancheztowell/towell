@@ -8,7 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
-
+use App\Models\ReqModelosCodificados;
 class DuplicarTejido
 {
     /**
@@ -251,10 +251,18 @@ class DuplicarTejido
                     ->update(['EnProceso' => 0]);
             }
 
+            // Obtener el primer registro creado para redirigir
+            $primerRegistroCreado = !empty($idsParaObserver)
+                ? ReqProgramaTejido::find($idsParaObserver[0])
+                : null;
+
             return response()->json([
                 'success' => true,
                 'message' => "Telar duplicado correctamente. Se crearon {$totalDuplicados} registro(s) en " . count($destinos) . " telar(es).",
-                'registros_duplicados' => $totalDuplicados
+                'registros_duplicados' => $totalDuplicados,
+                'registro_id' => $primerRegistroCreado?->Id,
+                'salon_destino' => $primerRegistroCreado?->SalonTejidoId,
+                'telar_destino' => $primerRegistroCreado?->NoTelarId
             ]);
         } catch (\Throwable $e) {
             DBFacade::rollBack();
@@ -274,7 +282,7 @@ class DuplicarTejido
     }
 
     /**
-     * Calcular fórmulas de eficiencia (igual que ReqProgramaTejidoObserver)
+     * Calcular fórmulas de eficiencia (IGUAL QUE EN FRONTEND crud-manager.js)
      *
      * @param ReqProgramaTejido $programa
      * @return array
@@ -284,7 +292,7 @@ class DuplicarTejido
         $formulas = [];
 
         try {
-            // Parámetros base (mismos valores por defecto que el observer)
+            // Parámetros base
             $vel = (float) ($programa->VelocidadSTD ?? 0);
             $efic = (float) ($programa->EficienciaSTD ?? 0);
             $cantidad = (float) ($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
@@ -293,72 +301,88 @@ class DuplicarTejido
             $luchaje = (float) ($programa->Luchaje ?? 0);
             $repeticiones = (float) ($programa->Repeticiones ?? 0);
 
+            // Normalizar eficiencia si viene en porcentaje (ej: 80 -> 0.8)
+            if ($efic > 1) {
+                $efic = $efic / 100;
+            }
+
+            // Obtener 'Total' del modelo codificado si existe
+            $total = 0;
+            if ($programa->TamanoClave) {
+                $modelo = ReqModelosCodificados::where('TamanoClave', $programa->TamanoClave)->first();
+                if ($modelo) {
+                    $total = (float) ($modelo->Total ?? 0);
+                }
+            }
+
             // Fechas
             $inicio = Carbon::parse($programa->FechaInicio);
             $fin = Carbon::parse($programa->FechaFinal);
             $diffSegundos = abs($fin->getTimestamp() - $inicio->getTimestamp());
-            $diffHoras = $diffSegundos / 3600; // Horas decimales
+            $diffDias = $diffSegundos / (60 * 60 * 24); // Días decimales (igual que frontend)
 
-            // === PASO 1: Calcular StdToaHra ===
-            // StdToaHra = (NoTiras * 60) / (Luchaje * VelocidadSTD / 10000)
-            if ($noTiras > 0 && $luchaje > 0 && $vel > 0) {
-                $stdToaHra = ($noTiras * 60) / ($luchaje * $vel / 10000);
-                $formulas['StdToaHra'] = (float) round($stdToaHra, 6);
+            // === PASO 1: Calcular StdToaHra (fórmula del frontend) ===
+            // StdToaHra = (NoTiras * 60) / ((total + ((luchaje * 0.5) / 0.0254) / repeticiones) / velocidad)
+            $stdToaHra = 0;
+            if ($noTiras > 0 && $total > 0 && $luchaje > 0 && $repeticiones > 0 && $vel > 0) {
+                $parte1 = $total / 1;
+                $parte2 = (($luchaje * 0.5) / 0.0254) / $repeticiones;
+                $denominador = ($parte1 + $parte2) / $vel;
+                if ($denominador > 0) {
+                    $stdToaHra = ($noTiras * 60) / $denominador;
+                    $formulas['StdToaHra'] = (float) round($stdToaHra, 2);
+                }
             }
 
-            $stdToaHra = $formulas['StdToaHra'] ?? 0;
-
-            // === PASO 2: Calcular PesoGRM2 ===
-            // PesoGRM2 = (PesoCrudo * 1000) / (LargoToalla * AnchoToalla)
+            // === PASO 2: Calcular PesoGRM2 (frontend usa 10000, no 1000) ===
+            // PesoGRM2 = (PesoCrudo * 10000) / (LargoToalla * AnchoToalla)
             $largoToalla = (float) ($programa->LargoToalla ?? 0);
             $anchoToalla = (float) ($programa->AnchoToalla ?? 0);
             if ($pesoCrudo > 0 && $largoToalla > 0 && $anchoToalla > 0) {
-                $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 1000) / ($largoToalla * $anchoToalla), 6);
+                $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 10000) / ($largoToalla * $anchoToalla), 2);
             }
 
-            // === PASO 3: Calcular DiasEficiencia (en formato d.HH) ===
-            // DiasEficiencia: días.horas (formato d.HH)
-            if ($diffHoras > 0) {
-                $diasEnteros = (int) floor($diffHoras / 24);
-                $horasRestantes = $diffHoras % 24;
-                $horasEnteras = (int) floor($horasRestantes);
-                $diasEficienciaDH = (float) ("$diasEnteros.$horasEnteras");
-
-                $formulas['DiasEficiencia'] = (float) round($diasEficienciaDH, 2);
+            // === PASO 3: Calcular DiasEficiencia (días decimales como frontend) ===
+            if ($diffDias > 0) {
+                $formulas['DiasEficiencia'] = (float) round($diffDias, 2);
             }
 
             // === PASO 4: Calcular StdDia y ProdKgDia ===
-            // StdDia = StdToaHra * 24
+            // StdDia = StdToaHra * eficiencia * 24 (frontend incluye eficiencia)
             // ProdKgDia = (StdDia * PesoCrudo) / 1000
-            if ($stdToaHra > 0) {
-                $stdDia = $stdToaHra * 24;
-                $formulas['StdDia'] = (float) round($stdDia, 6);
+            if ($stdToaHra > 0 && $efic > 0) {
+                $stdDia = $stdToaHra * $efic * 24;
+                $formulas['StdDia'] = (float) round($stdDia, 2);
 
                 if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 6);
+                    $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 2);
                 }
             }
 
             // === PASO 5: Calcular StdHrsEfect y ProdKgDia2 ===
-            // StdHrsEfect = TotalPedido / HorasDiferencia
+            // StdHrsEfect = (TotalPedido / DiasEficiencia) / 24 (frontend divide entre 24)
             // ProdKgDia2 = ((PesoCrudo * StdHrsEfect) * 24) / 1000
-            if ($diffHoras > 0) {
-                $stdHrsEfect = $cantidad / $diffHoras;
-                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 6);
+            if ($diffDias > 0) {
+                $stdHrsEfect = ($cantidad / $diffDias) / 24;
+                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 2);
 
                 if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 6);
+                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
                 }
             }
 
-            // === PASO 6: Calcular DiasJornada ===
-            // DiasJornada = VelocidadSTD / 24
-            $formulas['DiasJornada'] = (float) round($vel / 24, 6);
-
-            // === PASO 7: Calcular HorasProd ===
+            // === PASO 6: Calcular HorasProd ===
             // HorasProd = TotalPedido / (StdToaHra * EficienciaSTD)
+            $horasProd = 0;
             if ($stdToaHra > 0 && $efic > 0) {
-                $formulas['HorasProd'] = (float) round($cantidad / ($stdToaHra * $efic), 6);
+                $horasProd = $cantidad / ($stdToaHra * $efic);
+                $formulas['HorasProd'] = (float) round($horasProd, 2);
+            }
+
+            // === PASO 7: Calcular DiasJornada ===
+            // DiasJornada = HorasProd / 24 (frontend usa horasProd, no velocidad)
+            if ($horasProd > 0) {
+                $formulas['DiasJornada'] = (float) round($horasProd / 24, 2);
             }
 
         } catch (\Throwable $e) {

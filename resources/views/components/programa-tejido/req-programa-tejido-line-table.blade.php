@@ -138,8 +138,8 @@ async function loadReqProgramaTejidoLines(params = {}) {
                 if (isNaN(v)) return String(v);
                 const num = Number(v);
                 return num.toLocaleString('en-US', {
-                    minimumFractionDigits: num % 1 === 0 ? 0 : 2,
-                    maximumFractionDigits: 2
+                    minimumFractionDigits: num % 1 === 0 ? 0 : 3,
+                    maximumFractionDigits: 3
                 });
             };
             const fecha = it.Fecha ? new Date(it.Fecha).toLocaleDateString() : '';
@@ -298,8 +298,8 @@ async function openLinesModal(programaId) {
 					if (isNaN(v)) return String(v);
 					const num = Number(v);
 					return num.toLocaleString('en-US', {
-						minimumFractionDigits: num % 1 === 0 ? 0 : 2,
-						maximumFractionDigits: 2
+						minimumFractionDigits: num % 1 === 0 ? 0 : 3,
+						maximumFractionDigits: 3
 					});
 				};
 

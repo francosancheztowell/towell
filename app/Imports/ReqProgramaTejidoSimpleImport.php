@@ -55,7 +55,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'MedidaPlano'     => $this->parseFloat($this->getValue($row, ['Plano','Medida Plano','medida_plano'])),
 
                 /* ===== PIE ===== */
-                'CuentaPie'       => $this->parseInteger($this->getValue($row, ['Cuenta Pie','cuenta_pie'])),
+                'CuentaPie'       => $this->parseFloat($this->getValue($row, ['Cuenta Pie','cuenta_pie'])),
                 'CodColorCtaPie'  => $this->parseString($this->getValue($row, ['Código Color Pie','Codigo Color Pie','Cod Color Cta Pie','cod color cta pie','cod_color_cta_pie']), 20),
                 'NombreCPie'      => $this->parseString($this->getValue($row, ['Color Pie','Nombre C Pie','nombre c pie','nombre_cpie']), 120),
                 'FibraPie'        => $this->parseString($this->getValue($row, ['Fibra Pie','fibra_pie','Hilo Pie','hilo_pie']), 30),
@@ -72,7 +72,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'CalibreTrama'    => null,
                 'FibraTrama'      => $this->parseString($this->getValue($row, ['Fibra Trama','fibra_trama']), 30),
                 'DobladilloId'    => $this->parseString($this->getValue($row, ['Dobladillo','Dob']), 20),
-                'PasadasTrama'    => $this->parseInteger($this->getValue($row, ['Pasadas Tra','Pasadas Trama','pasadas_trama'])),
+                'PasadasTrama'    => $this->parseFloat($this->getValue($row, ['Pasadas Tra','Pasadas Trama','pasadas_trama'])),
 
                 /* ===== COMBINACIONES 1..5 ===== */
                 // C1
@@ -84,7 +84,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'CodColorComb1'   => null,
                 'NombreCC1'       => null,
 
-                'PasadasComb1'    => $this->parseInteger($this->getValue($row, ['Pasadas C1','Pasadas Comb1','pasadas c1','pasadas_comb1'])),
+                'PasadasComb1'    => $this->parseFloat($this->getValue($row, ['Pasadas C1','Pasadas Comb1','pasadas c1','pasadas_comb1'])),
 
                 // C2
                 'CalibreComb2'    => null,
@@ -92,7 +92,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'FibraComb2'      => $this->parseString($this->getValue($row, ['FIBRA C2','Fibra Comb2','fibra comb2','fibra_comb2']), 30),
                 'CodColorComb2'   => null,
                 'NombreCC2'       => null,
-                'PasadasComb2'    => $this->parseInteger($this->getValue($row, ['Pasadas C2','Pasadas Comb2','pasadas c2','pasadas_comb2'])),
+                'PasadasComb2'    => $this->parseFloat($this->getValue($row, ['Pasadas C2','Pasadas Comb2','pasadas c2','pasadas_comb2'])),
 
                 // C3
                 'CalibreComb3'    => null,
@@ -100,7 +100,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'FibraComb3'      => $this->parseString($this->getValue($row, ['FIBRA C3','Fibra Comb3','fibra comb3','fibra_comb3']), 30),
                 'CodColorComb3'   => null,
                 'NombreCC3'       => null,
-                'PasadasComb3'    => $this->parseInteger($this->getValue($row, ['Pasadas C3','Pasadas Comb3','pasadas c3','pasadas_comb3'])),
+                'PasadasComb3'    => $this->parseFloat($this->getValue($row, ['Pasadas C3','Pasadas Comb3','pasadas c3','pasadas_comb3'])),
 
                 // C4
                 'CalibreComb4'    => null,
@@ -108,7 +108,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'FibraComb4'      => $this->parseString($this->getValue($row, ['FIBRA C4','Fibra Comb4','fibra comb4','fibra_comb4']), 30),
                 'CodColorComb4'   => null,
                 'NombreCC4'       => null,
-                'PasadasComb4'    => $this->parseInteger($this->getValue($row, ['Pasadas C4','Pasadas Comb4','pasadas c4','pasadas_comb4'])),
+                'PasadasComb4'    => $this->parseFloat($this->getValue($row, ['Pasadas C4','Pasadas Comb4','pasadas c4','pasadas_comb4'])),
 
                 // C5
                 'CalibreComb5'    => null,
@@ -116,13 +116,13 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'FibraComb5'      => $this->parseString($this->getValue($row, ['FIBRA C5','Fibra Comb5','fibra comb5','fibra_comb5']), 30),
                 'CodColorComb5'   => null,
                 'NombreCC5'       => null,
-                'PasadasComb5'    => $this->parseInteger($this->getValue($row, ['Pasadas C5','Pasadas Comb5','pasadas c5','pasadas_comb5'])),
+                'PasadasComb5'    => $this->parseFloat($this->getValue($row, ['Pasadas C5','Pasadas Comb5','pasadas c5','pasadas_comb5'])),
 
                 /* ===== NÚMEROS ===== */
-                'Peine'           => $this->parseInteger($this->getValue($row, ['Pei.','Pei','Peine','peine'])),
-                'Luchaje'         => $this->parseInteger($this->getValue($row, ['Luc','Luchaje','luchaje','LUC','LUCHE','Luch','luc'])),
-                'LargoCrudo'      => $this->parseInteger($this->getValue($row, ['Lcr','Largo Crudo','largo_crudo'])),
-                'PesoCrudo'       => $this->parseInteger($this->getValue($row, ['Pcr','Peso Crudo','peso crudo','peso_crudo'])),
+                'Peine'           => $this->parseFloat($this->getValue($row, ['Pei.','Pei','Peine','peine'])),
+                'Luchaje'         => $this->parseFloat($this->getValue($row, ['Luc','Luchaje','luchaje','LUC','LUCHE','Luch','luc'])),
+                'LargoCrudo'      => $this->parseFloat($this->getValue($row, ['Lcr','Largo Crudo','largo_crudo'])),
+                'PesoCrudo'       => $this->parseFloat($this->getValue($row, ['Pcr','Peso Crudo','peso crudo','peso_crudo'])),
                 'PesoGRM2'        => $this->parseFloat($this->getValue($row, [
                                         'PesoGRM2','Peso GRM2','peso grm2','peso_gr_m_2'
                 ])),
@@ -166,7 +166,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'Rasurado'        => null,
                 'Ancho'           => $this->parseFloat($this->getValue($row, ['Ancho','ancho'])),
                 'EficienciaSTD'   => $this->parseFloat($this->getValue($row, ['Ef Std','ef std','ef_std','eficiencia std','eficiencia_std','eficiencia'])),
-                'VelocidadSTD'    => $this->parseInteger($this->getValue($row, ['Vel','vel','velocidad','velocidad_std'])),
+                'VelocidadSTD'    => $this->parseFloat($this->getValue($row, ['Vel','vel','velocidad','velocidad_std'])),
                 'FibraRizo'       => $this->parseString($this->getValue($row, ['Hilo','hilo','Fibra Rizo','fibra rizo','fibra_rizo']), 30),
                 // Campo verde (*2): viene del Excel
                 'CalibrePie2'     => $this->parseFloat($this->getValue($row, ['Calibre Pie'])),
@@ -178,7 +178,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'AplicacionId'    => $this->parseString($this->getValue($row, ['Aplic.','Aplic','aplicacion_id']), 20),
                 'Observaciones'   => $this->parseString($this->getValue($row, ['Obs','Observaciones','observaciones']), 200),
                 'TipoPedido'      => $this->parseString($this->getValue($row, ['Tipo Ped.','Tipo Ped','tipo_pedido']), 40),
-                'NoTiras'         => $this->parseInteger($this->getValue($row, ['Tiras','No Tiras','no_tiras'])),
+                'NoTiras'         => $this->parseFloat($this->getValue($row, ['Tiras','No Tiras','no_tiras'])),
 
                 // Pedido / Producción
                 'TotalPedido'     => $this->parseFloat($this->getValue($row, ['TotalPedido','Total Ped','total_pedido','total pedido','Total'])),
