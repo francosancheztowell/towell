@@ -83,7 +83,9 @@
                                 <select id="area" name="area" required
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                                     <option value="" disabled {{ old('area', $usuario->area ?? '') ? '' : 'selected' }}>Selecciona el área</option>
-                                    @foreach ([
+                                {{-- Editar esa parte para hacer el get correcto a la tabla "SYSDepartamentos campo Depto" 
+                                Actualizar el permiso individual de cada usuario "checks"--}}
+                                    {{-- @foreach ([
                                         'Almacén' => 'Almacen',
                                         'Urdido' => 'Urdido',
                                         'Engomado' => 'Engomado',
@@ -94,7 +96,7 @@
                                     ] as $label => $val)
                                         <option value="{{ $val }}" {{ old('area', $usuario->area ?? '') === $val ? 'selected' : '' }}>{{ $label }}</option>
                                     @endforeach
-                                </select>
+                                </select> --}}
                             </div>
 
                             <!-- Número de Empleado -->

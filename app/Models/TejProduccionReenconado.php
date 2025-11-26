@@ -38,5 +38,7 @@ class TejProduccionReenconado extends Model
         'Horas'            => 'float',
         'Eficiencia'       => 'float',
         'Obs'              => 'string',
+        'status'           => 'string',
+        'capacidad'        => 'integer',
     ];
 }

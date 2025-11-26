@@ -411,6 +411,7 @@ class ModuloService
             'BPM Engomado' => '/engomado/bpm',
             'Reportes Engomado' => '/engomado/reportes',
             'Producción Engomado' => '/engomado/produccion',
+            'Captura de Formula' => '/engomado/captura-formula',
 
             // Módulos de Atadores
             'Programa Atadores' => '/atadores/programa',
@@ -426,8 +427,9 @@ class ModuloService
             'BPM Tejedores' => '/tejedores/bpm',
             'Desarrolladores' => '/tejedores/desarrolladores',
             'Mecánicos' => '/tejedores/mecanicos',
-            'Notificar Montado de Julio' => '/tejedores/notificar-montado-julios',
-            'Notificar Montado de Julio (Tej.)' => '/tejedores/notificar-montado-julios',
+            'Notificar Montado de Rollo'=> 'tejedores/notificar-mont-rollos',
+            // 'Notificar Montado de Julio' => '/tejedores/notificar-montado-julios',
+            // 'Notificar Montado de Julio (Tej.)' => '/tejedores/notificar-montado-julios',
 
             // Módulos de Programa Urd/Eng
             'Reservar y Programar' => '/programa-urd-eng/reservar-programar',
@@ -476,7 +478,6 @@ class ModuloService
                 return $ruta;
             }
         }
-
         // Búsqueda flexible para "Catalogo Maquinas" o variantes
         $nombreModuloLower = strtolower(trim($nombreModulo));
         if ((strpos($nombreModuloLower, 'catalogo') !== false || strpos($nombreModuloLower, 'catálogo') !== false) &&

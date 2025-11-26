@@ -23,23 +23,96 @@
     });
 })();
 
-// Botón atrás - siempre presente, solo agregar funcionalidad si no está deshabilitado
-document.addEventListener("DOMContentLoaded", function () {
-    const btnBack = document.getElementById("btn-back");
+// Sistema de navegación mejorado
+(function () {
+    const NAV_STACK_KEY = "nav_stack";
+    const MAX_STACK_SIZE = 10;
     const homePath = "/produccionProceso";
-    if (btnBack && !btnBack.disabled) {
-        btnBack.addEventListener("click", function () {
-            // Check if page has custom back behavior
-            if (typeof window.volverAlIndice === "function") {
-                window.volverAlIndice();
-            } else if (history.length > 1 && document.referrer) {
-                history.back();
-            } else {
-                location.href = homePath;
-            }
-        });
+
+    // Obtener stack de navegación
+    function getNavStack() {
+        try {
+            const stack = sessionStorage.getItem(NAV_STACK_KEY);
+            return stack ? JSON.parse(stack) : [];
+        } catch (e) {
+            return [];
+        }
     }
-});
+
+    // Guardar stack de navegación
+    function saveNavStack(stack) {
+        try {
+            sessionStorage.setItem(NAV_STACK_KEY, JSON.stringify(stack));
+        } catch (e) {
+            console.warn("No se pudo guardar el stack de navegación");
+        }
+    }
+
+    // Agregar página al stack
+    function pushToStack(url) {
+        let stack = getNavStack();
+        // Evitar duplicados consecutivos
+        if (stack.length > 0 && stack[stack.length - 1] === url) {
+            return;
+        }
+        stack.push(url);
+        // Limitar tamaño del stack
+        if (stack.length > MAX_STACK_SIZE) {
+            stack.shift();
+        }
+        saveNavStack(stack);
+    }
+
+    // Obtener página anterior del stack
+    function popFromStack() {
+        let stack = getNavStack();
+        if (stack.length <= 1) {
+            return homePath;
+        }
+        // Remover página actual
+        stack.pop();
+        // Obtener página anterior
+        const prevUrl = stack.pop() || homePath;
+        saveNavStack(stack);
+        return prevUrl;
+    }
+
+    // Registrar página actual al cargar
+    const currentUrl = window.location.pathname + window.location.search;
+    pushToStack(currentUrl);
+
+    // Botón atrás
+    document.addEventListener("DOMContentLoaded", function () {
+        const btnBack = document.getElementById("btn-back");
+        if (btnBack && !btnBack.disabled) {
+            btnBack.addEventListener("click", function (e) {
+                e.preventDefault();
+
+                // Check if page has custom back behavior
+                if (typeof window.volverAlIndice === "function") {
+                    window.volverAlIndice();
+                    return;
+                }
+
+                // Usar stack de navegación para volver
+                const prevUrl = popFromStack();
+                window.location.href = prevUrl;
+            });
+        }
+    });
+
+    // Interceptar navegación de links para actualizar stack
+    document.addEventListener("click", function (e) {
+        const link = e.target.closest("a[href]");
+        if (!link || link.target === "_blank") return;
+        if (link.hostname !== location.hostname) return;
+
+        const href = link.getAttribute("href");
+        if (href && !href.startsWith("#") && !href.startsWith("javascript:")) {
+            pushToStack(href);
+        }
+    });
+})();
 
 // Menú usuario compacto
 (function () {
@@ -72,8 +145,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 })();
 
-// Persistencia UI simple
-window.addEventListener("pageshow", function () {
+// Persistencia UI simple y limpieza de caché
+window.addEventListener("pageshow", function (event) {
+    // Detectar navegación con botón atrás del navegador
+    if (event.persisted) {
+        // Página cargada desde caché - recargar para evitar estado inconsistente
+        location.reload();
+    }
+
     if (sessionStorage.getItem("forceReload")) {
         sessionStorage.removeItem("forceReload");
         location.reload();
@@ -100,19 +179,36 @@ if (typeof toastr !== "undefined") {
     };
 }
 
-// Optimización navegación simple
+// Optimización navegación y prevención de duplicados
 (function () {
     const path = location.pathname;
     const prev = sessionStorage.getItem("lastNavbarPath");
+
     document.documentElement.setAttribute(
         "data-navbar-loaded",
         prev === path ? "true" : "false"
     );
     sessionStorage.setItem("lastNavbarPath", path);
+
+    // Prevenir navegación duplicada
+    let lastClickTime = 0;
+    const CLICK_DEBOUNCE = 500; // ms
+
     document.addEventListener("click", (e) => {
         const link = e.target.closest("a[href]");
         if (!link || link.target === "_blank") return;
         if (link.hostname !== location.hostname) return;
+
+        const now = Date.now();
+        if (now - lastClickTime < CLICK_DEBOUNCE) {
+            e.preventDefault();
+            return false;
+        }
+        lastClickTime = now;
     });
-    window.addEventListener("pageshow", () => {});
+
+    // Limpiar stack de navegación al ir a página principal
+    if (path === "/produccionProceso" || path === "/produccion") {
+        sessionStorage.removeItem("nav_stack");
+    }
 })();

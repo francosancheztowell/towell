@@ -40,6 +40,16 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 return back()->withErrors(['folio' => 'Error generando folio: '.$e->getMessage()])->withInput();
             }
 
+            // Calcular capacidad: Horas * 9.3
+            $horas = isset($data['Horas']) ? (float)$data['Horas'] : null;
+            $capacidad = $horas !== null ? round($horas * 9.3, 2) : null;
+
+            // Calcular eficiencia: Cantidad / Capacidad
+            $cantidad = isset($data['Cantidad']) ? (float)$data['Cantidad'] : null;
+            $eficiencia = ($cantidad !== null && $capacidad !== null && $capacidad > 0) 
+                ? round($cantidad / $capacidad, 2) 
+                : null;
+
             $clean = [
                 'Folio'           => $folioGenerado,
                 'Date'            => isset($data['Date']) && $data['Date'] ? date('Y-m-d', strtotime($data['Date'])) : null,
@@ -50,29 +60,32 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 'FibraTrama'      => $data['FibraTrama']       ?? null,
                 'CodColor'        => $data['CodColor']         ?? null,
                 'Color'           => $data['Color']            ?? null,
-                'Cantidad'        => isset($data['Cantidad']) ? (float)$data['Cantidad'] : null,
+                'Cantidad'        => $cantidad,
                 'Conos'           => isset($data['Conos']) ? (int)$data['Conos'] : null,
-                'Horas'           => isset($data['Horas']) ? (float)$data['Horas'] : null,
-                'Eficiencia'      => isset($data['Eficiencia']) ? (float)$data['Eficiencia'] : null,
+                'Horas'           => $horas,
+                'Eficiencia'      => $eficiencia, // Calculada automáticamente
                 'Obs'             => $data['Obs']              ?? null,
+                'status'          => 'Creado', // Inicializar con estado "Creado"
+                'capacidad'       => $capacidad, // Horas * 9.3
             ];
 
-            // Reglas: todos requeridos (ya con folio asignado)
+            // Reglas: Calibre, FibraTrama, CodColor, Color y Obs son opcionales
+            // Eficiencia es calculada automáticamente (Cantidad / Capacidad)
             $rules = [
                 'Folio'            => ['required','string','max:10'],
                 'Date'             => ['required','date'],
                 'Turno'            => ['required','integer','min:1','max:3'],
                 'numero_empleado'  => ['required','string','max:30'],
                 'nombreEmpl'       => ['required','string','max:150'],
-                'Calibre'          => ['required','numeric'],
-                'FibraTrama'       => ['required','string','max:30'],
-                'CodColor'         => ['required','string','max:10'],
-                'Color'            => ['required','string','max:60'],
+                'Calibre'          => ['nullable','numeric'],
+                'FibraTrama'       => ['nullable','string','max:30'],
+                'CodColor'         => ['nullable','string','max:10'],
+                'Color'            => ['nullable','string','max:60'],
                 'Cantidad'         => ['required','numeric'],
                 'Conos'            => ['required','integer'],
                 'Horas'            => ['required','numeric'],
-                'Eficiencia'       => ['required','numeric'],
-                'Obs'              => ['required','string','max:60'],
+                'Eficiencia'       => ['nullable','numeric'],
+                'Obs'              => ['nullable','string','max:60'],
             ];
 
             $validator = Validator::make($clean, $rules);
@@ -129,10 +142,10 @@ class ProduccionReenconadoCabezuelaController extends Controller
             'Turno'            => ['required','integer','min:1','max:3'],
             'numero_empleado'  => ['required','string','max:30'],
             'nombreEmpl'       => ['required','string','max:150'],
-            'Calibre'          => ['required','numeric'],
-            'FibraTrama'       => ['required','string','max:30'],
-            'CodColor'         => ['required','string','max:10'],
-            'Color'            => ['required','string','max:60'],
+            'Calibre'          => ['nullable','numeric'],
+            'FibraTrama'       => ['nullable','string','max:30'],
+            'CodColor'         => ['nullable','string','max:10'],
+            'Color'            => ['nullable','string','max:60'],
             'Cantidad'         => ['required','numeric'],
             'Conos'            => ['required','integer'],
             'Horas'            => ['required','numeric'],
@@ -240,21 +253,31 @@ class ProduccionReenconadoCabezuelaController extends Controller
             'Turno'            => ['required','integer','min:1','max:3'],
             'numero_empleado'  => ['required','string','max:30'],
             'nombreEmpl'       => ['required','string','max:150'],
-            'Calibre'          => ['required','numeric'],
-            'FibraTrama'       => ['required','string','max:30'],
-            'CodColor'         => ['required','string','max:10'],
-            'Color'            => ['required','string','max:60'],
+            'Calibre'          => ['nullable','numeric'],
+            'FibraTrama'       => ['nullable','string','max:30'],
+            'CodColor'         => ['nullable','string','max:10'],
+            'Color'            => ['nullable','string','max:60'],
             'Cantidad'         => ['required','numeric'],
             'Conos'            => ['required','integer'],
             'Horas'            => ['required','numeric'],
-            'Eficiencia'       => ['required','numeric'],
-            'Obs'              => ['required','string','max:60'],
+            'Eficiencia'       => ['nullable','numeric'],
+            'Obs'              => ['nullable','string','max:60'],
         ];
 
         $validator = Validator::make($data, $rules);
         if ($validator->fails()) {
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
+
+        // Calcular capacidad: Horas * 9.3
+        $horas = isset($data['Horas']) ? (float)$data['Horas'] : null;
+        $capacidad = $horas !== null ? round($horas * 9.3, 2) : null;
+
+        // Calcular eficiencia: Cantidad / Capacidad
+        $cantidad = isset($data['Cantidad']) ? (float)$data['Cantidad'] : null;
+        $eficiencia = ($cantidad !== null && $capacidad !== null && $capacidad > 0) 
+            ? round($cantidad / $capacidad, 2) 
+            : null;
 
         $clean = [
             'Date'            => isset($data['Date']) && $data['Date'] ? date('Y-m-d', strtotime($data['Date'])) : null,
@@ -265,11 +288,12 @@ class ProduccionReenconadoCabezuelaController extends Controller
             'FibraTrama'      => $data['FibraTrama']       ?? null,
             'CodColor'        => $data['CodColor']         ?? null,
             'Color'           => $data['Color']            ?? null,
-            'Cantidad'        => isset($data['Cantidad']) ? (float)$data['Cantidad'] : null,
+            'Cantidad'        => $cantidad,
             'Conos'           => isset($data['Conos']) ? (int)$data['Conos'] : null,
-            'Horas'           => isset($data['Horas']) ? (float)$data['Horas'] : null,
-            'Eficiencia'      => isset($data['Eficiencia']) ? (float)$data['Eficiencia'] : null,
+            'Horas'           => $horas,
+            'Eficiencia'      => $eficiencia, // Calculada automáticamente
             'Obs'             => $data['Obs']              ?? null,
+            'capacidad'       => $capacidad, // Horas * 9.3
         ];
 
         try {
@@ -297,6 +321,46 @@ class ProduccionReenconadoCabezuelaController extends Controller
         } catch (\Throwable $e) {
             Log::error('Eliminar Reenconado fallo', ['folio' => $folio, 'exception' => $e]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function cambiarStatus(Request $request, string $folio)
+    {
+        try {
+            $registro = TejProduccionReenconado::findOrFail($folio);
+            $statusActual = $registro->status;
+            
+            // Ciclo de estados: null/Creado -> En Proceso -> Terminado -> Creado
+            if (empty($statusActual) || $statusActual === 'Creado') {
+                $nuevoStatus = 'En Proceso';
+            } elseif ($statusActual === 'En Proceso') {
+                $nuevoStatus = 'Terminado';
+            } elseif ($statusActual === 'Terminado') {
+                $nuevoStatus = 'Creado';
+            } else {
+                $nuevoStatus = 'Creado';
+            }
+            
+            $registro->status = $nuevoStatus;
+            $registro->save();
+            
+            Log::info('Status cambiado', [
+                'folio' => $folio,
+                'status_anterior' => $statusActual,
+                'status_nuevo' => $nuevoStatus
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'status' => $nuevoStatus,
+                'message' => "Status cambiado a: {$nuevoStatus}"
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Cambiar status fallo', ['folio' => $folio, 'exception' => $e]);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 }

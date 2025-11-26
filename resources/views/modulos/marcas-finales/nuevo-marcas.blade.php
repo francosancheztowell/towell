@@ -95,7 +95,7 @@
                                                 </svg>
                                             </button>
 
-                                            <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-blue-300 rounded-lg shadow-xl z-50"
+                                            <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-blue-300 rounded-lg shadow-xl z-[100]"
                                                  style="transform: translateX(-50%);">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide max-w-[300px]">
                                                     <div class="number-options-flex p-2 flex gap-1"></div>
@@ -537,12 +537,12 @@ function cargarMarcaExistente(folio) {
 <style>
 table{border-collapse:separate;border-spacing:0}
 tbody tr:hover{background-color:#eff6ff!important}
-thead th{position:sticky;top:0;z-index:30}
+thead th{position:sticky;top:0;z-index:20}
 .scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}
 .scrollbar-hide::-webkit-scrollbar{display:none}
 .valor-display-btn{transition:all .2s ease;min-width:80px}
 .valor-display-btn:hover{transform:scale(1.02)}
-.valor-edit-container{z-index:1000;box-shadow:0 10px 25px rgba(0,0,0,.15)}
+.valor-edit-container{z-index:100!important;box-shadow:0 10px 25px rgba(0,0,0,.15)}
 .number-option{transition:all .15s ease;flex-shrink:0}
 .number-option:hover{transform:scale(1.1)}
 .number-option.selected{background-color:#3b82f6!important;color:#fff!important;transform:scale(1.1)}
