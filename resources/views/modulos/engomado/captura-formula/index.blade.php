@@ -473,11 +473,11 @@
             // Formula: cells[8], TipoFormula: cells[9], Kg: cells[10], Litros: cells[11],
             // ProdAX: cells[12], Tiempo: cells[13], Solidos: cells[14], Viscocidad: cells[15]
             
-            // Usar el Folio (que ahora es el folio del programa) para buscar componentes
-            formulaActual = cells[0].textContent.trim(); // El Folio del registro (que es el FolioProg)
+            // Usar la Formula (cells[8]) del registro seleccionado para buscar componentes en BOMVersion
+            formulaActual = cells[8].textContent.trim(); // La Formula del registro
             const kilosValue = cells[10].textContent.trim().replace(/,/g, '');
             
-            // Abrir directamente el modal de componentes usando el Folio como referencia
+            // Abrir directamente el modal de componentes usando la Formula como referencia
             abrirModalComponentes(kilosValue);
         }
 
@@ -700,14 +700,19 @@
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-blue-50 transition-colors cursor-pointer';
                 row.onclick = () => seleccionarComponente(index, row);
+                
+                // Validar y convertir valores numéricos
+                const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
+                const consumoTotal = calcularConsumoTotal(consumoUnitario);
+                
                 row.innerHTML = `
                     <td class="px-4 py-3 text-sm">${selectedFolio || '-'}</td>
                     <td class="px-4 py-3 text-sm font-medium">${comp.ItemId || ''}</td>
                     <td class="px-4 py-3 text-sm">${comp.ItemName || ''}</td>
                     <td class="px-4 py-3 text-sm">${comp.ConfigId || ''}</td>
-                    <td class="px-4 py-3 text-sm text-right">${(comp.ConsumoUnitario || 0).toFixed(4)}</td>
+                    <td class="px-4 py-3 text-sm text-right">${consumoUnitario.toFixed(4)}</td>
                     <td class="px-4 py-3 text-sm text-right font-semibold text-blue-700">
-                        ${calcularConsumoTotal(comp.ConsumoUnitario).toFixed(4)}
+                        ${consumoTotal.toFixed(4)}
                     </td>
                     <td class="px-4 py-3 text-sm">${comp.Unidad || ''}</td>
                     <td class="px-4 py-3 text-sm">${comp.Almacen || ''}</td>
