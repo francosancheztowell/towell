@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Artisan;
-
+use App\Observers\ReqProgramaTejidoObserver;
 class ConfiguracionController extends Controller
 {
     private int $processedRows = 0;
@@ -97,7 +97,7 @@ class ConfiguracionController extends Controller
                 }
 
                 // Deshabilitar Observer temporalmente para evitar regeneración de líneas durante importación masiva
-                \App\Models\ReqProgramaTejido::unsetEventDispatcher();
+                ReqProgramaTejido::unsetEventDispatcher();
 
                 Log::info("Observers deshabilitados para importación masiva");
 
@@ -106,7 +106,7 @@ class ConfiguracionController extends Controller
                 Excel::import($import, $archivo);
 
                 // Re-habilitar Observer
-                \App\Models\ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+                ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
                 Log::info("Observers re-habilitados después de importación");
 
@@ -118,15 +118,65 @@ class ConfiguracionController extends Controller
                 // Regenerar líneas para todos los registros importados (de forma eficiente y en batch)
                 Log::info("Regenerando líneas para registros importados...");
 
+                // Contar total de registros en la tabla
+                $totalRegistros = ReqProgramaTejido::count();
+                Log::info("Total de registros en ReqProgramaTejido: {$totalRegistros}");
+
                 // Obtener solo registros con fechas válidas en batch
                 $registrosConFechas = ReqProgramaTejido::whereNotNull('FechaInicio')
                     ->whereNotNull('FechaFinal')
                     ->where('FechaInicio', '!=', '')
                     ->where('FechaFinal', '!=', '')
-                    ->select('Id', 'FechaInicio', 'FechaFinal')
+                    ->select('Id', 'FechaInicio', 'FechaFinal', 'SalonTejidoId', 'NoTelarId')
                     ->get();
 
+                Log::info("Registros con fechas válidas encontrados: " . $registrosConFechas->count() . " de {$totalRegistros}");
+
+                // Log de registros sin fechas para diagnóstico
+                $registrosSinFechas = ReqProgramaTejido::where(function($q) {
+                    $q->whereNull('FechaInicio')
+                      ->orWhereNull('FechaFinal')
+                      ->orWhere('FechaInicio', '')
+                      ->orWhere('FechaFinal', '');
+                })->count();
+                if ($registrosSinFechas > 0) {
+                    Log::warning("Registros SIN fechas válidas: {$registrosSinFechas} - NO se generarán líneas para estos");
+                }
+
+                // Log de muestra de los primeros 5 registros para diagnóstico
+                $muestraRegistros = ReqProgramaTejido::select('Id', 'SalonTejidoId', 'NoTelarId', 'FechaInicio', 'FechaFinal', 'TotalPedido', 'SaldoPedido', 'Produccion', 'PesoCrudo')
+                    ->limit(5)
+                    ->get();
+                Log::info("=== MUESTRA DE PRIMEROS 5 REGISTROS IMPORTADOS ===");
+                foreach ($muestraRegistros as $muestra) {
+                    Log::info("Registro ID {$muestra->Id}", [
+                        'Salon' => $muestra->SalonTejidoId,
+                        'Telar' => $muestra->NoTelarId,
+                        'FechaInicio' => $muestra->FechaInicio,
+                        'FechaFinal' => $muestra->FechaFinal,
+                        'TotalPedido' => $muestra->TotalPedido,
+                        'SaldoPedido' => $muestra->SaldoPedido,
+                        'Produccion' => $muestra->Produccion,
+                        'PesoCrudo' => $muestra->PesoCrudo,
+                    ]);
+                }
+                Log::info("=== FIN MUESTRA ===");
+
+                // Contar registros con cantidades válidas
+                $registrosConCantidad = ReqProgramaTejido::where(function($q) {
+                    $q->where('TotalPedido', '>', 0)
+                      ->orWhere('SaldoPedido', '>', 0)
+                      ->orWhere('Produccion', '>', 0);
+                })->count();
+                Log::info("Registros con cantidad > 0 (TotalPedido/SaldoPedido/Produccion): {$registrosConCantidad} de {$totalRegistros}");
+
+                if ($registrosConCantidad == 0) {
+                    Log::warning("¡ATENCIÓN! Ningún registro tiene cantidad > 0. Las líneas NO se generarán.");
+                }
+
                 $totalRegenerados = 0;
+                $saltadosPorFecha = 0;
+                $errores = 0;
                 $observer = new \App\Observers\ReqProgramaTejidoObserver();
 
                 // Procesar en chunks para evitar sobrecarga de memoria
@@ -140,10 +190,17 @@ class ConfiguracionController extends Controller
 
                             // Validar que las fechas sean del año 2000 en adelante
                             if ($fechaInicio->year < 2000 || $fechaFinal->year < 2000) {
-                                Log::warning("Registro {$registro->Id} tiene fechas inválidas (año < 2000), saltando", [
+                                $saltadosPorFecha++;
+                                continue;
+                            }
+
+                            // Validar que FechaFinal sea mayor que FechaInicio
+                            if ($fechaFinal->lte($fechaInicio)) {
+                                Log::warning("Registro {$registro->Id} tiene FechaFinal <= FechaInicio, saltando", [
                                     'FechaInicio' => $registro->FechaInicio,
                                     'FechaFinal' => $registro->FechaFinal
                                 ]);
+                                $saltadosPorFecha++;
                                 continue;
                             }
 
@@ -153,18 +210,25 @@ class ConfiguracionController extends Controller
                                 $observer->saved($registroCompleto);
                                 $totalRegenerados++;
 
-                                // Log cada 50 registros para monitorear progreso
-                                if ($totalRegenerados % 50 === 0) {
+                                // Log cada 100 registros para monitorear progreso
+                                if ($totalRegenerados % 100 === 0) {
                                     Log::info("Progreso regeneración líneas: {$totalRegenerados}/" . $registrosConFechas->count());
                                 }
                             }
                         } catch (\Throwable $lineEx) {
+                            $errores++;
                             Log::warning("Error regenerando líneas para registro {$registro->Id}: " . $lineEx->getMessage());
                         }
                     }
                 }
 
-                Log::info("Líneas regeneradas: {$totalRegenerados} registros procesados de " . $registrosConFechas->count() . " con fechas válidas");
+                Log::info("Líneas regeneradas completado", [
+                    'total_registros' => $totalRegistros,
+                    'con_fechas_validas' => $registrosConFechas->count(),
+                    'procesados_ok' => $totalRegenerados,
+                    'saltados_por_fecha' => $saltadosPorFecha,
+                    'errores' => $errores
+                ]);
 
                 // Actualizar estado EnProceso automáticamente (no romper si el comando no está registrado)
                 try {
@@ -202,7 +266,7 @@ class ConfiguracionController extends Controller
                 DB::rollback();
 
                 // Asegurar que el Observer se re-habilite incluso si hay error
-                \App\Models\ReqProgramaTejido::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+                ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
                 Log::error("Error durante la importación", [
                     'message' => $e->getMessage(),

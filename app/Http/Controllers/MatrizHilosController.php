@@ -21,6 +21,29 @@ class MatrizHilosController extends Controller
     }
 
     /**
+     * Obtener lista de hilos únicos para select (JSON)
+     */
+    public function list()
+    {
+        try {
+            $hilos = ReqMatrizHilos::select('Hilo', 'Fibra')
+                ->distinct()
+                ->orderBy('Hilo')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $hilos
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener hilos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Crear nuevo registro de matriz hilos
      */
     public function store(Request $request)

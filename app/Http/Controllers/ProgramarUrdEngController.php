@@ -174,16 +174,13 @@ class ProgramarUrdEngController extends Controller
             if ($bomEngId) {
                 try {
                     // Buscar el ItemId de la BOM de engomado en la tabla BOM
+                    // Filtro: BomId = L.Mat Engomado, ItemId like 'TE-PD-ENF%', DATAAREAID = 'PRO'
                     $bomItem = DB::connection('sqlsrv_ti')
-                        ->table('BOM as b')
-                        ->join('BOMTABLE as bt', function($join) {
-                            $join->on('bt.BOMID', '=', 'b.BOMID')
-                                 ->on('bt.DATAAREAID', '=', 'b.DATAAREAID');
-                        })
-                        ->where('bt.BOMID', $bomEngId)
-                        ->where('bt.DATAAREAID', 'PRO')
-                        ->where('bt.ITEMGROUPID', 'JUL-ENG')
-                        ->select('b.ITEMID')
+                        ->table('BOM')
+                        ->where('BOMID', $bomEngId)
+                        ->where('DATAAREAID', 'PRO')
+                        ->where('ITEMID', 'like', 'TE-PD-ENF%')
+                        ->select('ITEMID')
                         ->first();
 
                     if ($bomItem && isset($bomItem->ITEMID)) {

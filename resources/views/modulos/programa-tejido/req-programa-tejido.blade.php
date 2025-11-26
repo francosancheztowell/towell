@@ -128,6 +128,15 @@
 
 {{-- Componente para modal de líneas de detalle --}}
 @include('components.programa-tejido.req-programa-tejido-line-table')
+
+{{-- Menú contextual (click derecho) --}}
+<div id="contextMenu" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg z-50 py-1 min-w-[180px]">
+	<button id="contextMenuCrear" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+		<i class="fas fa-plus-circle text-blue-500"></i>
+		<span>Crear </span>
+	</button>
+</div>
+
 <style>
 	/* Columnas fijadas */
 	.pinned-column {
@@ -207,6 +216,31 @@
 	.inline-edit-row.inline-saving {
 		opacity: 0.7;
 	}
+
+	/* Estilos para menú contextual */
+	#contextMenu {
+		animation: contextMenuFadeIn 0.15s ease-out;
+	}
+
+	@keyframes contextMenuFadeIn {
+		from {
+			opacity: 0;
+			transform: scale(0.95);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	#contextMenu button:active {
+		background-color: #dbeafe;
+	}
+
+	#contextMenu button:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
 </style>
 
 <script>
@@ -241,12 +275,10 @@
 	function toggleInlineEditMode() {
 		const btn = document.getElementById('btnInlineEdit');
 		if (!btn) {
-			console.error('btnInlineEdit no encontrado');
 			return;
 		}
 
 		inlineEditMode = !inlineEditMode;
-		console.log('toggleInlineEditMode:', inlineEditMode);
 
 		if (inlineEditMode) {
 			if (dragDropMode) {
@@ -277,9 +309,7 @@
 
 	function applyInlineModeToRows() {
 		if (!inlineEditMode) return;
-		console.log('applyInlineModeToRows: activando modo inline');
 		const rows = allRows.length ? allRows : $$('.selectable-row');
-		console.log('Filas encontradas:', rows.length);
 		rows.forEach(row => {
 			// Limpiar estado previo si existe
 			delete row.dataset.inlinePrepared;
@@ -288,7 +318,6 @@
 	}
 
 	function restoreInlineEditing() {
-		console.log('restoreInlineEditing: restaurando modo normal');
 		const rows = allRows.length ? allRows : $$('.selectable-row');
 		rows.forEach(row => {
 			row.classList.remove('inline-edit-row', 'inline-saving');
@@ -304,7 +333,6 @@
 			});
 			delete row.dataset.inlinePrepared;
 		});
-		console.log('restoreInlineEditing: restauración completada');
 	}
 
 	function makeRowInlineEditable(row) {
@@ -314,17 +342,13 @@
 		}
 
 		if (row.dataset.inlinePrepared === 'true') {
-			console.log('makeRowInlineEditable: fila ya preparada, omitiendo');
 			return;
 		}
 
 		const rowId = row.getAttribute('data-id');
 		if (!rowId) {
-			console.warn('makeRowInlineEditable: fila sin data-id');
 			return;
 		}
-
-		console.log('makeRowInlineEditable: preparando fila', rowId);
 		row.classList.add('inline-edit-row');
 		row.dataset.inlinePrepared = 'true';
 
@@ -379,7 +403,6 @@
 
 			cell.innerHTML = '';
 			cell.appendChild(input);
-			console.log(`makeRowInlineEditable: input creado para ${field} con valor ${formattedValue}`);
 		});
 	}
 
@@ -802,7 +825,6 @@
 			tb.addEventListener('dragover', handleDragOver);
 			tb.addEventListener('drop', handleDrop);
 
-			console.log('✅ Modo drag and drop activado. Filas:', rows.length);
 			showToast('Modo arrastrar activado<br>Arrastra las filas para reorganizarlas', 'info');
 		} else {
 			// Desactivar modo drag and drop
@@ -839,15 +861,12 @@
 			tb.removeEventListener('dragover', handleDragOver);
 			tb.removeEventListener('drop', handleDrop);
 
-			console.log('✅ Modo drag and drop desactivado');
 			showToast('Modo arrastrar desactivado', 'info');
 		}
 	}
 
 	// Manejador de inicio de drag - MEJORADO
 	function handleDragStart(e) {
-		console.log('🚀 handleDragStart iniciado');
-
 		// Validación: no permitir drag si está en proceso
 		if (isRowEnProceso(this)) {
 			e.preventDefault();
@@ -860,13 +879,6 @@
 		draggedRowSalon = getRowSalon(this);
 		draggedRowCambioHilo = getRowCambioHilo(this);
 		dragStartPosition = this.rowIndex;
-
-		console.log('📦 Datos del registro arrastrado:', {
-			id: draggedRow.getAttribute('data-id'),
-			telar: draggedRowTelar,
-			salon: draggedRowSalon,
-			posicion: dragStartPosition
-		});
 
 		this.classList.add('dragging');
 		this.style.opacity = '0.4';
@@ -929,11 +941,29 @@
 
 				if (draggedRowIndex !== -1) {
 					// Verificar si hay registros en proceso antes de la posición objetivo
-					const targetRowsInDOM = allRowsInDOM.filter(row => isSameTelar(getRowTelar(row), targetTelar));
+					const targetRowsInDOM = allRowsInDOM.filter(row =>
+						row !== draggedRow && isSameTelar(getRowTelar(row), targetTelar)
+					);
+
+					// Calcular posición objetivo considerando la posición del mouse
+					const targetRowRect = targetRow.getBoundingClientRect();
+					const mouseY = e.clientY;
+					const isBeforeTarget = mouseY < (targetRowRect.top + targetRowRect.height / 2);
+
+					// Encontrar el índice de la fila objetivo dentro de las filas del telar destino
+					const targetRowIndexInTelar = targetRowsInDOM.indexOf(targetRow);
 					let posicionObjetivo = 0;
+
+					if (targetRowIndexInTelar !== -1) {
+						// Si el mouse está antes de la fila objetivo, posición = índice
+						// Si está después, posición = índice + 1
+						posicionObjetivo = isBeforeTarget ? targetRowIndexInTelar : targetRowIndexInTelar + 1;
+					} else {
+						// Fallback: contar cuántas filas del telar destino están antes del draggedRow
 					for (let i = 0; i < draggedRowIndex; i++) {
-						if (isSameTelar(getRowTelar(allRowsInDOM[i]), targetTelar)) {
+							if (allRowsInDOM[i] !== draggedRow && isSameTelar(getRowTelar(allRowsInDOM[i]), targetTelar)) {
 							posicionObjetivo++;
+							}
 						}
 					}
 
@@ -945,7 +975,12 @@
 						}
 					}
 
+					// Solo bloquear si se intenta colocar ANTES de un registro en proceso
+					// Permitir siempre colocar DESPUÉS del último registro en proceso
+					const cantidadFilasTelarDestino = targetRowsInDOM.length;
+
 					// Si se intenta colocar antes de un registro en proceso, mostrar error
+					// PERO si solo hay un registro y se quiere colocar después, permitirlo
 					if (ultimoEnProcesoIndex !== -1 && posicionObjetivo <= ultimoEnProcesoIndex) {
 						e.dataTransfer.dropEffect = 'none';
 						if (targetRow.classList && !targetRow.classList.contains('drop-not-allowed')) {
@@ -1015,7 +1050,7 @@
 	}
 
 	// Función helper para calcular posición objetivo y validar contra registros en proceso
-	function calcularPosicionObjetivo(targetTelar) {
+	function calcularPosicionObjetivo(targetTelar, targetRowElement = null) {
 		const tb = tbodyEl();
 		if (!tb) return 0;
 
@@ -1035,7 +1070,37 @@
 		// Calcular posición objetivo basada en dónde está el draggedRow en el DOM
 		let targetPosition = targetRowsOriginal.length; // Por defecto: al final
 
-		if (draggedRowIndex !== -1) {
+		// Si tenemos un targetRowElement específico, usar su posición como referencia
+		if (targetRowElement) {
+			const targetRowIndex = allRowsInDOM.indexOf(targetRowElement);
+			const targetRowIndexInTelar = targetRowsOriginal.indexOf(targetRowElement);
+
+			if (targetRowIndex !== -1) {
+				// Contar cuántas filas del telar destino están antes del targetRow
+				let posicion = 0;
+				for (let i = 0; i < targetRowIndex; i++) {
+					const row = allRowsInDOM[i];
+					if (row !== draggedRow && isSameTelar(getRowTelar(row), targetTelar)) {
+						posicion++;
+					}
+				}
+
+				// Determinar si el draggedRow está antes o después del targetRow visualmente
+				if (draggedRowIndex < targetRowIndex) {
+					// draggedRow está ARRIBA del targetRow → colocar ANTES del target
+					targetPosition = posicion;
+				} else {
+					// draggedRow está ABAJO del targetRow → colocar DESPUÉS del target
+					targetPosition = posicion + 1;
+				}
+
+				// CASO ESPECIAL: Si hay un solo registro en el telar destino
+				// y queremos colocar DESPUÉS de él
+				if (targetRowsOriginal.length === 1 && draggedRowIndex > targetRowIndex) {
+					targetPosition = 1; // Después del único registro
+				}
+			}
+		} else if (draggedRowIndex !== -1) {
 			// Contar cuántas filas del telar destino (excluyendo el draggedRow) están antes del draggedRow en el DOM
 			let posicion = 0;
 			for (let i = 0; i < draggedRowIndex; i++) {
@@ -1045,6 +1110,12 @@
 				}
 			}
 			targetPosition = posicion;
+
+			// CASO ESPECIAL: Si hay un solo registro y draggedRow está después de él
+			// Forzar posición al final
+			if (targetRowsOriginal.length === 1 && posicion === 1) {
+				targetPosition = 1;
+			}
 		}
 
 		// VALIDACIÓN: No puede colocarse antes de un registro en proceso
@@ -1064,6 +1135,9 @@
 			}
 		}
 
+		// Asegurar que la posición es válida (no negativa y no mayor que el total)
+		targetPosition = Math.max(0, Math.min(targetPosition, targetRowsOriginal.length));
+
 		return targetPosition;
 	}
 
@@ -1071,11 +1145,6 @@
 	async function handleDrop(e) {
 		e.stopPropagation();
 		e.preventDefault();
-
-		console.log('🎯 handleDrop iniciado');
-		console.log('Evento:', e);
-		console.log('this:', this);
-		console.log('e.target:', e.target);
 
 		if (!draggedRow) {
 			console.error('❌ handleDrop: draggedRow es null');
@@ -1087,7 +1156,6 @@
 		const registroId = e.dataTransfer.getData('text/plain') || draggedRow.getAttribute('data-id');
 
 		if (!registroId) {
-			console.error('❌ handleDrop: No se pudo obtener el ID del registro');
 			showToast('Error: No se pudo obtener el ID del registro', 'error');
 			return false;
 		}
@@ -1096,7 +1164,6 @@
 		// Después del reordenamiento visual durante drag over, el draggedRow ya está en su nueva posición
 		const tb = tbodyEl();
 		if (!tb) {
-			console.error('❌ handleDrop: No se encontró tbody');
 			return false;
 		}
 
@@ -1104,10 +1171,7 @@
 		const allRowsInDOM = Array.from(tb.querySelectorAll('.selectable-row'));
 		const draggedIndex = allRowsInDOM.indexOf(draggedRow);
 
-		console.log('📍 Posición del draggedRow en DOM:', draggedIndex, 'de', allRowsInDOM.length);
-
 		if (draggedIndex === -1) {
-			console.error('❌ handleDrop: draggedRow no encontrado en DOM');
 			Swal.fire({
 				icon: 'error',
 				title: 'Error',
@@ -1122,27 +1186,69 @@
 		let targetSalon = null;
 		let targetRow = null;
 
+		// ESTRATEGIA MEJORADA: Detectar telar basándose en las filas adyacentes al punto de drop
+		// Esto evita el problema de detectar el telar equivocado en los límites entre telares
+		if (e.clientY) {
+			// Obtener las filas adyacentes al draggedRow en su posición actual del DOM
 		const prevRow = draggedIndex > 0 ? allRowsInDOM[draggedIndex - 1] : null;
 		const nextRow = draggedIndex < allRowsInDOM.length - 1 ? allRowsInDOM[draggedIndex + 1] : null;
-		const sameTelarPrev = prevRow && isSameTelar(getRowTelar(prevRow), draggedRowTelar);
-		const sameTelarNext = nextRow && isSameTelar(getRowTelar(nextRow), draggedRowTelar);
-		const forcedSameTelar = sameTelarPrev || sameTelarNext;
 
-		if (forcedSameTelar) {
-			targetTelar = draggedRowTelar;
-			if (sameTelarPrev) {
+			const prevTelar = prevRow ? getRowTelar(prevRow) : null;
+			const nextTelar = nextRow ? getRowTelar(nextRow) : null;
+
+			// CASO 1: Si ambas filas adyacentes son del mismo telar → usar ese telar
+			if (prevTelar && nextTelar && isSameTelar(prevTelar, nextTelar)) {
+				targetTelar = prevTelar;
 				targetRow = prevRow;
-				targetSalon = getRowSalon(prevRow) || draggedRowSalon;
-			} else if (sameTelarNext) {
-				targetRow = nextRow;
-				targetSalon = getRowSalon(nextRow) || draggedRowSalon;
-			} else {
-				targetSalon = draggedRowSalon;
+				targetSalon = getRowSalon(prevRow);
 			}
-			console.log(' Telar destino determinado por vecinos del mismo telar:', targetTelar);
+			// CASO 2: Ambas filas son del telar origen → movimiento dentro del mismo telar
+			else if (prevTelar && nextTelar &&
+					 isSameTelar(prevTelar, draggedRowTelar) &&
+					 isSameTelar(nextTelar, draggedRowTelar)) {
+			targetTelar = draggedRowTelar;
+				targetRow = prevRow;
+				targetSalon = getRowSalon(prevRow);
+			}
+			// CASO 3: Fila anterior es de OTRO telar (quiere subir) → usar telar de arriba
+			else if (prevTelar && !isSameTelar(prevTelar, draggedRowTelar)) {
+				targetTelar = prevTelar;
+				targetRow = prevRow;
+				targetSalon = getRowSalon(prevRow);
+			}
+			// CASO 4: Fila siguiente es de OTRO telar (quiere bajar) → usar telar de abajo
+			else if (nextTelar && !isSameTelar(nextTelar, draggedRowTelar)) {
+				targetTelar = nextTelar;
+				targetRow = nextRow;
+				targetSalon = getRowSalon(nextRow);
+			}
+			// CASO 5: Solo hay fila anterior (del mismo telar origen)
+			else if (prevRow && isSameTelar(prevTelar, draggedRowTelar)) {
+				targetTelar = prevTelar;
+				targetRow = prevRow;
+				targetSalon = getRowSalon(prevRow);
+			}
+			// CASO 6: Solo hay fila siguiente (del mismo telar origen)
+			else if (nextRow && isSameTelar(nextTelar, draggedRowTelar)) {
+				targetTelar = nextTelar;
+				targetRow = nextRow;
+				targetSalon = getRowSalon(nextRow);
+			}
+			// CASO 7: Fallback - usar fila anterior si existe
+			else if (prevRow) {
+				targetTelar = prevTelar;
+				targetRow = prevRow;
+				targetSalon = getRowSalon(prevRow);
+		}
+			// CASO 8: Fallback - usar fila siguiente
+			else if (nextRow) {
+				targetTelar = nextTelar;
+				targetRow = nextRow;
+				targetSalon = getRowSalon(nextRow);
+			}
 		}
 
-		// Estrategia 1: Buscar la fila más cercana al punto donde se soltó (e.clientY)
+		// FALLBACK: Si no se detectó, buscar la fila más cercana al mouse
 		if (!targetTelar && e.clientY) {
 			let closestRow = null;
 			let closestDistance = Infinity;
@@ -1161,44 +1267,10 @@
 				targetRow = closestRow;
 				targetTelar = getRowTelar(closestRow);
 				targetSalon = getRowSalon(closestRow);
-				console.log('✅ Telar destino detectado por fila más cercana al punto de drop:', targetTelar);
-			}
-		}
-
-		// Estrategia 2: Si no se encontró, usar las filas adyacentes al draggedRow
-		if (!targetTelar) {
-			if (prevRow) {
-				targetRow = prevRow;
-				targetTelar = getRowTelar(prevRow);
-				targetSalon = getRowSalon(prevRow);
-				console.log('✅ Telar destino detectado por fila anterior:', targetTelar);
-			} else if (nextRow) {
-				targetRow = nextRow;
-				targetTelar = getRowTelar(nextRow);
-				targetSalon = getRowSalon(nextRow);
-				console.log('✅ Telar destino detectado por fila siguiente:', targetTelar);
-			}
-		}
-
-		// Estrategia 3: Si aún no se encontró, buscar en un radio alrededor del draggedRow
-		if (!targetTelar) {
-			const radius = 3; // Buscar 3 filas arriba y abajo
-			for (let i = Math.max(0, draggedIndex - radius); i <= Math.min(allRowsInDOM.length - 1, draggedIndex + radius); i++) {
-				if (i === draggedIndex) continue;
-				const row = allRowsInDOM[i];
-				const rowTelar = getRowTelar(row);
-				if (rowTelar && !isSameTelar(rowTelar, draggedRowTelar)) {
-					targetRow = row;
-					targetTelar = rowTelar;
-					targetSalon = getRowSalon(row);
-					console.log('✅ Telar destino detectado por búsqueda en radio:', targetTelar);
-					break;
-				}
 			}
 		}
 
 		if (!targetTelar) {
-			console.error('❌ handleDrop: No se pudo determinar el telar destino');
 			Swal.fire({
 				icon: 'error',
 				title: 'Error',
@@ -1208,64 +1280,22 @@
 			return false;
 		}
 
-		console.log('📍 Información del drop:', {
-			registroId,
-			draggedRowTelar,
-			targetTelar,
-			draggedRowSalon,
-			targetSalon,
-			targetRowId: targetRow ? targetRow.getAttribute('data-id') : 'N/A',
-			draggedIndex,
-			totalRows: allRowsInDOM.length
-		});
-
-		// Validación adicional: Si el telar destino es igual al origen, verificar si realmente es el mismo
-		// o si el draggedRow se movió visualmente a otro telar
-		if (isSameTelar(draggedRowTelar, targetTelar) && !forcedSameTelar) {
-			// Verificar si hay filas de otros telares cerca del draggedRow
-			const nearbyRows = [];
-			const checkRadius = 5;
-			for (let i = Math.max(0, draggedIndex - checkRadius); i <= Math.min(allRowsInDOM.length - 1, draggedIndex + checkRadius); i++) {
-				if (i === draggedIndex) continue;
-				const row = allRowsInDOM[i];
-				const rowTelar = getRowTelar(row);
-				if (rowTelar && !isSameTelar(rowTelar, draggedRowTelar)) {
-					nearbyRows.push({ row, telar: rowTelar, index: i });
-				}
-			}
-
-			// Si hay filas de otros telares cerca, usar el telar más cercano
-			if (nearbyRows.length > 0) {
-				// Encontrar la fila más cercana al draggedRow
-				const closestNearby = nearbyRows.reduce((closest, current) => {
-					const currentDist = Math.abs(current.index - draggedIndex);
-					const closestDist = Math.abs(closest.index - draggedIndex);
-					return currentDist < closestDist ? current : closest;
-				});
-
-				targetTelar = closestNearby.telar;
-				targetRow = closestNearby.row;
-				targetSalon = getRowSalon(closestNearby.row);
-				console.log('🔄 Telar corregido basándose en filas cercanas:', draggedRowTelar, '->', targetTelar);
-			}
-		}
-
 		// CASO 1: Mismo telar → Movimiento normal sin validación
+		// NOTA: Si el telar detectado es el mismo que el origen, respetar esa decisión
+		// No forzar cambio a otro telar solo porque hay filas cercanas de otros telares
 		if (isSameTelar(draggedRowTelar, targetTelar)) {
-			console.log('📌 Mismo telar - procesando movimiento normal');
 			await procesarMovimientoMismoTelar(registroId);
 			return false;
 		}
 
 		// CASO 2: Telar diferente → SIEMPRE mostrar alerta y validación
-		console.log('🔄 Cambio de telar detectado:', draggedRowTelar, '->', targetTelar);
-
-		// Calcular posición objetivo basada en el DOM visual
-		let targetPosition = calcularPosicionObjetivo(targetTelar);
-		console.log('📍 Posición objetivo calculada (inicial):', targetPosition);
+		// Calcular posición objetivo basada en el DOM visual y el targetRow si está disponible
+		let targetPosition = calcularPosicionObjetivo(targetTelar, targetRow);
 
 		// Validación adicional: ajustar automáticamente para que nunca quede antes de un registro en proceso
-		const targetRows = getRowsByTelar(targetTelar);
+		// Excluir el draggedRow de la lista de filas del telar destino
+		const targetRows = getRowsByTelar(targetTelar).filter(row => row !== draggedRow);
+
 		if (targetRows.length) {
 			let minAllowedPosition = 0;
 			for (let i = 0; i < targetRows.length; i++) {
@@ -1275,18 +1305,30 @@
 			}
 
 			if (targetPosition < minAllowedPosition) {
-				console.log('⚠️ targetPosition ajustado por registro en proceso:', targetPosition, '=>', minAllowedPosition);
 				targetPosition = minAllowedPosition;
 				showToast('Se colocó después del registro en proceso del telar destino', 'info');
 			}
+
+			// Caso especial: Si hay un solo registro en el telar destino
+			// Asegurar que la posición sea válida (0 o 1)
+			if (targetRows.length === 1) {
+				// Si el único registro está en proceso, forzar posición a 1 (después)
+				if (isRowEnProceso(targetRows[0])) {
+					targetPosition = 1;
+				} else {
+					// Si no está en proceso, permitir posición 0 o 1
+					targetPosition = Math.max(0, Math.min(targetPosition, 1));
+				}
+			}
+		} else {
+			// Si no hay registros en el telar destino, posición = 0
+			targetPosition = 0;
 		}
 
 		// No permitir posiciones negativas
 		targetPosition = Math.max(0, targetPosition);
-		console.log('📍 Posición objetivo final:', targetPosition);
 
 		// Procesar movimiento a otro telar (siempre mostrará alerta)
-		console.log('🚀 Iniciando procesamiento de cambio de telar...');
 		await procesarMovimientoOtroTelar(registroId, targetSalon, targetTelar, targetPosition);
 		return false;
 	}
@@ -1299,6 +1341,12 @@
 		// Calcular nueva posición
 		const allRowsSameTelar = allRows.filter(row => isSameTelar(getRowTelar(row), draggedRowTelar));
 		const allRowsInDOM = Array.from(tb.querySelectorAll('.selectable-row'));
+
+		// VALIDACIÓN: Si solo hay un registro en el telar, no tiene sentido moverlo
+		if (allRowsSameTelar.length < 2) {
+			showToast('Se requieren al menos dos registros para reordenar la prioridad', 'info');
+			return;
+		}
 
 		const positionMap = new Map();
 		allRowsInDOM.forEach((row, idx) => {
@@ -1319,6 +1367,20 @@
 
 		if (nuevaPosicion === -1) {
 			showToast('Error al calcular la nueva posición', 'error');
+			return;
+		}
+
+		// VALIDACIÓN: Calcular posición original y comparar
+		// Encontrar la posición original del registro en la secuencia ordenada por FechaInicio
+		const originalRowsOrdered = [...allRowsSameTelar].sort((a, b) => {
+			const fechaA = a.querySelector('[data-column="FechaInicio"]')?.getAttribute('data-value') || '';
+			const fechaB = b.querySelector('[data-column="FechaInicio"]')?.getAttribute('data-value') || '';
+			return fechaA.localeCompare(fechaB);
+		});
+		const posicionOriginal = originalRowsOrdered.indexOf(draggedRow);
+
+		if (posicionOriginal === nuevaPosicion) {
+			showToast('El registro ya está en esa posición', 'info');
 			return;
 		}
 
@@ -1368,13 +1430,6 @@
 
 	// Función para procesar movimiento a otro telar (con validación)
 	async function procesarMovimientoOtroTelar(registroId, nuevoSalon, nuevoTelar, targetPosition) {
-		console.log('procesarMovimientoOtroTelar iniciado:', {
-			registroId,
-			nuevoSalon,
-			nuevoTelar,
-			targetPosition
-		});
-
 		showLoading();
 
 		try {
@@ -1393,7 +1448,6 @@
 			if (!verificacionResponse.ok) {
 				hideLoading();
 				const errorText = await verificacionResponse.text();
-				console.error('Error en verificación:', errorText);
 				Swal.fire({
 					icon: 'error',
 					title: 'Error de validación',
@@ -1404,7 +1458,6 @@
 			}
 
 			const verificacion = await verificacionResponse.json();
-			console.log('Verificación recibida:', verificacion);
 			hideLoading();
 
 			if (!verificacion.puede_mover) {
@@ -1429,8 +1482,6 @@
 			}
 
 			// SIEMPRE mostrar alerta con detalles del cambio
-			console.log('Mostrando alerta de confirmación...');
-
 			// Construir tabla de cambios
 			let cambiosHTML = '';
 			if (verificacion.cambios && Array.isArray(verificacion.cambios) && verificacion.cambios.length > 0) {
@@ -1478,31 +1529,9 @@
 			const telarDestino = verificacion.telar_destino || nuevoTelar;
 			const salonDestino = verificacion.salon_destino || nuevoSalon;
 
-			console.log('Datos de la alerta:', {
-				mensajeAlerta,
-				claveModelo,
-				telarOrigen,
-				salonOrigen,
-				telarDestino,
-				salonDestino,
-				tieneCambios: verificacion.cambios && verificacion.cambios.length > 0
-			});
-
 			const confirmacion = await Swal.fire({
 				icon: 'warning',
 				title: 'Cambio de Telar/Salón',
-				html: `
-				<div class="text-left">
-					<p class="mb-3 text-gray-700 font-medium">${mensajeAlerta}</p>
-					<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm space-y-1 mb-3">
-						<p><span class="font-semibold text-blue-900">Clave Modelo:</span> <span class="text-blue-700">${claveModelo}</span></p>
-						<p><span class="font-semibold text-blue-900">De:</span> <span class="text-blue-700">Telar ${telarOrigen} (Salón ${salonOrigen})</span></p>
-						<p><span class="font-semibold text-blue-900">A:</span> <span class="text-blue-700">Telar ${telarDestino} (Salón ${salonDestino})</span></p>
-					</div>
-					${cambiosHTML}
-					<p class="mt-4 text-sm text-red-600 font-semibold">Esta acción moverá el registro y aplicará los cambios mostrados arriba.</p>
-				</div>
-			`,
 				showCancelButton: true,
 				confirmButtonText: 'Sí, cambiar de telar',
 				cancelButtonText: 'Cancelar',
@@ -1515,8 +1544,6 @@
 				allowOutsideClick: false,
 				allowEscapeKey: true
 			});
-
-			console.log('Confirmación recibida:', confirmacion.isConfirmed);
 
 			if (!confirmacion.isConfirmed) {
 				showToast('Operación cancelada', 'info');
@@ -1565,7 +1592,6 @@
 			}
 
 			const cambio = await cambioResponse.json();
-			console.log('Cambio realizado:', cambio);
 			hideLoading();
 
 			if (!cambio.success) {
@@ -1801,6 +1827,234 @@
 		lastDragOverTime = 0;
 	}
 
+	// ===== Menú Contextual (Click Derecho) =====
+	let contextMenu = null;
+	let contextMenuRow = null;
+	let contextMenuTelar = null;
+	let contextMenuSalon = null;
+
+	function initContextMenu() {
+		contextMenu = document.getElementById('contextMenu');
+		if (!contextMenu) return;
+
+		// Ocultar menú al hacer click fuera
+		document.addEventListener('click', (e) => {
+			if (contextMenu && !contextMenu.contains(e.target)) {
+				hideContextMenu();
+			}
+		});
+
+		// Ocultar menú con ESC
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && contextMenu && !contextMenu.classList.contains('hidden')) {
+				hideContextMenu();
+			}
+		});
+
+		// Prevenir menú contextual por defecto del navegador en las filas
+		const tb = tbodyEl();
+		if (tb) {
+			tb.addEventListener('contextmenu', (e) => {
+				const row = e.target.closest('.selectable-row');
+				if (row) {
+					e.preventDefault();
+					// Verificar si hay un registro seleccionado
+					if (selectedRowIndex === -1 || selectedRowIndex === null || selectedRowIndex === undefined) {
+						showToast('Por favor, selecciona un registro primero haciendo click en una fila', 'info');
+						return;
+					}
+					// Usar la fila seleccionada en lugar de la fila donde se hizo click derecho
+					const selectedRow = allRows[selectedRowIndex] || $$('.selectable-row')[selectedRowIndex];
+					if (selectedRow) {
+						showContextMenu(e, selectedRow);
+					} else {
+						showToast('No se pudo encontrar el registro seleccionado', 'error');
+					}
+				}
+			});
+		}
+
+		// Event listener para la opción del menú (Crear = abrir modal duplicar/dividir)
+		const btnCrear = document.getElementById('contextMenuCrear');
+
+		if (btnCrear) {
+			btnCrear.addEventListener('click', () => {
+				if (contextMenuRow) {
+					// Usar siempre el mismo modal (duplicar/dividir) y dejar que el switch decida
+					duplicarTelar(contextMenuRow);
+				}
+				hideContextMenu();
+			});
+		}
+	}
+
+	function showContextMenu(e, row) {
+		if (!contextMenu || !row) return;
+
+		// Verificar que hay un registro seleccionado
+		if (selectedRowIndex === -1 || selectedRowIndex === null || selectedRowIndex === undefined) {
+			showToast('Por favor, selecciona un registro primero haciendo click en una fila', 'info');
+			return;
+		}
+
+		// Obtener información del telar y salón de la fila seleccionada
+		contextMenuRow = row;
+		contextMenuTelar = getRowTelar(row);
+		contextMenuSalon = getRowSalon(row);
+
+		// Validar que tenemos la información necesaria
+		if (!contextMenuTelar || !contextMenuSalon) {
+			showToast('No se pudo obtener la información del telar', 'error');
+			return;
+		}
+
+		// Posicionar el menú
+		const x = e.clientX;
+		const y = e.clientY;
+		contextMenu.style.left = x + 'px';
+		contextMenu.style.top = y + 'px';
+
+		// Ajustar posición si se sale de la pantalla
+		const rect = contextMenu.getBoundingClientRect();
+		const windowWidth = window.innerWidth;
+		const windowHeight = window.innerHeight;
+
+		if (rect.right > windowWidth) {
+			contextMenu.style.left = (x - rect.width) + 'px';
+		}
+		if (rect.bottom > windowHeight) {
+			contextMenu.style.top = (y - rect.height) + 'px';
+		}
+
+		// Mostrar el menú
+		contextMenu.classList.remove('hidden');
+	}
+
+	function hideContextMenu() {
+		if (contextMenu) {
+			contextMenu.classList.add('hidden');
+		}
+		contextMenuRow = null;
+		contextMenuTelar = null;
+		contextMenuSalon = null;
+	}
+
+	// Modal Duplicar/Dividir Telar - Cargado desde componente separado
+	@include('modulos.programa-tejido.modal.duplicar-dividir')
+
+	// Función para dividir telar
+	async function dividirTelar(row) {
+		const telar = getRowTelar(row);
+		const salon = getRowSalon(row);
+
+		if (!telar || !salon) {
+			showToast('No se pudo obtener la información del telar', 'error');
+			return;
+		}
+
+		// Obtener todos los registros del telar
+		const rowsSameTelar = getRowsByTelar(telar);
+		if (rowsSameTelar.length < 2) {
+			showToast('Se requieren al menos 2 registros para dividir un telar', 'error');
+			return;
+		}
+
+		// Obtener el índice de la fila seleccionada dentro del telar
+		const rowIndex = rowsSameTelar.indexOf(row);
+		if (rowIndex === -1) {
+			showToast('No se pudo determinar la posición del registro', 'error');
+			return;
+		}
+
+		// Mostrar modal para seleccionar dónde dividir
+		const { value: posicionDivision } = await Swal.fire({
+			title: 'Dividir Telar',
+			html: `
+				<div class="text-left">
+					<p class="mb-3">Selecciona dónde dividir el telar <strong>${telar}</strong> (Salón ${salon}):</p>
+					<p class="text-sm text-gray-600 mb-4">Los registros desde la posición seleccionada en adelante se moverán a un nuevo telar.</p>
+					<div class="mb-4">
+						<label class="block text-sm font-medium text-gray-700 mb-2">Posición de división:</label>
+						<select id="posicionDivision" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+							${rowsSameTelar.map((r, idx) => {
+								const registroId = r.getAttribute('data-id');
+								const fechaInicio = r.querySelector('[data-column="FechaInicio"]')?.textContent?.trim() || '';
+								return `<option value="${idx}" ${idx === rowIndex ? 'selected' : ''}>Posición ${idx + 1}${fechaInicio ? ' - ' + fechaInicio : ''}</option>`;
+							}).join('')}
+						</select>
+					</div>
+					<div class="mb-4">
+						<label class="block text-sm font-medium text-gray-700 mb-2">Nuevo telar:</label>
+						<input type="text" id="nuevoTelar" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: ${telar}-2" required>
+					</div>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-2">Nuevo salón (opcional):</label>
+						<input type="text" id="nuevoSalon" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="${salon}">
+					</div>
+				</div>
+			`,
+			icon: 'question',
+			showCancelButton: true,
+			confirmButtonText: 'Dividir',
+			cancelButtonText: 'Cancelar',
+			confirmButtonColor: '#f59e0b',
+			cancelButtonColor: '#6b7280',
+			width: '500px',
+			preConfirm: () => {
+				const posicion = document.getElementById('posicionDivision').value;
+				const nuevoTelar = document.getElementById('nuevoTelar').value.trim();
+				if (!nuevoTelar) {
+					Swal.showValidationMessage('El nuevo telar es requerido');
+					return false;
+				}
+				return {
+					posicion: parseInt(posicion),
+					nuevoTelar: nuevoTelar,
+					nuevoSalon: document.getElementById('nuevoSalon').value.trim() || salon
+				};
+			}
+		});
+
+		if (!posicionDivision) {
+			return;
+		}
+
+		showLoading();
+		try {
+			const response = await fetch('/planeacion/programa-tejido/dividir-telar', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+				},
+				body: JSON.stringify({
+					salon_tejido_id: salon,
+					no_telar_id: telar,
+					posicion_division: posicionDivision.posicion,
+					nuevo_telar: posicionDivision.nuevoTelar,
+					nuevo_salon: posicionDivision.nuevoSalon
+				})
+			});
+
+			const data = await response.json();
+			hideLoading();
+
+			if (data.success) {
+				showToast(data.message || 'Telar dividido correctamente', 'success');
+				// Recargar la página después de un breve delay
+				setTimeout(() => {
+					window.location.reload();
+				}, 1000);
+			} else {
+				showToast(data.message || 'Error al dividir el telar', 'error');
+			}
+		} catch (error) {
+			hideLoading();
+			showToast('Ocurrió un error al procesar la solicitud', 'error');
+			console.error('Error al dividir telar:', error);
+		}
+	}
+
 	// ===== Init =====
 	document.addEventListener('DOMContentLoaded', function() {
 		const tb = tbodyEl();
@@ -1815,6 +2069,9 @@
 		updateFilterCount();
 		window.addEventListener('resize', () => updatePinnedColumnsPositions());
 
+		// Inicializar menú contextual
+		initContextMenu();
+
 		// Inicializar botones del layout como deshabilitados
 		const btnEditarLayout = document.getElementById('layoutBtnEditar');
 		const btnEliminarLayout = document.getElementById('layoutBtnEliminar');
@@ -1827,9 +2084,6 @@
 			// Remover onclick del HTML si existe para evitar doble ejecución
 			btnInlineEdit.removeAttribute('onclick');
 			btnInlineEdit.addEventListener('click', toggleInlineEditMode);
-			console.log('✅ Event listener agregado a btnInlineEdit');
-		} else {
-			console.warn('⚠️ btnInlineEdit no encontrado en DOMContentLoaded');
 		}
 		if (btnEliminarLayout) {
 			btnEliminarLayout.disabled = true;

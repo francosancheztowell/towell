@@ -6,7 +6,7 @@ use App\Http\Controllers\CatalagoEficienciaController;
 use App\Http\Controllers\CatalagoTelarController;
 use App\Http\Controllers\CatalagoVelocidadController;
 use App\Http\Controllers\CortesEficienciaController;
-use App\Http\Controllers\ProgramaTejidoController;
+use App\Http\Controllers\ProgramaTejido\ProgramaTejidoController;
 use App\Http\Controllers\RequerimientoController;
 use App\Http\Controllers\SecuenciaInvTelasController;
 use App\Http\Controllers\SecuenciaInvTramaController;
@@ -510,6 +510,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/aplicaciones/{aplicacion}', [AplicacionesController::class, 'destroy'])->name('aplicaciones.destroy');
 
         // Rutas CRUD para matriz de hilos
+        Route::get('/catalogos/matriz-hilos/list', [App\Http\Controllers\MatrizHilosController::class, 'list'])->name('matriz-hilos.list');
         Route::post('/catalogos/matriz-hilos', [App\Http\Controllers\MatrizHilosController::class, 'store'])->name('matriz-hilos.store');
         Route::get('/catalogos/matriz-hilos/{id}', [App\Http\Controllers\MatrizHilosController::class, 'show'])->name('matriz-hilos.show');
         Route::put('/catalogos/matriz-hilos/{id}', [App\Http\Controllers\MatrizHilosController::class, 'update'])->name('matriz-hilos.update');
@@ -766,6 +767,8 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Control
     Route::post('/planeacion/programa-tejido/{id}/prioridad/mover', [ProgramaTejidoController::class, 'moveToPosition'])->name('programa-tejido.prioridad.mover');
     Route::post('/planeacion/programa-tejido/{id}/verificar-cambio-telar', [ProgramaTejidoController::class, 'verificarCambioTelar'])->name('programa-tejido.verificar-cambio-telar');
     Route::post('/planeacion/programa-tejido/{id}/cambiar-telar', [ProgramaTejidoController::class, 'cambiarTelar'])->name('programa-tejido.cambiar-telar');
+    Route::post('/planeacion/programa-tejido/duplicar-telar', [ProgramaTejidoController::class, 'duplicarTelar'])->name('programa-tejido.duplicar-telar');
+    Route::post('/planeacion/programa-tejido/dividir-telar', [ProgramaTejidoController::class, 'dividirTelar'])->name('programa-tejido.dividir-telar');
     Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'destroy'])->name('programa-tejido.destroy');
         // JSON: ReqProgramaTejidoLine dentro de planeación
         Route::get('/planeacion/req-programa-tejido-line', [\App\Http\Controllers\ReqProgramaTejidoLineController::class, 'index']);

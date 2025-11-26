@@ -1046,47 +1046,39 @@ class ReservarProgramarController extends Controller
 
     /**
      * Buscar BOM (L.Mat Urdido) con autocompletado
-     * Filtra por ItemGroupId = 'JUL-URD' y DataAreaId = 'PRO'
+     * Filtra por BOMID que empieza con 'URD' y DataAreaId = 'PRO'
      */
     public function buscarBomUrdido(Request $request)
     {
         try {
             $query = trim((string) $request->query('q', ''));
 
+            // Consulta base: BOMs de urdido empiezan con 'URD'
             $q = DB::connection('sqlsrv_ti')
                 ->table('BOMTABLE as bt')
-                ->join('BOM as b', function($join) {
-                    $join->on('b.BOMID', '=', 'bt.BOMID')
-                         ->on('b.DATAAREAID', '=', 'bt.DATAAREAID');
-                })
-                ->leftJoin('INVENTTABLE as it', function($join) {
-                    $join->on('it.ITEMID', '=', 'b.ITEMID')
-                         ->on('it.DATAAREAID', '=', 'b.DATAAREAID');
-                })
                 ->where('bt.DATAAREAID', 'PRO')
-                ->where('bt.ITEMGROUPID', 'JUL-URD');
+                ->where('bt.BOMID', 'LIKE', 'URD %'); // BOMs de urdido empiezan con 'URD '
 
+            // Filtrar por término de búsqueda
             if (strlen($query) >= 1) {
                 $q->where(function($subQ) use ($query) {
-                    $subQ->where('bt.BOMID', 'LIKE', $query . '%')
-                         ->orWhere('b.ITEMID', 'LIKE', $query . '%')
-                         ->orWhere('it.ITEMNAME', 'LIKE', '%' . $query . '%');
+                    $subQ->where('bt.BOMID', 'LIKE', '%' . $query . '%')
+                         ->orWhere('bt.NAME', 'LIKE', '%' . $query . '%');
                 });
             }
 
-            return response()->json(
-                $q->select(
-                        'bt.BOMID as BOMID',
-                        'b.ITEMID as ITEMID',
-                        DB::raw('COALESCE(it.ITEMNAME, b.ITEMID) as ITEMNAME')
-                    )
-                  ->distinct()
-                  ->orderBy('bt.BOMID')
-                  ->limit(20)
-                  ->get()
-            );
+            $results = $q->select(
+                    'bt.BOMID as BOMID',
+                    'bt.NAME as NAME'
+                )
+              ->distinct()
+              ->orderBy('bt.BOMID')
+              ->limit(20)
+              ->get();
+
+            return response()->json($results);
         } catch (\Throwable $e) {
-            Log::error('buscarBomUrdido: Error', ['message' => $e->getMessage(), 'query' => $query]);
+            Log::error('buscarBomUrdido: Error', ['message' => $e->getMessage(), 'query' => $query ?? '']);
             return response()->json(['error' => 'Error al buscar BOM'], 500);
         }
     }
@@ -1354,47 +1346,39 @@ class ReservarProgramarController extends Controller
 
     /**
      * Buscar BOM (L.Mat Engomado) con autocompletado
-     * Filtra por ItemGroupId = 'JUL-ENG' y DataAreaId = 'PRO'
+     * Filtra por BOMID que empieza con 'ENG' y DataAreaId = 'PRO'
      */
     public function buscarBomEngomado(Request $request)
     {
         try {
             $query = trim((string) $request->query('q', ''));
 
+            // Consulta base: BOMs de engomado empiezan con 'ENG'
             $q = DB::connection('sqlsrv_ti')
                 ->table('BOMTABLE as bt')
-                ->join('BOM as b', function($join) {
-                    $join->on('b.BOMID', '=', 'bt.BOMID')
-                         ->on('b.DATAAREAID', '=', 'bt.DATAAREAID');
-                })
-                ->leftJoin('INVENTTABLE as it', function($join) {
-                    $join->on('it.ITEMID', '=', 'b.ITEMID')
-                         ->on('it.DATAAREAID', '=', 'b.DATAAREAID');
-                })
                 ->where('bt.DATAAREAID', 'PRO')
-                ->where('bt.ITEMGROUPID', 'JUL-ENG');
+                ->where('bt.BOMID', 'LIKE', 'ENG %'); // BOMs de engomado empiezan con 'ENG '
 
+            // Filtrar por término de búsqueda
             if (strlen($query) >= 1) {
                 $q->where(function($subQ) use ($query) {
-                    $subQ->where('bt.BOMID', 'LIKE', $query . '%')
-                         ->orWhere('b.ITEMID', 'LIKE', $query . '%')
-                         ->orWhere('it.ITEMNAME', 'LIKE', '%' . $query . '%');
+                    $subQ->where('bt.BOMID', 'LIKE', '%' . $query . '%')
+                         ->orWhere('bt.NAME', 'LIKE', '%' . $query . '%');
                 });
             }
 
-            return response()->json(
-                $q->select(
-                        'bt.BOMID as BOMID',
-                        'b.ITEMID as ITEMID',
-                        DB::raw('COALESCE(it.ITEMNAME, b.ITEMID) as ITEMNAME')
-                    )
-                  ->distinct()
-                  ->orderBy('bt.BOMID')
-                  ->limit(20)
-                  ->get()
-            );
+            $results = $q->select(
+                    'bt.BOMID as BOMID',
+                    'bt.NAME as NAME'
+                )
+              ->distinct()
+              ->orderBy('bt.BOMID')
+              ->limit(20)
+              ->get();
+
+            return response()->json($results);
         } catch (\Throwable $e) {
-            Log::error('buscarBomEngomado: Error', ['message' => $e->getMessage(), 'query' => $query]);
+            Log::error('buscarBomEngomado: Error', ['message' => $e->getMessage(), 'query' => $query ?? '']);
             return response()->json(['error' => 'Error al buscar BOM de engomado'], 500);
         }
     }

@@ -32,6 +32,8 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
             $row = $this->normalizeRowKeys($rawRow);
 	        $this->rowCounter++;
 
+            // Logging removido para rendimiento
+
             // Detectar si el campo Ultimo contiene "ULTIMO" y establecerlo a '1'
             $ultimoValue = $this->getValue($row, ['Último','Ultimo','ultimo']);
             $isUltimo = (strtoupper(trim((string)($ultimoValue ?? ''))) === 'ULTIMO');
@@ -217,17 +219,13 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
             $modelo = new ReqProgramaTejido($data);
 
-		$this->processedRows++;
-		return $modelo;
+            // Logging removido para rendimiento
+
+            $this->processedRows++;
+            return $modelo;
 
         } catch (\Throwable $e) {
-            Log::error('Error importando fila', [
-                'row_num' => $this->rowCounter,
-                'msg'     => $e->getMessage(),
-                'file'    => $e->getFile(),
-                'line'    => $e->getLine(),
-                'data_payload' => isset($data) ? $data : null,
-            ]);
+            // Silenciar logs detallados para rendimiento; se incrementa skippedRows
             $this->skippedRows++;
             return null;
         }

@@ -364,7 +364,7 @@
             inputsSelector: '[data-bom-input="true"]',
             searchRoute: config.routes.buscarBomUrdido,
             containerId: 'bom-suggestions-global',
-            getLabel: s => `${s.BOMID} - ${s.ITEMNAME || s.ITEMID || ''}`,
+            getLabel: s => `${s.BOMID} - ${s.NAME || ''}`,
             onSelect: (inputEl, sug, hide) => {
                 inputEl.value = sug.BOMID;
                 inputEl.dataset.bomId = sug.BOMID;
@@ -407,7 +407,7 @@
             inputsSelector: '#inputLMatEngomado',
             searchRoute: config.routes.buscarBomEngomado,
             containerId: 'bom-engomado-suggestions',
-            getLabel: s => `${s.BOMID} - ${s.ITEMNAME || s.ITEMID || ''}`,
+            getLabel: s => `${s.BOMID} - ${s.NAME || ''}`,
             onSelect: (inputEl, sug, hide) => { inputEl.value = sug.BOMID; hide(); }
         });
     }

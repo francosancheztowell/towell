@@ -34,14 +34,8 @@ class ReqProgramaTejidoObserver
         try {
             // Verificar que el ID existe
             if (!$programa->Id || $programa->Id <= 0) {
-                Log::warning('ReqProgramaTejidoObserver: ID del programa no está disponible', [
-                    'programa_id' => $programa->Id,
-                    'programa_id_null' => is_null($programa->Id),
-                ]);
                 return;
             }
-
-            // Log reducido solo para errores críticos
 
             // Calcular las fórmulas de eficiencia una sola vez
             $formulas = $this->calcularFormulasEficiencia($programa);
@@ -51,7 +45,12 @@ class ReqProgramaTejidoObserver
                 foreach ($formulas as $key => $value) {
                     $programa->{$key} = $value;
                 }
-                // Sin logging para mejorar rendimiento
+
+                // Guardar las fórmulas en la base de datos usando update directo
+                // para evitar disparar el Observer nuevamente
+                \Illuminate\Support\Facades\DB::table('ReqProgramaTejido')
+                    ->where('Id', $programa->Id)
+                    ->update($formulas);
             }
 
             // Validar fechas
@@ -66,21 +65,10 @@ class ReqProgramaTejidoObserver
                     $fin = Carbon::parse($programa->FechaFinal);
                 }
             } catch (\Throwable $parseError) {
-                Log::warning('ReqProgramaTejidoObserver: Error al parsear fechas', [
-                    'ProgramaId' => $programa->Id,
-                    'FechaInicio' => $programa->FechaInicio,
-                    'FechaFinal' => $programa->FechaFinal,
-                    'error' => $parseError->getMessage(),
-                ]);
                 return;
             }
 
             if (!$inicio || !$fin || $fin->lte($inicio)) {
-                Log::warning('ReqProgramaTejidoObserver: Fechas inválidas o iguales', [
-                    'ProgramaId' => $programa->Id,
-                    'FechaInicio' => $inicio?->toDateString() ?? 'null',
-                    'FechaFinal' => $fin?->toDateString() ?? 'null',
-                ]);
                 return;
             }
 
@@ -99,12 +87,6 @@ class ReqProgramaTejidoObserver
 
             // Si no hay datos para distribuir, no hacer nada
             if ($totalHoras <= 0 || $totalPzas <= 0) {
-                Log::warning('ReqProgramaTejidoObserver: Sin datos para distribuir', [
-                    'ProgramaId' => $programa->Id,
-                    'totalHoras' => $totalHoras,
-                    'totalPzas' => $totalPzas,
-                    'pesoCrudo' => $pesoCrudo,
-                ]);
                 return;
             }
 
@@ -195,16 +177,9 @@ class ReqProgramaTejidoObserver
                     // IMPORTANTE: Buscar el Factor desde ReqAplicaciones usando AplicacionId
                     $factorAplicacion = null;
                     if ($programa->AplicacionId) {
-                        try {
-                            $aplicacionData = ReqAplicaciones::where('AplicacionId', $programa->AplicacionId)->first();
-                            if ($aplicacionData) {
-                                $factorAplicacion = (float) $aplicacionData->Factor;
-                            }
-                        } catch (\Throwable $e) {
-                            Log::warning('ReqProgramaTejidoObserver: Error al buscar Factor en ReqAplicaciones', [
-                                'AplicacionId' => $programa->AplicacionId,
-                                'error' => $e->getMessage(),
-                            ]);
+                        $aplicacionData = ReqAplicaciones::where('AplicacionId', $programa->AplicacionId)->first();
+                        if ($aplicacionData) {
+                            $factorAplicacion = (float) $aplicacionData->Factor;
                         }
                     }
 
@@ -281,21 +256,10 @@ class ReqProgramaTejidoObserver
                 }
             }
 
-            // Log solo si hay problemas o para debugging crítico
-            if ($creadas === 0) {
-                Log::warning('ReqProgramaTejidoObserver: No se generaron líneas', [
-                    'ProgramaId' => $programa->Id,
-                    'FechaInicio' => $inicio->toDateString(),
-                    'FechaFinal' => $fin->toDateString(),
-                ]);
-            }
+            // Sin logs aquí para rendimiento
 
         } catch (\Throwable $e) {
-            Log::error('ReqProgramaTejidoObserver: Error al generar líneas', [
-                'ProgramaId' => $programa->Id ?? null,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            // Silenciado; si se requiere debug se puede reactivar logging puntual
         }
     }
 
@@ -432,9 +396,8 @@ class ReqProgramaTejidoObserver
                 $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 1000) / ($largoToalla * $anchoToalla), 6);
             }
 
-            // === PASO 3: Calcular DiasEficiencia (en formato d.HH) y DiasEficienciaHoras ===
+            // === PASO 3: Calcular DiasEficiencia (en formato d.HH) ===
             // DiasEficiencia: días.horas (formato d.HH)
-            // DiasEficienciaHoras: horas brutas totales
             if ($diffHoras > 0) {
                 $diasEnteros = (int) floor($diffHoras / 24);
                 $horasRestantes = $diffHoras % 24;
@@ -442,7 +405,7 @@ class ReqProgramaTejidoObserver
                 $diasEficienciaDH = (float) ("$diasEnteros.$horasEnteras");
 
                 $formulas['DiasEficiencia'] = (float) round($diasEficienciaDH, 2);
-                $formulas['DiasEficienciaHoras'] = (float) round($diffHoras, 6);
+                // Nota: DiasEficienciaHoras no existe como columna en la BD, se omite
             }
 
             // === PASO 4: Calcular StdDia y ProdKgDia ===
