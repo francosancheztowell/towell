@@ -4,10 +4,11 @@
 
 <!-- NAVBAR -->
 <nav class="bg-white sticky top-0 z-50">
-    <div class="container mx-auto px-4 md:px-6 py-2">
-        <div class="flex items-center justify-between">
-            <!-- Izquierda -->
-            <div class="flex items-center gap-2 md:gap-3">
+    <div class="w-full mx-auto px-0 md:px-2 py-2">
+        <!-- Contenedor principal: 3 zonas (izquierda, centro, derecha) bien definidas -->
+        <div class="flex items-center gap-2">
+            <!-- Izquierda (botón atrás + logo) -->
+            <div class="flex items-center gap-2 md:gap-3 flex-shrink-0">
                 <button id="btn-back" class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 {{ Route::currentRouteName() === 'produccion.index' ? 'bg-white text-white opacity-0 pointer-events-none' : 'bg-blue-200 hover:bg-blue-400 text-black opacity-100' }}"
                     title="Volver atrás" aria-label="Volver atrás" {{ Route::currentRouteName() === 'produccion.index' ? 'disabled' : '' }}>
                         <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -20,8 +21,8 @@
                         </a>
                         </div>
 
-            <!-- Centro -->
-                        <div class="flex items-center gap-4">
+            <!-- Centro (título + menú planeación) ocupa el espacio flexible -->
+                        <div class="flex-1 flex items-center justify-center gap-4 min-w-0">
                             @hasSection('page-title')
                                 <h1 class="text-lg md:text-xl lg:text-2xl font-bold text-blue-600 animate-fade-in">
                                     @yield('page-title')
@@ -30,8 +31,8 @@
                             @yield('menu-planeacion')
             </div>
 
-            <!-- Derecha -->
-            <div class="flex items-center gap-4">
+            <!-- Derecha (botones) siempre pegados al lado derecho -->
+            <div class="flex items-center gap-4 flex-shrink-0">
                @section('navbar-right')
 
               @php

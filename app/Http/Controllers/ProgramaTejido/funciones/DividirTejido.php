@@ -43,11 +43,21 @@ class DividirTejido
         $descripcion = $request->input('descripcion');
         $custname = $request->input('custname');
         $inventSizeId = $request->input('invent_size_id');
+        
+        // Verificar si es una redistribución de un grupo existente
+        $ordCompartidaExistente = $request->input('ord_compartida_existente');
+        $registroIdOriginal = $request->input('registro_id_original');
+        $esRedistribucion = !empty($ordCompartidaExistente) && $ordCompartidaExistente !== '0';
 
         DBFacade::beginTransaction();
         ReqProgramaTejido::unsetEventDispatcher();
 
         try {
+            // Si es redistribución, usar lógica diferente
+            if ($esRedistribucion) {
+                return self::redistribuirGrupoExistente($request, $ordCompartidaExistente, $destinos, $salonDestino);
+            }
+            
             // Obtener el último registro del telar original (el que se va a dividir)
             $registroOriginal = ReqProgramaTejido::query()
                 ->salon($salonOrigen)
@@ -385,6 +395,226 @@ class DividirTejido
         }
 
         return $formulas;
+    }
+    
+    /**
+     * Redistribuir cantidades en un grupo existente de OrdCompartida
+     * Actualiza registros existentes y crea nuevos si es necesario
+     */
+    private static function redistribuirGrupoExistente(Request $request, $ordCompartida, $destinos, $salonDestino)
+    {
+        try {
+            // Obtener todos los registros del grupo
+            $registrosExistentes = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
+                ->orderBy('FechaInicio')
+                ->get();
+                
+            if ($registrosExistentes->isEmpty()) {
+                DBFacade::rollBack();
+                ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron registros para el grupo OrdCompartida: ' . $ordCompartida
+                ], 404);
+            }
+            
+            // Calcular la duración total original (usaremos el primer registro como base)
+            $primerRegistro = $registrosExistentes->first();
+            $fechaInicioBase = $primerRegistro->FechaInicio ? Carbon::parse($primerRegistro->FechaInicio) : Carbon::now();
+            
+            // Calcular cantidad total del grupo para proporciones
+            $cantidadTotalGrupo = $registrosExistentes->sum('TotalPedido');
+            
+            // Calcular duración promedio por unidad (basado en el primer registro)
+            $fechaFinalPrimer = $primerRegistro->FechaFinal ? Carbon::parse($primerRegistro->FechaFinal) : null;
+            $duracionPrimerSegundos = ($fechaInicioBase && $fechaFinalPrimer) 
+                ? abs($fechaFinalPrimer->getTimestamp() - $fechaInicioBase->getTimestamp())
+                : 0;
+            $cantidadPrimer = (float) ($primerRegistro->TotalPedido ?? 1);
+            $segundosPorUnidad = $cantidadPrimer > 0 ? $duracionPrimerSegundos / $cantidadPrimer : 0;
+            
+            $idsParaObserver = [];
+            $totalActualizados = 0;
+            $totalCreados = 0;
+            
+            // Mapear destinos por registro_id para actualizaciones
+            $destinosPorId = [];
+            $destinosNuevos = [];
+            
+            foreach ($destinos as $destino) {
+                $registroId = $destino['registro_id'] ?? '';
+                $esExistente = isset($destino['es_existente']) && $destino['es_existente'];
+                $esNuevo = isset($destino['es_nuevo']) && $destino['es_nuevo'];
+                
+                if ($registroId && $esExistente) {
+                    $destinosPorId[$registroId] = $destino;
+                } elseif ($esNuevo || !$registroId) {
+                    $destinosNuevos[] = $destino;
+                }
+            }
+            
+            // Actualizar registros existentes
+            foreach ($registrosExistentes as $registro) {
+                $registroId = (string) $registro->Id;
+                
+                if (isset($destinosPorId[$registroId])) {
+                    $destino = $destinosPorId[$registroId];
+                    $nuevaCantidad = (float) ($destino['pedido'] ?? 0);
+                    
+                    if ($nuevaCantidad > 0) {
+                        $registro->TotalPedido = $nuevaCantidad;
+                        $produccion = (float) ($registro->Produccion ?? 0);
+                        $registro->SaldoPedido = max(0, $nuevaCantidad - $produccion);
+                        
+                        // Recalcular fecha final proporcionalmente
+                        if ($segundosPorUnidad > 0) {
+                            $nuevaDuracion = $segundosPorUnidad * $nuevaCantidad;
+                            $fechaInicioRegistro = $registro->FechaInicio ? Carbon::parse($registro->FechaInicio) : $fechaInicioBase;
+                            $registro->FechaFinal = $fechaInicioRegistro->copy()->addSeconds((int) round($nuevaDuracion))->format('Y-m-d H:i:s');
+                        }
+                        
+                        // Recalcular fórmulas
+                        if ($registro->FechaInicio && $registro->FechaFinal) {
+                            $formulas = self::calcularFormulasEficiencia($registro);
+                            foreach ($formulas as $campo => $valor) {
+                                $registro->{$campo} = $valor;
+                            }
+                        }
+                        
+                        $registro->UpdatedAt = now();
+                        $registro->save();
+                        $idsParaObserver[] = $registro->Id;
+                        $totalActualizados++;
+                    }
+                }
+            }
+            
+            // Crear nuevos registros
+            foreach ($destinosNuevos as $destino) {
+                $telarDestino = $destino['telar'] ?? '';
+                $pedidoDestino = (float) ($destino['pedido'] ?? 0);
+                
+                if (empty($telarDestino) || $pedidoDestino <= 0) {
+                    continue;
+                }
+                
+                // Obtener el último registro del telar destino
+                $ultimoRegistroDestino = ReqProgramaTejido::query()
+                    ->salon($salonDestino)
+                    ->telar($telarDestino)
+                    ->orderBy('FechaInicio', 'desc')
+                    ->first();
+                
+                // Quitar Ultimo=1 del registro anterior del telar destino
+                if ($ultimoRegistroDestino && $ultimoRegistroDestino->Ultimo == 1) {
+                    ReqProgramaTejido::where('Id', $ultimoRegistroDestino->Id)
+                        ->update(['Ultimo' => 0]);
+                }
+                
+                // Determinar fecha de inicio
+                $fechaInicioNuevo = $ultimoRegistroDestino && $ultimoRegistroDestino->FechaFinal
+                    ? Carbon::parse($ultimoRegistroDestino->FechaFinal)
+                    : $fechaInicioBase->copy();
+                
+                // Crear nuevo registro basado en el primero del grupo
+                $nuevo = $primerRegistro->replicate();
+                
+                // Campos básicos
+                $nuevo->SalonTejidoId = $salonDestino;
+                $nuevo->NoTelarId = $telarDestino;
+                $nuevo->EnProceso = 0;
+                $nuevo->Ultimo = 1;
+                $nuevo->CambioHilo = 0;
+                $nuevo->Produccion = null;
+                $nuevo->Programado = null;
+                $nuevo->NoProduccion = null;
+                $nuevo->ProgramarProd = Carbon::now()->format('Y-m-d');
+                
+                // OrdCompartida - mismo número que el grupo
+                $nuevo->OrdCompartida = (int) $ordCompartida;
+                
+                // Cantidad del nuevo registro
+                $nuevo->TotalPedido = $pedidoDestino;
+                $nuevo->SaldoPedido = $pedidoDestino;
+                
+                // Fechas
+                $nuevo->FechaInicio = $fechaInicioNuevo->format('Y-m-d H:i:s');
+                
+                // Calcular duración proporcional
+                if ($segundosPorUnidad > 0) {
+                    $duracionNueva = $segundosPorUnidad * $pedidoDestino;
+                    $nuevo->FechaFinal = $fechaInicioNuevo->copy()->addSeconds((int) round($duracionNueva))->format('Y-m-d H:i:s');
+                } else {
+                    $nuevo->FechaFinal = $fechaInicioNuevo->copy()->addDays(30)->format('Y-m-d H:i:s');
+                }
+                
+                // CambioHilo
+                if ($ultimoRegistroDestino) {
+                    $fibraRizoNuevo = trim((string) $nuevo->FibraRizo);
+                    $fibraRizoAnterior = trim((string) $ultimoRegistroDestino->FibraRizo);
+                    $nuevo->CambioHilo = ($fibraRizoNuevo !== $fibraRizoAnterior) ? '1' : '0';
+                }
+                
+                // Calcular fórmulas
+                if ($nuevo->FechaInicio && $nuevo->FechaFinal) {
+                    $formulas = self::calcularFormulasEficiencia($nuevo);
+                    foreach ($formulas as $campo => $valor) {
+                        $nuevo->{$campo} = $valor;
+                    }
+                }
+                
+                $nuevo->CreatedAt = now();
+                $nuevo->UpdatedAt = now();
+                $nuevo->save();
+                
+                $idsParaObserver[] = $nuevo->Id;
+                $totalCreados++;
+            }
+            
+            DBFacade::commit();
+            
+            // Re-habilitar observer
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            
+            // Disparar observer manualmente para generar las líneas
+            $observer = new ReqProgramaTejidoObserver();
+            foreach ($idsParaObserver as $idActualizado) {
+                $registro = ReqProgramaTejido::find($idActualizado);
+                if ($registro) {
+                    $observer->saved($registro);
+                }
+            }
+            
+            // Obtener el primer registro nuevo creado para redirigir (si hay)
+            $primerNuevoCreado = $totalCreados > 0 && !empty($idsParaObserver)
+                ? ReqProgramaTejido::find(end($idsParaObserver))
+                : $registrosExistentes->first();
+            
+            return response()->json([
+                'success' => true,
+                'message' => "Redistribución completada. Actualizados: {$totalActualizados}, Nuevos: {$totalCreados}.",
+                'registros_actualizados' => $totalActualizados,
+                'registros_creados' => $totalCreados,
+                'ord_compartida' => $ordCompartida,
+                'registro_id' => $primerNuevoCreado?->Id,
+                'salon_destino' => $primerNuevoCreado?->SalonTejidoId,
+                'telar_destino' => $primerNuevoCreado?->NoTelarId
+            ]);
+            
+        } catch (\Throwable $e) {
+            DBFacade::rollBack();
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            LogFacade::error('redistribuirGrupoExistente error', [
+                'ord_compartida' => $ordCompartida,
+                'msg' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al redistribuir el grupo: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
 

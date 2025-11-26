@@ -1,6 +1,10 @@
 {{-- Modal Duplicar Registro - Componente separado --}}
 {{-- NOTA: Este archivo se incluye dentro de un bloque <script>, NO agregar etiquetas <script> aquí --}}
 
+// Variable global para almacenar registros existentes de OrdCompartida
+let registrosOrdCompartidaExistentes = [];
+let ordCompartidaActual = null;
+
 // ===== Función para duplicar y dividir telar =====
 async function duplicarTelar(row) {
 	const telar = getRowTelar(row);
@@ -19,10 +23,19 @@ async function duplicarTelar(row) {
 	const hilo = row.querySelector('[data-column="FibraRizo"]')?.textContent?.trim() || '';
 	const pedido = row.querySelector('[data-column="TotalPedido"]')?.textContent?.trim() || '';
 	const flog = row.querySelector('[data-column="FlogsId"]')?.textContent?.trim() || '';
+	const saldo = row.querySelector('[data-column="SaldoPedido"]')?.textContent?.trim() || pedido;
+
+	// Verificar si el registro ya tiene OrdCompartida (ya fue dividido antes)
+	const ordCompartida = row.querySelector('[data-column="OrdCompartida"]')?.textContent?.trim() || '';
+	const registroId = row.getAttribute('data-id');
+
+	// Resetear variables globales
+	registrosOrdCompartidaExistentes = [];
+	ordCompartidaActual = ordCompartida ? parseInt(ordCompartida) : null;
 
 	// Modal con formato de tabla
 	const resultado = await Swal.fire({
-		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, flog }),
+		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, registroId }),
 		width: '750px',
 		showCancelButton: true,
 		confirmButtonText: 'Aceptar',
@@ -34,7 +47,7 @@ async function duplicarTelar(row) {
 			cancelButton: 'ml-2 inline-flex justify-center px-4 py-2 text-sm font-semibold rounded-md text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300'
 		},
 		didOpen: () => {
-			initModalDuplicar(telar, hilo);
+			initModalDuplicar(telar, hilo, ordCompartida, registroId);
 		},
 		preConfirm: () => {
 			return validarYCapturarDatosDuplicar();
@@ -79,7 +92,9 @@ async function duplicarTelar(row) {
 				modo: datos.modo,
 				descripcion: datos.descripcion,
 				custname: datos.custname,
-				invent_size_id: datos.inventSizeId
+				invent_size_id: datos.inventSizeId,
+				ord_compartida_existente: datos.ord_compartida_existente,
+				registro_id_original: datos.registro_id_original
 			})
 		});
 
@@ -112,13 +127,27 @@ async function duplicarTelar(row) {
 }
 
 // Genera el HTML del modal de duplicar
-function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, flog }) {
+function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, registroId }) {
+	// Determinar si ya está dividido (tiene OrdCompartida)
+	const yaDividido = ordCompartida && ordCompartida !== '' && ordCompartida !== '0';
+	const badgeOrdCompartida = yaDividido
+		? ''
+		: '';
+
 	return `
 		<div class="text-left">
 			<div id="alerta-clave-modelo" class="hidden mb-3 px-4 py-2 bg-amber-50 border border-amber-300 rounded-md text-amber-700 text-sm">
 				<i class="fas fa-exclamation-triangle mr-2"></i>
 				<span id="alerta-clave-modelo-texto"></span>
 			</div>
+
+			<!-- Indicador de registro ya dividido -->
+			${yaDividido ? `
+			<div id="info-ord-compartida" class="mb-3 px-4 py-2 bg-green-50 border border-green-300 rounded-md text-green-700 text-sm">
+				<span>Este registro ya pertenece a un grupo dividido. Al cambiar a modo "Dividir", verás los telares existentes.</span>
+			</div>
+			` : ''}
+
 			<table class="w-full border-collapse">
 				<tbody>
 					<tr class="border-b border-gray-200">
@@ -154,7 +183,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 									</select>
 								</div>
 								<div>
-									<label class="block mb-1 text-sm font-medium text-gray-700">Pedido</label>
+									<label class="block mb-1 text-sm font-medium text-gray-700">Pedido Total ${badgeOrdCompartida}</label>
 									<input type="text" id="swal-pedido" value="${pedido}"
 										class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
 								</div>
@@ -222,6 +251,11 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 			<!-- Campos ocultos para datos del telar original -->
 			<input type="hidden" id="telar-original" value="${telar}">
 			<input type="hidden" id="pedido-original" value="${pedido}">
+			<input type="hidden" id="saldo-original" value="${saldo}">
+			<input type="hidden" id="ord-compartida-original" value="${ordCompartida}">
+			<input type="hidden" id="registro-id-original" value="${registroId}">
+
+
 
 			<!-- Tabla de Telar y Pedido -->
 			<div class="border border-gray-300 rounded-lg overflow-hidden">
@@ -258,7 +292,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 }
 
 // Inicializa los eventos y carga de datos del modal
-function initModalDuplicar(telar, hiloActualParam) {
+function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroIdParam) {
 	const btnAdd = document.getElementById('btn-add-telar-row');
 	const tbody = document.getElementById('telar-pedido-body');
 	const selectHilo = document.getElementById('swal-hilo');
@@ -274,6 +308,11 @@ function initModalDuplicar(telar, hiloActualParam) {
 	const salonActual = selectSalon?.dataset?.salonActual || '';
 	const telarActual = telar || '';
 	const confirmButton = Swal.getConfirmButton();
+
+	// Datos de OrdCompartida
+	const ordCompartidaActualLocal = ordCompartidaParam || document.getElementById('ord-compartida-original')?.value || '';
+	const registroIdActual = registroIdParam || document.getElementById('registro-id-original')?.value || '';
+	const tieneOrdCompartida = ordCompartidaActualLocal && ordCompartidaActualLocal !== '' && ordCompartidaActualLocal !== '0';
 
 	// Variables para almacenar datos cargados
 	let telaresDisponibles = [];
@@ -871,13 +910,19 @@ function initModalDuplicar(telar, hiloActualParam) {
 	const pedidoOriginal = document.getElementById('pedido-original')?.value || '';
 
 	// Función para reconstruir la tabla según el modo
-	function reconstruirTablaSegunModo(esDuplicar) {
+	async function reconstruirTablaSegunModo(esDuplicar) {
 		// Limpiar filas adicionales
 		const filasAdicionales = tbody.querySelectorAll('tr:not(#fila-principal)');
 		filasAdicionales.forEach(fila => fila.remove());
 
 		const filaPrincipal = document.getElementById('fila-principal');
 		if (!filaPrincipal) return;
+
+		// Mostrar/ocultar resumen de cantidades
+		const resumenCantidades = document.getElementById('resumen-cantidades');
+		if (resumenCantidades) {
+			resumenCantidades.classList.toggle('hidden', esDuplicar);
+		}
 
 		if (esDuplicar) {
 			// === MODO DUPLICAR ===
@@ -924,25 +969,34 @@ function initModalDuplicar(telar, hiloActualParam) {
 			if (thTelar) thTelar.textContent = 'Telar';
 			if (thPedido) thPedido.textContent = 'Cantidad a asignar';
 
-			// Primera fila: telar ORIGINAL bloqueado (readonly)
-			filaPrincipal.innerHTML = `
-				<td class="p-2 border-r border-gray-200">
-					<div class="flex items-center gap-2">
-						<input type="text" name="telar-destino[]" value="${telarOriginal}" readonly
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
-					</div>
-				</td>
-				<td class="p-2">
-					<input type="text" name="pedido-destino[]" value="${pedidoOriginal}" placeholder="Cantidad para este telar..."
-						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-				</td>
-				<td class="p-2 text-center w-10">
-					<i class="fas fa-lock text-gray-400" title="Telar origen"></i>
-				</td>
-			`;
+			// Verificar si ya tiene OrdCompartida (ya fue dividido antes)
+			if (tieneOrdCompartida) {
+				// Cargar registros existentes del grupo
+				await cargarRegistrosOrdCompartida(ordCompartidaActualLocal);
+			} else {
+				// Primera división - comportamiento original
+				// Primera fila: telar ORIGINAL bloqueado (readonly)
+				filaPrincipal.innerHTML = `
+					<td class="p-2 border-r border-gray-200">
+						<div class="flex items-center gap-2">
+							<input type="text" name="telar-destino[]" value="${telarOriginal}" readonly
+								data-registro-id=""
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+						</div>
+					</td>
+					<td class="p-2">
+						<input type="text" name="pedido-destino[]" value="${pedidoOriginal}" placeholder="Cantidad para este telar..."
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+							oninput="actualizarResumenCantidades()">
+					</td>
+					<td class="p-2 text-center w-10">
+						<i class="fas fa-lock text-gray-400" title="Telar origen"></i>
+					</td>
+				`;
 
-			// Agregar automáticamente una fila para el telar destino
-			agregarFilaDividir();
+				// Agregar automáticamente una fila para el telar destino
+				agregarFilaDividir();
+			}
 
 			// Re-registrar eventos
 			const pedidoInput = filaPrincipal.querySelector('input[name="pedido-destino[]"]:not([readonly])');
@@ -952,14 +1006,226 @@ function initModalDuplicar(telar, hiloActualParam) {
 		recomputeState();
 	}
 
+	// Función para cargar registros existentes de OrdCompartida
+	async function cargarRegistrosOrdCompartida(ordCompartida) {
+		if (!ordCompartida) return;
+
+		try {
+			const response = await fetch(`/planeacion/programa-tejido/registros-ord-compartida/${ordCompartida}`, {
+				headers: {
+					'Accept': 'application/json',
+					'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+				}
+			});
+
+			const data = await response.json();
+
+			if (data.success && data.registros && data.registros.length > 0) {
+				registrosOrdCompartidaExistentes = data.registros;
+				const totalOriginal = data.total_original || 0;
+
+				// Actualizar el total disponible (para el resumen)
+				const totalDisponible = document.getElementById('total-disponible');
+				if (totalDisponible) {
+					totalDisponible.textContent = totalOriginal;
+				}
+
+				// Actualizar el campo "Pedido Total" con la suma de las cantidades de los telares divididos
+				const inputPedidoTotal = document.getElementById('swal-pedido');
+				if (inputPedidoTotal) {
+					inputPedidoTotal.value = totalOriginal;
+				}
+
+				// Limpiar tabla
+				tbody.innerHTML = '';
+
+				// Crear filas para cada registro existente
+				data.registros.forEach((reg, index) => {
+					const esRegistroActual = reg.Id == registroIdActual;
+					const esPrimero = index === 0;
+					const puedeEliminar = !esPrimero && !reg.EnProceso;
+
+					const newRow = document.createElement('tr');
+					newRow.className = 'telar-row border-t border-gray-200';
+					newRow.id = esPrimero ? 'fila-principal' : '';
+					newRow.dataset.registroId = reg.Id;
+					newRow.dataset.esExistente = 'true';
+
+					newRow.innerHTML = `
+						<td class="p-2 border-r border-gray-200">
+							<div class="flex items-center gap-2">
+								<input type="text" name="telar-destino[]" value="${reg.NoTelarId}" readonly
+									data-registro-id="${reg.Id}"
+									class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+								${reg.EnProceso ? '<span class="text-xs text-blue-600"><i class="fas fa-play-circle"></i></span>' : ''}
+							</div>
+						</td>
+						<td class="p-2">
+							<input type="text" name="pedido-destino[]" value="${reg.TotalPedido || 0}"
+								placeholder="Cantidad..."
+								data-registro-id="${reg.Id}"
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+								oninput="actualizarResumenCantidades()">
+						</td>
+						<td class="p-2 text-center w-10">
+							${esPrimero
+								? '<i class="fas fa-lock text-gray-400" title="Telar origen"></i>'
+								: (puedeEliminar
+									? '<button type="button" class="btn-remove-row text-red-500 hover:text-red-700 transition-colors" title="Eliminar"><i class="fas fa-times"></i></button>'
+									: '<i class="fas fa-lock text-gray-400" title="En proceso"></i>')}
+						</td>
+					`;
+
+				tbody.appendChild(newRow);
+
+					// Evento para eliminar fila (solo si puede eliminar)
+					if (puedeEliminar) {
+						const btnRemove = newRow.querySelector('.btn-remove-row');
+						if (btnRemove) {
+							btnRemove.addEventListener('click', function(e) {
+								e.preventDefault();
+								e.stopPropagation();
+
+								const registroIdEliminar = reg.Id;
+								const telarEliminar = reg.NoTelarId;
+								const cantidadRegistro = parseFloat(reg.TotalPedido) || 0;
+								const filaAEliminar = newRow;
+
+								// Confirmar con SweetAlert2
+								Swal.fire({
+									title: '¿Eliminar registro?',
+									html: `<p>Se eliminará el registro del telar <strong>${telarEliminar}</strong> de la base de datos.</p>
+										   <p class="text-sm text-gray-500 mt-2">Esta acción no se puede deshacer.</p>`,
+									icon: 'warning',
+									showCancelButton: true,
+									confirmButtonText: 'Sí, eliminar',
+									cancelButtonText: 'Cancelar',
+									confirmButtonColor: '#dc2626',
+									cancelButtonColor: '#6b7280',
+									reverseButtons: true,
+									focusCancel: true
+								}).then((result) => {
+									if (result.isConfirmed) {
+										// Mostrar loading
+										Swal.fire({
+											title: 'Eliminando...',
+											text: 'Por favor espere',
+											allowOutsideClick: false,
+											allowEscapeKey: false,
+											showConfirmButton: false,
+											didOpen: () => {
+												Swal.showLoading();
+											}
+										});
+
+										// Eliminar de la base de datos
+										fetch(`/planeacion/programa-tejido/${registroIdEliminar}`, {
+											method: 'DELETE',
+											headers: {
+												'Content-Type': 'application/json',
+												'Accept': 'application/json',
+												'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+											}
+										})
+										.then(response => response.json())
+										.then(dataDelete => {
+											Swal.close();
+
+										if (dataDelete.success) {
+												// Mostrar mensaje de éxito y recargar la página
+												Swal.fire({
+													icon: 'success',
+													title: '¡Eliminado!',
+													text: 'El registro ha sido eliminado correctamente',
+													timer: 1500,
+													showConfirmButton: false
+												}).then(() => {
+													// Recargar la página
+													window.location.reload();
+												});
+											} else {
+												Swal.fire({
+													icon: 'error',
+													title: 'Error',
+													text: dataDelete.message || 'Error al eliminar el registro'
+												});
+											}
+										})
+										.catch(error => {
+											console.error('Error al eliminar registro:', error);
+											Swal.fire({
+												icon: 'error',
+												title: 'Error',
+												text: 'Error al eliminar el registro'
+											});
+										});
+									}
+								});
+							});
+						}
+					}
+
+					// Evento para actualizar al cambiar cantidad
+					const pedidoInput = newRow.querySelector('input[name="pedido-destino[]"]');
+					if (pedidoInput) {
+						pedidoInput.addEventListener('input', () => {
+							actualizarResumenCantidades();
+							recomputeState();
+						});
+					}
+				});
+
+				// Actualizar resumen
+				actualizarResumenCantidades();
+			}
+		} catch (error) {
+			console.error('Error al cargar registros de OrdCompartida:', error);
+		}
+	}
+
+	// Función para actualizar el resumen de cantidades
+	function actualizarResumenCantidades() {
+		const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
+		const sumaCantidades = document.getElementById('suma-cantidades');
+		const totalDisponible = document.getElementById('total-disponible');
+		const diferenciaCantidades = document.getElementById('diferencia-cantidades');
+
+		if (!sumaCantidades || !totalDisponible) return;
+
+		let suma = 0;
+		pedidoInputs.forEach(input => {
+			const val = parseFloat(input.value) || 0;
+			suma += val;
+		});
+
+		const total = parseFloat(totalDisponible.textContent) || 0;
+		const diferencia = total - suma;
+
+		sumaCantidades.textContent = suma.toLocaleString('es-MX');
+
+
+	}
+
+	// Hacer la función global para que se pueda llamar desde oninput
+	window.actualizarResumenCantidades = actualizarResumenCantidades;
+
 	// Función para agregar fila en modo dividir
 	function agregarFilaDividir() {
 		const newRow = document.createElement('tr');
 		newRow.className = 'telar-row border-t border-gray-200';
+		newRow.dataset.esExistente = 'false';
+		newRow.dataset.esNuevo = 'true';
+
+		// Obtener telares ya usados en la tabla
+		const telaresUsados = new Set();
+		document.querySelectorAll('[name="telar-destino[]"]').forEach(input => {
+			if (input.value) telaresUsados.add(input.value);
+		});
 
 		let telarOptionsHTML = '<option value="">Seleccionar destino...</option>';
 		telaresDisponibles.forEach(t => {
-			if (t != telarOriginal) { // Excluir el telar original de las opciones
+			// Excluir telares ya usados
+			if (!telaresUsados.has(t)) {
 				telarOptionsHTML += '<option value="' + t + '">' + t + '</option>';
 			}
 		});
@@ -974,7 +1240,8 @@ function initModalDuplicar(telar, hiloActualParam) {
 			</td>
 			<td class="p-2">
 				<input type="text" name="pedido-destino[]" placeholder="Cantidad para este telar..."
-					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+					oninput="actualizarResumenCantidades()">
 			</td>
 			<td class="p-2 text-center w-10">
 				<button type="button" class="btn-remove-row text-red-500 hover:text-red-700 transition-colors" title="Eliminar fila">
@@ -988,13 +1255,19 @@ function initModalDuplicar(telar, hiloActualParam) {
 		// Eventos
 		newRow.querySelector('.btn-remove-row')?.addEventListener('click', () => {
 			newRow.remove();
+			actualizarResumenCantidades();
 			recomputeState();
 		});
 
 		const telarSelect = newRow.querySelector('select[name="telar-destino[]"]');
 		const pedidoInput = newRow.querySelector('input[name="pedido-destino[]"]');
 		if (telarSelect) telarSelect.addEventListener('change', recomputeState);
-		if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
+		if (pedidoInput) {
+			pedidoInput.addEventListener('input', () => {
+				actualizarResumenCantidades();
+				recomputeState();
+			});
+		}
 	}
 
 	function actualizarEstiloSwitch() {
@@ -1089,20 +1362,41 @@ function validarYCapturarDatosDuplicar() {
 	const custname = document.getElementById('swal-custname')?.value || '';
 	const inventSizeId = document.getElementById('swal-inventsizeid')?.value || '';
 
+	// OrdCompartida existente (si el registro ya fue dividido antes)
+	const ordCompartidaExistente = document.getElementById('ord-compartida-original')?.value || '';
+	const registroIdOriginal = document.getElementById('registro-id-original')?.value || '';
+
 	// Capturar múltiples filas de telar/pedido
 	// Nota: en modo dividir, el primer telar es un input readonly, no un select
 	const telarInputs = document.querySelectorAll('[name="telar-destino[]"]'); // Captura tanto select como input
 	const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
+	const filas = document.querySelectorAll('#telar-pedido-body tr');
 	const destinos = [];
 
 	telarInputs.forEach((input, idx) => {
 		const telarVal = input.value.trim();
 		const pedidoVal = pedidoInputs[idx]?.value.trim() || '';
+		const registroId = input.dataset?.registroId || pedidoInputs[idx]?.dataset?.registroId || '';
+		const fila = filas[idx];
+		const esExistente = fila?.dataset?.esExistente === 'true';
+		const esNuevo = fila?.dataset?.esNuevo === 'true';
+
 		if (telarVal || pedidoVal) {
-			destinos.push({ telar: telarVal, pedido: pedidoVal });
+			destinos.push({
+				telar: telarVal,
+				pedido: pedidoVal,
+				registro_id: registroId,
+				es_existente: esExistente,
+				es_nuevo: esNuevo
+			});
 		}
 	});
 
-	return { codArticulo, claveModelo, producto, hilo, pedido, flog, salon, aplicacion, modo, descripcion, custname, inventSizeId, destinos };
+	return {
+		codArticulo, claveModelo, producto, hilo, pedido, flog, salon, aplicacion,
+		modo, descripcion, custname, inventSizeId, destinos,
+		ord_compartida_existente: ordCompartidaExistente,
+		registro_id_original: registroIdOriginal
+	};
 }
 

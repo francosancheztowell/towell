@@ -1266,4 +1266,42 @@ class ProgramaTejidoController extends Controller
     {
         return BalancearTejido::actualizarPedidos($request);
     }
+
+    /**
+     * Obtener todos los registros que comparten el mismo OrdCompartida
+     * Se usa en el modal de dividir para mostrar telares ya divididos
+     */
+    public function getRegistrosPorOrdCompartida($ordCompartida)
+    {
+        try {
+            $registros = ReqProgramaTejido::select([
+                'Id', 'SalonTejidoId', 'NoTelarId', 'ItemId', 'NombreProducto',
+                'TamanoClave', 'TotalPedido', 'SaldoPedido', 'Produccion',
+                'FechaInicio', 'FechaFinal', 'OrdCompartida', 'FibraRizo',
+                'VelocidadSTD', 'EficienciaSTD', 'NoTiras', 'Luchaje', 'PesoCrudo',
+                'EnProceso', 'Ultimo'
+            ])
+            ->where('OrdCompartida', $ordCompartida)
+            ->orderBy('SalonTejidoId')
+            ->orderBy('NoTelarId')
+            ->get();
+
+            // Calcular el total original (suma de todos los TotalPedido)
+            $totalOriginal = $registros->sum('TotalPedido');
+            $totalSaldo = $registros->sum('SaldoPedido');
+
+            return response()->json([
+                'success' => true,
+                'registros' => $registros,
+                'total_original' => $totalOriginal,
+                'total_saldo' => $totalSaldo,
+                'cantidad_registros' => $registros->count()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los registros: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
