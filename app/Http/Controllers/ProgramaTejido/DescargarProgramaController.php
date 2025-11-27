@@ -5,7 +5,6 @@ namespace App\Http\Controllers\ProgramaTejido;
 use App\Http\Controllers\Controller;
 use App\Models\ReqProgramaTejidoLine;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
@@ -91,6 +90,8 @@ class DescargarProgramaController extends Controller
 
             // Agregar encabezado con nombres de columnas
             $encabezados = [];
+            // Agregar columna Id como primera columna (consecutivo)
+            $encabezados[] = 'Id';
             // Encabezados de ReqProgramaTejido: aplicar mapeo solo si existe, sino usar nombre original
             foreach ($columnasPrograma as $columna) {
                 $encabezados[] = $mapeoColumnas[$columna] ?? $columna;
@@ -101,6 +102,10 @@ class DescargarProgramaController extends Controller
             }
             $lineasTxt[] = implode('|', $encabezados);
 
+            // Contador consecutivo para el Id (agrupa por TamanoClave + NoProduccion)
+            $consecutivo = 0;
+            $claveAnterior = null;
+
             foreach ($lineas as $linea) {
                 $valores = [];
 
@@ -110,6 +115,18 @@ class DescargarProgramaController extends Controller
                 if (!$programa) {
                     continue; // Saltar si no hay programa relacionado
                 }
+
+                // Crear clave única con TamanoClave + NoProduccion
+                $claveActual = ($programa->TamanoClave ?? '') . '|' . ($programa->NoProduccion ?? '');
+
+                // Solo incrementar el consecutivo si cambia la combinación TamanoClave + NoProduccion
+                if ($claveActual !== $claveAnterior) {
+                    $consecutivo++;
+                    $claveAnterior = $claveActual;
+                }
+
+                // Agregar Id consecutivo como primer valor
+                $valores[] = $consecutivo;
 
                 // Agregar valores de ReqProgramaTejido (todas las columnas excepto las excluidas)
                 foreach ($columnasPrograma as $columna) {

@@ -2187,6 +2187,11 @@
 
 	// ===== Init =====
 	document.addEventListener('DOMContentLoaded', function() {
+		// Inicializar visibilidad de columnas según grupos
+		if (typeof initializeColumnVisibility === 'function') {
+			initializeColumnVisibility();
+		}
+
 		const tb = tbodyEl();
 		if (tb) {
 			allRows = $$('.selectable-row', tb);

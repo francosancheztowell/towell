@@ -58,7 +58,7 @@
 		</div>
 		@else
 		<!-- Estado vacío -->
-		<div class="p-12 text-center">
+		<div class="p-12 bg-white text-center">
 			<div class="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
 				<i class="fa-solid fa-scale-balanced text-3xl text-gray-400"></i>
 			</div>
