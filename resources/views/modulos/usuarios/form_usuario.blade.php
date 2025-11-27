@@ -1,12 +1,10 @@
 @extends('layouts.app')
 @php use Illuminate\Support\Str; @endphp
 
-@php
-    $soloAtras = true;
-@endphp
+@section('page-title', 'Formulario de Usuario')
 
 @section('content')
-    <div class=" py-2 px-2 sm:py-4 sm:px-4 lg:px-8">
+    <div class="">
         {{-- SweetAlert de éxito --}}
         @if (session('success'))
             <script>
@@ -53,16 +51,6 @@
                 });
             </script>
         @endif
-
-
-
-        <!-- Header con componente reutilizable -->
-        <x-layout.page-header
-            :title="$isEdit ? 'Editar Usuario #' . ($usuario->numero_empleado ?? '') : 'Registrar Nuevo Usuario'"
-            :subtitle="$isEdit ? 'Actualiza los datos del usuario ' . ($usuario->nombre ?? '') : 'Completa los datos del usuario para crear una nueva cuenta'"
-            containerClass="max-w-7xl mx-auto"
-        />
-
         <!-- Formulario -->
         <form action="{{ $isEdit ? route('configuracion.usuarios.update', $usuario) : route('configuracion.usuarios.store') }}"
               method="POST"

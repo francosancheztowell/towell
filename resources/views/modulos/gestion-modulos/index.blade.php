@@ -4,7 +4,7 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-create onclick="openModal('createModal')"/>
+        <x-navbar.button-create onclick="openModuloModal('createModal')"/>
         <x-navbar.button-edit id="btn-top-edit" onclick="handleTopEdit('editModal')" :disabled="true" class="transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"/>
         <button id="btn-top-sync" type="button" onclick="handleSyncPermisos()" disabled
             class="p-2 rounded-full transition hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed w-9 h-9 flex items-center justify-center"
@@ -149,7 +149,7 @@
                         </div>
 
                         <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                            <button type="button" onclick="closeModal('createModal')" class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
+                            <button type="button" onclick="closeModuloModal('createModal')" class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
                                 <i class="fa-solid fa-times mr-1"></i> Cancelar
                             </button>
                             <button type="submit" class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium">
@@ -217,7 +217,7 @@
                         </div>
 
                         <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                            <button type="button" onclick="closeModal('editModal')" class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
+                            <button type="button" onclick="closeModuloModal('editModal')" class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
                                 <i class="fa-solid fa-times mr-1"></i> Cancelar
                             </button>
                             <button type="submit" class="px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition font-medium">
@@ -434,8 +434,8 @@
                 selectedRow = row; selectedKey = row.dataset.key || null; row.setAttribute('aria-selected','true'); updateTopButtonsState();
             }
 
-            function openModal(modalId) { const el=document.getElementById(modalId); el.classList.remove('hidden'); el.classList.add('flex'); document.body.style.overflow='hidden'; }
-            function closeModal(modalId) { const el=document.getElementById(modalId); el.classList.add('hidden'); el.classList.remove('flex'); document.body.style.overflow='auto'; }
+            function openModuloModal(modalId) { const el=document.getElementById(modalId); el.classList.remove('hidden'); el.classList.add('flex'); document.body.style.overflow='hidden'; }
+            function closeModuloModal(modalId) { const el=document.getElementById(modalId); el.classList.add('hidden'); el.classList.remove('flex'); document.body.style.overflow='auto'; }
 
             function handleTopEdit() {
                 if (!selectedRow || !selectedKey) {
@@ -459,7 +459,7 @@
                 document.getElementById('edit_modificar').checked = (selectedRow.dataset.modificar === '1');
                 document.getElementById('edit_eliminar').checked = (selectedRow.dataset.eliminar === '1');
                 document.getElementById('edit_reigstrar').checked = (selectedRow.dataset.reigstrar === '1');
-                openModal('editModal');
+                openModuloModal('editModal');
             }
 
             function handleTopDelete() {
@@ -548,10 +548,10 @@
             }
 
             window.onclick = function(event) {
-                if (event.target.id === 'createModal' || event.target.id === 'editModal') { closeModal(event.target.id); }
+                if (event.target.id === 'createModal' || event.target.id === 'editModal') { closeModuloModal(event.target.id); }
             }
             document.addEventListener('keydown', function(event) {
-                if (event.key === 'Escape') { closeModal('createModal'); closeModal('editModal'); }
+                if (event.key === 'Escape') { closeModuloModal('createModal'); closeModuloModal('editModal'); }
             });
 
             updateTopButtonsState();

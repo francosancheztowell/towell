@@ -24,7 +24,7 @@ class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-whi
         }
     @endphp
 
-    <div class="container mx-auto">
+    <div class="">
         @if (session('success'))
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
