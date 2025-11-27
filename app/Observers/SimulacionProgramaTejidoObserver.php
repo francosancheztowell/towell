@@ -108,11 +108,11 @@ class SimulacionProgramaTejidoObserver
                     $diaFin = $fin->toDateString();
 
                     if ($diaInicio === $diaFin) {
-                        // 🟢 Mismo día: diferencia directa entre horas
+                        //  Mismo día: diferencia directa entre horas
                         $segundosDiferencia = $finTimestamp - $inicioTimestamp;
                         $fraccion = $segundosDiferencia / 86400; // fracción del día
                     } else {
-                        // 🔵 Días distintos: desde hora de inicio hasta 12:00 AM del día siguiente
+                        //  Días distintos: desde hora de inicio hasta 12:00 AM del día siguiente
                         $hora = $inicio->hour;
                         $minuto = $inicio->minute;
                         $segundo = $inicio->second;

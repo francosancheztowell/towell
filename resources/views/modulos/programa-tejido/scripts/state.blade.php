@@ -104,132 +104,66 @@ const createDateTimeFieldConfig = () => ({
 	compareFormatter: dateTimeCompareValue
 });
 
+// Campos editables permitidos según especificación:
+// - Hilo (FibraRizo) - SELECT con catálogo
+// - Jornada (CalendarioId) - SELECT con catálogo
+// - Clave Modelo (TamanoClave)
+// - Rasurado
+// - Pedido (TotalPedido)
+// - Dia Scheduling (ProgramarProd)
+// - Id Flog (FlogsId)
+// - Aplicaciones (AplicacionId) - SELECT con catálogo
+// - Tiras (NoTiras)
+// - Pei (Peine)
+// - Lcr (LargoCrudo)
+// - Luc (Luchaje)
+// - Pcr (PesoCrudo)
+// - Fecha Compromiso Prod (EntregaProduc)
+// - Fecha Compromiso Pt (EntregaPT)
+// - Entrega (EntregaCte)
+// - Dif vs Compromiso (PTvsCte)
 const inlineEditableFields = {
-	Ancho: { type: 'number', step: '0.01', min: 0 },
-	EficienciaSTD: {
-		type: 'number',
-		step: '0.1',
-		min: 0,
-		max: 100,
-		inputFormatter: (value) => (value === null || value === '' ? '' : (parseFloat(value) * 100).toFixed(2)),
-		toPayload: (value) => {
-			if (value === '') return null;
-			const num = parseFloat(value);
-			if (isNaN(num)) return null;
-			return num / 100;
-		},
-		displayFormatter: (value) => {
-			if (value === null || value === '' || isNaN(value)) return '';
-			return `${Math.round(parseFloat(value) * 100)}%`;
-		},
-		compareFormatter: (value) => {
-			if (value === null || value === '' || isNaN(value)) return null;
-			return parseFloat(value);
-		}
-	},
-	VelocidadSTD: { type: 'number', step: '0.01', min: 0 },
-	FibraRizo: { type: 'text', maxLength: 120 },
-	CalibrePie2: { type: 'number', step: '0.01', min: 0 },
-	TotalPedido: { type: 'number', step: '0.01', min: 0 },
-	CalendarioId: { type: 'text', maxLength: 30 },
+	FibraRizo: { type: 'select', catalog: 'hilos' }, // Select con catálogo de hilos
+	CalendarioId: { type: 'select', catalog: 'calendarios' }, // Select con catálogo de calendarios (Jornada)
 	TamanoClave: { type: 'text', maxLength: 40 },
-	NoExisteBase: { type: 'text', maxLength: 20 },
 	Rasurado: { type: 'text', maxLength: 2 },
+	TotalPedido: { type: 'number', step: '0.01', min: 0 },
 	ProgramarProd: createDateFieldConfig(),
-	AplicacionId: { type: 'text', maxLength: 10 },
-	Observaciones: { type: 'text', maxLength: 100 },
+	FlogsId: { type: 'text', maxLength: 20 },
+	AplicacionId: { type: 'select', catalog: 'aplicaciones' }, // Select con catálogo de aplicaciones
 	NoTiras: { type: 'number', step: '1', min: 0 },
 	Peine: { type: 'number', step: '1', min: 0 },
 	LargoCrudo: { type: 'number', step: '0.01', min: 0 },
 	Luchaje: { type: 'number', step: '0.01', min: 0 },
 	PesoCrudo: { type: 'number', step: '0.01', min: 0 },
-	CalibreTrama2: { type: 'number', step: '0.01', min: 0 },
-	FibraTrama: { type: 'text', maxLength: 15 },
-	DobladilloId: { type: 'text', maxLength: 20 },
-	PasadasComb1: { type: 'number', step: '1', min: 0 },
-	PasadasComb2: { type: 'number', step: '1', min: 0 },
-	PasadasComb3: { type: 'number', step: '1', min: 0 },
-	PasadasComb4: { type: 'number', step: '1', min: 0 },
-	PasadasComb5: { type: 'number', step: '1', min: 0 },
-	AnchoToalla: { type: 'number', step: '0.01', min: 0 },
-	CodColorTrama: { type: 'text', maxLength: 20 },
-	FibraComb1: { type: 'text', maxLength: 15 },
-	CodColorComb1: { type: 'text', maxLength: 10 },
-	NombreCC1: { type: 'text', maxLength: 60 },
-	FibraComb2: { type: 'text', maxLength: 15 },
-	CodColorComb2: { type: 'text', maxLength: 10 },
-	NombreCC2: { type: 'text', maxLength: 60 },
-	FibraComb3: { type: 'text', maxLength: 15 },
-	CodColorComb3: { type: 'text', maxLength: 10 },
-	NombreCC3: { type: 'text', maxLength: 60 },
-	FibraComb4: { type: 'text', maxLength: 15 },
-	CodColorComb4: { type: 'text', maxLength: 10 },
-	NombreCC4: { type: 'text', maxLength: 60 },
-	FibraComb5: { type: 'text', maxLength: 15 },
-	CodColorComb5: { type: 'text', maxLength: 10 },
-	NombreCC5: { type: 'text', maxLength: 60 },
-	MedidaPlano: { type: 'number', step: '1', min: 0 },
-	CuentaPie: { type: 'text', maxLength: 10 },
-	CodColorCtaPie: { type: 'text', maxLength: 10 },
-	NombreCPie: { type: 'text', maxLength: 60 },
-	FechaInicio: createDateTimeFieldConfig(),
-	FechaFinal: createDateTimeFieldConfig(),
 	EntregaProduc: createDateFieldConfig(),
 	EntregaPT: createDateFieldConfig(),
 	EntregaCte: createDateTimeFieldConfig(),
 	PTvsCte: { type: 'number', step: '1' }
 };
 
+// Cache de catálogos cargados
+let catalogosCache = {
+	hilos: null,
+	aplicaciones: null,
+	calendarios: null
+};
+
+// Mapeo de campos editables a nombres de payload para el backend
 const inlineFieldPayloadMap = {
-	Ancho: 'Ancho',
-	EficienciaSTD: 'eficiencia_std',
-	VelocidadSTD: 'velocidad_std',
-	FibraRizo: 'FibraRizo',
-	CalibrePie2: 'CalibrePie2',
-	TotalPedido: 'TotalPedido',
+	FibraRizo: 'hilo',
 	CalendarioId: 'calendario_id',
 	TamanoClave: 'tamano_clave',
-	NoExisteBase: 'no_existe_base',
 	Rasurado: 'rasurado',
+	TotalPedido: 'pedido',
 	ProgramarProd: 'programar_prod',
+	FlogsId: 'idflog',
 	AplicacionId: 'aplicacion_id',
-	Observaciones: 'observaciones',
 	NoTiras: 'no_tiras',
 	Peine: 'peine',
 	LargoCrudo: 'largo_crudo',
 	Luchaje: 'luchaje',
 	PesoCrudo: 'peso_crudo',
-	CalibreTrama2: 'calibre_trama2',
-	FibraTrama: 'fibra_trama',
-	DobladilloId: 'dobladillo_id',
-	PasadasComb1: 'pasadas_comb1',
-	PasadasComb2: 'pasadas_comb2',
-	PasadasComb3: 'pasadas_comb3',
-	PasadasComb4: 'pasadas_comb4',
-	PasadasComb5: 'pasadas_comb5',
-	AnchoToalla: 'ancho_toalla',
-	CodColorTrama: 'cod_color_trama',
-	FibraComb1: 'fibra_c1',
-	CodColorComb1: 'cod_color_comb1',
-	NombreCC1: 'nombre_cc1',
-	FibraComb2: 'fibra_c2',
-	CodColorComb2: 'cod_color_comb2',
-	NombreCC2: 'nombre_cc2',
-	FibraComb3: 'fibra_c3',
-	CodColorComb3: 'cod_color_comb3',
-	NombreCC3: 'nombre_cc3',
-	FibraComb4: 'fibra_c4',
-	CodColorComb4: 'cod_color_comb4',
-	NombreCC4: 'nombre_cc4',
-	FibraComb5: 'fibra_c5',
-	CodColorComb5: 'cod_color_comb5',
-	NombreCC5: 'nombre_cc5',
-	MedidaPlano: 'medida_plano',
-	CuentaPie: 'cuenta_pie',
-	CodColorCtaPie: 'cod_color_cta_pie',
-	NombreCPie: 'nombre_c_pie',
-	FechaInicio: 'fecha_inicio',
-	FechaFinal: 'fecha_fin',
 	EntregaProduc: 'entrega_produc',
 	EntregaPT: 'entrega_pt',
 	EntregaCte: 'entrega_cte',

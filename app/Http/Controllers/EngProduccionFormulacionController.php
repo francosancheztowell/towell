@@ -7,7 +7,6 @@ use App\Models\EngFormulacionLineModel;
 use App\Models\SYSUsuario;
 use App\Models\URDCatalogoMaquina;
 use App\Models\EngProgramaEngomado;
-use App\Helpers\FolioHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,26 +22,26 @@ class EngProduccionFormulacionController extends Controller
             $maquinas = URDCatalogoMaquina::where('Departamento', 'Engomado')
                 ->orderBy('Nombre', 'asc')
                 ->get();
-            
+
             // Obtener folios de EngProgramaEngomado con Status diferente de 'Finalizado'
             $foliosPrograma = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
                 ->orderBy('Folio', 'desc')
                 ->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula']);
-            
+
             // Generar folio sugerido
             $year = date('Y');
             $prefix = "ENG-FORM-{$year}-";
             $lastRecord = EngProduccionFormulacionModel::where('Folio', 'like', $prefix . '%')
                 ->orderBy('Folio', 'desc')
                 ->first();
-            
+
             if ($lastRecord) {
                 $lastNumber = (int) substr($lastRecord->Folio, strlen($prefix));
                 $nextNumber = $lastNumber + 1;
             } else {
                 $nextNumber = 1;
             }
-            
+
             $folioSugerido = $prefix . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         } catch (\Exception $e) {
             $items = collect([]);
@@ -52,7 +51,7 @@ class EngProduccionFormulacionController extends Controller
             $folioSugerido = 'ENG-FORM-' . date('Y') . '-0001';
             Log::error('Error al cargar Formulación de Engomado: ' . $e->getMessage());
         }
-        
+
         return view("modulos.engomado.captura-formula.index", compact("items", "usuarios", "maquinas", "foliosPrograma", "folioSugerido"));
     }
 
@@ -86,23 +85,23 @@ class EngProduccionFormulacionController extends Controller
         try {
             // Usar el FolioProg seleccionado como Folio principal
             $folio = $request->input('FolioProg');
-            
+
             // Verificar si ya existe un registro con ese folio
             $existingRecord = EngProduccionFormulacionModel::where('Folio', $folio)->first();
-            
+
             if ($existingRecord) {
                 return redirect()->back()
                     ->with('error', 'Ya existe una formulación con el folio: ' . $folio);
             }
-            
+
             $validated['Folio'] = $folio;
             $validated['Status'] = 'Creado';
-            
+
             // Log para debug
             Log::info('Datos a insertar:', $validated);
-            
+
             $formulacion = EngProduccionFormulacionModel::create($validated);
-            
+
             return redirect()->back()
                 ->with('success', 'Formulación creada exitosamente con folio: ' . $folio);
         } catch (\Exception $e) {
@@ -119,7 +118,7 @@ class EngProduccionFormulacionController extends Controller
     {
         try {
             $folio = $request->query('folio');
-            
+
             if (!$folio) {
                 return response()->json(['error' => 'No se proporcionó el folio'], 400);
             }
@@ -163,7 +162,7 @@ class EngProduccionFormulacionController extends Controller
     {
         try {
             $formula = $request->query('formula');
-            
+
             if (!$formula) {
                 return response()->json(['error' => 'No se proporcionó el código de fórmula'], 400);
             }
@@ -200,7 +199,7 @@ class EngProduccionFormulacionController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al obtener componentes: ' . $e->getMessage());
             Log::error('Trace: ' . $e->getTraceAsString());
-            
+
             return response()->json([
                 'error' => 'Error al obtener componentes: ' . $e->getMessage(),
                 'trace' => $e->getTraceAsString()
@@ -243,14 +242,14 @@ class EngProduccionFormulacionController extends Controller
     {
         try {
             DB::beginTransaction();
-            
+
             // Eliminar líneas asociadas
             EngFormulacionLineModel::where('Folio', $folio)->delete();
-            
+
             // Eliminar encabezado
             $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
             $item->delete();
-            
+
             DB::commit();
             return redirect()->back()->with('success', 'Formulación eliminada exitosamente');
         } catch (\Exception $e) {

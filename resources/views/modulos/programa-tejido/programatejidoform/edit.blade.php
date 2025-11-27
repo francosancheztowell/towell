@@ -33,30 +33,30 @@
                                 </td>
                                 <td class="px-2 py-1 font-medium text-gray-800 w-24">Aplicación</td>
                                 <td class="px-2 py-1">
-                                    <input type="text" id="aplicacion-input" disabled value="{{ $registro->AplicacionId ?? '' }}" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100">
+                                    <input type="text" id="aplicacion-input" value="{{ $registro->AplicacionId ?? '' }}" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs">
                                 </td>
                                 <td class="px-2 py-1 font-medium text-gray-800 w-24">Calibre Trama</td>
-                                <td class="px-2 py-1"><input type="text" id="calibre-trama" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CalibreTrama ?? '' }}"></td>
+                                <td class="px-2 py-1"><input type="text" id="calibre-trama" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" value="{{ $registro->CalibreTrama ?? '' }}"></td>
                                 <td class="px-2 py-1 font-medium text-gray-800 w-24">Calibre C2</td>
-                                <td class="px-2 py-1"><input type="text" id="calibre-c2" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CalibreComb22 ?? '' }}"></td>
+                                <td class="px-2 py-1"><input type="text" id="calibre-c2" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" value="{{ $registro->CalibreComb22 ?? '' }}"></td>
                                 <td class="px-2 py-1 font-medium text-gray-800 w-24">Calibre C4</td>
-                                <td class="px-2 py-1"><input type="text" id="calibre-c4" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->CalibreComb42 ?? '' }}"></td>
+                                <td class="px-2 py-1"><input type="text" id="calibre-c4" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" value="{{ $registro->CalibreComb42 ?? '' }}"></td>
                             </tr>
 
                             <!-- Fila 2: Clave Modelo, Cuenta Rizo, Hilos Trama-C4 -->
                             <tr>
                                 <td class="px-2 py-1 font-medium text-gray-800">Clave Modelo</td>
                                 <td class="px-2 py-1 relative">
-                                    <input type="text" id="clave-modelo-input" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->TamanoClave ?? '' }}">
+                                    <input type="text" id="clave-modelo-input" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->TamanoClave ?? '' }}">
                                 </td>
                                 <td class="px-2 py-1 font-medium text-gray-800">Cuenta Rizo</td>
-                                <td class="px-2 py-1"><input type="text" id="cuenta-rizo" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" disabled value="{{ $registro->CuentaRizo ?? '' }}"></td>
+                                <td class="px-2 py-1"><input type="text" id="cuenta-rizo" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" value="{{ $registro->CuentaRizo ?? '' }}"></td>
                                 <td class="px-2 py-1 font-medium text-gray-800">Hilo Trama</td>
-                                <td class="px-2 py-1"><input type="text" id="hilo-trama" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->FibraTrama ?? '' }}"></td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-trama" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" value="{{ $registro->FibraTrama ?? '' }}"></td>
                                 <td class="px-2 py-1 font-medium text-gray-800">Hilo C2</td>
-                                <td class="px-2 py-1"><input type="text" id="hilo-c2" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->FibraComb2 ?? '' }}"></td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-c2" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" value="{{ $registro->FibraComb2 ?? '' }}"></td>
                                 <td class="px-2 py-1 font-medium text-gray-800">Hilo C4</td>
-                                <td class="px-2 py-1"><input type="text" id="hilo-c4" class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs" value="{{ $registro->FibraComb4 ?? '' }}"></td>
+                                <td class="px-2 py-1"><input type="text" id="hilo-c4" disabled class="w-full px-2 py-1 border border-gray-300 text-gray-800 rounded focus:ring-1 focus:ring-blue-500 text-xs bg-gray-100" value="{{ $registro->FibraComb4 ?? '' }}"></td>
                             </tr>
 
                             <!-- Fila 3: Nombre Modelo, Calibre Rizo, Cod/Color 1-3 -->

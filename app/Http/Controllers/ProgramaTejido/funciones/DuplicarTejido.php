@@ -111,6 +111,7 @@ class DuplicarTejido
                     $nuevo->Produccion = null;
                     $nuevo->Programado = null;  // inn debe ir en null
                     $nuevo->NoProduccion = null;
+                    $nuevo->OrdCompartida = null; // El duplicado NO hereda la orden compartida
 
                     // Day Scheduling = fecha de hoy
                     $nuevo->ProgramarProd = Carbon::now()->format('Y-m-d');

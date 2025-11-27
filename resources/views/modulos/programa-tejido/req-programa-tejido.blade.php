@@ -335,7 +335,73 @@
 		});
 	}
 
-	function makeRowInlineEditable(row) {
+	// Función para cargar catálogo de hilos
+	async function cargarCatalogoHilos() {
+		if (catalogosCache.hilos) {
+			return catalogosCache.hilos;
+		}
+
+		try {
+			const response = await fetch('/planeacion/catalogos/matriz-hilos/list', {
+				headers: { 'Accept': 'application/json' }
+			});
+			const data = await response.json();
+			if (data.success && data.data && Array.isArray(data.data)) {
+				catalogosCache.hilos = data.data;
+				return data.data;
+			}
+			return [];
+		} catch (error) {
+			console.error('Error al cargar catálogo de hilos:', error);
+			return [];
+		}
+	}
+
+	// Función para cargar catálogo de aplicaciones
+	async function cargarCatalogoAplicaciones() {
+		if (catalogosCache.aplicaciones) {
+			return catalogosCache.aplicaciones;
+		}
+
+		try {
+			const response = await fetch('/programa-tejido/aplicacion-id-options', {
+				headers: { 'Accept': 'application/json' }
+			});
+			const data = await response.json();
+			if (Array.isArray(data)) {
+				catalogosCache.aplicaciones = data;
+				return data;
+			}
+			return [];
+		} catch (error) {
+			console.error('Error al cargar catálogo de aplicaciones:', error);
+			return [];
+		}
+	}
+
+	// Función para cargar catálogo de calendarios (jornadas)
+	async function cargarCatalogoCalendarios() {
+		if (catalogosCache.calendarios) {
+			return catalogosCache.calendarios;
+		}
+
+		try {
+			const response = await fetch('/programa-tejido/calendario-id-options', {
+				headers: { 'Accept': 'application/json' }
+			});
+			const data = await response.json();
+			if (Array.isArray(data)) {
+				catalogosCache.calendarios = data;
+				return data;
+			}
+			return [];
+		} catch (error) {
+			console.error('Error al cargar catálogo de calendarios:', error);
+			return [];
+		}
+	}
+
+	async function makeRowInlineEditable(row) {
 		if (!row) {
 			console.warn('makeRowInlineEditable: row es null');
 			return;
@@ -351,6 +417,11 @@
 		}
 		row.classList.add('inline-edit-row');
 		row.dataset.inlinePrepared = 'true';
+
+		// Cargar catálogos necesarios antes de crear los campos
+		const hilos = await cargarCatalogoHilos();
+		const aplicaciones = await cargarCatalogoAplicaciones();
+		const calendarios = await cargarCatalogoCalendarios();
 
 		Object.keys(inlineEditableFields).forEach(field => {
 			const cell = row.querySelector(`[data-column="${field}"]`);
@@ -373,36 +444,92 @@
 			cell.dataset.inlineEditing = 'true';
 
 			const cfg = inlineEditableFields[field] || {};
-			const input = document.createElement('input');
-			input.type = cfg.type || 'text';
-			if (cfg.step) input.step = cfg.step;
-			if (cfg.min !== undefined) input.min = cfg.min;
-			if (cfg.max !== undefined) input.max = cfg.max;
-			if (cfg.maxLength) input.maxLength = cfg.maxLength;
-			input.className = 'inline-edit-input w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500';
-
 			const rawValue = cell.dataset.value ?? cell.textContent.trim();
-			const formattedValue = formatInlineValueForInput(field, rawValue);
-			input.value = formattedValue;
-			input.dataset.originalValue = rawValue ?? '';
 
-			input.addEventListener('keydown', (e) => {
-				if (e.key === 'Enter') {
-					e.preventDefault();
-					input.blur();
+			// Si es un select (campo con catálogo)
+			if (cfg.type === 'select' && cfg.catalog) {
+				const select = document.createElement('select');
+				select.className = 'inline-edit-input w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+				// Agregar opción vacía
+				const emptyOption = document.createElement('option');
+				emptyOption.value = '';
+				emptyOption.textContent = 'Seleccionar...';
+				select.appendChild(emptyOption);
+
+				// Cargar opciones según el catálogo
+				if (cfg.catalog === 'hilos' && hilos.length > 0) {
+					hilos.forEach(item => {
+						const option = document.createElement('option');
+						option.value = item.Hilo || item;
+						option.textContent = item.Hilo + (item.Fibra ? ' - ' + item.Fibra : '');
+						if (option.value === rawValue) {
+							option.selected = true;
+						}
+						select.appendChild(option);
+					});
+				} else if (cfg.catalog === 'aplicaciones' && aplicaciones.length > 0) {
+					aplicaciones.forEach(item => {
+						const option = document.createElement('option');
+						const valor = typeof item === 'string' ? item : (item.AplicacionId || item);
+						option.value = valor;
+						option.textContent = valor;
+						if (option.value === rawValue) {
+							option.selected = true;
+						}
+						select.appendChild(option);
+					});
+				} else if (cfg.catalog === 'calendarios' && calendarios.length > 0) {
+					calendarios.forEach(item => {
+						const option = document.createElement('option');
+						const valor = typeof item === 'string' ? item : (item.CalendarioId || item);
+						option.value = valor;
+						option.textContent = valor;
+						if (option.value === rawValue) {
+							option.selected = true;
+						}
+						select.appendChild(option);
+					});
 				}
-				if (e.key === 'Escape') {
-					e.preventDefault();
-					input.value = formatInlineValueForInput(field, input.dataset.originalValue ?? '');
-					input.blur();
-				}
-			});
 
-			input.addEventListener('blur', () => handleInlineInputChange(row, field, input));
-			input.addEventListener('click', (e) => e.stopPropagation());
+				select.dataset.originalValue = rawValue ?? '';
+				select.addEventListener('change', () => handleInlineInputChange(row, field, select));
+				select.addEventListener('click', (e) => e.stopPropagation());
 
-			cell.innerHTML = '';
-			cell.appendChild(input);
+				cell.innerHTML = '';
+				cell.appendChild(select);
+			} else {
+				// Input normal (text, number, date, etc.)
+				const input = document.createElement('input');
+				input.type = cfg.type || 'text';
+				if (cfg.step) input.step = cfg.step;
+				if (cfg.min !== undefined) input.min = cfg.min;
+				if (cfg.max !== undefined) input.max = cfg.max;
+				if (cfg.maxLength) input.maxLength = cfg.maxLength;
+				input.className = 'inline-edit-input w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+				const formattedValue = formatInlineValueForInput(field, rawValue);
+				input.value = formattedValue;
+				input.dataset.originalValue = rawValue ?? '';
+
+				input.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						input.blur();
+					}
+					if (e.key === 'Escape') {
+						e.preventDefault();
+						input.value = formatInlineValueForInput(field, input.dataset.originalValue ?? '');
+						input.blur();
+					}
+				});
+
+				input.addEventListener('blur', () => handleInlineInputChange(row, field, input));
+				input.addEventListener('click', (e) => e.stopPropagation());
+
+				cell.innerHTML = '';
+				cell.appendChild(input);
+			}
 		});
 	}
 
@@ -471,8 +598,11 @@
 		const cell = input.closest('td');
 		if (!cell) return;
 
-		let newValue = (input.value ?? '').trim();
-		if (cfg.type === 'number' && newValue !== '') {
+		// Manejar select y input de la misma manera
+		const isSelect = input.tagName === 'SELECT';
+		let newValue = isSelect ? input.value : (input.value ?? '').trim();
+
+		if (cfg.type === 'number' && newValue !== '' && !isSelect) {
 			newValue = newValue.replace(',', '.');
 		}
 
