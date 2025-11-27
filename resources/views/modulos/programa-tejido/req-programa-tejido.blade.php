@@ -2199,6 +2199,86 @@
 		updateFilterCount();
 		window.addEventListener('resize', () => updatePinnedColumnsPositions());
 
+		// ===== Botón Restablecer (Columnas + Filtros) =====
+		const btnResetColumns = document.getElementById('btnResetColumns');
+		const btnResetColumnsMobile = document.getElementById('btnResetColumnsMobile');
+
+		const handleResetAll = function(e) {
+			e.preventDefault();
+
+			// Animación del icono
+			const icon = this.querySelector('i') || document.getElementById('iconResetColumns');
+			if (icon) {
+				icon.classList.add('fa-spin');
+				setTimeout(() => icon.classList.remove('fa-spin'), 500);
+			}
+
+			// 1. Limpiar FILTROS (igual que "Limpiar todo" del modal)
+			filters = [];
+			quickFilters = {
+				ultimos: false,
+				divididos: false,
+				enProceso: false,
+				salonJacquard: false,
+				salonSmit: false,
+				conCambioHilo: false,
+			};
+			dateRangeFilters = {
+				fechaInicio: { desde: null, hasta: null },
+				fechaFinal: { desde: null, hasta: null },
+			};
+			lastFilterState = null;
+
+			// Mostrar todas las filas
+			const tb = tbodyEl();
+			if (tb) {
+				tb.querySelectorAll('.selectable-row').forEach(row => {
+					row.style.display = '';
+					row.classList.remove('filter-hidden');
+				});
+			}
+
+			// Actualizar badge de filtros
+			if (typeof updateFilterUI === 'function') {
+				updateFilterUI();
+			}
+
+			// 2. Restablecer COLUMNAS
+			if (typeof resetColumnVisibility === 'function') {
+				resetColumnVisibility();
+			} else {
+				// Fallback
+				const table = document.getElementById('mainTable');
+				if (table) {
+					const headers = table.querySelectorAll('thead th');
+					const totalCols = headers.length || 50;
+
+					for (let i = 0; i < totalCols; i++) {
+						document.querySelectorAll('.column-' + i).forEach(el => {
+							el.style.display = '';
+							el.style.visibility = '';
+						});
+					}
+
+					hiddenColumns = [];
+					pinnedColumns = [];
+
+					if (typeof updatePinnedColumnsPositions === 'function') {
+						updatePinnedColumnsPositions();
+					}
+				}
+			}
+
+			showToast('Vista restablecida (filtros y columnas)', 'success');
+		};
+
+		if (btnResetColumns) {
+			btnResetColumns.addEventListener('click', handleResetAll);
+		}
+		if (btnResetColumnsMobile) {
+			btnResetColumnsMobile.addEventListener('click', handleResetAll);
+		}
+
 		// Inicializar menú contextual
 		initContextMenu();
 

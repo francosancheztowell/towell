@@ -263,8 +263,7 @@
   <script src="{{ asset('js/app-pwa.js') }}"></script>
 
   <script>
-    // Exponer función resetColumnsSpin globalmente
-    window.resetColumnsSpin = resetColumnsSpin;
+    // La función resetColumnsSpin ya está expuesta en app-filters.js
 
     // Funciones para modal de telares
     let telaresUsuario = [];

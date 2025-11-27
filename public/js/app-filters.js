@@ -380,7 +380,22 @@ window.resetColumnsSpin = function () {
         icon.classList.add('fa-spin');
         setTimeout(() => icon.classList.remove('fa-spin'), 500);
     }
+
+    // Llamar a la función de reset si existe
     if (typeof window.resetColumnVisibility === 'function') {
         window.resetColumnVisibility();
+    } else {
+        // Fallback: intentar mostrar todas las columnas directamente
+        const table = document.getElementById('mainTable');
+        if (table) {
+            const allCells = table.querySelectorAll('[class*="column-"]');
+            allCells.forEach(el => {
+                el.style.display = '';
+                el.style.visibility = '';
+            });
+            if (typeof window.showToast === 'function') {
+                window.showToast('Columnas restablecidas', 'success');
+            }
+        }
     }
 };

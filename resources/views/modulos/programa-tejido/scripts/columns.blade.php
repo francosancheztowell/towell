@@ -126,26 +126,61 @@ function unpinColumn(index) {
 }
 
 function resetColumnVisibility() {
-	// Mostrar todas las columnas
-	const allColumns = $$('th[class*="column-"]');
-	allColumns.forEach((th, index) => {
-		showColumn(index);
-	});
-	// Desfijar todas las columnas
-	pinnedColumns = [];
-	updatePinnedColumnsPositions();
+	try {
+		const table = document.getElementById('mainTable');
+		if (!table) {
+			console.warn('resetColumnVisibility: tabla no encontrada');
+			return;
+		}
 
-	Swal.fire({
-		title: 'Columnas Restablecidas',
-		text: 'Todas las columnas han sido mostradas y desfijadas',
-		icon: 'success',
-		timer: 2000,
-		showConfirmButton: false
-	});
+		// Obtener el número total de columnas del header
+		const headers = table.querySelectorAll('thead th');
+		const totalColumns = headers.length || columnsData.length || 100;
+
+		// Mostrar TODAS las columnas (por índice)
+		for (let i = 0; i < totalColumns; i++) {
+			const elements = document.querySelectorAll('.column-' + i);
+			for (let j = 0; j < elements.length; j++) {
+				elements[j].style.display = '';
+				elements[j].style.visibility = '';
+				elements[j].style.removeProperty('display');
+				elements[j].style.removeProperty('visibility');
+			}
+		}
+
+		// Limpiar array de columnas ocultas
+		hiddenColumns = [];
+
+		// Desfijar todas las columnas
+		pinnedColumns = [];
+
+		// Actualizar posiciones
+		updatePinnedColumnsPositions();
+
+		// Mostrar notificación
+		if (typeof showToast === 'function') {
+			showToast('Columnas restablecidas', 'success');
+		}
+	} catch (error) {
+		console.error('Error en resetColumnVisibility:', error);
+		if (typeof showToast === 'function') {
+			showToast('Error al restablecer columnas', 'error');
+		}
+	}
 }
 
 function showColumn(index) {
-	$$(`.column-${index}`).forEach(el => el.style.display = '');
+	$$(`.column-${index}`).forEach(el => {
+		el.style.display = '';
+		el.style.visibility = '';
+	});
+	// Remover del array de columnas ocultas
+	if (Array.isArray(hiddenColumns)) {
+		const idx = hiddenColumns.indexOf(index);
+		if (idx > -1) {
+			hiddenColumns.splice(idx, 1);
+		}
+	}
 }
 
 function hideColumn(index) {
@@ -223,4 +258,15 @@ function updatePinnedColumnsPositions() {
 		left += width;
 	});
 }
+
+// ===== Exponer funciones globalmente =====
+window.resetColumnVisibility = resetColumnVisibility;
+window.openPinColumnsModal = openPinColumnsModal;
+window.openHideColumnsModal = openHideColumnsModal;
+window.pinColumn = pinColumn;
+window.unpinColumn = unpinColumn;
+window.hideColumn = hideColumn;
+window.showColumn = showColumn;
+window.togglePinColumn = togglePinColumn;
+window.updatePinnedColumnsPositions = updatePinnedColumnsPositions;
 

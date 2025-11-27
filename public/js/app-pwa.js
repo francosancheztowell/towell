@@ -23,7 +23,6 @@ if ('serviceWorker' in navigator) {
         if (diagnostics.manifestLink !== 'No encontrado') {
             fetch(diagnostics.manifestLink)
                 .then(r => r.json())
-                .then(manifest => console.log(manifest))
                 .catch(e => console.error(e));
         }
 
@@ -196,7 +195,7 @@ function isTabletOrMobile() {
 
 // Detectar si ya está instalada
 function isPWAInstalled() {
-    return isStandaloneMode() || 
+    return isStandaloneMode() ||
            window.matchMedia('(display-mode: standalone)').matches ||
            window.navigator.standalone === true;
 }
@@ -204,7 +203,7 @@ function isPWAInstalled() {
 function toggleInstallButton(show) {
     const btn = document.getElementById('btn-install');
     if (!btn) return;
-    
+
     // Si ya está instalada, ocultar el botón
     if (isPWAInstalled()) {
         btn.style.display = 'none';
@@ -212,7 +211,7 @@ function toggleInstallButton(show) {
         installButtonVisible = false;
         return;
     }
-    
+
     // Mostrar u ocultar el botón
     if (show) {
         btn.style.display = 'flex';
@@ -223,9 +222,9 @@ function toggleInstallButton(show) {
         btn.classList.add('hidden');
         btn.setAttribute('disabled', 'disabled');
     }
-    
+
     installButtonVisible = show;
-    
+
     // Agregar indicador visual si está disponible
     if (show && isTabletOrMobile()) {
         btn.title = 'Instalar aplicación Towell';
@@ -235,19 +234,16 @@ function toggleInstallButton(show) {
 
 // Manejar el evento beforeinstallprompt
 window.addEventListener('beforeinstallprompt', (e) => {
-    console.log('[PWA] beforeinstallprompt event fired');
-    
     // Para tablets y móviles, permitir que el navegador muestre el banner automáticamente
     // pero también guardar el evento por si el usuario quiere instalar manualmente
     const isTabletMobile = isTabletOrMobile();
-    
+
     if (isTabletMobile) {
         // En tablets/móviles, NO prevenir el comportamiento por defecto inmediatamente
         // Esto permite que el navegador muestre el banner automático si está disponible
         deferredPrompt = e;
-        
-        console.log('[PWA] Banner automático disponible en tablet/móvil. El navegador puede mostrarlo automáticamente.');
-        
+
+
         // Sin embargo, en algunos casos el banner automático puede no aparecer
         // Por lo tanto, también ofrecemos un botón manual como alternativa
         // Esperar un poco antes de mostrar el botón para no interferir con el banner
@@ -255,7 +251,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
             if (deferredPrompt && !isPWAInstalled()) {
                 // Verificar si el usuario ya interactuó con algún banner
                 // Si no, mostrar nuestro botón manual como alternativa
-                console.log('[PWA] Mostrando botón de instalación manual como alternativa');
                 // NO prevenir el comportamiento por defecto aquí, solo mostrar el botón
                 toggleInstallButton(true);
             }
@@ -265,7 +260,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
         toggleInstallButton(true);
-        console.log('[PWA] Instalación manual disponible (desktop)');
     }
 });
 
@@ -276,29 +270,25 @@ async function promptInstall() {
         showInstallInstructions();
         return;
     }
-    
+
     try {
         // Para tablets/móviles, si el evento todavía no se ha prevenido, hacerlo ahora
         // Esto asegura que podemos mostrar el prompt manualmente
         if (deferredPrompt && typeof deferredPrompt.preventDefault === 'function') {
             // El evento ya fue capturado, podemos usar prompt() directamente
         }
-        
+
         // Mostrar el prompt de instalación
         await deferredPrompt.prompt();
-        
+
         // Esperar a que el usuario responda
         const { outcome } = await deferredPrompt.userChoice;
-        
-        console.log('[PWA] Install outcome:', outcome);
-        
+
         if (outcome === 'accepted') {
-            console.log('[PWA] Usuario aceptó instalar la aplicación');
             // El evento 'appinstalled' se disparará automáticamente
         } else {
-            console.log('[PWA] Usuario rechazó instalar la aplicación');
         }
-        
+
         // Limpiar el prompt
         deferredPrompt = null;
         toggleInstallButton(false);
@@ -315,9 +305,9 @@ function showInstallInstructions() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isAndroid = /Android/.test(navigator.userAgent);
     const isTablet = isTabletOrMobile();
-    
+
     let message = '';
-    
+
     if (isIOS) {
         message = 'Para instalar: Toca el botón de compartir y selecciona "Añadir a pantalla de inicio"';
     } else if (isAndroid || isTablet) {
@@ -325,12 +315,11 @@ function showInstallInstructions() {
     } else {
         message = 'Para instalar: Haz clic en el ícono de instalación en la barra de direcciones o usa el menú del navegador';
     }
-    
+
     // Mostrar notificación o alerta (puedes personalizar esto)
     if (window.alert) {
         alert(message);
     } else {
-        console.log('[PWA] Instrucciones de instalación:', message);
     }
 }
 
@@ -349,20 +338,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupBodyScrollGuards();
-    
+
     // Verificar si ya está instalada al cargar
     if (isPWAInstalled()) {
-        console.log('[PWA] La aplicación ya está instalada');
         toggleInstallButton(false);
     }
 });
 
 // Cuando la app se instala, ocultar el botón
 window.addEventListener('appinstalled', (evt) => {
-    console.log('[PWA] Aplicación instalada exitosamente');
     deferredPrompt = null;
     toggleInstallButton(false);
-    
+
     // Opcional: Mostrar mensaje de confirmación
     // Puedes personalizar esto según tu UI
 });
