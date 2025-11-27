@@ -359,8 +359,8 @@ class ModuloService
             // Módulos de Tejido
             'Inv Telas' => '/tejido/inventario-telas',
             'Cortes de Eficiencia' => '/tejido/cortes-eficiencia',
-            'Marcas Finales- Cortes de Eficiencia' => '/tejido/marcas-finales',
-            'Marcas Finales' => '/tejido/marcas-finales',
+            'Marcas Finales- Cortes de Eficiencia' => '/modulo-marcas/consultar',
+            'Marcas Finales' => '/modulo-marcas/consultar',
             'Inv Trama' => '/tejido/inventario',
             'Producción Reenconado Cabezuela' => '/tejido/produccion-reenconado',
 
@@ -506,7 +506,7 @@ class ModuloService
         if ($tieneNietos) {
             $rutasDescriptivas = [
                 '104' => '/planeacion/catalogos', // Catálogos de Planeación
-                '202' => '/tejido/marcas-finales',
+                '202' => '/modulo-marcas/consultar',
                 '203' => '/tejido/inventario',
                 '206' => '/tejido/cortes-eficiencia',
                 '502' => '/atadores/configuracion', // Configuración de Atadores
@@ -522,7 +522,7 @@ class ModuloService
         if ($posSeparador !== false) {
             $moduloPadre = substr($orden, 0, $posSeparador);
             $rutasDescriptivas = [
-                '202' => '/tejido/marcas-finales',
+                '202' => '/modulo-marcas/consultar',
                 '203' => '/tejido/inventario',
                 '206' => '/tejido/cortes-eficiencia',
                 '909' => '/configuracion/utileria',

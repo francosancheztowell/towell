@@ -88,7 +88,7 @@
       </div>
 
             <!-- Panel Inferior: Preview / Detalle -->
-      <div id="preview-panel" class="bg-white rounded-md shadow-sm overflow-hidden w-full hidden flex-shrink-0">
+      {{-- <div id="preview-panel" class="bg-white rounded-md shadow-sm overflow-hidden w-full hidden flex-shrink-0">
         <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-1.5 border-b border-blue-700 flex-shrink-0">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-3 min-w-0 flex-1">
@@ -123,7 +123,7 @@
                     </tbody>
           </table>
         </div>
-      </div>
+      </div> --}}
 
     @else
             <!-- Sin Registros -->
@@ -202,6 +202,7 @@ section.content { width: 100% !important; max-width: 100% !important; }
         }
 
         bindEvents() {
+            this.dom.btns.nuevo?.addEventListener('click', () => this.accionNuevo());
             this.dom.btns.editar?.addEventListener('click', () => this.accionEditar());
             this.dom.btns.finalizar?.addEventListener('click', () => this.accionFinalizar());
         }
@@ -343,6 +344,10 @@ section.content { width: 100% !important; max-width: 100% !important; }
             if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = isFinalizado;
         }
 
+        accionNuevo() {
+            window.location.href = '{{ route("marcas.nuevo") }}';
+        }
+
         accionEditar() {
             if (!this.state.folio) {
                 Swal.fire({
@@ -417,6 +422,14 @@ section.content { width: 100% !important; max-width: 100% !important; }
 
     document.addEventListener('DOMContentLoaded', () => {
         window.MarcasManager = new MarcasManager();
+
+        // Agregar listener al botón "Nuevo" cuando no hay registros
+        const btnNuevoEmpty = document.getElementById('btn-nuevo-empty');
+        if (btnNuevoEmpty) {
+            btnNuevoEmpty.addEventListener('click', () => {
+                window.location.href = '{{ route("marcas.nuevo") }}';
+            });
+        }
     });
 
 })();
