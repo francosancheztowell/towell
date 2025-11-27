@@ -83,20 +83,12 @@
                                 <select id="area" name="area" required
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                                     <option value="" disabled {{ old('area', $usuario->area ?? '') ? '' : 'selected' }}>Selecciona el área</option>
-                                {{-- Editar esa parte para hacer el get correcto a la tabla "SYSDepartamentos campo Depto" 
-                                Actualizar el permiso individual de cada usuario "checks"--}}
-                                    {{-- @foreach ([
-                                        'Almacén' => 'Almacen',
-                                        'Urdido' => 'Urdido',
-                                        'Engomado' => 'Engomado',
-                                        'Tejido' => 'Tejido',
-                                        'Atadores' => 'Atadores',
-                                        'Tejedores' => 'Tejedores',
-                                        'Mantenimiento' => 'Mantenimiento',
-                                    ] as $label => $val)
-                                        <option value="{{ $val }}" {{ old('area', $usuario->area ?? '') === $val ? 'selected' : '' }}>{{ $label }}</option>
+                                    @foreach ($departamentos as $depto)
+                                        <option value="{{ $depto->Depto }}" {{ old('area', $usuario->area ?? '') === $depto->Depto ? 'selected' : '' }}>
+                                            {{ $depto->Depto }}
+                                        </option>
                                     @endforeach
-                                </select> --}}
+                                </select>
                             </div>
 
                             <!-- Número de Empleado -->
@@ -534,7 +526,73 @@
             eliminarCheckboxes.forEach(cb => cb.checked = checkbox.checked);
         }
 
+        @if($isEdit && $usuario)
+        // Actualización de permisos en tiempo real (solo en modo edición)
+        function actualizarPermiso(checkbox) {
+            const name = checkbox.name; // Ej: modulo_5_acceso
+            const parts = name.split('_'); // ['modulo', '5', 'acceso']
+            const idrol = parts[1];
+            const campo = parts[2];
+            const valor = checkbox.checked;
 
+            // Mostrar loading en el checkbox
+            checkbox.disabled = true;
+
+            fetch('{{ route("configuracion.usuarios.permisos.update", $usuario->idusuario) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    idrol: idrol,
+                    campo: campo,
+                    valor: valor ? 1 : 0
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                checkbox.disabled = false;
+                if (data.success) {
+                    // Mostrar feedback visual
+                    checkbox.parentElement.classList.add('bg-green-50');
+                    setTimeout(() => {
+                        checkbox.parentElement.classList.remove('bg-green-50');
+                    }, 500);
+                } else {
+                    // Revertir el cambio si falla
+                    checkbox.checked = !valor;
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'No se pudo actualizar el permiso',
+                        confirmButtonColor: '#2563eb'
+                    });
+                }
+            })
+            .catch(error => {
+                checkbox.disabled = false;
+                checkbox.checked = !valor;
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de conexión',
+                    text: 'No se pudo conectar con el servidor',
+                    confirmButtonColor: '#2563eb'
+                });
+            });
+        }
+
+        // Agregar event listeners a todos los checkboxes de permisos
+        document.addEventListener('DOMContentLoaded', function() {
+            const permisoCheckboxes = document.querySelectorAll('input[type="checkbox"][name*="modulo_"]');
+            permisoCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    actualizarPermiso(this);
+                });
+            });
+        });
+        @endif
 
     </script>
 @endsection

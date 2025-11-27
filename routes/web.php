@@ -550,6 +550,7 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
             Route::get('/{id}/edit', [UsuarioController::class, 'edit'])->name('edit');
             Route::put('/{id}', [UsuarioController::class, 'update'])->name('update');
             Route::delete('/{id}', [UsuarioController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/permisos', [UsuarioController::class, 'updatePermiso'])->name('permisos.update');
         });
 
         // Utilería
