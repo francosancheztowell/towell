@@ -39,97 +39,75 @@
 @endsection
 
 @section('content')
-<div class="w-full">
-    <div class="flex flex-col gap-3 w-full max-h-[calc(100vh-140px)]">
+<div class="w-full h-[calc(100vh-100px)] flex flex-col px-4 py-4 md:px-6 lg:px-8">
+    <div class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden max-w-full">
     @if(isset($marcas) && $marcas->count() > 0)
-            <!-- Panel Superior: Lista de Folios -->
-      <div class="bg-white rounded-md shadow-sm overflow-hidden w-full flex-shrink-0">
-                <div class="overflow-auto max-h-[calc((100vh-200px)/2)]">
-                    <table class="w-full table-fixed text-xs border-separate border-spacing-0">
-            <thead class="bg-blue-600 text-white sticky top-0 z-10">
-              <tr>
-                <th class="px-2 py-2 text-left uppercase text-[11px] w-24">Folio</th>
-                <th class="px-2 py-2 text-left uppercase text-[11px] w-28">Fecha</th>
-                <th class="px-2 py-2 text-left uppercase text-[11px] w-24">Turno</th>
-                <th class="px-2 py-2 text-left uppercase text-[11px] w-32">Empleado</th>
-                <th class="px-2 py-2 text-left uppercase text-[11px] w-28">Status</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
+        <!-- Header fijo fuera del scroll -->
+        <div class="bg-blue-600 text-white">
+            <table class="w-full text-sm">
+                <colgroup>
+                    <col style="width: 20%">
+                    <col style="width: 20%">
+                    <col style="width: 15%">
+                    <col style="width: 25%">
+                    <col style="width: 20%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Folio</th>
+                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Fecha</th>
+                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Turno</th>
+                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Empleado</th>
+                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Status</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <!-- Solo el contenido con scroll -->
+        <div class="flex-1 overflow-y-auto">
+            <table class="w-full text-sm">
+                <colgroup>
+                    <col style="width: 20%">
+                    <col style="width: 20%">
+                    <col style="width: 15%">
+                    <col style="width: 25%">
+                    <col style="width: 20%">
+                </colgroup>
+                <tbody class="divide-y divide-gray-100">
               @foreach($marcas as $marca)
                             <tr class="hover:bg-blue-50 cursor-pointer transition-colors marca-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $marca->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
                   id="row-{{ $marca->Folio }}"
                   data-folio="{{ $marca->Folio }}"
                   onclick="MarcasManager.seleccionar('{{ $marca->Folio }}', this)">
-                <td class="px-2 py-2 font-semibold text-gray-900 truncate">{{ $marca->Folio }}</td>
-                                <td class="px-2 py-2 text-gray-900 truncate">
+                <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate">{{ $marca->Folio }}</td>
+                                <td class="px-4 py-3 text-gray-900 text-base truncate">
                                     @if($marca->Date)
                                         {{ Carbon::parse($marca->Date)->format('d/m/Y') }}
                                     @else
                                         -
                                     @endif
                                 </td>
-                                <td class="px-2 py-2 text-gray-900 truncate">{{ $marca->Turno }}</td>
-                <td class="px-2 py-2 text-gray-900 truncate">{{ $marca->numero_empleado ?? 'N/A' }}</td>
-                <td class="px-2 py-2">
+                                <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $marca->Turno }}</td>
+                <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $marca->numero_empleado ?? 'N/A' }}</td>
+                <td class="px-4 py-3">
                   @if($marca->Status === 'Finalizado')
-                    <span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-700">Finalizado</span>
+                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>
                   @elseif($marca->Status === 'En Proceso')
-                    <span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-700">En Proceso</span>
+                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-700">En Proceso</span>
                   @else
-                    <span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-700">{{ $marca->Status }}</span>
+                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700">{{ $marca->Status }}</span>
                   @endif
                 </td>
               </tr>
               @endforeach
-            </tbody>
-          </table>
+                </tbody>
+            </table>
         </div>
-      </div>
-
-            <!-- Panel Inferior: Preview / Detalle -->
-      {{-- <div id="preview-panel" class="bg-white rounded-md shadow-sm overflow-hidden w-full hidden flex-shrink-0">
-        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-1.5 border-b border-blue-700 flex-shrink-0">
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-              <div class="flex items-center gap-2 min-w-0">
-                <i class="fas fa-file-alt text-white text-xs"></i>
-                <span id="prev-folio" class="text-xs font-bold text-white truncate">-</span>
-              </div>
-              <span class="text-white/80 text-[10px] hidden sm:inline">·</span>
-              <span id="prev-meta" class="text-[10px] text-white/90 truncate hidden sm:inline">-</span>
-            </div>
-            <span id="prev-status-container" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/20 text-white border border-white/30 whitespace-nowrap">-</span>
-          </div>
-        </div>
-
-                <div class="overflow-auto max-h-[calc((100vh-200px)/2)]">
-                    <table class="w-full table-fixed text-xs border-separate border-spacing-0">
-            <thead class="bg-blue-600 text-white sticky top-0 z-10">
-              <tr>
-                <th class="px-2 py-2 text-left uppercase text-[11px] w-20">Telar</th>
-                <th class="px-2 py-2 text-center uppercase text-[11px] w-24">Efic. STD</th>
-                <th class="px-2 py-2 text-center uppercase text-[11px] w-20">Marcas</th>
-                <th class="px-2 py-2 text-center uppercase text-[11px] w-20">Trama</th>
-                <th class="px-2 py-2 text-center uppercase text-[11px] w-20">Pie</th>
-                <th class="px-2 py-2 text-center uppercase text-[11px] w-20">Rizo</th>
-                <th class="px-2 py-2 text-center uppercase text-[11px] w-20">Otros</th>
-              </tr>
-            </thead>
-            <tbody id="preview-body" class="divide-y divide-gray-100">
-                        <tr>
-                            <td colspan="7" class="px-3 py-6 text-center text-gray-500">Haga clic en un registro de la lista superior para ver los detalles.</td>
-                        </tr>
-                    </tbody>
-          </table>
-        </div>
-      </div> --}}
-
     @else
             <!-- Sin Registros -->
-      <div class="bg-white rounded-md shadow-sm p-8 text-center w-full">
-        <h3 class="text-lg font-semibold text-gray-700 mb-2">No hay marcas registradas</h3>
-                <p class="text-gray-500 mb-4">Toca "Nueva Marca" para crear el primer registro.</p>
+        <div class="flex flex-col items-center justify-center flex-1 p-8 text-center">
+            <h3 class="text-2xl font-semibold text-gray-700 mb-3">No hay marcas registradas</h3>
+            <p class="text-gray-500 text-lg mb-6">Toca "Nueva Marca" para crear el primer registro.</p>
         <x-navbar.button-create
                   id="btn-nuevo-empty"
           title="Nuevo"
@@ -138,14 +116,12 @@
           icon="fa-plus"
           iconColor="text-green-600"
           hoverBg="hover:bg-green-100" />
-      </div>
+        </div>
     @endif
-  </div>
+    </div>
 </div>
 
-<style>
-section.content { width: 100% !important; max-width: 100% !important; }
-</style>
+<!-- Se removió CSS personalizado; todo se maneja con utilidades Tailwind -->
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
@@ -230,7 +206,6 @@ section.content { width: 100% !important; max-width: 100% !important; }
             }
 
             this.state.abortController = new AbortController();
-            this.activarPanel(true);
 
             try {
                 const res = await fetch(`${CONFIG.urls.detalle}${folio}`, {
@@ -249,16 +224,16 @@ section.content { width: 100% !important; max-width: 100% !important; }
                 }
 
                 this.state.status = data.marca.Status;
-                this.renderizarDetalle(data.marca, data.lineas || []);
                 this.actualizarBotones();
 
             } catch (err) {
                 if (err.name === 'AbortError') return;
-                this.mostrarError(err.message);
+                console.error('Error al cargar detalles:', err.message);
             }
         }
 
         activarPanel(activo) {
+            if (!this.dom.panel) return;
             if (activo) {
                 this.dom.panel.classList.remove('hidden');
             } else {
@@ -338,14 +313,47 @@ section.content { width: 100% !important; max-width: 100% !important; }
 
         actualizarBotones() {
             const isFinalizado = this.state.status === 'Finalizado';
+            const hayFolioSeleccionado = this.state.folio !== null;
 
             if (this.dom.btns.nuevo) this.dom.btns.nuevo.disabled = false;
-            if (this.dom.btns.editar) this.dom.btns.editar.disabled = isFinalizado;
-            if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = isFinalizado;
+            if (this.dom.btns.editar) this.dom.btns.editar.disabled = !hayFolioSeleccionado || isFinalizado;
+            if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = !hayFolioSeleccionado || isFinalizado;
         }
 
-        accionNuevo() {
-            window.location.href = '{{ route("marcas.nuevo") }}';
+        async accionNuevo() {
+            // Verificar si ya existe un folio en proceso
+            try {
+                const response = await fetch('/modulo-marcas/generar-folio', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.status === 400 && data.folio_existente) {
+                    // Ya existe un folio en proceso
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Folio en proceso',
+                        text: 'Ya existe un folio en proceso: ' + data.folio_existente + '. Debe finalizarlo antes de crear uno nuevo.',
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#3085d6'
+                    });
+                    return;
+                }
+
+                // Si no hay folio en proceso, redirigir a la página de nuevo
+                window.location.href = '{{ route("marcas.nuevo") }}';
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudo verificar el estado de los folios'
+                });
+            }
         }
 
         accionEditar() {

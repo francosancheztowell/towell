@@ -399,24 +399,52 @@ function generarNuevoFolio() {
             'Accept': 'application/json'
         }
     })
-    .then(r => r.json())
-    .then(d => {
-        if (!d.folio) throw new Error('Sin folio');
-        currentFolio = d.folio;
+    .then(r => r.json().then(data => ({ status: r.status, data })))
+    .then(({ status, data }) => {
+        if (status === 400 && data.folio_existente) {
+            // Ya existe un folio en proceso
+            Swal.fire({
+                icon: 'warning',
+                title: 'Folio en proceso',
+                html: data.message + '<br><br>¿Desea continuar editando ese folio?',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, editar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = '/modulo-marcas?folio=' + data.folio_existente;
+                } else {
+                    window.location.href = '/modulo-marcas/consultar';
+                }
+            });
+            return Promise.reject('Folio en proceso');
+        }
+        
+        if (!data.success || !data.folio) {
+            throw new Error(data.message || 'Error al generar folio');
+        }
+        
+        currentFolio = data.folio;
         isNewRecord  = true;
         isEditing    = true;
         actualizarBadgeFolio();
 
-        if (elements.folio) elements.folio.value = d.folio;
+        if (elements.folio) elements.folio.value = data.folio;
         if (elements.fecha) elements.fecha.value = new Date().toISOString().split('T')[0];
-        if (elements.turno) elements.turno.value = d.turno || '1';
+        if (elements.turno) elements.turno.value = data.turno || '1';
         if (elements.status) elements.status.value = 'En Proceso';
-        if (elements.usuario) elements.usuario.value = d.usuario || '';
-        if (elements.noEmpleado) elements.noEmpleado.value = d.numero_empleado || '';
+        if (elements.usuario) elements.usuario.value = data.usuario || '';
+        if (elements.noEmpleado) elements.noEmpleado.value = data.numero_empleado || '';
         if (elements.headerSection) elements.headerSection.style.display = 'block';
-        return d;
+        return data;
     })
-    .catch(() => Swal.fire('Error', 'No se pudo generar el folio', 'error'));
+    .catch((err) => {
+        if (err !== 'Folio en proceso') {
+            Swal.fire('Error', typeof err === 'string' ? err : 'No se pudo generar el folio', 'error');
+        }
+    });
 }
 
 function cargarDatosSTD(soloVacios=false) {
