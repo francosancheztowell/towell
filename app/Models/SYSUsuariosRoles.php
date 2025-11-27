@@ -10,6 +10,10 @@ class SYSUsuariosRoles extends Model
 
     protected $connection = 'sqlsrv'; // Especificar conexión SQL Server
 
+    // La tabla no tiene una columna 'id' como PK, usa clave compuesta (idusuario, idrol)
+    protected $primaryKey = null;
+    public $incrementing = false;
+
     protected $fillable = [
         'idusuario',
         'idrol',

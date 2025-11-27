@@ -8,8 +8,11 @@ use App\Services\ModuloService;
 use App\Services\UsuarioService;
 use App\Services\PermissionService;
 use App\Models\SYSRoles;
+use App\Models\SysDepartamentos;
+use App\Models\SYSUsuariosRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class UsuarioController extends Controller
@@ -50,11 +53,13 @@ class UsuarioController extends Controller
     public function create()
     {
         $modulos = $this->moduloService->getAllModulos();
+        $departamentos = SysDepartamentos::orderBy('Depto')->get();
 
         return view('modulos.usuarios.form_usuario', [
             'usuario' => null,
             'modulos' => $modulos,
             'permisosUsuario' => collect(),
+            'departamentos' => $departamentos,
             'isEdit' => false
         ]);
     }
@@ -136,11 +141,13 @@ class UsuarioController extends Controller
 
         $modulos = $this->moduloService->getAllModulos();
         $permisosUsuario = $this->permissionService->getAllPermisosUsuario($usuario->idusuario);
+        $departamentos = SysDepartamentos::orderBy('Depto')->get();
 
         return view('modulos.usuarios.form_usuario', [
             'usuario' => $usuario,
             'modulos' => $modulos,
             'permisosUsuario' => $permisosUsuario,
+            'departamentos' => $departamentos,
             'isEdit' => true
         ]);
     }
@@ -154,12 +161,9 @@ class UsuarioController extends Controller
             $data = $request->validated();
             $foto = $request->hasFile('foto') ? $request->file('foto') : null;
 
-            // Extraer permisos del request (todos los campos que empiezan con "modulo_")
-            $permisos = array_filter($request->all(), function($key) {
-                return strpos($key, 'modulo_') === 0;
-            }, ARRAY_FILTER_USE_KEY);
-
-            $actualizado = $this->usuarioService->update($id, $data, $foto, $permisos);
+            // NO procesar permisos en edición, se guardan por AJAX en tiempo real
+            // Solo actualizar datos del usuario
+            $actualizado = $this->usuarioService->update($id, $data, $foto, []);
 
             if (!$actualizado) {
                 return redirect()->route('configuracion.usuarios.select')
@@ -211,6 +215,65 @@ class UsuarioController extends Controller
             return redirect()
                 ->route('configuracion.usuarios.select')
                 ->with('error', 'No se pudo eliminar el usuario. Verifica que no tenga registros relacionados.');
+        }
+    }
+
+    /**
+     * Actualizar permiso individual de un usuario
+     */
+    public function updatePermiso(Request $request, int $id)
+    {
+        try {
+            $idrol = $request->input('idrol');
+            $campo = $request->input('campo'); // 'acceso', 'crear', 'modificar', 'eliminar'
+            $valor = $request->input('valor') ? 1 : 0;
+
+            // Buscar el registro existente
+            $permiso = SYSUsuariosRoles::where('idusuario', $id)
+                ->where('idrol', $idrol)
+                ->first();
+
+            if ($permiso) {
+                // Si existe, solo actualizar el campo específico usando DB directo
+                DB::connection('sqlsrv')
+                    ->table('SYSUsuariosRoles')
+                    ->where('idusuario', $id)
+                    ->where('idrol', $idrol)
+                    ->update([
+                        $campo => $valor,
+                        'assigned_at' => now()
+                    ]);
+            } else {
+                // Si no existe, crear con todos los campos inicializados
+                SYSUsuariosRoles::create([
+                    'idusuario' => $id,
+                    'idrol' => $idrol,
+                    'acceso' => $campo === 'acceso' ? $valor : 0,
+                    'crear' => $campo === 'crear' ? $valor : 0,
+                    'modificar' => $campo === 'modificar' ? $valor : 0,
+                    'eliminar' => $campo === 'eliminar' ? $valor : 0,
+                    'registrar' => 0,
+                    'assigned_at' => now()
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Permiso actualizado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar permiso', [
+                'usuario_id' => $id,
+                'idrol' => $idrol,
+                'campo' => $campo,
+                'valor' => $valor,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el permiso'
+            ], 500);
         }
     }
 
