@@ -75,20 +75,20 @@
                 </colgroup>
                 <tbody class="divide-y divide-gray-100">
               @foreach($marcas as $marca)
-                            <tr class="hover:bg-blue-50 cursor-pointer transition-colors marca-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $marca->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
+                            <tr class="hover:bg-blue-500 hover:text-white cursor-pointer transition-colors marca-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $marca->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
                   id="row-{{ $marca->Folio }}"
                   data-folio="{{ $marca->Folio }}"
                   onclick="MarcasManager.seleccionar('{{ $marca->Folio }}', this)">
-                <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate">{{ $marca->Folio }}</td>
-                                <td class="px-4 py-3 text-gray-900 text-base truncate">
+                <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate hover:text-white">{{ $marca->Folio }}</td>
+                                <td class="px-4 py-3 text-gray-900 text-base truncate hover:text-white">
                                     @if($marca->Date)
                                         {{ Carbon::parse($marca->Date)->format('d/m/Y') }}
                                     @else
                                         -
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $marca->Turno }}</td>
-                <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $marca->numero_empleado ?? 'N/A' }}</td>
+                                <td class="px-4 py-3 text-gray-900 text-base truncate hover:text-white">{{ $marca->Turno }}</td>
+                <td class="px-4 py-3 text-gray-900 text-base truncate hover:text-white">{{ $marca->numero_empleado ?? 'N/A' }}</td>
                 <td class="px-4 py-3">
                   @if($marca->Status === 'Finalizado')
                     <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>

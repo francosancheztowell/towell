@@ -44,11 +44,38 @@
 <!-- Alertas flotantes -->
 <div id="alert-container" class="fixed top-4 right-4 z-50 space-y-2 max-w-[400px]"></div>
 
-<div class="w-full max-w-screen-md mx-auto px-3 md:px-6 lg:px-8 h-[calc(100vh-100px)]">
+<div class="w-full max-w-4xl mx-auto px-2 md:px-4 lg:px-6 h-[calc(100vh-100px)]">
     <!-- Tabla principal -->
-    <div id="segunda-tabla" class="bg-white border rounded-md overflow-hidden h-full">
-        <div class="overflow-x-auto h-full">
-            <div class="overflow-y-auto max-h-[58vh] md:max-h-[calc(100vh-160px)] lg:max-h-[calc(100vh-160px)] h-full">
+    <div id="segunda-tabla" class="bg-white border rounded-md overflow-hidden h-full flex flex-col">
+        <!-- Header fijo fuera del scroll -->
+        <div class="bg-blue-600 text-white flex-shrink-0">
+            <table class="table-fixed w-full text-sm">
+                <colgroup>
+                    <col style="width:10%">
+                    <col style="width:10%">
+                    <col style="width:13.33%">
+                    <col style="width:13.33%">
+                    <col style="width:13.33%">
+                    <col style="width:13.33%">
+                    <col style="width:13.33%">
+                    <col style="width:13.33%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th class="px-2 py-2 text-center uppercase text-xs whitespace-nowrap">Telar</th>
+                        <th class="px-2 py-2 text-center uppercase text-xs whitespace-nowrap">Salón</th>
+                        @foreach($colsEditables as $col)
+                            <th class="px-3 py-2 text-center uppercase text-xs whitespace-nowrap">
+                                {{ $col['label'] }}
+                            </th>
+                        @endforeach
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <!-- Solo el contenido con scroll -->
+        <div class="flex-1 overflow-y-auto max-h-[calc(100vh-200px)]">
+            <div class="overflow-x-auto">
                 <table class="table-fixed w-full text-sm">
                     <colgroup>
                         <col style="width:10%">
@@ -60,19 +87,6 @@
                         <col style="width:13.33%">
                         <col style="width:13.33%">
                     </colgroup>
-                    <thead class="bg-blue-600 text-white">
-                        <tr>
-                            <th class="px-2 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[60px] whitespace-nowrap">Telar</th>
-                            <th class="px-2 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[80px] whitespace-nowrap">Salón</th>
-
-                            @foreach($colsEditables as $col)
-                                <th class="px-3 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[100px] whitespace-nowrap">
-                                    {{ $col['label'] }}
-                                </th>
-                            @endforeach
-                        </tr>
-                    </thead>
-
                     <tbody id="telares-body" class="divide-y divide-gray-100">
                     @foreach(($telares ?? []) as $telar)
                         <tr class="hover:bg-blue-50">
