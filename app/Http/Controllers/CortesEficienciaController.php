@@ -17,8 +17,19 @@ class CortesEficienciaController extends Controller
     /**
      * Mostrar la vista de cortes de eficiencia
      */
-    public function index()
+    public function index(Request $request)
     {
+        // Verificar si existe algún folio que no esté finalizado
+        $folioEnProceso = TejEficiencia::where('Status', '!=', 'Finalizado')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        // Si hay un folio en proceso y no se está editando específicamente, redirigir
+        if ($folioEnProceso && !$request->has('folio')) {
+            return redirect()->route('cortes.eficiencia.consultar')
+                ->with('warning', 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.');
+        }
+
         // Obtener orden de telares desde InvSecuenciaCorteEf
         $telares = InvSecuenciaCorteEf::orderBy('Orden', 'asc')
             ->pluck('NoTelarId')
@@ -139,6 +150,19 @@ class CortesEficienciaController extends Controller
                 ], 401);
             }
 
+            // Verificar si existe algún folio que no esté finalizado
+            $folioEnProceso = TejEficiencia::where('Status', '!=', 'Finalizado')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($folioEnProceso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe un folio en proceso',
+                    'folio_existente' => $folioEnProceso->Folio
+                ], 400);
+            }
+
             // No consumir la secuencia al abrir modal: devolver folio sugerido (lectura)
             $folio = FolioHelper::obtenerFolioSugerido('CorteEficiencia', 4);
 
@@ -194,6 +218,19 @@ class CortesEficienciaController extends Controller
                 'horario2' => 'nullable|string',
                 'horario3' => 'nullable|string',
             ]);
+
+            // Verificar si existe otro folio en proceso (excepto el actual)
+            $folioEnProceso = TejEficiencia::where('Status', '!=', 'Finalizado')
+                ->where('Folio', '!=', $validated['folio'])
+                ->first();
+
+            if ($folioEnProceso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
+                    'folio_existente' => $folioEnProceso->Folio
+                ], 400);
+            }
 
             DB::beginTransaction();
 
