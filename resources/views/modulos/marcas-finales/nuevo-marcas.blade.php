@@ -36,6 +36,7 @@
               d="M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 10a3 3 0 11-6 0 3 3 0 016 0z"/>
     </svg>
     <span class="text-sm font-semibold">Folio:</span>
+    <span id="folio-text" class="text-sm font-bold ml-1">-</span>
 </div>
 @endsection
 
@@ -43,25 +44,49 @@
 <!-- Alertas flotantes -->
 <div id="alert-container" class="fixed top-4 right-4 z-50 space-y-2 max-w-[400px]"></div>
 
-<div class="container">
+<div class="w-full max-w-4xl mx-auto px-2 md:px-4 lg:px-6 h-[calc(100vh-100px)]">
     <!-- Tabla principal -->
-    <div id="segunda-tabla" class="bg-white border rounded-md overflow-hidden">
-        <div class="overflow-x-auto">
-            <div class="overflow-y-auto" style="max-height: 80vh;">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-blue-600 text-white">
-                        <tr>
-                            <th class="px-2 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[60px]">Telar</th>
-                            <th class="px-2 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[80px]">Salón</th>
-
-                            @foreach($colsEditables as $col)
-                                <th class="px-3 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[100px]">
-                                    {{ $col['label'] }}
-                                </th>
-                            @endforeach
-                        </tr>
-                    </thead>
-
+    <div id="segunda-tabla" class="bg-white border rounded-md overflow-hidden h-full flex flex-col">
+        <!-- Header fijo fuera del scroll -->
+        <div class="bg-blue-600 text-white flex-shrink-0">
+            <table class="table-fixed w-full text-sm">
+                <colgroup>
+                    <col style="width:10%">
+                    <col style="width:10%">
+                    <col style="width:13.33%">
+                    <col style="width:13.33%">
+                    <col style="width:13.33%">
+                    <col style="width:13.33%">
+                    <col style="width:13.33%">
+                    <col style="width:13.33%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th class="px-2 py-2 text-center uppercase text-xs whitespace-nowrap">Telar</th>
+                        <th class="px-2 py-2 text-center uppercase text-xs whitespace-nowrap">Salón</th>
+                        @foreach($colsEditables as $col)
+                            <th class="px-3 py-2 text-center uppercase text-xs whitespace-nowrap">
+                                {{ $col['label'] }}
+                            </th>
+                        @endforeach
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <!-- Solo el contenido con scroll -->
+        <div class="flex-1 overflow-y-auto max-h-[calc(100vh-200px)]">
+            <div class="overflow-x-auto">
+                <table class="table-fixed w-full text-sm">
+                    <colgroup>
+                        <col style="width:10%">
+                        <col style="width:10%">
+                        <col style="width:13.33%">
+                        <col style="width:13.33%">
+                        <col style="width:13.33%">
+                        <col style="width:13.33%">
+                        <col style="width:13.33%">
+                        <col style="width:13.33%">
+                    </colgroup>
                     <tbody id="telares-body" class="divide-y divide-gray-100">
                     @foreach(($telares ?? []) as $telar)
                         <tr class="hover:bg-blue-50">
@@ -80,7 +105,7 @@
 
                             <!-- Celdas editables (DRY) -->
                             @foreach($colsEditables as $col)
-                                <td class="px-2 py-2 {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
+                                <td class="px-2 py-2 whitespace-nowrap {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
                                     <div class="relative">
                                         @if($puedeEditar)
                                             <button type="button"
@@ -399,24 +424,52 @@ function generarNuevoFolio() {
             'Accept': 'application/json'
         }
     })
-    .then(r => r.json())
-    .then(d => {
-        if (!d.folio) throw new Error('Sin folio');
-        currentFolio = d.folio;
+    .then(r => r.json().then(data => ({ status: r.status, data })))
+    .then(({ status, data }) => {
+        if (status === 400 && data.folio_existente) {
+            // Ya existe un folio en proceso
+            Swal.fire({
+                icon: 'warning',
+                title: 'Folio en proceso',
+                html: data.message + '<br><br>¿Desea continuar editando ese folio?',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, editar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = '/modulo-marcas?folio=' + data.folio_existente;
+                } else {
+                    window.location.href = '/modulo-marcas/consultar';
+                }
+            });
+            return Promise.reject('Folio en proceso');
+        }
+        
+        if (!data.success || !data.folio) {
+            throw new Error(data.message || 'Error al generar folio');
+        }
+        
+        currentFolio = data.folio;
         isNewRecord  = true;
         isEditing    = true;
         actualizarBadgeFolio();
 
-        if (elements.folio) elements.folio.value = d.folio;
+        if (elements.folio) elements.folio.value = data.folio;
         if (elements.fecha) elements.fecha.value = new Date().toISOString().split('T')[0];
-        if (elements.turno) elements.turno.value = d.turno || '1';
+        if (elements.turno) elements.turno.value = data.turno || '1';
         if (elements.status) elements.status.value = 'En Proceso';
-        if (elements.usuario) elements.usuario.value = d.usuario || '';
-        if (elements.noEmpleado) elements.noEmpleado.value = d.numero_empleado || '';
+        if (elements.usuario) elements.usuario.value = data.usuario || '';
+        if (elements.noEmpleado) elements.noEmpleado.value = data.numero_empleado || '';
         if (elements.headerSection) elements.headerSection.style.display = 'block';
-        return d;
+        return data;
     })
-    .catch(() => Swal.fire('Error', 'No se pudo generar el folio', 'error'));
+    .catch((err) => {
+        if (err !== 'Folio en proceso') {
+            Swal.fire('Error', typeof err === 'string' ? err : 'No se pudo generar el folio', 'error');
+        }
+    });
 }
 
 function cargarDatosSTD(soloVacios=false) {

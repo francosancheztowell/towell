@@ -66,6 +66,17 @@ class MarcasController extends Controller
                 ], 401);
             }
 
+            // Validar que no exista otro folio "En Proceso"
+            $folioEnProceso = TejMarcas::where('Status', 'En Proceso')->first();
+            
+            if ($folioEnProceso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
+                    'folio_existente' => $folioEnProceso->Folio
+                ], 400);
+            }
+
             $ultimoFolio = TejMarcas::orderByDesc('Folio')->value('Folio');
 
             if ($ultimoFolio) {
