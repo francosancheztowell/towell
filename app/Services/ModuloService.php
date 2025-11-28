@@ -358,7 +358,7 @@ class ModuloService
 
             // Módulos de Tejido
             'Inv Telas' => '/tejido/inventario-telas',
-            'Cortes de Eficiencia' => '/tejido/cortes-eficiencia',
+            'Cortes de Eficiencia' => '/modulo-cortes-de-eficiencia/consultar',
             'Marcas Finales- Cortes de Eficiencia' => '/modulo-marcas/consultar',
             'Marcas Finales' => '/modulo-marcas/consultar',
             'Inv Trama' => '/tejido/inventario',
