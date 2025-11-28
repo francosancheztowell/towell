@@ -30,7 +30,7 @@
 @endphp
 
 <!-- Badge de folio (se muestra cuando exista folio activo) -->
-<div id="badge-folio" class="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg shadow-md">
+<div id="badge-folio" class="hidden md:flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg shadow-md">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 10a3 3 0 11-6 0 3 3 0 016 0z"/>
