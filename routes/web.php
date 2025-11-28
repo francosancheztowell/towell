@@ -323,6 +323,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/codificacion-modelos', [CodificacionController::class, 'index'])->name('codificacion-modelos');
             Route::get('/codificacion-modelos/create', [CodificacionController::class, 'create'])->name('codificacion.create');
             Route::get('/codificacion-modelos/get-all', [CodificacionController::class, 'getAll'])->name('codificacion.get-all');
+            Route::get('/codificacion-modelos/api/all-fast', [CodificacionController::class, 'getAllFast'])->name('codificacion.all-fast');
             Route::get('/codificacion-modelos/estadisticas', [CodificacionController::class, 'estadisticas'])->name('codificacion.estadisticas');
             Route::get('/codificacion-modelos/{id}/edit', [CodificacionController::class, 'edit'])->name('codificacion.edit');
             Route::get('/codificacion-modelos/{id}', [CodificacionController::class, 'show'])->name('codificacion.show');
