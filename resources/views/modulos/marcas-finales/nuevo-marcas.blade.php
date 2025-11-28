@@ -30,12 +30,13 @@
 @endphp
 
 <!-- Badge de folio (se muestra cuando exista folio activo) -->
-<div id="badge-folio" class="hidden md:flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg shadow-md">
+<div id="badge-folio" class="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg shadow-md">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 10a3 3 0 11-6 0 3 3 0 016 0z"/>
     </svg>
     <span class="text-sm font-semibold">Folio:</span>
+    <span id="folio-text" class="text-sm font-bold ml-1">-</span>
 </div>
 @endsection
 
@@ -43,19 +44,29 @@
 <!-- Alertas flotantes -->
 <div id="alert-container" class="fixed top-4 right-4 z-50 space-y-2 max-w-[400px]"></div>
 
-<div class="container">
+<div class="w-full max-w-screen-md mx-auto px-3 md:px-6 lg:px-8 h-[calc(100vh-100px)]">
     <!-- Tabla principal -->
-    <div id="segunda-tabla" class="bg-white border rounded-md overflow-hidden">
-        <div class="overflow-x-auto">
-            <div class="overflow-y-auto" style="max-height: 80vh;">
-                <table class="min-w-full text-sm">
+    <div id="segunda-tabla" class="bg-white border rounded-md overflow-hidden h-full">
+        <div class="overflow-x-auto h-full">
+            <div class="overflow-y-auto max-h-[58vh] md:max-h-[calc(100vh-160px)] lg:max-h-[calc(100vh-160px)] h-full">
+                <table class="table-fixed w-full text-sm">
+                    <colgroup>
+                        <col style="width:10%">
+                        <col style="width:10%">
+                        <col style="width:13.33%">
+                        <col style="width:13.33%">
+                        <col style="width:13.33%">
+                        <col style="width:13.33%">
+                        <col style="width:13.33%">
+                        <col style="width:13.33%">
+                    </colgroup>
                     <thead class="bg-blue-600 text-white">
                         <tr>
-                            <th class="px-2 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[60px]">Telar</th>
-                            <th class="px-2 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[80px]">Salón</th>
+                            <th class="px-2 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[60px] whitespace-nowrap">Telar</th>
+                            <th class="px-2 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[80px] whitespace-nowrap">Salón</th>
 
                             @foreach($colsEditables as $col)
-                                <th class="px-3 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[100px]">
+                                <th class="px-3 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[100px] whitespace-nowrap">
                                     {{ $col['label'] }}
                                 </th>
                             @endforeach
@@ -80,7 +91,7 @@
 
                             <!-- Celdas editables (DRY) -->
                             @foreach($colsEditables as $col)
-                                <td class="px-2 py-2 {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
+                                <td class="px-2 py-2 whitespace-nowrap {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
                                     <div class="relative">
                                         @if($puedeEditar)
                                             <button type="button"
