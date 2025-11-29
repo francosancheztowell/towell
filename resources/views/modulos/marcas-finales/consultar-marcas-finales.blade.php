@@ -39,11 +39,11 @@
 @endsection
 
 @section('content')
-<div class="w-full h-[calc(100vh-100px)] flex flex-col px-4 py-4 md:px-6 lg:px-8">
+<div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
     <div class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden max-w-full">
     @if(isset($marcas) && $marcas->count() > 0)
-        <!-- Header fijo fuera del scroll -->
-        <div class="bg-blue-600 text-white">
+        <!-- Header fijo (sticky) dentro del contenedor -->
+        <div class="bg-blue-600 text-white sticky top-0 z-10">
             <table class="w-full text-sm">
                 <colgroup>
                     <col style="width: 20%">
@@ -64,7 +64,7 @@
             </table>
         </div>
         <!-- Solo el contenido con scroll -->
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 overflow-auto">
             <table class="w-full text-sm">
                 <colgroup>
                     <col style="width: 20%">
