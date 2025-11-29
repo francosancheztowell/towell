@@ -293,8 +293,14 @@
             }
             
             if (!d.success) throw new Error(d.message || 'No se pudo generar folio');
-            state.folio = d.folio; state.usuario = d.usuario?.nombre || ''; state.noEmpleado = d.usuario?.numero_empleado || ''; state.turno = d.turno || state.turno; state.status = 'En Proceso'; state.isNewRecord = true;
+            state.folio = d.folio; state.usuario = d.usuario?.nombre || ''; state.noEmpleado = d.usuario?.numero_empleado || ''; state.turno = d.turno || state.turno; state.status = 'En Proceso'; state.isNewRecord = false;
             actualizarBadgeFolio();
+            
+            // Actualizar la URL con el folio para que al recargar se mantenga editando el mismo
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('folio', d.folio);
+            window.history.replaceState({}, '', newUrl.toString());
+            
         } catch (error) {
             console.error('Error al generar folio:', error);
             await Swal.fire({

@@ -234,7 +234,7 @@
         }
 
         async accionNuevo() {
-            // Verificar si ya existe un folio en proceso
+            // Generar nuevo folio y redirigir a la página de edición
             try {
                 const response = await fetch('/modulo-cortes-de-eficiencia/generar-folio', {
                     headers: {
@@ -246,24 +246,36 @@
                 const data = await response.json();
 
                 if (response.status === 400 && data.folio_existente) {
-                    // Ya existe un folio en proceso
-                    Swal.fire({
+                    // Ya existe un folio en proceso, preguntar si quiere editarlo
+                    const result = await Swal.fire({
                         icon: 'warning',
                         title: 'Folio en proceso',
-                        text: 'Ya existe un folio en proceso: ' + data.folio_existente + '. Debe finalizarlo antes de crear uno nuevo.',
-                        confirmButtonText: 'Entendido',
+                        text: 'Ya existe un folio en proceso: ' + data.folio_existente + '. ¿Desea continuar editándolo?',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, editar',
+                        cancelButtonText: 'Cancelar',
                         confirmButtonColor: '#3085d6'
                     });
+                    
+                    if (result.isConfirmed) {
+                        // Redirigir al folio existente para editarlo
+                        window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio_existente;
+                    }
                     return;
                 }
 
-                // Si no hay folio en proceso, redirigir a la página de nuevo
-                window.location.href = '{{ route("cortes.eficiencia") }}';
+                if (!data.success) {
+                    throw new Error(data.message || 'No se pudo generar el folio');
+                }
+
+                // Folio generado exitosamente, redirigir a la página de edición con el nuevo folio
+                window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio;
+                
             } catch (error) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'No se pudo verificar el estado de los folios'
+                    text: 'No se pudo generar el folio: ' + error.message
                 });
             }
         }

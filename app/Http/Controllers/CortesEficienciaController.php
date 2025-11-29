@@ -163,10 +163,20 @@ class CortesEficienciaController extends Controller
                 ], 400);
             }
 
-            // No consumir la secuencia al abrir modal: devolver folio sugerido (lectura)
-            $folio = FolioHelper::obtenerFolioSugerido('CorteEficiencia', 4);
+            // Generar el folio real (incrementa el consecutivo)
+            // Este será el folio definitivo que se usará para guardar
+            $folio = FolioHelper::obtenerSiguienteFolio('CorteEficiencia', 4);
 
-
+            // Crear inmediatamente el registro en TejEficiencia con status "En Proceso"
+            // Esto reserva el folio y evita duplicados
+            TejEficiencia::create([
+                'Folio' => $folio,
+                'Date' => now()->toDateString(),
+                'Turno' => TurnoHelper::getTurnoActual(),
+                'Status' => 'En Proceso',
+                'numero_empleado' => $user->numero_empleado ?? 'N/A',
+                'nombreEmpl' => $user->nombre ?? 'Usuario',
+            ]);
 
             // Obtener turno actual
             $turno = TurnoHelper::getTurnoActual();
