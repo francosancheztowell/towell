@@ -235,12 +235,23 @@ class CortesEficienciaController extends Controller
             DB::beginTransaction();
 
             try {
-                // Generar folio usando el helper (incrementa el consecutivo al guardar)
-                $folioFinal = FolioHelper::obtenerSiguienteFolio('CorteEficiencia', 4);
-
-                // Si no se pudo generar, usar el del request como fallback
-                if (empty($folioFinal)) {
+                // Verificar si el folio del request ya existe Y está en proceso (no finalizado)
+                $folioExistenteEnProceso = TejEficiencia::where('Folio', $validated['folio'])
+                    ->where('Status', '!=', 'Finalizado')
+                    ->first();
+                
+                if ($folioExistenteEnProceso) {
+                    // Si el folio ya existe y está en proceso, usarlo (es una actualización)
                     $folioFinal = $validated['folio'];
+                } else {
+                    // No existe el folio en proceso, generar uno nuevo
+                    // (puede ser que no exista, o que exista pero ya esté finalizado)
+                    $folioFinal = FolioHelper::obtenerSiguienteFolio('CorteEficiencia', 4);
+
+                    // Si no se pudo generar, usar el del request como fallback
+                    if (empty($folioFinal)) {
+                        $folioFinal = $validated['folio'];
+                    }
                 }
 
                 // 1. Crear o actualizar el registro en TejEficiencia

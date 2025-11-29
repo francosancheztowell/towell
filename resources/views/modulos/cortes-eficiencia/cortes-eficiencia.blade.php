@@ -409,7 +409,15 @@
                 return;
             }
             
-            if (!r.success) throw new Error(r.message || 'Error al guardar'); 
+            if (!r.success) throw new Error(r.message || 'Error al guardar');
+            
+            // Actualizar el folio del state con el folio real guardado en BD
+            // Esto es importante porque el backend puede haber generado un folio diferente al sugerido
+            if (r.folio && r.folio !== state.folio) {
+                state.folio = r.folio;
+                actualizarBadgeFolio();
+            }
+            
             state.isNewRecord = false; 
             floatingBadge('Guardado automáticamente'); 
         } catch (e) { 
