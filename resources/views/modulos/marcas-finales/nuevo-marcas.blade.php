@@ -112,7 +112,7 @@
                                                    transition-all duration-200 flex items-center justify-between bg-white shadow-sm"
                                             data-telar="{{ $telar->NoTelarId }}" data-type="{{ $col['key'] }}">
                                             <span class="valor-display-text text-blue-600 font-semibold">
-                                                {{ $col['key'] === 'efi' ? '-' : '0' }}
+                                                {{ $col['key'] === 'efi' ? '0%' : '0' }}
                                             </span>
                                             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -293,7 +293,12 @@ function toggleValorSelector(btn) {
 
     if (selector.classList.contains('hidden')) {
         const currentText  = btn.querySelector('.valor-display-text')?.textContent || '0';
-        const currentValue = parseValorDisplay(currentText, tipo);
+        let currentValue = parseValorDisplay(currentText, tipo);
+        // Si es Efi y el valor mostrado es 0, usar recomendado (STD) como sugerencia
+        if (tipo === 'efi' && currentValue === 0) {
+            const rec = parseInt(btn.dataset.recommended || 'NaN', 10);
+            if (!Number.isNaN(rec)) currentValue = rec;
+        }
         buildNumberOptions(selector, tipo, currentValue);
         selector.classList.remove('hidden');
         scrollToCurrentValue(selector, currentValue);
@@ -481,14 +486,11 @@ function cargarDatosSTD(soloVacios=false) {
                 const salon = q(`span[data-telar="${item.telar}"][data-field="salon"]`);
                 if (salon) salon.textContent = item.salon || '-';
 
-                // % Efi - solo actualizar si está vacío o si no es modo soloVacios
-                const span = q(`button[data-telar="${item.telar}"][data-type="efi"] .valor-display-text`);
-                if (!span) return;
-
-                const tieneValor = span.textContent && span.textContent !== '-' && span.textContent !== '0%';
-                if (!soloVacios || !tieneValor) {
+                // % Efi - no modificar el valor mostrado (debe iniciar en 0%), solo guardar recomendación (STD)
+                const btnEfi = q(`button[data-telar="${item.telar}"][data-type="efi"]`);
+                if (btnEfi) {
                     const p = (item.porcentaje_efi ?? null);
-                    span.textContent = (p && p > 0) ? `${p}%` : '-';
+                    if (p != null) btnEfi.setAttribute('data-recommended', String(parseInt(p, 10)));
                 }
             });
         });
