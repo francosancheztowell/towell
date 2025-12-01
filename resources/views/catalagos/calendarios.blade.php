@@ -7,18 +7,18 @@
 @endsection
 
 @section('content')
-    <div class="container overflow-y-auto h-[600px]">
+    <div class="w-full">
 
         <!-- Tabla 1: ReqCalendarioTab -->
         <div class="mb-6">
 
             <div class="bg-white overflow-hidden">
-                <div class="overflow-y-auto max-h-[250px]">
+                <div class="overflow-y-auto max-h-[300px]">
                     <table class="table table-bordered table-sm w-full">
                         <thead class="sticky top-0 bg-blue-500 text-white z-10">
                             <tr>
-                                <th style="width: 20%;" class="px-4  text-center font-semibold">No Calendario</th>
-                                <th style="width: 80%;" class="px-4  text-center font-semibold">Nombre</th>
+                                <th class="px-4  text-center font-semibold">No Calendario</th>
+                                <th  class="px-4  text-center font-semibold">Nombre</th>
                     </tr>
                 </thead>
                         <tbody id="calendario-tab-body" class="bg-white text-black">
@@ -43,9 +43,9 @@
 
 
             <div class="bg-white  overflow-hidden">
-                <div class="overflow-y-auto max-h-[300px]">
+                <div class="overflow-y-auto max-h-[800px]">
                     <table class="table table-bordered table-sm w-full">
-                        <thead class="sticky top-0 bg-blue-500 text-white z-10">
+                        <thead class="sticky top-0 bg-blue-500 text-white z-20">
                             <tr>
                                 <th style="width: 15%;" class="px-4  text-center font-semibold">No Calendario</th>
                                 <th style="width: 25%;" class="px-4  text-center font-semibold">Inicio (Fecha Hora)</th>
@@ -131,7 +131,7 @@
             }
         }
 
-        // ✨ FUNCIÓN PARA FILTRAR LA SEGUNDA TABLA
+        // ✨ FUNCIÓN PARA FILTRAR LA SsEGUNDA TABLA
         function filtrarLineasPorCalendario(calendarioId) {
             const tbody = document.getElementById('calendario-line-body');
             const rows = tbody.querySelectorAll('tr');

@@ -34,9 +34,9 @@
                             data-factor="{{ $item->Factor }}"
                             data-id="{{ $recordId ?? $uniqueId }}"
                         >
-                            <td class="py-1 px-4 border-b">{{ $item->AplicacionId }}</td>
-                            <td class="py-1 px-4 border-b">{{ $item->Nombre }}</td>
-                            <td class="py-1 px-4 border-b font-semibold">{{ $item->Factor }}</td>
+                            <td class="py-1 px-4 ">{{ $item->AplicacionId }}</td>
+                            <td class="py-1 px-4 ">{{ $item->Nombre }}</td>
+                            <td class="py-1 px-4  font-semibold">{{ $item->Factor }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initialData: @json($aplicaciones)
     });
 
-    // Funciones globales esperadas por catalog-actions component
+    // Funciones globales esperadas por catalog-sactions component
     // El componente genera: agregarAplicaciones, editarAplicaciones, eliminarAplicaciones, filtrarAplicaciones, limpiarFiltrosAplicaciones, subirExcelAplicaciones
     window.agregarAplicaciones = () => window.catalogManager.create();
     window.editarAplicaciones = () => window.catalogManager.edit();
