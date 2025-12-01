@@ -36,90 +36,112 @@
               d="M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 10a3 3 0 11-6 0 3 3 0 016 0z"/>
     </svg>
     <span class="text-sm font-semibold">Folio:</span>
+    <span id="folio-text" class="text-sm font-bold ml-1">-</span>
 </div>
 @endsection
 
 @section('content')
-<!-- Alertas flotantes -->
-<div id="alert-container" class="fixed top-4 right-4 z-50 space-y-2 max-w-[400px]"></div>
+<!-- Contenedor principal sin alertas flotantes (ahora usa SweetAlert) -->
 
-<div class="container">
+<div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
     <!-- Tabla principal -->
-    <div id="segunda-tabla" class="bg-white border rounded-md overflow-hidden">
-        <div class="overflow-x-auto">
-            <div class="overflow-y-auto" style="max-height: 80vh;">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-blue-600 text-white">
-                        <tr>
-                            <th class="px-2 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[60px]">Telar</th>
-                            <th class="px-2 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[80px]">Salón</th>
+    <div id="segunda-tabla" class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden max-w-full">
+        <!-- Header fijo (sticky) dentro del contenedor -->
+        <div class="bg-blue-600 text-white sticky top-0 z-10">
+            <table class="w-full text-sm">
+                <colgroup>
+                    <col style="width: 10%">
+                    <col style="width: 10%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th class="px-4 py-3 text-center uppercase text-sm font-semibold">Telar</th>
+                        <th class="px-4 py-3 text-center uppercase text-sm font-semibold">Salón</th>
+                        @foreach($colsEditables as $col)
+                            <th class="px-4 py-3 text-center uppercase text-sm font-semibold">
+                                {{ $col['label'] }}
+                            </th>
+                        @endforeach
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <!-- Solo el contenido con scroll -->
+        <div class="flex-1 overflow-auto">
+            <table class="w-full text-sm">
+                <colgroup>
+                    <col style="width: 10%">
+                    <col style="width: 10%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                </colgroup>
+                <tbody id="telares-body" class="bg-white divide-y divide-gray-200">
+                @foreach(($telares ?? []) as $telar)
+                    <tr class="even:bg-gray-50 hover:bg-gray-100 transition-colors duration-150">
+                        <!-- Telar -->
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900 text-center border-r border-gray-200">
+                            {{ $telar->NoTelarId }}
+                        </td>
 
-                            @foreach($colsEditables as $col)
-                                <th class="px-3 py-2 text-center uppercase text-xs sticky top-0 z-30 min-w-[100px]">
-                                    {{ $col['label'] }}
-                                </th>
-                            @endforeach
-                        </tr>
-                    </thead>
+                        <!-- Salón (badge) -->
+                        <td class="px-4 py-3 text-center border-r border-gray-200">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                  data-telar="{{ $telar->NoTelarId }}" data-field="salon">
+                                {{ $telar->SalonId ?? '-' }}
+                            </span>
+                        </td>
 
-                    <tbody id="telares-body" class="divide-y divide-gray-100">
-                    @foreach(($telares ?? []) as $telar)
-                        <tr class="hover:bg-blue-50">
-                            <!-- Telar -->
-                            <td class="px-2 py-1 text-xs font-semibold text-gray-900 text-center whitespace-nowrap">
-                                {{ $telar->NoTelarId }}
-                            </td>
+                        <!-- Celdas editables (DRY) -->
+                        @foreach($colsEditables as $col)
+                            <td class="px-3 py-3 text-center {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
+                                <div class="relative">
+                                    @if($puedeEditar)
+                                        <button type="button"
+                                            class="valor-display-btn w-full min-w-[70px] px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700
+                                                   hover:bg-blue-50 hover:border-blue-400 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
+                                                   transition-all duration-200 flex items-center justify-between bg-white shadow-sm"
+                                            data-telar="{{ $telar->NoTelarId }}" data-type="{{ $col['key'] }}">
+                                            <span class="valor-display-text text-blue-600 font-semibold">
+                                                {{ $col['key'] === 'efi' ? '0%' : '0' }}
+                                            </span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                            </svg>
+                                        </button>
 
-                            <!-- Salón (badge) -->
-                            <td class="px-2 py-1 text-xs text-center whitespace-nowrap">
-                                <span class="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
-                                      data-telar="{{ $telar->NoTelarId }}" data-field="salon">
-                                    {{ $telar->SalonId ?? '-' }}
-                                </span>
-                            </td>
-
-                            <!-- Celdas editables (DRY) -->
-                            @foreach($colsEditables as $col)
-                                <td class="px-2 py-2 {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
-                                    <div class="relative">
-                                        @if($puedeEditar)
-                                            <button type="button"
-                                                class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900
-                                                       hover:bg-blue-50 hover:border-blue-400 transition-colors flex items-center justify-between bg-white shadow-sm"
-                                                data-telar="{{ $telar->NoTelarId }}" data-type="{{ $col['key'] }}">
-                                                <span class="valor-display-text text-blue-600 font-semibold">
-                                                    {{ $col['key'] === 'efi' ? '-' : '0' }}
-                                                </span>
-                                                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                                </svg>
-                                            </button>
-
-                                            <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-blue-300 rounded-lg shadow-xl z-[100]"
-                                                 style="transform: translateX(-50%);">
-                                                <div class="number-scroll-container overflow-x-auto scrollbar-hide max-w-[300px]">
-                                                    <div class="number-options-flex p-2 flex gap-1"></div>
-                                                </div>
+                                        <div class="valor-edit-container hidden absolute left-1/2 top-full mt-1 -translate-x-1/2 z-[9999]">
+                                            <div class="number-scroll-container w-56 h-12 overflow-x-auto overflow-y-hidden bg-white border border-gray-300 rounded-md shadow-lg scrollbar-hide">
+                                                <div class="number-options-flex px-2 py-1 flex items-center space-x-1 min-w-max whitespace-nowrap"></div>
                                             </div>
-                                        @else
-                                            <div class="w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-400 bg-gray-100
-                                                        cursor-not-allowed flex items-center justify-between">
-                                                <span class="valor-display-text text-gray-500 font-semibold">
-                                                    {{ $col['key'] === 'efi' ? '-' : '0' }}
-                                                </span>
-                                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v-3m0 0V9m0 3h3m-3 0H9"/>
-                                                </svg>
-                                            </div>
-                                        @endif
-                                    </div>
-                                </td>
-                            @endforeach
-                        </tr>
-                    @endforeach
-                    </tbody>
-                </table>
-            </div>
+                                        </div>
+                                    @else
+                                        <div class="w-full min-w-[70px] px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-400 bg-gray-100
+                                                    cursor-not-allowed flex items-center justify-between">
+                                            <span class="valor-display-text text-gray-500 font-semibold">
+                                                {{ $col['key'] === 'efi' ? '-' : '0' }}
+                                            </span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                            </svg>
+                                        </div>
+                                    @endif
+                                </div>
+                            </td>
+                        @endforeach
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -152,12 +174,12 @@ const elements = {
 
 // Rango permitido por tipo
 const RANGOS = {
-    marcas: [100, 250],
+    marcas: [0,   250],
     efi:    [0,   100],
-    trama:  [1,   100],
-    pie:    [1,   100],
-    rizo:   [1,   100],
-    otros:  [1,   100],
+    trama:  [0,   100],
+    pie:    [0,   100],
+    rizo:   [0,   100],
+    otros:  [0,   100],
 };
 // Orden para recorrer al guardar
 const CAMPOS = ['efi', 'trama', 'pie', 'rizo', 'otros', 'marcas'];
@@ -235,34 +257,22 @@ function actualizarBadgeFolio() {
 }
 
 function mostrarAlerta(mensaje, tipo='success') {
-    const container = q('#alert-container'); if (!container) return;
-    const color = {
-        success: ['bg-green-500','text-white','<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'],
-        error:   ['bg-red-500','text-white','<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>'],
-        warning: ['bg-yellow-500','text-white','<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'],
-        info:    ['bg-blue-500','text-white','<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'],
-    }[tipo] || ['bg-green-500','text-white',''];
+    const tipoSwal = {
+        success: 'success',
+        error: 'error', 
+        warning: 'warning',
+        info: 'info'
+    }[tipo] || 'success';
 
-    const id = 'alert-' + Date.now();
-    const el = document.createElement('div');
-    el.id = id;
-    el.className = `${color[0]} ${color[1]} px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-slide-in-right`;
-    el.innerHTML = `
-        <div class="flex-shrink-0">${color[2]}</div>
-        <div class="flex-1 text-sm font-medium">${mensaje}</div>
-        <button onclick="cerrarAlerta('${id}')" class="flex-shrink-0 hover:opacity-75">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-        </button>`;
-    container.appendChild(el);
-    setTimeout(() => cerrarAlerta(id), 5000);
-}
-function cerrarAlerta(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.add('animate-slide-out-right');
-    setTimeout(() => el.remove(), 300);
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: tipoSwal,
+        title: mensaje,
+        showConfirmButton: false,
+        timer: 1300,
+        timerProgressBar: true
+    });
 }
 
 /* =========================
@@ -283,7 +293,12 @@ function toggleValorSelector(btn) {
 
     if (selector.classList.contains('hidden')) {
         const currentText  = btn.querySelector('.valor-display-text')?.textContent || '0';
-        const currentValue = parseValorDisplay(currentText, tipo);
+        let currentValue = parseValorDisplay(currentText, tipo);
+        // Si es Efi y el valor mostrado es 0, usar recomendado (STD) como sugerencia
+        if (tipo === 'efi' && currentValue === 0) {
+            const rec = parseInt(btn.dataset.recommended || 'NaN', 10);
+            if (!Number.isNaN(rec)) currentValue = rec;
+        }
         buildNumberOptions(selector, tipo, currentValue);
         selector.classList.remove('hidden');
         scrollToCurrentValue(selector, currentValue);
@@ -304,11 +319,12 @@ function buildNumberOptions(selector, tipo, current) {
     const frag = document.createDocumentFragment();
 
     for (let i = min; i <= max; i++) {
-        const opt = document.createElement('span');
-        opt.className = 'number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded bg-gray-100 text-gray-700';
+        const opt = document.createElement('button');
+        opt.type = 'button';
+        opt.className = 'number-option shrink-0 w-12 h-10 text-center rounded-md border border-gray-300 bg-white text-base font-medium hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500';
         opt.dataset.value = String(i);
         opt.textContent = String(i);
-        if (i === current) opt.classList.add('selected','bg-blue-500','text-white');
+        if (i === current) opt.classList.add('bg-blue-600','text-white','border-blue-600');
         frag.appendChild(opt);
     }
     container.appendChild(frag);
@@ -399,24 +415,52 @@ function generarNuevoFolio() {
             'Accept': 'application/json'
         }
     })
-    .then(r => r.json())
-    .then(d => {
-        if (!d.folio) throw new Error('Sin folio');
-        currentFolio = d.folio;
+    .then(r => r.json().then(data => ({ status: r.status, data })))
+    .then(({ status, data }) => {
+        if (status === 400 && data.folio_existente) {
+            // Ya existe un folio en proceso
+            Swal.fire({
+                icon: 'warning',
+                title: 'Folio en proceso',
+                html: data.message + '<br><br>¿Desea continuar editando ese folio?',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, editar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = '/modulo-marcas?folio=' + data.folio_existente;
+                } else {
+                    window.location.href = '/modulo-marcas/consultar';
+                }
+            });
+            return Promise.reject('Folio en proceso');
+        }
+        
+        if (!data.success || !data.folio) {
+            throw new Error(data.message || 'Error al generar folio');
+        }
+        
+        currentFolio = data.folio;
         isNewRecord  = true;
         isEditing    = true;
         actualizarBadgeFolio();
 
-        if (elements.folio) elements.folio.value = d.folio;
+        if (elements.folio) elements.folio.value = data.folio;
         if (elements.fecha) elements.fecha.value = new Date().toISOString().split('T')[0];
-        if (elements.turno) elements.turno.value = d.turno || '1';
+        if (elements.turno) elements.turno.value = data.turno || '1';
         if (elements.status) elements.status.value = 'En Proceso';
-        if (elements.usuario) elements.usuario.value = d.usuario || '';
-        if (elements.noEmpleado) elements.noEmpleado.value = d.numero_empleado || '';
+        if (elements.usuario) elements.usuario.value = data.usuario || '';
+        if (elements.noEmpleado) elements.noEmpleado.value = data.numero_empleado || '';
         if (elements.headerSection) elements.headerSection.style.display = 'block';
-        return d;
+        return data;
     })
-    .catch(() => Swal.fire('Error', 'No se pudo generar el folio', 'error'));
+    .catch((err) => {
+        if (err !== 'Folio en proceso') {
+            Swal.fire('Error', typeof err === 'string' ? err : 'No se pudo generar el folio', 'error');
+        }
+    });
 }
 
 function cargarDatosSTD(soloVacios=false) {
@@ -442,14 +486,11 @@ function cargarDatosSTD(soloVacios=false) {
                 const salon = q(`span[data-telar="${item.telar}"][data-field="salon"]`);
                 if (salon) salon.textContent = item.salon || '-';
 
-                // % Efi - solo actualizar si está vacío o si no es modo soloVacios
-                const span = q(`button[data-telar="${item.telar}"][data-type="efi"] .valor-display-text`);
-                if (!span) return;
-
-                const tieneValor = span.textContent && span.textContent !== '-' && span.textContent !== '0%';
-                if (!soloVacios || !tieneValor) {
+                // % Efi - no modificar el valor mostrado (debe iniciar en 0%), solo guardar recomendación (STD)
+                const btnEfi = q(`button[data-telar="${item.telar}"][data-type="efi"]`);
+                if (btnEfi) {
                     const p = (item.porcentaje_efi ?? null);
-                    span.textContent = (p && p > 0) ? `${p}%` : '-';
+                    if (p != null) btnEfi.setAttribute('data-recommended', String(parseInt(p, 10)));
                 }
             });
         });
@@ -499,12 +540,12 @@ function cargarMarcaExistente(folio) {
         (d.lineas || []).forEach(l => {
             const telar = l.NoTelarId;
 
-            // Actualizar % Efi
-            const efiVal = l.Eficiencia ?? l.EficienciaSTD ?? l.EficienciaStd ?? null;
-            const efiPercent = efiVal !== null ? (typeof efiVal === 'number' ? Math.round(efiVal * 100) : parseInt(efiVal) || null) : null;
+            // Actualizar % Efi - Ya viene como entero 0-100 desde la BD
+            const efiVal = l.Eficiencia ?? null;
+            const efiPercent = efiVal !== null ? parseInt(efiVal, 10) : null;
             const efiSpan = q(`button[data-telar="${telar}"][data-type="efi"] .valor-display-text`);
             if (efiSpan) {
-                efiSpan.textContent = (efiPercent && efiPercent > 0) ? `${efiPercent}%` : '-';
+                efiSpan.textContent = (efiPercent !== null && efiPercent > 0) ? `${efiPercent}%` : '-';
             }
 
             // Actualizar otros campos
@@ -535,21 +576,41 @@ function cargarMarcaExistente(folio) {
 </script>
 
 <style>
-table{border-collapse:separate;border-spacing:0}
-tbody tr:hover{background-color:#eff6ff!important}
-thead th{position:sticky;top:0;z-index:20}
-.scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}
-.scrollbar-hide::-webkit-scrollbar{display:none}
-.valor-display-btn{transition:all .2s ease;min-width:80px}
-.valor-display-btn:hover{transform:scale(1.02)}
-.valor-edit-container{z-index:100!important;box-shadow:0 10px 25px rgba(0,0,0,.15)}
-.number-option{transition:all .15s ease;flex-shrink:0}
-.number-option:hover{transform:scale(1.1)}
-.number-option.selected{background-color:#3b82f6!important;color:#fff!important;transform:scale(1.1)}
-/* Alertas */
-@keyframes slide-in-right{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-@keyframes slide-out-right{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:0}}
-.animate-slide-in-right{animation:slide-in-right .3s ease-out}
-.animate-slide-out-right{animation:slide-out-right .3s ease-out}
-</style>
+/* Estilos mínimos que no se pueden hacer con Tailwind */
+table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+thead th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+/* Scrollbar personalizado */
+.scrollbar-thin {
+    scrollbar-width: thin;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+    background-color: #d1d5db;
+    border-radius: 6px;
+}
+
+.scrollbar-track-gray-100::-webkit-scrollbar-track {
+    background-color: #f3f4f6;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+}
+
+/* Ocultar scrollbar (similar a cortes-eficiencia) */
+.scrollbar-hide{ -ms-overflow-style:none; scrollbar-width:none; }
+.scrollbar-hide::-webkit-scrollbar{ display:none; }
+
+/* Opciones numéricas: transición suave (Tailwind maneja el resto en clases) */
+.number-option { transition: background-color .15s ease, transform .15s ease; }
+    </style>
 @endsection

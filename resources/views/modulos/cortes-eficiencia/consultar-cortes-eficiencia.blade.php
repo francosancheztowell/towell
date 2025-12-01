@@ -2,295 +2,363 @@
 
 @section('page-title', 'Consultar Cortes de Eficiencia')
 
+@php
+    use Carbon\Carbon;
+@endphp
+
 @section('navbar-right')
-    <div class="flex items-center gap-2">
-        <x-navbar.button-edit
-            id="btn-editar-folio"
-            title="Editar Folio"
-            onclick="editarFolioSeleccionado()"
-            module="Cortes de Eficiencia"
-            :disabled="true"
-            icon="fa-edit"
-            iconColor="text-blue-600"
-            hoverBg="hover:bg-blue-100"
-        />
-        <x-navbar.button-report
-            id="btn-terminar-folio"
-            title="Terminar Corte"
-            onclick="terminarFolioSeleccionado()"
-            module="Cortes de Eficiencia"
-            :disabled="true"
-            icon="fa-check"
-            iconColor="text-blue-600"
-            hoverBg="hover:bg-blue-100"
-        />
-    </div>
+<div class="flex items-center gap-2">
+    <x-navbar.button-create
+      id="btn-nuevo"
+      title="Nuevo"
+      module="Cortes de Eficiencia"
+      :disabled="false"
+      icon="fa-plus"
+      iconColor="text-green-600"
+      hoverBg="hover:bg-green-100" />
+
+    <x-navbar.button-edit
+      id="btn-editar"
+      title="Editar"
+      module="Cortes de Eficiencia"
+      :disabled="true"
+      icon="fa-pen-to-square"
+      iconColor="text-blue-600"
+      hoverBg="hover:bg-blue-100" />
+
+    <x-navbar.button-report
+      id="btn-finalizar"
+      title="Finalizar"
+      module="Cortes de Eficiencia"
+      :disabled="false"
+      icon="fa-check"
+      iconColor="text-orange-600"
+      hoverBg="hover:bg-orange-100"
+      />
+</div>
 @endsection
 
 @section('content')
-<div class="w-full">
-
-    @if($cortes->count() > 0)
-        {{-- Contenedor en grid para que quepan ambas tablas en pantalla de tablet --}}
-        <div class="grid gap-3 md:gap-4 h-[calc(100vh-7rem)] md:h-[calc(100vh-8rem)] grid-rows-[46%_54%] md:grid-rows-[42%_58%]">
-            {{-- Tabla principal --}}
-            <div class="bg-white rounded-md border overflow-hidden flex flex-col">
-                <div class="flex-1 overflow-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-blue-500 text-white sticky top-0 z-10">
-                            <tr>
-                                <th class="px-3 md:px-4 py-2 text-left">Folio</th>
-                                <th class="px-3 md:px-4 py-2 text-left">Fecha</th>
-                                <th class="px-3 md:px-4 py-2 text-left">Turno</th>
-                                <th class="px-3 md:px-4 py-2 text-left">Usuario</th>
-                                <th class="px-3 md:px-4 py-2 text-left">No. Empleado</th>
-                                <th class="px-3 md:px-4 py-2 text-left">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @foreach($cortes as $corte)
-                                <tr class="hover:bg-blue-50 cursor-pointer"
-                                    data-folio="{{ $corte->Folio }}"
-                                    onclick="toggleLineasPanel('{{ $corte->Folio }}')">
-                                    <td class="px-3 md:px-4 py-2 font-semibold text-gray-900">
-                                        {{ $corte->Folio }}
-                                    </td>
-                                    <td class="px-3 md:px-4 py-2 text-gray-900">
-                                        {{ \Carbon\Carbon::parse($corte->Date)->format('d/m/Y') }}
-                                    </td>
-                                    <td class="px-3 md:px-4 py-2 text-gray-900">
-                                        Turno {{ $corte->Turno }}
-                                    </td>
-                                    <td class="px-3 md:px-4 py-2 text-gray-900">
-                                        {{ $corte->nombreEmpl ?? 'N/A' }}
-                                    </td>
-                                    <td class="px-3 md:px-4 py-2 text-gray-900">
-                                        {{ $corte->numero_empleado ?? 'N/A' }}
-                                    </td>
-                                    <td class="px-3 md:px-4 py-2">
-                                        @if($corte->Status == 'Finalizado')
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                Finalizado
-                                            </span>
-                                        @elseif($corte->Status == 'En Proceso')
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                En Proceso
-                                            </span>
-                                        @else
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                {{ $corte->Status }}
-                                            </span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {{-- Panel de líneas (detalle) --}}
-            <div id="lineas-panel" class="bg-white rounded-md border overflow-hidden hidden flex flex-col">
-                <div class="flex-1 overflow-auto">
-                    <table class="w-full text-xs md:text-sm">
-                        <thead class="bg-blue-500 text-white sticky top-0 z-10">
-                            <tr>
-                                <th class="px-3 md:px-4 py-2 text-left">Telar</th>
-                                <th class="px-3 md:px-4 py-2 text-center">RPM STD</th>
-                                <th class="px-3 md:px-4 py-2 text-center">Efic. STD</th>
-                                <th class="px-3 md:px-4 py-2 text-center">Horario 1</th>
-                                <th class="px-3 md:px-4 py-2 text-center">Horario 2</th>
-                                <th class="px-3 md:px-4 py-2 text-center">Horario 3</th>
-                                <th class="px-3 md:px-4 py-2 text-left">Observaciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lineas-tbody" class="divide-y divide-gray-100"></tbody>
-                    </table>
-                </div>
+<div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
+    <div class="flex flex-col-1 bg-white rounded-lg shadow-md max-w-full overflow-hidden">
+    @if(isset($cortes) && $cortes->count() > 0)
+        <!-- Tabla con header fijo -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <table class="w-full text-sm border-collapse">
+                <colgroup>
+                    <col style="width: 20%">
+                    <col style="width: 20%">
+                    <col style="width: 15%">
+                    <col style="width: 25%">
+                    <col style="width: 20%">
+                </colgroup>
+                <thead class="bg-blue-600 text-white sticky top-0 z-10">
+                    <tr>
+                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Folio</th>
+                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Fecha</th>
+                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Turno</th>
+                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Empleado</th>
+                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Status</th>
+                    </tr>
+                </thead>
+            </table>
+            <div class="flex-1 overflow-auto">
+                <table class="w-full text-sm border-collapse">
+                    <colgroup>
+                        <col style="width: 20%">
+                        <col style="width: 20%">
+                        <col style="width: 15%">
+                        <col style="width: 25%">
+                        <col style="width: 20%">
+                    </colgroup>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach($cortes as $corte)
+                        <tr class="hover:bg-blue-50 cursor-pointer transition-colors corte-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $corte->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
+                            id="row-{{ $corte->Folio }}"
+                            data-folio="{{ $corte->Folio }}"
+                            onclick="CortesManager.seleccionar('{{ $corte->Folio }}', this)">
+                            <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate">{{ $corte->Folio }}</td>
+                            <td class="px-4 py-3 text-gray-900 text-base truncate">
+                                @if($corte->Date)
+                                    {{ Carbon::parse($corte->Date)->format('d/m/Y') }}
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $corte->Turno }}</td>
+                            <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $corte->numero_empleado ?? 'N/A' }}</td>
+                            <td class="px-4 py-3">
+                                @if($corte->Status === 'Finalizado')
+                                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>
+                                @elseif($corte->Status === 'En Proceso')
+                                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-700">En Proceso</span>
+                                @else
+                                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700">{{ $corte->Status }}</span>
+                                @endif
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
     @else
-        {{-- Vacío --}}
-        <div class="bg-white rounded-md border p-8 text-center w-full">
-            <h3 class="text-base md:text-lg font-semibold text-gray-700 mb-2">No hay cortes de eficiencia</h3>
-            <p class="text-gray-500">Crea el primero con “Nuevo Corte”.</p>
-            <x-navbar.button-create href="{{ route('cortes.eficiencia') }}"
-                title="Nuevo Corte"
-                module="Cortes de Eficiencia"
-                icon="fa-plus"
-                iconColor="text-white"
-                hoverBg="hover:bg-blue-700"
-                bg="bg-blue-600"
-            />
+            <!-- Sin Registros -->
+        <div class="flex flex-col items-center justify-center flex-1 p-8 text-center">
+            <h3 class="text-2xl font-semibold text-gray-700 mb-3">No hay cortes de eficiencia registrados</h3>
+            <p class="text-gray-500 text-lg mb-6">Toca "Nuevo" para crear el primer registro.</p>
+        <x-navbar.button-create
+                  id="btn-nuevo-empty"
+          title="Nuevo"
+          module="Cortes de Eficiencia"
+          :disabled="false"
+          icon="fa-plus"
+          iconColor="text-green-600"
+          hoverBg="hover:bg-green-100" />
         </div>
     @endif
+    </div>
 </div>
 
-<style>
-/* Encabezados pegajosos sencillos */
-thead.sticky, thead.bg-blue-600 { position: sticky; top: 0; }
-/* Resaltado de selección */
-.fila-seleccionada { background-color: #dbeafe !important; }
-/* Quitar ornamentos extra para un look limpio en tablet */
-table { border-collapse: separate; border-spacing: 0; }
-</style>
+<!-- Se removió CSS personalizado; todo se maneja con utilidades Tailwind -->
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    // ==== Dataset inyectado desde backend (igual que tu versión) ====
-    const lineasPorFolio = {!! json_encode(
-        $cortes->mapWithKeys(function($c) {
-            return [
-                $c->Folio => $c->lineas->map(function($l) {
-                    return [
-                        'NoTelarId'    => $l->NoTelarId,
-                        'RpmStd'       => $l->RpmStd,
-                        'EficienciaStd'=> $l->EficienciaSTD,
-                        'RpmR1'        => $l->RpmR1,
-                        'EficienciaR1' => $l->EficienciaR1,
-                        'RpmR2'        => $l->RpmR2,
-                        'EficienciaR2' => $l->EficienciaR2,
-                        'RpmR3'        => $l->RpmR3,
-                        'EficienciaR3' => $l->EficienciaR3,
-                        'ObsR1'        => $l->ObsR1,
-                        'ObsR2'        => $l->ObsR2,
-                        'ObsR3'        => $l->ObsR3,
-                    ];
-                })->toArray()
-            ];
-        })->toArray()
-    ) !!};
+(() => {
+    'use strict';
 
-    let folioSeleccionado = null;
-    let statusFolioSeleccionado = null;
+    const CONFIG = {
+        urls: {
+            detalle: '/modulo-cortes-de-eficiencia/',
+            editar: '{{ url("/modulo-cortes-de-eficiencia") }}?folio=',
+            finalizar: '/modulo-cortes-de-eficiencia/{folio}/finalizar'
+        },
+        timeout: 30000,
+        ultimoFolio: @json(isset($ultimoFolio) ? $ultimoFolio->Folio : null)
+    };
 
-    function actualizarEstadoBotones() {
-        const btnEditar = document.getElementById('btn-editar-folio');
-        const btnTerminar = document.getElementById('btn-terminar-folio');
-        if (!btnEditar || !btnTerminar) return;
+    class CortesManager {
+        constructor() {
+            this.state = {
+                folio: null,
+                status: null,
+                abortController: null
+            };
 
-        if (!folioSeleccionado) {
-            btnEditar.disabled = true; btnTerminar.disabled = true;
-        } else if (statusFolioSeleccionado === 'Finalizado') {
-            btnEditar.disabled = true; btnTerminar.disabled = true;
-        } else {
-            btnEditar.disabled = false; btnTerminar.disabled = false;
-        }
-    }
-
-    function renderLineasTabla(folio) {
-        const cont = document.getElementById('lineas-tbody');
-        if (!cont) return;
-        cont.innerHTML = '';
-        const rows = lineasPorFolio[folio] || [];
-        if (!rows.length) {
-            cont.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">Sin líneas capturadas para este corte</td></tr>`;
-            return;
-        }
-
-        const fmt = (v, suf = '') => (!v || v === '0' || v === 0) ? '-' : `${v}${suf}`;
-
-        rows.forEach((l, i) => {
-            const tr = document.createElement('tr');
-            tr.className = i % 2 ? 'bg-gray-50' : 'bg-white';
-            tr.innerHTML = `
-                <td class="px-3 md:px-4 py-2 font-medium text-gray-900">${l.NoTelarId ?? '-'}</td>
-                <td class="px-3 md:px-4 py-2 text-center">${fmt(l.RpmStd)}</td>
-                <td class="px-3 md:px-4 py-2 text-center">${fmt(l.EficienciaStd, '%')}</td>
-                <td class="px-3 md:px-4 py-2 text-center">
-                    <div>RPM: ${fmt(l.RpmR1)}</div>
-                    <div>Efic: ${fmt(l.EficienciaR1, '%')}</div>
-                </td>
-                <td class="px-3 md:px-4 py-2 text-center">
-                    <div>RPM: ${fmt(l.RpmR2)}</div>
-                    <div>Efic: ${fmt(l.EficienciaR2, '%')}</div>
-                </td>
-                <td class="px-3 md:px-4 py-2 text-center">
-                    <div>RPM: ${fmt(l.RpmR3)}</div>
-                    <div>Efic: ${fmt(l.EficienciaR3, '%')}</div>
-                </td>
-                <td class="px-3 md:px-4 py-2">
-                    ${[l.ObsR1, l.ObsR2, l.ObsR3].filter(Boolean).join('<br>') || 'Sin observaciones'}
-                </td>
-            `;
-            cont.appendChild(tr);
-        });
-    }
-
-    function toggleLineasPanel(folio) {
-        // seleccionar
-        seleccionarFolio(folio);
-
-        const panel = document.getElementById('lineas-panel');
-        if (!panel) return;
-
-        renderLineasTabla(folio);
-        panel.classList.remove('hidden');
-        resaltarFilaSeleccionada(folio);
-    }
-
-    function seleccionarFolio(folio) {
-        const fila = document.querySelector(`tr[data-folio="${folio}"]`);
-        const statusEl = fila?.querySelector('.bg-green-100, .bg-blue-100, .bg-yellow-100');
-        const status = statusEl?.textContent?.trim() || '';
-        folioSeleccionado = folio;
-        statusFolioSeleccionado = status;
-        actualizarEstadoBotones();
-    }
-
-    function editarFolioSeleccionado() {
-        if (!folioSeleccionado || statusFolioSeleccionado === 'Finalizado') return;
-        window.location.href = `/modulo-cortes-de-eficiencia?folio=${folioSeleccionado}`;
-    }
-
-    function terminarFolioSeleccionado() {
-        if (!folioSeleccionado || statusFolioSeleccionado === 'Finalizado') return;
-        finalizarCorte(folioSeleccionado);
-    }
-
-    function finalizarCorte(folio) {
-        Swal.fire({
-            title: 'Finalizar Corte',
-            text: `¿Finalizar el corte ${folio}?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#059669',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Sí, finalizar',
-            cancelButtonText: 'Cancelar'
-        }).then((r) => {
-            if (!r.isConfirmed) return;
-            Swal.showLoading();
-            fetch(`/modulo-cortes-de-eficiencia/${folio}/finalizar`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
+            this.dom = {
+                btns: {
+                    nuevo: document.getElementById('btn-nuevo'),
+                    editar: document.getElementById('btn-editar'),
+                    finalizar: document.getElementById('btn-finalizar')
                 }
-            })
-            .then(r => r.json())
-            .then(d => {
-                if (d.success) location.reload();
-                else Swal.fire({ icon:'error', title:'Error', text: d.message || 'No se pudo finalizar' });
-            })
-            .catch(e => Swal.fire({ icon:'error', title:'Error de conexión', text: e.message }));
-        });
-    }
+            };
 
-    function resaltarFilaSeleccionada(folio) {
-        document.querySelectorAll('.fila-seleccionada').forEach(f => f.classList.remove('fila-seleccionada'));
-        document.querySelector(`tr[data-folio="${folio}"]`)?.classList.add('fila-seleccionada');
+            this.init();
+        }
+
+        init() {
+            this.bindEvents();
+            if (CONFIG.ultimoFolio) {
+                setTimeout(() => {
+                    const tr = document.querySelector(`tr[data-folio="${CONFIG.ultimoFolio}"]`);
+                    if (tr) {
+                        this.seleccionar(CONFIG.ultimoFolio, tr);
+                    }
+                }, 100);
+            }
+        }
+
+        bindEvents() {
+            this.dom.btns.nuevo?.addEventListener('click', () => this.accionNuevo());
+            this.dom.btns.editar?.addEventListener('click', () => this.accionEditar());
+            this.dom.btns.finalizar?.addEventListener('click', () => this.accionFinalizar());
+        }
+
+        seleccionar(folio, row) {
+            if (this.state.folio === folio) return;
+
+            this.state.folio = folio;
+            this.highlightRow(row);
+            this.cargarDetalles(folio);
+        }
+
+        highlightRow(row) {
+            document.querySelectorAll('tbody tr').forEach(tr => {
+                tr.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-600');
+            });
+            if (row) {
+                row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-600');
+            }
+        }
+
+        async cargarDetalles(folio) {
+            if (this.state.abortController) {
+                this.state.abortController.abort();
+            }
+
+            this.state.abortController = new AbortController();
+
+            try {
+                const res = await fetch(`${CONFIG.urls.detalle}${folio}`, {
+                    headers: { 'Accept': 'application/json' },
+                    signal: this.state.abortController.signal
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Error HTTP: ${res.status}`);
+                }
+
+                const data = await res.json();
+
+                if (!data.success) {
+                    throw new Error(data.message || 'Error al cargar los detalles');
+                }
+
+                this.state.status = data.data.status;
+                this.actualizarBotones();
+
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+                console.error('Error al cargar detalles:', err.message);
+            }
+        }
+
+        actualizarBotones() {
+            const isFinalizado = this.state.status === 'Finalizado';
+            const hayFolioSeleccionado = this.state.folio !== null;
+
+            if (this.dom.btns.nuevo) this.dom.btns.nuevo.disabled = false;
+            if (this.dom.btns.editar) this.dom.btns.editar.disabled = !hayFolioSeleccionado || isFinalizado;
+            if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = !hayFolioSeleccionado || isFinalizado;
+        }
+
+        async accionNuevo() {
+            // Generar nuevo folio y redirigir a la página de edición
+            try {
+                const response = await fetch('/modulo-cortes-de-eficiencia/generar-folio', {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.status === 400 && data.folio_existente) {
+                    // Ya existe un folio en proceso, preguntar si quiere editarlo
+                    const result = await Swal.fire({
+                        icon: 'warning',
+                        title: 'Folio en proceso',
+                        text: 'Ya existe un folio en proceso: ' + data.folio_existente + '. ¿Desea continuar editándolo?',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, editar',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#3085d6'
+                    });
+                    
+                    if (result.isConfirmed) {
+                        // Redirigir al folio existente para editarlo
+                        window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio_existente;
+                    }
+                    return;
+                }
+
+                if (!data.success) {
+                    throw new Error(data.message || 'No se pudo generar el folio');
+                }
+
+                // Folio generado exitosamente, redirigir a la página de edición con el nuevo folio
+                window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio;
+                
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudo generar el folio: ' + error.message
+                });
+            }
+        }
+
+        accionEditar() {
+            if (!this.state.folio) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin selección',
+                    text: 'Selecciona un folio para editar'
+                });
+                return;
+            }
+            window.location.href = CONFIG.urls.editar + this.state.folio;
+        }
+
+        accionFinalizar() {
+            if (!this.state.folio) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin selección',
+                    text: 'Selecciona un folio para finalizar'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: '¿Finalizar Corte de Eficiencia?',
+                text: `El folio ${this.state.folio} quedará cerrado y no podrá editarse.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ea580c',
+                confirmButtonText: 'Sí, finalizar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    this.procesarFinalizado();
+                }
+            });
+        }
+
+        async procesarFinalizado() {
+            Swal.fire({ title: 'Finalizando...', didOpen: () => Swal.showLoading() });
+
+            try {
+                const url = CONFIG.urls.finalizar.replace('{folio}', this.state.folio);
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    await Swal.fire('¡Finalizado!', 'El registro se ha cerrado correctamente.', 'success');
+                    window.location.reload();
+                } else {
+                    throw new Error(data.message || 'No se pudo finalizar');
+                }
+
+            } catch (err) {
+                Swal.fire('Error', err.message, 'error');
+            }
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        actualizarEstadoBotones();
-        document.querySelectorAll('tr[data-folio]').forEach(fila => {
-            fila.addEventListener('click', function () {
-                const folio = this.getAttribute('data-folio');
-                toggleLineasPanel(folio);
+        window.CortesManager = new CortesManager();
+
+        // Agregar listener al botón "Nuevo" cuando no hay registros
+        const btnNuevoEmpty = document.getElementById('btn-nuevo-empty');
+        if (btnNuevoEmpty) {
+            btnNuevoEmpty.addEventListener('click', () => {
+                window.location.href = '{{ route("cortes.eficiencia") }}';
             });
-        });
+        }
     });
+
+})();
 </script>
 @endsection

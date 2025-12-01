@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TejMarcas;
 use App\Models\TejMarcasLine;
 use App\Models\ReqProgramaTejido;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -64,6 +65,17 @@ class MarcasController extends Controller
                     'success' => false,
                     'message' => 'Usuario no autenticado'
                 ], 401);
+            }
+
+            // Validar que no exista otro folio "En Proceso"
+            $folioEnProceso = TejMarcas::where('Status', 'En Proceso')->first();
+            
+            if ($folioEnProceso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
+                    'folio_existente' => $folioEnProceso->Folio
+                ], 400);
             }
 
             $ultimoFolio = TejMarcas::orderByDesc('Folio')->value('Folio');
@@ -186,28 +198,45 @@ class MarcasController extends Controller
                     ->groupBy('NoTelarId')
                     ->map(fn($group) => $group->first());
 
+                // Mapa de salón por telar desde la secuencia (fallback si no hay STD)
+                $secuencia = $this->obtenerSecuenciaTelares();
+                $salonPorTelar = $secuencia->keyBy('NoTelarId');
+
                 $lineasParaInsertar = [];
                 foreach ($lineas as $linea) {
+                    if (!is_array($linea) || !isset($linea['NoTelarId'])) {
+                        continue;
+                    }
+
                     $noTelar = $linea['NoTelarId'];
                     $std = $eficienciasStd->get($noTelar);
 
-                    $efiPercent = isset($linea['PorcentajeEfi']) ? (int)$linea['PorcentajeEfi'] : null;
-                    $efiDecimal = $efiPercent !== null
-                        ? ($efiPercent / 100)
-                        : ($std->EficienciaSTD ?? null);
+                    // Fallback salón si no hay STD
+                    $stdSalon = $std->SalonTejidoId ?? optional($salonPorTelar->get($noTelar))->SalonId;
+
+                    // STD eficiencia original viene como decimal (0-1), convertir a entero porcentaje
+                    $stdEfiDecimal = $std->EficienciaSTD ?? null;
+                    $stdEfiPercent = $stdEfiDecimal !== null ? (int)round($stdEfiDecimal * 100) : 0;
+
+                    // Prioridad: valor capturado (PorcentajeEfi) si viene, si no STD convertido, si no 0
+                    $efiPercent = isset($linea['PorcentajeEfi']) ? (int)$linea['PorcentajeEfi'] : $stdEfiPercent;
+                    
+                    // Asegurar rango 0-100
+                    if ($efiPercent < 0) $efiPercent = 0;
+                    if ($efiPercent > 100) $efiPercent = 100;
 
                     $lineasParaInsertar[] = [
                         'Folio' => $folio,
                         'Date' => $fecha,
                         'Turno' => $turno,
-                        'SalonTejidoId' => $std->SalonTejidoId ?? null,
+                        'SalonTejidoId' => $stdSalon,
                         'NoTelarId' => $noTelar,
-                        'Eficiencia' => $efiDecimal,
-                        'Marcas' => $linea['Marcas'] ?? 0,
-                        'Trama' => $linea['Trama'] ?? 0,
-                        'Pie' => $linea['Pie'] ?? 0,
-                        'Rizo' => $linea['Rizo'] ?? 0,
-                        'Otros' => $linea['Otros'] ?? 0,
+                        'Eficiencia' => $efiPercent, // Guardar como ENTERO 0-100
+                        'Marcas' => (int)($linea['Marcas'] ?? 0),
+                        'Trama' => (int)($linea['Trama'] ?? 0),
+                        'Pie' => (int)($linea['Pie'] ?? 0),
+                        'Rizo' => (int)($linea['Rizo'] ?? 0),
+                        'Otros' => (int)($linea['Otros'] ?? 0),
                         'created_at' => now(),
                         'updated_at' => now()
                     ];
@@ -224,9 +253,14 @@ class MarcasController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error en MarcasController@store', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar datos'
+                'message' => 'Error al guardar datos',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -297,6 +331,63 @@ class MarcasController extends Controller
                 'success' => false,
                 'message' => 'Error al finalizar marca'
             ], 500);
+        }
+    }
+
+    public function visualizar($folio)
+    {
+        try {
+            $marcaBase = TejMarcas::find($folio);
+            if (!$marcaBase) {
+                return redirect()->route('marcas.consultar')
+                    ->with('error', 'Folio no encontrado');
+            }
+
+            $fecha = $marcaBase->Date; // Fecha común para los 3 turnos
+            // Obtener todas las líneas de los tres turnos de esa fecha
+            // Usar where simple para evitar problemas de firma con whereDate en algunos entornos
+            $lineasFecha = TejMarcasLine::where('Date', $fecha)
+                ->orderBy('NoTelarId')
+                ->get();
+
+            // Secuencia de telares para orden base (fallback si no hay líneas)
+            $secuencia = $this->obtenerSecuenciaTelares();
+            $telaresSecuencia = $secuencia->pluck('NoTelarId')->toArray();
+
+            // Lista unificada de telares (secuencia + presentes en líneas)
+            $telaresLineas = $lineasFecha->pluck('NoTelarId')->unique()->toArray();
+            $telares = collect(array_unique(array_merge($telaresSecuencia, $telaresLineas)))->sort()->values();
+
+            // Agrupar por telar y turno
+            $porTelarTurno = [];
+            foreach ($lineasFecha as $l) {
+                $telar = $l->NoTelarId;
+                $turno = (string)$l->Turno; // "1","2","3"
+                if (!isset($porTelarTurno[$telar])) $porTelarTurno[$telar] = [];
+                $porTelarTurno[$telar][$turno] = $l; // Última ocurrencia para ese turno/telar
+            }
+
+            // Preparar estructura para la vista
+            $datos = $telares->map(function($telar) use ($porTelarTurno) {
+                $t1 = $porTelarTurno[$telar]['1'] ?? null;
+                $t2 = $porTelarTurno[$telar]['2'] ?? null;
+                $t3 = $porTelarTurno[$telar]['3'] ?? null;
+                return [
+                    'telar' => $telar,
+                    't1' => $t1,
+                    't2' => $t2,
+                    't3' => $t3,
+                ];
+            });
+
+            return view('modulos.marcas-finales.visualizar-marcas', [
+                'folio' => $folio,
+                'fecha' => $fecha,
+                'datos' => $datos,
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->route('marcas.consultar')
+                ->with('error', 'Error al visualizar: ' . $e->getMessage());
         }
     }
 
