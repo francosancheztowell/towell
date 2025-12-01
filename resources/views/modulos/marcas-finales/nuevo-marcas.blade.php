@@ -174,12 +174,12 @@ const elements = {
 
 // Rango permitido por tipo
 const RANGOS = {
-    marcas: [100, 250],
+    marcas: [0,   250],
     efi:    [0,   100],
-    trama:  [1,   100],
-    pie:    [1,   100],
-    rizo:   [1,   100],
-    otros:  [1,   100],
+    trama:  [0,   100],
+    pie:    [0,   100],
+    rizo:   [0,   100],
+    otros:  [0,   100],
 };
 // Orden para recorrer al guardar
 const CAMPOS = ['efi', 'trama', 'pie', 'rizo', 'otros', 'marcas'];

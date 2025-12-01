@@ -377,20 +377,28 @@
                 });
                 return;
             }
+            // Primero validar que no haya campos vacíos o en cero
+            this.validarParaFinalizar()
+                .then((valido) => {
+                    if (!valido) return; // Se mostró alerta con detalles
 
-            Swal.fire({
-                title: '¿Finalizar Marca?',
-                text: `El folio ${this.state.folio} quedará cerrado y no podrá editarse.`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ea580c',
-                confirmButtonText: 'Sí, finalizar',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    this.procesarFinalizado();
-                }
-            });
+                    Swal.fire({
+                        title: '¿Finalizar Marca?',
+                        text: `El folio ${this.state.folio} quedará cerrado y no podrá editarse.`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#ea580c',
+                        confirmButtonText: 'Sí, finalizar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            this.procesarFinalizado();
+                        }
+                    });
+                })
+                .catch((err) => {
+                    Swal.fire('Error', err?.message || 'No se pudo validar el folio', 'error');
+                });
         }
 
         async procesarFinalizado() {
@@ -425,6 +433,61 @@
 
         mostrarError(msg) {
             this.dom.body.innerHTML = `<tr><td colspan="7" class="px-3 py-6 text-center text-gray-500">${msg}</td></tr>`;
+        }
+
+        async validarParaFinalizar() {
+            try {
+                Swal.fire({ title: 'Validando...', didOpen: () => Swal.showLoading() });
+
+                const res = await fetch(`${CONFIG.urls.detalle}${this.state.folio}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+                const data = await res.json();
+                Swal.close();
+
+                if (!data.success) throw new Error(data.message || 'No se pudo obtener el detalle');
+
+                const lineas = Array.isArray(data.lineas) ? data.lineas : [];
+                if (lineas.length === 0) {
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'No hay líneas',
+                        text: 'No puedes finalizar un folio sin líneas capturadas.'
+                    });
+                    return false;
+                }
+
+                const esVacioOCero = (v) => {
+                    if (v === null || v === undefined) return true;
+                    if (typeof v === 'string' && v.trim() === '') return true;
+                    const n = Number(v);
+                    if (Number.isNaN(n)) return true;
+                    return n <= 0;
+                };
+
+                // Solo validar el campo Marcas
+                let lineasConMarcasInvalidas = 0;
+                for (const l of lineas) {
+                    if (esVacioOCero(l.Marcas)) lineasConMarcasInvalidas++;
+                }
+
+                if (lineasConMarcasInvalidas > 0) {
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'No se puede finalizar',
+                        text: `Hay ${lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0.`,
+                        confirmButtonText: 'Entendido'
+                    });
+                    return false;
+                }
+
+                return true;
+            } catch (err) {
+                Swal.close();
+                throw err;
+            }
         }
     }
 
