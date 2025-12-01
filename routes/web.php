@@ -228,7 +228,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/submodulos/{modulo}', [UsuarioController::class, 'showSubModulos'])->name('submodulos.show');
 
     // Redirects específicos ANTES de la ruta genérica (importante: orden de evaluación)
-    Route::redirect('/submodulos-nivel3/202', '/tejido/marcas-finales', 301);
+    Route::redirect('/submodulos-nivel3/202', '/modulo-marcas/consultar', 301);
     Route::redirect('/submodulos-nivel3/203', '/tejido/inventario', 301);
     Route::redirect('/submodulos-nivel3/206', '/tejido/cortes-eficiencia', 301);
     Route::redirect('/submodulos-nivel3/909', '/configuracion/utileria', 301);
@@ -248,7 +248,8 @@ Route::middleware(['auth'])->group(function () {
 
     // Rutas específicas con nombres descriptivos (reemplazan submodulos-nivel3/{id})
     // Estas rutas llaman directamente al método del controlador con el ID específico
-    Route::get('/tejido/marcas-finales', fn() => app(UsuarioController::class)->showSubModulosNivel3('202'))
+    Route::redirect('/tejido/marcas-finales', '/modulo-marcas/consultar', 301);
+    Route::get('/tejido/marcas-finales-legacy', fn() => app(UsuarioController::class)->showSubModulosNivel3('202'))
         ->name('tejido.marcas.finales');
 
     Route::get('/tejido/inventario', fn() => app(UsuarioController::class)->showSubModulosNivel3('203'))
@@ -767,6 +768,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])->name('marcas.show');
     Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])->name('marcas.update');
     Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])->name('marcas.finalizar');
+    Route::get('/modulo-marcas/visualizar/{folio}', [MarcasController::class, 'visualizar'])->name('marcas.visualizar');
 
     // Rutas para Cortes de Eficiencia
     Route::get('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'index'])->name('cortes.eficiencia');

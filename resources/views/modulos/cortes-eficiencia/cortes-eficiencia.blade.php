@@ -24,6 +24,15 @@
     ];
 @endphp
 
+@if(session('warning'))
+    <div class="container mx-auto px-4 pt-4">
+        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded" role="alert">
+            <p class="font-bold">Atención</p>
+            <p>{{ session('warning') }}</p>
+        </div>
+    </div>
+@endif
+
 <div class="container mx-auto px-4 py-6">
     <!-- Tabla principal, sin encabezado de folio/turno -->
     <div id="tabla-cortes" class="bg-white shadow overflow-hidden">
@@ -177,6 +186,21 @@
 
     /** Init */
     document.addEventListener('DOMContentLoaded', async () => {
+        // Verificar si hay mensaje de warning de sesión
+        const warningMessage = @json(session('warning'));
+        if (warningMessage) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Folio en proceso',
+                text: warningMessage,
+                confirmButtonText: 'Ir a consultar',
+                confirmButtonColor: '#3085d6',
+                allowOutsideClick: false
+            });
+            window.location.href = '{{ route("cortes.eficiencia.consultar") }}';
+            return;
+        }
+
         bindEvents();
         try { await Promise.all([cargarTurnoActual(), cargarDatosTelaresStd()]); } catch {}
         const qp = new URLSearchParams(location.search).get('folio');
@@ -248,10 +272,45 @@
 
     /** Flujo de folio (interno) */
     async function generarNuevoFolio(){
-        const d = await fetchJSON(routes.generarFolio, { headers: { 'X-CSRF-TOKEN': csrf() } });
-        if (!d.success) throw new Error(d.message || 'No se pudo generar folio');
-        state.folio = d.folio; state.usuario = d.usuario?.nombre || ''; state.noEmpleado = d.usuario?.numero_empleado || ''; state.turno = d.turno || state.turno; state.status = 'En Proceso'; state.isNewRecord = true;
-        actualizarBadgeFolio();
+        try {
+            const response = await fetch(routes.generarFolio, {
+                headers: { 'X-CSRF-TOKEN': csrf(), 'Accept': 'application/json' }
+            });
+            const d = await response.json();
+            
+            // Si hay un folio en proceso (error 400)
+            if (response.status === 400 && d.folio_existente) {
+                await Swal.fire({
+                    icon: 'warning',
+                    title: 'Folio en proceso',
+                    text: 'Ya existe un folio en proceso: ' + d.folio_existente + '. Debe finalizarlo antes de crear uno nuevo.',
+                    confirmButtonText: 'Ir a consultar',
+                    confirmButtonColor: '#3085d6',
+                    allowOutsideClick: false
+                });
+                window.location.href = routes.consultar;
+                return;
+            }
+            
+            if (!d.success) throw new Error(d.message || 'No se pudo generar folio');
+            state.folio = d.folio; state.usuario = d.usuario?.nombre || ''; state.noEmpleado = d.usuario?.numero_empleado || ''; state.turno = d.turno || state.turno; state.status = 'En Proceso'; state.isNewRecord = false;
+            actualizarBadgeFolio();
+            
+            // Actualizar la URL con el folio para que al recargar se mantenga editando el mismo
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('folio', d.folio);
+            window.history.replaceState({}, '', newUrl.toString());
+            
+        } catch (error) {
+            console.error('Error al generar folio:', error);
+            await Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo generar el folio. Por favor, intente nuevamente.',
+                confirmButtonColor: '#d33'
+            });
+            window.location.href = routes.consultar;
+        }
     }
 
     async function cargarCorteExistente(folio){
@@ -338,7 +397,38 @@
         if (!state.folio || !state.fecha || !state.turno) return;
         const datos = recopilarDatosTelares(); if (!datos.length) return;
         const payload = { folio: state.folio, fecha: state.fecha, turno: state.turno, status: state.status, usuario: state.usuario, noEmpleado: state.noEmpleado, datos_telares: datos, horario1:null, horario2:null, horario3:null };
-        try { const r = await fetchJSON(routes.store, { method:'POST', headers: baseHeaders(), body: JSON.stringify(payload) }); if (!r.success) throw new Error(r.message || 'Error al guardar'); state.isNewRecord = false; floatingBadge('Guardado automáticamente'); } catch (e) { floatingBadge(`Error: ${e.message}`, true); }
+        try { 
+            const response = await fetch(routes.store, { method:'POST', headers: baseHeaders(), body: JSON.stringify(payload) });
+            const r = await response.json();
+            
+            // Si hay un folio en proceso
+            if (response.status === 400 && r.folio_existente) {
+                await Swal.fire({
+                    icon: 'warning',
+                    title: 'Folio en proceso',
+                    text: r.message || 'Ya existe un folio en proceso: ' + r.folio_existente,
+                    confirmButtonText: 'Ir a consultar',
+                    confirmButtonColor: '#3085d6',
+                    allowOutsideClick: false
+                });
+                window.location.href = routes.consultar;
+                return;
+            }
+            
+            if (!r.success) throw new Error(r.message || 'Error al guardar');
+            
+            // Actualizar el folio del state con el folio real guardado en BD
+            // Esto es importante porque el backend puede haber generado un folio diferente al sugerido
+            if (r.folio && r.folio !== state.folio) {
+                state.folio = r.folio;
+                actualizarBadgeFolio();
+            }
+            
+            state.isNewRecord = false; 
+            floatingBadge('Guardado automáticamente'); 
+        } catch (e) { 
+            floatingBadge(`Error: ${e.message}`, true); 
+        }
     }, 900);
 
     function recopilarDatosTelares(){
