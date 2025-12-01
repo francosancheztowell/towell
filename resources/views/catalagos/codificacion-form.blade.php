@@ -10,7 +10,7 @@
     </button>
     <button type="submit" form="codificacion-form"
             class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
-        <span id="submit-text">{{ isset($codificacion) ? 'Actualizar' : 'Guardar' }}</span>
+        <span id="submit-text">{{ isset($codificacion) && !empty($codificacion->Id) ? 'Actualizar' : 'Crear' }}</span>
     </button>
 </div>
 @endsection
@@ -26,8 +26,10 @@
 
             @if(isset($codificacion))
                 <script>
-                    window.codificacionData = @json($codificacion);
+                    // Pasar todos los atributos del modelo como JSON
+                    window.codificacionData = @json($codificacion->getAttributes() ?? []);
                     console.log('Datos de codificación cargados:', window.codificacionData);
+                    console.log('Total de campos:', Object.keys(window.codificacionData).length);
                 </script>
             @endif
 
@@ -38,24 +40,26 @@
                 $step     = $opts['step']     ?? null;
                 $required = $opts['required'] ?? false;
                 $placeholder = $opts['placeholder'] ?? '';
+                $isSelect = $opts['select'] ?? false;
+                $selectId = $opts['selectId'] ?? '';
 
                 // Obtener valor: primero old() (para errores de validación), luego datos existentes, luego valor por defecto
                 $value = old($name);
-                if (empty($value) && isset($codificacion) && isset($codificacion->$name)) {
-                    $value = $codificacion->$name;
+
+                // Si no hay valor de old() y tenemos datos de codificación, usar esos datos
+                if (empty($value) && isset($codificacion)) {
+                    // Obtener todos los atributos del modelo
+                    $attributes = $codificacion->getAttributes();
+
+                    // Si el atributo existe en el array de atributos, usarlo (incluso si es null o vacío)
+                    if (array_key_exists($name, $attributes)) {
+                        $value = $attributes[$name];
+                    }
                 }
-                if (empty($value)) {
+
+                // Si aún no hay valor, usar el valor por defecto de las opciones
+                if ($value === null || $value === '') {
                     $value = $opts['value'] ?? '';
-                }
-
-                // Debug: mostrar valores para campos importantes
-                if (isset($codificacion) && in_array($name, ['TamanoClave', 'OrdenTejido', 'Nombre'])) {
-                    echo '<script>console.log("Campo ' . $name . ' valor: ' . $value . '");</script>';
-                }
-
-                // Debug: mostrar en consola si estamos en modo edición
-                if (isset($codificacion) && $name === 'TamanoClave') {
-                    echo '<script>console.log("Modo edición activado para registro ID: ' . $codificacion->Id . '");</script>';
                 }
 
                 // Formatear fechas para input type="date"
@@ -67,12 +71,28 @@
                     }
                 }
 
-                $attrs = $step ? "step=\"{$step}\"" : '';
                 $req   = $required ? 'required' : '';
                 $classes = 'w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400 tab-navigation';
+
                 echo '<div class="space-y-0.5">';
                 echo "  <label class=\"block text-xs font-medium text-gray-600\">{$label}".($required?' *':'')."</label>";
-                echo "  <input {$req} {$attrs} type=\"{$type}\" name=\"{$name}\" value=\"{$value}\" placeholder=\"{$placeholder}\" class=\"{$classes}\" />";
+
+                if ($isSelect) {
+                    // Generar select
+                    $selectAttr = $selectId ? "id=\"{$selectId}\"" : '';
+                    echo "  <select {$req} {$selectAttr} name=\"{$name}\" class=\"{$classes}\">";
+                    echo "    <option value=\"\">Seleccionar...</option>";
+                    echo "    <!-- Opciones se cargarán dinámicamente -->";
+                    if ($value) {
+                        echo "    <option value=\"{$value}\" selected>{$value}</option>";
+                    }
+                    echo "  </select>";
+                } else {
+                    // Generar input normal
+                    $attrs = $step ? "step=\"{$step}\"" : '';
+                    echo "  <input {$req} {$attrs} type=\"{$type}\" name=\"{$name}\" value=\"{$value}\" placeholder=\"{$placeholder}\" class=\"{$classes}\" />";
+                }
+
                 echo '</div>';
             };
 
@@ -83,8 +103,8 @@
                 ['OrdenTejido','Orden Tejido'],
                 ['FechaTejido','Fecha Tejido', ['type'=>'date']],
                 ['FechaCumplimiento','Fecha Cumplimiento', ['type'=>'date']],
-                ['SalonTejidoId','Salón Tejido'],
-                ['NoTelarId','No. Telar'],
+                ['SalonTejidoId','Salón Tejido', ['select' => true, 'selectId' => 'salon-tejido-select']],
+                ['NoTelarId','No. Telar', ['select' => true, 'selectId' => 'no-telar-select']],
                 ['Prioridad','Prioridad'],
                 ['Nombre','Nombre'],
                 ['ClaveModelo','Clave Modelo'],
@@ -334,15 +354,245 @@ input[required]:focus {
         }, 500);
     }
 
-    // Prefill en edición
+    // Prefill todos los campos desde los datos
     @if(isset($codificacion))
-        const dateFields = ['FechaTejido','FechaCumplimiento','FechaCompromiso'];
-        dateFields.forEach(name => {
-            const el = document.querySelector(`[name="${name}"]`);
-            const raw = el && el.value ? new Date(el.value) : null;
-            if (el && raw && !isNaN(raw)) el.value = new Date(raw).toISOString().substring(0,10);
+        // Esperar a que el DOM esté completamente cargado
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.codificacionData) {
+                console.log('Rellenando campos desde window.codificacionData:', window.codificacionData);
+
+                // Iterar sobre todos los datos y rellenar los campos correspondientes
+                Object.keys(window.codificacionData).forEach(fieldName => {
+                    // Ignorar campos que no deben rellenarse
+                    if (fieldName === 'Id' || fieldName === 'created_at' || fieldName === 'updated_at') {
+                        return;
+                    }
+
+                    const input = document.querySelector(`[name="${fieldName}"]`);
+                    if (input) {
+                        const value = window.codificacionData[fieldName];
+
+                        // Si el campo ya tiene un valor, no sobrescribirlo (el valor del servidor tiene prioridad)
+                        if (input.value && input.value.trim() !== '') {
+                            return;
+                        }
+
+                        // Si el valor existe, asignarlo
+                        if (value !== null && value !== undefined && value !== '') {
+                            // Manejar fechas especiales
+                            if (input.type === 'date' && value) {
+                                try {
+                                    const date = new Date(value);
+                                    if (!isNaN(date.getTime())) {
+                                        input.value = date.toISOString().substring(0, 10);
+                                    }
+                                } catch (e) {
+                                    console.warn(`Error formateando fecha para ${fieldName}:`, e);
+                                }
+                            } else {
+                                input.value = value;
+                            }
+                        }
+                    }
+                });
+
+                // Formatear campos de fecha que ya tienen valor
+                const dateFields = ['FechaTejido','FechaCumplimiento','FechaCompromiso'];
+                dateFields.forEach(name => {
+                    const el = document.querySelector(`[name="${name}"]`);
+                    if (el && el.value) {
+                        try {
+                            const raw = new Date(el.value);
+                            if (!isNaN(raw.getTime())) {
+                                el.value = raw.toISOString().substring(0,10);
+                            }
+                        } catch (e) {
+                            // Ignorar errores de formato
+                        }
+                    }
+                });
+            }
         });
     @endif
+
+    // Cargar salones y telares
+    let salonesData = null;
+    let salonSelect = null;
+    let telarSelect = null;
+
+    async function loadSalonesYTelares() {
+        salonSelect = document.getElementById('salon-tejido-select');
+        telarSelect = document.getElementById('no-telar-select');
+
+        try {
+            const response = await fetch('/planeacion/catalogos/codificacion-modelos/salones-telares');
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                salonesData = result.data;
+
+                // Obtener valores existentes del formulario o de window.codificacionData
+                let currentSalon = salonSelect ? salonSelect.value : '';
+                let currentTelar = telarSelect ? telarSelect.value : '';
+
+                // Si hay datos en window.codificacionData, usarlos
+                if (window.codificacionData) {
+                    if (window.codificacionData.SalonTejidoId) {
+                        currentSalon = window.codificacionData.SalonTejidoId;
+                        // Si el salón es SMIT pero existe ITEMA en la lista, usar ITEMA
+                        if (currentSalon === 'SMIT' && result.data && result.data.salones && result.data.salones.includes('ITEMA')) {
+                            currentSalon = 'ITEMA';
+                        }
+                    }
+                    if (window.codificacionData.NoTelarId) {
+                        currentTelar = window.codificacionData.NoTelarId;
+                    }
+                }
+
+                // Cargar salones en el select
+                if (salonSelect) {
+                    salonSelect.innerHTML = '<option value="">Seleccionar...</option>';
+
+                    salonesData.salones.forEach(salon => {
+                        const option = document.createElement('option');
+                        option.value = salon;
+                        option.textContent = salon;
+                        // Comparar como string para asegurar coincidencia
+                        if (String(salon) === String(currentSalon)) {
+                            option.selected = true;
+                        }
+                        salonSelect.appendChild(option);
+                    });
+
+                    // Establecer el valor del salón antes de cargar telares
+                    if (currentSalon) {
+                        salonSelect.value = currentSalon;
+                        // Pasar el salón como parámetro para asegurar que se use el correcto
+                        // Usar setTimeout para asegurar que el DOM esté actualizado
+                        setTimeout(() => {
+                            updateTelaresSelect(currentTelar, currentSalon);
+                        }, 50);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando salones y telares:', error);
+        }
+    }
+
+    function updateTelaresSelect(selectedTelar = null, salonForzado = null) {
+        if (!salonSelect || !telarSelect || !salonesData) {
+            console.warn('updateTelaresSelect: Faltan datos', {
+                salonSelect: !!salonSelect,
+                telarSelect: !!telarSelect,
+                salonesData: !!salonesData
+            });
+            return;
+        }
+
+        // Usar el salón forzado si se proporciona, sino usar el valor del select
+        const salonSeleccionado = salonForzado !== null ? salonForzado : salonSelect.value;
+        const telarASeleccionar = selectedTelar !== null ? selectedTelar : telarSelect.value;
+
+        console.log('updateTelaresSelect:', {
+            salonSeleccionado,
+            telarASeleccionar,
+            telaresPorSalon: Object.keys(salonesData.telaresPorSalon || {})
+        });
+
+        // Limpiar opciones
+        telarSelect.innerHTML = '<option value="">Seleccionar...</option>';
+
+        // Si hay un salón seleccionado, cargar sus telares
+        let telares = null;
+        if (salonSeleccionado && salonesData.telaresPorSalon[salonSeleccionado]) {
+            telares = salonesData.telaresPorSalon[salonSeleccionado];
+            console.log('Telares encontrados para', salonSeleccionado, ':', telares);
+        } else if (salonSeleccionado === 'ITEMA' && salonesData.telaresPorSalon['SMIT']) {
+            // Si es ITEMA y no tiene telares, usar los de SMIT (son los mismos)
+            telares = salonesData.telaresPorSalon['SMIT'];
+            console.log('Usando telares de SMIT para ITEMA:', telares);
+        } else if (salonSeleccionado === 'SMIT' && salonesData.telaresPorSalon['ITEMA']) {
+            // Si es SMIT y no tiene telares, usar los de ITEMA (son los mismos)
+            telares = salonesData.telaresPorSalon['ITEMA'];
+            console.log('Usando telares de ITEMA para SMIT:', telares);
+        }
+
+        if (telares && Array.isArray(telares)) {
+            let telarSeleccionado = false;
+            telares.forEach(telar => {
+                const option = document.createElement('option');
+                // Convertir telar a string para comparación
+                const telarStr = String(telar);
+                option.value = telarStr;
+                option.textContent = telarStr;
+                // Comparación más flexible para asegurar que se seleccione
+                const telarASeleccionarStr = String(telarASeleccionar);
+                if (telarASeleccionar && (telarStr === telarASeleccionarStr || telarStr.trim() === telarASeleccionarStr.trim())) {
+                    option.selected = true;
+                    telarSeleccionado = true;
+                    console.log('Telar seleccionado:', telarStr);
+                }
+                telarSelect.appendChild(option);
+            });
+
+            if (telarASeleccionar && !telarSeleccionado) {
+                console.warn('Telar no encontrado en la lista:', telarASeleccionar, 'Telares disponibles:', telares);
+            }
+        } else {
+            console.warn('No se encontraron telares para el salón:', salonSeleccionado);
+        }
+
+        // Si no hay salón seleccionado, limpiar telar
+        if (!salonSeleccionado) {
+            telarSelect.value = '';
+        }
+    }
+
+    // Cargar datos al inicializar y configurar eventos
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cargar salones y telares
+        loadSalonesYTelares().then(() => {
+            // Los valores ya se establecieron en loadSalonesYTelares()
+            // Esta sección es redundante pero la mantenemos por si acaso
+            if (window.codificacionData && salonSelect && telarSelect) {
+                let salon = window.codificacionData.SalonTejidoId;
+                const telar = window.codificacionData.NoTelarId;
+
+                // Si el salón es SMIT pero existe ITEMA en la lista, mostrar ITEMA
+                if (salon === 'SMIT' && salonesData && salonesData.salones && salonesData.salones.includes('ITEMA')) {
+                    salon = 'ITEMA';
+                }
+
+                // Solo actualizar si el valor no está ya establecido
+                if (salon && salonSelect.value !== salon) {
+                    salonSelect.value = salon;
+                    if (telar) {
+                        updateTelaresSelect(telar, salon);
+                    }
+                } else if (salon && telar && telarSelect.value !== telar) {
+                    // Si el salón ya está establecido pero el telar no, actualizar solo el telar
+                    updateTelaresSelect(telar, salon);
+                }
+            }
+        });
+
+        // Event listener para cambio de salón
+        const salonEl = document.getElementById('salon-tejido-select');
+        if (salonEl) {
+            salonEl.addEventListener('change', function() {
+                // Mantener ITEMA como ITEMA en el select
+                // La conversión a SMIT se hará solo al guardar
+
+                const telarEl = document.getElementById('no-telar-select');
+                // Limpiar el telar cuando cambia el salón
+                if (telarEl) {
+                    telarEl.value = '';
+                }
+                updateTelaresSelect();
+            });
+        }
+    });
 
     // Navegación con Enter - ir al siguiente input
     document.addEventListener('keydown', function(e) {
@@ -387,6 +637,12 @@ input[required]:focus {
         }
 
         const data = Object.fromEntries(new FormData(form).entries());
+
+        // ITEMA se trata como SMIT - convertir antes de guardar
+        if (data.SalonTejidoId === 'ITEMA') {
+            data.SalonTejidoId = 'SMIT';
+        }
+
         const url = isEdit
             ? `/planeacion/catalogos/codificacion-modelos/${idEl.value}`
             : `/planeacion/catalogos/codificacion-modelos`;

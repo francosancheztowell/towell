@@ -41,15 +41,53 @@ class ReqProgramaTejidoObserver
 
             // Guardar las fórmulas en el modelo del programa (para acceso posterior)
             if (!empty($formulas)) {
+                // Log para verificar qué fórmulas se están calculando
+                \Illuminate\Support\Facades\Log::info('Observer: Fórmulas calculadas', [
+                    'programa_id' => $programa->Id,
+                    'formulas_keys' => array_keys($formulas),
+                    'horasprod_en_formulas' => $formulas['HorasProd'] ?? 'NO EXISTE',
+                    'stddia_en_formulas' => $formulas['StdDia'] ?? 'NO EXISTE',
+                    'eficiencia_std' => $programa->getAttribute('EficienciaSTD')
+                ]);
+
                 foreach ($formulas as $key => $value) {
                     $programa->{$key} = $value;
                 }
 
                 // Guardar las fórmulas en la base de datos usando update directo
                 // para evitar disparar el Observer nuevamente
-                \Illuminate\Support\Facades\DB::table('ReqProgramaTejido')
-                    ->where('Id', $programa->Id)
-                    ->update($formulas);
+                // Asegurarse de que todas las claves del array sean nombres de columnas válidos
+                $formulasParaGuardar = [];
+                foreach ($formulas as $key => $value) {
+                    // Verificar que la clave sea un nombre de columna válido
+                    if (in_array($key, $programa->getFillable()) || in_array($key, ['StdToaHra', 'PesoGRM2', 'DiasEficiencia', 'StdDia', 'ProdKgDia', 'StdHrsEfect', 'ProdKgDia2', 'HorasProd', 'DiasJornada'])) {
+                        $formulasParaGuardar[$key] = $value;
+                    }
+                }
+
+                if (!empty($formulasParaGuardar)) {
+                    $updated = \Illuminate\Support\Facades\DB::table('ReqProgramaTejido')
+                        ->where('Id', $programa->Id)
+                        ->update($formulasParaGuardar);
+
+                    \Illuminate\Support\Facades\Log::info('Observer: Fórmulas guardadas en BD', [
+                        'programa_id' => $programa->Id,
+                        'filas_actualizadas' => $updated,
+                        'formulas_guardadas' => array_keys($formulasParaGuardar),
+                        'horasprod_guardado' => $formulasParaGuardar['HorasProd'] ?? 'NO EXISTE',
+                        'stddia_guardado' => $formulasParaGuardar['StdDia'] ?? 'NO EXISTE',
+                        'todas_las_formulas' => $formulasParaGuardar
+                    ]);
+                } else {
+                    \Illuminate\Support\Facades\Log::warning('Observer: No hay fórmulas válidas para guardar', [
+                        'programa_id' => $programa->Id,
+                        'formulas_calculadas' => array_keys($formulas)
+                    ]);
+                }
+            } else {
+                \Illuminate\Support\Facades\Log::warning('Observer: No se calcularon fórmulas', [
+                    'programa_id' => $programa->Id
+                ]);
             }
 
             // Validar fechas
@@ -356,8 +394,24 @@ class ReqProgramaTejidoObserver
         try {
             // Parámetros base
             $vel = (float) ($programa->VelocidadSTD ?? 0);
-            $efic = (float) ($programa->EficienciaSTD ?? 0);
+
+            // IMPORTANTE: Leer EficienciaSTD del atributo actualizado del modelo
+            // Usar getAttribute() para asegurar que obtenemos el valor más reciente
+            $efic = (float) ($programa->getAttribute('EficienciaSTD') ?? $programa->EficienciaSTD ?? 0);
+
             $cantidad = (float) ($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
+
+            // Log para debugging cuando se actualiza eficiencia
+            if ($programa->Id) {
+                \Illuminate\Support\Facades\Log::debug('Observer: Iniciando cálculo de fórmulas', [
+                    'programa_id' => $programa->Id,
+                    'eficiencia_std_leida' => $efic,
+                    'eficiencia_std_atributo' => $programa->getAttribute('EficienciaSTD'),
+                    'eficiencia_std_propiedad' => $programa->EficienciaSTD ?? 'N/A',
+                    'eficiencia_std_original' => $programa->getOriginal('EficienciaSTD') ?? 'N/A',
+                    'eficiencia_std_dirty' => $programa->isDirty('EficienciaSTD')
+                ]);
+            }
             $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
             $noTiras = (float) ($programa->NoTiras ?? 0);
             $luchaje = (float) ($programa->Luchaje ?? 0);
@@ -409,19 +463,58 @@ class ReqProgramaTejidoObserver
                 $formulas['DiasEficiencia'] = (float) round($diffDias, 2);
             }
 
-            // === PASO 4: Calcular StdDia y ProdKgDia ===
+            // === PASO 4: Calcular StdDia (PRIMERO - depende de eficiencia) ===
             // StdDia = StdToaHra * eficiencia * 24 (frontend incluye eficiencia)
-            // ProdKgDia = (StdDia * PesoCrudo) / 1000
+            $stdDia = 0;
             if ($stdToaHra > 0 && $efic > 0) {
                 $stdDia = $stdToaHra * $efic * 24;
                 $formulas['StdDia'] = (float) round($stdDia, 2);
+            }
 
-                if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 2);
+            // === PASO 5: Calcular HorasProd (SEGUNDO - depende de eficiencia) ===
+            // HorasProd = TotalPedido / (StdToaHra * EficienciaSTD)
+            $horasProd = 0;
+            if ($stdToaHra > 0 && $efic > 0) {
+                $horasProd = $cantidad / ($stdToaHra * $efic);
+                $formulas['HorasProd'] = (float) round($horasProd, 2);
+
+                // Log para debugging cuando se actualiza eficiencia (INFO para que se muestre)
+                if ($programa->Id) {
+                    \Illuminate\Support\Facades\Log::info('Observer: Calculando HorasProd', [
+                        'programa_id' => $programa->Id,
+                        'eficiencia_std' => $efic,
+                        'stdtoahra' => $stdToaHra,
+                        'cantidad' => $cantidad,
+                        'horasprod_calculado' => $horasProd,
+                        'horasprod_redondeado' => $formulas['HorasProd'],
+                        'eficiencia_del_modelo' => $programa->getAttribute('EficienciaSTD')
+                    ]);
+                }
+            } else {
+                // Log si no se puede calcular HorasProd
+                if ($programa->Id) {
+                    \Illuminate\Support\Facades\Log::warning('Observer: No se pudo calcular HorasProd', [
+                        'programa_id' => $programa->Id,
+                        'stdtoahra' => $stdToaHra,
+                        'efic' => $efic,
+                        'cantidad' => $cantidad
+                    ]);
                 }
             }
 
-            // === PASO 5: Calcular StdHrsEfect y ProdKgDia2 ===
+            // === PASO 6: Calcular ProdKgDia (depende de StdDia) ===
+            // ProdKgDia = (StdDia * PesoCrudo) / 1000
+            if ($stdDia > 0 && $pesoCrudo > 0) {
+                $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 2);
+            }
+
+            // === PASO 7: Calcular DiasJornada (depende de HorasProd) ===
+            // DiasJornada = HorasProd / 24 (frontend usa horasProd, no velocidad)
+            if ($horasProd > 0) {
+                $formulas['DiasJornada'] = (float) round($horasProd / 24, 2);
+            }
+
+            // === PASO 8: Calcular StdHrsEfect y ProdKgDia2 (no dependen de eficiencia directamente) ===
             // StdHrsEfect = (TotalPedido / DiasEficiencia) / 24 (frontend divide entre 24)
             // ProdKgDia2 = ((PesoCrudo * StdHrsEfect) * 24) / 1000
             if ($diffDias > 0) {
@@ -431,20 +524,6 @@ class ReqProgramaTejidoObserver
                 if ($pesoCrudo > 0) {
                     $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
                 }
-            }
-
-            // === PASO 6: Calcular HorasProd ===
-            // HorasProd = TotalPedido / (StdToaHra * EficienciaSTD)
-            $horasProd = 0;
-            if ($stdToaHra > 0 && $efic > 0) {
-                $horasProd = $cantidad / ($stdToaHra * $efic);
-                $formulas['HorasProd'] = (float) round($horasProd, 2);
-            }
-
-            // === PASO 7: Calcular DiasJornada ===
-            // DiasJornada = HorasProd / 24 (frontend usa horasProd, no velocidad)
-            if ($horasProd > 0) {
-                $formulas['DiasJornada'] = (float) round($horasProd / 24, 2);
             }
 
         } catch (\Throwable $e) {

@@ -3,343 +3,118 @@
 @section('page-title', 'Catálogo de Codificación')
 
 @section('navbar-right')
+<div class="flex items-center gap-2">
 <x-buttons.catalog-actions route="codificacion" :showFilters="true" />
+    <!-- Botón Fijar Columnas -->
+    <button type="button" onclick="openPinColumnsModal()"
+            class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-colors"
+            title="Fijar columnas" aria-label="Fijar columnas">
+        <i class="fa-solid fa-thumbtack text-sm"></i>
+    </button>
+    <!-- Botón Ocultar Columnas -->
+    <button type="button" onclick="openHideColumnsModal()"
+            class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
+            title="Ocultar columnas" aria-label="Ocultar columnas">
+        <i class="fa-solid fa-eye-slash text-sm"></i>
+    </button>
+</div>
 @endsection
 
 @section('content')
-@php
-use Carbon\Carbon;
+<div class="container-fluid">
+    <div class="bg-white rounded-lg shadow-sm flex flex-col" style="height: calc(100vh);">
+        {{-- Loading inicial --}}
+        <div
+            id="loading-overlay"
+            class="absolute inset-0 bg-white/90 flex items-center justify-center z-10"
+        >
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+        </div>
 
-if (!function_exists('fmtDateDMY')) {
-    function fmtDateDMY($v): string {
-        try {
-            if ($v instanceof Carbon) {
-                return $v->format('d/m/Y');
-            }
-            if (is_string($v) && trim($v) !== '') {
-                return Carbon::parse($v)->format('d/m/Y');
-            }
-        } catch (\Throwable $e) {
-            // Si no se puede parsear, devolver vacío
-        }
-        return '';
-    }
-}
-@endphp
-
-<div class="container-fluid px-4 py-4 ">
-
-    <div class="bg-white rounded-lg shadow-sm">
-        <div class="overflow-auto" style="height: 560px; max-height: 560px;">
-			<table id="mainTable" class="w-full">
-                <thead class="sticky-header">
-					<tr class="border border-gray-300 px-2 py-2 text-center font-light text-white text-sm bg-blue-500">
-						<th>Clave mod.</th>
-						<th>NoProduccion</th>
-						<th>Fecha Orden</th>
-						<th>Fecha Cumplimiento</th>
-						<th>Departamento</th>
-						<th>Telar Actual</th>
-						<th>Prioridad</th>
-						<th>Modelo</th>
-						<th>Clave Modelo</th>
-						<th>Clave AX</th>
-						<th>Tamaño</th>
-						<th>Tolerancia</th>
-						<th>Codigo Dibujo</th>
-						<th>Fecha Compromiso</th>
-						<th>Id Flog.</th>
-						<th>Nombre de Formato Logistico</th>
-						<th>Clave</th>
-						<th>Cantidad a Producir</th>
-						<th>Peine</th>
-						<th>Ancho</th>
-						<th>Largo</th>
-						<th>P_crudo</th>
-						<th>Luchaje</th>
-						<th>Tra</th>
-						<th>Hilo</th>
-						<th>Codigo Color Trama</th>
-						<th>Nombre Color Trama</th>
-						<th>OBS.</th>
-						<th>Tipo plano</th>
-						<th>Med plano</th>
-						<th>Tipo de Rizo</th>
-						<th>Altura de Rizo</th>
-						<th>OBS</th>
-						<th>Veloc. Mínima</th>
-						<th>Rizo</th>
-						<th>Hilo</th>
-
-                        <!-- Sección CUENTA -->
-						<th>Cuenta</th>
-						<th>OBS.</th>
-						<th>Pie</th>
-						<th>Hilo</th>
-						<th>Cuenta</th>
-						<th>OBS</th>
-						<th>C1</th>
-						<th>OBS</th>
-						<th>C2</th>
-						<th>OBS</th>
-						<th>C3</th>
-						<th>OBS</th>
-						<th>C4</th>
-						<th>OBS</th>
-						<th>Med. de Cenefa</th>
-						<th>Med de inicio de rizo a cenefa</th>
-						<th>Rasurada</th>
-						<th>Tiras</th>
-						<th>Repeticiones p/corte</th>
-
-                        <!-- Sección media -->
-						<th>No. De Marbetes</th>
-						<th>Cambio de repaso</th>
-						<th>Vendedor</th>
-						<th>No. Orden</th>
-						<th>Observaciones</th>
-						<th>TRAMA (Ancho Peine)</th>
-						<th>Log. de Lucha Total</th>
-						<th>C1 trama de Fondo</th>
-						<th>Hilo</th>
-
-						<!-- PASADAS - C1 -->
-						<th>OBS</th>
-						<th>Pasadas</th>
-						<th>C1</th>
-						<th>Hilo</th>
-						<th>OBS.</th>
-						<th>Cod Color</th>
-						<th>Nombre Color</th>
-
-						<!-- PASADAS - C2 -->
-						<th>Pasadas</th>
-						<th>C2</th>
-						<th>Hilo</th>
-						<th>OBS.</th>
-						<th>Cod Color</th>
-						<th>Nombre Color</th>
-
-						<!-- PASADAS - C3 -->
-						<th>Pasadas</th>
-						<th>C3</th>
-						<th>Hilo</th>
-						<th>OBS.</th>
-						<th>Cod Color</th>
-						<th>Nombre Color</th>
-
-						<!-- PASADAS - C4 -->
-						<th>Pasadas</th>
-						<th>C4</th>
-						<th>Hilo</th>
-						<th>OBS.</th>
-						<th>Cod Color</th>
-						<th>Nombre Color</th>
-
-						<!-- PASADAS - C5 -->
-						<th>Pasadas</th>
-						<th>CS</th>
-						<th>Hilo</th>
-						<th>OBS.</th>
-						<th>Cod Color</th>
-						<th>Nombre Color</th>
-						<th>Pasadas</th>
-
-						<!-- Final -->
-						<th>Total</th>
-						<th>Pasadas Dibujo</th>
-						<th>Contraccion</th>
-						<th>Tramas cm/Tejido</th>
-						<th>Contrac Rizo</th>
-						<th>Clasificación(KG)</th>
-						<th>KG/Dia</th>
-						<th>Densidad</th>
-						<th>Pzas/Día/pasadas</th>
-						<th>Pzas/Día/formula</th>
-						<th>Dif</th>
-						<th>Efic</th>
-						<th>Rev</th>
-						<th>Tiras</th>
-						<th>Pasadas</th>
-						<th>ColumCT</th>
-						<th>ColumCU</th>
-						<th>ColumCV</th>
-                        <th>ComprobarModDup</th>
+        {{-- Contenedor de tabla con scroll --}}
+        <div
+            id="table-container"
+            class="relative flex-1 overflow-y-auto overflow-x-auto"
+            style="max-height: calc(100vh - 110px);"
+        >
+            <table id="mainTable" class="w-full min-w-full">
+                <thead class="bg-blue-500">
+                    <tr>
+                        @foreach($columnas as $idx => $col)
+                            <th
+                                class="column-{{ $idx }} px-3 py-2 text-left text-sm font-medium text-white whitespace-nowrap border-b border-blue-400 bg-blue-500"
+                                data-index="{{ $idx }}"
+                            >
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="truncate">{{ $col }}</span>
+                                    <div class="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            class="sort-btn sort-btn-asc p-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-shadow hover:shadow-md"
+                                            title="Ordenar ascendente"
+                                            data-sort="asc"
+                                            data-column="{{ $idx }}"
+                                        >
+                                            <i class="fas fa-arrow-up"></i>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="sort-btn sort-btn-desc p-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-shadow hover:shadow-md hidden"
+                                            title="Ordenar descendente"
+                                            data-sort="desc"
+                                            data-column="{{ $idx }}"
+                                        >
+                                            <i class="fas fa-arrow-down"></i>
+                                        </button>
+                                    </div>
+                                    </div>
+                            </th>
+                        @endforeach
                     </tr>
                 </thead>
-
-                <tbody id="codificacion-body">
-                    @forelse($codificaciones as $cod)
-                        <tr class="data-row hover:bg-gray-50  px-2 py-2 text-center text-sm cursor-pointer"
-                            onclick="selectRow(this, {{ $cod->Id }})"
-                            data-id="{{ $cod->Id }}"
-                            data-tamano-clave="{{ $cod->TamanoClave }}"
-                            data-orden-tejido="{{ $cod->OrdenTejido }}"
-                            data-nombre="{{ $cod->Nombre }}"
-                            style="display: none;">
-                            <td class="column-0">{{ $cod->TamanoClave }}</td>
-                            <td class="column-1">{{ $cod->OrdenTejido }}</td>
-                            <td class="column-2">{{ fmtDateDMY($cod->FechaTejido) }}</td>
-                            <td class="column-3">{{ fmtDateDMY($cod->FechaCumplimiento) }}</td>
-                            <td class="column-4">{{ $cod->SalonTejidoId }}</td>
-                            <td class="column-5">{{ $cod->NoTelarId }}</td>
-                            <td class="column-6">{{ $cod->Prioridad }}</td>
-                            <td class="column-7">{{ $cod->Nombre }}</td>
-                            <td class="column-8">{{ $cod->ClaveModelo }}</td>
-                            <td class="column-9">{{ $cod->ItemId }}</td>
-                            <td class="column-10">{{ $cod->InventSizeId }}</td>
-                            <td class="column-11">{{ $cod->Tolerancia }}</td>
-                            <td class="column-12">{{ $cod->CodigoDibujo }}</td>
-                            <td class="column-13">{{ fmtDateDMY($cod->FechaCompromiso) }}</td>
-                            <td class="column-14">{{ $cod->FlogsId }}</td>
-                            <td class="column-15">{{ $cod->NombreProyecto }}</td>
-                            <td class="column-16">{{ $cod->Clave }}</td>
-                            <td class="column-17">{{ $cod->Pedido == 0 ? '' : $cod->Pedido }}</td>
-                            <td class="column-18">{{ $cod->Peine == 0 ? '' : $cod->Peine }}</td>
-                            <td class="column-19">{{ $cod->AnchoToalla == 0 ? '' : $cod->AnchoToalla }}</td>
-                            <td class="column-20">{{ $cod->LargoToalla == 0 ? '' : $cod->LargoToalla }}</td>
-                            <td class="column-21">{{ $cod->PesoCrudo == 0 ? '' : $cod->PesoCrudo }}</td>
-                            <td class="column-22">{{ $cod->Luchaje == 0 ? '' : $cod->Luchaje }}</td>
-                            <td class="column-23">{{ $cod->CalibreTrama == 0 ? '' : $cod->CalibreTrama }}</td>
-                            <td class="column-24">{{ $cod->CalibreTrama2 == 0 ? '' : $cod->CalibreTrama2 }}</td>
-                            <td class="column-25">{{ $cod->CodColorTrama }}</td>
-                            <td class="column-26">{{ $cod->ColorTrama }}</td>
-                            <td class="column-27">{{ $cod->FibraId }}</td>
-                            <td class="column-28">{{ $cod->DobladilloId }}</td>
-                            <td class="column-29">{{ $cod->MedidaPlano == 0 ? '' : $cod->MedidaPlano }}</td>
-                            <td class="column-30">{{ $cod->TipoRizo }}</td>
-                            <td class="column-31">{{ $cod->AlturaRizo == 0 ? '' : $cod->AlturaRizo }}</td>
-                            <td class="column-32">{{ $cod->Obs }}</td>
-                            <td class="column-33">{{ $cod->VelocidadSTD == 0 ? '' : $cod->VelocidadSTD }}</td>
-                            <td class="column-34">{{ $cod->CalibreRizo }}</td>
-                            <td class="column-35">{{ $cod->CalibreRizo2 }}</td>
-                            <td class="column-36">{{ $cod->CuentaRizo == 0 ? '' : $cod->CuentaRizo }}</td>
-                            <td class="column-37">{{ $cod->FibraRizo }}</td>
-                            <td class="column-38">{{ $cod->CalibrePie }}</td>
-                            <td class="column-39">{{ $cod->CalibrePie2 }}</td>
-                            <td class="column-40">{{ $cod->CuentaPie == 0 ? '' : $cod->CuentaPie }}</td>
-                            <td class="column-41">{{ $cod->FibraPie }}</td>
-                            <td class="column-42">{{ $cod->Comb1 }}</td>
-                            <td class="column-43">{{ $cod->Obs1 }}</td>
-                            <td class="column-44">{{ $cod->Comb2 }}</td>
-                            <td class="column-45">{{ $cod->Obs2 }}</td>
-                            <td class="column-46">{{ $cod->Comb3 }}</td>
-                            <td class="column-47">{{ $cod->Obs3 }}</td>
-                            <td class="column-48">{{ $cod->Comb4 }}</td>
-                            <td class="column-49">{{ $cod->Obs4 }}</td>
-                            <td class="column-50">{{ $cod->MedidaCenefa }}</td>
-                            <td class="column-51">{{ $cod->MedIniRizoCenefa }}</td>
-                            <td class="column-52">{{ $cod->Rasurado }}</td>
-                            <td class="column-53">{{ $cod->NoTiras == 0 ? '' : $cod->NoTiras }}</td>
-                            <td class="column-54">{{ $cod->Repeticiones == 0 ? '' : $cod->Repeticiones }}</td>
-                            <td class="column-55">{{ $cod->TotalMarbetes == 0 ? '' : $cod->TotalMarbetes }}</td>
-                            <td class="column-56">{{ $cod->CambioRepaso }}</td>
-                            <td class="column-57">{{ $cod->Vendedor }}</td>
-                            <td class="column-58">{{ $cod->CatCalidad }}</td>
-                            <td class="column-59">{{ $cod->Obs5 }}</td>
-                            <td class="column-60">{{ $cod->AnchoPeineTrama == 0 ? '' : $cod->AnchoPeineTrama }}</td>
-                            <td class="column-61">{{ $cod->LogLuchaTotal == 0 ? '' : $cod->LogLuchaTotal }}</td>
-                            <td class="column-62">{{ $cod->CalTramaFondoC1 }}</td>
-                            <td class="column-63">{{ $cod->CalTramaFondoC12 }}</td>
-                            <td class="column-64">{{ $cod->FibraTramaFondoC1 }}</td>
-                            <td class="column-65">{{ $cod->PasadasTramaFondoC1 == 0 ? '' : $cod->PasadasTramaFondoC1 }}</td>
-                            <td class="column-66">{{ $cod->CalibreComb1 }}</td>
-                            <td class="column-67">{{ $cod->CalibreComb12 }}</td>
-                            <td class="column-68">{{ $cod->FibraComb1 }}</td>
-                            <td class="column-69">{{ $cod->CodColorC1 }}</td>
-                            <td class="column-70">{{ $cod->NomColorC1 }}</td>
-                            <td class="column-71">{{ $cod->PasadasComb1 == 0 ? '' : $cod->PasadasComb1 }}</td>
-                            <td class="column-72">{{ $cod->CalibreComb2 }}</td>
-                            <td class="column-73">{{ $cod->CalibreComb22 }}</td>
-                            <td class="column-74">{{ $cod->FibraComb2 }}</td>
-                            <td class="column-75">{{ $cod->CodColorC2 }}</td>
-                            <td class="column-76">{{ $cod->NomColorC2 }}</td>
-                            <td class="column-77">{{ $cod->PasadasComb2 == 0 ? '' : $cod->PasadasComb2 }}</td>
-                            <td class="column-78">{{ $cod->CalibreComb3 }}</td>
-                            <td class="column-79">{{ $cod->CalibreComb32 }}</td>
-                            <td class="column-80">{{ $cod->FibraComb3 }}</td>
-                            <td class="column-81">{{ $cod->CodColorC3 }}</td>
-                            <td class="column-82">{{ $cod->NomColorC3 }}</td>
-                            <td class="column-83">{{ $cod->PasadasComb3 == 0 ? '' : $cod->PasadasComb3 }}</td>
-                            <td class="column-84">{{ $cod->CalibreComb4 }}</td>
-                            <td class="column-85">{{ $cod->CalibreComb42 }}</td>
-                            <td class="column-86">{{ $cod->FibraComb4 }}</td>
-                            <td class="column-87">{{ $cod->CodColorC4 }}</td>
-                            <td class="column-88">{{ $cod->NomColorC4 }}</td>
-                            <td class="column-89">{{ $cod->PasadasComb4 == 0 ? '' : $cod->PasadasComb4 }}</td>
-                            <td class="column-90">{{ $cod->CalibreComb5 }}</td>
-                            <td class="column-91">{{ $cod->CalibreComb52 }}</td>
-                            <td class="column-92">{{ $cod->FibraComb5 }}</td>
-                            <td class="column-93">{{ $cod->CodColorC5 }}</td>
-                            <td class="column-94">{{ $cod->NomColorC5 }}</td>
-                            <td class="column-95">{{ $cod->PasadasComb5 == 0 ? '' : $cod->PasadasComb5 }}</td>
-                            <td class="column-96">{{ $cod->Total == 0 ? '' : $cod->Total }}</td>
-                            <td class="column-97">{{ $cod->PasadasDibujo }}</td>
-                            <td class="column-98">{{ $cod->Contraccion }}</td>
-                            <td class="column-99">{{ $cod->TramasCMTejido }}</td>
-                            <td class="column-100">{{ $cod->ContracRizo }}</td>
-                            <td class="column-101">{{ $cod->ClasificacionKG }}</td>
-                            <td class="column-102">{{ $cod->KGDia }}</td>
-                            <td class="column-103">{{ $cod->Densidad }}</td>
-                            <td class="column-104">{{ $cod->PzasDiaPasadas }}</td>
-                            <td class="column-105">{{ $cod->PzasDiaFormula }}</td>
-                            <td class="column-106">{{ $cod->DIF }}</td>
-                            <td class="column-107">{{ $cod->EFIC }}</td>
-                            <td class="column-108">{{ $cod->Rev }}</td>
-                            <td class="column-109">{{ $cod->TIRAS == 0 ? '' : $cod->TIRAS }}</td>
-                            <td class="column-110">{{ $cod->PASADAS == 0 ? '' : $cod->PASADAS }}</td>
-                            <td class="column-111">{{ $cod->ColumCT }}</td>
-                            <td class="column-112">{{ $cod->ColumCU }}</td>
-                            <td class="column-113">{{ $cod->ColumCV }}</td>
-                            <td class="column-114">{{ $cod->ComprobarModDup }}</td>
-                            <!-- Más columnas según necesidad -->
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="100" class="text-center py-8 text-gray-500">
-                                @if(isset($error))
-                                    <div class="text-red-600 font-semibold mb-2">
-                                        <i class="fas fa-exclamation-triangle mr-2"></i>
-                                        Error al cargar los datos
-                                    </div>
-                                    <div class="text-sm text-gray-600">{{ $error }}</div>
-                                @elseif(isset($mensaje))
-                                    <div class="text-blue-600 font-semibold mb-2">
-                                        <i class="fas fa-info-circle mr-2"></i>
-                                        {{ $mensaje }}
-                                    </div>
-                                @else
-                                    No hay registros de codificación disponibles
-                                @endif
+                <tbody id="codificacion-body" class="divide-y divide-gray-200">
+                    <tr id="loading-row">
+                        <td colspan="{{ count($columnas) }}" class="text-center py-20">
+                            <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent mb-3"></div>
+                            <p class="text-gray-600 font-medium">Cargando datos...</p>
+                            <p class="text-sm text-gray-400 mt-1">Por favor espera</p>
                             </td>
                         </tr>
-                    @endforelse
                 </tbody>
             </table>
         </div>
 
-        {{-- Paginación unificada: Cliente controla Servidor --}}
-        <div id="pagination-container" class="px-4 py-3 border-t border-gray-200 bg-white sticky bottom-0 z-20">
-            <div class="flex items-center justify-between flex-wrap gap-3">
-                <div class="text-sm text-gray-700">
-                    Mostrando
-                    <span id="pagination-from" class="font-medium">0</span>
-                    a
-                    <span id="pagination-to" class="font-medium">0</span>
-                    de
-                    <span id="pagination-total" class="font-medium">0</span>
-                    registros
-                    @if(method_exists($codificaciones, 'links'))
-                        <span class="text-gray-500">(Bloque {{ $codificaciones->currentPage() }}/{{ $codificaciones->lastPage() }})</span>
-                    @endif
-                </div>
-                <div class="flex items-center gap-2">
-                    <button id="pagination-prev" class="px-3 py-1 border rounded text-sm hover:bg-blue-600 bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                        <i class="fas fa-chevron-left"></i> Anterior
+        {{-- Paginación fija en la parte inferior --}}
+        <div
+            id="pagination-container"
+            class="px-4 border-t border-gray-200 bg-white flex-shrink-0 z-20"
+        >
+            <div class="flex items-center justify-end flex-wrap gap-1">
+                <div class="flex items-center gap-1">
+                    <button
+                        id="pagination-prev"
+                        class="px-3 py-1 border rounded text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        disabled
+                    >
+                        <i class="fas fa-chevron-left mr-1"></i> Anterior
                     </button>
-                    <span id="pagination-info" class="px-3 py-1 text-sm text-gray-700">Página 1</span>
-                    <button id="pagination-next" class="px-3 py-1 border rounded text-sm hover:bg-blue-600 bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed">
-                        Siguiente <i class="fas fa-chevron-right"></i>
+                    <span
+                        id="pagination-info"
+                        class="px-2 p-2 py-0 text-xs text-gray-700 font-medium"
+                    >
+                        Página <span id="pagination-current">1</span> de <span id="pagination-total-pages">1</span>
+                    </span>
+                    <span
+                        id="pagination-details"
+                        class="px-2 py-0 text-xs text-gray-500 font-normal"
+                    >
+                        Mostrando <span id="pagination-start">0</span> - <span id="pagination-end">0</span> de <span id="pagination-total">0</span>
+                    </span>
+                    <button
+                        id="pagination-next"
+                        class="px-3 py-1 border rounded text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Siguiente <i class="fas fa-chevron-right ml-1"></i>
                     </button>
                 </div>
             </div>
@@ -347,1316 +122,1476 @@ if (!function_exists('fmtDateDMY')) {
     </div>
 </div>
 
+{{-- Menú contextual (click derecho) --}}
+<div id="context-menu" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg z-[99999] py-1 min-w-[150px]" style="z-index: 99999 !important; opacity: 1 !important; background-color: #ffffff !important;">
+    <button
+        id="context-menu-duplicate"
+        class="w-full text-left px-4 py-2 text-sm text-blue-700 hover:text-blue-800 bg-white hover:bg-gray-100 flex items-center gap-2"
+    >
+        <i class="fas fa-copy text-sm text-blue-600 hover:text-blue-800"></i>
+        <span>Duplicar</span>
+    </button>
+</div>
 
 <style>
-	/* Contenedor con altura fija y scroll */
-	.overflow-auto {
-		position: relative;
-		overflow: auto;
-		height: 560px;
-		max-height: 560px;
-	}
+    /* ============================================
+       CONTENEDOR DE TABLA CON SCROLL VISIBLE
+       ============================================ */
+    #table-container {
+    position: relative;
+        overflow-y: auto;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        flex: 1;
+        min-height: 0;
+    }
 
-	/* Mantiene encabezados pegados arriba */
-	#mainTable {
-		border-collapse: collapse;
-		width: 100%;
-	}
+    /* Scrollbar personalizada - Siempre visible y más grande */
+    #table-container::-webkit-scrollbar {
+        width: 14px;
+        height: 14px;
+    }
 
-	#mainTable thead {
-		position: sticky;
-		top: 0;
-		z-index: 100;
-		background-color: #3b82f6;
-	}
+    #table-container::-webkit-scrollbar-track {
+        background: #e5e7eb;
+        border-radius: 7px;
+    }
 
-	#mainTable thead.sticky-header {
-		position: sticky !important;
-		top: 0 !important;
-		z-index: 100 !important;
-		background-color: #3b82f6 !important;
-	}
+    #table-container::-webkit-scrollbar-thumb {
+        background: #6b7280;
+        border-radius: 7px;
+        border: 2px solid #e5e7eb;
+    }
 
-	#mainTable thead th {
-		position: sticky !important;
-		top: 0 !important;
-		z-index: 101 !important;
-		background-color: #3b82f6 !important;
-		color: white !important;
-		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-	}
+    #table-container::-webkit-scrollbar-thumb:hover {
+        background: #4b5563;
+    }
 
-	.pinned-column {
-		position: sticky !important;
-		background: #3b82f6 !important;
-		color: #fff !important;
-	}
+    /* Scrollbar horizontal - Más visible */
+    #table-container::-webkit-scrollbar:horizontal {
+        height: 14px;
+    }
 
-	.pinned-column.is-header {
-		background: #3b82f6 !important;
-		color: #fff !important;
-	}
+    /* Para Firefox */
+    #table-container {
+        scrollbar-width: auto;
+        scrollbar-color: #6b7280 #e5e7eb;
+    }
 
-	/* Botón minimal en headers */
-	.th-action {
-		@apply p-1.5 rounded-md transition-shadow shadow-sm hover:shadow-md;
-	}
+    /* ============================================
+       ESTILOS DE TABLA
+       ============================================ */
+#mainTable {
+        position: relative;
+    width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        min-width: max-content;
+        table-layout: auto;
+    }
 
-	/* Oculta texto que se desborde en headers muy largos */
-	th .th-label {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
+    /* ============================================
+       ENCABEZADO STICKY - FIJO ARRIBA
+       ============================================ */
+    #mainTable thead {
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 1000 !important;
+        background-color: #3b82f6 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
 
-	/* Estilos para paginación rápida */
-	.pagination {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		list-style: none;
-		padding: 0;
-		margin: 0;
-	}
-	.pagination li {
-		display: inline-block;
-	}
-	.pagination a, .pagination span {
-		display: inline-block;
-		padding: 0.5rem 0.75rem;
-		border: 1px solid #d1d5db;
-		border-radius: 0.375rem;
-		text-decoration: none;
-		color: #374151;
-		background: white;
-		transition: all 0.2s;
-		font-size: 0.875rem;
-	}
-	.pagination a:hover {
-		background: #f3f4f6;
-		border-color: #9ca3af;
-	}
-	.pagination .active span {
-		background: #3b82f6;
-		color: white;
-		border-color: #3b82f6;
-		font-weight: 600;
-	}
-	.pagination .disabled span {
-		opacity: 0.5;
-		cursor: not-allowed;
-		background: #f9fafb;
-	}
+    #mainTable thead tr {
+        background-color: #3b82f6 !important;
+        position: relative;
+}
+
+#mainTable thead th {
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1001 !important;
+        background-color: #3b82f6 !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        border-bottom: 2px solid #2563eb !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.2);
+        white-space: nowrap;
+    }
+
+    #mainTable thead th:last-child {
+        border-right: none;
+    }
+
+    /* ============================================
+       CUERPO DE TABLA
+       ============================================ */
+    #mainTable tbody tr {
+        position: relative;
+        z-index: 0;
+    }
+
+    #mainTable tbody td {
+        border-right: 1px solid rgba(0, 0, 0, 0.05);
+        white-space: nowrap;
+        z-index: 0;
+        position: relative;
+    }
+
+    /* ============================================
+       COLUMNAS FIJADAS
+       ============================================ */
+.pinned-column {
+        background-color: #fffbeb !important;
+    }
+
+    #mainTable thead th.pinned-column {
+        background-color: #1b0bf5 !important;
+    color: #fff !important;
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1020 !important;
+        box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    #mainTable tbody td.pinned-column {
+        background-color: #fffbeb !important;
+        position: sticky !important;
+        z-index: 100 !important;
+    }
+
+    /* ============================================
+       CONTENEDOR PRINCIPAL
+       ============================================ */
+    .container-fluid {
+        position: relative;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .bg-white.rounded-lg.shadow-sm {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    }
+
+    /* ============================================
+       FOOTER DE PAGINACIÓN - MÁS DELGADO
+       ============================================ */
+    #pagination-container {
+        padding-top: 0.375rem !important;
+        padding-bottom: 0.375rem !important;
+        min-height: auto !important;
+        max-height: 44px !important;
+    }
+
+    #pagination-container button {
+        padding-top: 0.25rem !important;
+        padding-bottom: 0.25rem !important;
+        font-size: 0.875rem !important;
+        line-height: 1.3 !important;
+    }
+
+    #pagination-container span {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        line-height: 1.2 !important;
+    }
+
+    #pagination-container .flex {
+        gap: 0.5rem !important;
+    }
+
+    /* ============================================
+       LOADING OVERLAY
+       ============================================ */
+    #table-loading-overlay {
+        pointer-events: none;
+    }
+
+    /* ============================================
+       MEJORAS VISUALES PARA TABLA
+       ============================================ */
+    #mainTable tbody td {
+    white-space: nowrap;
+}
+
+    /* Indicador visual cuando hay scroll horizontal */
+    #table-container::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(to right, transparent, #d1d5db 50%, transparent);
+        pointer-events: none;
+        z-index: 999;
+    }
+
+    /* ============================================
+       MENÚ CONTEXTUAL (CLICK DERECHO)
+       ============================================ */
+    #context-menu {
+        display: none;
+        background-color: #ffffff !important;
+        z-index: 99999 !important;
+        opacity: 1 !important;
+        position: fixed !important;
+    }
+
+    #context-menu:not(.hidden) {
+        display: block;
+        background-color: #ffffff !important;
+        z-index: 99999 !important;
+        opacity: 1 !important;
+    }
+
+    #context-menu button {
+        transition: background-color 0.15s ease;
+        background-color: #ffffff !important;
+        opacity: 1 !important;
+    }
+
+    #context-menu button:hover {
+        background-color: #f3f4f6 !important;
+    }
+
+    #context-menu button:active {
+        background-color: #e5e7eb !important;
+    }
 </style>
 
+{{-- JS principal --}}
 <script>
-/** =========================
- *  Estado global
- *  ========================= */
-let hiddenColumns = new Set();
-let pinnedColumns = new Set(); // Usar Set para evitar duplicados
-let currentSort = { index: null, dir: null }; // dir: 'asc' | 'desc'
+(() => {
+    // ============================================
+    //  CONFIGURACIÓN / ESTADO
+    // ============================================
+    const CONFIG = {
+        apiUrl: @json($apiUrl),
+        columnas: @json($columnasConfig),
+        camposModelo: @json(array_keys($camposModelo)),
+        tiposCampo: @json($camposModelo),
+        totalEstimado: {{ $totalRegistros }}
+    };
 
-/** =========================
- *  Utilidades
- *  ========================= */
-const $ = (sel, ctx=document) => ctx.querySelector(sel);
-const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+const state = {
+        rawData: [],
+        filteredData: [],
+    currentPage: 1,
+    itemsPerPage: 1000,
+        currentSort: { col: null, dir: null },
+        selectedId: null,
+        filtrosDinamicos: [],
+        isLoading: true
+    };
 
-function parseDateDDMMYYYY(str) {
-	if (!str) return null;
-	const m = str.trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-	if (!m) return null;
-	let [_, d, mo, y] = m;
-	if (y.length === 2) y = +y >= 70 ? '19'+y : '20'+y;
-	const dt = new Date(+y, +mo-1, +d);
-	return isNaN(dt.getTime()) ? null : dt;
-}
-function isNumericLike(v) {
-	return /^-?\d+(\.\d+)?$/.test(String(v).replace(/,/g,'').trim());
-}
-function cmp(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+    // Estado de columnas ocultas y fijadas
+    let hiddenColumns = [];
+    let pinnedColumns = [];
 
-function getCellValue(row, colIndex) {
-	const cell = row.children[colIndex];
-	if (!cell) return '';
-	return cell.textContent.trim();
-}
+    // ============================================
+    //  HELPERS DOM / DATA
+    // ============================================
+    const $  = (sel, ctx = document) => ctx.querySelector(sel);
+const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
-/** =========================
- *  Inyección de controles en TODOS los TH
- *  ========================= */
-function enhanceHeaders() {
-	const headerRow = $('#mainTable thead tr');
-	const ths = $$('th', headerRow);
-	ths.forEach((th, i) => {
-		// Asignar data-index y clase a todas las columnas
-		th.classList.add(`column-${i}`, 'text-left', 'px-3', 'py-2', 'whitespace-nowrap');
-		th.dataset.index = i;
+const utils = {
+        formatDate(value) {
+            if (!value) return '';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return value;
+            const day   = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year  = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        },
 
-		const label = th.textContent.trim();
-		th.textContent = '';
+        formatValue(value, type) {
+            if (value === null || value === undefined) return '';
+            if (type === 'date') return this.formatDate(value);
+            if (type === 'zero') return value == 0 ? '' : value;
+            return value;
+        },
 
-		// Controles: Solo Ordenamiento (ASC/DESC)
-		th.innerHTML = `
-			<div class="flex items-center justify-between gap-2">
-				<span class="th-label flex-1">${label}</span>
-				<div class="flex items-center gap-1">
-					<!-- Orden Toggle (ASC/DESC) -->
-					<button type="button" class="sort-btn th-action bg-blue-600 hover:bg-blue-700 text-white rounded-md" title="Ordenar ascendente" data-sort="asc" data-current="asc">
-						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 14l5-5 5 5M7 20h10" />
-						</svg>
-					</button>
-				</div>
-			</div>
-		`;
+        parseForSort(value, type) {
+            if (value === null || value === undefined || value === '') {
+                return type === 'number' ? -Infinity : '';
+            }
 
-		// Eventos - Solo ordenamiento
-		const sortBtn = th.querySelector('.sort-btn');
+            if (type === 'date') {
+                const d = new Date(value);
+                return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+            }
 
-		if (sortBtn) {
-			sortBtn.addEventListener('click', e => {
-				e.stopPropagation();
-				const current = sortBtn.dataset.current;
-				const newSort = current === 'asc' ? 'desc' : 'asc';
-				sortBtn.dataset.current = newSort;
-				sortBtn.dataset.sort = newSort;
-				sortBtn.title = newSort === 'asc' ? 'Ordenar ascendente' : 'Ordenar descendente';
+            if (type === 'number') {
+                const num = parseFloat(String(value).replace(/,/g, ''));
+                return Number.isNaN(num) ? 0 : num;
+            }
 
-				// Cambiar icono
-				const svg = sortBtn.querySelector('svg path');
-				if (svg) {
-					if (newSort === 'asc') {
-						svg.setAttribute('d', 'M7 14l5-5 5 5M7 20h10');
-					} else {
-						svg.setAttribute('d', 'M7 10l5 5 5-5M7 4h10');
-					}
-				}
+            return String(value).toLowerCase();
+        },
 
-				sortColumn(i, newSort);
-			});
-		}
-	});
-}
+        detectType(values) {
+            let nums = 0;
+            let dates = 0;
+            let total = 0;
 
-/** =========================
- *  Ocultar / Mostrar / Reset
- *  ========================= */
-function hideColumn(index) {
-	hiddenColumns.add(index);
-	// Ocultar TH y TDs
-	$$(`#mainTable thead th.column-${index}, #mainTable tbody td.column-${index}`).forEach(el => {
-		el.style.display = 'none';
-	});
-	// Si estaba fijada, desfijar
-	if (pinnedColumns.has(index)) {
-		pinnedColumns.delete(index);
-		updatePinnedPositions();
-	}
-	showToast('Columna ocultada correctamente', 'info');
-}
+            for (const value of values.slice(0, 100)) {
+                if (!value) continue;
+                total++;
 
-function resetColumns() {
-	// Mostrar todas
-	hiddenColumns.forEach(index => {
-		$$(`#mainTable thead th.column-${index}, #mainTable tbody td.column-${index}`).forEach(el => {
-			el.style.display = '';
-		});
-	});
-	hiddenColumns.clear();
+                const str = String(value);
+                if (!Number.isNaN(new Date(value).getTime()) && str.includes('-')) {
+                    dates++;
+                } else if (!Number.isNaN(parseFloat(str.replace(/,/g, '')))) {
+                    nums++;
+                }
+            }
 
-	// Desfijar todas
-	Array.from(pinnedColumns).forEach(idx => togglePinColumn(idx, true /*forceUnpin*/));
+            if (dates / Math.max(total, 1) > 0.5) return 'date';
+            if (nums / Math.max(total, 1) > 0.5) return 'number';
+            return 'text';
+        }
+    };
 
-	showToast('Restablecido correctamente ', 'success');
-}
+    // ============================================
+    //  TOAST NOTIFICATIONS
+    // ============================================
+function showToast(message, type = 'info') {
+    let toast = $('#toast-notification');
 
-/** =========================
- *  Fijar columnas
- *  ========================= */
-function togglePinColumn(index, forceUnpin = false) {
-	const alreadyPinned = pinnedColumns.has(index);
-	const header = $(`#mainTable thead th.column-${index}`);
-	const cells = $$(`#mainTable tbody td.column-${index}`);
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast-notification';
+            toast.className = 'fixed top-4 right-4 z-[9999] max-w-sm w-full';
+        document.body.appendChild(toast);
+    }
 
-	if (alreadyPinned || forceUnpin) {
-		[header, ...cells].forEach(el => {
-			if (!el) return;
-			el.classList.remove('pinned-column');
-			el.classList.remove('is-header');
-			el.style.left = '';
-			el.style.zIndex = '';
-		});
-		pinnedColumns.delete(index);
-		showToast('Columna desfijada correctamente', 'info');
-	} else {
-		if (hiddenColumns.has(index)) {
-			hiddenColumns.delete(index);
-			[header, ...cells].forEach(el => { if (el) el.style.display = ''; });
-		}
-		pinnedColumns.add(index);
-		showToast('Columna fijada correctamente', 'success');
-	}
-	updatePinnedPositions();
+        const colors = {
+            success: 'bg-green-600',
+            error:   'bg-red-600',
+            warning: 'bg-yellow-600',
+            info:    'bg-blue-600'
+        };
+
+    toast.innerHTML = `
+            <div class="${colors[type] || colors.info} text-white px-4 py-3 rounded-lg shadow-lg">
+            <div class="flex items-center justify-between gap-4">
+                    <span class="text-sm">${message}</span>
+                    <button
+                        type="button"
+                        class="opacity-80 hover:opacity-100"
+                        onclick="this.closest('#toast-notification')?.remove()"
+                    >
+                        &times;
+                </button>
+            </div>
+            </div>
+        `;
+
+    setTimeout(() => toast?.remove(), 3500);
 }
 
-function updatePinnedPositions() {
-	let left = 0;
-	let order = 0;
-	Array.from(pinnedColumns).sort((a, b) => a - b).forEach(colIndex => {
-		const header = $(`#mainTable thead th.column-${colIndex}`);
-		const cells = $$(`#mainTable tbody td.column-${colIndex}`);
-		if (!header) return;
+    // ============================================
+    //  LOADING TABLA
+    // ============================================
+    function showTableLoading(show) {
+        let overlay = $('#table-loading-overlay');
+        const container = $('#table-container');
 
-		const width = header.offsetWidth;
-		[header, ...cells].forEach(el => {
-			if (!el) return;
-			el.classList.add('pinned-column');
-			if (el.tagName === 'TH') el.classList.add('is-header');
-			el.style.left = `${left}px`;
-			el.style.zIndex = String(50 + order);
-		});
-		left += width;
-		order++;
-	});
+        if (!container) return;
+
+        if (show) {
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'table-loading-overlay';
+                overlay.className = 'absolute inset-0 bg-white/80 flex items-center justify-center z-30';
+                overlay.innerHTML = `
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+                `;
+                container.appendChild(overlay);
+            }
+            overlay.style.display = 'flex';
+            overlay.classList.remove('hidden');
+        } else {
+            if (overlay) {
+                overlay.style.display = 'none';
+                overlay.classList.add('hidden');
+                setTimeout(() => {
+                    if (overlay && overlay.parentNode) {
+                        overlay.remove();
+                    }
+                }, 50);
+            }
+        }
+    }
+
+    // ============================================
+    //  CARGA DE DATOS
+    // ============================================
+    async function loadData() {
+        const loadingEl  = $('#loading-overlay');
+
+        if (!CONFIG.apiUrl) {
+            loadingEl?.classList.add('hidden');
+            showToast('URL de API no configurada', 'error');
+            return;
+        }
+
+        if (loadingEl) {
+            loadingEl.classList.remove('hidden');
+        }
+
+        try {
+            const response = await fetch(CONFIG.apiUrl, {
+                method: 'GET',
+                headers: { Accept: 'application/json' }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (!result.s) {
+                throw new Error(result.e || 'Error desconocido');
+            }
+
+            const columns = result.c;
+
+            // Optimizado: crear objetos directamente sin múltiples iteraciones
+            state.rawData = result.d.map(row => {
+                const obj = {};
+                const len = columns.length;
+                for (let i = 0; i < len; i++) {
+                    obj[columns[i]] = row[i];
+                }
+                return obj;
+            });
+
+            state.filteredData = [...state.rawData];
+
+            // Renderizar inmediatamente
+            renderPage();
+            if (loadingEl) loadingEl.classList.add('hidden');
+            state.isLoading = false;
+        } catch (error) {
+            if (!loadingEl) return;
+
+            loadingEl.innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                    <p class="text-red-600 font-medium">Error al cargar datos</p>
+                    <p class="text-sm text-gray-500 mt-2">${error.message}</p>
+                    <button
+                        type="button"
+                        class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onclick="location.reload()"
+                    >
+                        Reintentar
+                </button>
+                </div>
+            `;
+        }
+    }
+
+    // ============================================
+    //  RENDER / PAGINACIÓN
+    // ============================================
+    function updatePagination() {
+        const total      = state.filteredData.length;
+        const totalPages = Math.ceil(total / state.itemsPerPage) || 1;
+        const start      = total ? (state.currentPage - 1) * state.itemsPerPage + 1 : 0;
+        const end        = Math.min(state.currentPage * state.itemsPerPage, total);
+
+        // Actualizar información de página
+        const currentPageEl = $('#pagination-current');
+        const totalPagesEl  = $('#pagination-total-pages');
+
+        if (currentPageEl) currentPageEl.textContent = state.currentPage;
+        if (totalPagesEl)  totalPagesEl.textContent  = totalPages;
+
+        // Actualizar detalles de registros
+        const startEl  = $('#pagination-start');
+        const endEl    = $('#pagination-end');
+        const totalEl  = $('#pagination-total');
+
+        if (startEl) startEl.textContent = start.toLocaleString();
+        if (endEl)   endEl.textContent   = end.toLocaleString();
+        if (totalEl) totalEl.textContent = total.toLocaleString();
+
+        // Actualizar botones
+        const prevBtn = $('#pagination-prev');
+        const nextBtn = $('#pagination-next');
+
+        if (prevBtn) prevBtn.disabled = state.currentPage <= 1;
+        if (nextBtn) nextBtn.disabled = state.currentPage >= totalPages;
+    }
+
+    function renderPage() {
+        const tbody     = $('#codificacion-body');
+        const totalCols = CONFIG.columnas.length;
+
+        if (!tbody) return;
+
+        // Sin datos
+        if (!state.filteredData.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="${totalCols}" class="text-center py-16">
+                        <i class="fas fa-search text-gray-300 text-5xl mb-4"></i>
+                        <p class="text-gray-500 font-medium">
+                            ${state.filtrosDinamicos.length
+                                ? 'No se encontraron resultados'
+                                : 'No hay datos disponibles'}
+                        </p>
+                        ${
+                            state.filtrosDinamicos.length
+                                ? '<p class="text-sm text-gray-400 mt-2">Intenta con otros filtros</p>'
+                                : ''
+                        }
+                    </td>
+                </tr>
+            `;
+            updatePagination();
+            return;
+        }
+
+        const start = (state.currentPage - 1) * state.itemsPerPage;
+        const pageData = state.filteredData.slice(start, start + state.itemsPerPage);
+
+        const showLoading = pageData.length > 200;
+        if (showLoading) showTableLoading(true);
+
+        try {
+            const fragment = document.createDocumentFragment();
+            const camposModelo = CONFIG.camposModelo;
+            const tiposCampo = CONFIG.tiposCampo;
+            const camposLen = camposModelo.length;
+
+            // Optimizado: pre-crear elementos en batch
+            for (let i = 0; i < pageData.length; i++) {
+                const row = pageData[i];
+                const tr = document.createElement('tr');
+                const isSelected = row.Id === state.selectedId;
+
+                tr.dataset.id = row.Id;
+                tr.className = 'data-row cursor-pointer transition-colors ' +
+                    (isSelected ? 'bg-blue-500 text-white selected-row' : 'hover:bg-gray-50');
+
+                tr.addEventListener('click', () => selectRow(tr, row.Id));
+                tr.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    showContextMenu(e, row.Id);
+                });
+
+                // Optimizado: usar for loop en lugar de forEach
+                for (let idx = 0; idx < camposLen; idx++) {
+                    const campo = camposModelo[idx];
+                    const td = document.createElement('td');
+                    td.className = `column-${idx} px-3 py-2 text-sm whitespace-nowrap text-gray-700`;
+                    td.textContent = utils.formatValue(row[campo], tiposCampo[campo]);
+                    tr.appendChild(td);
+                }
+
+                fragment.appendChild(tr);
+            }
+
+            tbody.innerHTML = '';
+            tbody.appendChild(fragment);
+
+            // Cerrar menú contextual si está abierto
+            const contextMenu = $('#context-menu');
+            if (contextMenu) contextMenu.classList.add('hidden');
+
+            updatePagination();
+
+            // Aplicar columnas ocultas después de renderizar
+            for (let i = 0; i < hiddenColumns.length; i++) {
+                hideColumn(hiddenColumns[i], true);
+            }
+
+            // Actualizar posiciones de columnas fijadas
+            requestAnimationFrame(() => {
+                updatePinnedColumnsPositions();
+            });
+
+            if (showLoading) {
+                showTableLoading(false);
+            }
+        } catch (error) {
+            if (showLoading) showTableLoading(false);
+        }
+    }
+
+    function goToPage(page) {
+        const totalPages = Math.ceil(state.filteredData.length / state.itemsPerPage) || 1;
+        if (page < 1 || page > totalPages) return;
+        state.currentPage = page;
+        renderPage();
+        const container = $('#table-container');
+        if (container) container.scrollTop = 0;
+    }
+
+    // ============================================
+    //  ORDENAMIENTO
+    // ============================================
+    function sortColumn(colIndex, dir) {
+        if (!CONFIG.camposModelo[colIndex]) return;
+
+        const needsLoading = state.filteredData.length > 500;
+        if (needsLoading) showTableLoading(true);
+
+        // Reset visual de botones
+        $$('#mainTable thead th .sort-btn').forEach(btn => {
+            const isDesc = btn.classList.contains('sort-btn-desc');
+            btn.classList.toggle('hidden', isDesc);
+        });
+
+        const th = $(`#mainTable thead th[data-index="${colIndex}"]`);
+        if (th) {
+            const ascBtn  = th.querySelector('.sort-btn-asc');
+            const descBtn = th.querySelector('.sort-btn-desc');
+
+            if (dir === 'asc') {
+                ascBtn?.classList.add('hidden');
+                descBtn?.classList.remove('hidden');
+            } else {
+                descBtn?.classList.add('hidden');
+                ascBtn?.classList.remove('hidden');
+            }
+        }
+
+        try {
+            const campo = CONFIG.camposModelo[colIndex];
+            const tipo  = CONFIG.tiposCampo[campo];
+
+            const sortType =
+                tipo === 'date'
+                    ? 'date'
+                    : tipo === 'zero'
+                        ? 'number'
+                        : utils.detectType(state.filteredData.map(r => r[campo]));
+
+            state.filteredData.sort((a, b) => {
+                const va = utils.parseForSort(a[campo], sortType);
+                const vb = utils.parseForSort(b[campo], sortType);
+
+                if (va < vb) return dir === 'asc' ? -1 : 1;
+                if (va > vb) return dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            state.currentSort = { col: colIndex, dir };
+    state.currentPage = 1;
+            renderPage();
+        } catch (error) {
+            // Error silencioso
+        } finally {
+            if (needsLoading) {
+                showTableLoading(false);
+            }
+        }
+    }
+
+    // ============================================
+    //  SELECCIÓN DE FILA
+    // ============================================
+function selectRow(row, id) {
+        $$('#codificacion-body tr.selected-row').forEach(r => {
+            r.classList.remove('bg-blue-500', 'selected-row');
+        r.classList.add('hover:bg-gray-50');
+            r.querySelectorAll('td').forEach(td => {
+                td.classList.remove('text-white');
+                td.classList.add('text-gray-700');
+    });
+        });
+
+    row.classList.remove('hover:bg-gray-50');
+        row.classList.add('bg-blue-500', 'selected-row');
+        row.querySelectorAll('td').forEach(td => {
+            td.classList.remove('text-gray-700');
+            td.classList.add('text-white');
+        });
+
+    state.selectedId = id;
+
+        const editBtn   = $('#btn-editar');
+    const deleteBtn = $('#btn-eliminar');
+        if (editBtn)   editBtn.disabled   = false;
+        if (deleteBtn) deleteBtn.disabled = false;
 }
 
-/** =========================
- *  Ordenamiento
- *  ========================= */
-function sortColumn(index, dir) {
-	const tbody = $('#mainTable tbody');
-	const rows = Array.from(filteredRows.length > 0 ? filteredRows : allRows);
+    // ============================================
+    //  MENÚ CONTEXTUAL (CLICK DERECHO)
+    // ============================================
+    function showContextMenu(event, rowId) {
+        const contextMenu = $('#context-menu');
+        if (!contextMenu) return;
 
-	// Detectar tipo de dato predominante
-	let numericCount = 0, dateCount = 0, total = 0;
-	rows.forEach(r => {
-		const v = getCellValue(r, index);
-		if (!v) return;
-		total++;
-		if (parseDateDDMMYYYY(v)) dateCount++;
-		else if (isNumericLike(v)) numericCount++;
-	});
+        // Seleccionar la fila si no está seleccionada
+        if (state.selectedId !== rowId) {
+            const row = $(`tr[data-id="${rowId}"]`);
+            if (row) selectRow(row, rowId);
+        }
 
-	let type = 'text';
-	if (dateCount / Math.max(total,1) > 0.5) type = 'date';
-	else if (numericCount / Math.max(total,1) > 0.5) type = 'number';
+        // Posicionar el menú
+        let x = event.clientX;
+        let y = event.clientY;
 
-	const parseVal = (v) => {
-		if (type === 'date') {
-			const dt = parseDateDDMMYYYY(v);
-			return dt ? dt.getTime() : -Infinity;
-		}
-		if (type === 'number') {
-			return parseFloat(String(v).replace(/,/g,'').trim()) || 0;
-		}
-		return v.toString().toLowerCase();
-	};
+        // Asegurar que el menú no se salga de la pantalla
+        const menuWidth = 150;
+        const menuHeight = 50;
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
 
-	const sorted = rows.slice().sort((a,b) => {
-		const va = parseVal(getCellValue(a, index));
-		const vb = parseVal(getCellValue(b, index));
-		return dir === 'asc' ? cmp(va, vb) : cmp(vb, va);
-	});
+        if (x + menuWidth > windowWidth) {
+            x = windowWidth - menuWidth - 10;
+        }
+        if (y + menuHeight > windowHeight) {
+            y = windowHeight - menuHeight - 10;
+        }
 
-	// Reordenar en el DOM
-	sorted.forEach((r, i) => {
-		tbody.appendChild(r);
-	});
+        contextMenu.style.left = `${x}px`;
+        contextMenu.style.top = `${y}px`;
+        contextMenu.classList.remove('hidden');
 
-	// Actualizar arrays y paginación
-	allRows = Array.from(document.querySelectorAll('#codificacion-body tr.data-row'));
-	filteredRows = sorted;
-	currentPage = 1;
-	showPage(1);
+        // Cerrar el menú al hacer click fuera, scroll, o en otra parte
+        const closeMenu = (e) => {
+            if (!contextMenu.contains(e.target)) {
+                contextMenu.classList.add('hidden');
+                document.removeEventListener('click', closeMenu);
+                document.removeEventListener('contextmenu', closeMenu);
+                window.removeEventListener('scroll', closeMenu, true);
+            }
+        };
 
-	currentSort = { index, dir };
-}
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+            document.addEventListener('contextmenu', closeMenu);
+            window.addEventListener('scroll', closeMenu, true);
+        }, 10);
+    }
 
-window.addEventListener('resize', () => {
-	updatePinnedPositions();
-});
+    function duplicarCodificacion() {
+        if (!state.selectedId) {
+            showToast('Selecciona un registro', 'warning');
+            return;
+        }
 
-/** =========================
- *  Toast minimal
- *  ========================= */
-function showToast(message, type='info') {
-	let toast = document.getElementById('toast-notification');
-	if (!toast) {
-		toast = document.createElement('div');
-		toast.id = 'toast-notification';
-		toast.className = 'fixed top-4 right-4 z-50 max-w-sm w-full';
-		document.body.appendChild(toast);
-	}
-	const colors = { success:'bg-green-600', error:'bg-red-600', warning:'bg-yellow-600', info:'bg-blue-600' };
-	toast.innerHTML = `
-		<div class="${colors[type]||colors.info} text-white px-4 py-3 rounded-md shadow-lg transition-all" id="toast-content">
-			<div class="flex items-center justify-between gap-4">
-				<div class="text-sm">${message}</div>
-				<button onclick="document.getElementById('toast-notification').remove()" class="opacity-80 hover:opacity-100">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-					</svg>
-				</button>
-			</div>
-		</div>`;
-	setTimeout(()=>{ const t = document.getElementById('toast-notification'); if(t) t.remove(); }, 3500);
-}
+        // Redirigir a la página de creación con los datos del registro a duplicar
+        window.location.href = `/planeacion/catalogos/codificacion-modelos/create?duplicate=${state.selectedId}`;
+    }
 
-/** =========================
- *  Estado global para selección
- *  ========================= */
-let selectedRow = null;
-let selectedId = null;
-
-/** =========================
- *  Funciones de botones (compatibles con action-buttons component)
- *  ========================= */
+    // ============================================
+    //  CRUD (REDIRECCIONES)
+    // ============================================
 function agregarCodificacion() {
-	window.location.href = '/planeacion/catalogos/codificacion-modelos/create';
+    window.location.href = '/planeacion/catalogos/codificacion-modelos/create';
 }
 
 function editarCodificacion() {
-	if (!selectedId) {
-		showToast('Por favor selecciona un registro para editar', 'warning');
-		return;
-	}
-	// Usar Id como identificador (primary key)
-	window.location.href = `/planeacion/catalogos/codificacion-modelos/${selectedId}/edit`;
+        if (!state.selectedId) {
+            showToast('Selecciona un registro', 'warning');
+            return;
+        }
+
+    window.location.href = `/planeacion/catalogos/codificacion-modelos/${state.selectedId}/edit`;
 }
 
 function eliminarCodificacion() {
-	if (!selectedId) {
-		showToast('Por favor selecciona un registro para eliminar', 'warning');
-		return;
-	}
-
-	Swal.fire({
-		title: '¿Estás seguro?',
-		text: 'Esta acción no se puede deshacer',
-		icon: 'warning',
-		showCancelButton: true,
-		confirmButtonColor: '#d33',
-		cancelButtonColor: '#3085d6',
-		confirmButtonText: 'Sí, eliminar',
-		cancelButtonText: 'Cancelar'
-	}).then((result) => {
-		if (result.isConfirmed) {
-			fetch(`/planeacion/catalogos/codificacion-modelos/${selectedId}`, {
-				method: 'DELETE',
-				headers: {
-					'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-				}
-			})
-			.then(response => response.json())
-			.then(data => {
-				if (data.success) {
-					showToast('Registro eliminado exitosamente', 'success');
-					setTimeout(() => location.reload(), 1000);
-				} else {
-					showToast('Error al eliminar: ' + data.message, 'error');
-				}
-			})
-			.catch(error => {
-				showToast('Error al eliminar: ' + error.message, 'error');
-			});
-		}
-	});
-}
-
-function subirExcelCodificacion() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.xlsx,.xls';
-    input.style.display = 'none';
-
-    input.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const allowedTypes = [
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-excel'
-        ];
-
-        if (!allowedTypes.includes(file.type)) {
-            showToast('Por favor selecciona un archivo Excel válido (.xlsx o .xls)', 'error');
+        if (!state.selectedId) {
+            showToast('Selecciona un registro', 'warning');
             return;
         }
 
-        if (file.size > 10 * 1024 * 1024) {
-            showToast('El archivo es demasiado grande. Máximo 10MB', 'error');
+    Swal.fire({
+            title: '¿Eliminar registro?',
+        text: 'Esta acción no se puede deshacer',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(result => {
+        if (!result.isConfirmed) return;
+
+        fetch(`/planeacion/catalogos/codificacion-modelos/${state.selectedId}`, {
+            method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').content
+                }
+        })
+        .then(r => r.json())
+        .then(data => {
+                    if (!data.success) {
+                        showToast('Error: ' + (data.message || 'No se pudo eliminar'), 'error');
+                        return;
+                    }
+
+                    state.rawData      = state.rawData.filter(r => r.Id !== state.selectedId);
+                    state.filteredData = state.filteredData.filter(r => r.Id !== state.selectedId);
+                    state.selectedId   = null;
+
+                    renderPage();
+                showToast('Registro eliminado', 'success');
+                })
+                .catch(error => {
+                    showToast('Error: ' + error.message, 'error');
+                });
+        });
+    }
+
+    // ============================================
+    //  FILTROS
+    // ============================================
+    function aplicarFiltrosAND() {
+        if (!state.rawData.length) {
+            showToast('Espera a que carguen los datos', 'warning');
             return;
         }
 
+        if (!state.filtrosDinamicos.length) {
+            state.filteredData = [...state.rawData];
+        } else {
+            const filtrosPorColumna = {};
+
+            state.filtrosDinamicos.forEach(filtro => {
+                const key = String(filtro.columna);
+                if (!filtrosPorColumna[key]) filtrosPorColumna[key] = [];
+                filtrosPorColumna[key].push(filtro.valor.toLowerCase().trim());
+            });
+
+            state.filteredData = state.rawData.filter(row => {
+                for (const [colIdxStr, valores] of Object.entries(filtrosPorColumna)) {
+                    const colIdx = parseInt(colIdxStr, 10);
+                    const campo  = CONFIG.camposModelo[colIdx];
+
+                    if (!campo) continue;
+
+                    const valorCelda = String(row[campo] ?? '').toLowerCase().trim();
+                    const match = valores.some(valor => valorCelda.includes(valor));
+
+                    if (!match) return false;
+                }
+
+                return true;
+            });
+        }
+
+        state.currentPage = 1;
+        renderPage();
+        updateActiveFiltersUI();
+    }
+
+    function applyFilters() {
+        aplicarFiltrosAND();
+
+        if (!state.filteredData.length) {
+            showToast('No se encontraron resultados', 'warning');
+            return;
+        }
+
+        showToast(`${state.filteredData.length} de ${state.rawData.length} registros`, 'success');
+    }
+
+    function updateActiveFiltersUI() {
+        const container = $('#active-filters-container');
+        if (container) container.classList.add('hidden');
+    }
+
+    function removeFilter(index) {
+        state.filtrosDinamicos.splice(index, 1);
+        aplicarFiltrosAND();
+        showToast(
+            state.filteredData.length ? `${state.filteredData.length} registros` : 'Filtro eliminado',
+            'info'
+        );
+    }
+
+    function filtrarCodificacion() {
         Swal.fire({
-            title: '¿Procesar archivo Excel?',
-            text: `Archivo: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Sí, procesar',
-            cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                procesarExcel(file);
+            html: `
+                <div class="relative">
+                    <div class="flex items-center justify-between mb-4 pb-3">
+                        <h2 class="text-lg font-semibold text-gray-800">Filtrar Datos</h2>
+                        <button
+                            type="button"
+                            id="btn-close-modal"
+                            class="text-gray-400 hover:text-red-600 text-2xl leading-none"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex gap-2">
+                            <select
+                                id="filtro-columna"
+                                class="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                                <option value="">Columna...</option>
+                                ${
+                                    CONFIG.columnas
+                                        .map(c => `<option value="${c.index}">${c.nombre}</option>`)
+                                        .join('')
+                                }
+                            </select>
+
+                            <input
+                                type="text"
+                                id="filtro-valor"
+                                class="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Valor a buscar..."
+                            >
+
+                            <button
+                                type="button"
+                                id="btn-add-filter"
+                                class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                            >
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+
+                        <div id="modal-active-filters" class="${state.filtrosDinamicos.length ? '' : 'hidden'}">
+                            <div id="modal-filters-list" class="flex flex-wrap gap-2"></div>
+                        </div>
+
+                        <div id="btn-clear-container" class="${state.filtrosDinamicos.length ? '' : 'hidden'} mt-2">
+                            <span id="filter-count" class="ml-2 text-xs text-gray-500"></span>
+                        </div>
+                    </div>
+                </div>
+            `,
+            width: '550px',
+            showConfirmButton: false,
+            showCancelButton: false,
+            showCloseButton: false,
+            didOpen: () => {
+                renderModalFilters();
+
+                const closeBtn = $('#btn-close-modal');
+                if (closeBtn) {
+                    closeBtn.onclick = () => Swal.close();
+                }
+
+                const addBtn = $('#btn-add-filter');
+                if (addBtn) {
+                    addBtn.onclick = addFilterFromModal;
+                }
+
+                const valorInput = $('#filtro-valor');
+                if (valorInput) {
+                    valorInput.onkeydown = event => {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            addFilterFromModal();
+                        }
+                    };
+                }
+
+                const clearBtn = $('#btn-clear-filters');
+                if (clearBtn) {
+                    clearBtn.onclick = () => {
+                        limpiarFiltrosCodificacion();
+                        Swal.close();
+                    };
+                }
+
+                const colSelect = $('#filtro-columna');
+                colSelect?.focus();
             }
         });
-    });
+    }
 
-    document.body.appendChild(input);
+    function addFilterFromModal() {
+        const colSelect  = $('#filtro-columna');
+        const valueInput = $('#filtro-valor');
+
+        if (!colSelect || !valueInput) return;
+
+        const columnaIdx = parseInt(colSelect.value, 10);
+        const valor      = valueInput.value.trim();
+
+        if (Number.isNaN(columnaIdx) || columnaIdx < 0) {
+            showToast('Selecciona una columna', 'warning');
+            colSelect.focus();
+            return;
+        }
+
+        if (!valor) {
+            showToast('Ingresa un valor', 'warning');
+            valueInput.focus();
+            return;
+        }
+
+        const exists = state.filtrosDinamicos.some(
+            f => f.columna === columnaIdx && f.valor.toLowerCase() === valor.toLowerCase()
+        );
+
+        if (exists) {
+            showToast('Este filtro ya existe', 'warning');
+            return;
+        }
+
+        state.filtrosDinamicos.push({ columna: columnaIdx, valor });
+
+        valueInput.value = '';
+        colSelect.selectedIndex = 0;
+        valueInput.focus();
+
+        aplicarFiltrosAND();
+        renderModalFilters();
+
+        if (!state.filteredData.length) {
+            showToast('No se encontraron resultados', 'warning');
+        } else {
+            showToast(`${state.filteredData.length} de ${state.rawData.length} registros`, 'success');
+        }
+    }
+
+    function renderModalFilters() {
+        const container      = $('#modal-active-filters');
+        const list           = $('#modal-filters-list');
+        const counter        = $('#filter-count');
+        const clearContainer = $('#btn-clear-container');
+
+        if (!container || !list) return;
+
+        if (!state.filtrosDinamicos.length) {
+            container.classList.add('hidden');
+            clearContainer?.classList.add('hidden');
+            return;
+        }
+
+        container.classList.remove('hidden');
+        clearContainer?.classList.remove('hidden');
+        if (counter) counter.textContent = state.filtrosDinamicos.length;
+
+        list.innerHTML = state.filtrosDinamicos
+            .map((filtro, index) => {
+                const colName = CONFIG.columnas[filtro.columna]?.nombre || 'Columna';
+                return `
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        <strong>${colName}:</strong> "${filtro.valor}"
+                        <button
+                            type="button"
+                            class="ml-1 hover:text-red-600 font-bold"
+                            onclick="removeFilterFromModal(${index})"
+                        >
+                            &times;
+                        </button>
+                    </span>
+                `;
+            })
+            .join('');
+    }
+
+    function removeFilterFromModal(index) {
+        state.filtrosDinamicos.splice(index, 1);
+        aplicarFiltrosAND();
+        renderModalFilters();
+        showToast(
+            state.filteredData.length ? `${state.filteredData.length} registros` : 'Filtro eliminado',
+            'info'
+        );
+    }
+
+    function limpiarFiltrosCodificacion() {
+        state.filtrosDinamicos = [];
+        aplicarFiltrosAND();
+        showToast('Filtros limpiados', 'info');
+    }
+
+    // ============================================
+    //  EXCEL
+    // ============================================
+    function subirExcelCodificacion() {
+        const input = document.createElement('input');
+        input.type   = 'file';
+        input.accept = '.xlsx,.xls';
+
+        input.onchange = event => {
+            const file = event.target.files?.[0];
+        if (!file) return;
+
+            const sizeMB = file.size / 1024 / 1024;
+            if (sizeMB > 10) {
+                showToast('Máximo 10MB', 'error');
+                return;
+            }
+
+        Swal.fire({
+            title: '¿Procesar Excel?',
+                text: `${file.name} (${sizeMB.toFixed(2)} MB)`,
+            icon: 'question',
+            showCancelButton: true,
+                confirmButtonText: 'Procesar'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    procesarExcel(file);
+                }
+            });
+        };
+
     input.click();
-    document.body.removeChild(input);
 }
 
 function procesarExcel(file) {
     const formData = new FormData();
     formData.append('archivo_excel', file);
 
-    Swal.fire({
-        title: 'Procesando archivo...',
-        text: 'Por favor espera mientras se procesa el Excel',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
-    });
+        Swal.fire({
+            title: 'Procesando...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
 
     fetch('/planeacion/catalogos/codificacion-modelos/excel', {
         method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').content
+            },
         body: formData
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
-        if (data.success && data.data.poll_url) {
-            // Encolado correctamente, iniciar polling
-            const pollUrl = data.data.poll_url;
-            pollImportProgress(pollUrl);
-        } else {
-            Swal.close();
-            Swal.fire({
-                title: 'Error',
-                text: data.message || 'Error al encolar el archivo',
-                icon: 'error',
-                confirmButtonText: 'Aceptar'
-            });
-        }
-    })
-    .catch(error => {
-        Swal.close();
-        Swal.fire({
-            title: 'Error',
-            text: 'Error de conexión: ' + error.message,
-            icon: 'error',
-            confirmButtonText: 'Aceptar'
-        });
-    });
-}
-
-function pollImportProgress(pollUrl, maxAttempts = 600, interval = 1000) {
-    let attempts = 0;
-
-    const poll = async () => {
-        attempts++;
-
-        try {
-            const response = await fetch(pollUrl);
-            const result = await response.json();
-
-            if (result.success && result.data) {
-                const state = result.data;
-                const percent = result.percent || 0;
-
-                // Mostrar progreso
-                const processed = state.processed_rows || 0;
-                const total = state.total_rows || '?';
-                const text = `Procesando: ${processed}/${total} registros (${percent}%)`;
-
-                Swal.update({
-                    title: 'Procesando archivo...',
-                    html: text,
-                });
-
-                // Actualizar HTML de progreso si existe
-                const progressBar = document.querySelector('.swal2-progress');
-                if (progressBar) {
-                    progressBar.style.width = percent + '%';
-                }
-
-                // Si está done, mostrar resultado final
-                if (state.status === 'done') {
-                    Swal.close();
-
-                    let message = `Archivo codificación modelos.xlsx procesado!\n\n`;
-                    message += `• Registros procesados: ${state.processed_rows || 0}\n`;
-                    message += `• Nuevos registros: ${state.created || 0}\n`;
-                    message += `• Registros actualizados: ${state.updated || 0}\n`;
-                    message += `• Total de errores: ${state.errors || 0}`;
-
-                    console.log('Import finished state:', state);
-                    console.log('Result object:', result);
-
-                    // Si hay errores, mostrar en modal separado
-                    if (result.errors && result.errors.length > 0) {
-                        let errorHTML = '<div style="text-align: left; max-height: 400px; overflow-y: auto; padding: 10px;">';
-                        errorHTML += '<h4 style="margin-top: 0; color: #d32f2f;">⚠️ Detalles de errores:</h4>';
-                        result.errors.forEach((error, idx) => {
-                            errorHTML += `<div style="margin-bottom: 12px; padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 3px; font-size: 13px;">`;
-                            errorHTML += `<strong style="color: #856404;">Fila ${error.fila}:</strong><br>`;
-                            errorHTML += `<span style="color: #856404;">${error.error}</span>`;
-                            errorHTML += `</div>`;
-                        });
-                        errorHTML += '</div>';
-
-                        Swal.fire({
-                            title: '✓ Importación completada con advertencias',
-                            html: `<div style="text-align: left;"><p><strong>${message.replace(/\n/g, '<br>')}</strong></p><hr></div>` + errorHTML,
-                            icon: 'warning',
-                            confirmButtonText: 'Aceptar',
-                            width: '800px',
-                        }).then(() => {
-                            location.reload();
-                        });
-                    } else if (state.total_errors && state.total_errors > 0) {
-                        // Si hay errores pero no se pudieron cargar en result.errors
-                        Swal.fire({
-                            title: '⚠️ Importación completada con ' + state.total_errors + ' errores',
-                            html: `<p style="text-align: left;">${message.replace(/\n/g, '<br>')}<br><br><em>Ver detalles en los logs del servidor</em></p>`,
-                            icon: 'warning',
-                            confirmButtonText: 'Aceptar',
-                        }).then(() => {
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            title: '¡Éxito!',
-                            text: message,
-                            icon: 'success',
-                            confirmButtonText: 'Aceptar'
-                        }).then(() => {
-                            location.reload();
-                        });
-                    }
+                if (data.success && data.data?.poll_url) {
+            pollImportProgress(data.data.poll_url);
                     return;
                 }
 
-                // Continuar polling
-                if (attempts < maxAttempts) {
-                    setTimeout(poll, interval);
-                } else {
-                    Swal.close();
-                    Swal.fire({
-                        title: 'Timeout',
-                        text: 'El procesamiento tardó demasiado. Por favor, intenta más tarde.',
-                        icon: 'warning',
-                        confirmButtonText: 'Aceptar'
-                    });
-                }
-            } else {
-                // No se encontró progreso aún (quizá no se ha iniciado)
-                if (attempts < maxAttempts) {
-                    setTimeout(poll, interval);
-                } else {
-                    Swal.close();
-                    Swal.fire({
-                        title: 'Error',
-                        text: 'No se pudo recuperar el progreso',
-                        icon: 'error',
-                        confirmButtonText: 'Aceptar'
-                    });
-                }
-            }
-        } catch (error) {
-            if (attempts < maxAttempts) {
-                setTimeout(poll, interval);
-            } else {
-                Swal.close();
                 Swal.fire({
                     title: 'Error',
-                    text: 'Error de conexión: ' + error.message,
-                    icon: 'error',
-                    confirmButtonText: 'Aceptar'
+                    text: data.message || 'Ocurrió un error al procesar el archivo',
+                    icon: 'error'
                 });
-            }
-        }
-    };
-
-    poll();
-}
-
-// Variables globales para filtros
-let filtrosActuales = {
-    tamanoClave: '',
-    ordenTejido: '',
-    nombre: '',
-    salonTejidoId: '',
-    noTelarId: '',
-    prioridad: '',
-    claveModelo: '',
-    flogsId: '',
-    nombreProyecto: ''
-};
-
-// Variables globales para filtros dinámicos
-let filtrosDinamicos = [];
-
-function filtrarCodificacion() {
-    // Definir todas las columnas disponibles
-    const columnasDisponibles = [
-        { index: 0, nombre: 'Clave mod.' },
-        { index: 1, nombre: 'NoProduccion' },
-        { index: 2, nombre: 'Fecha Orden' },
-        { index: 3, nombre: 'Fecha Cumplimiento' },
-        { index: 4, nombre: 'Departamento' },
-        { index: 5, nombre: 'Telar Actual' },
-        { index: 6, nombre: 'Prioridad' },
-        { index: 7, nombre: 'Modelo' },
-        { index: 8, nombre: 'Clave Modelo' },
-        { index: 9, nombre: 'Clave AX' },
-        { index: 10, nombre: 'Tamaño' },
-        { index: 11, nombre: 'Tolerancia' },
-        { index: 12, nombre: 'Codigo Dibujo' },
-        { index: 13, nombre: 'Fecha Compromiso' },
-        { index: 14, nombre: 'Id Flog' },
-        { index: 15, nombre: 'Nombre de Formato Logístico' },
-        { index: 16, nombre: 'Clave' },
-        { index: 17, nombre: 'Cantidad a Producir' },
-        { index: 18, nombre: 'Peine' },
-        { index: 19, nombre: 'Ancho' },
-        { index: 20, nombre: 'Largo' },
-        { index: 21, nombre: 'P_crudo' },
-        { index: 22, nombre: 'Luchaje' },
-        { index: 23, nombre: 'Tra' },
-        { index: 24, nombre: 'Hilo' },
-        { index: 25, nombre: 'Codigo Color Trama' },
-        { index: 26, nombre: 'Nombre Color Trama' },
-        { index: 27, nombre: 'OBS.' },
-        { index: 28, nombre: 'Tipo plano' },
-        { index: 29, nombre: 'Med plano' },
-        { index: 30, nombre: 'Tipo de Rizo' },
-        { index: 31, nombre: 'Altura de Rizo' },
-        { index: 32, nombre: 'OBS' },
-        { index: 33, nombre: 'Veloc. Mínima' },
-        { index: 34, nombre: 'Rizo' },
-        { index: 35, nombre: 'Hilo' },
-        { index: 36, nombre: 'Cuenta' },
-        { index: 37, nombre: 'OBS.' },
-        { index: 38, nombre: 'Pie' },
-        { index: 39, nombre: 'Hilo' },
-        { index: 40, nombre: 'Cuenta' },
-        { index: 41, nombre: 'OBS' },
-        { index: 42, nombre: 'C1' },
-        { index: 43, nombre: 'OBS' },
-        { index: 44, nombre: 'C2' },
-        { index: 45, nombre: 'OBS' },
-        { index: 46, nombre: 'C3' },
-        { index: 47, nombre: 'OBS' },
-        { index: 48, nombre: 'C4' },
-        { index: 49, nombre: 'OBS' },
-        { index: 50, nombre: 'Med. de Cenefa' },
-        { index: 51, nombre: 'Med de inicio de rizo a cenefa' },
-        { index: 52, nombre: 'Rasurada' },
-        { index: 53, nombre: 'Tiras' },
-        { index: 54, nombre: 'Repeticiones p/corte' },
-        { index: 55, nombre: 'No. De Marbetes' },
-        { index: 56, nombre: 'Cambio de repaso' },
-        { index: 57, nombre: 'Vendedor' },
-        { index: 58, nombre: 'No. Orden' },
-        { index: 59, nombre: 'Observaciones' },
-        { index: 60, nombre: 'TRAMA (Ancho Peine)' },
-        { index: 61, nombre: 'Log. de Lucha Total' },
-        { index: 62, nombre: 'C1 trama de Fondo' },
-        { index: 63, nombre: 'Hilo' },
-        { index: 64, nombre: 'OBS' },
-        { index: 65, nombre: 'Pasadas' },
-        { index: 66, nombre: 'C1' },
-        { index: 67, nombre: 'Hilo' },
-        { index: 68, nombre: 'OBS.' },
-        { index: 69, nombre: 'Cod Color' },
-        { index: 70, nombre: 'Nombre Color' },
-        { index: 71, nombre: 'Pasadas' },
-        { index: 72, nombre: 'C2' },
-        { index: 73, nombre: 'Hilo' },
-        { index: 74, nombre: 'OBS.' },
-        { index: 75, nombre: 'Cod Color' },
-        { index: 76, nombre: 'Nombre Color' },
-        { index: 77, nombre: 'Pasadas' },
-        { index: 78, nombre: 'C3' },
-        { index: 79, nombre: 'Hilo' },
-        { index: 80, nombre: 'OBS.' },
-        { index: 81, nombre: 'Cod Color' },
-        { index: 82, nombre: 'Nombre Color' },
-        { index: 83, nombre: 'Pasadas' },
-        { index: 84, nombre: 'C4' },
-        { index: 85, nombre: 'Hilo' },
-        { index: 86, nombre: 'OBS.' },
-        { index: 87, nombre: 'Cod Color' },
-        { index: 88, nombre: 'Nombre Color' },
-        { index: 89, nombre: 'Pasadas' },
-        { index: 90, nombre: 'CS' },
-        { index: 91, nombre: 'Hilo' },
-        { index: 92, nombre: 'OBS.' },
-        { index: 93, nombre: 'Cod Color' },
-        { index: 94, nombre: 'Nombre Color' },
-        { index: 95, nombre: 'Pasadas' },
-        { index: 96, nombre: 'Total' },
-        { index: 97, nombre: 'Pasadas Dibujo' },
-        { index: 98, nombre: 'Contraccion' },
-        { index: 99, nombre: 'Tramas cm/Tejido' },
-        { index: 100, nombre: 'Contrac Rizo' },
-        { index: 101, nombre: 'Clasificación(KG)' },
-        { index: 102, nombre: 'KG/Dia' },
-        { index: 103, nombre: 'Densidad' },
-        { index: 104, nombre: 'Pzas/Día/pasadas' },
-        { index: 105, nombre: 'Pzas/Día/formula' },
-        { index: 106, nombre: 'Dif' },
-        { index: 107, nombre: 'Efic' },
-        { index: 108, nombre: 'Rev' },
-        { index: 109, nombre: 'Tiras' },
-        { index: 110, nombre: 'Pasadas' },
-        { index: 111, nombre: 'ColumCT' },
-        { index: 112, nombre: 'ColumCU' },
-        { index: 113, nombre: 'ColumCV' },
-        { index: 114, nombre: 'ComprobarModDup' }
-    ];
-
-    // Inicializar filtros si están vacíos
-    if (filtrosDinamicos.length === 0) {
-        filtrosDinamicos = [{ columna: '', valor: '' }];
+            })
+            .catch(error => {
+                Swal.fire({
+                    title: 'Error',
+                    text: error.message,
+                    icon: 'error'
+                });
+            });
     }
 
-    const html = `
-        <div id="filtros-container" class="space-y-3">
-            ${filtrosDinamicos.map((filtro, index) => `
-                <div class="filtro-item flex items-center gap-2 p-3 border rounded-lg bg-gray-50">
-                    <div class="flex-1">
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Columna</label>
-                        <select class="w-full px-2 py-1 border rounded text-sm" data-filtro-index="${index}" data-field="columna">
-                            <option value="">Selecciona una columna...</option>
-                            ${columnasDisponibles.map(col => `
-                                <option value="${col.index}" ${filtro.columna == col.index ? 'selected' : ''}>${col.nombre}</option>
-                            `).join('')}
-                        </select>
-                    </div>
-                    <div class="flex-1">
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Valor a buscar</label>
-                        <input type="text" class="w-full px-2 py-1 border rounded text-sm"
-                               placeholder="Ingresa el valor a buscar..."
-                               data-filtro-index="${index}"
-                               data-field="valor"
-                               value="${filtro.valor}">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <button type="button" class="btn-remove-filtro px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                                data-index="${index}" ${filtrosDinamicos.length === 1 ? 'style="display:none"' : ''}>
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
+    function pollImportProgress(url, attempts = 0) {
+        if (attempts > 600) {
+            Swal.fire({ title: 'Timeout', icon: 'warning' });
+            return;
+        }
+
+        fetch(url)
+            .then(r => r.json())
+            .then(result => {
+            if (result.success && result.data) {
+                    const {
+                        status,
+                        processed_rows = 0,
+                        total_rows = '?',
+                        created = 0,
+                        updated = 0
+                    } = result.data;
+
+                    Swal.update({
+                        html: `${processed_rows}/${total_rows} (${result.percent || 0}%)`
+                    });
+
+                if (status === 'done') {
+                    Swal.close();
+                        Swal.fire({
+                            title: '¡Éxito!',
+                            text: `Nuevos: ${created}, Actualizados: ${updated}`,
+                            icon: 'success'
+                        }).then(() => location.reload());
+                        return;
+                    }
+
+                    setTimeout(() => pollImportProgress(url, attempts + 1), 1000);
+                    return;
+                }
+
+                setTimeout(() => pollImportProgress(url, attempts + 1), 1000);
+            })
+            .catch(() => {
+                setTimeout(() => pollImportProgress(url, attempts + 1), 1000);
+            });
+    }
+
+    // ============================================
+    //  OCULTAR / FIJAR COLUMNAS
+    // ============================================
+    function showColumn(index, silent = false) {
+        $$(`.column-${index}`).forEach(el => {
+            el.style.display = '';
+            el.style.visibility = '';
+        });
+        if (Array.isArray(hiddenColumns)) {
+            const idx = hiddenColumns.indexOf(index);
+            if (idx > -1) {
+                hiddenColumns.splice(idx, 1);
+            }
+        }
+        if (!silent && typeof showToast === 'function') {
+            showToast(`Columna visible`, 'info');
+        }
+    }
+
+    function hideColumn(index, silent = false) {
+        $$(`.column-${index}`).forEach(el => el.style.display = 'none');
+        if (!hiddenColumns.includes(index)) hiddenColumns.push(index);
+        if (!silent && typeof showToast === 'function') {
+            showToast(`Columna oculta`, 'info');
+        }
+    }
+
+    function togglePinColumn(index) {
+        const exists = pinnedColumns.includes(index);
+        if (exists) {
+            pinnedColumns = pinnedColumns.filter(i => i !== index);
+        } else {
+            pinnedColumns.push(index);
+        }
+        pinnedColumns.sort((a, b) => a - b);
+        updatePinnedColumnsPositions();
+    }
+
+    function updatePinnedColumnsPositions() {
+        // Limpiar estilos de todas las columnas primero
+        const allIdx = [...new Set($$('th[class*="column-"]').map(th => {
+            const match = th.className.match(/column-(\d+)/);
+            return match ? parseInt(match[1]) : null;
+        }).filter(idx => idx !== null))];
+
+        allIdx.forEach(idx => {
+            $$(`.column-${idx}`).forEach(el => {
+                if (el.tagName === 'TH') {
+                    // Restaurar estilos básicos de encabezado (se aplicarán nuevos si está fijado)
+                    el.style.left = '';
+                    el.classList.remove('pinned-column');
+                    // Los estilos sticky top se mantienen del CSS base
+                    if (!pinnedColumns.includes(idx)) {
+                        el.style.backgroundColor = '#3b82f6';
+                    }
+                } else {
+                    // Limpiar todos los estilos de las celdas
+                    el.style.position = '';
+                    el.style.top = '';
+                    el.style.left = '';
+                    el.style.zIndex = '';
+                    el.style.backgroundColor = '';
+                    el.style.color = '';
+                    el.classList.remove('pinned-column');
+                }
+            });
+        });
+
+        // Aplicar fijados en orden
+        let left = 0;
+        pinnedColumns.forEach((idx, order) => {
+            const th = $(`th.column-${idx}`);
+            if (!th || th.style.display === 'none') return;
+
+            const width = th.offsetWidth || th.getBoundingClientRect().width;
+            $$(`.column-${idx}`).forEach(el => {
+                if (el.tagName === 'TH') {
+                    // Encabezado: sticky tanto en top (0) como en left
+                    el.style.position = '-webkit-sticky';
+                    el.style.position = 'sticky';
+                    el.style.top = '0';
+                    el.style.left = `${left}px`;
+                    el.style.zIndex = String(1020 + order);
+                    el.style.backgroundColor = '#f59e0b';
+                    el.style.color = '#fff';
+                    el.style.boxShadow = '2px 2px 4px rgba(0, 0, 0, 0.2)';
+                } else {
+                    // Celda del cuerpo: solo sticky en left (no en top)
+                    el.style.position = 'sticky';
+                    el.style.left = `${left}px`;
+                    el.style.zIndex = String(100 + order);
+                    el.style.backgroundColor = '#fffbeb';
+                }
+                el.classList.add('pinned-column');
+            });
+            left += width;
+        });
+    }
+
+    function openPinColumnsModal() {
+        const columns = CONFIG.columnas.map((col, idx) => ({
+            label: col.nombre,
+            index: idx
+        }));
+
+        let html = `
+            <div class="text-left">
+                <p class="text-sm text-gray-600 mb-4">Selecciona las columnas que deseas fijar a la izquierda de la tabla:</p>
+                <div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-2">
+        `;
+
+        columns.forEach((col) => {
+            const isPinned = pinnedColumns.includes(col.index);
+            html += `
+                <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                    <span class="text-sm text-gray-700">${col.label}</span>
+                    <input type="checkbox" ${isPinned ? 'checked' : ''}
+                           class="w-4 h-4 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500 column-toggle-pin"
+                           data-column-index="${col.index}">
                 </div>
-            `).join('')}
-        </div>
-        <div class="mt-3 flex justify-between">
-            <button type="button" id="btn-agregar-filtro" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                <i class="fas fa-plus mr-1"></i> Agregar Otro Filtro
-            </button>
-        </div>
-        <div class="mt-3 text-xs text-gray-500 bg-blue-50 p-2 rounded">
-            <i class="fas fa-info-circle mr-1"></i> Los filtros son case-insensitive y se aplican con lógica AND.
-        </div>
-    `;
+            `;
+        });
 
-    Swal.fire({
-        title: 'Filtrar por Columna',
-        html: html,
-        width: '700px',
-        showCancelButton: true,
-        confirmButtonText: '<i class="fas fa-filter mr-2"></i>Agregar Filtro',
-        cancelButtonText: '<i class="fas fa-times mr-2"></i>Cerrar',
-        confirmButtonColor: '#3b82f6',
-        cancelButtonColor: '#6b7280',
-        didOpen: () => {
-            // Event listeners para botones dinámicos
-            document.getElementById('btn-agregar-filtro').addEventListener('click', agregarFiltro);
+        html += `
+                </div>
+            </div>
+        `;
 
-            // Event listeners para botones de eliminar
-            document.querySelectorAll('.btn-remove-filtro').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const index = parseInt(e.target.dataset.index);
-                    eliminarFiltro(index);
+        Swal.fire({
+            title: 'Fijar Columnas',
+            html: html,
+            showCancelButton: true,
+            confirmButtonText: 'Aplicar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#f59e0b',
+            cancelButtonColor: '#6b7280',
+            width: '500px',
+            didOpen: () => {
+                document.querySelectorAll('#swal2-html-container .column-toggle-pin').forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        const columnIndex = parseInt(this.dataset.columnIndex);
+                        togglePinColumn(columnIndex);
+                        // Actualizar checkbox
+                        this.checked = pinnedColumns.includes(columnIndex);
+                    });
                 });
-            });
-        },
-        preConfirm: () => {
-            const filtros = [];
-            document.querySelectorAll('.filtro-item').forEach((item, index) => {
-                const columna = item.querySelector('[data-field="columna"]').value;
-                const valor = item.querySelector('[data-field="valor"]').value.trim();
-
-                if (columna && valor) {
-                    filtros.push({ columna: parseInt(columna), valor: valor });
-                }
-            });
-
-            if (filtros.length === 0) {
-                Swal.showValidationMessage('Debes agregar al menos un filtro válido');
-                return false;
-            }
-
-            return filtros;
-        }
-    }).then(res => {
-        if (res.isConfirmed && res.value) {
-            aplicarFiltrosDinamicos(res.value);
         }
     });
 }
 
-function agregarFiltro() {
-    const container = document.getElementById('filtros-container');
-    const index = filtrosDinamicos.length;
+    function openHideColumnsModal() {
+        const columns = CONFIG.columnas.map((col, idx) => ({
+            label: col.nombre,
+            index: idx
+        }));
 
-    filtrosDinamicos.push({ columna: '', valor: '' });
+        let html = `
+            <div class="text-left">
+                <p class="text-sm text-gray-600 mb-4">Selecciona las columnas que deseas ocultar:</p>
+                <div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-2">
+        `;
 
-    const nuevoFiltro = document.createElement('div');
-    nuevoFiltro.className = 'filtro-item flex items-center gap-2 p-3 border rounded-lg bg-gray-50';
-    nuevoFiltro.innerHTML = `
-        <div class="flex-1">
-            <label class="block text-xs font-medium text-gray-700 mb-1">Columna</label>
-            <select class="w-full px-2 py-1 border rounded text-sm" data-filtro-index="${index}" data-field="columna">
-                <option value="">Selecciona una columna...</option>
-                ${getColumnasDisponibles().map(col => `
-                    <option value="${col.index}">${col.nombre}</option>
-                `).join('')}
-            </select>
-        </div>
-        <div class="flex-1">
-            <label class="block text-xs font-medium text-gray-700 mb-1">Valor a buscar</label>
-            <input type="text" class="w-full px-2 py-1 border rounded text-sm"
-                   placeholder="Ingresa el valor a buscar..."
-                   data-filtro-index="${index}"
-                   data-field="valor">
-        </div>
-        <div class="flex flex-col gap-1">
-            <button type="button" class="btn-remove-filtro px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                    data-index="${index}">
-                <i class="fas fa-trash"></i>
-            </button>
-        </div>
-    `;
-
-    container.appendChild(nuevoFiltro);
-
-    // Actualizar visibilidad de botones de eliminar
-    document.querySelectorAll('.btn-remove-filtro').forEach(btn => {
-        btn.style.display = filtrosDinamicos.length > 1 ? 'block' : 'none';
-        btn.addEventListener('click', (e) => {
-            const index = parseInt(e.target.dataset.index);
-            eliminarFiltro(index);
+        columns.forEach((col) => {
+            const isHidden = hiddenColumns.includes(col.index);
+            html += `
+                <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                    <span class="text-sm text-gray-700">${col.label}</span>
+                    <input type="checkbox" ${isHidden ? 'checked' : ''}
+                           class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 column-toggle-hide"
+                           data-column-index="${col.index}">
+                </div>
+            `;
         });
-    });
-}
 
-function eliminarFiltro(index) {
-    filtrosDinamicos.splice(index, 1);
-
-    // Reconstruir el HTML
-    const container = document.getElementById('filtros-container');
-    container.innerHTML = filtrosDinamicos.map((filtro, idx) => `
-        <div class="filtro-item flex items-center gap-2 p-3 border rounded-lg bg-gray-50">
-            <div class="flex-1">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Columna</label>
-                <select class="w-full px-2 py-1 border rounded text-sm" data-filtro-index="${idx}" data-field="columna">
-                    <option value="">Selecciona una columna...</option>
-                    ${getColumnasDisponibles().map(col => `
-                        <option value="${col.index}" ${filtro.columna == col.index ? 'selected' : ''}>${col.nombre}</option>
-                    `).join('')}
-                </select>
+        html += `
+                </div>
             </div>
-            <div class="flex-1">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Valor a buscar</label>
-                <input type="text" class="w-full px-2 py-1 border rounded text-sm"
-                       placeholder="Ingresa el valor a buscar..."
-                       data-filtro-index="${idx}"
-                       data-field="valor"
-                       value="${filtro.valor}">
-            </div>
-            <div class="flex flex-col gap-1">
-                <button type="button" class="btn-remove-filtro px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                        data-index="${idx}" ${filtrosDinamicos.length === 1 ? 'style="display:none"' : ''}>
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
+        `;
 
-    // Reagregar event listeners
-    document.querySelectorAll('.btn-remove-filtro').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const index = parseInt(e.target.dataset.index);
-            eliminarFiltro(index);
-        });
-    });
-}
-
-function getColumnasDisponibles() {
-    return [
-        { index: 0, nombre: 'Clave mod.' },
-        { index: 1, nombre: 'NoProduccion' },
-        { index: 2, nombre: 'Fecha Orden' },
-        { index: 3, nombre: 'Fecha Cumplimiento' },
-        { index: 4, nombre: 'Departamento' },
-        { index: 5, nombre: 'Telar Actual' },
-        { index: 6, nombre: 'Prioridad' },
-        { index: 7, nombre: 'Modelo' },
-        { index: 8, nombre: 'Clave Modelo' },
-        { index: 9, nombre: 'Clave AX' },
-        { index: 10, nombre: 'Tamaño' },
-        { index: 11, nombre: 'Tolerancia' },
-        { index: 12, nombre: 'Codigo Dibujo' },
-        { index: 13, nombre: 'Fecha Compromiso' },
-        { index: 14, nombre: 'Id Flog' },
-        { index: 15, nombre: 'Nombre de Formato Logístico' },
-        { index: 16, nombre: 'Clave' },
-        { index: 17, nombre: 'Cantidad a Producir' },
-        { index: 18, nombre: 'Peine' },
-        { index: 19, nombre: 'Ancho' },
-        { index: 20, nombre: 'Largo' },
-        { index: 21, nombre: 'P_crudo' },
-        { index: 22, nombre: 'Luchaje' },
-        { index: 23, nombre: 'Tra' },
-        { index: 24, nombre: 'Hilo' },
-        { index: 25, nombre: 'Codigo Color Trama' },
-        { index: 26, nombre: 'Nombre Color Trama' },
-        { index: 27, nombre: 'OBS.' },
-        { index: 28, nombre: 'Tipo plano' },
-        { index: 29, nombre: 'Med plano' },
-        { index: 30, nombre: 'Tipo de Rizo' },
-        { index: 31, nombre: 'Altura de Rizo' },
-        { index: 32, nombre: 'OBS' },
-        { index: 33, nombre: 'Veloc. Mínima' },
-        { index: 34, nombre: 'Rizo' },
-        { index: 35, nombre: 'Hilo' },
-        { index: 36, nombre: 'Cuenta' },
-        { index: 37, nombre: 'OBS.' },
-        { index: 38, nombre: 'Pie' },
-        { index: 39, nombre: 'Hilo' },
-        { index: 40, nombre: 'Cuenta' },
-        { index: 41, nombre: 'OBS' },
-        { index: 42, nombre: 'C1' },
-        { index: 43, nombre: 'OBS' },
-        { index: 44, nombre: 'C2' },
-        { index: 45, nombre: 'OBS' },
-        { index: 46, nombre: 'C3' },
-        { index: 47, nombre: 'OBS' },
-        { index: 48, nombre: 'C4' },
-        { index: 49, nombre: 'OBS' },
-        { index: 50, nombre: 'Med. de Cenefa' },
-        { index: 51, nombre: 'Med de inicio de rizo a cenefa' },
-        { index: 52, nombre: 'Rasurada' },
-        { index: 53, nombre: 'Tiras' },
-        { index: 54, nombre: 'Repeticiones p/corte' },
-        { index: 55, nombre: 'No. De Marbetes' },
-        { index: 56, nombre: 'Cambio de repaso' },
-        { index: 57, nombre: 'Vendedor' },
-        { index: 58, nombre: 'No. Orden' },
-        { index: 59, nombre: 'Observaciones' },
-        { index: 60, nombre: 'TRAMA (Ancho Peine)' },
-        { index: 61, nombre: 'Log. de Lucha Total' },
-        { index: 62, nombre: 'C1 trama de Fondo' },
-        { index: 63, nombre: 'Hilo' },
-        { index: 64, nombre: 'OBS' },
-        { index: 65, nombre: 'Pasadas' },
-        { index: 66, nombre: 'C1' },
-        { index: 67, nombre: 'Hilo' },
-        { index: 68, nombre: 'OBS.' },
-        { index: 69, nombre: 'Cod Color' },
-        { index: 70, nombre: 'Nombre Color' },
-        { index: 71, nombre: 'Pasadas' },
-        { index: 72, nombre: 'C2' },
-        { index: 73, nombre: 'Hilo' },
-        { index: 74, nombre: 'OBS.' },
-        { index: 75, nombre: 'Cod Color' },
-        { index: 76, nombre: 'Nombre Color' },
-        { index: 77, nombre: 'Pasadas' },
-        { index: 78, nombre: 'C3' },
-        { index: 79, nombre: 'Hilo' },
-        { index: 80, nombre: 'OBS.' },
-        { index: 81, nombre: 'Cod Color' },
-        { index: 82, nombre: 'Nombre Color' },
-        { index: 83, nombre: 'Pasadas' },
-        { index: 84, nombre: 'C4' },
-        { index: 85, nombre: 'Hilo' },
-        { index: 86, nombre: 'OBS.' },
-        { index: 87, nombre: 'Cod Color' },
-        { index: 88, nombre: 'Nombre Color' },
-        { index: 89, nombre: 'Pasadas' },
-        { index: 90, nombre: 'CS' },
-        { index: 91, nombre: 'Hilo' },
-        { index: 92, nombre: 'OBS.' },
-        { index: 93, nombre: 'Cod Color' },
-        { index: 94, nombre: 'Nombre Color' },
-        { index: 95, nombre: 'Pasadas' },
-        { index: 96, nombre: 'Total' },
-        { index: 97, nombre: 'Pasadas Dibujo' },
-        { index: 98, nombre: 'Contraccion' },
-        { index: 99, nombre: 'Tramas cm/Tejido' },
-        { index: 100, nombre: 'Contrac Rizo' },
-        { index: 101, nombre: 'Clasificación(KG)' },
-        { index: 102, nombre: 'KG/Dia' },
-        { index: 103, nombre: 'Densidad' },
-        { index: 104, nombre: 'Pzas/Día/pasadas' },
-        { index: 105, nombre: 'Pzas/Día/formula' },
-        { index: 106, nombre: 'Dif' },
-        { index: 107, nombre: 'Efic' },
-        { index: 108, nombre: 'Rev' },
-        { index: 109, nombre: 'Tiras' },
-        { index: 110, nombre: 'Pasadas' },
-        { index: 111, nombre: 'ColumCT' },
-        { index: 112, nombre: 'ColumCU' },
-        { index: 113, nombre: 'ColumCV' },
-        { index: 114, nombre: 'ComprobarModDup' }
-    ];
-}
-
-function aplicarFiltrosDinamicos(filtros) {
-    const filas = Array.from(document.querySelectorAll('#codificacion-body tr.data-row'));
-    let filasFiltradas = [];
-
-    filas.forEach(fila => {
-        const celdas = fila.querySelectorAll('td');
-        let mostrarFila = true;
-
-        // Aplicar todos los filtros (lógica AND)
-        filtros.forEach(filtro => {
-            const celda = celdas[filtro.columna];
-            if (celda && filtro.valor) {
-                const valor = celda.textContent.toLowerCase();
-                if (!valor.includes(filtro.valor.toLowerCase())) {
-                    mostrarFila = false;
-                }
+        Swal.fire({
+            title: 'Ocultar Columnas',
+            html: html,
+            showCancelButton: true,
+            confirmButtonText: 'Aplicar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            width: '500px',
+            didOpen: () => {
+                document.querySelectorAll('#swal2-html-container .column-toggle-hide').forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        const columnIndex = parseInt(this.dataset.columnIndex);
+                        if (this.checked) {
+                            hideColumn(columnIndex);
+                        } else {
+                            showColumn(columnIndex);
+                        }
+                    });
+                });
             }
         });
+    }
 
-        if (mostrarFila) {
-            filasFiltradas.push(fila);
+    // ============================================
+    //  INICIALIZACIÓN
+    // ============================================
+    function init() {
+        // Sort buttons
+        $$('#mainTable thead th .sort-btn-asc').forEach(btn => {
+            btn.addEventListener('click', event => {
+                event.stopPropagation();
+                sortColumn(Number(btn.dataset.column), 'asc');
+            });
+        });
+
+        $$('#mainTable thead th .sort-btn-desc').forEach(btn => {
+            btn.addEventListener('click', event => {
+                event.stopPropagation();
+                sortColumn(Number(btn.dataset.column), 'desc');
+            });
+        });
+
+        // Paginación
+        const prev = $('#pagination-prev');
+        const next = $('#pagination-next');
+
+        if (prev) prev.onclick = () => goToPage(state.currentPage - 1);
+        if (next) next.onclick = () => goToPage(state.currentPage + 1);
+
+        // Menú contextual
+        const duplicateBtn = $('#context-menu-duplicate');
+        if (duplicateBtn) {
+            duplicateBtn.onclick = (e) => {
+                e.stopPropagation();
+                $('#context-menu')?.classList.add('hidden');
+                duplicarCodificacion();
+            };
         }
-    });
 
-    // Actualizar filas filtradas y resetear paginación
-    updateFilteredRows(filasFiltradas);
-    showToast(`Filtros aplicados: ${filtros.length} criterios. Mostrando ${filasFiltradas.length} de ${filas.length} registros`, 'success');
-}
+        // Cargar datos
+        loadData();
+    }
 
+    document.addEventListener('DOMContentLoaded', init);
 
-function limpiarFiltrosCodificacion() {
-    // Limpiar filtros de búsqueda
-    filtrosActuales = {
-        tamanoClave: '',
-        ordenTejido: '',
-        nombre: '',
-        salonTejidoId: '',
-        noTelarId: '',
-        prioridad: '',
-        claveModelo: '',
-        flogsId: '',
-        nombreProyecto: ''
-    };
-
-    // Limpiar filtros dinámicos
-    filtrosDinamicos = [];
-
-    // Resetear paginación con todas las filas
-    allRows = Array.from(document.querySelectorAll('#codificacion-body tr.data-row'));
-    updateFilteredRows(allRows);
-
-    showToast('Filtros limpiados. Mostrando todos los registros', 'info');
-}
-
-/** =========================
- *  Funciones de selección
- *  ========================= */
-function selectRow(row, id) {
-	document.querySelectorAll('#codificacion-body tr').forEach(r => {
-		r.classList.remove('bg-blue-100', 'border-blue-300');
-		r.classList.add('hover:bg-gray-50');
-	});
-
-	row.classList.remove('hover:bg-gray-50');
-	row.classList.add('bg-blue-100', 'border-blue-300');
-
-	selectedRow = row;
-	selectedId = id;
-
-	enableButtons();
-}
-
-function enableButtons() {
-	const editBtn = document.getElementById('btn-editar');
-	const deleteBtn = document.getElementById('btn-eliminar');
-
-	if (editBtn) {
-		editBtn.disabled = false;
-		editBtn.className = 'p-2 text-blue-600 hover:text-blue-800 rounded-md transition-colors';
-	}
-
-	if (deleteBtn) {
-		deleteBtn.disabled = false;
-		deleteBtn.className = 'p-2 text-red-600 hover:text-red-800 rounded-md transition-colors';
-	}
-}
-
-/** =========================
- *  Paginación unificada: Cliente controla Servidor
- *  ========================= */
-let currentPage = 1;
-let itemsPerPage = 500;
-let allRows = [];
-let filteredRows = [];
-
-// Información del servidor (paginación de bloques de 2000)
-const serverPagination = {
-	@if(method_exists($codificaciones, 'links'))
-		currentPage: {{ $codificaciones->currentPage() }},
-		lastPage: {{ $codificaciones->lastPage() }},
-		hasMorePages: {{ $codificaciones->hasMorePages() ? 'true' : 'false' }},
-		hasPreviousPage: {{ !$codificaciones->onFirstPage() ? 'true' : 'false' }},
-		nextPageUrl: @json($codificaciones->nextPageUrl()),
-		previousPageUrl: @json($codificaciones->previousPageUrl()),
-		total: {{ $codificaciones->total() }}
-	@else
-		currentPage: 1,
-		lastPage: 1,
-		hasMorePages: false,
-		hasPreviousPage: false,
-		nextPageUrl: null,
-		previousPageUrl: null,
-		total: 0
-	@endif
-};
-
-function initClientPagination() {
-	// Obtener todas las filas de datos
-	allRows = Array.from(document.querySelectorAll('#codificacion-body tr.data-row'));
-	filteredRows = allRows.slice(); // Copia para filtros
-
-	// Inicializar paginación
-	updatePagination();
-	showPage(1);
-
-	// Event listeners para botones de paginación
-	const prevBtn = document.getElementById('pagination-prev');
-	const nextBtn = document.getElementById('pagination-next');
-
-	if (prevBtn) {
-		prevBtn.addEventListener('click', () => {
-			// Si está en la primera página del cliente y hay página anterior del servidor
-			if (currentPage === 1 && serverPagination.hasPreviousPage && serverPagination.previousPageUrl) {
-				// Ir al bloque anterior del servidor
-				window.location.href = serverPagination.previousPageUrl;
-			} else if (currentPage > 1) {
-				// Ir a la página anterior del cliente
-				showPage(currentPage - 1);
-			}
-		});
-	}
-
-	if (nextBtn) {
-		nextBtn.addEventListener('click', () => {
-			const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
-			// Si está en la última página del cliente y hay más páginas del servidor
-			if (currentPage >= totalPages && serverPagination.hasMorePages && serverPagination.nextPageUrl) {
-				// Ir al siguiente bloque del servidor
-				window.location.href = serverPagination.nextPageUrl;
-			} else if (currentPage < totalPages) {
-				// Ir a la siguiente página del cliente
-				showPage(currentPage + 1);
-			}
-		});
-	}
-}
-
-function showPage(page) {
-	currentPage = page;
-	const start = (page - 1) * itemsPerPage;
-	const end = start + itemsPerPage;
-	const pageRows = filteredRows.slice(start, end);
-
-	// Ocultar todas las filas
-	allRows.forEach(row => {
-		row.style.display = 'none';
-	});
-
-	// Mostrar solo las filas de la página actual
-	pageRows.forEach(row => {
-		row.style.display = '';
-	});
-
-	updatePagination();
-}
-
-function updatePagination() {
-	const total = filteredRows.length;
-	const totalPages = Math.ceil(total / itemsPerPage);
-	const start = total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-	const end = Math.min(currentPage * itemsPerPage, total);
-
-	// Calcular el número de registro global (considerando el bloque del servidor)
-	const serverBlockStart = (serverPagination.currentPage - 1) * 2000;
-	const globalStart = serverBlockStart + start;
-	const globalEnd = serverBlockStart + end;
-	const globalTotal = serverPagination.total;
-
-	// Actualizar información de paginación
-	const fromEl = document.getElementById('pagination-from');
-	const toEl = document.getElementById('pagination-to');
-	const totalEl = document.getElementById('pagination-total');
-	const infoEl = document.getElementById('pagination-info');
-	const prevBtn = document.getElementById('pagination-prev');
-	const nextBtn = document.getElementById('pagination-next');
-
-	if (fromEl) fromEl.textContent = globalStart;
-	if (toEl) toEl.textContent = globalEnd;
-	if (totalEl) totalEl.textContent = globalTotal;
-	if (infoEl) infoEl.textContent = `Página ${currentPage} de ${totalPages || 1}`;
-
-	// Habilitar/deshabilitar botones
-	// Anterior: deshabilitado solo si está en primera página del cliente Y no hay página anterior del servidor
-	if (prevBtn) {
-		prevBtn.disabled = currentPage <= 1 && (!serverPagination.hasPreviousPage || !serverPagination.previousPageUrl);
-	}
-	// Siguiente: deshabilitado solo si está en última página del cliente Y no hay más páginas del servidor
-	if (nextBtn) {
-		nextBtn.disabled = currentPage >= totalPages && (!serverPagination.hasMorePages || !serverPagination.nextPageUrl);
-	}
-}
-
-// Función para actualizar filtros y resetear paginación
-function updateFilteredRows(rows) {
-	filteredRows = rows;
-	currentPage = 1;
-	showPage(1);
-}
-
-/** =========================
- *  Init
- *  ========================= */
-document.addEventListener('DOMContentLoaded', () => {
-	// Asegura que todos los TDs tengan class column-X
-	$('#mainTable tbody').querySelectorAll('tr').forEach(tr => {
-		tr.querySelectorAll('td').forEach((td, i) => td.classList.add(`column-${i}`));
-	});
-	enhanceHeaders();
-
-	// Inicializar paginación del lado del cliente
-	initClientPagination();
-});
+    // ============================================
+    //  EXPOSE GLOBAL (compat)
+    // ============================================
+    window.agregarCodificacion       = agregarCodificacion;
+    window.editarCodificacion        = editarCodificacion;
+    window.eliminarCodificacion      = eliminarCodificacion;
+    window.filtrarCodificacion       = filtrarCodificacion;
+    window.limpiarFiltrosCodificacion = limpiarFiltrosCodificacion;
+    window.applyFilters              = applyFilters;
+    window.subirExcelCodificacion    = subirExcelCodificacion;
+    window.removeFilterFromModal     = removeFilterFromModal;
+    window.removeFilter              = removeFilter;
+    window.openPinColumnsModal       = openPinColumnsModal;
+    window.openHideColumnsModal      = openHideColumnsModal;
+    window.hideColumn                = hideColumn;
+    window.showColumn                = showColumn;
+    window.togglePinColumn           = togglePinColumn;
+})();
 </script>
 
-{{-- SweetAlert2 --}}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 @endsection

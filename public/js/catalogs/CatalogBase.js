@@ -127,9 +127,27 @@ class CatalogBase {
         row.classList.remove('hover:bg-blue-50');
         row.classList.add('bg-blue-500', 'text-white');
 
+        // Obtener el ID de la fila si no se proporcionó
+        const rowId = id || this.getRowId(row) || uniqueId;
+
+        console.log('selectRow llamado:', { rowId, id, uniqueId, row, getRowIdResult: this.getRowId(row) });
+
+        // Guardar estado
         this.state.selectedRow = row;
-        this.state.selectedKey = uniqueId;
-        this.state.selectedId = id || this.getRowId(row);
+        this.state.selectedKey = uniqueId || rowId;
+        this.state.selectedId = rowId;
+
+        // Guardar también en el elemento para recuperarlo después si es necesario
+        if (rowId) {
+            row.dataset.selectedId = rowId;
+            row.setAttribute('data-selected-id', rowId);
+        }
+
+        console.log('Estado guardado:', {
+            selectedRow: !!this.state.selectedRow,
+            selectedId: this.state.selectedId,
+            selectedKey: this.state.selectedKey
+        });
 
         this.enableButtons();
         this.onRowSelected(row, this.state.selectedId);
@@ -137,7 +155,7 @@ class CatalogBase {
 
     deselectRow(row) {
         if (!row.classList.contains('bg-blue-500')) return;
-        
+
         row.classList.remove('bg-blue-500', 'text-white');
         row.classList.add('hover:bg-blue-50');
 
@@ -214,7 +232,7 @@ class CatalogBase {
 
     async create() {
         const html = this.getCreateFormHTML();
-        
+
         const result = await Swal.fire({
             title: this.config.createTitle || 'Crear Nuevo Registro',
             html: html,
@@ -230,7 +248,7 @@ class CatalogBase {
             preConfirm: async () => {
                 const data = this.extractFormData('create');
                 const validation = this.validateCreateData(data);
-                
+
                 if (!validation.valid) {
                     Swal.showValidationMessage(validation.message || 'Por favor completa los campos requeridos');
                     return false;
@@ -246,6 +264,41 @@ class CatalogBase {
     }
 
     async edit() {
+        // Si el estado se perdió, intentar encontrar la fila seleccionada visualmente
+        if (!this.state.selectedRow || !this.state.selectedId) {
+            const tbody = document.getElementById(this.config.tableBodyId);
+            if (tbody) {
+                // Buscar fila seleccionada por clase
+                const selectedRow = tbody.querySelector('tr.bg-blue-500');
+                if (selectedRow) {
+                    const id = this.getRowId(selectedRow);
+                    console.log('Fila seleccionada encontrada visualmente:', { id, row: selectedRow });
+                    if (id) {
+                        this.state.selectedRow = selectedRow;
+                        this.state.selectedId = id;
+                    }
+                } else {
+                    // Buscar por cualquier fila que tenga el atributo data-selected-id
+                    const rows = tbody.querySelectorAll('tr[data-selected-id]');
+                    if (rows.length > 0) {
+                        const row = rows[0];
+                        const id = row.dataset.selectedId || this.getRowId(row);
+                        console.log('Fila encontrada por data-selected-id:', { id, row });
+                        if (id) {
+                            this.state.selectedRow = row;
+                            this.state.selectedId = id;
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log('Estado antes de editar:', {
+            selectedRow: !!this.state.selectedRow,
+            selectedId: this.state.selectedId,
+            config: this.config
+        });
+
         if (!this.state.selectedRow || !this.state.selectedId) {
             this.showToast('Por favor selecciona un registro para editar', 'warning');
             return;
@@ -269,7 +322,7 @@ class CatalogBase {
             preConfirm: async () => {
                 const data = this.extractFormData('edit');
                 const validation = this.validateEditData(data);
-                
+
                 if (!validation.valid) {
                     Swal.showValidationMessage(validation.message || 'Por favor completa los campos requeridos');
                     return false;
@@ -285,6 +338,41 @@ class CatalogBase {
     }
 
     async delete() {
+        // Si el estado se perdió, intentar encontrar la fila seleccionada visualmente
+        if (!this.state.selectedRow || !this.state.selectedId) {
+            const tbody = document.getElementById(this.config.tableBodyId);
+            if (tbody) {
+                // Buscar fila seleccionada por clase
+                const selectedRow = tbody.querySelector('tr.bg-blue-500');
+                if (selectedRow) {
+                    const id = this.getRowId(selectedRow);
+                    console.log('Fila seleccionada encontrada visualmente:', { id, row: selectedRow });
+                    if (id) {
+                        this.state.selectedRow = selectedRow;
+                        this.state.selectedId = id;
+                    }
+                } else {
+                    // Buscar por cualquier fila que tenga el atributo data-selected-id
+                    const rows = tbody.querySelectorAll('tr[data-selected-id]');
+                    if (rows.length > 0) {
+                        const row = rows[0];
+                        const id = row.dataset.selectedId || this.getRowId(row);
+                        console.log('Fila encontrada por data-selected-id:', { id, row });
+                        if (id) {
+                            this.state.selectedRow = row;
+                            this.state.selectedId = id;
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log('Estado antes de eliminar:', {
+            selectedRow: !!this.state.selectedRow,
+            selectedId: this.state.selectedId,
+            config: this.config
+        });
+
         if (!this.state.selectedRow || !this.state.selectedId) {
             this.showToast('Por favor selecciona un registro para eliminar', 'warning');
             return;
@@ -448,7 +536,7 @@ class CatalogBase {
             const input = document.getElementById(inputId);
             if (input) {
                 let value = input.value.trim();
-                
+
                 // Procesar según tipo
                 if (field.type === 'number') {
                     value = value ? parseFloat(value) : null;
@@ -582,7 +670,7 @@ class CatalogBase {
             const tr = document.createElement('tr');
             tr.innerHTML = this.renderRow(item);
             tr.className = 'text-center hover:bg-blue-50 transition cursor-pointer';
-            
+
             const uniqueId = item[this.config.idField] || item.Id || item.id;
             const recordId = item.Id || item.id || uniqueId;
 
@@ -693,7 +781,7 @@ class CatalogBase {
 
     bindGlobalFunctions() {
         const routeName = this.config.route.replace(/-/g, '_');
-        
+
         window[`agregar${this.capitalize(routeName)}`] = () => this.create();
         window[`editar${this.capitalize(routeName)}`] = () => this.edit();
         window[`eliminar${this.capitalize(routeName)}`] = () => this.delete();
@@ -703,7 +791,7 @@ class CatalogBase {
     }
 
     capitalize(str) {
-        return str.split(/[-_]/).map(word => 
+        return str.split(/[-_]/).map(word =>
             word.charAt(0).toUpperCase() + word.slice(1)
         ).join('');
     }
