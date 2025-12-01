@@ -612,5 +612,5 @@ thead th {
 
 /* Opciones numéricas: transición suave (Tailwind maneja el resto en clases) */
 .number-option { transition: background-color .15s ease, transform .15s ease; }
-</style>
+    </style>
 @endsection
