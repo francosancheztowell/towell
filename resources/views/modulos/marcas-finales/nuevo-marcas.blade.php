@@ -41,31 +41,30 @@
 @endsection
 
 @section('content')
-<!-- Alertas flotantes -->
-<div id="alert-container" class="fixed top-4 right-4 z-50 space-y-2 max-w-[400px]"></div>
+<!-- Contenedor principal sin alertas flotantes (ahora usa SweetAlert) -->
 
-<div class="w-full max-w-4xl mx-auto px-2 md:px-4 lg:px-6 h-[calc(100vh-100px)]">
+<div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
     <!-- Tabla principal -->
-    <div id="segunda-tabla" class="bg-white border rounded-md overflow-hidden h-full flex flex-col">
-        <!-- Header fijo fuera del scroll -->
-        <div class="bg-blue-600 text-white flex-shrink-0">
-            <table class="table-fixed w-full text-sm">
+    <div id="segunda-tabla" class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden max-w-full">
+        <!-- Header fijo (sticky) dentro del contenedor -->
+        <div class="bg-blue-600 text-white sticky top-0 z-10">
+            <table class="w-full text-sm">
                 <colgroup>
-                    <col style="width:10%">
-                    <col style="width:10%">
-                    <col style="width:13.33%">
-                    <col style="width:13.33%">
-                    <col style="width:13.33%">
-                    <col style="width:13.33%">
-                    <col style="width:13.33%">
-                    <col style="width:13.33%">
+                    <col style="width: 10%">
+                    <col style="width: 10%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
                 </colgroup>
                 <thead>
                     <tr>
-                        <th class="px-2 py-2 text-center uppercase text-xs whitespace-nowrap">Telar</th>
-                        <th class="px-2 py-2 text-center uppercase text-xs whitespace-nowrap">Salón</th>
+                        <th class="px-4 py-3 text-center uppercase text-sm font-semibold">Telar</th>
+                        <th class="px-4 py-3 text-center uppercase text-sm font-semibold">Salón</th>
                         @foreach($colsEditables as $col)
-                            <th class="px-3 py-2 text-center uppercase text-xs whitespace-nowrap">
+                            <th class="px-4 py-3 text-center uppercase text-sm font-semibold">
                                 {{ $col['label'] }}
                             </th>
                         @endforeach
@@ -74,77 +73,75 @@
             </table>
         </div>
         <!-- Solo el contenido con scroll -->
-        <div class="flex-1 overflow-y-auto max-h-[calc(100vh-200px)]">
-            <div class="overflow-x-auto">
-                <table class="table-fixed w-full text-sm">
-                    <colgroup>
-                        <col style="width:10%">
-                        <col style="width:10%">
-                        <col style="width:13.33%">
-                        <col style="width:13.33%">
-                        <col style="width:13.33%">
-                        <col style="width:13.33%">
-                        <col style="width:13.33%">
-                        <col style="width:13.33%">
-                    </colgroup>
-                    <tbody id="telares-body" class="divide-y divide-gray-100">
-                    @foreach(($telares ?? []) as $telar)
-                        <tr class="hover:bg-blue-50">
-                            <!-- Telar -->
-                            <td class="px-2 py-1 text-xs font-semibold text-gray-900 text-center whitespace-nowrap">
-                                {{ $telar->NoTelarId }}
-                            </td>
+        <div class="flex-1 overflow-auto">
+            <table class="w-full text-sm">
+                <colgroup>
+                    <col style="width: 10%">
+                    <col style="width: 10%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                    <col style="width: 13.33%">
+                </colgroup>
+                <tbody id="telares-body" class="bg-white divide-y divide-gray-200">
+                @foreach(($telares ?? []) as $telar)
+                    <tr class="even:bg-gray-50 hover:bg-gray-100 transition-colors duration-150">
+                        <!-- Telar -->
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900 text-center border-r border-gray-200">
+                            {{ $telar->NoTelarId }}
+                        </td>
 
-                            <!-- Salón (badge) -->
-                            <td class="px-2 py-1 text-xs text-center whitespace-nowrap">
-                                <span class="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
-                                      data-telar="{{ $telar->NoTelarId }}" data-field="salon">
-                                    {{ $telar->SalonId ?? '-' }}
-                                </span>
-                            </td>
+                        <!-- Salón (badge) -->
+                        <td class="px-4 py-3 text-center border-r border-gray-200">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                  data-telar="{{ $telar->NoTelarId }}" data-field="salon">
+                                {{ $telar->SalonId ?? '-' }}
+                            </span>
+                        </td>
 
-                            <!-- Celdas editables (DRY) -->
-                            @foreach($colsEditables as $col)
-                                <td class="px-2 py-2 whitespace-nowrap {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
-                                    <div class="relative">
-                                        @if($puedeEditar)
-                                            <button type="button"
-                                                class="valor-display-btn w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-900
-                                                       hover:bg-blue-50 hover:border-blue-400 transition-colors flex items-center justify-between bg-white shadow-sm"
-                                                data-telar="{{ $telar->NoTelarId }}" data-type="{{ $col['key'] }}">
-                                                <span class="valor-display-text text-blue-600 font-semibold">
-                                                    {{ $col['key'] === 'efi' ? '-' : '0' }}
-                                                </span>
-                                                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                                </svg>
-                                            </button>
+                        <!-- Celdas editables (DRY) -->
+                        @foreach($colsEditables as $col)
+                            <td class="px-3 py-3 text-center {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
+                                <div class="relative">
+                                    @if($puedeEditar)
+                                        <button type="button"
+                                            class="valor-display-btn w-full min-w-[70px] px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700
+                                                   hover:bg-blue-50 hover:border-blue-400 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
+                                                   transition-all duration-200 flex items-center justify-between bg-white shadow-sm"
+                                            data-telar="{{ $telar->NoTelarId }}" data-type="{{ $col['key'] }}">
+                                            <span class="valor-display-text text-blue-600 font-semibold">
+                                                {{ $col['key'] === 'efi' ? '-' : '0' }}
+                                            </span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                            </svg>
+                                        </button>
 
-                                            <div class="valor-edit-container hidden absolute left-1/2 bottom-full mb-2 bg-white border-2 border-blue-300 rounded-lg shadow-xl z-[100]"
-                                                 style="transform: translateX(-50%);">
-                                                <div class="number-scroll-container overflow-x-auto scrollbar-hide max-w-[300px]">
-                                                    <div class="number-options-flex p-2 flex gap-1"></div>
-                                                </div>
+                                        <div class="valor-edit-container hidden absolute left-1/2 top-full mt-1 -translate-x-1/2 z-[9999]">
+                                            <div class="number-scroll-container w-56 h-12 overflow-x-auto overflow-y-hidden bg-white border border-gray-300 rounded-md shadow-lg scrollbar-hide">
+                                                <div class="number-options-flex px-2 py-1 flex items-center space-x-1 min-w-max whitespace-nowrap"></div>
                                             </div>
-                                        @else
-                                            <div class="w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-400 bg-gray-100
-                                                        cursor-not-allowed flex items-center justify-between">
-                                                <span class="valor-display-text text-gray-500 font-semibold">
-                                                    {{ $col['key'] === 'efi' ? '-' : '0' }}
-                                                </span>
-                                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v-3m0 0V9m0 3h3m-3 0H9"/>
-                                                </svg>
-                                            </div>
-                                        @endif
-                                    </div>
-                                </td>
-                            @endforeach
-                        </tr>
-                    @endforeach
-                    </tbody>
-                </table>
-            </div>
+                                        </div>
+                                    @else
+                                        <div class="w-full min-w-[70px] px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-400 bg-gray-100
+                                                    cursor-not-allowed flex items-center justify-between">
+                                            <span class="valor-display-text text-gray-500 font-semibold">
+                                                {{ $col['key'] === 'efi' ? '-' : '0' }}
+                                            </span>
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                            </svg>
+                                        </div>
+                                    @endif
+                                </div>
+                            </td>
+                        @endforeach
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -260,34 +257,22 @@ function actualizarBadgeFolio() {
 }
 
 function mostrarAlerta(mensaje, tipo='success') {
-    const container = q('#alert-container'); if (!container) return;
-    const color = {
-        success: ['bg-green-500','text-white','<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'],
-        error:   ['bg-red-500','text-white','<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>'],
-        warning: ['bg-yellow-500','text-white','<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'],
-        info:    ['bg-blue-500','text-white','<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'],
-    }[tipo] || ['bg-green-500','text-white',''];
+    const tipoSwal = {
+        success: 'success',
+        error: 'error', 
+        warning: 'warning',
+        info: 'info'
+    }[tipo] || 'success';
 
-    const id = 'alert-' + Date.now();
-    const el = document.createElement('div');
-    el.id = id;
-    el.className = `${color[0]} ${color[1]} px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-slide-in-right`;
-    el.innerHTML = `
-        <div class="flex-shrink-0">${color[2]}</div>
-        <div class="flex-1 text-sm font-medium">${mensaje}</div>
-        <button onclick="cerrarAlerta('${id}')" class="flex-shrink-0 hover:opacity-75">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-        </button>`;
-    container.appendChild(el);
-    setTimeout(() => cerrarAlerta(id), 5000);
-}
-function cerrarAlerta(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.add('animate-slide-out-right');
-    setTimeout(() => el.remove(), 300);
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: tipoSwal,
+        title: mensaje,
+        showConfirmButton: false,
+        timer: 1300,
+        timerProgressBar: true
+    });
 }
 
 /* =========================
@@ -329,11 +314,12 @@ function buildNumberOptions(selector, tipo, current) {
     const frag = document.createDocumentFragment();
 
     for (let i = min; i <= max; i++) {
-        const opt = document.createElement('span');
-        opt.className = 'number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer hover:bg-blue-100 rounded bg-gray-100 text-gray-700';
+        const opt = document.createElement('button');
+        opt.type = 'button';
+        opt.className = 'number-option shrink-0 w-12 h-10 text-center rounded-md border border-gray-300 bg-white text-base font-medium hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500';
         opt.dataset.value = String(i);
         opt.textContent = String(i);
-        if (i === current) opt.classList.add('selected','bg-blue-500','text-white');
+        if (i === current) opt.classList.add('bg-blue-600','text-white','border-blue-600');
         frag.appendChild(opt);
     }
     container.appendChild(frag);
@@ -588,21 +574,41 @@ function cargarMarcaExistente(folio) {
 </script>
 
 <style>
-table{border-collapse:separate;border-spacing:0}
-tbody tr:hover{background-color:#eff6ff!important}
-thead th{position:sticky;top:0;z-index:20}
-.scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}
-.scrollbar-hide::-webkit-scrollbar{display:none}
-.valor-display-btn{transition:all .2s ease;min-width:80px}
-.valor-display-btn:hover{transform:scale(1.02)}
-.valor-edit-container{z-index:100!important;box-shadow:0 10px 25px rgba(0,0,0,.15)}
-.number-option{transition:all .15s ease;flex-shrink:0}
-.number-option:hover{transform:scale(1.1)}
-.number-option.selected{background-color:#3b82f6!important;color:#fff!important;transform:scale(1.1)}
-/* Alertas */
-@keyframes slide-in-right{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-@keyframes slide-out-right{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:0}}
-.animate-slide-in-right{animation:slide-in-right .3s ease-out}
-.animate-slide-out-right{animation:slide-out-right .3s ease-out}
+/* Estilos mínimos que no se pueden hacer con Tailwind */
+table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+thead th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+/* Scrollbar personalizado */
+.scrollbar-thin {
+    scrollbar-width: thin;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+    background-color: #d1d5db;
+    border-radius: 6px;
+}
+
+.scrollbar-track-gray-100::-webkit-scrollbar-track {
+    background-color: #f3f4f6;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+}
+
+/* Ocultar scrollbar (similar a cortes-eficiencia) */
+.scrollbar-hide{ -ms-overflow-style:none; scrollbar-width:none; }
+.scrollbar-hide::-webkit-scrollbar{ display:none; }
+
+/* Opciones numéricas: transición suave (Tailwind maneja el resto en clases) */
+.number-option { transition: background-color .15s ease, transform .15s ease; }
 </style>
 @endsection
