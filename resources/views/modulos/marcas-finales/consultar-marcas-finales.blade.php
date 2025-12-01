@@ -8,6 +8,14 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
+        <x-navbar.button-report
+            id="btn-visualizar"
+            title="Visualizar"
+            module="Marcas Finales"
+            :disabled="true"
+            icon="fa-eye"
+            iconColor="text-purple-600"
+            hoverBg="hover:bg-purple-100" />
     <x-navbar.button-create
       id="btn-nuevo"
       title="Nuevo"
@@ -156,6 +164,7 @@
                     status: document.getElementById('prev-status-container')
                 },
                 btns: {
+                    visualizar: document.getElementById('btn-visualizar'),
                     nuevo: document.getElementById('btn-nuevo'),
                     editar: document.getElementById('btn-editar'),
                     finalizar: document.getElementById('btn-finalizar')
@@ -181,6 +190,7 @@
             this.dom.btns.nuevo?.addEventListener('click', () => this.accionNuevo());
             this.dom.btns.editar?.addEventListener('click', () => this.accionEditar());
             this.dom.btns.finalizar?.addEventListener('click', () => this.accionFinalizar());
+            this.dom.btns.visualizar?.addEventListener('click', () => this.accionVisualizar());
         }
 
         seleccionar(folio, row) {
@@ -318,6 +328,7 @@
             if (this.dom.btns.nuevo) this.dom.btns.nuevo.disabled = false;
             if (this.dom.btns.editar) this.dom.btns.editar.disabled = !hayFolioSeleccionado || isFinalizado;
             if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = !hayFolioSeleccionado || isFinalizado;
+            if (this.dom.btns.visualizar) this.dom.btns.visualizar.disabled = !hayFolioSeleccionado; // visualizar siempre disponible si hay folio
         }
 
         async accionNuevo() {
@@ -366,6 +377,18 @@
                 return;
             }
             window.location.href = CONFIG.urls.editar + this.state.folio;
+        }
+
+        accionVisualizar() {
+            if (!this.state.folio) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin selección',
+                    text: 'Selecciona un folio para visualizar'
+                });
+                return;
+            }
+            window.location.href = `/modulo-marcas/visualizar/${this.state.folio}`;
         }
 
         accionFinalizar() {

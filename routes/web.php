@@ -765,6 +765,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])->name('marcas.show');
     Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])->name('marcas.update');
     Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])->name('marcas.finalizar');
+    Route::get('/modulo-marcas/visualizar/{folio}', [MarcasController::class, 'visualizar'])->name('marcas.visualizar');
 
     // Rutas para Cortes de Eficiencia
     Route::get('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'index'])->name('cortes.eficiencia');

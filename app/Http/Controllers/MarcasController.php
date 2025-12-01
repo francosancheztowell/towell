@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TejMarcas;
 use App\Models\TejMarcasLine;
 use App\Models\ReqProgramaTejido;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -252,7 +253,7 @@ class MarcasController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error en MarcasController@store', [
+            Log::error('Error en MarcasController@store', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -330,6 +331,63 @@ class MarcasController extends Controller
                 'success' => false,
                 'message' => 'Error al finalizar marca'
             ], 500);
+        }
+    }
+
+    public function visualizar($folio)
+    {
+        try {
+            $marcaBase = TejMarcas::find($folio);
+            if (!$marcaBase) {
+                return redirect()->route('marcas.consultar')
+                    ->with('error', 'Folio no encontrado');
+            }
+
+            $fecha = $marcaBase->Date; // Fecha común para los 3 turnos
+            // Obtener todas las líneas de los tres turnos de esa fecha
+            // Usar where simple para evitar problemas de firma con whereDate en algunos entornos
+            $lineasFecha = TejMarcasLine::where('Date', $fecha)
+                ->orderBy('NoTelarId')
+                ->get();
+
+            // Secuencia de telares para orden base (fallback si no hay líneas)
+            $secuencia = $this->obtenerSecuenciaTelares();
+            $telaresSecuencia = $secuencia->pluck('NoTelarId')->toArray();
+
+            // Lista unificada de telares (secuencia + presentes en líneas)
+            $telaresLineas = $lineasFecha->pluck('NoTelarId')->unique()->toArray();
+            $telares = collect(array_unique(array_merge($telaresSecuencia, $telaresLineas)))->sort()->values();
+
+            // Agrupar por telar y turno
+            $porTelarTurno = [];
+            foreach ($lineasFecha as $l) {
+                $telar = $l->NoTelarId;
+                $turno = (string)$l->Turno; // "1","2","3"
+                if (!isset($porTelarTurno[$telar])) $porTelarTurno[$telar] = [];
+                $porTelarTurno[$telar][$turno] = $l; // Última ocurrencia para ese turno/telar
+            }
+
+            // Preparar estructura para la vista
+            $datos = $telares->map(function($telar) use ($porTelarTurno) {
+                $t1 = $porTelarTurno[$telar]['1'] ?? null;
+                $t2 = $porTelarTurno[$telar]['2'] ?? null;
+                $t3 = $porTelarTurno[$telar]['3'] ?? null;
+                return [
+                    'telar' => $telar,
+                    't1' => $t1,
+                    't2' => $t2,
+                    't3' => $t3,
+                ];
+            });
+
+            return view('modulos.marcas-finales.visualizar-marcas', [
+                'folio' => $folio,
+                'fecha' => $fecha,
+                'datos' => $datos,
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->route('marcas.consultar')
+                ->with('error', 'Error al visualizar: ' . $e->getMessage());
         }
     }
 
