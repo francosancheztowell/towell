@@ -39,12 +39,12 @@
 @endsection
 
 @section('content')
-<div class="w-full h-[calc(100vh-100px)] flex flex-col px-4 py-4 md:px-6 lg:px-8">
-    <div class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden max-w-full">
+<div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
+    <div class="flex flex-col-1 bg-white rounded-lg shadow-md max-w-full overflow-hidden">
     @if(isset($cortes) && $cortes->count() > 0)
-        <!-- Header fijo fuera del scroll -->
-        <div class="bg-blue-600 text-white">
-            <table class="w-full text-sm">
+        <!-- Tabla con header fijo -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <table class="w-full text-sm border-collapse">
                 <colgroup>
                     <col style="width: 20%">
                     <col style="width: 20%">
@@ -52,7 +52,7 @@
                     <col style="width: 25%">
                     <col style="width: 20%">
                 </colgroup>
-                <thead>
+                <thead class="bg-blue-600 text-white sticky top-0 z-10">
                     <tr>
                         <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Folio</th>
                         <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Fecha</th>
@@ -62,46 +62,45 @@
                     </tr>
                 </thead>
             </table>
-        </div>
-        <!-- Solo el contenido con scroll -->
-        <div class="flex-1 overflow-y-auto">
-            <table class="w-full text-sm">
-                <colgroup>
-                    <col style="width: 20%">
-                    <col style="width: 20%">
-                    <col style="width: 15%">
-                    <col style="width: 25%">
-                    <col style="width: 20%">
-                </colgroup>
-                <tbody class="divide-y divide-gray-100">
-              @foreach($cortes as $corte)
-                            <tr class="hover:bg-blue-50 cursor-pointer transition-colors corte-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $corte->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
-                  id="row-{{ $corte->Folio }}"
-                  data-folio="{{ $corte->Folio }}"
-                  onclick="CortesManager.seleccionar('{{ $corte->Folio }}', this)">
-                <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate">{{ $corte->Folio }}</td>
-                                <td class="px-4 py-3 text-gray-900 text-base truncate">
-                                    @if($corte->Date)
-                                        {{ Carbon::parse($corte->Date)->format('d/m/Y') }}
-                                    @else
-                                        -
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $corte->Turno }}</td>
-                <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $corte->numero_empleado ?? 'N/A' }}</td>
-                <td class="px-4 py-3">
-                  @if($corte->Status === 'Finalizado')
-                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>
-                  @elseif($corte->Status === 'En Proceso')
-                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-700">En Proceso</span>
-                  @else
-                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700">{{ $corte->Status }}</span>
-                  @endif
-                </td>
-              </tr>
-              @endforeach
-                </tbody>
-            </table>
+            <div class="flex-1 overflow-auto">
+                <table class="w-full text-sm border-collapse">
+                    <colgroup>
+                        <col style="width: 20%">
+                        <col style="width: 20%">
+                        <col style="width: 15%">
+                        <col style="width: 25%">
+                        <col style="width: 20%">
+                    </colgroup>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach($cortes as $corte)
+                        <tr class="hover:bg-blue-50 cursor-pointer transition-colors corte-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $corte->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
+                            id="row-{{ $corte->Folio }}"
+                            data-folio="{{ $corte->Folio }}"
+                            onclick="CortesManager.seleccionar('{{ $corte->Folio }}', this)">
+                            <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate">{{ $corte->Folio }}</td>
+                            <td class="px-4 py-3 text-gray-900 text-base truncate">
+                                @if($corte->Date)
+                                    {{ Carbon::parse($corte->Date)->format('d/m/Y') }}
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $corte->Turno }}</td>
+                            <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $corte->numero_empleado ?? 'N/A' }}</td>
+                            <td class="px-4 py-3">
+                                @if($corte->Status === 'Finalizado')
+                                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>
+                                @elseif($corte->Status === 'En Proceso')
+                                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-700">En Proceso</span>
+                                @else
+                                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700">{{ $corte->Status }}</span>
+                                @endif
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
     @else
             <!-- Sin Registros -->
@@ -234,7 +233,7 @@
         }
 
         async accionNuevo() {
-            // Verificar si ya existe un folio en proceso
+            // Generar nuevo folio y redirigir a la página de edición
             try {
                 const response = await fetch('/modulo-cortes-de-eficiencia/generar-folio', {
                     headers: {
@@ -246,24 +245,36 @@
                 const data = await response.json();
 
                 if (response.status === 400 && data.folio_existente) {
-                    // Ya existe un folio en proceso
-                    Swal.fire({
+                    // Ya existe un folio en proceso, preguntar si quiere editarlo
+                    const result = await Swal.fire({
                         icon: 'warning',
                         title: 'Folio en proceso',
-                        text: 'Ya existe un folio en proceso: ' + data.folio_existente + '. Debe finalizarlo antes de crear uno nuevo.',
-                        confirmButtonText: 'Entendido',
+                        text: 'Ya existe un folio en proceso: ' + data.folio_existente + '. ¿Desea continuar editándolo?',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, editar',
+                        cancelButtonText: 'Cancelar',
                         confirmButtonColor: '#3085d6'
                     });
+                    
+                    if (result.isConfirmed) {
+                        // Redirigir al folio existente para editarlo
+                        window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio_existente;
+                    }
                     return;
                 }
 
-                // Si no hay folio en proceso, redirigir a la página de nuevo
-                window.location.href = '{{ route("cortes.eficiencia") }}';
+                if (!data.success) {
+                    throw new Error(data.message || 'No se pudo generar el folio');
+                }
+
+                // Folio generado exitosamente, redirigir a la página de edición con el nuevo folio
+                window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio;
+                
             } catch (error) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'No se pudo verificar el estado de los folios'
+                    text: 'No se pudo generar el folio: ' + error.message
                 });
             }
         }

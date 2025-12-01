@@ -8,6 +8,14 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
+        <x-navbar.button-report
+            id="btn-visualizar"
+            title="Visualizar"
+            module="Marcas Finales"
+            :disabled="true"
+            icon="fa-eye"
+            iconColor="text-purple-600"
+            hoverBg="hover:bg-purple-100" />
     <x-navbar.button-create
       id="btn-nuevo"
       title="Nuevo"
@@ -39,11 +47,11 @@
 @endsection
 
 @section('content')
-<div class="w-full h-[calc(100vh-100px)] flex flex-col px-4 py-4 md:px-6 lg:px-8">
+<div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
     <div class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden max-w-full">
     @if(isset($marcas) && $marcas->count() > 0)
-        <!-- Header fijo fuera del scroll -->
-        <div class="bg-blue-600 text-white">
+        <!-- Header fijo (sticky) dentro del contenedor -->
+        <div class="bg-blue-600 text-white sticky top-0 z-10">
             <table class="w-full text-sm">
                 <colgroup>
                     <col style="width: 20%">
@@ -64,7 +72,7 @@
             </table>
         </div>
         <!-- Solo el contenido con scroll -->
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 overflow-auto">
             <table class="w-full text-sm">
                 <colgroup>
                     <col style="width: 20%">
@@ -156,6 +164,7 @@
                     status: document.getElementById('prev-status-container')
                 },
                 btns: {
+                    visualizar: document.getElementById('btn-visualizar'),
                     nuevo: document.getElementById('btn-nuevo'),
                     editar: document.getElementById('btn-editar'),
                     finalizar: document.getElementById('btn-finalizar')
@@ -181,6 +190,7 @@
             this.dom.btns.nuevo?.addEventListener('click', () => this.accionNuevo());
             this.dom.btns.editar?.addEventListener('click', () => this.accionEditar());
             this.dom.btns.finalizar?.addEventListener('click', () => this.accionFinalizar());
+            this.dom.btns.visualizar?.addEventListener('click', () => this.accionVisualizar());
         }
 
         seleccionar(folio, row) {
@@ -318,6 +328,7 @@
             if (this.dom.btns.nuevo) this.dom.btns.nuevo.disabled = false;
             if (this.dom.btns.editar) this.dom.btns.editar.disabled = !hayFolioSeleccionado || isFinalizado;
             if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = !hayFolioSeleccionado || isFinalizado;
+            if (this.dom.btns.visualizar) this.dom.btns.visualizar.disabled = !hayFolioSeleccionado; // visualizar siempre disponible si hay folio
         }
 
         async accionNuevo() {
@@ -368,6 +379,18 @@
             window.location.href = CONFIG.urls.editar + this.state.folio;
         }
 
+        accionVisualizar() {
+            if (!this.state.folio) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin selección',
+                    text: 'Selecciona un folio para visualizar'
+                });
+                return;
+            }
+            window.location.href = `/modulo-marcas/visualizar/${this.state.folio}`;
+        }
+
         accionFinalizar() {
             if (!this.state.folio) {
                 Swal.fire({
@@ -377,20 +400,28 @@
                 });
                 return;
             }
+            // Primero validar que no haya campos vacíos o en cero
+            this.validarParaFinalizar()
+                .then((valido) => {
+                    if (!valido) return; // Se mostró alerta con detalles
 
-            Swal.fire({
-                title: '¿Finalizar Marca?',
-                text: `El folio ${this.state.folio} quedará cerrado y no podrá editarse.`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ea580c',
-                confirmButtonText: 'Sí, finalizar',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    this.procesarFinalizado();
-                }
-            });
+                    Swal.fire({
+                        title: '¿Finalizar Marca?',
+                        text: `El folio ${this.state.folio} quedará cerrado y no podrá editarse.`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#ea580c',
+                        confirmButtonText: 'Sí, finalizar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            this.procesarFinalizado();
+                        }
+                    });
+                })
+                .catch((err) => {
+                    Swal.fire('Error', err?.message || 'No se pudo validar el folio', 'error');
+                });
         }
 
         async procesarFinalizado() {
@@ -425,6 +456,61 @@
 
         mostrarError(msg) {
             this.dom.body.innerHTML = `<tr><td colspan="7" class="px-3 py-6 text-center text-gray-500">${msg}</td></tr>`;
+        }
+
+        async validarParaFinalizar() {
+            try {
+                Swal.fire({ title: 'Validando...', didOpen: () => Swal.showLoading() });
+
+                const res = await fetch(`${CONFIG.urls.detalle}${this.state.folio}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+                const data = await res.json();
+                Swal.close();
+
+                if (!data.success) throw new Error(data.message || 'No se pudo obtener el detalle');
+
+                const lineas = Array.isArray(data.lineas) ? data.lineas : [];
+                if (lineas.length === 0) {
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'No hay líneas',
+                        text: 'No puedes finalizar un folio sin líneas capturadas.'
+                    });
+                    return false;
+                }
+
+                const esVacioOCero = (v) => {
+                    if (v === null || v === undefined) return true;
+                    if (typeof v === 'string' && v.trim() === '') return true;
+                    const n = Number(v);
+                    if (Number.isNaN(n)) return true;
+                    return n <= 0;
+                };
+
+                // Solo validar el campo Marcas
+                let lineasConMarcasInvalidas = 0;
+                for (const l of lineas) {
+                    if (esVacioOCero(l.Marcas)) lineasConMarcasInvalidas++;
+                }
+
+                if (lineasConMarcasInvalidas > 0) {
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'No se puede finalizar',
+                        text: `Hay ${lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0.`,
+                        confirmButtonText: 'Entendido'
+                    });
+                    return false;
+                }
+
+                return true;
+            } catch (err) {
+                Swal.close();
+                throw err;
+            }
         }
     }
 
