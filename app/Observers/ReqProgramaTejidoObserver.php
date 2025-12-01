@@ -61,13 +61,21 @@ class ReqProgramaTejidoObserver
                 foreach ($formulas as $key => $value) {
                     // Verificar que la clave sea un nombre de columna válido
                     if (in_array($key, $programa->getFillable()) || in_array($key, ['StdToaHra', 'PesoGRM2', 'DiasEficiencia', 'StdDia', 'ProdKgDia', 'StdHrsEfect', 'ProdKgDia2', 'HorasProd', 'DiasJornada'])) {
-                        $formulasParaGuardar[$key] = $value;
+                        // Asegurar que el valor sea un float numérico válido (no string, no null convertido incorrectamente)
+                        if ($value !== null && is_numeric($value)) {
+                            $formulasParaGuardar[$key] = (float) $value;
+                        } elseif ($value === null) {
+                            $formulasParaGuardar[$key] = null;
+                        } else {
+                            // Si no es numérico, intentar convertir
+                            $formulasParaGuardar[$key] = is_numeric($value) ? (float) $value : $value;
+                        }
                     }
                 }
 
                 if (!empty($formulasParaGuardar)) {
                     $updated = \Illuminate\Support\Facades\DB::table('ReqProgramaTejido')
-                        ->where('Id', $programa->Id)
+                    ->where('Id', $programa->Id)
                         ->update($formulasParaGuardar);
 
                     \Illuminate\Support\Facades\Log::info('Observer: Fórmulas guardadas en BD', [
@@ -397,9 +405,45 @@ class ReqProgramaTejidoObserver
 
             // IMPORTANTE: Leer EficienciaSTD del atributo actualizado del modelo
             // Usar getAttribute() para asegurar que obtenemos el valor más reciente
-            $efic = (float) ($programa->getAttribute('EficienciaSTD') ?? $programa->EficienciaSTD ?? 0);
+            // Asegurar que se lea con TODOS los decimales posibles
+            $eficRaw = $programa->getAttribute('EficienciaSTD') ?? $programa->EficienciaSTD ?? 0;
+            $efic = $eficRaw !== null ? (float) $eficRaw : 0;
 
-            $cantidad = (float) ($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
+            // Asegurar que cantidad se lea con TODOS los decimales posibles
+            $cantidadRaw = $programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0;
+            $cantidad = $cantidadRaw !== null ? (float) $cantidadRaw : 0;
+
+            // Asegurar que todos los campos se lean con TODOS los decimales posibles
+            $pesoCrudoRaw = $programa->PesoCrudo ?? 0;
+            $pesoCrudo = $pesoCrudoRaw !== null ? (float) $pesoCrudoRaw : 0;
+
+            // IMPORTANTE: NoTiras, Luchaje, Repeticiones y Total deben leerse de ReqModelosCodificados
+            // NO de ReqProgramaTejido
+            $noTiras = 0;
+            $luchaje = 0;
+            $repeticiones = 0;
+            $total = 0;
+
+            if ($programa->TamanoClave) {
+                $modelo = \App\Models\ReqModelosCodificados::where('TamanoClave', $programa->TamanoClave)->first();
+                if ($modelo) {
+                    // Leer Total del modelo codificado
+                    $totalRaw = $modelo->Total ?? 0;
+                    $total = $totalRaw !== null ? (float) $totalRaw : 0;
+
+                    // Leer NoTiras del modelo codificado
+                    $noTirasRaw = $modelo->NoTiras ?? 0;
+                    $noTiras = $noTirasRaw !== null ? (float) $noTirasRaw : 0;
+
+                    // Leer Luchaje del modelo codificado
+                    $luchajeRaw = $modelo->Luchaje ?? 0;
+                    $luchaje = $luchajeRaw !== null ? (float) $luchajeRaw : 0;
+
+                    // Leer Repeticiones del modelo codificado
+                    $repeticionesRaw = $modelo->Repeticiones ?? 0;
+                    $repeticiones = $repeticionesRaw !== null ? (float) $repeticionesRaw : 0;
+                }
+            }
 
             // Log para debugging cuando se actualiza eficiencia
             if ($programa->Id) {
@@ -409,26 +453,21 @@ class ReqProgramaTejidoObserver
                     'eficiencia_std_atributo' => $programa->getAttribute('EficienciaSTD'),
                     'eficiencia_std_propiedad' => $programa->EficienciaSTD ?? 'N/A',
                     'eficiencia_std_original' => $programa->getOriginal('EficienciaSTD') ?? 'N/A',
-                    'eficiencia_std_dirty' => $programa->isDirty('EficienciaSTD')
+                    'eficiencia_std_dirty' => $programa->isDirty('EficienciaSTD'),
+                    'velocidad_std' => $vel,
+                    'cantidad' => $cantidad,
+                    'pesoCrudo' => $pesoCrudo,
+                    'noTiras_del_modelo' => $noTiras,
+                    'luchaje_del_modelo' => $luchaje,
+                    'repeticiones_del_modelo' => $repeticiones,
+                    'total_del_modelo' => $total,
+                    'tamano_clave' => $programa->TamanoClave
                 ]);
             }
-            $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
-            $noTiras = (float) ($programa->NoTiras ?? 0);
-            $luchaje = (float) ($programa->Luchaje ?? 0);
-            $repeticiones = (float) ($programa->Repeticiones ?? 0);
 
             // Normalizar eficiencia si viene en porcentaje (ej: 80 -> 0.8)
             if ($efic > 1) {
                 $efic = $efic / 100;
-            }
-
-            // Obtener 'Total' del modelo codificado si existe
-            $total = 0;
-            if ($programa->TamanoClave) {
-                $modelo = \App\Models\ReqModelosCodificados::where('TamanoClave', $programa->TamanoClave)->first();
-                if ($modelo) {
-                    $total = (float) ($modelo->Total ?? 0);
-                }
             }
 
             // Fechas
@@ -439,15 +478,140 @@ class ReqProgramaTejidoObserver
 
             // === PASO 1: Calcular StdToaHra (fórmula del frontend) ===
             // StdToaHra = (NoTiras * 60) / ((total + ((luchaje * 0.5) / 0.0254) / repeticiones) / velocidad)
-            $stdToaHra = 0;
-            if ($noTiras > 0 && $total > 0 && $luchaje > 0 && $repeticiones > 0 && $vel > 0) {
+            // IMPORTANTE: Si VelocidadSTD cambió, recalcular StdToaHra aunque ya exista
+            // IMPORTANTE: Guardar con TODOS los decimales posibles, sin redondear
+            // IMPORTANTE: Leer StdToaHra directamente de la BD para obtener todos los decimales
+            $stdToaHraAnteriorRaw = \Illuminate\Support\Facades\DB::table('ReqProgramaTejido')
+                ->where('Id', $programa->Id)
+                ->value('StdToaHra');
+            $stdToaHraAnterior = $stdToaHraAnteriorRaw !== null ? (float) $stdToaHraAnteriorRaw : 0;
+            $velocidadCambio = $programa->isDirty('VelocidadSTD');
+            $velocidadOriginal = (float) ($programa->getOriginal('VelocidadSTD') ?? 0);
+            $velocidadNueva = (float) ($programa->VelocidadSTD ?? 0);
+
+            // IMPORTANTE: Si cambió la velocidad, usar la velocidad NUEVA para el cálculo
+            // Si no cambió, usar la velocidad actual del modelo
+            $velParaCalculo = $velocidadCambio && $velocidadNueva > 0 ? $velocidadNueva : $vel;
+
+            // Inicializar $stdToaHra con el valor anterior por defecto
+            $stdToaHra = $stdToaHraAnterior;
+
+            // Recalcular si:
+            // 1. No existe StdToaHra, O
+            // 2. Cambió VelocidadSTD (detectado por isDirty o comparando valores)
+            $debeRecalcular = ($stdToaHraAnterior <= 0) ||
+                             ($velocidadCambio && $velocidadOriginal > 0 && $velocidadNueva > 0 && $velocidadOriginal !== $velocidadNueva) ||
+                             (!$velocidadCambio && $velocidadOriginal > 0 && $velocidadNueva > 0 && $velocidadOriginal !== $velocidadNueva && abs($velocidadOriginal - $velocidadNueva) > 0.1);
+
+            // Log para debugging
+            if ($programa->Id && ($velocidadCambio || ($velocidadOriginal > 0 && $velocidadNueva > 0 && $velocidadOriginal !== $velocidadNueva))) {
+                \Illuminate\Support\Facades\Log::info('Observer: Detectado cambio de velocidad', [
+                    'programa_id' => $programa->Id,
+                    'velocidad_original' => $velocidadOriginal,
+                    'velocidad_nueva' => $velocidadNueva,
+                    'velocidad_actual_modelo' => $vel,
+                    'velocidad_para_calculo' => $velParaCalculo,
+                    'isDirty' => $velocidadCambio,
+                    'debeRecalcular' => $debeRecalcular,
+                    'stdtoahra_anterior' => $stdToaHraAnterior
+                ]);
+            }
+
+            // IMPORTANTE: Cuando cambia la velocidad, DEBEMOS recalcular StdToaHra
+            // Si repeticiones es 0, intentar recalcular con 1, pero si hay un StdToaHra anterior válido
+            // y la velocidad cambió, podemos ajustarlo proporcionalmente como alternativa
+            if ($debeRecalcular && $noTiras > 0 && $total > 0 && $luchaje > 0 && $velParaCalculo > 0) {
+                // Si repeticiones es 0 o menor, intentar calcular con 1
+                $repeticionesCalc = $repeticiones > 0 ? $repeticiones : 1;
+
                 $parte1 = $total / 1;
-                $parte2 = (($luchaje * 0.5) / 0.0254) / $repeticiones;
-                $denominador = ($parte1 + $parte2) / $vel;
+                $parte2 = (($luchaje * 0.5) / 0.0254) / $repeticionesCalc;
+                $denominador = ($parte1 + $parte2) / $velParaCalculo;
+
                 if ($denominador > 0) {
-                    $stdToaHra = ($noTiras * 60) / $denominador;
-                    $formulas['StdToaHra'] = (float) round($stdToaHra, 2);
+                    $stdToaHraCalculado = ($noTiras * 60) / $denominador;
+
+                    // Si repeticiones era 0 y tenemos un StdToaHra anterior válido,
+                    // verificar si el cálculo con repeticiones=1 es razonable
+                    // Si la diferencia es muy grande, podría ser que el valor anterior
+                    // fue calculado con otros parámetros, así que usamos el nuevo cálculo
+                    if ($repeticiones <= 0 && $stdToaHraAnterior > 0 && $velocidadOriginal > 0) {
+                        // Calcular qué sería el StdToaHra anterior si se ajustara proporcionalmente
+                        // Pero la fórmula no es lineal, así que usamos el cálculo directo
+                        $stdToaHra = $stdToaHraCalculado;
+                    } else {
+                        $stdToaHra = $stdToaHraCalculado;
+                    }
+
+                    // Guardar con TODOS los decimales posibles, sin redondear
+                    $formulas['StdToaHra'] = (float) $stdToaHra;
+
+                    if ($programa->Id) {
+                        \Illuminate\Support\Facades\Log::info('Observer: StdToaHra recalculado por cambio de velocidad', [
+                            'programa_id' => $programa->Id,
+                            'velocidad_original' => $velocidadOriginal,
+                            'velocidad_nueva' => $velocidadNueva,
+                            'velocidad_usada_en_calculo' => $velParaCalculo,
+                            'stdtoahra_anterior' => $stdToaHraAnterior,
+                            'stdtoahra_nuevo' => $formulas['StdToaHra'],
+                            'stdtoahra_calculado' => $stdToaHraCalculado,
+                            'noTiras' => $noTiras,
+                            'total' => $total,
+                            'luchaje' => $luchaje,
+                            'repeticiones_original' => $repeticiones,
+                            'repeticiones_usado' => $repeticionesCalc,
+                            'denominador' => $denominador,
+                            'parte1' => $parte1,
+                            'parte2' => $parte2,
+                            'formula_completa' => "($noTiras * 60) / ((($total + ((($luchaje * 0.5) / 0.0254) / $repeticionesCalc)) / $velParaCalculo))",
+                            'resultado_esperado' => ($noTiras * 60) / ((($total + ((($luchaje * 0.5) / 0.0254) / $repeticionesCalc)) / $velParaCalculo))
+                        ]);
+                    }
+                } else {
+                    // Si no se pudo calcular, mantener el valor anterior pero loguear
+                    if ($programa->Id) {
+                        \Illuminate\Support\Facades\Log::warning('Observer: No se pudo recalcular StdToaHra (denominador <= 0)', [
+                            'programa_id' => $programa->Id,
+                            'velocidad_original' => $velocidadOriginal,
+                            'velocidad_nueva' => $velocidadNueva,
+                            'velocidad_usada_en_calculo' => $velParaCalculo,
+                            'denominador' => $denominador
+                        ]);
+                    }
                 }
+            } elseif ($stdToaHraAnterior > 0 && !$debeRecalcular) {
+                // Si NO debe recalcularse (no cambió la velocidad), mantener el valor existente
+                $formulas['StdToaHra'] = (float) $stdToaHraAnterior;
+                $stdToaHra = $stdToaHraAnterior; // Asegurar que $stdToaHra tenga el valor correcto
+            } else {
+                // Si debe recalcularse pero faltan datos, loguear
+                if ($programa->Id && $debeRecalcular) {
+                    \Illuminate\Support\Facades\Log::warning('Observer: No se pudo recalcular StdToaHra (faltan datos)', [
+                        'programa_id' => $programa->Id,
+                        'velocidad_original' => $velocidadOriginal,
+                        'velocidad_nueva' => $velocidadNueva,
+                        'velocidad_usada_en_calculo' => $velParaCalculo,
+                        'noTiras' => $noTiras,
+                        'total' => $total,
+                        'luchaje' => $luchaje,
+                        'repeticiones' => $repeticiones,
+                        'velParaCalculo' => $velParaCalculo
+                    ]);
+                }
+            }
+
+            // Log para debugging
+            if ($programa->Id) {
+                \Illuminate\Support\Facades\Log::info('Observer: StdToaHra', [
+                    'programa_id' => $programa->Id,
+                    'stdtoahra_usado' => $stdToaHra,
+                    'stdtoahra_del_modelo' => $programa->StdToaHra ?? 0,
+                    'noTiras' => $noTiras,
+                    'total' => $total,
+                    'luchaje' => $luchaje,
+                    'repeticiones' => $repeticiones,
+                    'vel' => $vel
+                ]);
             }
 
             // === PASO 2: Calcular PesoGRM2 (frontend usa 10000, no 1000) ===
@@ -463,27 +627,35 @@ class ReqProgramaTejidoObserver
                 $formulas['DiasEficiencia'] = (float) round($diffDias, 2);
             }
 
+            // IMPORTANTE: Usar el valor recién calculado de StdToaHra si existe en $formulas,
+            // de lo contrario usar el valor del modelo (que puede tener menos decimales)
+            $stdToaHraParaCalculos = isset($formulas['StdToaHra']) ? $formulas['StdToaHra'] : $stdToaHra;
+
             // === PASO 4: Calcular StdDia (PRIMERO - depende de eficiencia) ===
             // StdDia = StdToaHra * eficiencia * 24 (frontend incluye eficiencia)
             $stdDia = 0;
-            if ($stdToaHra > 0 && $efic > 0) {
-                $stdDia = $stdToaHra * $efic * 24;
-                $formulas['StdDia'] = (float) round($stdDia, 2);
+            if ($stdToaHraParaCalculos > 0 && $efic > 0) {
+                $stdDia = $stdToaHraParaCalculos * $efic * 24;
+                // Guardar con TODOS los decimales posibles, sin redondear
+                $formulas['StdDia'] = (float) $stdDia;
             }
 
             // === PASO 5: Calcular HorasProd (SEGUNDO - depende de eficiencia) ===
             // HorasProd = TotalPedido / (StdToaHra * EficienciaSTD)
             $horasProd = 0;
-            if ($stdToaHra > 0 && $efic > 0) {
-                $horasProd = $cantidad / ($stdToaHra * $efic);
-                $formulas['HorasProd'] = (float) round($horasProd, 2);
+            if ($stdToaHraParaCalculos > 0 && $efic > 0) {
+                $horasProd = $cantidad / ($stdToaHraParaCalculos * $efic);
+                // Guardar con TODOS los decimales posibles, sin redondear
+                $formulas['HorasProd'] = (float) $horasProd;
 
                 // Log para debugging cuando se actualiza eficiencia (INFO para que se muestre)
                 if ($programa->Id) {
                     \Illuminate\Support\Facades\Log::info('Observer: Calculando HorasProd', [
                         'programa_id' => $programa->Id,
                         'eficiencia_std' => $efic,
-                        'stdtoahra' => $stdToaHra,
+                        'stdtoahra_usado' => $stdToaHraParaCalculos,
+                        'stdtoahra_del_modelo' => $stdToaHra,
+                        'stdtoahra_recien_calculado' => isset($formulas['StdToaHra']) ? $formulas['StdToaHra'] : 'NO',
                         'cantidad' => $cantidad,
                         'horasprod_calculado' => $horasProd,
                         'horasprod_redondeado' => $formulas['HorasProd'],
@@ -505,13 +677,16 @@ class ReqProgramaTejidoObserver
             // === PASO 6: Calcular ProdKgDia (depende de StdDia) ===
             // ProdKgDia = (StdDia * PesoCrudo) / 1000
             if ($stdDia > 0 && $pesoCrudo > 0) {
-                $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 2);
+                $prodKgDia = ($stdDia * $pesoCrudo) / 1000;
+                // Guardar con TODOS los decimales posibles, sin redondear
+                $formulas['ProdKgDia'] = (float) $prodKgDia;
             }
 
             // === PASO 7: Calcular DiasJornada (depende de HorasProd) ===
             // DiasJornada = HorasProd / 24 (frontend usa horasProd, no velocidad)
             if ($horasProd > 0) {
-                $formulas['DiasJornada'] = (float) round($horasProd / 24, 2);
+                // Guardar con TODOS los decimales posibles, sin redondear
+                $formulas['DiasJornada'] = (float) ($horasProd / 24);
             }
 
             // === PASO 8: Calcular StdHrsEfect y ProdKgDia2 (no dependen de eficiencia directamente) ===
@@ -519,10 +694,12 @@ class ReqProgramaTejidoObserver
             // ProdKgDia2 = ((PesoCrudo * StdHrsEfect) * 24) / 1000
             if ($diffDias > 0) {
                 $stdHrsEfect = ($cantidad / $diffDias) / 24;
-                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 2);
+                // Guardar con TODOS los decimales posibles, sin redondear
+                $formulas['StdHrsEfect'] = (float) $stdHrsEfect;
 
                 if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
+                    // Guardar con TODOS los decimales posibles, sin redondear
+                    $formulas['ProdKgDia2'] = (float) ((($pesoCrudo * $stdHrsEfect) * 24) / 1000);
                 }
             }
 

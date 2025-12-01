@@ -7,13 +7,13 @@
 @endsection
 
 @section('content')
-    <div class="container">
+    <div class="container-fluid">
 
 
     <!-- Tabla -->
-        <div class="bg-white overflow-hidden shadow-sm rounded-lg">
-            <div class="overflow-y-auto h-[640px] scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
-                <table class="table table-bordered table-sm w-full">
+        <div class="bg-white overflow-hidden ">
+            <div class="overflow-y-auto" style="max-height: calc(100vh - 70px); overflow-y: auto;">
+                <table class="table w-full">
                     <thead class="sticky top-0 bg-blue-500 text-white z-10">
                         <tr>
                         <th class="py-1 px-2 font-bold  tracking-wider text-center">Salón</th>
@@ -29,7 +29,7 @@
                             $uniqueId = $item->NoTelarId . '_' . $item->FibraId;
                             $recordId = $item->Id ?: $item->SalonTejidoId . '_' . $item->NoTelarId . '_' . $item->FibraId;
                         @endphp
-                        <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
+                        <tr class="text-center hover:bg-blue-50 transition cursor-pointer text-black"
                             onclick="selectRow(this, '{{ $uniqueId }}', '{{ $recordId }}')"
                                 ondblclick="deselectRow(this)"
                             data-velocidad="{{ $uniqueId }}"
@@ -40,11 +40,11 @@
                             data-rpm="{{ $item->Velocidad }}"
                             data-densidad="{{ $item->Densidad ?? 'Normal' }}"
                         >
-                            <td class="py-1 px-4 border-b">{{ $item->SalonTejidoId }}</td>
-                            <td class="py-1 px-4 border-b">{{ $item->NoTelarId }}</td>
-                            <td class="py-1 px-4 border-b">{{ $item->FibraId }}</td>
-                            <td class="py-1 px-4 border-b font-semibold">{{ $item->Velocidad }} RPM</td>
-                            <td class="py-1 px-4 border-b">{{ $item->Densidad ?? 'Normal' }}</td>
+                            <td class="py-1 px-4">{{ $item->SalonTejidoId }}</td>
+                            <td class="py-1 px-4">{{ $item->NoTelarId }}</td>
+                            <td class="py-1 px-4">{{ $item->FibraId }}</td>
+                            <td class="py-1 px-4 font-semibold">{{ $item->Velocidad }} RPM</td>
+                            <td class="py-1 px-4">{{ $item->Densidad ?? 'Normal' }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -134,32 +134,30 @@ function repoblarSelect(selectEl, opciones, selectedValue = '') {
 =========================== */
 function selectRow(row, uniqueId, id) {
     document.querySelectorAll('#velocidad-body tr').forEach(r => {
-        r.classList.remove('text-blue-600', 'font-semibold');
-        r.classList.add('text-black');
+        r.classList.remove('bg-blue-500', 'text-white', 'font-semibold');
+        r.classList.add('text-black', 'hover:bg-blue-50');
     });
-    row.classList.remove('text-black');
-    row.classList.add('text-blue-600', 'font-semibold');
+    row.classList.remove('text-black', 'hover:bg-blue-50');
+    row.classList.add('bg-blue-500', 'text-white', 'font-semibold');
 
     selectedRow = row;
     selectedKey = uniqueId;
     selectedId = id;
 
     // Usar la función del componente catalog-actions para habilitar botones
-    // Esta función solo cambia el color del texto y cursor, no el fondo, evitando el cuadro gris
     if (typeof window.actualizarBotonesAccionVelocidad === 'function') {
         window.actualizarBotonesAccionVelocidad(true);
     }
 }
 function deselectRow(row) {
-    if (!row.classList.contains('text-blue-600')) return;
-    row.classList.remove('text-blue-600', 'font-semibold');
-    row.classList.add('text-black');
+    if (!row.classList.contains('bg-blue-500')) return;
+    row.classList.remove('bg-blue-500', 'text-white', 'font-semibold');
+    row.classList.add('text-black', 'hover:bg-blue-50');
     selectedRow = null;
     selectedKey = null;
     selectedId = null;
 
     // Usar la función del componente catalog-actions para deshabilitar botones
-    // Esta función solo cambia el color del texto y cursor, no el fondo, evitando el cuadro gris
     if (typeof window.actualizarBotonesAccionVelocidad === 'function') {
         window.actualizarBotonesAccionVelocidad(false);
     }
@@ -193,7 +191,7 @@ function actualizarTelaresCreate() {
                         </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Fibra *</label>
-                    <input id="swal-fibra" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="H, PAP" maxlength="20" required>
+                    <input id="swal-fibra" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="H, PAP" maxlength="60" required>
                         </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Densidad</label>
@@ -282,7 +280,7 @@ function actualizarTelaresCreate() {
                         </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Fibra *</label>
-                    <input id="swal-fibra-edit" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" maxlength="20" required value="${fibraActual}">
+                    <input id="swal-fibra-edit" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" maxlength="60" required value="${fibraActual}">
                         </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Densidad</label>
@@ -544,11 +542,11 @@ function aplicarFiltros(f) {
         tr.setAttribute('data-densidad', item.Densidad || 'Normal');
 
         tr.innerHTML = `
-                    <td class="py-1 px-4 border-b">${item.SalonTejidoId}</td>
-                    <td class="py-1 px-4 border-b">${item.NoTelarId}</td>
-                    <td class="py-1 px-4 border-b">${item.FibraId}</td>
-                    <td class="py-1 px-4 border-b font-semibold">${item.Velocidad} RPM</td>
-            <td class="py-1 px-4 border-b">${item.Densidad || 'Normal'}</td>`;
+                    <td class="py-1 px-4">${item.SalonTejidoId}</td>
+                    <td class="py-1 px-4">${item.NoTelarId}</td>
+                    <td class="py-1 px-4">${item.FibraId}</td>
+                    <td class="py-1 px-4 font-semibold">${item.Velocidad} RPM</td>
+            <td class="py-1 px-4">${item.Densidad || 'Normal'}</td>`;
         frag.appendChild(tr);
     });
             tbody.innerHTML = '';
@@ -592,12 +590,91 @@ document.addEventListener('DOMContentLoaded', () => {
     window.filtrarVelocidad = mostrarFiltros;
     window.limpiarFiltrosVelocidad = limpiarFiltros;
     window.subirExcelVelocidad = function() {
-        // TODO: Implementar subida de Excel para velocidad
         Swal.fire({
-            icon: 'info',
-            title: 'Función en desarrollo',
-            text: 'La funcionalidad de subir Excel está en desarrollo',
-            confirmButtonText: 'Entendido'
+            title: 'Subir Excel',
+            html: `
+                <div class="text-left">
+                    <div class="mb-3">
+                        <label class="block text-sm font-medium mb-1">Archivo Excel</label>
+                        <input id="excel-file-velocidad" type="file" accept=".xlsx,.xls" class="swal2-input">
+                    </div>
+                    <div class="text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                        Formatos: .xlsx, .xls (máx 10MB)
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fas fa-upload me-2"></i>Subir',
+            cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+            confirmButtonColor: '#16a34a',
+            cancelButtonColor: '#6c757d',
+            preConfirm: async () => {
+                const file = document.getElementById('excel-file-velocidad').files[0];
+                if (!file) {
+                    Swal.showValidationMessage('Selecciona un archivo');
+                    return false;
+                }
+                return file;
+            }
+        }).then(async (result) => {
+            if (!result.isConfirmed) return;
+
+            Swal.fire({
+                title: 'Procesando...',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            const formData = new FormData();
+            formData.append('archivo_excel', result.value);
+            formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+
+            try {
+                const response = await fetch('/planeacion/velocidad/excel', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || `Error HTTP ${response.status}`);
+                }
+
+                let message = `Archivo procesado exitosamente\n\n`;
+                message += `Registros procesados: ${data.data.registros_procesados}\n`;
+                message += `Registros creados: ${data.data.registros_creados}\n`;
+                message += `Registros actualizados: ${data.data.registros_actualizados}`;
+
+                if (data.data.total_errores > 0) {
+                    message += `\n\nErrores: ${data.data.total_errores}`;
+                    if (data.data.errores && data.data.errores.length > 0) {
+                        message += '\n\nPrimeros errores:';
+                        data.data.errores.forEach((error, index) => {
+                            message += `\n${index + 1}. ${error}`;
+                        });
+                    }
+                }
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Excel procesado!',
+                    text: message,
+                    confirmButtonText: 'Entendido'
+                }).then(() => location.reload());
+
+            } catch (error) {
+                console.error('Error al procesar Excel:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'Error al procesar el archivo Excel'
+                });
+            }
         });
     };
 });

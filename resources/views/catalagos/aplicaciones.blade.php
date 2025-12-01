@@ -34,9 +34,9 @@
                             data-factor="{{ $item->Factor }}"
                             data-id="{{ $recordId ?? $uniqueId }}"
                         >
-                            <td class="py-1 px-4 border-b">{{ $item->AplicacionId }}</td>
-                            <td class="py-1 px-4 border-b">{{ $item->Nombre }}</td>
-                            <td class="py-1 px-4 border-b font-semibold">{{ $item->Factor }}</td>
+                            <td class="py-1 px-4 ">{{ $item->AplicacionId }}</td>
+                            <td class="py-1 px-4 ">{{ $item->Nombre }}</td>
+                            <td class="py-1 px-4  font-semibold">{{ $item->Factor }}</td>
                         </tr>
                     @endforeach
                 </tbody>

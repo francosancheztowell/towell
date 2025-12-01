@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ReqAplicaciones;
+use App\Models\ReqProgramaTejido;
+use App\Models\ReqProgramaTejidoLine;
 use App\Imports\ReqAplicacionesImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -190,11 +192,29 @@ class AplicacionesController extends Controller
                 ], 422);
             }
 
+            // Guardar valores anteriores para comparar
+            $factorAnterior = $aplicacion->Factor;
+            $aplicacionId = $aplicacion->AplicacionId;
+
             $aplicacion->update([
                 'AplicacionId' => $request->AplicacionId,
                 'Nombre'       => $request->Nombre,
                 'Factor'       => $request->Factor,
             ]);
+
+            // Si cambió el Factor, recalcular fórmulas en ReqProgramaTejidoLine
+            $factorNuevo = $request->Factor;
+            $factorCambio = abs((float)$factorAnterior - (float)$factorNuevo) > 0.0001;
+
+            if ($factorCambio) {
+                Log::info('Factor de aplicación actualizado', [
+                    'aplicacion_id' => $aplicacionId,
+                    'factor_anterior' => $factorAnterior,
+                    'factor_nuevo' => $factorNuevo
+                ]);
+
+                $this->actualizarLineasPorCambioFactor($aplicacionId, $factorNuevo);
+            }
 
             return response()->json([
                 'success' => true,
@@ -208,6 +228,70 @@ class AplicacionesController extends Controller
                 'success' => false,
                 'message' => 'Error al actualizar la aplicación: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Actualiza las líneas de ReqProgramaTejidoLine cuando cambia el Factor de una aplicación
+     * Fórmula: Aplicacion = Factor * Kilos
+     */
+    private function actualizarLineasPorCambioFactor(string $aplicacionId, ?float $nuevoFactor)
+    {
+        try {
+            // Identificar programas que usan esta aplicación
+            $programas = ReqProgramaTejido::where('AplicacionId', $aplicacionId)->get();
+
+            Log::info('Programas identificados por cambio de factor', [
+                'aplicacion_id' => $aplicacionId,
+                'nuevo_factor' => $nuevoFactor,
+                'programas_encontrados' => $programas->count()
+            ]);
+
+            $lineasActualizadas = 0;
+            $programasIds = $programas->pluck('Id')->toArray();
+
+            if (!empty($programasIds)) {
+                // Buscar todas las líneas de estos programas
+                $lineas = ReqProgramaTejidoLine::whereIn('ProgramaId', $programasIds)
+                    ->whereNotNull('Kilos')
+                    ->where('Kilos', '>', 0)
+                    ->get();
+
+                Log::info('Líneas encontradas para actualizar', [
+                    'aplicacion_id' => $aplicacionId,
+                    'lineas_encontradas' => $lineas->count()
+                ]);
+
+                // Actualizar cada línea: Aplicacion = Factor * Kilos
+                // Usar la misma precisión que el Observer (6 decimales)
+                foreach ($lineas as $linea) {
+                    $kilos = (float) ($linea->Kilos ?? 0);
+                    $nuevoAplicacion = ($nuevoFactor !== null && $kilos > 0)
+                        ? round((float) ($nuevoFactor * $kilos), 6)
+                        : null;
+
+                    $linea->update([
+                        'Aplicacion' => $nuevoAplicacion
+                    ]);
+
+                    $lineasActualizadas++;
+                }
+
+                Log::info('Líneas actualizadas por cambio de factor', [
+                    'aplicacion_id' => $aplicacionId,
+                    'nuevo_factor' => $nuevoFactor,
+                    'lineas_actualizadas' => $lineasActualizadas,
+                    'programas_identificados' => count($programasIds)
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar líneas por cambio de factor: ' . $e->getMessage(), [
+                'aplicacion_id' => $aplicacionId,
+                'nuevo_factor' => $nuevoFactor,
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
         }
     }
 
@@ -231,6 +315,21 @@ class AplicacionesController extends Controller
                     'success' => false,
                     'message' => 'Aplicación no encontrada'
                 ], 404);
+            }
+
+            $aplicacionId = $aplicacion->AplicacionId;
+
+            // Verificar si se está usando en ReqProgramaTejido (campo AplicacionId)
+            $usoEnProgramaTejido = ReqProgramaTejido::where('AplicacionId', $aplicacionId)->exists();
+
+            // Verificar si se está usando en ReqProgramaTejidoLine (campo Aplicacion)
+            $usoEnProgramaTejidoLine = ReqProgramaTejidoLine::where('Aplicacion', $aplicacionId)->exists();
+
+            if ($usoEnProgramaTejido || $usoEnProgramaTejidoLine) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede eliminar la aplicación porque está siendo utilizada en programas de tejido.'
+                ], 422);
             }
 
             $aplicacion->delete();

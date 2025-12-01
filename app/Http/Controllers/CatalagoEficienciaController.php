@@ -256,22 +256,27 @@ class CatalagoEficienciaController extends Controller
                         $horasProdAntes = $programa->HorasProd ?? 0;
                         $stdToaHraAntes = $programa->StdToaHra ?? 0;
                         $eficienciaAntes = (float)($programa->EficienciaSTD ?? 0);
-                        
+
+                        // Asegurarse de que el modelo tenga todos los valores necesarios cargados
+                        // Recargar el modelo para tener todos los campos actualizados
+                        $programa->refresh();
+
                         // Actualizar EficienciaSTD en el modelo y marcar como modificado
                         $programa->EficienciaSTD = $nuevaEficiencia;
                         $programa->setAttribute('EficienciaSTD', $nuevaEficiencia);
-                        
+
                         // Forzar que Eloquent detecte el cambio actualizando UpdatedAt
                         // Esto asegura que el Observer se ejecute
                         $programa->UpdatedAt = now();
-                        
+
                         // Guardar el programa para que el Observer recalcule las fórmulas
                         // El Observer se ejecutará automáticamente en el evento 'saved' y recalculará:
                         // - StdDia, ProdKgDia, StdHrsEfect, ProdKgDia2, HorasProd, DiasJornada, etc.
                         // y regenerará las líneas diarias
                         // El Observer usará el valor actualizado de EficienciaSTD que está en el modelo
+                        // y también usará StdToaHra existente si está disponible
                         $programa->save();
-                        
+
                         // Recargar el modelo para verificar que se actualizó HorasProd
                         $programa->refresh();
                         $horasProdDespues = $programa->HorasProd ?? 0;

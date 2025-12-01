@@ -37,7 +37,7 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
             // Extraer datos de la fila directamente
             $salon = $this->parseString($this->getValue($row, ['Salon', 'salon', 'SalonTejidoId', 'salontejidoid']), 20);
             $telar = $this->parseString($this->getValue($row, ['NoTelar', 'No Telar', 'notelar', 'Telar']), 10);
-            $fibra = $this->parseString($this->getValue($row, ['Fibra', 'FibraId', 'fibraid']), 15);
+            $fibra = $this->parseString($this->getValue($row, ['Fibra', 'FibraId', 'fibraid']), 60);
             $velocidad = $this->parseFloat($this->getValue($row, ['RPM', 'rpm', 'Velocidad', 'velocidad']));
             $densidad = $this->parseString($this->getValue($row, ['Densidad', 'densidad']), 10);
 
