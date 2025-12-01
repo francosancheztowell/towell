@@ -3,39 +3,71 @@
 @section('page-title', 'Catálogo de Codificación')
 
 @section('navbar-right')
+<div class="flex items-center gap-2">
 <x-buttons.catalog-actions route="codificacion" :showFilters="true" />
+    <!-- Botón Fijar Columnas -->
+    <button type="button" onclick="openPinColumnsModal()"
+            class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-colors"
+            title="Fijar columnas" aria-label="Fijar columnas">
+        <i class="fa-solid fa-thumbtack text-sm"></i>
+    </button>
+    <!-- Botón Ocultar Columnas -->
+    <button type="button" onclick="openHideColumnsModal()"
+            class="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
+            title="Ocultar columnas" aria-label="Ocultar columnas">
+        <i class="fa-solid fa-eye-slash text-sm"></i>
+    </button>
+</div>
 @endsection
 
 @section('content')
 <div class="container-fluid">
-    <div class="bg-white rounded-lg shadow-sm">
-        {{-- Contenedor de tabla --}}
-        <div class="relative overflow-auto h-[calc(100vh-180px)] min-h-[700px]" id="table-container">
-            {{-- Loading inicial --}}
-            <div id="loading-overlay" class="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-40">
-                <div class="text-center">
-                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
-                    <p class="text-gray-600 font-medium">Cargando <span id="loading-count">0</span> registros...</p>
-                    <p class="text-sm text-gray-400 mt-1" id="loading-progress"></p>
-                </div>
-            </div>
+    <div class="bg-white rounded-lg shadow-sm flex flex-col" style="height: calc(100vh);">
+        {{-- Loading inicial --}}
+        <div
+            id="loading-overlay"
+            class="absolute inset-0 bg-white/90 flex items-center justify-center z-10"
+        >
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+        </div>
 
-            <table id="mainTable" class="w-full border-collapse">
-                <thead class="sticky top-0 z-50 bg-blue-500">
+        {{-- Contenedor de tabla con scroll --}}
+        <div
+            id="table-container"
+            class="relative flex-1 overflow-y-auto overflow-x-auto"
+            style="max-height: calc(100vh - 110px);"
+        >
+            <table id="mainTable" class="w-full min-w-full">
+                <thead class="bg-blue-500">
                     <tr>
                         @foreach($columnas as $idx => $col)
-                            <th class="column-{{ $idx }} px-3 py-2 text-left text-sm font-medium text-white whitespace-nowrap border-b border-blue-400 shadow-sm" data-index="{{ $idx }}">
+                            <th
+                                class="column-{{ $idx }} px-3 py-2 text-left text-sm font-medium text-white whitespace-nowrap border-b border-blue-400 bg-blue-500"
+                                data-index="{{ $idx }}"
+                            >
                                 <div class="flex items-center justify-between gap-2">
                                     <span class="truncate">{{ $col }}</span>
-                                    <div class="relative">
-                                        <button type="button" class="sort-btn sort-btn-asc p-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-shadow hover:shadow-md" title="Ordenar ascendente" data-sort="asc" data-column="{{ $idx }}">
+                                    <div class="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            class="sort-btn sort-btn-asc p-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-shadow hover:shadow-md"
+                                            title="Ordenar ascendente"
+                                            data-sort="asc"
+                                            data-column="{{ $idx }}"
+                                        >
                                             <i class="fas fa-arrow-up"></i>
                                         </button>
-                                        <button type="button" class="sort-btn sort-btn-desc p-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-shadow hover:shadow-md hidden" title="Ordenar descendente" data-sort="desc" data-column="{{ $idx }}">
+                                        <button
+                                            type="button"
+                                            class="sort-btn sort-btn-desc p-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-shadow hover:shadow-md hidden"
+                                            title="Ordenar descendente"
+                                            data-sort="desc"
+                                            data-column="{{ $idx }}"
+                                        >
                                             <i class="fas fa-arrow-down"></i>
                                         </button>
                                     </div>
-                                </div>
+                                    </div>
                             </th>
                         @endforeach
                     </tr>
@@ -52,20 +84,36 @@
             </table>
         </div>
 
-        {{-- Paginación --}}
-        <div id="pagination-container" class="px-4 py-3 border-t border-gray-200 bg-white sticky bottom-0 z-20">
-            <div class="flex items-center justify-between flex-wrap gap-3">
-                <div class="text-sm text-gray-700">
-                    Mostrando <span id="pagination-from" class="font-medium">0</span>
-                    a <span id="pagination-to" class="font-medium">0</span>
-                    de <span id="pagination-total" class="font-medium">{{ $totalRegistros }}</span> registros
-                </div>
-                <div class="flex items-center gap-2">
-                    <button id="pagination-prev" class="px-3 py-1.5 border rounded text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>
+        {{-- Paginación fija en la parte inferior --}}
+        <div
+            id="pagination-container"
+            class="px-4 border-t border-gray-200 bg-white flex-shrink-0 z-20"
+        >
+            <div class="flex items-center justify-end flex-wrap gap-1">
+                <div class="flex items-center gap-1">
+                    <button
+                        id="pagination-prev"
+                        class="px-3 py-1 border rounded text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        disabled
+                    >
                         <i class="fas fa-chevron-left mr-1"></i> Anterior
                     </button>
-                    <span id="pagination-info" class="px-3 py-1 text-sm text-gray-700 font-medium">Página 1</span>
-                    <button id="pagination-next" class="px-3 py-1.5 border rounded text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                    <span
+                        id="pagination-info"
+                        class="px-2 p-2 py-0 text-xs text-gray-700 font-medium"
+                    >
+                        Página <span id="pagination-current">1</span> de <span id="pagination-total-pages">1</span>
+                    </span>
+                    <span
+                        id="pagination-details"
+                        class="px-2 py-0 text-xs text-gray-500 font-normal"
+                    >
+                        Mostrando <span id="pagination-start">0</span> - <span id="pagination-end">0</span> de <span id="pagination-total">0</span>
+                    </span>
+                    <button
+                        id="pagination-next"
+                        class="px-3 py-1 border rounded text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
                         Siguiente <i class="fas fa-chevron-right ml-1"></i>
                     </button>
                 </div>
@@ -74,350 +122,799 @@
     </div>
 </div>
 
+{{-- Menú contextual (click derecho) --}}
+<div id="context-menu" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg z-[99999] py-1 min-w-[150px]" style="z-index: 99999 !important; opacity: 1 !important; background-color: #ffffff !important;">
+    <button
+        id="context-menu-duplicate"
+        class="w-full text-left px-4 py-2 text-sm text-blue-700 hover:text-blue-800 bg-white hover:bg-gray-100 flex items-center gap-2"
+    >
+        <i class="fas fa-copy text-sm text-blue-600 hover:text-blue-800"></i>
+        <span>Duplicar</span>
+    </button>
+</div>
+
+<style>
+    /* ============================================
+       CONTENEDOR DE TABLA CON SCROLL VISIBLE
+       ============================================ */
+    #table-container {
+    position: relative;
+        overflow-y: auto;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        flex: 1;
+        min-height: 0;
+    }
+
+    /* Scrollbar personalizada - Siempre visible y más grande */
+    #table-container::-webkit-scrollbar {
+        width: 14px;
+        height: 14px;
+    }
+
+    #table-container::-webkit-scrollbar-track {
+        background: #e5e7eb;
+        border-radius: 7px;
+    }
+
+    #table-container::-webkit-scrollbar-thumb {
+        background: #6b7280;
+        border-radius: 7px;
+        border: 2px solid #e5e7eb;
+    }
+
+    #table-container::-webkit-scrollbar-thumb:hover {
+        background: #4b5563;
+    }
+
+    /* Scrollbar horizontal - Más visible */
+    #table-container::-webkit-scrollbar:horizontal {
+        height: 14px;
+    }
+
+    /* Para Firefox */
+    #table-container {
+        scrollbar-width: auto;
+        scrollbar-color: #6b7280 #e5e7eb;
+    }
+
+    /* ============================================
+       ESTILOS DE TABLA
+       ============================================ */
+#mainTable {
+        position: relative;
+    width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        min-width: max-content;
+        table-layout: auto;
+    }
+
+    /* ============================================
+       ENCABEZADO STICKY - FIJO ARRIBA
+       ============================================ */
+    #mainTable thead {
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 1000 !important;
+        background-color: #3b82f6 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    #mainTable thead tr {
+        background-color: #3b82f6 !important;
+        position: relative;
+}
+
+#mainTable thead th {
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1001 !important;
+        background-color: #3b82f6 !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        border-bottom: 2px solid #2563eb !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.2);
+        white-space: nowrap;
+    }
+
+    #mainTable thead th:last-child {
+        border-right: none;
+    }
+
+    /* ============================================
+       CUERPO DE TABLA
+       ============================================ */
+    #mainTable tbody tr {
+        position: relative;
+        z-index: 0;
+    }
+
+    #mainTable tbody td {
+        border-right: 1px solid rgba(0, 0, 0, 0.05);
+        white-space: nowrap;
+        z-index: 0;
+        position: relative;
+    }
+
+    /* ============================================
+       COLUMNAS FIJADAS
+       ============================================ */
+.pinned-column {
+        background-color: #fffbeb !important;
+    }
+
+    #mainTable thead th.pinned-column {
+        background-color: #1b0bf5 !important;
+    color: #fff !important;
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1020 !important;
+        box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    #mainTable tbody td.pinned-column {
+        background-color: #fffbeb !important;
+        position: sticky !important;
+        z-index: 100 !important;
+    }
+
+    /* ============================================
+       CONTENEDOR PRINCIPAL
+       ============================================ */
+    .container-fluid {
+        position: relative;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .bg-white.rounded-lg.shadow-sm {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    }
+
+    /* ============================================
+       FOOTER DE PAGINACIÓN - MÁS DELGADO
+       ============================================ */
+    #pagination-container {
+        padding-top: 0.375rem !important;
+        padding-bottom: 0.375rem !important;
+        min-height: auto !important;
+        max-height: 44px !important;
+    }
+
+    #pagination-container button {
+        padding-top: 0.25rem !important;
+        padding-bottom: 0.25rem !important;
+        font-size: 0.875rem !important;
+        line-height: 1.3 !important;
+    }
+
+    #pagination-container span {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        line-height: 1.2 !important;
+    }
+
+    #pagination-container .flex {
+        gap: 0.5rem !important;
+    }
+
+    /* ============================================
+       LOADING OVERLAY
+       ============================================ */
+    #table-loading-overlay {
+        pointer-events: none;
+    }
+
+    /* ============================================
+       MEJORAS VISUALES PARA TABLA
+       ============================================ */
+    #mainTable tbody td {
+    white-space: nowrap;
+}
+
+    /* Indicador visual cuando hay scroll horizontal */
+    #table-container::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(to right, transparent, #d1d5db 50%, transparent);
+        pointer-events: none;
+        z-index: 999;
+    }
+
+    /* ============================================
+       MENÚ CONTEXTUAL (CLICK DERECHO)
+       ============================================ */
+    #context-menu {
+        display: none;
+        background-color: #ffffff !important;
+        z-index: 99999 !important;
+        opacity: 1 !important;
+        position: fixed !important;
+    }
+
+    #context-menu:not(.hidden) {
+        display: block;
+        background-color: #ffffff !important;
+        z-index: 99999 !important;
+        opacity: 1 !important;
+    }
+
+    #context-menu button {
+        transition: background-color 0.15s ease;
+        background-color: #ffffff !important;
+        opacity: 1 !important;
+    }
+
+    #context-menu button:hover {
+        background-color: #f3f4f6 !important;
+    }
+
+    #context-menu button:active {
+        background-color: #e5e7eb !important;
+    }
+</style>
+
+{{-- JS principal --}}
 <script>
-// Configuración desde servidor
-const CONFIG = {
-    apiUrl: @json($apiUrl),
-    columnas: @json($columnasConfig),
-    camposModelo: @json(array_keys($camposModelo)),
-    tiposCampo: @json($camposModelo),
-    totalEstimado: {{ $totalRegistros }}
-};
+(() => {
+    // ============================================
+    //  CONFIGURACIÓN / ESTADO
+    // ============================================
+    const CONFIG = {
+        apiUrl: @json($apiUrl),
+        columnas: @json($columnasConfig),
+        camposModelo: @json(array_keys($camposModelo)),
+        tiposCampo: @json($camposModelo),
+        totalEstimado: {{ $totalRegistros }}
+    };
 
-// Estado global optimizado
 const state = {
-    rawData: [],           // Datos crudos del servidor
-    filteredData: [],      // Datos filtrados
+        rawData: [],
+        filteredData: [],
     currentPage: 1,
-    itemsPerPage: 500,
-    currentSort: { col: null, dir: null },
-    selectedId: null,
-    filtrosDinamicos: [],
-    isLoading: true
-};
+    itemsPerPage: 1000,
+        currentSort: { col: null, dir: null },
+        selectedId: null,
+        filtrosDinamicos: [],
+        isLoading: true
+    };
 
-// Utilidades DOM
-const $ = (sel, ctx = document) => ctx.querySelector(sel);
+    // Estado de columnas ocultas y fijadas
+    let hiddenColumns = [];
+    let pinnedColumns = [];
+
+    // ============================================
+    //  HELPERS DOM / DATA
+    // ============================================
+    const $  = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
-// Utilidades de datos
 const utils = {
-    formatDate(val) {
-        if (!val) return '';
-        try {
-            const d = new Date(val);
-            if (isNaN(d.getTime())) return val;
-            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-        } catch { return val; }
-    },
-    formatValue(val, type) {
-        if (val === null || val === undefined) return '';
-        if (type === 'date') return this.formatDate(val);
-        if (type === 'zero') return val == 0 ? '' : val;
-        return val;
-    },
-    escapeHtml(str) {
-        if (str === null || str === undefined) return '';
-        return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-    },
-    parseForSort(val, type) {
-        if (val === null || val === undefined || val === '') return type === 'number' ? -Infinity : '';
-        if (type === 'date') {
-            const d = new Date(val);
-            return isNaN(d.getTime()) ? 0 : d.getTime();
-        }
-        if (type === 'number') return parseFloat(String(val).replace(/,/g, '')) || 0;
-        return String(val).toLowerCase();
-    },
-    detectType(values) {
-        let nums = 0, dates = 0, total = 0;
-        for (const v of values.slice(0, 100)) {
-            if (!v) continue;
-            total++;
-            if (!isNaN(new Date(v).getTime()) && String(v).includes('-')) dates++;
-            else if (!isNaN(parseFloat(String(v).replace(/,/g, '')))) nums++;
-        }
-        if (dates / Math.max(total, 1) > 0.5) return 'date';
-        if (nums / Math.max(total, 1) > 0.5) return 'number';
-        return 'text';
-    }
-};
+        formatDate(value) {
+            if (!value) return '';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return value;
+            const day   = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year  = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        },
 
-// Toast notifications
+        formatValue(value, type) {
+            if (value === null || value === undefined) return '';
+            if (type === 'date') return this.formatDate(value);
+            if (type === 'zero') return value == 0 ? '' : value;
+            return value;
+        },
+
+        parseForSort(value, type) {
+            if (value === null || value === undefined || value === '') {
+                return type === 'number' ? -Infinity : '';
+            }
+
+            if (type === 'date') {
+                const d = new Date(value);
+                return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+            }
+
+            if (type === 'number') {
+                const num = parseFloat(String(value).replace(/,/g, ''));
+                return Number.isNaN(num) ? 0 : num;
+            }
+
+            return String(value).toLowerCase();
+        },
+
+        detectType(values) {
+            let nums = 0;
+            let dates = 0;
+            let total = 0;
+
+            for (const value of values.slice(0, 100)) {
+                if (!value) continue;
+                total++;
+
+                const str = String(value);
+                if (!Number.isNaN(new Date(value).getTime()) && str.includes('-')) {
+                    dates++;
+                } else if (!Number.isNaN(parseFloat(str.replace(/,/g, '')))) {
+                    nums++;
+                }
+            }
+
+            if (dates / Math.max(total, 1) > 0.5) return 'date';
+            if (nums / Math.max(total, 1) > 0.5) return 'number';
+            return 'text';
+        }
+    };
+
+    // ============================================
+    //  TOAST NOTIFICATIONS
+    // ============================================
 function showToast(message, type = 'info') {
     let toast = $('#toast-notification');
+
     if (!toast) {
         toast = document.createElement('div');
         toast.id = 'toast-notification';
-        toast.className = 'fixed top-4 right-4 z-[9999] max-w-sm w-full';
+            toast.className = 'fixed top-4 right-4 z-[9999] max-w-sm w-full';
         document.body.appendChild(toast);
     }
-    const colors = { success: 'bg-green-600', error: 'bg-red-600', warning: 'bg-yellow-600', info: 'bg-blue-600' };
+
+        const colors = {
+            success: 'bg-green-600',
+            error:   'bg-red-600',
+            warning: 'bg-yellow-600',
+            info:    'bg-blue-600'
+        };
+
     toast.innerHTML = `
-        <div class="${colors[type] || colors.info} text-white px-4 py-3 rounded-lg shadow-lg">
+            <div class="${colors[type] || colors.info} text-white px-4 py-3 rounded-lg shadow-lg">
             <div class="flex items-center justify-between gap-4">
-                <span class="text-sm">${message}</span>
-                <button onclick="this.closest('#toast-notification').remove()" class="opacity-80 hover:opacity-100">×</button>
+                    <span class="text-sm">${message}</span>
+                    <button
+                        type="button"
+                        class="opacity-80 hover:opacity-100"
+                        onclick="this.closest('#toast-notification')?.remove()"
+                    >
+                        &times;
+                </button>
             </div>
-        </div>`;
+            </div>
+        `;
+
     setTimeout(() => toast?.remove(), 3500);
 }
 
-// Cargar datos via fetch
-async function loadData() {
-    const loadingEl = $('#loading-overlay');
-    const countEl = $('#loading-count');
-    const progressEl = $('#loading-progress');
+    // ============================================
+    //  LOADING TABLA
+    // ============================================
+    function showTableLoading(show) {
+        let overlay = $('#table-loading-overlay');
+        const container = $('#table-container');
 
-    try {
-        progressEl.textContent = '';
-        const startTime = performance.now();
+        if (!container) return;
 
-        const response = await fetch(CONFIG.apiUrl, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        });
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        progressEl.textContent = 'Descargando datos...';
-        const result = await response.json();
-
-        if (!result.s) throw new Error(result.e || 'Error desconocido');
-
-        // Convertir array indexado a objetos
-        const columns = result.c;
-        // Guardar columnas del API para usar en filtros
-        CONFIG.apiColumns = columns;
-
-        state.rawData = result.d.map(row => {
-            const obj = {};
-            columns.forEach((col, i) => obj[col] = row[i]);
-            return obj;
-        });
-
-        state.filteredData = [...state.rawData];
-
-        const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-        countEl.textContent = state.rawData.length;
-        progressEl.textContent = `${state.rawData.length} registros en ${elapsed}s`;
-
-        // Renderizar primera página
-        setTimeout(() => {
-            renderPage();
-            loadingEl.classList.add('hidden');
-            state.isLoading = false;
-            showToast(`${state.rawData.length} registros cargados`, 'success');
-        }, 100);
-
-    } catch (error) {
-        console.error('Error cargando datos:', error);
-        loadingEl.innerHTML = `
-            <div class="text-center">
-                <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
-                <p class="text-red-600 font-medium">Error al cargar datos</p>
-                <p class="text-sm text-gray-500 mt-2">${error.message}</p>
-                <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Reintentar</button>
-            </div>`;
-    }
-}
-
-// Mostrar/ocultar loading de tabla
-function showTableLoading(show) {
-    let overlay = $('#table-loading-overlay');
-
-    if (show) {
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'table-loading-overlay';
-            overlay.className = 'absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-30';
-            overlay.innerHTML = `
-                <div class="text-center">
-                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent mb-2"></div>
-                    <p class="text-gray-600 text-sm">Procesando...</p>
-                </div>`;
-            $('#table-container').appendChild(overlay);
+        if (show) {
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'table-loading-overlay';
+                overlay.className = 'absolute inset-0 bg-white/80 flex items-center justify-center z-30';
+                overlay.innerHTML = `
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+                `;
+                container.appendChild(overlay);
+            }
+            overlay.style.display = 'flex';
+            overlay.classList.remove('hidden');
+        } else {
+            if (overlay) {
+                overlay.style.display = 'none';
+                overlay.classList.add('hidden');
+                setTimeout(() => {
+                    if (overlay && overlay.parentNode) {
+                        overlay.remove();
+                    }
+                }, 50);
+            }
         }
-        overlay.classList.remove('hidden');
-    } else if (overlay) {
-        overlay.classList.add('hidden');
-    }
-}
-
-// Renderizar filas de la página actual
-function renderPage() {
-    const tbody = $('#codificacion-body');
-    const totalCols = CONFIG.columnas.length;
-
-    console.log(`renderPage() - filteredData: ${state.filteredData.length}, currentPage: ${state.currentPage}`);
-
-    // Si no hay datos filtrados, mostrar mensaje
-    if (!state.filteredData.length) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="${totalCols}" class="text-center py-16">
-                    <i class="fas fa-search text-gray-300 text-5xl mb-4"></i>
-                    <p class="text-gray-500 font-medium">${state.filtrosDinamicos.length ? 'No se encontraron resultados' : 'No hay datos disponibles'}</p>
-                    ${state.filtrosDinamicos.length ? '<p class="text-sm text-gray-400 mt-2">Intenta con otros filtros</p>' : ''}
-                </td>
-            </tr>`;
-        updatePagination();
-        return;
     }
 
-    const start = (state.currentPage - 1) * state.itemsPerPage;
-    const pageData = state.filteredData.slice(start, start + state.itemsPerPage);
+    // ============================================
+    //  CARGA DE DATOS
+    // ============================================
+    async function loadData() {
+        const loadingEl  = $('#loading-overlay');
 
-    // Mostrar loading durante renderizado grande
-    const showLoading = pageData.length > 200;
-    if (showLoading) showTableLoading(true);
+        if (!CONFIG.apiUrl) {
+            loadingEl?.classList.add('hidden');
+            showToast('URL de API no configurada', 'error');
+            return;
+        }
 
-    // Usar setTimeout para permitir que el loading se muestre
-    setTimeout(() => {
-        // Usar DocumentFragment para mejor performance
-        const fragment = document.createDocumentFragment();
+        if (loadingEl) {
+            loadingEl.classList.remove('hidden');
+        }
 
-        pageData.forEach(row => {
-            const tr = document.createElement('tr');
-            const isSelected = row.Id === state.selectedId;
-            tr.className = `data-row cursor-pointer transition-colors ${isSelected ? 'bg-blue-500 text-white selected-row' : 'hover:bg-gray-50'}`;
-            tr.dataset.id = row.Id;
-            tr.onclick = () => selectRow(tr, row.Id);
-
-            // Generar celdas
-            CONFIG.camposModelo.forEach((campo, idx) => {
-                const td = document.createElement('td');
-                td.className = `column-${idx} px-3 py-2 text-sm whitespace-nowrap`;
-                td.textContent = utils.formatValue(row[campo], CONFIG.tiposCampo[campo]);
-                tr.appendChild(td);
+        try {
+            const response = await fetch(CONFIG.apiUrl, {
+                method: 'GET',
+                headers: { Accept: 'application/json' }
             });
 
-            fragment.appendChild(tr);
-        });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
 
-        tbody.innerHTML = '';
-        tbody.appendChild(fragment);
-        updatePagination();
+            const result = await response.json();
+            if (!result.s) {
+                throw new Error(result.e || 'Error desconocido');
+            }
 
-        if (showLoading) showTableLoading(false);
-    }, showLoading ? 10 : 0);
-}
+            const columns = result.c;
 
-// Actualizar paginación
-function updatePagination() {
-    const total = state.filteredData.length;
-    const totalPages = Math.ceil(total / state.itemsPerPage) || 1;
-    const start = total ? (state.currentPage - 1) * state.itemsPerPage + 1 : 0;
-    const end = Math.min(state.currentPage * state.itemsPerPage, total);
+            // Optimizado: crear objetos directamente sin múltiples iteraciones
+            state.rawData = result.d.map(row => {
+                const obj = {};
+                const len = columns.length;
+                for (let i = 0; i < len; i++) {
+                    obj[columns[i]] = row[i];
+                }
+                return obj;
+            });
 
-    $('#pagination-from').textContent = start;
-    $('#pagination-to').textContent = end;
-    $('#pagination-total').textContent = total;
-    $('#pagination-info').textContent = `Página ${state.currentPage} de ${totalPages}`;
-    $('#pagination-prev').disabled = state.currentPage <= 1;
-    $('#pagination-next').disabled = state.currentPage >= totalPages;
-}
+            state.filteredData = [...state.rawData];
 
-// Navegación de páginas
-function goToPage(page) {
-    const totalPages = Math.ceil(state.filteredData.length / state.itemsPerPage) || 1;
-    if (page < 1 || page > totalPages) return;
-    state.currentPage = page;
-    renderPage();
-    $('#table-container').scrollTop = 0;
-}
+            // Renderizar inmediatamente
+            renderPage();
+            if (loadingEl) loadingEl.classList.add('hidden');
+            state.isLoading = false;
+        } catch (error) {
+            if (!loadingEl) return;
 
-// Ordenamiento optimizado (sobre datos en memoria)
-function sortColumn(colIndex, dir) {
-    // Mostrar loading si hay muchos datos
-    const needsLoading = state.filteredData.length > 500;
-    if (needsLoading) showTableLoading(true);
-
-    // Actualizar botones visuales
-    $$('#mainTable thead th .sort-btn').forEach(btn => {
-        btn.classList.toggle('hidden', btn.classList.contains('sort-btn-desc'));
-    });
-
-    const th = $(`#mainTable thead th[data-index="${colIndex}"]`);
-    if (th) {
-        const ascBtn = th.querySelector('.sort-btn-asc');
-        const descBtn = th.querySelector('.sort-btn-desc');
-        if (dir === 'asc') {
-            ascBtn?.classList.add('hidden');
-            descBtn?.classList.remove('hidden');
-        } else {
-            descBtn?.classList.add('hidden');
-            ascBtn?.classList.remove('hidden');
+            loadingEl.innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                    <p class="text-red-600 font-medium">Error al cargar datos</p>
+                    <p class="text-sm text-gray-500 mt-2">${error.message}</p>
+                    <button
+                        type="button"
+                        class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onclick="location.reload()"
+                    >
+                        Reintentar
+                </button>
+                </div>
+            `;
         }
     }
 
-    setTimeout(() => {
-        const campo = CONFIG.camposModelo[colIndex];
-        const tipo = CONFIG.tiposCampo[campo];
+    // ============================================
+    //  RENDER / PAGINACIÓN
+    // ============================================
+    function updatePagination() {
+        const total      = state.filteredData.length;
+        const totalPages = Math.ceil(total / state.itemsPerPage) || 1;
+        const start      = total ? (state.currentPage - 1) * state.itemsPerPage + 1 : 0;
+        const end        = Math.min(state.currentPage * state.itemsPerPage, total);
 
-        // Detectar tipo si no está definido
-        const sortType = tipo === 'date' ? 'date' :
-                         tipo === 'zero' ? 'number' :
-                         utils.detectType(state.filteredData.map(r => r[campo]));
+        // Actualizar información de página
+        const currentPageEl = $('#pagination-current');
+        const totalPagesEl  = $('#pagination-total-pages');
 
-        state.filteredData.sort((a, b) => {
-            const va = utils.parseForSort(a[campo], sortType);
-            const vb = utils.parseForSort(b[campo], sortType);
-            const cmp = va < vb ? -1 : va > vb ? 1 : 0;
-            return dir === 'asc' ? cmp : -cmp;
-        });
+        if (currentPageEl) currentPageEl.textContent = state.currentPage;
+        if (totalPagesEl)  totalPagesEl.textContent  = totalPages;
 
-        state.currentSort = { col: colIndex, dir };
-    state.currentPage = 1;
+        // Actualizar detalles de registros
+        const startEl  = $('#pagination-start');
+        const endEl    = $('#pagination-end');
+        const totalEl  = $('#pagination-total');
+
+        if (startEl) startEl.textContent = start.toLocaleString();
+        if (endEl)   endEl.textContent   = end.toLocaleString();
+        if (totalEl) totalEl.textContent = total.toLocaleString();
+
+        // Actualizar botones
+        const prevBtn = $('#pagination-prev');
+        const nextBtn = $('#pagination-next');
+
+        if (prevBtn) prevBtn.disabled = state.currentPage <= 1;
+        if (nextBtn) nextBtn.disabled = state.currentPage >= totalPages;
+    }
+
+    function renderPage() {
+        const tbody     = $('#codificacion-body');
+        const totalCols = CONFIG.columnas.length;
+
+        if (!tbody) return;
+
+        // Sin datos
+        if (!state.filteredData.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="${totalCols}" class="text-center py-16">
+                        <i class="fas fa-search text-gray-300 text-5xl mb-4"></i>
+                        <p class="text-gray-500 font-medium">
+                            ${state.filtrosDinamicos.length
+                                ? 'No se encontraron resultados'
+                                : 'No hay datos disponibles'}
+                        </p>
+                        ${
+                            state.filtrosDinamicos.length
+                                ? '<p class="text-sm text-gray-400 mt-2">Intenta con otros filtros</p>'
+                                : ''
+                        }
+                    </td>
+                </tr>
+            `;
+            updatePagination();
+            return;
+        }
+
+        const start = (state.currentPage - 1) * state.itemsPerPage;
+        const pageData = state.filteredData.slice(start, start + state.itemsPerPage);
+
+        const showLoading = pageData.length > 200;
+        if (showLoading) showTableLoading(true);
+
+        try {
+            const fragment = document.createDocumentFragment();
+            const camposModelo = CONFIG.camposModelo;
+            const tiposCampo = CONFIG.tiposCampo;
+            const camposLen = camposModelo.length;
+
+            // Optimizado: pre-crear elementos en batch
+            for (let i = 0; i < pageData.length; i++) {
+                const row = pageData[i];
+                const tr = document.createElement('tr');
+                const isSelected = row.Id === state.selectedId;
+
+                tr.dataset.id = row.Id;
+                tr.className = 'data-row cursor-pointer transition-colors ' +
+                    (isSelected ? 'bg-blue-500 text-white selected-row' : 'hover:bg-gray-50');
+
+                tr.addEventListener('click', () => selectRow(tr, row.Id));
+                tr.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    showContextMenu(e, row.Id);
+                });
+
+                // Optimizado: usar for loop en lugar de forEach
+                for (let idx = 0; idx < camposLen; idx++) {
+                    const campo = camposModelo[idx];
+                    const td = document.createElement('td');
+                    td.className = `column-${idx} px-3 py-2 text-sm whitespace-nowrap text-gray-700`;
+                    td.textContent = utils.formatValue(row[campo], tiposCampo[campo]);
+                    tr.appendChild(td);
+                }
+
+                fragment.appendChild(tr);
+            }
+
+            tbody.innerHTML = '';
+            tbody.appendChild(fragment);
+
+            // Cerrar menú contextual si está abierto
+            const contextMenu = $('#context-menu');
+            if (contextMenu) contextMenu.classList.add('hidden');
+
+            updatePagination();
+
+            // Aplicar columnas ocultas después de renderizar
+            for (let i = 0; i < hiddenColumns.length; i++) {
+                hideColumn(hiddenColumns[i], true);
+            }
+
+            // Actualizar posiciones de columnas fijadas
+            requestAnimationFrame(() => {
+                updatePinnedColumnsPositions();
+            });
+
+            if (showLoading) {
+                showTableLoading(false);
+            }
+        } catch (error) {
+            if (showLoading) showTableLoading(false);
+        }
+    }
+
+    function goToPage(page) {
+        const totalPages = Math.ceil(state.filteredData.length / state.itemsPerPage) || 1;
+        if (page < 1 || page > totalPages) return;
+        state.currentPage = page;
         renderPage();
+        const container = $('#table-container');
+        if (container) container.scrollTop = 0;
+    }
 
-        if (needsLoading) showTableLoading(false);
-    }, needsLoading ? 10 : 0);
-}
+    // ============================================
+    //  ORDENAMIENTO
+    // ============================================
+    function sortColumn(colIndex, dir) {
+        if (!CONFIG.camposModelo[colIndex]) return;
 
-// Selección de fila
-function selectRow(row, id) {
-    // Remover selección anterior
-    $$('#codificacion-body tr.selected-row').forEach(r => {
-        r.classList.remove('bg-blue-500', 'selected-row');
-        r.classList.add('hover:bg-gray-50');
-        r.querySelectorAll('td').forEach(td => {
-            td.classList.remove('text-white');
-            td.classList.add('text-gray-700');
+        const needsLoading = state.filteredData.length > 500;
+        if (needsLoading) showTableLoading(true);
+
+        // Reset visual de botones
+        $$('#mainTable thead th .sort-btn').forEach(btn => {
+            const isDesc = btn.classList.contains('sort-btn-desc');
+            btn.classList.toggle('hidden', isDesc);
         });
-    });
 
-    // Aplicar selección nueva
-    row.classList.remove('hover:bg-gray-50');
-    row.classList.add('bg-blue-500', 'selected-row');
-    row.querySelectorAll('td').forEach(td => {
-        td.classList.remove('text-gray-700');
-        td.classList.add('text-white');
+        const th = $(`#mainTable thead th[data-index="${colIndex}"]`);
+        if (th) {
+            const ascBtn  = th.querySelector('.sort-btn-asc');
+            const descBtn = th.querySelector('.sort-btn-desc');
+
+            if (dir === 'asc') {
+                ascBtn?.classList.add('hidden');
+                descBtn?.classList.remove('hidden');
+            } else {
+                descBtn?.classList.add('hidden');
+                ascBtn?.classList.remove('hidden');
+            }
+        }
+
+        try {
+            const campo = CONFIG.camposModelo[colIndex];
+            const tipo  = CONFIG.tiposCampo[campo];
+
+            const sortType =
+                tipo === 'date'
+                    ? 'date'
+                    : tipo === 'zero'
+                        ? 'number'
+                        : utils.detectType(state.filteredData.map(r => r[campo]));
+
+            state.filteredData.sort((a, b) => {
+                const va = utils.parseForSort(a[campo], sortType);
+                const vb = utils.parseForSort(b[campo], sortType);
+
+                if (va < vb) return dir === 'asc' ? -1 : 1;
+                if (va > vb) return dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            state.currentSort = { col: colIndex, dir };
+    state.currentPage = 1;
+            renderPage();
+        } catch (error) {
+            // Error silencioso
+        } finally {
+            if (needsLoading) {
+                showTableLoading(false);
+            }
+        }
+    }
+
+    // ============================================
+    //  SELECCIÓN DE FILA
+    // ============================================
+function selectRow(row, id) {
+        $$('#codificacion-body tr.selected-row').forEach(r => {
+            r.classList.remove('bg-blue-500', 'selected-row');
+        r.classList.add('hover:bg-gray-50');
+            r.querySelectorAll('td').forEach(td => {
+                td.classList.remove('text-white');
+                td.classList.add('text-gray-700');
     });
+        });
+
+    row.classList.remove('hover:bg-gray-50');
+        row.classList.add('bg-blue-500', 'selected-row');
+        row.querySelectorAll('td').forEach(td => {
+            td.classList.remove('text-gray-700');
+            td.classList.add('text-white');
+        });
 
     state.selectedId = id;
 
-    const editBtn = $('#btn-editar');
+        const editBtn   = $('#btn-editar');
     const deleteBtn = $('#btn-eliminar');
-    if (editBtn) editBtn.disabled = false;
-    if (deleteBtn) deleteBtn.disabled = false;
+        if (editBtn)   editBtn.disabled   = false;
+        if (deleteBtn) deleteBtn.disabled = false;
 }
 
-// CRUD
+    // ============================================
+    //  MENÚ CONTEXTUAL (CLICK DERECHO)
+    // ============================================
+    function showContextMenu(event, rowId) {
+        const contextMenu = $('#context-menu');
+        if (!contextMenu) return;
+
+        // Seleccionar la fila si no está seleccionada
+        if (state.selectedId !== rowId) {
+            const row = $(`tr[data-id="${rowId}"]`);
+            if (row) selectRow(row, rowId);
+        }
+
+        // Posicionar el menú
+        let x = event.clientX;
+        let y = event.clientY;
+
+        // Asegurar que el menú no se salga de la pantalla
+        const menuWidth = 150;
+        const menuHeight = 50;
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        if (x + menuWidth > windowWidth) {
+            x = windowWidth - menuWidth - 10;
+        }
+        if (y + menuHeight > windowHeight) {
+            y = windowHeight - menuHeight - 10;
+        }
+
+        contextMenu.style.left = `${x}px`;
+        contextMenu.style.top = `${y}px`;
+        contextMenu.classList.remove('hidden');
+
+        // Cerrar el menú al hacer click fuera, scroll, o en otra parte
+        const closeMenu = (e) => {
+            if (!contextMenu.contains(e.target)) {
+                contextMenu.classList.add('hidden');
+                document.removeEventListener('click', closeMenu);
+                document.removeEventListener('contextmenu', closeMenu);
+                window.removeEventListener('scroll', closeMenu, true);
+            }
+        };
+
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+            document.addEventListener('contextmenu', closeMenu);
+            window.addEventListener('scroll', closeMenu, true);
+        }, 10);
+    }
+
+    function duplicarCodificacion() {
+        if (!state.selectedId) {
+            showToast('Selecciona un registro', 'warning');
+            return;
+        }
+
+        // Redirigir a la página de creación con los datos del registro a duplicar
+        window.location.href = `/planeacion/catalogos/codificacion-modelos/create?duplicate=${state.selectedId}`;
+    }
+
+    // ============================================
+    //  CRUD (REDIRECCIONES)
+    // ============================================
 function agregarCodificacion() {
     window.location.href = '/planeacion/catalogos/codificacion-modelos/create';
 }
 
 function editarCodificacion() {
-    if (!state.selectedId) return showToast('Selecciona un registro', 'warning');
+        if (!state.selectedId) {
+            showToast('Selecciona un registro', 'warning');
+            return;
+        }
+
     window.location.href = `/planeacion/catalogos/codificacion-modelos/${state.selectedId}/edit`;
 }
 
 function eliminarCodificacion() {
-    if (!state.selectedId) return showToast('Selecciona un registro', 'warning');
+        if (!state.selectedId) {
+            showToast('Selecciona un registro', 'warning');
+            return;
+        }
 
     Swal.fire({
-        title: '¿Eliminar registro?',
+            title: '¿Eliminar registro?',
         text: 'Esta acción no se puede deshacer',
         icon: 'warning',
         showCancelButton: true,
@@ -426,329 +923,326 @@ function eliminarCodificacion() {
         cancelButtonText: 'Cancelar'
     }).then(result => {
         if (!result.isConfirmed) return;
+
         fetch(`/planeacion/catalogos/codificacion-modelos/${state.selectedId}`, {
             method: 'DELETE',
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').content }
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').content
+                }
         })
         .then(r => r.json())
         .then(data => {
-            if (data.success) {
-                state.rawData = state.rawData.filter(r => r.Id !== state.selectedId);
-                state.filteredData = state.filteredData.filter(r => r.Id !== state.selectedId);
-                state.selectedId = null;
-                renderPage();
+                    if (!data.success) {
+                        showToast('Error: ' + (data.message || 'No se pudo eliminar'), 'error');
+                        return;
+                    }
+
+                    state.rawData      = state.rawData.filter(r => r.Id !== state.selectedId);
+                    state.filteredData = state.filteredData.filter(r => r.Id !== state.selectedId);
+                    state.selectedId   = null;
+
+                    renderPage();
                 showToast('Registro eliminado', 'success');
-            } else showToast('Error: ' + data.message, 'error');
-        })
-        .catch(e => showToast('Error: ' + e.message, 'error'));
-    });
-}
-
-// ===== Sistema de Filtros Simplificado =====
-
-// Aplicar filtros con lógica: OR entre misma columna, AND entre columnas
-function applyFilters() {
-    console.log('=== applyFilters() LLAMADO ===');
-    console.log('Raw data length:', state.rawData.length);
-    console.log('Filtros activos:', state.filtrosDinamicos.length);
-
-    if (!state.rawData.length) {
-        console.warn('No hay datos cargados aún');
-        showToast('Espera a que carguen los datos', 'warning');
-        return;
+                })
+                .catch(error => {
+                    showToast('Error: ' + error.message, 'error');
+                });
+        });
     }
 
-    const needsLoading = state.rawData.length > 500;
-    if (needsLoading) showTableLoading(true);
-
-    setTimeout(() => {
-        if (!state.filtrosDinamicos.length) {
-            console.log('Sin filtros - restaurando todos los datos');
-            state.filteredData = [...state.rawData];
-            state.currentPage = 1;
-            renderPage();
-            updateActiveFiltersUI();
-            if (needsLoading) showTableLoading(false);
+    // ============================================
+    //  FILTROS
+    // ============================================
+    function aplicarFiltrosAND() {
+        if (!state.rawData.length) {
+            showToast('Espera a que carguen los datos', 'warning');
             return;
         }
 
-        console.log('Aplicando filtros:', state.filtrosDinamicos);
+        if (!state.filtrosDinamicos.length) {
+            state.filteredData = [...state.rawData];
+        } else {
+            const filtrosPorColumna = {};
 
-        // Aplicar filtros: AND entre filtros de diferentes columnas
-        let filtered = [...state.rawData];
-
-        state.filtrosDinamicos.forEach((filtro, filtroIdx) => {
-            const campo = CONFIG.camposModelo[filtro.columna];
-
-            if (!campo) {
-                console.error(`Campo no encontrado para índice ${filtro.columna}`);
-                return;
-            }
-
-            const valorBuscado = filtro.valor.toLowerCase().trim();
-            const antes = filtered.length;
-
-            filtered = filtered.filter((row, idx) => {
-                const valorOriginal = row[campo];
-                const valorCelda = String(valorOriginal ?? '').toLowerCase().trim();
-                const coincide = valorCelda.includes(valorBuscado);
-
-                // Debug para primer filtro y primeros registros
-                if (filtroIdx === 0 && idx < 3) {
-                    console.log(`[Filtro ${filtroIdx}] Campo "${campo}": "${valorCelda}" incluye "${valorBuscado}"? ${coincide}`);
-                }
-
-                return coincide;
+            state.filtrosDinamicos.forEach(filtro => {
+                const key = String(filtro.columna);
+                if (!filtrosPorColumna[key]) filtrosPorColumna[key] = [];
+                filtrosPorColumna[key].push(filtro.valor.toLowerCase().trim());
             });
 
-            console.log(`Filtro ${filtroIdx} (${campo}): ${antes} -> ${filtered.length} registros`);
-        });
+            state.filteredData = state.rawData.filter(row => {
+                for (const [colIdxStr, valores] of Object.entries(filtrosPorColumna)) {
+                    const colIdx = parseInt(colIdxStr, 10);
+                    const campo  = CONFIG.camposModelo[colIdx];
 
-        state.filteredData = filtered;
-        console.log(`✓ RESULTADO FINAL: ${state.filteredData.length} de ${state.rawData.length} registros`);
+                    if (!campo) continue;
+
+                    const valorCelda = String(row[campo] ?? '').toLowerCase().trim();
+                    const match = valores.some(valor => valorCelda.includes(valor));
+
+                    if (!match) return false;
+                }
+
+                return true;
+            });
+        }
 
         state.currentPage = 1;
         renderPage();
         updateActiveFiltersUI();
-        if (needsLoading) showTableLoading(false);
+    }
 
-        if (state.filteredData.length === 0) {
+    function applyFilters() {
+        aplicarFiltrosAND();
+
+        if (!state.filteredData.length) {
+            showToast('No se encontraron resultados', 'warning');
+            return;
+        }
+
+        showToast(`${state.filteredData.length} de ${state.rawData.length} registros`, 'success');
+    }
+
+    function updateActiveFiltersUI() {
+        const container = $('#active-filters-container');
+        if (container) container.classList.add('hidden');
+    }
+
+    function removeFilter(index) {
+        state.filtrosDinamicos.splice(index, 1);
+        aplicarFiltrosAND();
+        showToast(
+            state.filteredData.length ? `${state.filteredData.length} registros` : 'Filtro eliminado',
+            'info'
+        );
+    }
+
+    function filtrarCodificacion() {
+        Swal.fire({
+            html: `
+                <div class="relative">
+                    <div class="flex items-center justify-between mb-4 pb-3">
+                        <h2 class="text-lg font-semibold text-gray-800">Filtrar Datos</h2>
+                        <button
+                            type="button"
+                            id="btn-close-modal"
+                            class="text-gray-400 hover:text-red-600 text-2xl leading-none"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex gap-2">
+                            <select
+                                id="filtro-columna"
+                                class="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                                <option value="">Columna...</option>
+                                ${
+                                    CONFIG.columnas
+                                        .map(c => `<option value="${c.index}">${c.nombre}</option>`)
+                                        .join('')
+                                }
+                            </select>
+
+                            <input
+                                type="text"
+                                id="filtro-valor"
+                                class="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Valor a buscar..."
+                            >
+
+                            <button
+                                type="button"
+                                id="btn-add-filter"
+                                class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                            >
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+
+                        <div id="modal-active-filters" class="${state.filtrosDinamicos.length ? '' : 'hidden'}">
+                            <div id="modal-filters-list" class="flex flex-wrap gap-2"></div>
+                        </div>
+
+                        <div id="btn-clear-container" class="${state.filtrosDinamicos.length ? '' : 'hidden'} mt-2">
+                            <span id="filter-count" class="ml-2 text-xs text-gray-500"></span>
+                        </div>
+                    </div>
+                </div>
+            `,
+            width: '550px',
+            showConfirmButton: false,
+            showCancelButton: false,
+            showCloseButton: false,
+            didOpen: () => {
+                renderModalFilters();
+
+                const closeBtn = $('#btn-close-modal');
+                if (closeBtn) {
+                    closeBtn.onclick = () => Swal.close();
+                }
+
+                const addBtn = $('#btn-add-filter');
+                if (addBtn) {
+                    addBtn.onclick = addFilterFromModal;
+                }
+
+                const valorInput = $('#filtro-valor');
+                if (valorInput) {
+                    valorInput.onkeydown = event => {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            addFilterFromModal();
+                        }
+                    };
+                }
+
+                const clearBtn = $('#btn-clear-filters');
+                if (clearBtn) {
+                    clearBtn.onclick = () => {
+                        limpiarFiltrosCodificacion();
+                        Swal.close();
+                    };
+                }
+
+                const colSelect = $('#filtro-columna');
+                colSelect?.focus();
+            }
+        });
+    }
+
+    function addFilterFromModal() {
+        const colSelect  = $('#filtro-columna');
+        const valueInput = $('#filtro-valor');
+
+        if (!colSelect || !valueInput) return;
+
+        const columnaIdx = parseInt(colSelect.value, 10);
+        const valor      = valueInput.value.trim();
+
+        if (Number.isNaN(columnaIdx) || columnaIdx < 0) {
+            showToast('Selecciona una columna', 'warning');
+            colSelect.focus();
+            return;
+        }
+
+        if (!valor) {
+            showToast('Ingresa un valor', 'warning');
+            valueInput.focus();
+            return;
+        }
+
+        const exists = state.filtrosDinamicos.some(
+            f => f.columna === columnaIdx && f.valor.toLowerCase() === valor.toLowerCase()
+        );
+
+        if (exists) {
+            showToast('Este filtro ya existe', 'warning');
+            return;
+        }
+
+        state.filtrosDinamicos.push({ columna: columnaIdx, valor });
+
+        valueInput.value = '';
+        colSelect.selectedIndex = 0;
+        valueInput.focus();
+
+        aplicarFiltrosAND();
+        renderModalFilters();
+
+        if (!state.filteredData.length) {
             showToast('No se encontraron resultados', 'warning');
         } else {
             showToast(`${state.filteredData.length} de ${state.rawData.length} registros`, 'success');
         }
-
-        console.log('=== FILTROS APLICADOS ===');
-    }, needsLoading ? 10 : 0);
-}
-
-// UI de filtros activos
-function updateActiveFiltersUI() {
-    let container = $('#active-filters-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'active-filters-container';
-        container.className = 'px-4 py-2 bg-gray-50 border-b flex flex-wrap gap-2 items-center';
-        $('#table-container').parentElement.insertBefore(container, $('#table-container'));
     }
 
-    if (!state.filtrosDinamicos.length) {
-        container.classList.add('hidden');
-        return;
-    }
+    function renderModalFilters() {
+        const container      = $('#modal-active-filters');
+        const list           = $('#modal-filters-list');
+        const counter        = $('#filter-count');
+        const clearContainer = $('#btn-clear-container');
 
-    container.classList.remove('hidden');
-    container.innerHTML = `
-        <span class="text-sm text-gray-600 font-medium mr-2">
-            <i class="fas fa-filter mr-1"></i>Filtros (${state.filtrosDinamicos.length}):
-        </span>
-        ${state.filtrosDinamicos.map((f, i) => {
-            const colName = CONFIG.columnas[f.columna]?.nombre || 'Columna';
-            return `
-                <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                    <strong>${colName}:</strong> "${f.valor}"
-                    <button onclick="removeFilter(${i})" class="ml-1 hover:text-red-600 font-bold">×</button>
-                </span>`;
-        }).join('')}
-        <button onclick="limpiarFiltrosCodificacion()" class="ml-2 px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded">
-            <i class="fas fa-times mr-1"></i>Limpiar
-        </button>`;
-}
+        if (!container || !list) return;
 
-function removeFilter(index) {
-    state.filtrosDinamicos.splice(index, 1);
-    applyFilters();
-}
-
-// Modal de filtros simplificado
-function filtrarCodificacion() {
-    Swal.fire({
-        html: `
-            <div class="relative">
-                <!-- Header con X -->
-                <div class="flex items-center justify-between mb-4 pb-3">
-                    <h2 class="text-lg font-semibold text-gray-800">
-                        Filtrar Datos
-                    </h2>
-                    <button type="button" id="btn-close-modal" class="text-gray-400 hover:text-red-600 text-2xl leading-none">&times;</button>
-                </div>
-
-                <!-- Formulario de filtro -->
-                <div class="space-y-4">
-                    <div class="flex gap-2">
-                        <select id="filtro-columna" class="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Columna...</option>
-                            ${CONFIG.columnas.map(c => `<option value="${c.index}">${c.nombre}</option>`).join('')}
-                        </select>
-                        <input type="text" id="filtro-valor" class="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Valor a buscar...">
-                        <button type="button" id="btn-add-filter" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-
-                    <!-- Filtros activos -->
-                    <div id="modal-active-filters" class="${state.filtrosDinamicos.length ? '' : 'hidden'}">
-                        <div class="text-sm font-medium text-gray-600 mb-2">
-                            Filtros activos: <span id="filter-count" class="bg-blue-500 text-white px-2 py-0.5 rounded-full text-xs">${state.filtrosDinamicos.length}</span>
-                        </div>
-                        <div id="modal-filters-list" class="flex flex-wrap gap-2"></div>
-                    </div>
-
-                    <!-- Botón limpiar -->
-                    <div id="btn-clear-container" class="${state.filtrosDinamicos.length ? '' : 'hidden'}">
-                        <button type="button" id="btn-clear-filters" class="w-full px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors text-sm">
-                            <i class="fas fa-trash mr-2"></i>Limpiar todos los filtros
-                        </button>
-                    </div>
-                </div>
-            </div>`,
-        width: '550px',
-        showConfirmButton: false,
-        showCancelButton: false,
-        showCloseButton: false,
-        didOpen: () => {
-            renderModalFilters();
-
-            // Cerrar con X
-            $('#btn-close-modal').onclick = () => Swal.close();
-
-            // Agregar filtro
-            $('#btn-add-filter').onclick = addFilterFromModal;
-
-            // Agregar con Enter
-            $('#filtro-valor').onkeydown = e => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addFilterFromModal();
-                }
-            };
-
-            // Limpiar filtros
-            $('#btn-clear-filters').onclick = () => {
-                limpiarFiltrosCodificacion();
-                Swal.close();
-            };
-
-            // Focus en columna
-            $('#filtro-columna').focus();
+        if (!state.filtrosDinamicos.length) {
+            container.classList.add('hidden');
+            clearContainer?.classList.add('hidden');
+            return;
         }
-    });
-}
 
-function addFilterFromModal() {
-    const colSelect = $('#filtro-columna');
-    const valInput = $('#filtro-valor');
+        container.classList.remove('hidden');
+        clearContainer?.classList.remove('hidden');
+        if (counter) counter.textContent = state.filtrosDinamicos.length;
 
-    const columnaIdx = parseInt(colSelect.value);
-    const valor = valInput.value.trim();
-
-    console.log('Agregando filtro - Columna índice:', columnaIdx, 'Valor:', valor);
-    console.log('Campo correspondiente:', CONFIG.camposModelo[columnaIdx]);
-
-    if (isNaN(columnaIdx) || columnaIdx < 0) {
-        showToast('Selecciona una columna', 'warning');
-        colSelect.focus();
-        return;
+        list.innerHTML = state.filtrosDinamicos
+            .map((filtro, index) => {
+                const colName = CONFIG.columnas[filtro.columna]?.nombre || 'Columna';
+                return `
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        <strong>${colName}:</strong> "${filtro.valor}"
+                        <button
+                            type="button"
+                            class="ml-1 hover:text-red-600 font-bold"
+                            onclick="removeFilterFromModal(${index})"
+                        >
+                            &times;
+                        </button>
+                    </span>
+                `;
+            })
+            .join('');
     }
 
-    if (!valor) {
-        showToast('Ingresa un valor', 'warning');
-        valInput.focus();
-        return;
+    function removeFilterFromModal(index) {
+        state.filtrosDinamicos.splice(index, 1);
+        aplicarFiltrosAND();
+        renderModalFilters();
+        showToast(
+            state.filteredData.length ? `${state.filteredData.length} registros` : 'Filtro eliminado',
+            'info'
+        );
     }
 
-    // Verificar duplicados
-    if (state.filtrosDinamicos.some(f => f.columna === columnaIdx && f.valor.toLowerCase() === valor.toLowerCase())) {
-        showToast('Este filtro ya existe', 'warning');
-        return;
-    }
-
-    const nuevoFiltro = { columna: columnaIdx, valor: valor };
-    console.log('Nuevo filtro:', nuevoFiltro);
-
-    state.filtrosDinamicos.push(nuevoFiltro);
-
-    // Limpiar inputs
-    valInput.value = '';
-    colSelect.selectedIndex = 0;
-    valInput.focus();
-
-    // Aplicar filtros automáticamente
-    console.log('Llamando a applyFilters()...');
-    try {
-        applyFilters();
-    } catch (error) {
-        console.error('Error en applyFilters:', error);
-    }
-    renderModalFilters();
-    showToast('Filtro agregado', 'success');
-}
-
-function renderModalFilters() {
-    const container = $('#modal-active-filters');
-    const list = $('#modal-filters-list');
-    const counter = $('#filter-count');
-    const clearContainer = $('#btn-clear-container');
-
-    if (!container || !list) return;
-
-    if (!state.filtrosDinamicos.length) {
-        container.classList.add('hidden');
-        if (clearContainer) clearContainer.classList.add('hidden');
-        return;
-    }
-
-    container.classList.remove('hidden');
-    if (clearContainer) clearContainer.classList.remove('hidden');
-    if (counter) counter.textContent = state.filtrosDinamicos.length;
-
-    list.innerHTML = state.filtrosDinamicos.map((f, i) => {
-        const colName = CONFIG.columnas[f.columna]?.nombre || 'Columna';
-        return `
-            <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                <strong>${colName}:</strong> "${f.valor}"
-                <button onclick="removeFilterFromModal(${i})" class="ml-1 hover:text-red-600 font-bold">&times;</button>
-            </span>`;
-    }).join('');
-}
-
-function removeFilterFromModal(index) {
-    state.filtrosDinamicos.splice(index, 1);
-    applyFilters();
-    renderModalFilters();
-}
-
-function limpiarFiltrosCodificacion() {
-    const needsLoading = state.rawData.length > 500;
-    if (needsLoading) showTableLoading(true);
-
-    setTimeout(() => {
+    function limpiarFiltrosCodificacion() {
         state.filtrosDinamicos = [];
-        state.filteredData = [...state.rawData];
-        state.currentPage = 1;
-        renderPage();
-        updateActiveFiltersUI();
-        if (needsLoading) showTableLoading(false);
+        aplicarFiltrosAND();
         showToast('Filtros limpiados', 'info');
-    }, needsLoading ? 10 : 0);
-}
+    }
 
-// Excel upload
-function subirExcelCodificacion() {
-    const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.xlsx,.xls' });
-    input.onchange = e => {
-        const file = e.target.files[0];
+    // ============================================
+    //  EXCEL
+    // ============================================
+    function subirExcelCodificacion() {
+        const input = document.createElement('input');
+        input.type   = 'file';
+        input.accept = '.xlsx,.xls';
+
+        input.onchange = event => {
+            const file = event.target.files?.[0];
         if (!file) return;
-        if (file.size > 10 * 1024 * 1024) return showToast('Máximo 10MB', 'error');
+
+            const sizeMB = file.size / 1024 / 1024;
+            if (sizeMB > 10) {
+                showToast('Máximo 10MB', 'error');
+                return;
+            }
 
         Swal.fire({
             title: '¿Procesar Excel?',
-            text: `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
+                text: `${file.name} (${sizeMB.toFixed(2)} MB)`,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Procesar'
-        }).then(r => r.isConfirmed && procesarExcel(file));
-    };
+                confirmButtonText: 'Procesar'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    procesarExcel(file);
+                }
+            });
+        };
+
     input.click();
 }
 
@@ -756,55 +1250,347 @@ function procesarExcel(file) {
     const formData = new FormData();
     formData.append('archivo_excel', file);
 
-    Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        Swal.fire({
+            title: 'Procesando...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
 
     fetch('/planeacion/catalogos/codificacion-modelos/excel', {
         method: 'POST',
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').content },
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').content
+            },
         body: formData
     })
     .then(r => r.json())
     .then(data => {
-        if (data.success && data.data.poll_url) pollImportProgress(data.data.poll_url);
-        else Swal.fire({ title: 'Error', text: data.message || 'Error', icon: 'error' });
-    })
-    .catch(e => Swal.fire({ title: 'Error', text: e.message, icon: 'error' }));
-}
+                if (data.success && data.data?.poll_url) {
+            pollImportProgress(data.data.poll_url);
+                    return;
+                }
 
-function pollImportProgress(url, attempts = 0) {
-    if (attempts > 600) return Swal.fire({ title: 'Timeout', icon: 'warning' });
+                Swal.fire({
+                    title: 'Error',
+                    text: data.message || 'Ocurrió un error al procesar el archivo',
+                    icon: 'error'
+                });
+            })
+            .catch(error => {
+                Swal.fire({
+                    title: 'Error',
+                    text: error.message,
+                    icon: 'error'
+                });
+            });
+    }
 
-    fetch(url).then(r => r.json()).then(result => {
+    function pollImportProgress(url, attempts = 0) {
+        if (attempts > 600) {
+            Swal.fire({ title: 'Timeout', icon: 'warning' });
+            return;
+        }
+
+        fetch(url)
+            .then(r => r.json())
+            .then(result => {
             if (result.success && result.data) {
-                const { status, processed_rows = 0, total_rows = '?', created = 0, updated = 0, errors = 0 } = result.data;
-            Swal.update({ html: `${processed_rows}/${total_rows} (${result.percent || 0}%)` });
+                    const {
+                        status,
+                        processed_rows = 0,
+                        total_rows = '?',
+                        created = 0,
+                        updated = 0
+                    } = result.data;
+
+                    Swal.update({
+                        html: `${processed_rows}/${total_rows} (${result.percent || 0}%)`
+                    });
 
                 if (status === 'done') {
                     Swal.close();
-                Swal.fire({ title: '¡Éxito!', text: `Nuevos: ${created}, Actualizados: ${updated}`, icon: 'success' })
-                    .then(() => location.reload());
-            } else setTimeout(() => pollImportProgress(url, attempts + 1), 1000);
-        } else setTimeout(() => pollImportProgress(url, attempts + 1), 1000);
-    }).catch(() => setTimeout(() => pollImportProgress(url, attempts + 1), 1000));
+                        Swal.fire({
+                            title: '¡Éxito!',
+                            text: `Nuevos: ${created}, Actualizados: ${updated}`,
+                            icon: 'success'
+                        }).then(() => location.reload());
+                        return;
+                    }
+
+                    setTimeout(() => pollImportProgress(url, attempts + 1), 1000);
+                    return;
+                }
+
+                setTimeout(() => pollImportProgress(url, attempts + 1), 1000);
+            })
+            .catch(() => {
+                setTimeout(() => pollImportProgress(url, attempts + 1), 1000);
+            });
+    }
+
+    // ============================================
+    //  OCULTAR / FIJAR COLUMNAS
+    // ============================================
+    function showColumn(index, silent = false) {
+        $$(`.column-${index}`).forEach(el => {
+            el.style.display = '';
+            el.style.visibility = '';
+        });
+        if (Array.isArray(hiddenColumns)) {
+            const idx = hiddenColumns.indexOf(index);
+            if (idx > -1) {
+                hiddenColumns.splice(idx, 1);
+            }
+        }
+        if (!silent && typeof showToast === 'function') {
+            showToast(`Columna visible`, 'info');
+        }
+    }
+
+    function hideColumn(index, silent = false) {
+        $$(`.column-${index}`).forEach(el => el.style.display = 'none');
+        if (!hiddenColumns.includes(index)) hiddenColumns.push(index);
+        if (!silent && typeof showToast === 'function') {
+            showToast(`Columna oculta`, 'info');
+        }
+    }
+
+    function togglePinColumn(index) {
+        const exists = pinnedColumns.includes(index);
+        if (exists) {
+            pinnedColumns = pinnedColumns.filter(i => i !== index);
+        } else {
+            pinnedColumns.push(index);
+        }
+        pinnedColumns.sort((a, b) => a - b);
+        updatePinnedColumnsPositions();
+    }
+
+    function updatePinnedColumnsPositions() {
+        // Limpiar estilos de todas las columnas primero
+        const allIdx = [...new Set($$('th[class*="column-"]').map(th => {
+            const match = th.className.match(/column-(\d+)/);
+            return match ? parseInt(match[1]) : null;
+        }).filter(idx => idx !== null))];
+
+        allIdx.forEach(idx => {
+            $$(`.column-${idx}`).forEach(el => {
+                if (el.tagName === 'TH') {
+                    // Restaurar estilos básicos de encabezado (se aplicarán nuevos si está fijado)
+                    el.style.left = '';
+                    el.classList.remove('pinned-column');
+                    // Los estilos sticky top se mantienen del CSS base
+                    if (!pinnedColumns.includes(idx)) {
+                        el.style.backgroundColor = '#3b82f6';
+                    }
+                } else {
+                    // Limpiar todos los estilos de las celdas
+                    el.style.position = '';
+                    el.style.top = '';
+                    el.style.left = '';
+                    el.style.zIndex = '';
+                    el.style.backgroundColor = '';
+                    el.style.color = '';
+                    el.classList.remove('pinned-column');
+                }
+            });
+        });
+
+        // Aplicar fijados en orden
+        let left = 0;
+        pinnedColumns.forEach((idx, order) => {
+            const th = $(`th.column-${idx}`);
+            if (!th || th.style.display === 'none') return;
+
+            const width = th.offsetWidth || th.getBoundingClientRect().width;
+            $$(`.column-${idx}`).forEach(el => {
+                if (el.tagName === 'TH') {
+                    // Encabezado: sticky tanto en top (0) como en left
+                    el.style.position = '-webkit-sticky';
+                    el.style.position = 'sticky';
+                    el.style.top = '0';
+                    el.style.left = `${left}px`;
+                    el.style.zIndex = String(1020 + order);
+                    el.style.backgroundColor = '#f59e0b';
+                    el.style.color = '#fff';
+                    el.style.boxShadow = '2px 2px 4px rgba(0, 0, 0, 0.2)';
+                } else {
+                    // Celda del cuerpo: solo sticky en left (no en top)
+                    el.style.position = 'sticky';
+                    el.style.left = `${left}px`;
+                    el.style.zIndex = String(100 + order);
+                    el.style.backgroundColor = '#fffbeb';
+                }
+                el.classList.add('pinned-column');
+            });
+            left += width;
+        });
+    }
+
+    function openPinColumnsModal() {
+        const columns = CONFIG.columnas.map((col, idx) => ({
+            label: col.nombre,
+            index: idx
+        }));
+
+        let html = `
+            <div class="text-left">
+                <p class="text-sm text-gray-600 mb-4">Selecciona las columnas que deseas fijar a la izquierda de la tabla:</p>
+                <div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-2">
+        `;
+
+        columns.forEach((col) => {
+            const isPinned = pinnedColumns.includes(col.index);
+            html += `
+                <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                    <span class="text-sm text-gray-700">${col.label}</span>
+                    <input type="checkbox" ${isPinned ? 'checked' : ''}
+                           class="w-4 h-4 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500 column-toggle-pin"
+                           data-column-index="${col.index}">
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        Swal.fire({
+            title: 'Fijar Columnas',
+            html: html,
+            showCancelButton: true,
+            confirmButtonText: 'Aplicar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#f59e0b',
+            cancelButtonColor: '#6b7280',
+            width: '500px',
+            didOpen: () => {
+                document.querySelectorAll('#swal2-html-container .column-toggle-pin').forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        const columnIndex = parseInt(this.dataset.columnIndex);
+                        togglePinColumn(columnIndex);
+                        // Actualizar checkbox
+                        this.checked = pinnedColumns.includes(columnIndex);
+                    });
+                });
+        }
+    });
 }
 
-// Inicialización
-document.addEventListener('DOMContentLoaded', () => {
-    // Event listeners para botones de ordenamiento
-    $$('#mainTable thead th .sort-btn-asc').forEach(btn => {
-        btn.onclick = e => { e.stopPropagation(); sortColumn(+btn.dataset.column, 'asc'); };
-    });
-    $$('#mainTable thead th .sort-btn-desc').forEach(btn => {
-        btn.onclick = e => { e.stopPropagation(); sortColumn(+btn.dataset.column, 'desc'); };
-    });
+    function openHideColumnsModal() {
+        const columns = CONFIG.columnas.map((col, idx) => ({
+            label: col.nombre,
+            index: idx
+        }));
 
-    // Event listeners para paginación
-    $('#pagination-prev').onclick = () => goToPage(state.currentPage - 1);
-    $('#pagination-next').onclick = () => goToPage(state.currentPage + 1);
+        let html = `
+            <div class="text-left">
+                <p class="text-sm text-gray-600 mb-4">Selecciona las columnas que deseas ocultar:</p>
+                <div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-2">
+        `;
 
-    // Cargar datos
-    loadData();
-});
+        columns.forEach((col) => {
+            const isHidden = hiddenColumns.includes(col.index);
+            html += `
+                <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                    <span class="text-sm text-gray-700">${col.label}</span>
+                    <input type="checkbox" ${isHidden ? 'checked' : ''}
+                           class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 column-toggle-hide"
+                           data-column-index="${col.index}">
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        Swal.fire({
+            title: 'Ocultar Columnas',
+            html: html,
+            showCancelButton: true,
+            confirmButtonText: 'Aplicar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            width: '500px',
+            didOpen: () => {
+                document.querySelectorAll('#swal2-html-container .column-toggle-hide').forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        const columnIndex = parseInt(this.dataset.columnIndex);
+                        if (this.checked) {
+                            hideColumn(columnIndex);
+                        } else {
+                            showColumn(columnIndex);
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    // ============================================
+    //  INICIALIZACIÓN
+    // ============================================
+    function init() {
+        // Sort buttons
+        $$('#mainTable thead th .sort-btn-asc').forEach(btn => {
+            btn.addEventListener('click', event => {
+                event.stopPropagation();
+                sortColumn(Number(btn.dataset.column), 'asc');
+            });
+        });
+
+        $$('#mainTable thead th .sort-btn-desc').forEach(btn => {
+            btn.addEventListener('click', event => {
+                event.stopPropagation();
+                sortColumn(Number(btn.dataset.column), 'desc');
+            });
+        });
+
+        // Paginación
+        const prev = $('#pagination-prev');
+        const next = $('#pagination-next');
+
+        if (prev) prev.onclick = () => goToPage(state.currentPage - 1);
+        if (next) next.onclick = () => goToPage(state.currentPage + 1);
+
+        // Menú contextual
+        const duplicateBtn = $('#context-menu-duplicate');
+        if (duplicateBtn) {
+            duplicateBtn.onclick = (e) => {
+                e.stopPropagation();
+                $('#context-menu')?.classList.add('hidden');
+                duplicarCodificacion();
+            };
+        }
+
+        // Cargar datos
+        loadData();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    // ============================================
+    //  EXPOSE GLOBAL (compat)
+    // ============================================
+    window.agregarCodificacion       = agregarCodificacion;
+    window.editarCodificacion        = editarCodificacion;
+    window.eliminarCodificacion      = eliminarCodificacion;
+    window.filtrarCodificacion       = filtrarCodificacion;
+    window.limpiarFiltrosCodificacion = limpiarFiltrosCodificacion;
+    window.applyFilters              = applyFilters;
+    window.subirExcelCodificacion    = subirExcelCodificacion;
+    window.removeFilterFromModal     = removeFilterFromModal;
+    window.removeFilter              = removeFilter;
+    window.openPinColumnsModal       = openPinColumnsModal;
+    window.openHideColumnsModal      = openHideColumnsModal;
+    window.hideColumn                = hideColumn;
+    window.showColumn                = showColumn;
+    window.togglePinColumn           = togglePinColumn;
+})();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

@@ -74,8 +74,8 @@
 
         {{-- Botón Editar solo si tiene permiso de editar --}}
         @if($puedeEditar)
-            <button id="btn-editar" onclick="editar{{ $routeJs }}()" disabled
-               class="p-2 text-gray-400 hover:text-gray-600 rounded-md transition-colors cursor-not-allowed"
+            <button id="btn-editar" onclick="editar{{ $routeJs }}()"
+               class="p-2 text-yellow-400 hover:text-yellow-600 rounded-md transition-colors cursor-not-allowed"
                title="Editar" aria-label="Editar">
                 <i class="fas fa-edit text-lg" aria-hidden="true"></i>
             </button>

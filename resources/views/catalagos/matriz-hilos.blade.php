@@ -7,27 +7,33 @@
 @endsection
 
 @section('content')
-<div class="container-fluid px-4 py-6 -mt-6">
+<div class="container-fluid ">
     <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="overflow-x-auto h-[600px]">
+        <div class="overflow-x-auto" style="max-height: calc(100vh - 70px); overflow-y: auto;">
             <table id="mainTable" class="border-collapse w-full">
-                <thead>
+                <thead class="sticky top-0 z-10">
                     <tr class="border border-gray-300 px-2 py-2 text-center font-light text-white text-sm bg-blue-500">
-                        <th class="py-2 px-4">Hilo</th>
-                        <th class="py-2 px-4">Calibre</th>
-                        <th class="py-2 px-4">Calibre2</th>
-                        <th class="py-2 px-4">CalibreAX</th>
-                        <th class="py-2 px-4">Fibra</th>
-                        <th class="py-2 px-4">CodColor</th>
-                        <th class="py-2 px-4">NombreColor</th>
+                        <th class="py-2 px-4 ">Hilo</th>
+                        <th class="py-2 px-4 ">Calibre</th>
+                        <th class="py-2 px-4 ">Calibre2</th>
+                        <th class="py-2 px-4 ">CalibreAX</th>
+                        <th class="py-2 px-4 ">Fibra</th>
+                        <th class="py-2 px-4 ">CodColor</th>
+                        <th class="py-2 px-4 ">NombreColor</th>
+                        <th class="py-2 px-4 ">N1</th>
+                        <th class="py-2 px-4 ">N2</th>
                     </tr>
                 </thead>
                 <tbody id="matriz-hilos-body" class="bg-white text-black">
                     @foreach ($matrizHilos as $item)
-                        <tr class="text-center hover:bg-blue-50 transition cursor-pointer border-b"
-                            onclick="window.catalogManager?.selectRow(this, '{{ $item->id }}', '{{ $item->id }}')"
+                        @php
+                            // Obtener el ID usando getKey() que devuelve el valor de la clave primaria (Id)
+                            $itemId = $item->getKey() ?? $item->Id ?? $item->id ?? '';
+                        @endphp
+                        <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
+                            onclick="window.catalogManager?.selectRow(this, '{{ $itemId }}', '{{ $itemId }}')"
                             ondblclick="window.catalogManager?.deselectRow(this)"
-                            data-id="{{ $item->id }}"
+                            data-id="{{ $itemId }}"
                             data-hilo="{{ $item->Hilo }}"
                             data-calibre="{{ $item->Calibre }}"
                             data-calibre2="{{ $item->Calibre2 }}"
@@ -35,14 +41,18 @@
                             data-fibra="{{ $item->Fibra }}"
                             data-codcolor="{{ $item->CodColor }}"
                             data-nombrecolor="{{ $item->NombreColor }}"
+                            data-n1="{{ $item->N1 }}"
+                            data-n2="{{ $item->N2 }}"
                         >
-                            <td class="py-2 px-4 border-b">{{ $item->Hilo }}</td>
-                            <td class="py-2 px-4 border-b">{{ $item->Calibre ? number_format($item->Calibre, 4) : '' }}</td>
-                            <td class="py-2 px-4 border-b">{{ $item->Calibre2 ? number_format($item->Calibre2, 4) : '' }}</td>
-                            <td class="py-2 px-4 border-b">{{ $item->CalibreAX }}</td>
-                            <td class="py-2 px-4 border-b">{{ $item->Fibra }}</td>
-                            <td class="py-2 px-4 border-b">{{ $item->CodColor }}</td>
-                            <td class="py-2 px-4 border-b">{{ $item->NombreColor }}</td>
+                            <td class="py-2 px-4">{{ $item->Hilo }}</td>
+                            <td class="py-2 px-4">{{ $item->Calibre ? number_format($item->Calibre, 2) : '' }}</td>
+                            <td class="py-2 px-4">{{ $item->Calibre2 ? number_format($item->Calibre2, 2) : '' }}</td>
+                            <td class="py-2 px-4">{{ $item->CalibreAX }}</td>
+                            <td class="py-2 px-4">{{ $item->Fibra }}</td>
+                            <td class="py-2 px-4">{{ $item->CodColor }}</td>
+                            <td class="py-2 px-4">{{ $item->NombreColor }}</td>
+                            <td class="py-2 px-4">{{ $item->N1 ? number_format($item->N1, 2) : '' }}</td>
+                            <td class="py-2 px-4">{{ $item->N2 ? number_format($item->N2, 2) : '' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -62,14 +72,38 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Aliases globales para coincidir con los handlers generados por action-buttons
-    window.agregarMatriz_hilos = () => window.catalogManager.create();
-    window.editarMatriz_hilos = () => window.catalogManager.edit();
-    window.eliminarMatriz_hilos = () => window.catalogManager.delete();
+    window.agregarMatriz_hilos = () => {
+        if (window.catalogManager) {
+            window.catalogManager.create();
+        }
+    };
+    window.editarMatriz_hilos = () => {
+        if (window.catalogManager) {
+            window.catalogManager.edit();
+        }
+    };
+    window.eliminarMatriz_hilos = () => {
+        if (window.catalogManager) {
+            window.catalogManager.delete();
+        }
+    };
 
     // Aliases alternativos
-    window.agregarMatrizHilos = () => window.catalogManager.create();
-    window.editarMatrizHilos = () => window.catalogManager.edit();
-    window.eliminarMatrizHilos = () => window.catalogManager.delete();
+    window.agregarMatrizHilos = () => {
+        if (window.catalogManager) {
+            window.catalogManager.create();
+        }
+    };
+    window.editarMatrizHilos = () => {
+        if (window.catalogManager) {
+            window.catalogManager.edit();
+        }
+    };
+    window.eliminarMatrizHilos = () => {
+        if (window.catalogManager) {
+            window.catalogManager.delete();
+        }
+    };
 });
 </script>
 @endsection

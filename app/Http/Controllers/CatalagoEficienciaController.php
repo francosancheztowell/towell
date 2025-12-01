@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ReqEficienciaStd;
+use App\Models\ReqProgramaTejido;
 use App\Imports\ReqEficienciaStdImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -108,7 +109,7 @@ class CatalagoEficienciaController extends Controller
             // Validación rápida
             $request->validate([
                 'NoTelarId' => 'required|string|max:10',
-                'FibraId' => 'required|string|max:20',
+                'FibraId' => 'required|string|max:120',
                 'Eficiencia' => 'required|numeric|min:0|max:1',
                 'Densidad' => 'nullable|string|max:10'
             ]);
@@ -158,10 +159,16 @@ class CatalagoEficienciaController extends Controller
         try {
             $request->validate([
                 'NoTelarId' => 'required|string|max:20',
-                'FibraId' => 'required|string|max:30',
+                'FibraId' => 'required|string|max:120',
                 'Eficiencia' => 'required|numeric|min:0|max:1',
                 'Densidad' => 'nullable|string|max:10'
             ]);
+
+            // Guardar valores ANTES de actualizar para buscar programas relacionados
+            $eficienciaOriginal = (float)($eficiencia->Eficiencia ?? 0);
+            $telarOriginal = $eficiencia->NoTelarId;
+            $fibraOriginal = $eficiencia->FibraId;
+            $densidadOriginal = $eficiencia->Densidad ?? 'Normal';
 
             // Usar solo el número del telar para evitar problemas de longitud
             $salon = $request->SalonTejidoId ?: 'JACQUARD'; // Usar salón enviado o JACQUARD por defecto
@@ -179,14 +186,33 @@ class CatalagoEficienciaController extends Controller
                 ], 422);
             }
 
+            // Verificar si cambió la eficiencia ANTES de actualizar
+            $eficienciaCambiada = abs($eficienciaOriginal - (float)$request->Eficiencia) > 0.0001;
+            $nuevaEficiencia = (float)$request->Eficiencia;
+            $nuevoTelar = $request->NoTelarId;
+            $nuevaFibra = $request->FibraId;
+            $nuevaDensidad = $request->Densidad ?? 'Normal';
+
             // Actualizar registro
             $eficiencia->update([
                 'SalonTejidoId' => $salon,
-                'NoTelarId' => $request->NoTelarId, // Solo el número del telar
-                'FibraId' => $request->FibraId,
-                'Eficiencia' => $request->Eficiencia,
-                'Densidad' => $request->Densidad ?? 'Normal'
+                'NoTelarId' => $nuevoTelar,
+                'FibraId' => $nuevaFibra,
+                'Eficiencia' => $nuevaEficiencia,
+                'Densidad' => $nuevaDensidad
             ]);
+
+            // Si cambió la eficiencia, actualizar programas relacionados y recalcular fórmulas
+            // Buscar con los valores NUEVOS (por si cambió telar o fibra también)
+            if ($eficienciaCambiada) {
+                $this->actualizarProgramasYRecalcular($nuevoTelar, $nuevaFibra, $nuevaDensidad, $nuevaEficiencia);
+            }
+
+            // Si cambió el telar o fibra, también actualizar los programas que usaban los valores antiguos
+            if ($telarOriginal !== $nuevoTelar || $fibraOriginal !== $nuevaFibra || $densidadOriginal !== $nuevaDensidad) {
+                // Actualizar programas que usaban los valores antiguos con los nuevos
+                $this->actualizarProgramasYRecalcular($telarOriginal, $fibraOriginal, $densidadOriginal, $nuevaEficiencia);
+            }
 
             return response()->json([
                 'success' => true,
@@ -202,6 +228,90 @@ class CatalagoEficienciaController extends Controller
     }
 
     /**
+     * Actualiza los programas de tejido que usan esta eficiencia y recalcula sus fórmulas
+     */
+    private function actualizarProgramasYRecalcular(string $telar, string $fibra, string $densidad, float $nuevaEficiencia)
+    {
+        try {
+            // Buscar programas que usan esta eficiencia
+            $programas = ReqProgramaTejido::where('NoTelarId', $telar)
+                ->where(function ($query) use ($fibra) {
+                    $query->where('FibraRizo', $fibra)
+                          ->orWhere('FibraTrama', $fibra);
+                })
+                ->get();
+
+            $actualizados = 0;
+            foreach ($programas as $programa) {
+                // Calcular la densidad del programa basándose en CalibreTrama
+                $calibreTrama = $programa->CalibreTrama ?? $programa->CalibreTrama2;
+                $densidadPrograma = ($calibreTrama !== null && (float)$calibreTrama > 40) ? 'Alta' : 'Normal';
+
+                // Si la densidad coincide, actualizar EficienciaSTD y recalcular
+                if ($densidadPrograma === $densidad) {
+                    // Verificar si el valor es diferente antes de actualizar
+                    $eficienciaActual = (float)($programa->EficienciaSTD ?? 0);
+                    if (abs($eficienciaActual - $nuevaEficiencia) > 0.0001) {
+                        // Guardar valores antes de actualizar para logging
+                        $horasProdAntes = $programa->HorasProd ?? 0;
+                        $stdToaHraAntes = $programa->StdToaHra ?? 0;
+                        $eficienciaAntes = (float)($programa->EficienciaSTD ?? 0);
+                        
+                        // Actualizar EficienciaSTD en el modelo y marcar como modificado
+                        $programa->EficienciaSTD = $nuevaEficiencia;
+                        $programa->setAttribute('EficienciaSTD', $nuevaEficiencia);
+                        
+                        // Forzar que Eloquent detecte el cambio actualizando UpdatedAt
+                        // Esto asegura que el Observer se ejecute
+                        $programa->UpdatedAt = now();
+                        
+                        // Guardar el programa para que el Observer recalcule las fórmulas
+                        // El Observer se ejecutará automáticamente en el evento 'saved' y recalculará:
+                        // - StdDia, ProdKgDia, StdHrsEfect, ProdKgDia2, HorasProd, DiasJornada, etc.
+                        // y regenerará las líneas diarias
+                        // El Observer usará el valor actualizado de EficienciaSTD que está en el modelo
+                        $programa->save();
+                        
+                        // Recargar el modelo para verificar que se actualizó HorasProd
+                        $programa->refresh();
+                        $horasProdDespues = $programa->HorasProd ?? 0;
+
+                        Log::info('Programa actualizado', [
+                            'programa_id' => $programa->Id,
+                            'eficiencia_antes' => $eficienciaAntes,
+                            'eficiencia_despues' => $nuevaEficiencia,
+                            'eficiencia_en_modelo' => (float)($programa->EficienciaSTD ?? 0),
+                            'horasprod_antes' => $horasProdAntes,
+                            'horasprod_despues' => $horasProdDespues,
+                            'stdtoahra' => $programa->StdToaHra ?? 0,
+                            'cantidad' => $programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0,
+                            'horasprod_esperado' => ($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0) / (($programa->StdToaHra ?? 0) * $nuevaEficiencia)
+                        ]);
+
+                        $actualizados++;
+                    }
+                }
+            }
+
+            Log::info('Programas actualizados y recalculados', [
+                'telar' => $telar,
+                'fibra' => $fibra,
+                'densidad' => $densidad,
+                'nueva_eficiencia' => $nuevaEficiencia,
+                'programas_actualizados' => $actualizados
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar programas y recalcular fórmulas', [
+                'telar' => $telar,
+                'fibra' => $fibra,
+                'densidad' => $densidad,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
      * Eliminar una eficiencia
      */
     public function destroy(ReqEficienciaStd $eficiencia)
@@ -209,6 +319,40 @@ class CatalagoEficienciaController extends Controller
         try {
             $telar = $eficiencia->NoTelarId;
             $fibra = $eficiencia->FibraId;
+            $densidad = $eficiencia->Densidad ?? 'Normal';
+            $salon = $eficiencia->SalonTejidoId ?? 'JACQUARD';
+
+            // Verificar si la eficiencia está siendo utilizada en ReqProgramaTejido
+            // La eficiencia se busca por: NoTelarId, FibraId (de FibraRizo o FibraTrama), y Densidad
+            // Primero buscar registros que coincidan con NoTelarId y FibraId
+            $programas = ReqProgramaTejido::where('NoTelarId', $telar)
+                ->where(function ($query) use ($fibra) {
+                    $query->where('FibraRizo', $fibra)
+                          ->orWhere('FibraTrama', $fibra);
+                })
+                ->get();
+
+            // Verificar si alguno de estos programas usaría esta eficiencia
+            // (basándose en la densidad calculada)
+            $enUso = false;
+            foreach ($programas as $programa) {
+                // Calcular la densidad del programa basándose en CalibreTrama
+                $calibreTrama = $programa->CalibreTrama ?? $programa->CalibreTrama2;
+                $densidadPrograma = ($calibreTrama !== null && (float)$calibreTrama > 40) ? 'Alta' : 'Normal';
+
+                // Si la densidad coincide, entonces esta eficiencia está en uso
+                if ($densidadPrograma === $densidad) {
+                    $enUso = true;
+                    break;
+                }
+            }
+
+            if ($enUso) {
+                return response()->json([
+                    'message' => "No se puede eliminar la eficiencia porque esta siendo utilizada en el programa de tejido."
+                ], 422);
+            }
+
             $eficiencia->delete();
 
             return response()->json([

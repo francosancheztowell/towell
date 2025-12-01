@@ -203,9 +203,42 @@ class CodificacionController extends Controller
         }
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        return view('catalagos.codificacion-form');
+        $codificacion = null;
+
+        // Si se está duplicando un registro, cargar sus datos
+        if ($request->has('duplicate')) {
+            $duplicateId = $request->query('duplicate');
+            $original = ReqModelosCodificados::find($duplicateId);
+
+            if (!$original) {
+                return redirect()->route('codificacion.index')
+                    ->with('error', 'Registro no encontrado para duplicar');
+            }
+
+            // Obtener todos los atributos del modelo original (incluyendo nulls)
+            $attributes = $original->getAttributes();
+
+            // Eliminar campos que no queremos copiar
+            unset($attributes['Id']);
+            unset($attributes['created_at']);
+            unset($attributes['updated_at']);
+
+            // Crear una nueva instancia vacía
+            $codificacion = new ReqModelosCodificados();
+
+            // Usar makeHidden para asegurar que todos los atributos estén disponibles
+            // y luego asignar todos los atributos usando setRawAttributes para preservar valores null
+            $codificacion->setRawAttributes($attributes, true);
+
+            // Asegurar que no tenga ID asignado y que se trate como nuevo registro
+            $codificacion->Id = null;
+            $codificacion->exists = false;
+            $codificacion->wasRecentlyCreated = false;
+        }
+
+        return view('catalagos.codificacion-form', compact('codificacion'));
     }
 
     public function edit($id)
@@ -225,7 +258,7 @@ class CodificacionController extends Controller
             $codificaciones = DB::table('ReqModelosCodificados')
                 ->select($campos)
                 ->orderByDesc('Id')
-                ->get();
+            ->get();
 
             return response()->json([
                 'success' => true,
@@ -354,6 +387,48 @@ class CodificacionController extends Controller
         return response()->json(['success' => true, 'message' => 'Registro eliminado']);
     }
 
+    /** API: duplicar registro */
+    public function duplicate($id): JsonResponse
+    {
+        try {
+            $original = ReqModelosCodificados::find($id);
+
+            if (!$original) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Registro no encontrado'
+                ], 404);
+            }
+
+            // Obtener todos los atributos del modelo original
+            $attributes = $original->getAttributes();
+
+            // Eliminar el ID para que se cree un nuevo registro
+            unset($attributes['Id']);
+
+            // Crear un nuevo registro con los mismos datos
+            $duplicado = ReqModelosCodificados::create($attributes);
+
+            Cache::forget('codificacion_total');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Registro duplicado exitosamente',
+                'data' => $duplicado
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('CodificacionController::duplicate', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al duplicar el registro: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     /** Procesar Excel */
     public function procesarExcel(Request $request): JsonResponse
     {
@@ -398,9 +473,9 @@ class CodificacionController extends Controller
     public function importProgress($id): JsonResponse
     {
         $state = Cache::get('excel_import_progress:' . $id);
-        if (!$state) {
-            return response()->json(['success' => false, 'message' => 'Progreso no encontrado'], 404);
-        }
+            if (!$state) {
+                return response()->json(['success' => false, 'message' => 'Progreso no encontrado'], 404);
+            }
 
         $pct = !empty($state['total_rows']) && $state['total_rows'] > 0
             ? round(100 * (($state['processed_rows'] ?? 0) / $state['total_rows']), 1)
@@ -411,13 +486,13 @@ class CodificacionController extends Controller
             'error' => substr($e['error'] ?? 'Error desconocido', 0, 150)
         ], $state['errors'] ?? []);
 
-        return response()->json([
-            'success' => true,
-            'data' => $state,
-            'percent' => $pct,
-            'errors' => $errors,
-            'has_errors' => !empty($errors)
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $state,
+                'percent' => $pct,
+                'errors' => $errors,
+                'has_errors' => !empty($errors)
+            ]);
     }
 
     /** Búsqueda con filtros */
@@ -443,14 +518,131 @@ class CodificacionController extends Controller
 
         try {
             $data = $q->orderByDesc('Id')->get();
-            return response()->json([
-                'success' => true,
+                return response()->json([
+                    'success' => true,
                 'data' => $data,
                 'total' => $data->count(),
                 'mensaje' => $data->isEmpty() ? 'Sin resultados' : null
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /** Obtener salones y números de telar */
+    public function getSalonesYTelares(): JsonResponse
+    {
+        try {
+            // Usar Query Builder de Laravel
+            // Las columnas correctas son: TipoTelar (equivalente a SalonTejidoId) y NoTelar (equivalente a NoTelarId)
+            $data = DB::table('InvSecuenciaTelares')
+                ->select('TipoTelar', 'NoTelar')
+                ->whereNotNull('TipoTelar')
+                ->whereNotNull('NoTelar')
+                ->distinct()
+                ->orderBy('TipoTelar')
+                ->orderBy('NoTelar')
+                ->get();
+
+            // Agrupar por salón (TipoTelar)
+            $salones = [];
+            $telaresPorSalon = [];
+            $telaresITEMASMIT = []; // Agrupar telares de ITEMA y SMIT juntos
+
+            foreach ($data as $item) {
+                // Acceder a las propiedades
+                $salon = $item->TipoTelar ?? null;
+                $telar = $item->NoTelar ?? null;
+
+                // Validar que no sean null o vacíos
+                if (empty($salon) || empty($telar)) {
+                    continue;
+                }
+
+                // Convertir a string y limpiar
+                $salon = trim((string)$salon);
+                $telar = trim((string)$telar);
+
+                // Saltar si están vacíos después de trim
+                if ($salon === '' || $telar === '') {
+                    continue;
+                }
+
+                // Convertir telar a string para consistencia
+                $telarStr = (string)$telar;
+
+                // ITEMA se trata como SMIT - unificar ambos
+                if ($salon === 'ITEMA' || $salon === 'SMIT') {
+                    // Agrupar todos los telares de ITEMA y SMIT juntos bajo SMIT
+                    if (!in_array($telarStr, $telaresITEMASMIT, true)) {
+                        $telaresITEMASMIT[] = $telarStr;
+                    }
+                    // Agregar ITEMA a la lista de salones (se mostrará como ITEMA pero se manejará como SMIT)
+                    if ($salon === 'ITEMA' && !in_array('ITEMA', $salones, true)) {
+                        $salones[] = 'ITEMA';
+                    }
+                    // También agregar SMIT si existe en la base de datos
+                    if ($salon === 'SMIT' && !in_array('SMIT', $salones, true)) {
+                        $salones[] = 'SMIT';
+                    }
+                } else {
+                    // Otros salones normales
+                    if (!isset($telaresPorSalon[$salon])) {
+                        $telaresPorSalon[$salon] = [];
+                    }
+
+                    if (!in_array($telarStr, $telaresPorSalon[$salon], true)) {
+                        $telaresPorSalon[$salon][] = $telarStr;
+                    }
+
+                    // Agregar salón único
+                    if (!in_array($salon, $salones, true)) {
+                        $salones[] = $salon;
+                    }
+                }
+            }
+
+            // Asignar telares compartidos a SMIT e ITEMA (ITEMA se trata como SMIT)
+            if (!empty($telaresITEMASMIT)) {
+                sort($telaresITEMASMIT);
+                // Siempre asignar a SMIT
+                $telaresPorSalon['SMIT'] = $telaresITEMASMIT;
+                // Siempre asignar a ITEMA también (son los mismos telares)
+                $telaresPorSalon['ITEMA'] = $telaresITEMASMIT;
+            }
+
+            // Ordenar salones y telares
+            sort($salones);
+            foreach ($telaresPorSalon as $salon => $telares) {
+                if (is_array($telares)) {
+                    sort($telaresPorSalon[$salon]);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'salones' => array_values($salones),
+                    'telaresPorSalon' => $telaresPorSalon
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo salones y telares', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener salones y telares: ' . $e->getMessage(),
+                'debug' => config('app.debug') ? [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => explode("\n", $e->getTraceAsString())
+                ] : null
+            ], 500);
         }
     }
 
