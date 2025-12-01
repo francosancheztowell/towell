@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initialData: @json($aplicaciones)
     });
 
-    // Funciones globales esperadas por catalog-actions component
+    // Funciones globales esperadas por catalog-sactions component
     // El componente genera: agregarAplicaciones, editarAplicaciones, eliminarAplicaciones, filtrarAplicaciones, limpiarFiltrosAplicaciones, subirExcelAplicaciones
     window.agregarAplicaciones = () => window.catalogManager.create();
     window.editarAplicaciones = () => window.catalogManager.edit();

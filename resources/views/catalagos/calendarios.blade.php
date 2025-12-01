@@ -131,7 +131,7 @@
             }
         }
 
-        // ✨ FUNCIÓN PARA FILTRAR LA SEGUNDA TABLA
+        // ✨ FUNCIÓN PARA FILTRAR LA SsEGUNDA TABLA
         function filtrarLineasPorCalendario(calendarioId) {
             const tbody = document.getElementById('calendario-line-body');
             const rows = tbody.querySelectorAll('tr');
