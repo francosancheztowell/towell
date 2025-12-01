@@ -197,28 +197,45 @@ class MarcasController extends Controller
                     ->groupBy('NoTelarId')
                     ->map(fn($group) => $group->first());
 
+                // Mapa de salón por telar desde la secuencia (fallback si no hay STD)
+                $secuencia = $this->obtenerSecuenciaTelares();
+                $salonPorTelar = $secuencia->keyBy('NoTelarId');
+
                 $lineasParaInsertar = [];
                 foreach ($lineas as $linea) {
+                    if (!is_array($linea) || !isset($linea['NoTelarId'])) {
+                        continue;
+                    }
+
                     $noTelar = $linea['NoTelarId'];
                     $std = $eficienciasStd->get($noTelar);
 
-                    $efiPercent = isset($linea['PorcentajeEfi']) ? (int)$linea['PorcentajeEfi'] : null;
-                    $efiDecimal = $efiPercent !== null
-                        ? ($efiPercent / 100)
-                        : ($std->EficienciaSTD ?? null);
+                    // Fallback salón si no hay STD
+                    $stdSalon = $std->SalonTejidoId ?? optional($salonPorTelar->get($noTelar))->SalonId;
+
+                    // STD eficiencia original viene como decimal (0-1), convertir a entero porcentaje
+                    $stdEfiDecimal = $std->EficienciaSTD ?? null;
+                    $stdEfiPercent = $stdEfiDecimal !== null ? (int)round($stdEfiDecimal * 100) : 0;
+
+                    // Prioridad: valor capturado (PorcentajeEfi) si viene, si no STD convertido, si no 0
+                    $efiPercent = isset($linea['PorcentajeEfi']) ? (int)$linea['PorcentajeEfi'] : $stdEfiPercent;
+                    
+                    // Asegurar rango 0-100
+                    if ($efiPercent < 0) $efiPercent = 0;
+                    if ($efiPercent > 100) $efiPercent = 100;
 
                     $lineasParaInsertar[] = [
                         'Folio' => $folio,
                         'Date' => $fecha,
                         'Turno' => $turno,
-                        'SalonTejidoId' => $std->SalonTejidoId ?? null,
+                        'SalonTejidoId' => $stdSalon,
                         'NoTelarId' => $noTelar,
-                        'Eficiencia' => $efiDecimal,
-                        'Marcas' => $linea['Marcas'] ?? 0,
-                        'Trama' => $linea['Trama'] ?? 0,
-                        'Pie' => $linea['Pie'] ?? 0,
-                        'Rizo' => $linea['Rizo'] ?? 0,
-                        'Otros' => $linea['Otros'] ?? 0,
+                        'Eficiencia' => $efiPercent, // Guardar como ENTERO 0-100
+                        'Marcas' => (int)($linea['Marcas'] ?? 0),
+                        'Trama' => (int)($linea['Trama'] ?? 0),
+                        'Pie' => (int)($linea['Pie'] ?? 0),
+                        'Rizo' => (int)($linea['Rizo'] ?? 0),
+                        'Otros' => (int)($linea['Otros'] ?? 0),
                         'created_at' => now(),
                         'updated_at' => now()
                     ];
@@ -235,9 +252,14 @@ class MarcasController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error en MarcasController@store', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar datos'
+                'message' => 'Error al guardar datos',
+                'error' => $e->getMessage()
             ], 500);
         }
     }

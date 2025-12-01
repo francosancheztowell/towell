@@ -552,12 +552,12 @@ function cargarMarcaExistente(folio) {
         (d.lineas || []).forEach(l => {
             const telar = l.NoTelarId;
 
-            // Actualizar % Efi
-            const efiVal = l.Eficiencia ?? l.EficienciaSTD ?? l.EficienciaStd ?? null;
-            const efiPercent = efiVal !== null ? (typeof efiVal === 'number' ? Math.round(efiVal * 100) : parseInt(efiVal) || null) : null;
+            // Actualizar % Efi - Ya viene como entero 0-100 desde la BD
+            const efiVal = l.Eficiencia ?? null;
+            const efiPercent = efiVal !== null ? parseInt(efiVal, 10) : null;
             const efiSpan = q(`button[data-telar="${telar}"][data-type="efi"] .valor-display-text`);
             if (efiSpan) {
-                efiSpan.textContent = (efiPercent && efiPercent > 0) ? `${efiPercent}%` : '-';
+                efiSpan.textContent = (efiPercent !== null && efiPercent > 0) ? `${efiPercent}%` : '-';
             }
 
             // Actualizar otros campos
