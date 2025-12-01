@@ -7,17 +7,17 @@ Telares por Operador
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button onclick="openModal('createModal')" class="p-2 rounded-lg transition hover:bg-green-100" title="Nuevo Operador">
+        <button id="btn-create" type="button" class="p-2 rounded-lg transition hover:bg-green-100" title="Nuevo Operador">
             <i class="fa-solid fa-plus text-green-600 text-lg"></i>
         </button>
         <button id="btn-top-edit" type="button"
             class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            onclick="handleTopEdit()" disabled title="Editar Operador">
+            disabled title="Editar Operador">
             <i class="fa-solid fa-pen-to-square text-yellow-500 text-lg"></i>
         </button>
         <button id="btn-top-delete" type="button"
             class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            onclick="handleTopDelete()" disabled title="Eliminar Operador">
+            disabled title="Eliminar Operador">
             <i class="fa-solid fa-trash text-red-600 text-lg"></i>
         </button>
     </div>
@@ -61,14 +61,13 @@ Telares por Operador
                     </thead>
                     <tbody>
                 @forelse($items as $it)
-                    <tr class="odd:bg-white even:bg-gray-50 cursor-pointer transition-colors duration-150 hover:bg-blue-50"
+                    <tr class="odd:bg-white even:bg-gray-50 cursor-pointer transition-colors duration-150 hover:bg-blue-50 row-selectable"
                         data-key="{{ $it->getRouteKey() }}"
                         data-numero="{{ e($it->numero_empleado) }}"
                         data-nombre="{{ e($it->nombreEmpl) }}"
                         data-telar="{{ e($it->NoTelarId) }}"
                         data-turno="{{ e($it->Turno) }}"
                         data-salon="{{ e($it->SalonTejidoId) }}"
-                        onclick="selectRow(this)"
                         aria-selected="false">
                         <td class="px-3 py-2 align-middle">{{ $it->numero_empleado }}</td>
                         <td class="px-3 py-2 align-middle">{{ $it->nombreEmpl }}</td>
@@ -115,7 +114,7 @@ Telares por Operador
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium">Nombre</label>
-                            <input type="text" id="createNombre" name="nombreEmpl" class="w-full px-3 py-2 border rounded bg-gray-50" readonly>
+                            <input type="text" id="createNombre" name="nombreEmpl" class="w-full px-3 py-2 border rounded bg-gray-50" readonly required>
                         </div>
                         <div>
                             <label class="block text-sm font-medium">No. Telar</label>
@@ -130,7 +129,7 @@ Telares por Operador
                         </div>
                         <div>
                             <label class="block text-sm font-medium">Turno</label>
-                            <input type="text" id="createTurno" name="Turno" class="w-full px-3 py-2 border rounded bg-gray-50" readonly>
+                            <input type="text" id="createTurno" name="Turno" class="w-full px-3 py-2 border rounded bg-gray-50" readonly required>
                         </div>
                         <div>
                             <label class="block text-sm font-medium">Salón Tejido Id</label>
@@ -138,7 +137,7 @@ Telares por Operador
                         </div>
                     </div>
                     <div class="flex justify-end">
-                        <button type="button" onclick="closeModal('createModal')" class="px-4 py-2 bg-gray-500 text-white rounded mr-2 mt-3">Cancelar</button>
+                        <button type="button" data-close-modal="createModal" class="px-4 py-2 bg-gray-500 text-white rounded mr-2 mt-3">Cancelar</button>
                         <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded mt-3">Guardar</button>
                     </div>
                 </form>
@@ -190,7 +189,7 @@ Telares por Operador
                         </div>
                     </div>
                     <div class="flex justify-end">
-                        <button type="button" onclick="closeModal('editModal')" class="px-4 py-2 bg-gray-500 text-white rounded mr-2">Cancelar</button>
+                        <button type="button" data-close-modal="editModal" class="px-4 py-2 bg-gray-500 text-white rounded mr-2">Cancelar</button>
                         <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded">Actualizar</button>
                     </div>
                 </form>
@@ -221,6 +220,7 @@ Telares por Operador
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+document.addEventListener('DOMContentLoaded', function() {
     const updateUrl = '{{ route("tel-telares-operador.update", ["telTelaresOperador" => "PLACEHOLDER"]) }}';
     const destroyUrl = '{{ route("tel-telares-operador.destroy", ["telTelaresOperador" => "PLACEHOLDER"]) }}';
 
@@ -302,7 +302,29 @@ Telares por Operador
         });
     }
     function openModal(modalId) {
-        document.getElementById(modalId).classList.remove('hidden');
+        console.log('openModal llamado con:', modalId);
+        const modal = document.getElementById(modalId);
+        console.log('Modal encontrado:', modal);
+        if (!modal) {
+            console.error('Modal no encontrado:', modalId);
+            return;
+        }
+        
+        // Reset form if it's the create modal
+        if (modalId === 'createModal') {
+            const form = modal.querySelector('form');
+            if (form) form.reset();
+            // Clear readonly fields manually
+            const nombre = document.getElementById('createNombre');
+            const turno = document.getElementById('createTurno');
+            const salon = document.getElementById('createSalon');
+            if (nombre) nombre.value = '';
+            if (turno) turno.value = '';
+            if (salon) salon.value = '';
+        }
+        
+        modal.classList.remove('hidden');
+        console.log('Modal abierto');
     }
     function closeModal(modalId) {
         document.getElementById(modalId).classList.add('hidden');
@@ -359,6 +381,29 @@ Telares por Operador
     // Estado inicial
     updateTopButtonsState();
 
+    // Event listeners para botones de navbar
+    document.getElementById('btn-create')?.addEventListener('click', function() {
+        openModal('createModal');
+    });
+
+    document.getElementById('btn-top-edit')?.addEventListener('click', handleTopEdit);
+    document.getElementById('btn-top-delete')?.addEventListener('click', handleTopDelete);
+
+    // Event listeners para filas de la tabla
+    document.querySelectorAll('.row-selectable').forEach(row => {
+        row.addEventListener('click', function() {
+            selectRow(this);
+        });
+    });
+
+    // Event listeners para botones de cerrar modal
+    document.querySelectorAll('[data-close-modal]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modalId = this.getAttribute('data-close-modal');
+            closeModal(modalId);
+        });
+    });
+
     // Vincular selects de telar con su salón
     function wireTelarSalon(selectId, salonInputId) {
         const sel = document.getElementById(selectId);
@@ -381,13 +426,42 @@ Telares por Operador
         if (!sel || !nombre || !turno) return;
         const sync = () => {
             const op = sel.options[sel.selectedIndex];
-            nombre.value = op ? (op.getAttribute('data-nombre') || '') : '';
-            turno.value = op ? (op.getAttribute('data-turno') || '') : '';
+            if (!op || !op.value || op.disabled) {
+                nombre.value = '';
+                turno.value = '';
+                return;
+            }
+            nombre.value = op.getAttribute('data-nombre') || '';
+            turno.value = op.getAttribute('data-turno') || '';
         };
         sel.addEventListener('change', sync);
-        sync();
+        // Solo sincronizar al inicio si ya hay un valor válido seleccionado
+        if (sel.value) sync();
     }
     wireEmpleado('createEmpleado','createNombre','createTurno');
     wireEmpleado('editEmpleado','editNombre','editTurno');
+    
+    // Validar formulario de creación antes de submit
+    const createForm = document.querySelector('#createModal form');
+    if (createForm) {
+        createForm.addEventListener('submit', function(e) {
+            const empSel = document.getElementById('createEmpleado');
+            const telarSel = document.getElementById('createTelar');
+            const nombre = document.getElementById('createNombre');
+            const turno = document.getElementById('createTurno');
+            const salon = document.getElementById('createSalon');
+            
+            if (!empSel.value || !telarSel.value || !nombre.value || !turno.value || !salon.value) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Campos incompletos',
+                    text: 'Por favor completa todos los campos requeridos'
+                });
+                return false;
+            }
+        });
+    }
+});
 </script>
 @endsection
