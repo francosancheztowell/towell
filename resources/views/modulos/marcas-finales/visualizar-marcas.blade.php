@@ -7,7 +7,14 @@
     <div class="flex items-center justify-between mb-4">
         <div>
             <h2 class="text-xl font-semibold text-gray-800">Marcas Finales de Turno</h2>
-            <p class="text-sm text-gray-600 mt-0.5">Folio: <span class="font-medium">{{ $folio }}</span> · Fecha: <span class="font-medium">{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</span></p>
+            @php
+                // Si viene solo fecha (reporte por fecha), ocultar folio principal si no aplica
+            @endphp
+            @if(isset($folio))
+                <p class="text-sm text-gray-600 mt-0.5">Folio: <span class="font-medium">{{ $folio }}</span> · Fecha: <span class="font-medium">{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</span></p>
+            @else
+                <p class="text-sm text-gray-600 mt-0.5">Fecha: <span class="font-medium">{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</span></p>
+            @endif
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('marcas.consultar') }}" class="px-3 py-2 rounded-md text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition">Regresar</a>
@@ -41,13 +48,34 @@
         <div class="flex-1 overflow-auto">
             <table class="w-full text-xs">
                 <tbody class="divide-y divide-gray-100">
+                    @php
+                        /*
+                         $datos esperado: array de ['telar'=>id,'t1'=>linea(s) turno1,'t2'=>...,'t3'=>...]
+                         Cada turno puede ser objeto único o array de objetos; tomar solo el primero.
+                        */
+                        $pickFirst = function($turno){
+                            if(is_array($turno)) return count($turno) ? $turno[0] : null;
+                            if($turno instanceof \Illuminate\Support\Collection) return $turno->first();
+                            return $turno; };
+                        $val = function($line,$campo){ return $line ? ($line->$campo ?? '') : ''; };
+                        $efi = function($line){
+                            if(!$line) return '';
+                            $e = $line->Eficiencia ?? $line->EficienciaSTD ?? $line->EficienciaStd ?? null;
+                            if($e===null) return '';
+                            // Si eficiencia viene como fracción (<=1) multiplicar por 100
+                            if(is_numeric($e)){
+                                $num = floatval($e);
+                                if($num <= 1) $num *= 100;
+                                return intval(round($num)).'%';
+                            }
+                            return $e;
+                        };
+                    @endphp
                     @forelse ($datos as $row)
                         @php
-                            $t1 = $row['t1'];
-                            $t2 = $row['t2'];
-                            $t3 = $row['t3'];
-                            $val = function($line,$campo){ return $line ? ($line->$campo ?? '') : ''; };
-                            $efi = function($line){ if(!$line) return ''; $e=$line->Eficiencia; if($e===null) return ''; return intval($e).'%'; };
+                            $t1 = $pickFirst($row['t1']);
+                            $t2 = $pickFirst($row['t2']);
+                            $t3 = $pickFirst($row['t3']);
                         @endphp
                         <tr class="hover:bg-gray-50">
                             <td class="px-3 py-2 font-semibold text-gray-800 border-r border-gray-200">{{ $row['telar'] }}</td>

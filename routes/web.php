@@ -762,10 +762,19 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::post('/modulo-marcas/generar-folio', [MarcasController::class, 'generarFolio'])->name('marcas.generar.folio');
     Route::get('/modulo-marcas/obtener-datos-std', [MarcasController::class, 'obtenerDatosSTD'])->name('marcas.datos.std');
     Route::post('/modulo-marcas/store', [MarcasController::class, 'store'])->name('marcas.store');
-    Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])->name('marcas.show');
-    Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])->name('marcas.update');
-    Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])->name('marcas.finalizar');
+    // Ruta estática de reporte DEBE ir antes de la dinámica {folio}
+    Route::get('/modulo-marcas/reporte', [MarcasController::class, 'reporte'])->name('marcas.reporte');
     Route::get('/modulo-marcas/visualizar/{folio}', [MarcasController::class, 'visualizar'])->name('marcas.visualizar');
+    // Evitar capturar rutas como 'reporte' en la dinámica {folio}
+    Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])
+        ->where('folio', '^(?!reporte$).+')
+        ->name('marcas.show');
+    Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])
+        ->where('folio', '^(?!reporte$).+')
+        ->name('marcas.update');
+    Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])
+        ->where('folio', '^(?!reporte$).+')
+        ->name('marcas.finalizar');
 
     // Rutas para Cortes de Eficiencia
     Route::get('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'index'])->name('cortes.eficiencia');

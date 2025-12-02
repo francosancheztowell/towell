@@ -16,6 +16,14 @@
             icon="fa-eye"
             iconColor="text-purple-600"
             hoverBg="hover:bg-purple-100" />
+        <x-navbar.button-report
+            id="btn-fechas"
+            title="Fechas"
+            module="Marcas Finales"
+            :disabled="false"
+            icon="fa-calendar"
+            iconColor="text-indigo-600"
+            hoverBg="hover:bg-indigo-100" />
     <x-navbar.button-create
       id="btn-nuevo"
       title="Nuevo"
@@ -131,6 +139,43 @@
 
 <!-- Se removió CSS personalizado; todo se maneja con utilidades Tailwind -->
 
+    @php
+        // Preparar fechas únicas de los folios para el modal
+        $fechasUnicas = (isset($marcas) && $marcas->count() > 0)
+            ? $marcas->pluck('Date')
+                ->filter()
+                ->map(function ($d) { try { return Carbon::parse($d)->format('Y-m-d'); } catch (\Exception $e) { return null; } })
+                ->filter()
+                ->unique()
+                ->sort()
+            : collect();
+    @endphp
+
+    <!-- Modal Fechas -->
+    <div id="modal-fechas" class="fixed inset-0 z-50 flex items-center ">
+        <div class="absolute inset-0 bg-black/40" data-close="true"></div>
+        <div class="relative mx-auto mt-24 w-full max-w-md rounded-lg bg-white shadow-lg">
+            <div class="px-4 py-3 border-b flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-800">Selecciona una fecha</h3>
+                <button id="modal-fechas-close" class="text-gray-500 hover:text-gray-700" aria-label="Cerrar">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <label for="select-fechas" class="block text-sm font-medium text-gray-700 mb-1">Fechas de folios</label>
+                <select id="select-fechas" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500" data-action="reporte-fecha">
+                    @foreach($fechasUnicas as $fecha)
+                        <option value="{{ $fecha }}">{{ Carbon::createFromFormat('Y-m-d', $fecha)->format('d/m/Y') }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="px-4 py-3 border-t flex justify-end gap-2">
+                <button id="modal-fechas-ok" class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700" data-action="confirm-fecha">Generar Reporte</button>
+            </div>
+        </div>
+    
+    </div>
+
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 (() => {
@@ -167,7 +212,14 @@
                     visualizar: document.getElementById('btn-visualizar'),
                     nuevo: document.getElementById('btn-nuevo'),
                     editar: document.getElementById('btn-editar'),
-                    finalizar: document.getElementById('btn-finalizar')
+                    finalizar: document.getElementById('btn-finalizar'),
+                    fechas: document.getElementById('btn-fechas')
+                },
+                modal: {
+                    fechas: document.getElementById('modal-fechas'),
+                    close: document.getElementById('modal-fechas-close'),
+                    ok: document.getElementById('modal-fechas-ok'),
+                    select: document.getElementById('select-fechas')
                 }
             };
 
@@ -191,6 +243,20 @@
             this.dom.btns.editar?.addEventListener('click', () => this.accionEditar());
             this.dom.btns.finalizar?.addEventListener('click', () => this.accionFinalizar());
             this.dom.btns.visualizar?.addEventListener('click', () => this.accionVisualizar());
+            // Abrir/cerrar modal de fechas
+            this.dom.btns.fechas?.addEventListener('click', () => this.abrirModalFechas());
+            this.dom.modal.close?.addEventListener('click', () => this.cerrarModalFechas());
+            this.dom.modal.ok?.addEventListener('click', () => this.cerrarModalFechas());
+            this.dom.modal.fechas?.addEventListener('click', (e) => {
+                if (e.target?.dataset?.close === 'true') this.cerrarModalFechas();
+            });
+            // Confirmar reporte (redirigir por fecha)
+            this.dom.modal.ok?.addEventListener('click', () => this.generarReporteFecha());
+            // Atajo: cambiar select y generar inmediatamente (opcional)
+            this.dom.modal.select?.addEventListener('change', () => {
+                // Puedes quitar este auto-submit si solo quieres botón
+                // this.generarReporteFecha();
+            });
         }
 
         seleccionar(folio, row) {
@@ -511,6 +577,28 @@
                 Swal.close();
                 throw err;
             }
+        }
+
+        abrirModalFechas() {
+            if (!this.dom.modal.fechas) return;
+            this.dom.modal.fechas.classList.remove('hidden');
+        }
+
+        cerrarModalFechas() {
+            if (!this.dom.modal.fechas) return;
+            this.dom.modal.fechas.classList.add('hidden');
+        }
+
+        generarReporteFecha() {
+            const sel = this.dom.modal.select;
+            if (!sel || !sel.value) {
+                Swal.fire('Fecha requerida', 'Selecciona una fecha para generar el reporte.', 'warning');
+                return;
+            }
+            // Redirige a ruta de reporte por fecha (controlador debe existir)
+            const fecha = sel.value; // formato YYYY-MM-DD
+            this.cerrarModalFechas();
+            window.location.href = `/modulo-marcas/reporte?fecha=${encodeURIComponent(fecha)}`;
         }
     }
 
