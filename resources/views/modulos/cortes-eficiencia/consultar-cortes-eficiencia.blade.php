@@ -41,9 +41,9 @@
       title="Visualizar"
       module="Cortes de Eficiencia"
       :disabled="true"
-      icon="fa-eye"
-      iconColor="text-purple-600"
-      hoverBg="hover:bg-purple-100"
+      icon="fa-calendar"
+      iconColor="text-indigo-600"
+      hoverBg="hover:bg-indigo-100"
       />
 </div>
 @endsection
