@@ -9,14 +9,6 @@
 @section('navbar-right')
 <div class="flex items-center gap-2">
         <x-navbar.button-report
-            id="btn-visualizar"
-            title="Visualizar"
-            module="Marcas Finales"
-            :disabled="true"
-            icon="fa-eye"
-            iconColor="text-purple-600"
-            hoverBg="hover:bg-purple-100" />
-        <x-navbar.button-report
             id="btn-fechas"
             title="Fechas"
             module="Marcas Finales"
@@ -137,8 +129,6 @@
     </div>
 </div>
 
-<!-- Se removió CSS personalizado; todo se maneja con utilidades Tailwind -->
-
     @php
         // Preparar fechas únicas de los folios para el modal
         $fechasUnicas = (isset($marcas) && $marcas->count() > 0)
@@ -152,7 +142,7 @@
     @endphp
 
     <!-- Modal Fechas -->
-    <div id="modal-fechas" class="fixed inset-0 z-50 flex items-center ">
+    <div id="modal-fechas" class="fixed inset-0 z-50 items-center flex ">
         <div class="absolute inset-0 bg-black/40" data-close="true"></div>
         <div class="relative mx-auto mt-24 w-full max-w-md rounded-lg bg-white shadow-lg">
             <div class="px-4 py-3 border-b flex items-center justify-between">

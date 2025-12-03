@@ -406,9 +406,10 @@ class MarcasController extends Controller
             // Normalizar fecha básica (sin validaciones avanzadas)
             $fechaNorm = date('Y-m-d', strtotime($fecha));
 
-            // Obtener primer folio por turno para esa fecha
+            // Obtener primer folio por turno para esa fecha (ordenado por Folio ASC para tomar el primero creado)
             $foliosTurno = TejMarcas::where('Date', $fechaNorm)
                 ->orderBy('Turno')
+                ->orderBy('Folio')
                 ->get()
                 ->groupBy('Turno')
                 ->map(fn($grp) => $grp->first());

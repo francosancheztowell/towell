@@ -764,7 +764,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::post('/modulo-marcas/store', [MarcasController::class, 'store'])->name('marcas.store');
     // Ruta estática de reporte DEBE ir antes de la dinámica {folio}
     Route::get('/modulo-marcas/reporte', [MarcasController::class, 'reporte'])->name('marcas.reporte');
-    Route::get('/modulo-marcas/visualizar/{folio}', [MarcasController::class, 'visualizar'])->name('marcas.visualizar');
+    // Route::get('/modulo-marcas/visualizar/{folio}', [MarcasController::class, 'visualizar'])->name('marcas.visualizar');
     // Evitar capturar rutas como 'reporte' en la dinámica {folio}
     Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])
         ->where('folio', '^(?!reporte$).+')
