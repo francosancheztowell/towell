@@ -142,7 +142,7 @@
     @endphp
 
     <!-- Modal Fechas -->
-    <div id="modal-fechas" class="fixed inset-0 z-50 items-center flex ">
+    <div id="modal-fechas" class="flex inset-0 z-50 items-center fixed">
         <div class="absolute inset-0 bg-black/40" data-close="true"></div>
         <div class="relative mx-auto mt-24 w-full max-w-md rounded-lg bg-white shadow-lg">
             <div class="px-4 py-3 border-b flex items-center justify-between">
