@@ -35,6 +35,16 @@
       iconColor="text-orange-600"
       hoverBg="hover:bg-orange-100"
       />
+
+    <x-navbar.button-report
+      id="btn-visualizar"
+      title="Visualizar"
+      module="Cortes de Eficiencia"
+      :disabled="true"
+      icon="fa-eye"
+      iconColor="text-purple-600"
+      hoverBg="hover:bg-purple-100"
+      />
 </div>
 @endsection
 
@@ -76,7 +86,8 @@
                         <tr class="hover:bg-blue-50 cursor-pointer transition-colors corte-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $corte->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
                             id="row-{{ $corte->Folio }}"
                             data-folio="{{ $corte->Folio }}"
-                            onclick="CortesManager.seleccionar('{{ $corte->Folio }}', this)">
+                            onclick="CortesManager.seleccionar('{{ $corte->Folio }}', this)"
+                            ondblclick="CortesManager.accionVisualizar()">
                             <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate">{{ $corte->Folio }}</td>
                             <td class="px-4 py-3 text-gray-900 text-base truncate">
                                 @if($corte->Date)
@@ -149,7 +160,8 @@
                 btns: {
                     nuevo: document.getElementById('btn-nuevo'),
                     editar: document.getElementById('btn-editar'),
-                    finalizar: document.getElementById('btn-finalizar')
+                    finalizar: document.getElementById('btn-finalizar'),
+                    visualizar: document.getElementById('btn-visualizar')
                 }
             };
 
@@ -172,6 +184,7 @@
             this.dom.btns.nuevo?.addEventListener('click', () => this.accionNuevo());
             this.dom.btns.editar?.addEventListener('click', () => this.accionEditar());
             this.dom.btns.finalizar?.addEventListener('click', () => this.accionFinalizar());
+            this.dom.btns.visualizar?.addEventListener('click', () => this.accionVisualizar());
         }
 
         seleccionar(folio, row) {
@@ -230,6 +243,7 @@
             if (this.dom.btns.nuevo) this.dom.btns.nuevo.disabled = false;
             if (this.dom.btns.editar) this.dom.btns.editar.disabled = !hayFolioSeleccionado || isFinalizado;
             if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = !hayFolioSeleccionado || isFinalizado;
+            if (this.dom.btns.visualizar) this.dom.btns.visualizar.disabled = !hayFolioSeleccionado;
         }
 
         async accionNuevo() {
@@ -289,6 +303,18 @@
                 return;
             }
             window.location.href = CONFIG.urls.editar + this.state.folio;
+        }
+
+        accionVisualizar() {
+            if (!this.state.folio) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin selección',
+                    text: 'Selecciona un folio para visualizar'
+                });
+                return;
+            }
+            window.location.href = '/modulo-cortes-de-eficiencia/visualizar/' + this.state.folio;
         }
 
         accionFinalizar() {
