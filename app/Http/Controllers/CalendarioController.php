@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\ReqCalendarioTab;
 use App\Models\ReqCalendarioLine;
+use App\Models\ReqProgramaTejido;
+use App\Observers\ReqProgramaTejidoObserver;
 use App\Imports\ReqCalendarioImport;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -114,6 +116,10 @@ class CalendarioController extends Controller
 
     /**
      * Eliminar calendario
+     * 
+     * Antes de eliminar un calendario, se verifica si está siendo utilizado
+     * por algún programa de tejido. Si está en uso, se previene la eliminación
+     * para mantener la integridad de los datos.
      */
     public function destroy($id)
     {
@@ -126,7 +132,18 @@ class CalendarioController extends Controller
                 ], 404);
             }
 
-            // Eliminar también las líneas asociadas
+            // Verificar si hay programas de tejido usando este calendario
+            // Si está en uso, no se puede eliminar para mantener la integridad
+            $programasUsando = ReqProgramaTejido::where('CalendarioId', $id)->count();
+            
+            if ($programasUsando > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "No se puede eliminar el calendario porque está siendo utilizado por {$programasUsando} programa(s) de tejido. Por favor, cambie el calendario de los programas antes de eliminarlo."
+                ], 422);
+            }
+
+            // Si no está en uso, eliminar también las líneas asociadas
             ReqCalendarioLine::where('CalendarioId', $calendario->CalendarioId)->delete();
             $calendario->delete();
 
@@ -183,6 +200,10 @@ class CalendarioController extends Controller
                 'Turno' => $request->Turno
             ]);
 
+            // Recalcular programas de tejido que usan este calendario
+            // Esto asegura que las nuevas horas del calendario se reflejen en los programas
+            $this->recalcularProgramasPorCalendario($request->CalendarioId);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Línea de calendario creada exitosamente',
@@ -200,6 +221,10 @@ class CalendarioController extends Controller
 
     /**
      * Actualizar línea de calendario
+     * 
+     * Cuando se actualiza una línea de calendario (especialmente HorasTurno o fechas),
+     * se deben recalcular todos los programas de tejido que usan este calendario
+     * para que las nuevas horas se reflejen en sus distribuciones diarias.
      */
     public function updateLine(Request $request, $id)
     {
@@ -233,6 +258,13 @@ class CalendarioController extends Controller
                 ], 422);
             }
 
+            // Guardar valores anteriores para detectar cambios importantes
+            // Estos cambios afectan los cálculos de producción en los programas
+            $horasTurnoAnterior = $linea->HorasTurno;
+            $fechaInicioAnterior = $linea->FechaInicio;
+            $fechaFinAnterior = $linea->FechaFin;
+            $calendarioId = $linea->CalendarioId;
+
             Log::info("Actualizando línea con datos:", [
                 'FechaInicio' => $request->FechaInicio,
                 'FechaFin' => $request->FechaFin,
@@ -248,6 +280,27 @@ class CalendarioController extends Controller
             ]);
 
             Log::info("Resultado de la actualización: " . ($resultado ? 'true' : 'false'));
+
+            // Detectar si cambió algo que afecta los cálculos de producción
+            // Si cambió HorasTurno o las fechas, los programas deben recalcularse
+            $horasCambio = abs((float)$horasTurnoAnterior - (float)$request->HorasTurno) > 0.0001;
+            $fechasCambio = $fechaInicioAnterior != $request->FechaInicio || 
+                           $fechaFinAnterior != $request->FechaFin;
+
+            // Si cambió HorasTurno o fechas, recalcular programas afectados
+            if ($horasCambio || $fechasCambio) {
+                Log::info('Cambio detectado en línea de calendario que afecta cálculos', [
+                    'linea_id' => $id,
+                    'calendario_id' => $calendarioId,
+                    'horas_cambio' => $horasCambio,
+                    'fechas_cambio' => $fechasCambio,
+                    'horas_anterior' => $horasTurnoAnterior,
+                    'horas_nuevo' => $request->HorasTurno
+                ]);
+
+                // Recalcular todos los programas que usan este calendario
+                $this->recalcularProgramasPorCalendario($calendarioId);
+            }
 
             Log::info("Línea actualizada exitosamente");
 
@@ -276,6 +329,9 @@ class CalendarioController extends Controller
 
     /**
      * Eliminar línea de calendario
+     * 
+     * Al eliminar una línea de calendario, se deben recalcular los programas
+     * que usan ese calendario para ajustar las horas de producción.
      */
     public function destroyLine($id)
     {
@@ -293,8 +349,15 @@ class CalendarioController extends Controller
 
             Log::info("Línea encontrada para eliminar: " . json_encode($linea->toArray()));
 
+            // Guardar el CalendarioId antes de eliminar para recalcular programas
+            $calendarioId = $linea->CalendarioId;
+
             $linea->delete();
             Log::info("Línea eliminada exitosamente");
+
+            // Recalcular programas que usan este calendario
+            // Esto asegura que la eliminación de la línea se refleje en los programas
+            $this->recalcularProgramasPorCalendario($calendarioId);
 
             return response()->json([
                 'success' => true,
@@ -417,6 +480,101 @@ class CalendarioController extends Controller
                 'success' => false,
                 'message' => 'Error inesperado: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Recalcular todos los programas de tejido que usan un calendario específico
+     * 
+     * Este método se ejecuta cuando se modifica o elimina una línea de calendario.
+     * Busca todos los programas que usan el calendario y dispara el Observer
+     * para regenerar sus líneas diarias con las nuevas horas del calendario.
+     * 
+     * Similar a actualizarLineasPorCambioFactor() en AplicacionesController.
+     * 
+     * @param string $calendarioId ID del calendario que fue modificado
+     * @return void
+     */
+    private function recalcularProgramasPorCalendario(string $calendarioId)
+    {
+        try {
+            // Buscar todos los programas que usan este calendario
+            // Solo considerar programas con fechas válidas
+            $programas = ReqProgramaTejido::where('CalendarioId', $calendarioId)
+                ->whereNotNull('FechaInicio')
+                ->whereNotNull('FechaFinal')
+                ->get();
+
+            Log::info('Programas identificados por cambio de calendario', [
+                'calendario_id' => $calendarioId,
+                'programas_encontrados' => $programas->count()
+            ]);
+
+            // Si no hay programas usando este calendario, no hay nada que recalcular
+            if ($programas->isEmpty()) {
+                Log::info('No hay programas que usar este calendario, no se requiere recálculo');
+                return;
+            }
+
+            // Disparar el Observer para cada programa para regenerar las líneas diarias
+            // El Observer usará las nuevas HorasTurno del calendario en sus cálculos
+            $observer = new ReqProgramaTejidoObserver();
+            $programasActualizados = 0;
+            $programasConError = 0;
+
+            foreach ($programas as $programa) {
+                try {
+                    // Refrescar el modelo para obtener datos actualizados de la BD
+                    $programa->refresh();
+                    
+                    // Disparar el Observer para recalcular líneas diarias
+                    // El Observer detectará el CalendarioId y validará que haya fechas disponibles
+                    // Si no hay fechas, el Observer registrará una alerta y no generará líneas
+                    $observer->saved($programa);
+                    
+                    $programasActualizados++;
+                } catch (\Exception $e) {
+                    $programasConError++;
+                    
+                    // Verificar si el error es por falta de fechas en el calendario
+                    $esErrorFechas = strpos($e->getMessage(), 'No hay fechas disponibles') !== false ||
+                                     strpos($e->getMessage(), 'no hay líneas de calendario') !== false;
+                    
+                    if ($esErrorFechas) {
+                        // Error específico: no hay fechas disponibles en el calendario
+                        Log::warning('Programa no recalculado: No hay fechas disponibles en calendario', [
+                            'programa_id' => $programa->Id,
+                            'calendario_id' => $calendarioId,
+                            'fecha_inicio' => $programa->FechaInicio,
+                            'fecha_fin' => $programa->FechaFinal,
+                            'mensaje' => $e->getMessage()
+                        ]);
+                    } else {
+                        // Otro tipo de error
+                        Log::error('Error al recalcular programa por cambio de calendario', [
+                            'programa_id' => $programa->Id,
+                            'calendario_id' => $calendarioId,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                    }
+                }
+            }
+
+            Log::info('Recálculo de programas por cambio de calendario completado', [
+                'calendario_id' => $calendarioId,
+                'programas_actualizados' => $programasActualizados,
+                'programas_con_error' => $programasConError,
+                'total_programas' => $programas->count()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al recalcular programas por cambio de calendario: ' . $e->getMessage(), [
+                'calendario_id' => $calendarioId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            // No lanzar la excepción para no interrumpir el flujo principal
+            // El error ya está registrado en el log
         }
     }
 }

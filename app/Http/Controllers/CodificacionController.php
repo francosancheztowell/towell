@@ -381,6 +381,22 @@ class CodificacionController extends Controller
             return response()->json(['success' => false, 'message' => 'No encontrado'], 404);
         }
 
+        // Verificar si la clave mod (campo Clave) está siendo utilizada en ReqProgramaTejido
+        // La clave mod se relaciona con TamanoClave en ReqProgramaTejido
+        $claveMod = $codificacion->Clave;
+        if ($claveMod) {
+            $enUso = DB::table('ReqProgramaTejido')
+                ->where('TamanoClave', $claveMod)
+                ->exists();
+
+            if ($enUso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede eliminar el registro porque la clave mod "' . $claveMod . '" está siendo utilizada en Programa Tejido'
+                ], 422);
+            }
+        }
+
         $codificacion->delete();
         Cache::forget('codificacion_total');
 

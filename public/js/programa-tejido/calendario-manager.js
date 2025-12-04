@@ -148,7 +148,7 @@ window.CalendarioManager = {
                 continue;
             }
 
-            // ⭐ USAR LAS HORAS DEL TURNO: Si HorasTurno está definido, usar ese valor
+            //  USAR LAS HORAS DEL TURNO: Si HorasTurno está definido, usar ese valor
             // Si no, calcular las horas desde fechaActual hasta finLinea
             let horasDisponiblesEnEstePeriodo;
             if (horasTurno > 0) {
