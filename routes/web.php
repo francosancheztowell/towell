@@ -1,5 +1,6 @@
 <?php
-
+use App\Http\Controllers\CatCodificacionController;
+use App\Http\Controllers\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CalendarioController;
 use App\Http\Controllers\CatalagoEficienciaController;
@@ -228,7 +229,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/submodulos/{modulo}', [UsuarioController::class, 'showSubModulos'])->name('submodulos.show');
 
     // Redirects específicos ANTES de la ruta genérica (importante: orden de evaluación)
-    Route::redirect('/submodulos-nivel3/202', '/modulo-marcas/consultar', 301);
+    Route::redirect('/submodulos-nivel3/202', '/tejido/marcas-finales', 301);
     Route::redirect('/submodulos-nivel3/203', '/tejido/inventario', 301);
     Route::redirect('/submodulos-nivel3/206', '/tejido/cortes-eficiencia', 301);
     Route::redirect('/submodulos-nivel3/909', '/configuracion/utileria', 301);
@@ -248,8 +249,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Rutas específicas con nombres descriptivos (reemplazan submodulos-nivel3/{id})
     // Estas rutas llaman directamente al método del controlador con el ID específico
-    Route::redirect('/tejido/marcas-finales', '/modulo-marcas/consultar', 301);
-    Route::get('/tejido/marcas-finales-legacy', fn() => app(UsuarioController::class)->showSubModulosNivel3('202'))
+    Route::get('/tejido/marcas-finales', fn() => app(UsuarioController::class)->showSubModulosNivel3('202'))
         ->name('tejido.marcas.finales');
 
     Route::get('/tejido/inventario', fn() => app(UsuarioController::class)->showSubModulosNivel3('203'))
@@ -283,7 +283,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Captura de Fórmulas - Redirigir al controlador
     Route::get('/engomado/captura-formula', [App\Http\Controllers\EngProduccionFormulacionController::class, 'index'])->name('engomado.captura-formula');
-    
+
     // Redirección alternativa para captura de fórmulas
     Route::get('/modulo-captura-de-formula', function() {
         return redirect('/engomado/captura-formula', 301);
@@ -337,6 +337,14 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/codificacion-modelos/excel-progress/{id}', [CodificacionController::class, 'importProgress'])->name('codificacion.excel.progress');
             Route::post('/codificacion-modelos/buscar', [CodificacionController::class, 'buscar'])->name('codificacion.buscar');
         });
+
+        // Ruta directa para catálogo de codificación
+        Route::get('/codificacion', [CatCodificacionController::class, 'index'])->name('codificacion.index');
+        Route::get('/codificacion/api/all-fast', [CatCodificacionController::class, 'getAllFast'])->name('codificacion.all-fast');
+        Route::post('/codificacion/excel', [CatCodificacionController::class, 'procesarExcel'])->name('codificacion.excel');
+        Route::get('/codificacion/excel-progress/{id}', [CatCodificacionController::class, 'importProgress'])->name('codificacion.excel.progress');
+        Route::get('/codificacion/orden-cambio-pdf', [OrdenDeCambioFelpaController::class, 'generarPDF'])->name('codificacion.orden-cambio-pdf');
+        Route::get('/codificacion/orden-cambio-excel', [OrdenDeCambioFelpaController::class, 'generarExcel'])->name('codificacion.orden-cambio-excel');
 
         // Rutas directas para compatibilidad
         Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares.index');
@@ -759,7 +767,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/planeacion/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');
     Route::get('/planeacion/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones.index');
 
-    // Rutas para Marcas (Nuevas Marcas Finales y Consultar Marcas Finales)
+     // Rutas para Marcas (Nuevas Marcas Finales y Consultar Marcas Finales)
     Route::get('/modulo-marcas', [MarcasController::class, 'index'])->name('marcas.nuevo');
     Route::get('/modulo-marcas/consultar', [MarcasController::class, 'consultar'])->name('marcas.consultar');
     Route::post('/modulo-marcas/generar-folio', [MarcasController::class, 'generarFolio'])->name('marcas.generar.folio');
@@ -768,7 +776,21 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])->name('marcas.show');
     Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])->name('marcas.update');
     Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])->name('marcas.finalizar');
-    Route::get('/modulo-marcas/visualizar/{folio}', [MarcasController::class, 'visualizar'])->name('marcas.visualizar');
+    
+    // Ruta estática de reporte DEBE ir antes de la dinámica {folio}
+    Route::get('/modulo-marcas/reporte', [MarcasController::class, 'reporte'])->name('marcas.reporte');
+
+    // Evitar capturar rutas como 'reporte' en la dinámica {folio}
+    Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])
+        ->where('folio', '^(?!reporte$).+')
+        ->name('marcas.show');
+    Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])
+        ->where('folio', '^(?!reporte$).+')
+        ->name('marcas.update');
+    Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])
+        ->where('folio', '^(?!reporte$).+')
+        ->name('marcas.finalizar');
+
 
     // Rutas para Cortes de Eficiencia
     Route::get('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'index'])->name('cortes.eficiencia');
@@ -783,6 +805,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'show'])->name('cortes.eficiencia.show');
     Route::put('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'update'])->name('cortes.eficiencia.update');
     Route::post('/modulo-cortes-de-eficiencia/{id}/finalizar', [CortesEficienciaController::class, 'finalizar'])->name('cortes.eficiencia.finalizar');
+    Route::get('/modulo-cortes-de-eficiencia/visualizar/{folio}', [CortesEficienciaController::class, 'visualizar'])->name('cortes.eficiencia.visualizar');
     Route::get('/modulo-nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('modulo.nuevo.requerimiento');
     Route::post('/modulo-nuevo-requerimiento/guardar', [NuevoRequerimientoController::class, 'guardarRequerimientos'])->name('modulo.nuevo.requerimiento.store');
     Route::get('/modulo-nuevo-requerimiento/turno-info', [NuevoRequerimientoController::class, 'getTurnoInfo'])->name('modulo.nuevo.requerimiento.turno.info');

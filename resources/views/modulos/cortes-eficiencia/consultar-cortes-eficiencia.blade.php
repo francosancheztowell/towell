@@ -35,6 +35,25 @@
       iconColor="text-orange-600"
       hoverBg="hover:bg-orange-100"
       />
+
+    {{-- <x-navbar.button-report
+      id="btn-visualizar"
+      title="Visualizar"
+      module="Cortes de Eficiencia"
+      :disabled="true"
+      icon="fa-eye"
+      iconColor="text-purple-600"
+      hoverBg="hover:bg-purple-100"
+      /> --}}
+
+    <x-navbar.button-report
+      id="btn-fechas"
+      title="Fechas"
+      module="Cortes de Eficiencia"
+      :disabled="false"
+      icon="fa-calendar"
+      iconColor="text-indigo-600"
+      hoverBg="hover:bg-indigo-100" />
 </div>
 @endsection
 
@@ -76,7 +95,8 @@
                         <tr class="hover:bg-blue-50 cursor-pointer transition-colors corte-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $corte->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
                             id="row-{{ $corte->Folio }}"
                             data-folio="{{ $corte->Folio }}"
-                            onclick="CortesManager.seleccionar('{{ $corte->Folio }}', this)">
+                            onclick="CortesManager.seleccionar('{{ $corte->Folio }}', this)"
+                            ondblclick="CortesManager.accionVisualizar()">
                             <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate">{{ $corte->Folio }}</td>
                             <td class="px-4 py-3 text-gray-900 text-base truncate">
                                 @if($corte->Date)
@@ -120,7 +140,41 @@
     </div>
 </div>
 
-<!-- Se removió CSS personalizado; todo se maneja con utilidades Tailwind -->
+    @php
+        // Preparar fechas únicas de los folios para el modal
+        $fechasUnicas = (isset($cortes) && $cortes->count() > 0)
+            ? $cortes->pluck('Date')
+                ->filter()
+                ->map(function ($d) { try { return Carbon::parse($d)->format('Y-m-d'); } catch (\Exception $e) { return null; } })
+                ->filter()
+                ->unique()
+                ->sort()
+            : collect();
+    @endphp
+
+    <!-- Modal Fechas -->
+    <div id="modal-fechas" class="hidden fixed inset-0 z-50 items-center justify-center">
+        <div class="absolute inset-0 bg-black/40" data-close="true"></div>
+        <div class="relative mx-auto mt-24 w-full max-w-md rounded-lg bg-white shadow-lg">
+            <div class="px-4 py-3 border-b flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-800">Selecciona una fecha</h3>
+                <button id="modal-fechas-close" class="text-gray-500 hover:text-gray-700" aria-label="Cerrar">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <label for="select-fechas" class="block text-sm font-medium text-gray-700 mb-1">Fechas de folios</label>
+                <select id="select-fechas" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    @foreach($fechasUnicas as $fecha)
+                        <option value="{{ $fecha }}">{{ Carbon::createFromFormat('Y-m-d', $fecha)->format('d/m/Y') }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="px-4 py-3 border-t flex justify-end gap-2">
+                <button id="modal-fechas-ok" class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">Visualizar</button>
+            </div>
+        </div>
+    </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
@@ -149,7 +203,15 @@
                 btns: {
                     nuevo: document.getElementById('btn-nuevo'),
                     editar: document.getElementById('btn-editar'),
-                    finalizar: document.getElementById('btn-finalizar')
+                    finalizar: document.getElementById('btn-finalizar'),
+                    visualizar: document.getElementById('btn-visualizar'),
+                    fechas: document.getElementById('btn-fechas')
+                },
+                modal: {
+                    fechas: document.getElementById('modal-fechas'),
+                    close: document.getElementById('modal-fechas-close'),
+                    ok: document.getElementById('modal-fechas-ok'),
+                    select: document.getElementById('select-fechas')
                 }
             };
 
@@ -172,6 +234,16 @@
             this.dom.btns.nuevo?.addEventListener('click', () => this.accionNuevo());
             this.dom.btns.editar?.addEventListener('click', () => this.accionEditar());
             this.dom.btns.finalizar?.addEventListener('click', () => this.accionFinalizar());
+            this.dom.btns.visualizar?.addEventListener('click', () => this.accionVisualizar());
+            
+            // Abrir/cerrar modal de fechas
+            this.dom.btns.fechas?.addEventListener('click', () => this.abrirModalFechas());
+            this.dom.modal.close?.addEventListener('click', () => this.cerrarModalFechas());
+            this.dom.modal.fechas?.addEventListener('click', (e) => {
+                if (e.target?.dataset?.close === 'true') this.cerrarModalFechas();
+            });
+            // Confirmar visualización por fecha
+            this.dom.modal.ok?.addEventListener('click', () => this.visualizarPorFecha());
         }
 
         seleccionar(folio, row) {
@@ -230,6 +302,7 @@
             if (this.dom.btns.nuevo) this.dom.btns.nuevo.disabled = false;
             if (this.dom.btns.editar) this.dom.btns.editar.disabled = !hayFolioSeleccionado || isFinalizado;
             if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = !hayFolioSeleccionado || isFinalizado;
+            if (this.dom.btns.visualizar) this.dom.btns.visualizar.disabled = !hayFolioSeleccionado;
         }
 
         async accionNuevo() {
@@ -291,6 +364,18 @@
             window.location.href = CONFIG.urls.editar + this.state.folio;
         }
 
+        accionVisualizar() {
+            if (!this.state.folio) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin selección',
+                    text: 'Selecciona un folio para visualizar'
+                });
+                return;
+            }
+            window.location.href = '/modulo-cortes-de-eficiencia/visualizar/' + this.state.folio;
+        }
+
         accionFinalizar() {
             if (!this.state.folio) {
                 Swal.fire({
@@ -344,6 +429,49 @@
             } catch (err) {
                 Swal.fire('Error', err.message, 'error');
             }
+        }
+
+        abrirModalFechas() {
+            if (!this.dom.modal.fechas) return;
+            this.dom.modal.fechas.classList.remove('hidden');
+            this.dom.modal.fechas.classList.add('flex');
+        }
+
+        cerrarModalFechas() {
+            if (!this.dom.modal.fechas) return;
+            this.dom.modal.fechas.classList.add('hidden');
+            this.dom.modal.fechas.classList.remove('flex');
+        }
+
+        visualizarPorFecha() {
+            const sel = this.dom.modal.select;
+            if (!sel || !sel.value) {
+                Swal.fire('Fecha requerida', 'Selecciona una fecha para visualizar.', 'warning');
+                return;
+            }
+            
+            // Buscar el primer folio de esa fecha
+            const fecha = sel.value; // formato YYYY-MM-DD
+            const rows = document.querySelectorAll('tbody tr[data-folio]');
+            
+            for (const row of rows) {
+                const fechaCell = row.children[1]?.textContent?.trim();
+                if (!fechaCell) continue;
+                
+                // Convertir formato d/m/Y a Y-m-d para comparar
+                const partes = fechaCell.split('/');
+                if (partes.length === 3) {
+                    const fechaRow = `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+                    if (fechaRow === fecha) {
+                        const folio = row.dataset.folio;
+                        this.cerrarModalFechas();
+                        window.location.href = `/modulo-cortes-de-eficiencia/visualizar/${folio}`;
+                        return;
+                    }
+                }
+            }
+            
+            Swal.fire('Sin folios', 'No se encontraron folios para la fecha seleccionada.', 'info');
         }
     }
 

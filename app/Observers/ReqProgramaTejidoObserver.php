@@ -6,6 +6,7 @@ use App\Models\ReqProgramaTejido;
 use App\Models\ReqProgramaTejidoLine;
 use App\Models\ReqAplicaciones;
 use App\Models\ReqMatrizHilos;
+use App\Models\ReqCalendarioLine;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 
@@ -117,6 +118,30 @@ class ReqProgramaTejidoObserver
                 return;
             }
 
+            // ⭐ VALIDAR CALENDARIO: Si el programa tiene CalendarioId, verificar que haya fechas disponibles
+            // No hacer cálculos automáticos si no hay fechas en el calendario
+            if (!empty($programa->CalendarioId)) {
+                $hayFechasDisponibles = $this->validarFechasDisponiblesEnCalendario($programa->CalendarioId, $inicio, $fin);
+
+                if (!$hayFechasDisponibles) {
+                    // No hay fechas disponibles en el calendario, registrar alerta y lanzar excepción
+                    // para que el código que llama al Observer pueda capturarla y mostrar la alerta al usuario
+                    $mensaje = "No hay fechas disponibles en el calendario '{$programa->CalendarioId}' para el período del programa (Inicio: {$inicio->format('Y-m-d H:i')}, Fin: {$fin->format('Y-m-d H:i')})";
+
+                    \Illuminate\Support\Facades\Log::error('Observer: No hay fechas disponibles en calendario', [
+                        'programa_id' => $programa->Id,
+                        'calendario_id' => $programa->CalendarioId,
+                        'fecha_inicio' => $inicio->format('Y-m-d H:i:s'),
+                        'fecha_fin' => $fin->format('Y-m-d H:i:s'),
+                        'mensaje' => $mensaje
+                    ]);
+
+                    // Lanzar excepción para que el código que llama al Observer pueda capturarla
+                    // Esto permite que funciones como duplicar() muestren alertas al usuario
+                    throw new \Exception($mensaje);
+                }
+            }
+
             // Calcular totales de referencia (en horas)
             $totalSegundos = $fin->diffInSeconds($inicio, absolute: true);
             $totalHoras = $totalSegundos / 3600.0;
@@ -216,8 +241,26 @@ class ReqProgramaTejidoObserver
 
                 // Distribuir proporcionalmente (usando fracción del día)
                 if ($fraccion > 0) {
-                    // Horas de este día
-                    $horasDia = $fraccion * 24;
+                    try {
+                        // ⭐ Obtener horas reales del calendario si existe
+                        // Si el programa tiene un CalendarioId asignado, usar las HorasTurno
+                        // del calendario en lugar de asumir 24 horas fijas
+                        // Si no hay fechas disponibles, se lanzará una excepción
+                        $horasDia = $this->obtenerHorasDiaDesdeCalendario($programa, $dia, $fraccion);
+                    } catch (\Exception $e) {
+                        // Si no hay fechas disponibles en el calendario, detener la generación
+                        // y registrar el error
+                        \Illuminate\Support\Facades\Log::error('Observer: Error al obtener horas del calendario, deteniendo generación de líneas', [
+                            'programa_id' => $programa->Id,
+                            'calendario_id' => $programa->CalendarioId,
+                            'dia' => $dia->format('Y-m-d'),
+                            'error' => $e->getMessage()
+                        ]);
+
+                        // Detener el proceso de generación de líneas
+                        // No insertar ninguna línea si hay un problema con el calendario
+                        return;
+                    }
 
                     // Piezas y kilos base proporcionales
                     $pzasDia = $stdHrEfectivo * $horasDia;
@@ -824,6 +867,183 @@ class ReqProgramaTejidoObserver
             return $mtsPie > 0 ? $mtsPie : null;
         } catch (\Throwable $e) {
             return null;
+        }
+    }
+
+    /**
+     * Validar que haya fechas disponibles en el calendario para el período del programa
+     *
+     * Este método verifica que existan líneas de calendario que cubran el período
+     * completo del programa. Si el programa tiene un CalendarioId asignado, DEBE
+     * haber fechas disponibles, de lo contrario no se pueden hacer cálculos.
+     *
+     * @param string $calendarioId ID del calendario a validar
+     * @param Carbon $fechaInicio Fecha de inicio del programa
+     * @param Carbon $fechaFin Fecha de fin del programa
+     * @return bool true si hay fechas disponibles, false si no hay
+     */
+    private function validarFechasDisponiblesEnCalendario(string $calendarioId, Carbon $fechaInicio, Carbon $fechaFin): bool
+    {
+        try {
+            // Buscar todas las líneas del calendario que cubren el período del programa
+            $lineasCalendario = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+                ->where(function($query) use ($fechaInicio, $fechaFin) {
+                    // Líneas que se solapan con el período del programa
+                    $query->where(function($q) use ($fechaInicio, $fechaFin) {
+                        // La línea empieza antes o durante el período y termina después o durante
+                        $q->where('FechaInicio', '<=', $fechaFin)
+                          ->where('FechaFin', '>=', $fechaInicio);
+                    });
+                })
+                ->orderBy('FechaInicio')
+                ->get();
+
+            // Si no hay líneas, no hay fechas disponibles
+            if ($lineasCalendario->isEmpty()) {
+                return false;
+            }
+
+            // Verificar que las líneas cubran todo el período del programa
+            // Calcular la cobertura total de las líneas
+            $coberturaTotal = 0;
+            $periodoTotal = $fechaFin->diffInSeconds($fechaInicio, absolute: true);
+
+            foreach ($lineasCalendario as $linea) {
+                $lineaInicio = Carbon::parse($linea->FechaInicio);
+                $lineaFin = Carbon::parse($linea->FechaFin);
+
+                // Calcular la intersección entre la línea y el período del programa
+                $interseccionInicio = max($lineaInicio->timestamp, $fechaInicio->timestamp);
+                $interseccionFin = min($lineaFin->timestamp, $fechaFin->timestamp);
+
+                if ($interseccionInicio < $interseccionFin) {
+                    $coberturaTotal += ($interseccionFin - $interseccionInicio);
+                }
+            }
+
+            // Si la cobertura es menor al 90% del período, considerar que no hay fechas suficientes
+            // Esto permite un pequeño margen para días parciales
+            $porcentajeCobertura = ($periodoTotal > 0) ? ($coberturaTotal / $periodoTotal) * 100 : 0;
+
+            return $porcentajeCobertura >= 90;
+
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error al validar fechas disponibles en calendario', [
+                'calendario_id' => $calendarioId,
+                'fecha_inicio' => $fechaInicio->format('Y-m-d H:i:s'),
+                'fecha_fin' => $fechaFin->format('Y-m-d H:i:s'),
+                'error' => $e->getMessage()
+            ]);
+            // En caso de error, asumir que no hay fechas disponibles para ser conservador
+            return false;
+        }
+    }
+
+    /**
+     * Obtener las horas reales de trabajo para un día según el calendario asignado
+     *
+     * Este método consulta las líneas del calendario (ReqCalendarioLine) para obtener
+     * las HorasTurno reales de trabajo para un día específico.
+     *
+     * IMPORTANTE: Este método solo se llama si ya se validó que hay fechas disponibles
+     * en el calendario. Si no hay líneas para un día específico, se lanza una excepción
+     * en lugar de usar un fallback, ya que esto indica un problema con el calendario.
+     *
+     * La fracción del día se aplica para manejar días parciales (primer y último día
+     * del período de producción).
+     *
+     * @param ReqProgramaTejido $programa Programa de tejido con CalendarioId
+     * @param Carbon $dia Día específico para el cual se necesitan las horas
+     * @param float $fraccion Fracción del día (1.0 = día completo, < 1.0 = día parcial)
+     * @return float Horas de trabajo para ese día (aplicando la fracción)
+     * @throws \Exception Si no hay líneas de calendario para el día y el programa tiene CalendarioId
+     */
+    private function obtenerHorasDiaDesdeCalendario(ReqProgramaTejido $programa, Carbon $dia, float $fraccion): float
+    {
+        // Si no hay CalendarioId asignado, usar comportamiento por defecto (24 horas)
+        if (empty($programa->CalendarioId)) {
+            return $fraccion * 24;
+        }
+
+        try {
+            // Definir el rango del día completo para buscar líneas de calendario
+            $diaInicio = $dia->copy()->startOfDay();
+            $diaFin = $dia->copy()->endOfDay();
+
+            // Buscar líneas del calendario que cubren este día
+            // Una línea cubre el día si:
+            // - Su FechaInicio está dentro del día
+            // - Su FechaFin está dentro del día
+            // - O el día está completamente dentro del rango de la línea
+            $lineasCalendario = ReqCalendarioLine::where('CalendarioId', $programa->CalendarioId)
+                ->where(function($query) use ($diaInicio, $diaFin) {
+                    $query->whereBetween('FechaInicio', [$diaInicio, $diaFin])
+                          ->orWhereBetween('FechaFin', [$diaInicio, $diaFin])
+                          ->orWhere(function($q) use ($diaInicio, $diaFin) {
+                              // Línea que cubre completamente el día
+                              $q->where('FechaInicio', '<=', $diaInicio)
+                                ->where('FechaFin', '>=', $diaFin);
+                          });
+                })
+                ->get();
+
+            //  RESTRICTIÓN: Si el programa tiene CalendarioId pero no hay líneas para este día,
+            // NO usar fallback. Esto indica un problema con el calendario.
+            if ($lineasCalendario->isEmpty()) {
+                $mensaje = "No hay fechas disponibles en el calendario '{$programa->CalendarioId}' para el día {$dia->format('Y-m-d')}";
+
+                \Illuminate\Support\Facades\Log::error('Observer: No hay líneas de calendario para el día', [
+                    'programa_id' => $programa->Id,
+                    'calendario_id' => $programa->CalendarioId,
+                    'dia' => $dia->format('Y-m-d'),
+                    'mensaje' => $mensaje
+                ]);
+
+                // Lanzar excepción para detener el proceso de generación de líneas
+                throw new \Exception($mensaje);
+            }
+
+            // Sumar las HorasTurno de todas las líneas que cubren este día
+            // Esto maneja casos donde hay múltiples turnos en el mismo día
+            $horasTotales = 0;
+            foreach ($lineasCalendario as $linea) {
+                $horasTurno = (float) ($linea->HorasTurno ?? 0);
+                if ($horasTurno > 0) {
+                    $horasTotales += $horasTurno;
+                }
+            }
+
+            // Si hay horas definidas en el calendario, usar esas
+            // Aplicar la fracción del día para manejar días parciales
+            if ($horasTotales > 0) {
+                return $fraccion * $horasTotales;
+            }
+
+            // Si no hay HorasTurno definidas en las líneas, es un error
+            $mensaje = "Las líneas del calendario '{$programa->CalendarioId}' para el día {$dia->format('Y-m-d')} no tienen HorasTurno definidas";
+
+            \Illuminate\Support\Facades\Log::error('Observer: Líneas de calendario sin HorasTurno', [
+                'programa_id' => $programa->Id,
+                'calendario_id' => $programa->CalendarioId,
+                'dia' => $dia->format('Y-m-d'),
+                'mensaje' => $mensaje
+            ]);
+
+            throw new \Exception($mensaje);
+
+        } catch (\Exception $e) {
+            // Re-lanzar excepciones de validación (no hay fechas, sin HorasTurno, etc.)
+            throw $e;
+        } catch (\Throwable $e) {
+            // Para otros errores inesperados (errores de BD, etc.), registrar y lanzar excepción
+            \Illuminate\Support\Facades\Log::error('Error inesperado al obtener horas del calendario', [
+                'programa_id' => $programa->Id,
+                'calendario_id' => $programa->CalendarioId,
+                'dia' => $dia->toDateString(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new \Exception("Error al consultar el calendario '{$programa->CalendarioId}': " . $e->getMessage());
         }
     }
 

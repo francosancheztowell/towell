@@ -1,9 +1,6 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
 @section('page-title', 'Programa de Tejido')
-
-
-
 @section('content')
 <div class="w-full ">
 	<div class="bg-white shadow overflow-hidden w-full">

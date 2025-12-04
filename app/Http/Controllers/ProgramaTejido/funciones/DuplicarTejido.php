@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ProgramaTejido\funciones;
 
 use App\Models\ReqProgramaTejido;
+use App\Models\ReqCalendarioLine;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -64,6 +65,144 @@ class DuplicarTejido
                     'success' => false,
                     'message' => 'No se encontraron registros para duplicar'
                 ], 404);
+            }
+
+            // Validar calendario antes de duplicar
+            // Si el registro original tiene CalendarioId, validar que haya fechas disponibles
+            // para el período que tendrá el programa duplicado
+            if (!empty($registroOriginal->CalendarioId)) {
+                // Calcular las fechas que tendrá el programa duplicado
+                // Primero necesitamos determinar la fecha de inicio y fin estimadas
+                $fechaInicioEstimada = null;
+                $fechaFinEstimada = null;
+
+                // Obtener el último registro del primer telar destino para calcular fecha inicio
+                $primerDestino = $destinos[0] ?? null;
+                if ($primerDestino) {
+                    $telarDestino = $primerDestino['telar'];
+                    $ultimoRegistroDestino = ReqProgramaTejido::query()
+                        ->salon($salonDestino)
+                        ->telar($telarDestino)
+                        ->orderBy('FechaInicio', 'desc')
+                        ->first();
+
+                    $fechaInicioEstimada = $ultimoRegistroDestino && $ultimoRegistroDestino->FechaFinal
+                        ? Carbon::parse($ultimoRegistroDestino->FechaFinal)
+                        : ($registroOriginal->FechaInicio
+                            ? Carbon::parse($registroOriginal->FechaInicio)
+                            : Carbon::now());
+
+                    // Calcular fecha fin estimada (usando la duración del original)
+                    $iniOriginal = $registroOriginal->FechaInicio ? Carbon::parse($registroOriginal->FechaInicio) : null;
+                    $finOriginal = $registroOriginal->FechaFinal ? Carbon::parse($registroOriginal->FechaFinal) : null;
+
+                    if ($iniOriginal && $finOriginal) {
+                        $duracionOriginalSegundos = abs($finOriginal->getTimestamp() - $iniOriginal->getTimestamp());
+                        $fechaFinEstimada = $fechaInicioEstimada->copy()->addSeconds($duracionOriginalSegundos);
+                    } else {
+                        // Fallback: fecha final = fecha inicio + 30 días
+                        $fechaFinEstimada = $fechaInicioEstimada->copy()->addDays(30);
+                    }
+                } else {
+                    // Si no hay destinos, usar fechas del original
+                    $fechaInicioEstimada = $registroOriginal->FechaInicio ? Carbon::parse($registroOriginal->FechaInicio) : Carbon::now();
+                    $fechaFinEstimada = $registroOriginal->FechaFinal ? Carbon::parse($registroOriginal->FechaFinal) : $fechaInicioEstimada->copy()->addDays(30);
+                }
+
+                // VALIDAR CALENDARIO: Calcular horas reales de trabajo disponibles
+                // Los días que NO están en el calendario se consideran días de descanso
+                // Si faltan horas, se calculará cuántos días adicionales se necesitan
+                if ($fechaInicioEstimada && $fechaFinEstimada) {
+                    // Calcular horas necesarias del programa (usando HorasProd del original si existe)
+                    $horasNecesarias = 0;
+                    if (!empty($registroOriginal->HorasProd)) {
+                        $horasNecesarias = (float) $registroOriginal->HorasProd;
+                    } else {
+                        // Si no hay HorasProd, calcular basado en la duración del período original
+                        $iniOriginal = $registroOriginal->FechaInicio ? Carbon::parse($registroOriginal->FechaInicio) : null;
+                        $finOriginal = $registroOriginal->FechaFinal ? Carbon::parse($registroOriginal->FechaFinal) : null;
+                        if ($iniOriginal && $finOriginal) {
+                            // Usar la duración original como estimación de horas necesarias
+                            $horasNecesarias = abs($finOriginal->getTimestamp() - $iniOriginal->getTimestamp()) / 3600.0;
+                        }
+                    }
+
+                    // Calcular horas reales de trabajo disponibles en el calendario
+                    $resultadoValidacion = self::calcularHorasDisponiblesEnCalendario(
+                        $registroOriginal->CalendarioId,
+                        $fechaInicioEstimada,
+                        $fechaFinEstimada,
+                        $horasNecesarias
+                    );
+
+                    if (!$resultadoValidacion['hay_suficientes_horas']) {
+                        // No hay suficientes horas disponibles en el período estimado
+                        // Calcular cuántos días adicionales se necesitan
+                        $horasFaltantes = $resultadoValidacion['horas_faltantes'];
+                        $horasPromedioPorDia = $resultadoValidacion['horas_promedio_por_dia'];
+
+                        if ($horasPromedioPorDia > 0) {
+                            // Calcular días adicionales necesarios
+                            $diasAdicionales = ceil($horasFaltantes / $horasPromedioPorDia);
+                            $fechaFinAjustada = $fechaFinEstimada->copy()->addDays($diasAdicionales);
+
+                            // Validar que con la fecha extendida haya suficientes horas
+                            $resultadoAjustado = self::calcularHorasDisponiblesEnCalendario(
+                                $registroOriginal->CalendarioId,
+                                $fechaInicioEstimada,
+                                $fechaFinAjustada,
+                                $horasNecesarias
+                            );
+
+                            if ($resultadoAjustado['hay_suficientes_horas']) {
+                                // Con la fecha extendida hay suficientes horas, permitir duplicación
+                                // La fecha final se ajustará durante la duplicación
+                                LogFacade::info('DuplicarTejido: Fecha extendida para compensar días de descanso', [
+                                    'calendario_id' => $registroOriginal->CalendarioId,
+                                    'fecha_inicio' => $fechaInicioEstimada->format('Y-m-d H:i:s'),
+                                    'fecha_fin_original' => $fechaFinEstimada->format('Y-m-d H:i:s'),
+                                    'fecha_fin_ajustada' => $fechaFinAjustada->format('Y-m-d H:i:s'),
+                                    'dias_adicionales' => $diasAdicionales,
+                                    'horas_faltantes' => $horasFaltantes
+                                ]);
+                            } else {
+                                // Aún faltan horas incluso extendiendo, verificar si hay fechas en el calendario
+                                if ($resultadoAjustado['horas_disponibles'] <= 0) {
+                                    // No hay fechas en el calendario para este período
+                                    $mensaje = "No se puede duplicar el programa porque no hay fechas disponibles en el calendario '{$registroOriginal->CalendarioId}' para el período estimado (Inicio: {$fechaInicioEstimada->format('Y-m-d H:i')}, Fin: {$fechaFinAjustada->format('Y-m-d H:i')}). Por favor, agregue fechas al calendario antes de duplicar.";
+
+                                    LogFacade::warning('DuplicarTejido: No hay fechas en calendario', [
+                                        'calendario_id' => $registroOriginal->CalendarioId,
+                                        'fecha_inicio' => $fechaInicioEstimada->format('Y-m-d H:i:s'),
+                                        'fecha_fin' => $fechaFinAjustada->format('Y-m-d H:i:s'),
+                                        'mensaje' => $mensaje
+                                    ]);
+
+                                    return response()->json([
+                                        'success' => false,
+                                        'message' => $mensaje,
+                                        'tipo_error' => 'calendario_sin_fechas',
+                                        'calendario_id' => $registroOriginal->CalendarioId,
+                                        'fecha_inicio' => $fechaInicioEstimada->format('Y-m-d H:i:s'),
+                                        'fecha_fin' => $fechaFinAjustada->format('Y-m-d H:i:s')
+                                    ], 422);
+                                }
+                            }
+                        } else {
+                            // No se puede calcular promedio (no hay fechas en el calendario)
+                            $mensaje = "No se puede duplicar el programa porque no hay fechas disponibles en el calendario '{$registroOriginal->CalendarioId}' para el período estimado (Inicio: {$fechaInicioEstimada->format('Y-m-d H:i')}, Fin: {$fechaFinEstimada->format('Y-m-d H:i')}). Por favor, agregue fechas al calendario antes de duplicar.";
+
+                            return response()->json([
+                                'success' => false,
+                                'message' => $mensaje,
+                                'tipo_error' => 'calendario_sin_fechas',
+                                'calendario_id' => $registroOriginal->CalendarioId,
+                                'fecha_inicio' => $fechaInicioEstimada->format('Y-m-d H:i:s'),
+                                'fecha_fin' => $fechaFinEstimada->format('Y-m-d H:i:s')
+                            ], 422);
+                        }
+                    }
+                }
             }
 
             $totalDuplicados = 0;
@@ -194,8 +333,70 @@ class DuplicarTejido
                             $duracionNuevaSegundos = $duracionOriginalSegundos;
                         }
 
-                        // Calcular fecha final
-                        $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($duracionNuevaSegundos));
+                        //  CALCULAR FECHA FINAL: Si hay calendario, calcular desde fecha inicio usando horas del calendario
+                        // Si no hay calendario, usar duración proporcional
+                        if (!empty($nuevo->CalendarioId)) {
+                            // IMPORTANTE: Si el registro original tiene DiasEficiencia, usarlo para calcular la fecha final
+                            // Esto asegura que el duplicado tenga el mismo DiasEficiencia que el original
+                            $diasEficienciaOriginal = !empty($original->DiasEficiencia) ? (float) $original->DiasEficiencia : null;
+
+                            // Primero calcular las fórmulas para obtener HorasProd
+                            // Necesitamos calcular HorasProd antes de calcular la fecha final
+                            $formulasTemporales = self::calcularFormulasEficiencia($nuevo);
+
+                            // Calcular horas necesarias
+                            // IMPORTANTE: Usar siempre HorasProd del original para mantener consistencia
+                            // El DiasEficiencia se forzará después para que coincida con el original
+                            $horasNecesariasPrograma = 0;
+                            if (!empty($original->HorasProd)) {
+                                // Usar HorasProd del original para mantener la misma cantidad de horas
+                                $horasNecesariasPrograma = (float) $original->HorasProd;
+
+                                LogFacade::info('DuplicarTejido: Usando HorasProd del original para calcular fecha final', [
+                                    'horas_prod_original' => $horasNecesariasPrograma,
+                                    'dias_eficiencia_original' => $diasEficienciaOriginal ?? 'N/A'
+                                ]);
+                            } elseif (!empty($formulasTemporales['HorasProd'])) {
+                                $horasNecesariasPrograma = (float) $formulasTemporales['HorasProd'];
+                            } elseif (!empty($nuevo->HorasProd)) {
+                                $horasNecesariasPrograma = (float) $nuevo->HorasProd;
+                            } else {
+                                // Si no hay HorasProd, usar la duración calculada
+                                $horasNecesariasPrograma = $duracionNuevaSegundos / 3600.0;
+                            }
+
+                            // Calcular fecha final desde fecha inicio recorriendo líneas del calendario
+                            // Esto asegura que se salten los días de descanso automáticamente
+                            $nuevoFin = self::calcularFechaFinalDesdeInicio(
+                                $nuevo->CalendarioId,
+                                $nuevoInicio,
+                                $horasNecesariasPrograma
+                            );
+
+                            if (!$nuevoFin) {
+                                // Si no se pudo calcular, usar fecha base
+                                $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($duracionNuevaSegundos));
+                                LogFacade::warning('DuplicarTejido: No se pudo calcular fecha final con calendario, usando fecha base', [
+                                    'calendario_id' => $nuevo->CalendarioId,
+                                    'fecha_inicio' => $nuevoInicio->format('Y-m-d H:i:s'),
+                                    'fecha_fin_base' => $nuevoFin->format('Y-m-d H:i:s')
+                                ]);
+                            } else {
+                                LogFacade::info('DuplicarTejido: Fecha final calculada desde inicio usando calendario', [
+                                    'programa_id' => $nuevo->Id ?? 'nuevo',
+                                    'calendario_id' => $nuevo->CalendarioId,
+                                    'fecha_inicio' => $nuevoInicio->format('Y-m-d H:i:s'),
+                                    'fecha_fin_calculada' => $nuevoFin->format('Y-m-d H:i:s'),
+                                    'horas_necesarias' => $horasNecesariasPrograma,
+                                    'dias_eficiencia_esperados' => $nuevo->DiasEficiencia ?? 'N/A',
+                                    'dias_calculados' => $nuevoInicio->diffInDays($nuevoFin)
+                                ]);
+                            }
+                        } else {
+                            // Sin calendario, usar duración proporcional
+                            $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($duracionNuevaSegundos));
+                        }
+
                         $nuevo->FechaFinal = $nuevoFin->format('Y-m-d H:i:s');
                     } else {
                         // Fallback: fecha final = fecha inicio + 30 días
@@ -213,6 +414,36 @@ class DuplicarTejido
                     // Esto debe hacerse DESPUÉS de establecer las fechas
                     if ($nuevo->FechaInicio && $nuevo->FechaFinal) {
                         $formulas = self::calcularFormulasEficiencia($nuevo);
+
+                        // IMPORTANTE: Si el registro original tiene DiasEficiencia, forzarlo para mantener consistencia
+                        // Esto asegura que el duplicado tenga el mismo DiasEficiencia que el original
+                        if (!empty($original->DiasEficiencia)) {
+                            $diasEficienciaOriginal = (float) $original->DiasEficiencia;
+                            $formulas['DiasEficiencia'] = $diasEficienciaOriginal;
+
+                            // IMPORTANTE: Recalcular StdHrsEfect y ProdKgDia2 usando el DiasEficiencia del original
+                            // porque estas fórmulas dependen de DiasEficiencia
+                            $cantidad = (float) ($nuevo->SaldoPedido ?? $nuevo->Produccion ?? $nuevo->TotalPedido ?? 0);
+                            $pesoCrudo = (float) ($nuevo->PesoCrudo ?? 0);
+
+                            if ($diasEficienciaOriginal > 0) {
+                                // Recalcular StdHrsEfect usando el DiasEficiencia del original
+                                $stdHrsEfect = ($cantidad / $diasEficienciaOriginal) / 24;
+                                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 2);
+
+                                // Recalcular ProdKgDia2 usando el StdHrsEfect recalculado
+                                if ($pesoCrudo > 0) {
+                                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
+                                }
+
+                                LogFacade::info('DuplicarTejido: Forzando DiasEficiencia del original y recalculando fórmulas dependientes', [
+                                    'programa_id' => $nuevo->Id ?? 'nuevo',
+                                    'dias_eficiencia_original' => $diasEficienciaOriginal,
+                                    'std_hrs_efect_recalculado' => $formulas['StdHrsEfect'] ?? 'N/A',
+                                    'prod_kg_dia2_recalculado' => $formulas['ProdKgDia2'] ?? 'N/A'
+                                ]);
+                            }
+                        }
 
                         // Aplicar las fórmulas calculadas al registro
                         foreach ($formulas as $campo => $valor) {
@@ -237,11 +468,54 @@ class DuplicarTejido
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
             // Disparar observer manualmente para generar las líneas de cada registro duplicado
+            // Capturar errores relacionados con calendarios para mostrar alertas al usuario
             $observer = new ReqProgramaTejidoObserver();
+            $erroresCalendario = [];
+            $programasConErrores = [];
+
             foreach ($idsParaObserver as $idDuplicado) {
                 $registro = ReqProgramaTejido::find($idDuplicado);
                 if ($registro) {
-                    $observer->saved($registro);
+                    try {
+                        $observer->saved($registro);
+                    } catch (\Exception $e) {
+                        // Capturar errores del Observer, especialmente relacionados con calendarios
+                        $mensajeError = $e->getMessage();
+
+                        // Verificar si el error es por falta de fechas en el calendario
+                        $esErrorCalendario = strpos($mensajeError, 'No hay fechas disponibles') !== false ||
+                                           strpos($mensajeError, 'no hay líneas de calendario') !== false ||
+                                           strpos($mensajeError, 'no tienen HorasTurno') !== false;
+
+                        if ($esErrorCalendario) {
+                            $calendarioId = $registro->CalendarioId ?? 'N/A';
+                            $fechaInicio = $registro->FechaInicio ?? 'N/A';
+                            $fechaFin = $registro->FechaFinal ?? 'N/A';
+
+                            $erroresCalendario[] = [
+                                'programa_id' => $idDuplicado,
+                                'calendario_id' => $calendarioId,
+                                'fecha_inicio' => $fechaInicio,
+                                'fecha_fin' => $fechaFin,
+                                'mensaje' => $mensajeError
+                            ];
+
+                            $programasConErrores[] = $idDuplicado;
+
+                            LogFacade::warning('DuplicarTejido: Error de calendario al generar líneas', [
+                                'programa_id' => $idDuplicado,
+                                'calendario_id' => $calendarioId,
+                                'error' => $mensajeError
+                            ]);
+                        } else {
+                            // Otro tipo de error, también registrarlo
+                            LogFacade::error('DuplicarTejido: Error al generar líneas del programa duplicado', [
+                                'programa_id' => $idDuplicado,
+                                'error' => $mensajeError,
+                                'trace' => $e->getTraceAsString()
+                            ]);
+                        }
+                    }
                 }
             }
 
@@ -257,14 +531,35 @@ class DuplicarTejido
                 ? ReqProgramaTejido::find($idsParaObserver[0])
                 : null;
 
-            return response()->json([
+            // Construir mensaje de respuesta
+            $mensaje = "Telar duplicado correctamente. Se crearon {$totalDuplicados} registro(s) en " . count($destinos) . " telar(es).";
+
+            // Si hay errores de calendario, agregar advertencia al mensaje
+            if (!empty($erroresCalendario)) {
+                $calendariosAfectados = array_unique(array_column($erroresCalendario, 'calendario_id'));
+                $mensaje .= " ⚠️ Advertencia: " . count($erroresCalendario) . " programa(s) no pudieron generar líneas diarias porque no hay fechas disponibles en el calendario '" . implode("', '", $calendariosAfectados) . "'.";
+            }
+
+            $respuesta = [
                 'success' => true,
-                'message' => "Telar duplicado correctamente. Se crearon {$totalDuplicados} registro(s) en " . count($destinos) . " telar(es).",
+                'message' => $mensaje,
                 'registros_duplicados' => $totalDuplicados,
                 'registro_id' => $primerRegistroCreado?->Id,
                 'salon_destino' => $primerRegistroCreado?->SalonTejidoId,
                 'telar_destino' => $primerRegistroCreado?->NoTelarId
-            ]);
+            ];
+
+            // Incluir información de errores de calendario si los hay
+            if (!empty($erroresCalendario)) {
+                $respuesta['advertencias'] = [
+                    'tipo' => 'calendario_sin_fechas',
+                    'total_errores' => count($erroresCalendario),
+                    'programas_afectados' => $programasConErrores,
+                    'detalles' => $erroresCalendario
+                ];
+            }
+
+            return response()->json($respuesta);
         } catch (\Throwable $e) {
             DBFacade::rollBack();
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
@@ -394,6 +689,555 @@ class DuplicarTejido
         }
 
         return $formulas;
+    }
+
+    /**
+     * Calcular el promedio de horas por día en el calendario
+     *
+     * Este método calcula el promedio de horas de trabajo por día en el calendario,
+     * considerando solo los días que tienen líneas de calendario (días de trabajo).
+     *
+     * @param string $calendarioId ID del calendario
+     * @param Carbon $fechaInicio Fecha de inicio para calcular el promedio
+     * @return float Promedio de horas por día de trabajo
+     */
+    private static function calcularHorasPromedioPorDiaCalendario(
+        string $calendarioId,
+        Carbon $fechaInicio
+    ): float {
+        try {
+            // Obtener líneas del calendario desde la fecha de inicio hasta 60 días adelante
+            // para tener una muestra representativa
+            $fechaFinMuestra = $fechaInicio->copy()->addDays(60);
+
+            $lineasCalendario = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+                ->where('FechaInicio', '>=', $fechaInicio)
+                ->where('FechaInicio', '<=', $fechaFinMuestra)
+                ->get();
+
+            if ($lineasCalendario->isEmpty()) {
+                LogFacade::warning('calcularHorasPromedioPorDiaCalendario: No hay líneas en el calendario', [
+                    'calendario_id' => $calendarioId,
+                    'fecha_inicio' => $fechaInicio->format('Y-m-d H:i:s')
+                ]);
+                return 0;
+            }
+
+            // Calcular el total de horas y el número de días únicos con trabajo
+            $totalHoras = 0;
+            $diasUnicos = [];
+
+            foreach ($lineasCalendario as $linea) {
+                $horasTurno = (float) ($linea->HorasTurno ?? 0);
+                $totalHoras += $horasTurno;
+
+                // Obtener el día de la línea
+                $fechaLinea = Carbon::parse($linea->FechaInicio);
+                $diaKey = $fechaLinea->format('Y-m-d');
+
+                if (!isset($diasUnicos[$diaKey])) {
+                    $diasUnicos[$diaKey] = true;
+                }
+            }
+
+            $numDiasTrabajo = count($diasUnicos);
+
+            if ($numDiasTrabajo > 0) {
+                $promedio = $totalHoras / $numDiasTrabajo;
+
+                LogFacade::info('calcularHorasPromedioPorDiaCalendario: Promedio calculado', [
+                    'calendario_id' => $calendarioId,
+                    'total_horas' => $totalHoras,
+                    'num_dias_trabajo' => $numDiasTrabajo,
+                    'promedio_horas_por_dia' => $promedio
+                ]);
+
+                return $promedio;
+            }
+
+            return 0;
+        } catch (\Throwable $e) {
+            LogFacade::error('Error al calcular horas promedio por día del calendario', [
+                'calendario_id' => $calendarioId,
+                'fecha_inicio' => $fechaInicio->format('Y-m-d H:i:s'),
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
+    }
+
+    /**
+     * Calcular horas reales de trabajo disponibles en el calendario para un período
+     *
+     * Este método suma las HorasTurno de todas las líneas de calendario que cubren
+     * el período. Los días que NO están en el calendario se consideran días de descanso
+     * y no se cuentan como horas de trabajo.
+     *
+     * @param string $calendarioId ID del calendario
+     * @param Carbon $fechaInicio Fecha de inicio del período
+     * @param Carbon $fechaFin Fecha de fin del período
+     * @param float $horasNecesarias Horas de trabajo necesarias para el programa
+     * @return array Con información sobre horas disponibles, horas faltantes, promedio por día, etc.
+     */
+    private static function calcularHorasDisponiblesEnCalendario(
+        string $calendarioId,
+        Carbon $fechaInicio,
+        Carbon $fechaFin,
+        float $horasNecesarias
+    ): array {
+        try {
+            // Buscar todas las líneas del calendario que cubren el período
+            $lineasCalendario = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+                ->where(function($query) use ($fechaInicio, $fechaFin) {
+                    // Líneas que se solapan con el período
+                    $query->where(function($q) use ($fechaInicio, $fechaFin) {
+                        $q->where('FechaInicio', '<=', $fechaFin)
+                          ->where('FechaFin', '>=', $fechaInicio);
+                    });
+                })
+                ->orderBy('FechaInicio')
+                ->get();
+
+            // Si no hay líneas, no hay horas disponibles
+            if ($lineasCalendario->isEmpty()) {
+                return [
+                    'hay_suficientes_horas' => false,
+                    'horas_disponibles' => 0,
+                    'horas_necesarias' => $horasNecesarias,
+                    'horas_faltantes' => $horasNecesarias,
+                    'horas_promedio_por_dia' => 0,
+                    'dias_con_trabajo' => 0,
+                    'total_lineas' => 0
+                ];
+            }
+
+            // Sumar las HorasTurno de todas las líneas que cubren el período
+            // Los días que NO están en el calendario se consideran días de descanso
+            // Solo sumamos las HorasTurno de las líneas que se solapan con el período
+            $horasDisponibles = 0;
+            $diasConTrabajo = [];
+
+            foreach ($lineasCalendario as $linea) {
+                $lineaInicio = Carbon::parse($linea->FechaInicio);
+                $lineaFin = Carbon::parse($linea->FechaFin);
+                $horasTurno = (float) ($linea->HorasTurno ?? 0);
+
+                if ($horasTurno <= 0) {
+                    continue;
+                }
+
+                // Calcular la intersección entre la línea y el período del programa
+                $interseccionInicio = max($lineaInicio->timestamp, $fechaInicio->timestamp);
+                $interseccionFin = min($lineaFin->timestamp, $fechaFin->timestamp);
+
+                // Si hay intersección, sumar las HorasTurno completas del turno
+                // (no calcular porcentajes, usar las horas completas del turno)
+                if ($interseccionInicio < $interseccionFin) {
+                    // Sumar las HorasTurno completas del turno
+                    // Esto representa las horas reales de trabajo disponibles en ese turno
+                    $horasDisponibles += $horasTurno;
+
+                    // Registrar días con trabajo (usar fecha de inicio de la línea para agrupar por día)
+                    // Agrupar por día para calcular el promedio de horas por día
+                    $fechaDiaInicio = Carbon::createFromTimestamp($lineaInicio->timestamp)->format('Y-m-d');
+                    $fechaDiaFin = Carbon::createFromTimestamp($lineaFin->timestamp)->format('Y-m-d');
+
+                    // Agregar todos los días que cubre esta línea
+                    $fechaActual = Carbon::createFromTimestamp($lineaInicio->timestamp)->startOfDay();
+                    $fechaFinLinea = Carbon::createFromTimestamp($lineaFin->timestamp)->startOfDay();
+
+                    while ($fechaActual->lte($fechaFinLinea)) {
+                        $fechaDia = $fechaActual->format('Y-m-d');
+                        if (!in_array($fechaDia, $diasConTrabajo)) {
+                            $diasConTrabajo[] = $fechaDia;
+                        }
+                        $fechaActual->addDay();
+                    }
+                }
+            }
+
+            // Calcular promedio de horas por día de trabajo
+            // Solo considerar días que tienen líneas de calendario (días de trabajo)
+            // Los días sin líneas son días de descanso y no se cuentan
+            $horasPromedioPorDia = 0;
+            if (count($diasConTrabajo) > 0) {
+                // Calcular horas totales por día (puede haber múltiples turnos en un día)
+                $horasPorDia = [];
+                foreach ($lineasCalendario as $linea) {
+                    $lineaInicio = Carbon::parse($linea->FechaInicio);
+                    $lineaFin = Carbon::parse($linea->FechaFin);
+                    $horasTurno = (float) ($linea->HorasTurno ?? 0);
+
+                    if ($horasTurno <= 0) continue;
+
+                    // Verificar si esta línea se solapa con el período
+                    $interseccionInicio = max($lineaInicio->timestamp, $fechaInicio->timestamp);
+                    $interseccionFin = min($lineaFin->timestamp, $fechaFin->timestamp);
+
+                    if ($interseccionInicio < $interseccionFin) {
+                        // Agregar las horas de este turno a los días que cubre
+                        $fechaActual = Carbon::createFromTimestamp($lineaInicio->timestamp)->startOfDay();
+                        $fechaFinLinea = Carbon::createFromTimestamp($lineaFin->timestamp)->startOfDay();
+
+                        while ($fechaActual->lte($fechaFinLinea)) {
+                            $fechaDia = $fechaActual->format('Y-m-d');
+                            if (!isset($horasPorDia[$fechaDia])) {
+                                $horasPorDia[$fechaDia] = 0;
+                            }
+                            $horasPorDia[$fechaDia] += $horasTurno;
+                            $fechaActual->addDay();
+                        }
+                    }
+                }
+
+                // Calcular promedio: sumar todas las horas y dividir entre días con trabajo
+                $totalHoras = array_sum($horasPorDia);
+                $diasConTrabajoUnicos = count($horasPorDia);
+                $horasPromedioPorDia = $diasConTrabajoUnicos > 0 ? ($totalHoras / $diasConTrabajoUnicos) : 0;
+            }
+
+            // Verificar si hay suficientes horas
+            $horasFaltantes = max(0, $horasNecesarias - $horasDisponibles);
+            $haySuficientesHoras = $horasDisponibles >= $horasNecesarias;
+
+            return [
+                'hay_suficientes_horas' => $haySuficientesHoras,
+                'horas_disponibles' => $horasDisponibles,
+                'horas_necesarias' => $horasNecesarias,
+                'horas_faltantes' => $horasFaltantes,
+                'horas_promedio_por_dia' => $horasPromedioPorDia,
+                'dias_con_trabajo' => count($diasConTrabajo),
+                'total_lineas' => $lineasCalendario->count()
+            ];
+
+        } catch (\Throwable $e) {
+            LogFacade::error('Error al calcular horas disponibles en calendario', [
+                'calendario_id' => $calendarioId,
+                'fecha_inicio' => $fechaInicio->format('Y-m-d H:i:s'),
+                'fecha_fin' => $fechaFin->format('Y-m-d H:i:s'),
+                'error' => $e->getMessage()
+            ]);
+
+            // En caso de error, retornar que no hay horas disponibles
+            return [
+                'hay_suficientes_horas' => false,
+                'horas_disponibles' => 0,
+                'horas_necesarias' => $horasNecesarias,
+                'horas_faltantes' => $horasNecesarias,
+                'horas_promedio_por_dia' => 0,
+                'dias_con_trabajo' => 0,
+                'total_lineas' => 0
+            ];
+        }
+    }
+
+    /**
+     * Calcular fecha final desde fecha inicio recorriendo líneas del calendario
+     *
+     * Este método recorre las líneas del calendario desde la fecha de inicio,
+     * sumando las HorasTurno de cada línea hasta alcanzar las horas necesarias.
+     * Los días que NO están en el calendario se saltan automáticamente (días de descanso).
+     *
+     * Similar a la lógica del frontend en calendario-manager.js _sumarHorasConLineasReales
+     *
+     * @param string $calendarioId ID del calendario
+     * @param Carbon $fechaInicio Fecha de inicio del programa
+     * @param float $horasNecesarias Horas de trabajo necesarias (HorasProd)
+     * @return Carbon|null Fecha final calculada, o null si no hay fechas en el calendario
+     */
+    private static function calcularFechaFinalDesdeInicio(
+        string $calendarioId,
+        Carbon $fechaInicio,
+        float $horasNecesarias
+    ): ?Carbon {
+        try {
+            // Obtener TODAS las líneas del calendario ordenadas por fecha
+            // No limitar la consulta, necesitamos todas las líneas para calcular correctamente
+            $lineasCalendario = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+                ->orderBy('FechaInicio')
+                ->orderBy('FechaFin')
+                ->get();
+
+            if ($lineasCalendario->isEmpty()) {
+                LogFacade::warning('calcularFechaFinalDesdeInicio: No hay líneas en el calendario', [
+                    'calendario_id' => $calendarioId
+                ]);
+                return null;
+            }
+
+            // Empezar desde la fecha de inicio exacta
+            $fechaActual = $fechaInicio->copy();
+
+            // Buscar la línea que contiene la fecha de inicio o la primera línea después
+            $indiceInicio = -1;
+            for ($i = 0; $i < $lineasCalendario->count(); $i++) {
+                $linea = $lineasCalendario[$i];
+                $lineaInicio = Carbon::parse($linea->FechaInicio);
+                $lineaFin = Carbon::parse($linea->FechaFin);
+
+                // Si la fecha está dentro de este período, empezar desde aquí
+                if ($fechaActual->gte($lineaInicio) && $fechaActual->lte($lineaFin)) {
+                    $indiceInicio = $i;
+                    break;
+                }
+
+                // Si la fecha es anterior a esta línea, empezar desde esta línea
+                // (esto significa que hay días de descanso antes de esta línea)
+                // IMPORTANTE: Ajustar la fecha al inicio de esta línea para saltar los días de descanso
+                // Esto EXTENDE la fecha hacia adelante, no la recorta
+                if ($fechaActual->lt($lineaInicio)) {
+                    $indiceInicio = $i;
+                    $fechaActual = $lineaInicio->copy(); // Saltar al inicio de la siguiente línea disponible
+                    break;
+                }
+            }
+
+            if ($indiceInicio === -1) {
+                LogFacade::warning('calcularFechaFinalDesdeInicio: No se encontró línea que contenga la fecha de inicio', [
+                    'calendario_id' => $calendarioId,
+                    'fecha_inicio' => $fechaInicio->format('Y-m-d H:i:s')
+                ]);
+                return null;
+            }
+
+            // Recorrer las líneas sumando horas hasta alcanzar las horas necesarias
+            $horasRestantes = $horasNecesarias;
+            $horasTotalesProcesadas = 0; // Contador para verificar que se están sumando todas las horas
+
+            LogFacade::info('calcularFechaFinalDesdeInicio: Iniciando cálculo', [
+                'calendario_id' => $calendarioId,
+                'fecha_inicio' => $fechaInicio->format('Y-m-d H:i:s'),
+                'horas_necesarias' => $horasNecesarias,
+                'indice_inicio' => $indiceInicio,
+                'total_lineas' => $lineasCalendario->count(),
+                'fecha_actual_inicial' => $fechaActual->format('Y-m-d H:i:s')
+            ]);
+
+            for ($i = $indiceInicio; $i < $lineasCalendario->count() && $horasRestantes > 0.0001; $i++) {
+                $linea = $lineasCalendario[$i];
+                $lineaInicio = Carbon::parse($linea->FechaInicio);
+                $lineaFin = Carbon::parse($linea->FechaFin);
+                $horasTurno = (float) ($linea->HorasTurno ?? 0);
+
+                // Si la fecha actual está antes del inicio de esta línea, avanzar al inicio
+                // (esto salta los días de descanso entre líneas - EXTENDIENDO hacia adelante)
+                // IMPORTANTE: Esto extiende la fecha hacia adelante para compensar días de descanso
+                if ($fechaActual->lt($lineaInicio)) {
+                    $fechaActual = $lineaInicio->copy();
+                    LogFacade::debug('calcularFechaFinalDesdeInicio: Saltando días de descanso', [
+                        'fecha_anterior' => $fechaActual->copy()->subDays(1)->format('Y-m-d H:i:s'),
+                        'fecha_nueva' => $fechaActual->format('Y-m-d H:i:s'),
+                        'linea_inicio' => $lineaInicio->format('Y-m-d H:i:s'),
+                        'dias_saltados' => $fechaActual->diffInDays($lineaInicio->copy()->subDays(1))
+                    ]);
+                }
+
+                // Si la fecha actual está después del fin de esta línea, saltar a la siguiente
+                // (esto puede pasar si hay líneas que ya pasaron)
+                if ($fechaActual->gt($lineaFin)) {
+                    continue;
+                }
+
+                // Calcular horas disponibles en este período
+                $horasDisponiblesEnEstePeriodo = 0;
+
+                if ($horasTurno > 0) {
+                    // Calcular qué porcentaje del turno queda desde fechaActual hasta finLinea
+                    // IMPORTANTE: Si la fecha actual está dentro de la línea, calcular las horas restantes
+                    // Si la fecha actual está antes del inicio de la línea, usar todas las horas del turno
+                    if ($fechaActual->gte($lineaInicio) && $fechaActual->lte($lineaFin)) {
+                        // La fecha está dentro de esta línea, calcular horas restantes proporcionalmente
+                        $duracionTotalTurno = $lineaFin->diffInSeconds($lineaInicio, absolute: true) / 3600.0;
+                        $horasDesdeInicio = abs($fechaActual->diffInSeconds($lineaInicio, absolute: true)) / 3600.0;
+
+                        if ($duracionTotalTurno > 0 && $horasDesdeInicio >= 0) {
+                            $porcentajeConsumido = min(1.0, $horasDesdeInicio / $duracionTotalTurno);
+                            $horasDisponiblesEnEstePeriodo = $horasTurno * (1 - $porcentajeConsumido);
+
+                            // IMPORTANTE: Si la fecha actual está muy cerca del inicio (menos de 1 minuto),
+                            // considerar que está al inicio y usar todas las horas del turno
+                            if ($horasDesdeInicio < 0.0167) { // Menos de 1 minuto
+                                $horasDisponiblesEnEstePeriodo = $horasTurno;
+                            }
+                        } else {
+                            // Si la duración es 0 o hay un problema, usar las horas completas del turno
+                            $horasDisponiblesEnEstePeriodo = $horasTurno;
+                        }
+                    } else {
+                        // La fecha está al inicio de la línea (saltó días de descanso), usar todas las horas
+                        $horasDisponiblesEnEstePeriodo = $horasTurno;
+                    }
+                } else {
+                    // Si no hay HorasTurno definido, usar la diferencia de tiempo real
+                    $horasDisponiblesEnEstePeriodo = $fechaActual->diffInHours($lineaFin, absolute: true);
+                }
+
+                if ($horasRestantes <= $horasDisponiblesEnEstePeriodo) {
+                    // Las horas caben en este período
+                    // Calcular la fecha final proporcionalmente
+                    if ($horasDisponiblesEnEstePeriodo > 0 && $horasRestantes > 0) {
+                        $porcentajeUsado = $horasRestantes / $horasDisponiblesEnEstePeriodo;
+                        $tiempoDisponible = $fechaActual->diffInSeconds($lineaFin, absolute: true);
+                        $tiempoUsado = $tiempoDisponible * $porcentajeUsado;
+                        $fechaActual->addSeconds((int) round($tiempoUsado));
+                        $horasTotalesProcesadas += $horasRestantes; // Sumar las horas usadas
+                    }
+                    $horasRestantes = 0;
+                } else {
+                    // Consumir todo este período y pasar al siguiente
+                    $horasRestantes -= $horasDisponiblesEnEstePeriodo;
+                    $horasTotalesProcesadas += $horasDisponiblesEnEstePeriodo; // Sumar las horas consumidas
+                    $fechaActual = $lineaFin->copy();
+                }
+
+                // Log detallado para depuración
+                if ($i % 10 == 0 || $horasRestantes < 10) {
+                    LogFacade::debug('calcularFechaFinalDesdeInicio: Procesando línea', [
+                        'indice' => $i,
+                        'linea_inicio' => $lineaInicio->format('Y-m-d H:i:s'),
+                        'linea_fin' => $lineaFin->format('Y-m-d H:i:s'),
+                        'horas_turno' => $horasTurno,
+                        'horas_disponibles_periodo' => $horasDisponiblesEnEstePeriodo,
+                        'horas_restantes' => $horasRestantes,
+                        'fecha_actual' => $fechaActual->format('Y-m-d H:i:s')
+                    ]);
+                }
+            }
+
+            LogFacade::info('calcularFechaFinalDesdeInicio: Terminó bucle principal', [
+                'calendario_id' => $calendarioId,
+                'horas_necesarias' => $horasNecesarias,
+                'horas_totales_procesadas' => $horasTotalesProcesadas,
+                'horas_restantes' => $horasRestantes,
+                'fecha_actual' => $fechaActual->format('Y-m-d H:i:s'),
+                'lineas_procesadas' => $i - $indiceInicio,
+                'diferencia_horas' => $horasNecesarias - $horasTotalesProcesadas
+            ]);
+
+            // Si aún quedan horas después de recorrer todas las líneas,
+            // buscar más líneas del calendario que estén después de la última línea procesada
+            if ($horasRestantes > 0.0001) {
+                LogFacade::info('calcularFechaFinalDesdeInicio: Quedan horas después de recorrer todas las líneas, buscando más líneas', [
+                    'calendario_id' => $calendarioId,
+                    'horas_restantes' => $horasRestantes,
+                    'fecha_actual' => $fechaActual->format('Y-m-d H:i:s')
+                ]);
+
+                // Buscar líneas adicionales del calendario que estén después de la fecha actual
+                $lineasAdicionales = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+                    ->where('FechaInicio', '>', $fechaActual)
+                    ->orderBy('FechaInicio')
+                    ->get();
+
+                // Continuar recorriendo las líneas adicionales
+                foreach ($lineasAdicionales as $linea) {
+                    if ($horasRestantes <= 0.0001) {
+                        break;
+                    }
+
+                    $lineaInicio = Carbon::parse($linea->FechaInicio);
+                    $lineaFin = Carbon::parse($linea->FechaFin);
+                    $horasTurno = (float) ($linea->HorasTurno ?? 0);
+
+                    // Si la fecha actual está antes del inicio de esta línea, avanzar al inicio
+                    // (esto salta los días de descanso entre líneas)
+                    if ($fechaActual->lt($lineaInicio)) {
+                        $fechaActual = $lineaInicio->copy();
+                    }
+
+                    // Si la fecha actual está después del fin de esta línea, saltar a la siguiente
+                    if ($fechaActual->gt($lineaFin)) {
+                        continue;
+                    }
+
+                    // Calcular horas disponibles en este período
+                    $horasDisponiblesEnEstePeriodo = 0;
+
+                    if ($horasTurno > 0) {
+                        // Calcular qué porcentaje del turno queda desde fechaActual hasta finLinea
+                        $duracionTotalTurno = $lineaFin->diffInSeconds($lineaInicio, absolute: true) / 3600.0;
+                        $horasDesdeInicio = $fechaActual->diffInSeconds($lineaInicio, absolute: true) / 3600.0;
+
+                        if ($duracionTotalTurno > 0) {
+                            $porcentajeConsumido = $horasDesdeInicio / $duracionTotalTurno;
+                            $horasDisponiblesEnEstePeriodo = $horasTurno * (1 - $porcentajeConsumido);
+                        } else {
+                            $horasDisponiblesEnEstePeriodo = $horasTurno;
+                        }
+                    } else {
+                        $horasDisponiblesEnEstePeriodo = $fechaActual->diffInHours($lineaFin, absolute: true);
+                    }
+
+                    if ($horasRestantes <= $horasDisponiblesEnEstePeriodo) {
+                        // Las horas caben en este período
+                        if ($horasDisponiblesEnEstePeriodo > 0 && $horasRestantes > 0) {
+                            $porcentajeUsado = $horasRestantes / $horasDisponiblesEnEstePeriodo;
+                            $tiempoDisponible = $fechaActual->diffInSeconds($lineaFin, absolute: true);
+                            $tiempoUsado = $tiempoDisponible * $porcentajeUsado;
+                            $fechaActual->addSeconds((int) round($tiempoUsado));
+                        }
+                        $horasRestantes = 0;
+                    } else {
+                        // Consumir todo este período y pasar al siguiente
+                        $horasRestantes -= $horasDisponiblesEnEstePeriodo;
+                        $fechaActual = $lineaFin->copy();
+                    }
+                }
+
+                // Si aún quedan horas después de buscar todas las líneas adicionales,
+                // extender día por día hasta alcanzar las horas restantes
+                if ($horasRestantes > 0.0001) {
+                    LogFacade::warning('calcularFechaFinalDesdeInicio: Aún quedan horas después de buscar líneas adicionales', [
+                        'calendario_id' => $calendarioId,
+                        'horas_restantes' => $horasRestantes,
+                        'fecha_actual' => $fechaActual->format('Y-m-d H:i:s')
+                    ]);
+
+                    // Extender la fecha final día por día hasta alcanzar las horas restantes
+                    while ($horasRestantes > 0.0001) {
+                        $fechaActual->addDay();
+
+                        // Verificar si este día tiene líneas de calendario (es día de trabajo)
+                        $fechaDiaInicio = $fechaActual->copy()->startOfDay();
+                        $fechaDiaFin = $fechaActual->copy()->endOfDay();
+
+                        $lineasDelDia = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+                            ->where(function($query) use ($fechaDiaInicio, $fechaDiaFin) {
+                                $query->where('FechaInicio', '<=', $fechaDiaFin)
+                                      ->where('FechaFin', '>=', $fechaDiaInicio);
+                            })
+                            ->get();
+
+                        // Si hay líneas en este día, restar las horas
+                        if ($lineasDelDia->isNotEmpty()) {
+                            $horasDelDia = 0;
+                            foreach ($lineasDelDia as $linea) {
+                                $horasDelDia += (float) ($linea->HorasTurno ?? 0);
+                            }
+                            $horasRestantes -= $horasDelDia;
+                        }
+                        // Si no hay líneas, es día de descanso y no se restan horas, pero se avanza el día
+
+                        // Límite de seguridad
+                        if ($fechaActual->diffInDays($fechaInicio) > 365) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return $fechaActual;
+
+        } catch (\Throwable $e) {
+            LogFacade::error('Error al calcular fecha final desde inicio', [
+                'calendario_id' => $calendarioId,
+                'fecha_inicio' => $fechaInicio->format('Y-m-d H:i:s'),
+                'horas_necesarias' => $horasNecesarias,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return null;
+        }
     }
 }
 

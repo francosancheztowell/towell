@@ -101,21 +101,100 @@ async function duplicarTelar(row) {
 		const data = await response.json();
 		hideLoading();
 
-		if (data.success) {
-			showToast(data.message || mensajeExito, 'success');
+		// Verificar si hay error de validación de calendario (422)
+		if (response.status === 422 && data.tipo_error === 'calendario_sin_fechas') {
+			// Mostrar alerta detallada sobre el problema de calendario
+			let mensajeError = `<div class="text-left">`;
+			mensajeError += `<div class="bg-red-50 border-l-4 border-red-400 p-4 mb-3">`;
+			mensajeError += `<p class="font-semibold text-red-800 mb-2">No se puede duplicar</p>`;
+			mensajeError += `<p class="text-sm text-red-700 mb-2">${data.message}</p>`;
 
-			// Redirigir inmediatamente al registro creado
-			if (data.salon_destino && data.telar_destino) {
-				// Construir URL con parámetros para seleccionar el registro
-				const url = new URL(window.location.href);
-				url.searchParams.set('salon', data.salon_destino);
-				url.searchParams.set('telar', data.telar_destino);
-				if (data.registro_id) {
-					url.searchParams.set('registro_id', data.registro_id);
+			if (data.calendario_id && data.fecha_inicio && data.fecha_fin) {
+				mensajeError += `<div class="mt-3 text-xs text-red-600">`;
+				mensajeError += `<p><strong>Calendario:</strong> ${data.calendario_id}</p>`;
+				mensajeError += `</div>`;
+			}
+
+			mensajeError += `</div>`;
+			mensajeError += `<p class="text-xs text-gray-600 mt-3">Por favor, agregue fechas al calendario en el catálogo de calendarios antes de intentar duplicar nuevamente.</p>`;
+			mensajeError += `</div>`;
+
+			Swal.fire({
+				title: 'Error: Calendario sin fechas',
+				html: mensajeError,
+				icon: 'error',
+				confirmButtonText: 'Entendido',
+				confirmButtonColor: '#dc2626',
+				width: '600px'
+			});
+			return;
+		}
+
+		if (data.success) {
+			// Verificar si hay advertencias de calendario
+			if (data.advertencias && data.advertencias.tipo === 'calendario_sin_fechas') {
+				// Mostrar alerta detallada sobre los problemas de calendario
+				const detalles = data.advertencias.detalles || [];
+				let mensajeAdvertencia = `<div class="text-left">`;
+				mensajeAdvertencia += `<p class="mb-3 text-sm text-gray-700">${data.message}</p>`;
+				mensajeAdvertencia += `<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-3">`;
+				mensajeAdvertencia += `<p class="font-semibold text-yellow-800 mb-2">Advertencia: Problemas con calendarios</p>`;
+				mensajeAdvertencia += `<p class="text-sm text-yellow-700 mb-2">${data.advertencias.total_errores} programa(s) no pudieron generar líneas diarias porque no hay fechas disponibles en el calendario.</p>`;
+
+				if (detalles.length > 0) {
+					mensajeAdvertencia += `<ul class="list-disc list-inside text-xs text-yellow-700 space-y-1">`;
+					detalles.forEach((detalle, index) => {
+						if (index < 5) { // Mostrar máximo 5 detalles
+							mensajeAdvertencia += `<li>Calendario '<strong>${detalle.calendario_id}</strong>': ${detalle.mensaje}</li>`;
+						}
+					});
+					if (detalles.length > 5) {
+						mensajeAdvertencia += `<li>... y ${detalles.length - 5} más</li>`;
+					}
+					mensajeAdvertencia += `</ul>`;
 				}
-				window.location.href = url.toString();
+				mensajeAdvertencia += `</div>`;
+				mensajeAdvertencia += `<p class="text-xs text-gray-600">Los programas se crearon correctamente, pero necesitas agregar fechas al calendario para generar las líneas diarias.</p>`;
+				mensajeAdvertencia += `</div>`;
+
+				Swal.fire({
+					title: 'Duplicación completada con advertencias',
+					html: mensajeAdvertencia,
+					icon: 'warning',
+					confirmButtonText: 'Entendido',
+					confirmButtonColor: '#f59e0b',
+					width: '600px'
+				}).then(() => {
+					// Redirigir después de cerrar la alerta
+					if (data.salon_destino && data.telar_destino) {
+						const url = new URL(window.location.href);
+						url.searchParams.set('salon', data.salon_destino);
+						url.searchParams.set('telar', data.telar_destino);
+						if (data.registro_id) {
+							url.searchParams.set('registro_id', data.registro_id);
+						}
+						window.location.href = url.toString();
+					} else {
+						window.location.reload();
+					}
+				});
 			} else {
-				window.location.reload();
+				// Sin advertencias, mostrar mensaje de éxito normal
+				showToast(data.message || mensajeExito, 'success');
+
+				// Redirigir inmediatamente al registro creado
+				if (data.salon_destino && data.telar_destino) {
+					// Construir URL con parámetros para seleccionar el registro
+					const url = new URL(window.location.href);
+					url.searchParams.set('salon', data.salon_destino);
+					url.searchParams.set('telar', data.telar_destino);
+					if (data.registro_id) {
+						url.searchParams.set('registro_id', data.registro_id);
+					}
+					window.location.href = url.toString();
+				} else {
+					window.location.reload();
+				}
 			}
 		} else {
 			showToast(data.message || 'Error al procesar la solicitud', 'error');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ProgramaTejido;
 
 use App\Helpers\FolioHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Models\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -233,16 +234,27 @@ class LiberarOrdenesController extends Controller
 
             DB::commit();
 
-            // Generar Excel simple
-            $excelBinary = $this->generarExcel($actualizados);
+            // Generar Excel usando el sistema de orden de cambio
+            $ordenCambioController = new OrdenDeCambioFelpaController();
+            $response = $ordenCambioController->generarExcelDesdeBD($actualizados);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Órdenes liberadas correctamente.',
-                'fileName' => 'liberar-ordenes-' . now()->format('Ymd_His') . '.xlsx',
-                'fileData' => base64_encode($excelBinary),
-                'redirectUrl' => route('catalogos.req-programa-tejido'),
-            ]);
+            // Si la respuesta es un StreamedResponse, convertirla a base64
+            if ($response instanceof \Symfony\Component\HttpFoundation\StreamedResponse) {
+                ob_start();
+                $response->sendContent();
+                $excelBinary = ob_get_clean();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Órdenes liberadas correctamente.',
+                    'fileName' => 'ORDEN_CAMBIO_MODELO_' . now()->format('Ymd_His') . '.xlsx',
+                    'fileData' => base64_encode($excelBinary),
+                    'redirectUrl' => route('catalogos.req-programa-tejido'),
+                ]);
+            }
+
+            // Si hay error, retornar la respuesta JSON directamente
+            return $response;
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Error al liberar órdenes', [
