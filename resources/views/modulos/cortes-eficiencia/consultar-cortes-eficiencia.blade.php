@@ -36,7 +36,7 @@
       hoverBg="hover:bg-orange-100"
       />
 
-    <x-navbar.button-report
+    {{-- <x-navbar.button-report
       id="btn-visualizar"
       title="Visualizar"
       module="Cortes de Eficiencia"
@@ -44,7 +44,7 @@
       icon="fa-eye"
       iconColor="text-purple-600"
       hoverBg="hover:bg-purple-100"
-      />
+      /> --}}
 
     <x-navbar.button-report
       id="btn-fechas"
