@@ -300,6 +300,22 @@ function toggleValorSelector(btn) {
             if (!Number.isNaN(rec)) currentValue = rec;
         }
         buildNumberOptions(selector, tipo, currentValue);
+        
+        // Determinar si debe abrir hacia arriba o abajo según la posición en la ventana
+        const rect = btn.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const dropdownHeight = 60; // altura aproximada del dropdown
+        
+        // Si hay más espacio arriba o no hay suficiente espacio abajo, abrir hacia arriba
+        if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+            selector.classList.remove('top-full', 'mt-1');
+            selector.classList.add('bottom-full', 'mb-1');
+        } else {
+            selector.classList.remove('bottom-full', 'mb-1');
+            selector.classList.add('top-full', 'mt-1');
+        }
+        
         selector.classList.remove('hidden');
         scrollToCurrentValue(selector, currentValue);
     } else {

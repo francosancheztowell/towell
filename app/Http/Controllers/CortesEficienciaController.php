@@ -699,6 +699,67 @@ class CortesEficienciaController extends Controller
     }
 
     /**
+     * Visualizar cortes de eficiencia de los 3 turnos por fecha
+     */
+    public function visualizar($folio)
+    {
+        try {
+            $corteBase = TejEficiencia::where('Folio', $folio)->first();
+            if (!$corteBase) {
+                return redirect()->route('cortes.eficiencia.consultar')
+                    ->with('error', 'Folio no encontrado');
+            }
+
+            $fecha = $corteBase->Date;
+
+            // Obtener todas las líneas de los tres turnos de esa fecha
+            $lineasFecha = TejEficienciaLine::where('Date', $fecha)
+                ->orderBy('NoTelarId')
+                ->get();
+
+            // Secuencia de telares para orden base
+            $secuencia = InvSecuenciaCorteEf::orderBy('Orden', 'asc')->get(['NoTelarId']);
+            $telaresSecuencia = $secuencia->pluck('NoTelarId')->toArray();
+
+            // Lista unificada de telares (secuencia + presentes en líneas)
+            $telaresLineas = $lineasFecha->pluck('NoTelarId')->unique()->toArray();
+            $telares = collect(array_unique(array_merge($telaresSecuencia, $telaresLineas)))->sort()->values();
+
+            // Agrupar por telar y turno
+            $porTelarTurno = [];
+            foreach ($lineasFecha as $l) {
+                $telar = $l->NoTelarId;
+                $turno = (string)$l->Turno; // "1","2","3"
+                if (!isset($porTelarTurno[$telar])) $porTelarTurno[$telar] = [];
+                $porTelarTurno[$telar][$turno] = $l;
+            }
+
+            // Preparar estructura para la vista
+            $datos = $telares->map(function($telar) use ($porTelarTurno) {
+                $t1 = $porTelarTurno[$telar]['1'] ?? null;
+                $t2 = $porTelarTurno[$telar]['2'] ?? null;
+                $t3 = $porTelarTurno[$telar]['3'] ?? null;
+                return [
+                    'telar' => $telar,
+                    't1' => $t1,
+                    't2' => $t2,
+                    't3' => $t3,
+                ];
+            });
+
+            return view('modulos.cortes-eficiencia.visualizar-cortes-eficiencia', [
+                'folio' => $folio,
+                'fecha' => $fecha,
+                'datos' => $datos,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al visualizar cortes de eficiencia: ' . $e->getMessage());
+            return redirect()->route('cortes.eficiencia.consultar')
+                ->with('error', 'Error al visualizar: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Guardar datos de la tabla directamente en TejEficienciaLine
      */
     public function guardarTabla(Request $request)

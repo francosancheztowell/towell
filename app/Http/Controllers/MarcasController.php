@@ -391,6 +391,69 @@ class MarcasController extends Controller
         }
     }
 
+    /**
+     * Reporte por fecha: muestra hasta 3 tablas (Turno 1,2,3) con el formato de captura (nuevo-marcas)
+     * tomando solo el primer folio existente de cada turno para esa fecha.
+     */
+    public function reporte(Request $request)
+    {
+        try {
+            $fecha = $request->query('fecha');
+            if (!$fecha) {
+                return redirect()->route('marcas.consultar')->with('warning', 'Debe proporcionar una fecha');
+            }
+
+            // Normalizar fecha básica (sin validaciones avanzadas)
+            $fechaNorm = date('Y-m-d', strtotime($fecha));
+
+            // Obtener primer folio por turno para esa fecha (ordenado por Folio ASC para tomar el primero creado)
+            $foliosTurno = TejMarcas::where('Date', $fechaNorm)
+                ->orderBy('Turno')
+                ->orderBy('Folio')
+                ->get()
+                ->groupBy('Turno')
+                ->map(fn($grp) => $grp->first());
+
+            // Secuencia base de telares para orden y para mostrar aunque no tengan líneas
+            $secuencia = $this->obtenerSecuenciaTelares();
+            $telaresSecuencia = $secuencia->pluck('NoTelarId')->toArray();
+
+            $tablas = [];
+            foreach ([1,2,3] as $turno) {
+                $folioTurno = $foliosTurno->get($turno);
+                if (!$folioTurno) {
+                    // No existe folio para este turno; aún así construir tabla vacía
+                    $tablas[] = [
+                        'turno' => $turno,
+                        'folio' => null,
+                        'lineas' => collect([]),
+                        'telares' => $telaresSecuencia,
+                    ];
+                    continue;
+                }
+
+                $lineas = TejMarcasLine::where('Folio', $folioTurno->Folio)
+                    ->orderBy('NoTelarId')
+                    ->get()
+                    ->keyBy('NoTelarId');
+
+                $tablas[] = [
+                    'turno' => $turno,
+                    'folio' => $folioTurno->Folio,
+                    'lineas' => $lineas,
+                    'telares' => $telaresSecuencia,
+                ];
+            }
+
+            return view('modulos.marcas-finales.reporte-marcas', [
+                'fecha' => $fechaNorm,
+                'tablas' => $tablas,
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->route('marcas.consultar')->with('error', 'Error al generar reporte: ' . $e->getMessage());
+        }
+    }
+
     private function obtenerSecuenciaTelares()
     {
         try {

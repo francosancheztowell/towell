@@ -326,7 +326,9 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/codificacion-modelos/get-all', [CodificacionController::class, 'getAll'])->name('codificacion.get-all');
             Route::get('/codificacion-modelos/api/all-fast', [CodificacionController::class, 'getAllFast'])->name('codificacion.all-fast');
             Route::get('/codificacion-modelos/estadisticas', [CodificacionController::class, 'estadisticas'])->name('codificacion.estadisticas');
+            Route::get('/codificacion-modelos/salones-telares', [CodificacionController::class, 'getSalonesYTelares'])->name('codificacion.salones-telares');
             Route::get('/codificacion-modelos/{id}/edit', [CodificacionController::class, 'edit'])->name('codificacion.edit');
+            Route::post('/codificacion-modelos/{id}/duplicate', [CodificacionController::class, 'duplicate'])->name('codificacion.duplicate');
             Route::get('/codificacion-modelos/{id}', [CodificacionController::class, 'show'])->name('codificacion.show');
             Route::post('/codificacion-modelos', [CodificacionController::class, 'store'])->name('codificacion.store');
             Route::put('/codificacion-modelos/{id}', [CodificacionController::class, 'update'])->name('codificacion.update');
@@ -765,7 +767,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/planeacion/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');
     Route::get('/planeacion/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones.index');
 
-    // Rutas para Marcas (Nuevas Marcas Finales y Consultar Marcas Finales)
+     // Rutas para Marcas (Nuevas Marcas Finales y Consultar Marcas Finales)
     Route::get('/modulo-marcas', [MarcasController::class, 'index'])->name('marcas.nuevo');
     Route::get('/modulo-marcas/consultar', [MarcasController::class, 'consultar'])->name('marcas.consultar');
     Route::post('/modulo-marcas/generar-folio', [MarcasController::class, 'generarFolio'])->name('marcas.generar.folio');
@@ -774,6 +776,21 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])->name('marcas.show');
     Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])->name('marcas.update');
     Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])->name('marcas.finalizar');
+    
+    // Ruta estática de reporte DEBE ir antes de la dinámica {folio}
+    Route::get('/modulo-marcas/reporte', [MarcasController::class, 'reporte'])->name('marcas.reporte');
+
+    // Evitar capturar rutas como 'reporte' en la dinámica {folio}
+    Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])
+        ->where('folio', '^(?!reporte$).+')
+        ->name('marcas.show');
+    Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])
+        ->where('folio', '^(?!reporte$).+')
+        ->name('marcas.update');
+    Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])
+        ->where('folio', '^(?!reporte$).+')
+        ->name('marcas.finalizar');
+
 
     // Rutas para Cortes de Eficiencia
     Route::get('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'index'])->name('cortes.eficiencia');
@@ -788,6 +805,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'show'])->name('cortes.eficiencia.show');
     Route::put('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'update'])->name('cortes.eficiencia.update');
     Route::post('/modulo-cortes-de-eficiencia/{id}/finalizar', [CortesEficienciaController::class, 'finalizar'])->name('cortes.eficiencia.finalizar');
+    Route::get('/modulo-cortes-de-eficiencia/visualizar/{folio}', [CortesEficienciaController::class, 'visualizar'])->name('cortes.eficiencia.visualizar');
     Route::get('/modulo-nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('modulo.nuevo.requerimiento');
     Route::post('/modulo-nuevo-requerimiento/guardar', [NuevoRequerimientoController::class, 'guardarRequerimientos'])->name('modulo.nuevo.requerimiento.store');
     Route::get('/modulo-nuevo-requerimiento/turno-info', [NuevoRequerimientoController::class, 'getTurnoInfo'])->name('modulo.nuevo.requerimiento.turno.info');
