@@ -16,7 +16,7 @@ class OrdenDeCambioFelpaController extends Controller
 {
     /**
      * Generar Excel de Orden de Cambio de Modelo desde datos de la BD.
-     * Usado cuando se libera una orden desde LiberarOrdenesController.
+     * Usado cuando se libera una ordeddn desde LiberarOrdenesController.
      *
      * @param iterable<ReqProgramaTejido> $registros
      */
