@@ -289,6 +289,11 @@ Route::middleware(['auth'])->group(function () {
         return redirect('/engomado/captura-formula', 301);
     });
 
+    // Redirección alternativa para módulo de codificación
+    Route::get('/modulo-codificación', function() {
+        return redirect('/planeacion/codificacion', 301);
+    });
+
     // Actividades BPM Urdido - Redirigir al CRUD
     Route::get('/urdido/configuracion/actividades-bpm', function() {
         return redirect()->route('urd-actividades-bpm.index');
