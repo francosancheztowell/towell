@@ -26,7 +26,7 @@
                 </div>
             </div>
 
-            {{-- Contenedor tabla + scroll --}}
+            {{-- Contenedor tabla + scroffffll --}}
             <div
                 id="table-container"
                 class="flex-1 overflow-auto border-b border-gray-200"
