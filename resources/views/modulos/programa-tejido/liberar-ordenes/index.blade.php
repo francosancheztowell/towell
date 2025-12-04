@@ -123,6 +123,14 @@
             // Números con formato (sin decimales para enteros, con comas para miles)
             if (is_numeric($value)) {
                 $floatValue = (float)$value;
+                // CuentaRizo no debe tener comas
+                if ($field === 'CuentaRizo') {
+                    if ($floatValue == floor($floatValue)) {
+                        return (string)(int)$floatValue;
+                    } else {
+                        return number_format($floatValue, 2, '.', '');
+                    }
+                }
                 if ($floatValue == floor($floatValue)) {
                     // Es un entero, mostrar sin decimales pero con comas para miles
                     return number_format($floatValue, 0, '.', ',');
@@ -145,12 +153,12 @@
 
         @if(isset($registros) && is_countable($registros) && count($registros) > 0)
             <div class="overflow-x-auto">
-                <div class="overflow-y-auto" style="max-height: calc(100vh - 250px);">
+                <div class="overflow-y-auto" style="max-height: calc(100vh - 80px);">
                     <table id="mainTable" class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-blue-500 text-white">
                             <tr>
                                 @foreach($columns as $index => $col)
-                                <th class="px-2 py-2 text-left text-xs font-semibold text-white whitespace-nowrap"
+                                <th class="px-2 py-2 text-left text-sm font-semibold text-white whitespace-nowrap"
                                     style="position: sticky; top: 0; z-index: 30; background-color: #3b82f6; min-width: {{ $col['field'] === 'prioridad' ? '300px' : '80px' }};">
                                     {{ $col['label'] }}
                                 </th>
