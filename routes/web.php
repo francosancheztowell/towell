@@ -338,7 +338,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/codificacion-modelos/buscar', [CodificacionController::class, 'buscar'])->name('codificacion.buscar');
         });
 
-        // Ruta directa para catálogo de codificación
+        // Ruta directa para catálogo de codificaciónddf
         Route::get('/codificacion', [CatCodificacionController::class, 'index'])->name('codificacion.index');
         Route::get('/codificacion/api/all-fast', [CatCodificacionController::class, 'getAllFast'])->name('codificacion.all-fast');
         Route::post('/codificacion/excel', [CatCodificacionController::class, 'procesarExcel'])->name('codificacion.excel');
@@ -776,7 +776,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])->name('marcas.show');
     Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])->name('marcas.update');
     Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])->name('marcas.finalizar');
-    
+
     // Ruta estática de reporte DEBE ir antes de la dinámica {folio}
     Route::get('/modulo-marcas/reporte', [MarcasController::class, 'reporte'])->name('marcas.reporte');
 
