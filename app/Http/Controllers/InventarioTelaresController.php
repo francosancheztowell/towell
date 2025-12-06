@@ -35,7 +35,8 @@ class InventarioTelaresController extends Controller
     }
 
     /**
-     * Guardar o actualizar un registro de inventario de telares
+     * Guardar un registro de inventario de telares
+     * Permite múltiples registros por telar (uno por fecha/turno/tipo)
      */
     public function store(Request $request): JsonResponse
     {
@@ -52,55 +53,28 @@ class InventarioTelaresController extends Controller
                 'no_orden' => 'nullable|string|max:50',
             ]);
 
-            // Buscar registro existente activo por telar+tipo
+            // Buscar registro existente por telar+tipo+fecha+turno (combinación única)
             $existente = TejInventarioTelares::where('no_telar', $validated['no_telar'])
                 ->where('tipo', $validated['tipo'])
+                ->where('fecha', $validated['fecha'])
+                ->where('turno', $validated['turno'])
                 ->where('status', 'Activo')
                 ->first();
 
             if ($existente) {
                 // Actualizar registro existente
-                // NO guardar no_orden - siempre establecer como null
                 $datosUpdate = [
                     'cuenta' => $validated['cuenta'],
                     'calibre' => $validated['calibre'],
-                    'fecha' => $validated['fecha'],
-                    'turno' => $validated['turno'],
                     'salon' => $validated['salon'],
                     'hilo' => $validated['hilo'] ?? $existente->hilo,
                     'no_orden' => null, // FORZAR null - no se guarda no_orden
                 ];
 
-                Log::info('InventarioTelares - Actualizando registro', [
-                    'no_telar' => $validated['no_telar'],
-                    'tipo' => $validated['tipo'],
-                    'no_orden_enviado' => $validated['no_orden'] ?? 'no enviado',
-                    'no_orden_establecido' => null,
-                    'datos_update' => $datosUpdate
-                ]);
-
-                // Guardar el valor anterior para el log si es necesario
-                $noOrdenAnterior = $existente->no_orden;
-
                 $existente->update($datosUpdate);
-
-                // Verificar que se estableció como null
-                $existente->refresh();
-                if ($existente->no_orden !== null) {
-                    // Forzar nuevamente si por alguna razón no se estableció
-                    Log::warning('InventarioTelares - no_orden no era null después de update, forzando a null', [
-                        'no_telar' => $validated['no_telar'],
-                        'no_orden_anterior' => $noOrdenAnterior,
-                        'no_orden_actual' => $existente->no_orden
-                    ]);
-                    $existente->no_orden = null;
-                    $existente->save();
-                }
-
                 $registro = $existente;
             } else {
                 // Crear nuevo registro
-                // NO guardar no_orden - siempre establecer como null
                 $datosCreate = [
                     'no_telar' => $validated['no_telar'],
                     'status' => 'Activo',
@@ -115,26 +89,7 @@ class InventarioTelaresController extends Controller
                     'no_orden' => null, // FORZAR null - no se guarda no_orden
                 ];
 
-                Log::info('InventarioTelares - Creando nuevo registro', [
-                    'no_telar' => $validated['no_telar'],
-                    'tipo' => $validated['tipo'],
-                    'no_orden_enviado' => $validated['no_orden'] ?? 'no enviado',
-                    'no_orden_establecido' => null,
-                    'datos_create' => $datosCreate
-                ]);
-
                 $registro = TejInventarioTelares::create($datosCreate);
-
-                // Verificar que se creó con null
-                if ($registro->no_orden !== null) {
-                    Log::error('InventarioTelares - ERROR: no_orden no es null después de crear', [
-                        'no_telar' => $validated['no_telar'],
-                        'no_orden_creado' => $registro->no_orden
-                    ]);
-                    // Forzar a null
-                    $registro->no_orden = null;
-                    $registro->save();
-                }
             }
 
             return response()->json([
@@ -158,6 +113,61 @@ class InventarioTelaresController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al guardar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar un registro de inventario de telares
+     */
+    public function destroy(Request $request): JsonResponse
+    {
+        try {
+            // Para DELETE, los datos pueden venir en el body o como query params
+            $noTelar = $request->input('no_telar') ?? $request->query('no_telar');
+            $tipo = $request->input('tipo') ?? $request->query('tipo');
+            $fecha = $request->input('fecha') ?? $request->query('fecha');
+            $turno = $request->input('turno') ?? $request->query('turno');
+
+            if (!$noTelar || !$tipo || !$fecha || !$turno) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha, turno'
+                ], 422);
+            }
+
+            // Buscar registro por telar+tipo+fecha+turno
+            $registro = TejInventarioTelares::where('no_telar', $noTelar)
+                ->where('tipo', $tipo)
+                ->where('fecha', $fecha)
+                ->where('turno', $turno)
+                ->where('status', 'Activo')
+                ->first();
+
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Registro no encontrado'
+                ], 404);
+            }
+
+            // Eliminar el registro físicamente
+            $registro->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Registro eliminado con éxito'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar inventario de telares', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar: ' . $e->getMessage()
             ], 500);
         }
     }

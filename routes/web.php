@@ -1063,6 +1063,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
         ->prefix('inventario-telares')->name('inventario.telares.modulo.')->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/guardar', 'store')->name('store');
+            Route::delete('/eliminar', 'destroy')->name('destroy');
         });
 
     // RUTAS DE MÓDULOS (MOVIDAS A MÓDULOS ORGANIZADOS)
