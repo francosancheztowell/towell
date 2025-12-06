@@ -43,7 +43,7 @@
     <div class="bg-white overflow-hidden w-full">
         <div class="relative w-full">
             <div id="loaderTelares"
-                 class="hidden absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex items-center justify-center">
+                 class="hidden absolute inset-0  backdrop-blur-sm z-10 flex items-center justify-center">
                 <div class="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-500"></div>
             </div>
 
@@ -196,7 +196,7 @@
                 </div>
             @else
                 <div class="px-6 py-12 text-center">
-                    <i class="fa-solid fa-box-open w-12 h-12 text-gray-400 mb-2"></i>
+                    <i class="fa-solid fa-box-open w-12 h-12 text-gray-400"></i>
                     <h3 class="mt-4 text-lg font-medium text-gray-900">No hay inventario disponible</h3>
                     <p class="mt-2 text-sm text-gray-500">
                         No se han registrado telares en el inventario.
@@ -213,7 +213,7 @@
     </div>
 
     {{-- =================== Tabla: Inventario disponible =================== --}}
-    <div class="bg-white overflow-hidden mt-2">
+    <div class="bg-white overflow-hidden">
         <div class="bg-blue-500 px-4 flex justify-between items-center">
             <h2 class="text-lg font-bold text-white text-center flex-1">Inventario Disponible</h2>
             <button id="btnQuitarFiltroInventario" type="button"
@@ -231,7 +231,7 @@
             </div>
 
             <div class="overflow-x-auto w-full">
-                <div class="overflow-y-auto max-h-[220px] w-full">
+                <div class="overflow-y-auto max-h-[260px] w-full" style="max-height: 260px;">
                     <table id="inventarioTable" class="w-full table-auto divide-y divide-gray-200">
                         <thead class="bg-gray-100 text-gray-900 sticky top-0 z-20">
                             <tr>
@@ -665,6 +665,7 @@ const render = {
                 : 'hover:bg-orange-50 selectable-row-inventario cursor-pointer';
 
             tr.dataset.disabled        = hasTelar ? 'true' : 'false';
+            tr.dataset.tipo            = r.Tipo || '';
             tr.dataset.itemId          = r.ItemId || '';
             tr.dataset.configId        = r.ConfigId || '';
             tr.dataset.inventSizeId    = r.InventSizeId || '';
@@ -930,10 +931,11 @@ const selection = {
     },
 
     applyInventario(row) {
-        if (state.selectedTelar?.cuenta) {
-            const okCuenta = matchCuenta(state.selectedTelar.cuenta, row.dataset.inventSizeId);
-            if (!okCuenta) {
-                toast('warning', 'Cuenta distinta', 'La pieza no coincide con la cuenta del telar', 1800);
+        if (state.selectedTelar?.tipo) {
+            const telTipo = String(state.selectedTelar.tipo || '').toUpperCase().trim();
+            const invTipo = String(row.dataset.tipo || '').toUpperCase().trim();
+            if (telTipo && invTipo && telTipo !== invTipo) {
+                toast('warning', 'Tipo distinto', 'El tipo de la pieza no coincide con el telar', 1800);
                 return;
             }
         }
@@ -961,6 +963,7 @@ const selection = {
             inventSerialId:  row.dataset.inventSerialId || '',
             metros:          parseFloat(row.dataset.metros || 0),
             numJulio:        row.dataset.numJulio || '',
+            tipo:            row.dataset.tipo || '',
             data: state.inventarioData.find(
                 i => i.ItemId === row.dataset.itemId &&
                      i.InventSerialId === row.dataset.inventSerialId
@@ -986,11 +989,11 @@ const selection = {
         disable(btnLiberarTelar, true);
 
         // Reservar: telar + inventario con misma cuenta
-        const canReservar = !!(
-            state.selectedTelar &&
-            state.selectedInventario &&
-            matchCuenta(state.selectedTelar.cuenta, state.selectedInventario.inventSizeId)
-        );
+        const tiposMatch = state.selectedTelar && state.selectedInventario
+            ? eq.str(state.selectedTelar.tipo, state.selectedInventario.tipo || state.selectedInventario.data?.Tipo)
+            : false;
+
+        const canReservar = !!(state.selectedTelar && state.selectedInventario && tiposMatch);
         disable(btnReservar, !canReservar);
 
         const hasMultiple   = Array.isArray(state.selectedTelares) && state.selectedTelares.length > 0;
@@ -1418,8 +1421,11 @@ const actions = {
             return;
         }
 
-        if (!matchCuenta(tel.cuenta, state.selectedInventario.inventSizeId)) {
-            Swal.fire('Advertencia', 'La InventSizeId no coincide con la cuenta del telar.', 'warning');
+        // Validar que el tipo coincida (Rizo/Pie)
+        const invTipo = String(state.selectedInventario.data?.Tipo || state.selectedInventario.tipo || '').trim();
+        const telTipo = String(tel.tipo || '').trim();
+        if (invTipo && telTipo && !eq.str(invTipo, telTipo)) {
+            Swal.fire('Advertencia', 'El tipo de la pieza no coincide con el telar.', 'warning');
             return;
         }
 
