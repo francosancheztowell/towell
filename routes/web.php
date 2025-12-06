@@ -623,6 +623,11 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
         Route::get('/bpm', function () {
             return redirect()->route('tel-bpm.index');
         })->name('bpm');
+
+        // Desarrolladores
+        Route::get('/desarrolladores', function () {
+            return view('modulos.desarrolladores.desarrolladores');
+        })->name('desarrolladores');
     });
 
     // Notificar Montado de Julios (fuera del grupo para acceso desde módulos)
@@ -1064,6 +1069,14 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/guardar', 'store')->name('store');
         });
+
+    // ============================================
+    // MÓDULO DESARROLLADORES
+    // ============================================
+
+    Route::get('/desarrolladores', function () {
+            return view('modulos.desarrolladores.desarrolladores');
+        })->name('desarrolladores');
 
     // RUTAS DE MÓDULOS (MOVIDAS A MÓDULOS ORGANIZADOS)
 
