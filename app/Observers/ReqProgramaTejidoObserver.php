@@ -118,27 +118,23 @@ class ReqProgramaTejidoObserver
                 return;
             }
 
-            // ⭐ VALIDAR CALENDARIO: Si el programa tiene CalendarioId, verificar que haya fechas disponibles
+            // VALIDAR CALENDARIO: Si el programa tiene CalendarioId, verificar que haya fechas disponibles
             // No hacer cálculos automáticos si no hay fechas en el calendario
             if (!empty($programa->CalendarioId)) {
                 $hayFechasDisponibles = $this->validarFechasDisponiblesEnCalendario($programa->CalendarioId, $inicio, $fin);
 
                 if (!$hayFechasDisponibles) {
-                    // No hay fechas disponibles en el calendario, registrar alerta y lanzar excepción
-                    // para que el código que llama al Observer pueda capturarla y mostrar la alerta al usuario
+                    // Antes lanzábamos excepción y deteníamos la generación de líneas.
+                    // Ahora solo registramos la alerta y continuamos para que ReqProgramaTejidoLine se genere.
                     $mensaje = "No hay fechas disponibles en el calendario '{$programa->CalendarioId}' para el período del programa (Inicio: {$inicio->format('Y-m-d H:i')}, Fin: {$fin->format('Y-m-d H:i')})";
 
-                    \Illuminate\Support\Facades\Log::error('Observer: No hay fechas disponibles en calendario', [
+                    \Illuminate\Support\Facades\Log::warning('Observer: No hay fechas disponibles en calendario, se continúa sin frenar líneas', [
                         'programa_id' => $programa->Id,
                         'calendario_id' => $programa->CalendarioId,
                         'fecha_inicio' => $inicio->format('Y-m-d H:i:s'),
                         'fecha_fin' => $fin->format('Y-m-d H:i:s'),
                         'mensaje' => $mensaje
                     ]);
-
-                    // Lanzar excepción para que el código que llama al Observer pueda capturarla
-                    // Esto permite que funciones como duplicar() muestren alertas al usuario
-                    throw new \Exception($mensaje);
                 }
             }
 
@@ -149,8 +145,73 @@ class ReqProgramaTejidoObserver
             $totalPzas = (float) ($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
             $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
 
-            // Calcular StdHrEfectivo (piezas por hora) - SIN REDONDEO para máxima precisión
-            $stdHrEfectivo = ($totalHoras > 0) ? ($totalPzas / $totalHoras) : 0.0;
+            // Precalcular horas por día (usando calendario si existe, con fallback a 24h)
+            $inicioPeriodo = $inicio->copy()->startOfDay();
+            $finPeriodo = $fin->copy()->startOfDay();
+            $diasTotales = $inicioPeriodo->diffInDays($finPeriodo) + 1;
+
+            $periodo = CarbonPeriod::create()
+                ->setStartDate($inicioPeriodo)
+                ->setRecurrences($diasTotales)
+                ->setDateInterval('1 day');
+
+            $horasPorDia = [];
+            $horasTrabajoTotales = 0.0;
+
+            /** @var Carbon|\DateTimeInterface|string|int|float|null $dia */
+            foreach ($periodo as $index => $dia) {
+                if (!$dia instanceof Carbon) {
+                    if ($dia instanceof \DateTimeInterface) {
+                        $dia = Carbon::instance($dia);
+                    } else {
+                        $dia = Carbon::parse($dia);
+                    }
+                }
+
+                $diaNormalizado = $dia->copy()->startOfDay();
+                $esPrimerDia = ($index === 0);
+                $esUltimoDia = ($diaNormalizado->toDateString() === $finPeriodo->toDateString());
+                if (!$esUltimoDia) {
+                    $diaFinComparacion = $fin->copy()->startOfDay();
+                    $esUltimoDia = ($diaNormalizado->toDateString() === $diaFinComparacion->toDateString());
+                }
+
+                if ($esPrimerDia && $esUltimoDia) {
+                    $segundosDiferencia = $fin->timestamp - $inicio->timestamp;
+                    $fraccion = $segundosDiferencia / 86400;
+                } elseif ($esPrimerDia) {
+                    $hora = $inicio->hour;
+                    $minuto = $inicio->minute;
+                    $segundo = $inicio->second;
+                    $segundosDesdeMedianoche = ($hora * 3600) + ($minuto * 60) + $segundo;
+                    $segundosRestantes = 86400 - $segundosDesdeMedianoche;
+                    $fraccion = $segundosRestantes / 86400;
+                } elseif ($esUltimoDia) {
+                    $realInicio = $diaNormalizado;
+                    $realFin = $fin;
+                    $segundos = $realFin->diffInSeconds($realInicio, false);
+                    if ($segundos < 0) $segundos = abs($segundos);
+                    $fraccion = $segundos / 86400;
+                } else {
+                    $fraccion = 1.0;
+                }
+
+                if ($fraccion <= 0) {
+                    $horasPorDia[$diaNormalizado->toDateString()] = 0.0;
+                    continue;
+                }
+
+                // Horas del día (usa calendario si existe, con fallback a 24h)
+                $horasDia = $this->obtenerHorasDiaSeguro($programa, $diaNormalizado, $fraccion);
+                $horasPorDia[$diaNormalizado->toDateString()] = $horasDia;
+                $horasTrabajoTotales += $horasDia;
+            }
+
+            // Si hay horas en calendario, usar esas; si no, usar totalHoras como referencia
+            $horasReferencia = $horasTrabajoTotales > 0 ? $horasTrabajoTotales : $totalHoras;
+
+            // Calcular StdHrEfectivo (piezas por hora) con la referencia correcta
+            $stdHrEfectivo = ($horasReferencia > 0) ? ($totalPzas / $horasReferencia) : 0.0;
 
             // Calcular ProdKgDia directamente para máxima precisión
             $prodKgDia = ($stdHrEfectivo > 0 && $pesoCrudo > 0) ? ($stdHrEfectivo * $pesoCrudo) / 1000.0 : 0.0;
@@ -163,7 +224,7 @@ class ReqProgramaTejidoObserver
                 : 0.0;
 
             // Si no hay datos para distribuir, no hacer nada
-            if ($totalHoras <= 0 || $totalPzas <= 0) {
+            if ($horasReferencia <= 0 || $totalPzas <= 0) {
                 return;
             }
 
@@ -174,16 +235,6 @@ class ReqProgramaTejidoObserver
             // Normalizar ambas fechas al inicio del día para comparación correcta
             $inicioPeriodo = $inicio->copy()->startOfDay();
             $finPeriodo = $fin->copy()->startOfDay();
-
-            // Calcular número de días (incluyendo ambos extremos)
-            $diasTotales = $inicioPeriodo->diffInDays($finPeriodo) + 1;
-
-            // Crear periodo que incluya todos los días desde inicio hasta fin (inclusive)
-            // Usar setRecurrences para asegurar que incluya el último día
-            $periodo = CarbonPeriod::create()
-                ->setStartDate($inicioPeriodo)
-                ->setRecurrences($diasTotales)
-                ->setDateInterval('1 day');
 
             $creadas = 0;
             $lineasParaInsertar = []; // Acumular líneas para insertar en batch
@@ -201,67 +252,17 @@ class ReqProgramaTejidoObserver
                 $inicioDia = $diaNormalizado->copy();
                 $finDia = $diaNormalizado->copy()->endOfDay();
 
-                // Calcular la fracción para cada día
-                $esPrimerDia = ($index === 0);
-                $esUltimoDia = ($diaNormalizado->toDateString() === $finPeriodo->toDateString());
-
-                // Comparación más robusta para el último día
-                if (!$esUltimoDia) {
-                    // Verificar si es el último día comparando directamente con la fecha fin
-                    $diaFinComparacion = $fin->copy()->startOfDay();
-                    $esUltimoDia = ($diaNormalizado->toDateString() === $diaFinComparacion->toDateString());
+                // Recuperar la fracción calculada previamente y las horas del día
+                $fraccion = 0.0;
+                $horasDia = 0.0;
+                if (isset($horasPorDia[$diaNormalizado->toDateString()])) {
+                    $horasDia = $horasPorDia[$diaNormalizado->toDateString()];
+                    // fracción = horasDia / 24 como referencia de proporcionalidad del día
+                    $fraccion = $horasDia > 0 ? ($horasDia / 24.0) : 0.0;
                 }
 
-                if ($esPrimerDia && $esUltimoDia) {
-                    // 🟢 Mismo día: diferencia directa entre horas
-                    $segundosDiferencia = $fin->timestamp - $inicio->timestamp;
-                    $fraccion = $segundosDiferencia / 86400; // fracción del día
-
-                } elseif ($esPrimerDia) {
-                    // 🔵 PRIMER DÍA (días distintos): desde hora de inicio hasta fin del día
-                    $hora = $inicio->hour;
-                    $minuto = $inicio->minute;
-                    $segundo = $inicio->second;
-                    $segundosDesdeMedianoche = ($hora * 3600) + ($minuto * 60) + $segundo;
-                    $segundosRestantes = 86400 - $segundosDesdeMedianoche;
-                    $fraccion = $segundosRestantes / 86400;
-
-                } elseif ($esUltimoDia) {
-                    // 🔴 ÚLTIMO DÍA: calcular la fracción desde 00:00 hasta la hora fin
-                    $realInicio = $inicioDia;
-                    $realFin = $fin;
-                    $segundos = $realFin->diffInSeconds($realInicio, false);
-                    if ($segundos < 0) $segundos = abs($segundos);
-                    $fraccion = $segundos / 86400; // fracción del día
-
-                } else {
-                    // DÍAS INTERMEDIOS: día completo
-                    $fraccion = 1.0;
-                }
-
-                // Distribuir proporcionalmente (usando fracción del día)
+                // Distribuir proporcionalmente
                 if ($fraccion > 0) {
-                    try {
-                        // ⭐ Obtener horas reales del calendario si existe
-                        // Si el programa tiene un CalendarioId asignado, usar las HorasTurno
-                        // del calendario en lugar de asumir 24 horas fijas
-                        // Si no hay fechas disponibles, se lanzará una excepción
-                        $horasDia = $this->obtenerHorasDiaDesdeCalendario($programa, $dia, $fraccion);
-                    } catch (\Exception $e) {
-                        // Si no hay fechas disponibles en el calendario, detener la generación
-                        // y registrar el error
-                        \Illuminate\Support\Facades\Log::error('Observer: Error al obtener horas del calendario, deteniendo generación de líneas', [
-                            'programa_id' => $programa->Id,
-                            'calendario_id' => $programa->CalendarioId,
-                            'dia' => $dia->format('Y-m-d'),
-                            'error' => $e->getMessage()
-                        ]);
-
-                        // Detener el proceso de generación de líneas
-                        // No insertar ninguna línea si hay un problema con el calendario
-                        return;
-                    }
-
                     // Piezas y kilos base proporcionales
                     $pzasDia = $stdHrEfectivo * $horasDia;
                     $kilosBase = ($prodKgDia2Calc > 0 && $stdHrsEfectCalc > 0)
@@ -1044,6 +1045,24 @@ class ReqProgramaTejidoObserver
                 'trace' => $e->getTraceAsString()
             ]);
             throw new \Exception("Error al consultar el calendario '{$programa->CalendarioId}': " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Versión segura: si el calendario no tiene líneas para el día, usa fallback 24h*fracción
+     */
+    private function obtenerHorasDiaSeguro(ReqProgramaTejido $programa, Carbon $dia, float $fraccion): float
+    {
+        try {
+            return $this->obtenerHorasDiaDesdeCalendario($programa, $dia, $fraccion);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Observer: Fallback 24h para día sin líneas de calendario', [
+                'programa_id' => $programa->Id,
+                'calendario_id' => $programa->CalendarioId,
+                'dia' => $dia->format('Y-m-d'),
+                'motivo' => $e->getMessage()
+            ]);
+            return $fraccion * 24;
         }
     }
 
