@@ -252,6 +252,12 @@ class DuplicarTejido
                     $nuevo->EnProceso = 0;    // El duplicado NO está en proceso
                     $nuevo->Ultimo = 1;       // El duplicado ES el último del telar destino
                     $nuevo->CambioHilo = 0;
+                    // Ajustar Maquina al telar destino (prefijo salón + número telar)
+                    $nuevo->Maquina = self::construirMaquina(
+                        $original->Maquina ?? null,
+                        $salonDestino,
+                        $telarDestino
+                    );
 
                     // Limpiar campos que deben ir vacíos
                     $nuevo->Produccion = null;
@@ -581,7 +587,7 @@ class DuplicarTejido
             // Si hay errores de calendario, agregar advertencia al mensaje
             if (!empty($erroresCalendario)) {
                 $calendariosAfectados = array_unique(array_column($erroresCalendario, 'calendario_id'));
-                $mensaje .= " ⚠️ Advertencia: " . count($erroresCalendario) . " programa(s) no pudieron generar líneas diarias porque no hay fechas disponibles en el calendario '" . implode("', '", $calendariosAfectados) . "'.";
+                $mensaje .= "  Advertencia: " . count($erroresCalendario) . " programa(s) no pudieron generar líneas diarias porque no hay fechas disponibles en el calendario '" . implode("', '", $calendariosAfectados) . "'.";
             }
 
             $respuesta = [
@@ -1282,6 +1288,29 @@ class DuplicarTejido
             ]);
             return null;
         }
+    }
+
+    /**
+     * Construye Maquina con prefijo de salón y número de telar
+     */
+    private static function construirMaquina(?string $maquinaBase, ?string $salon, $telar): string
+    {
+        $prefijo = null;
+
+        if ($maquinaBase && preg_match('/^([A-Za-z]+)\s*\d*/', trim($maquinaBase), $matches)) {
+            $prefijo = $matches[1];
+        }
+
+        if (!$prefijo && $salon) {
+            $prefijo = substr($salon, 0, 4);
+            $prefijo = rtrim($prefijo, '0123456789');
+        }
+
+        if (!$prefijo) {
+            $prefijo = 'TEL';
+        }
+
+        return trim($prefijo) . ' ' . trim((string) $telar);
     }
 
     /**
