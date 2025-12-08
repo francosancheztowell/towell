@@ -63,6 +63,7 @@
                             id="btn-solicitar"
                             title="Solicitar consumo"
                             text="Solicitar consumo"
+                            iconColor="text-white"
                             module="Inv Trama"
                             :disabled="false"
                             icon="fa-list"
@@ -72,6 +73,7 @@
                             id="btn-editar"
                             title="Editar"
                             text="Editar"
+                            iconColor="text-white"
                             module="Inv Trama"
                             :disabled="false"
                             icon="fa-pen-to-square"
@@ -122,7 +124,7 @@
                                             <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">{{ $consumo->CodColorTrama ?? '-' }}</td>
                                             <td class="px-4 py-2 text-sm text-gray-900 border-r border-gray-200">{{ $consumo->ColorTrama ?? '-' }}</td>
                                             <td class="px-4 py-2 text-sm text-gray-900">{{ $consumo->Cantidad ? number_format($consumo->Cantidad, 0) : '0' }}</td>
-                                        </tr>       
+                                        </tr>
                                     @endforeach
                                 @else
                                     <tr>
