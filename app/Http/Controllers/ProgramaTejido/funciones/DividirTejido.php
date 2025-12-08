@@ -58,18 +58,24 @@ class DividirTejido
                 return self::redistribuirGrupoExistente($request, $ordCompartidaExistente, $destinos, $salonDestino);
             }
 
-            // Obtener el último registro del telar original (el que se va a dividir)
-            $registroOriginal = ReqProgramaTejido::query()
-                ->salon($salonOrigen)
-                ->telar($telarOrigen)
-                ->where('Ultimo', 1)
-                ->orderBy('FechaInicio', 'desc')
-                ->first()
-                ?? ReqProgramaTejido::query()
+            // Obtener el registro específico a dividir:
+            // 1) Si viene registro_id_original, usar ese.
+            // 2) Si no, usar el último del telar (fallback anterior).
+            if (!empty($registroIdOriginal)) {
+                $registroOriginal = ReqProgramaTejido::find($registroIdOriginal);
+            } else {
+                $registroOriginal = ReqProgramaTejido::query()
                     ->salon($salonOrigen)
                     ->telar($telarOrigen)
+                    ->where('Ultimo', 1)
                     ->orderBy('FechaInicio', 'desc')
-                    ->first();
+                    ->first()
+                    ?? ReqProgramaTejido::query()
+                        ->salon($salonOrigen)
+                        ->telar($telarOrigen)
+                        ->orderBy('FechaInicio', 'desc')
+                        ->first();
+            }
 
             if (!$registroOriginal) {
                 return response()->json([
@@ -108,7 +114,15 @@ class DividirTejido
                 }
             }
 
-            // (Validación de suma removida a solicitud)
+            // Ajustar cantidades: si no se dio cantidad al original, usar la diferencia
+            $sumaNuevos = array_sum($cantidadesNuevos);
+            if ($cantidadParaOriginal <= 0) {
+                $cantidadParaOriginal = max(0, $cantidadOriginalTotal - $sumaNuevos);
+            }
+            // Si tampoco hubo nuevos, mantener el total original en el registro base
+            if ($cantidadParaOriginal <= 0 && $sumaNuevos <= 0) {
+                $cantidadParaOriginal = $cantidadOriginalTotal;
+            }
 
             $idsParaObserver = [];
             $totalDivididos = 0;
@@ -126,6 +140,12 @@ class DividirTejido
             // SaldoPedido = TotalPedido - Produccion (si hay producción)
             $produccionOriginal = (float) ($registroOriginal->Produccion ?? 0);
             $registroOriginal->SaldoPedido = max(0, $cantidadParaOriginal - $produccionOriginal);
+            // Ajustar Maquina al telar origen seleccionado
+            $registroOriginal->Maquina = self::construirMaquina(
+                $registroOriginal->Maquina ?? null,
+                $salonOrigen,
+                $telarOrigen
+            );
             $registroOriginal->UpdatedAt = now();
 
             // Recalcular fechas proporcionalmente usando la duración original guardada
@@ -464,6 +484,14 @@ class DividirTejido
                         $produccion = (float) ($registro->Produccion ?? 0);
                         $registro->SaldoPedido = max(0, $nuevaCantidad - $produccion);
 
+                        // Ajustar Maquina al telar (si se recibe telar en destino existente)
+                        $telarDestino = $destino['telar'] ?? $registro->NoTelarId;
+                        $registro->Maquina = self::construirMaquina(
+                            $registro->Maquina ?? null,
+                            $salonDestino,
+                            $telarDestino
+                        );
+
                         // Recalcular fecha final proporcionalmente
                         if ($segundosPorUnidad > 0) {
                             $nuevaDuracion = $segundosPorUnidad * $nuevaCantidad;
@@ -645,4 +673,3 @@ class DividirTejido
         return trim($prefijo) . ' ' . trim((string) $telar);
     }
 }
-
