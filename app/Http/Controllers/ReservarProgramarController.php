@@ -626,6 +626,20 @@ class ReservarProgramarController extends Controller
      * **IMPORTANTE**: No se filtra por Total > 0 al final; si existe el programa, se regresa
      * con ceros en las semanas cuando no hay metros en el rango.
      */
+    /**
+     * @param \Illuminate\Support\Collection|\Traversable|array<int,mixed> $programas
+     * @param array<int,array<string,mixed>> $semanas
+     * @param string $tipo 'Rizo'|'Pie'
+     * @param string|null $cuentaEsperada
+     * @param string|null $hiloEsperado
+     * @param float|int|string|null $calibreEsperado
+     * @param bool $calibreEsVacio
+     * @param array<int,mixed> $lineasPorPrograma
+     * @param string|null $fechaIni
+     * @param string|null $fechaFin
+     * @param bool $usarFallbackMetros
+     * @return array<int,array<string,mixed>>
+     */
     private function procesarResumenPorTipo(
         $programas,
         array $semanas,

@@ -1,13 +1,7 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
-@section('page-title', 'Resumen de Artículos')
-
 @section('navbar-right')
-<button onclick="window.print()"
-        class="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-all duration-200 shadow-md hover:shadow-lg print:hidden">
-    <i class="fas fa-print"></i>
-    <span>Imprimir</span>
-</button>
+{{-- Navbar oculto en esta vista --}}
 @endsection
 
 @section('content')
@@ -23,7 +17,7 @@
     $totalCantidad = $consumosPorSalon->flatten()->sum('Cantidad');
 @endphp
 
-<div class="min-h-screen bg-white py-6">
+<div class="bg-white py-4">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
 
         <!-- Resumen compacto -->
@@ -141,6 +135,21 @@
     .card-compact { border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
     .table-resumen th, .table-resumen td { border-color:#e5e7eb; }
     .table-resumen thead { background:#f8fafc; }
+    /* Ocultar navbar en esta vista */
+    header, header nav, nav, .navbar, .nav-bar, .top-nav, .topbar, .main-nav, .app-header, .navbar-collapse {
+        display: none !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    body, main, .content, .content-wrapper {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+        min-height: auto !important;
+    }
     @media print {
         @page { margin: 12mm; size: A4; }
         body { color:#111827; }

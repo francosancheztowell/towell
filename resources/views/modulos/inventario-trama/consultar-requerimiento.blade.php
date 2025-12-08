@@ -163,7 +163,8 @@
         detalles: folio => `/modulo-consultar-requerimiento/${folio}`,
         status:   folio => `/modulo-consultar-requerimiento/${folio}/status`,
         resumen:  folio => `/modulo-consultar-requerimiento/${folio}/resumen`,
-        editar:   folio => @json(route('tejido.inventario.trama.nuevo.requerimiento')) + `?folio=${encodeURIComponent(folio)}`
+        editar:   folio => @json(route('tejido.inventario.trama.nuevo.requerimiento')) + `?folio=${encodeURIComponent(folio)}`,
+        telegram: folio => `/modulo-consultar-requerimiento/${folio}/telegram`
     };
 
     const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
