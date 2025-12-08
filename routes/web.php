@@ -1073,4 +1073,5 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     // MÓDULO DESARROLLADORES
     // ============================================
     Route::get('/desarrolladores', [TelDesarrolladoresController::class, 'index'])->name('desarrolladores');
+    Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])->name('desarrolladores.store');
     });
