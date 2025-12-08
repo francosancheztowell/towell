@@ -67,38 +67,50 @@ class MarcasController extends Controller
                 ], 401);
             }
 
-            // Validar que no exista otro folio "En Proceso"
-            $folioEnProceso = TejMarcas::where('Status', 'En Proceso')->first();
-            
-            if ($folioEnProceso) {
+            // Usar transacción con bloqueo para prevenir creación simultánea
+            return DB::transaction(function () use ($usuario) {
+                // Bloquear la tabla para lectura/escritura (lock pessimista)
+                // Esto garantiza que solo una solicitud pueda ejecutarse a la vez
+                $folioEnProceso = TejMarcas::where('Status', 'En Proceso')
+                    ->lockForUpdate()
+                    ->first();
+                
+                if ($folioEnProceso) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
+                        'folio_existente' => $folioEnProceso->Folio,
+                        'creado_por_otro' => true
+                    ], 400);
+                }
+
+                // Obtener el último folio con bloqueo
+                $ultimoFolio = TejMarcas::orderByDesc('Folio')
+                    ->lockForUpdate()
+                    ->value('Folio');
+
+                if ($ultimoFolio) {
+                    $soloDigitos = preg_replace('/\D/', '', $ultimoFolio);
+                    $numero = intval($soloDigitos) + 1;
+                    $nuevoFolio = 'FM' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+                } else {
+                    $nuevoFolio = 'FM0001';
+                }
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
-                    'folio_existente' => $folioEnProceso->Folio
-                ], 400);
-            }
-
-            $ultimoFolio = TejMarcas::orderByDesc('Folio')->value('Folio');
-
-            if ($ultimoFolio) {
-                $soloDigitos = preg_replace('/\D/', '', $ultimoFolio);
-                $numero = intval($soloDigitos) + 1;
-                $nuevoFolio = 'FM' . str_pad($numero, 4, '0', STR_PAD_LEFT);
-            } else {
-                $nuevoFolio = 'FM0001';
-            }
-
-            return response()->json([
-                'success' => true,
-                'folio' => $nuevoFolio,
-                'turno' => TurnoHelper::getTurnoActual(),
-                'usuario' => $usuario->nombre ?? 'Usuario',
-                'numero_empleado' => $usuario->numero_empleado ?? ''
-            ]);
+                    'success' => true,
+                    'folio' => $nuevoFolio,
+                    'turno' => TurnoHelper::getTurnoActual(),
+                    'usuario' => $usuario->nombre ?? 'Usuario',
+                    'numero_empleado' => $usuario->numero_empleado ?? ''
+                ]);
+            }, 5); // 5 intentos máximo si hay deadlock
+            
         } catch (\Exception $e) {
+            Log::error('Error al generar folio: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al generar folio'
+                'message' => 'Error al generar folio. Por favor, intente nuevamente.'
             ], 500);
         }
     }

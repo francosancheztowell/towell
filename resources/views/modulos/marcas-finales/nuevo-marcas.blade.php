@@ -434,6 +434,20 @@ function generarNuevoFolio() {
     .then(r => r.json().then(data => ({ status: r.status, data })))
     .then(({ status, data }) => {
         if (status === 400 && data.folio_existente) {
+            // Detectar si es creación simultánea por otro usuario
+            if (data.creado_por_otro) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Folio en creación',
+                    text: 'Otro usuario está creando un folio en este momento (' + data.folio_existente + '). Por favor, espere unos segundos e intente nuevamente.',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#3085d6'
+                }).then(() => {
+                    window.location.href = '/modulo-marcas/consultar';
+                });
+                return Promise.reject('Folio en creación por otro usuario');
+            }
+            
             // Ya existe un folio en proceso
             Swal.fire({
                 icon: 'warning',
@@ -473,7 +487,7 @@ function generarNuevoFolio() {
         return data;
     })
     .catch((err) => {
-        if (err !== 'Folio en proceso') {
+        if (err !== 'Folio en proceso' && err !== 'Folio en creación por otro usuario') {
             Swal.fire('Error', typeof err === 'string' ? err : 'No se pudo generar el folio', 'error');
         }
     });
