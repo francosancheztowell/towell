@@ -14,6 +14,17 @@ class TelDesarrolladoresController extends Controller
             ->orderBy('nombreEmpl')
             ->get();
 
-        return view('modulos.desarrolladores.desarrolladores', compact('operadores'));
+        $telares = $this->obtenerTelares();
+
+        return view('modulos.desarrolladores.desarrolladores', compact('operadores', 'telares'));
+    }
+
+    protected function obtenerTelares()
+    {
+        return TelTelaresOperador::select('NoTelarId')
+            ->whereNotNull('NoTelarId')
+            ->groupBy('NoTelarId')
+            ->orderBy('NoTelarId')
+            ->get();
     }
 }
