@@ -310,41 +310,74 @@ class MarcasController extends Controller
     {
         return $this->store($request);
     }
-
-    public function finalizar($folio)
-    {
-        try {
-            if (!Auth::check()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Usuario no autenticado'
-                ], 401);
-            }
-
-            $marca = TejMarcas::find($folio);
-            if (!$marca) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Marca no encontrada'
-                ], 404);
-            }
-
-            $marca->update([
-                'Status' => 'Finalizado',
-                'updated_at' => now()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Marca finalizada correctamente'
-            ]);
-        } catch (\Exception $e) {
+public function finalizar($folio)
+{
+    try {
+        if (!Auth::check()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al finalizar marca'
-            ], 500);
+                'message' => 'Usuario no autenticado'
+            ], 401);
         }
+
+        $marca = TejMarcas::find($folio);
+        if (!$marca) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Marca no encontrada'
+            ], 404);
+        }
+
+        // Validar que todas las líneas tengan Marcas y Eficiencia > 0
+        $lineas = TejMarcasLine::where('Folio', $folio)->get();
+        
+        if ($lineas->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede finalizar un folio sin líneas capturadas'
+            ], 400);
+        }
+
+        $lineasConMarcasInvalidas = $lineas->filter(function($l) {
+            return is_null($l->Marcas) || $l->Marcas <= 0;
+        })->count();
+
+        $lineasConEficienciaInvalida = $lineas->filter(function($l) {
+            return is_null($l->Eficiencia) || $l->Eficiencia <= 0;
+        })->count();
+
+        if ($lineasConMarcasInvalidas > 0 || $lineasConEficienciaInvalida > 0) {
+            $errores = [];
+            if ($lineasConMarcasInvalidas > 0) {
+                $errores[] = "{$lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0";
+            }
+            if ($lineasConEficienciaInvalida > 0) {
+                $errores[] = "{$lineasConEficienciaInvalida} línea(s) con el campo % Efi vacío o en 0";
+            }
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede finalizar: ' . implode(', ', $errores)
+            ], 400);
+        }
+
+        $marca->update([
+            'Status' => 'Finalizado',
+            'updated_at' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Marca finalizada correctamente'
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error al finalizar marca: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al finalizar marca'
+        ], 500);
     }
+}
 
     public function visualizar($folio)
     {

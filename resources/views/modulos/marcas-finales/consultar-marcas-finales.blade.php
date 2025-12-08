@@ -520,59 +520,89 @@
         }
 
         async validarParaFinalizar() {
-            try {
-                Swal.fire({ title: 'Validando...', didOpen: () => Swal.showLoading() });
+    try {
+        Swal.fire({ title: 'Validando...', didOpen: () => Swal.showLoading() });
 
-                const res = await fetch(`${CONFIG.urls.detalle}${this.state.folio}`, {
-                    headers: { 'Accept': 'application/json' }
-                });
+        const res = await fetch(`${CONFIG.urls.detalle}${this.state.folio}`, {
+            headers: { 'Accept': 'application/json' }
+        });
 
-                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-                const data = await res.json();
-                Swal.close();
+        if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+        const data = await res.json();
+        Swal.close();
 
-                if (!data.success) throw new Error(data.message || 'No se pudo obtener el detalle');
+        if (!data.success) throw new Error(data.message || 'No se pudo obtener el detalle');
 
-                const lineas = Array.isArray(data.lineas) ? data.lineas : [];
-                if (lineas.length === 0) {
-                    await Swal.fire({
-                        icon: 'warning',
-                        title: 'No hay líneas',
-                        text: 'No puedes finalizar un folio sin líneas capturadas.'
-                    });
-                    return false;
-                }
-
-                const esVacioOCero = (v) => {
-                    if (v === null || v === undefined) return true;
-                    if (typeof v === 'string' && v.trim() === '') return true;
-                    const n = Number(v);
-                    if (Number.isNaN(n)) return true;
-                    return n <= 0;
-                };
-
-                // Solo validar el campo Marcas
-                let lineasConMarcasInvalidas = 0;
-                for (const l of lineas) {
-                    if (esVacioOCero(l.Marcas)) lineasConMarcasInvalidas++;
-                }
-
-                if (lineasConMarcasInvalidas > 0) {
-                    await Swal.fire({
-                        icon: 'warning',
-                        title: 'No se puede finalizar',
-                        text: `Hay ${lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0.`,
-                        confirmButtonText: 'Entendido'
-                    });
-                    return false;
-                }
-
-                return true;
-            } catch (err) {
-                Swal.close();
-                throw err;
-            }
+        const lineas = Array.isArray(data.lineas) ? data.lineas : [];
+        if (lineas.length === 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'No hay líneas',
+                text: 'No puedes finalizar un folio sin líneas capturadas.'
+            });
+            return false;
         }
+
+        const esVacioOCero = (v) => {
+            if (v === null || v === undefined) return true;
+            if (typeof v === 'string' && v.trim() === '') return true;
+            const n = Number(v);
+            if (Number.isNaN(n)) return true;
+            return n <= 0;
+        };
+
+        // Validar campos Marcas y Eficiencia
+        let lineasConMarcasInvalidas = 0;
+        let lineasConEficienciaInvalida = 0;
+        
+        for (const l of lineas) {
+            if (esVacioOCero(l.Marcas)) lineasConMarcasInvalidas++;
+            if (esVacioOCero(l.Eficiencia)) lineasConEficienciaInvalida++;
+        }
+
+        // Mostrar errores específicos
+        if (lineasConMarcasInvalidas > 0 && lineasConEficienciaInvalida > 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'No se puede finalizar',
+                html: `
+                    <p>Se encontraron los siguientes problemas:</p>
+                    <ul class="text-left mt-2">
+                        <li>• ${lineasConMarcasInvalidas} línea(s) con el campo <strong>Marcas</strong> vacío o en 0</li>
+                        <li>• ${lineasConEficienciaInvalida} línea(s) con el campo <strong>% Efi</strong> vacío o en 0</li>
+                    </ul>
+                `,
+                confirmButtonText: 'Entendido'
+            });
+            return false;
+        }
+
+        if (lineasConMarcasInvalidas > 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'No se puede finalizar',
+                text: `Hay ${lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0.`,
+                confirmButtonText: 'Entendido'
+            });
+            return false;
+        }
+
+        if (lineasConEficienciaInvalida > 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'No se puede finalizar',
+                text: `Hay ${lineasConEficienciaInvalida} línea(s) con el campo % Efi vacío o en 0.`,
+                confirmButtonText: 'Entendido'
+            });
+            return false;
+        }
+
+        return true;
+    } catch (err) {
+        Swal.close();
+        throw err;
+    }
+}
 
         abrirModalFechas() {
             if (!this.dom.modal.fechas) return;
