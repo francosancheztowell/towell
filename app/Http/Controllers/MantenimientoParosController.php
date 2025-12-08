@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Carbon\Carbon;
 
 class MantenimientoParosController extends Controller
 {
@@ -361,7 +362,7 @@ class MantenimientoParosController extends Controller
             }
 
             // Formatear fecha en español
-            $fecha = \Carbon\Carbon::parse($paro->Fecha)->format('d/m/Y');
+            $fecha = Carbon::parse($paro->Fecha)->format('d/m/Y');
             $hora = $paro->Hora;
 
             // Construir el mensaje con formato
@@ -420,6 +421,72 @@ class MantenimientoParosController extends Controller
             }
         } catch (\Exception $e) {
             Log::error('Excepción al enviar notificación a Telegram', [
+                'error' => $e->getMessage(),
+                'folio' => $paro->Folio ?? 'N/A'
+            ]);
+        }
+    }
+
+    /**
+     * Enviar notificación a Telegram al finalizar un paro/falla.
+     */
+    private function enviarNotificacionTelegramCierre($paro, $usuario): void
+    {
+        try {
+            $botToken = config('services.telegram.bot_token');
+            $chatId = config('services.telegram.chat_id');
+
+            if (empty($botToken) || empty($chatId)) {
+                Log::warning('No se pudo enviar notificación de cierre a Telegram: credenciales no configuradas');
+                return;
+            }
+
+            $fecha = $paro->FechaFin ?? $paro->Fecha;
+            $hora = $paro->HoraFin ?? now()->format('H:i:s');
+
+            $mensaje = "✅ *PARO FINALIZADO* \n\n";
+            $mensaje .= "📋 *Folio:* {$paro->Folio}\n";
+            $mensaje .= "🏢 *Departamento:* {$paro->Depto}\n";
+            $mensaje .= "🔧 *Máquina:* {$paro->MaquinaId}\n";
+            $mensaje .= "⚠️ *Tipo de Falla:* {$paro->TipoFallaId}\n";
+            $mensaje .= "❌ *Falla:* {$paro->Falla}\n";
+            $mensaje .= "📅 *Fecha cierre:* " . Carbon::parse($fecha)->format('d/m/Y') . "\n";
+            $mensaje .= "🕐 *Hora cierre:* {$hora}\n";
+
+            if (!empty($paro->NomAtendio)) {
+                $mensaje .= "👤 *Atendió:* {$paro->NomAtendio}\n";
+            }
+
+            if (!empty($paro->TurnoAtendio)) {
+                $mensaje .= "🔄 *Turno atención:* {$paro->TurnoAtendio}\n";
+            }
+
+            if (!empty($paro->Calidad)) {
+                $mensaje .= "⭐ *Calidad:* {$paro->Calidad}/5\n";
+            }
+
+            if (!empty($paro->ObsCierre)) {
+                $mensaje .= "💬 *Observaciones cierre:* {$paro->ObsCierre}\n";
+            }
+
+            $mensaje .= "\n👤 *Cerrado por:* " . ($usuario->nombre ?? 'N/A');
+
+            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+            $response = Http::post($url, [
+                'chat_id' => $chatId,
+                'text' => $mensaje,
+                'parse_mode' => 'Markdown'
+            ]);
+
+            if ($response->failed()) {
+                Log::error('Error al enviar notificación de cierre a Telegram', [
+                    'status' => $response->status(),
+                    'response' => $response->json(),
+                    'folio' => $paro->Folio
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Excepción al enviar notificación de cierre a Telegram', [
                 'error' => $e->getMessage(),
                 'folio' => $paro->Folio ?? 'N/A'
             ]);
@@ -519,6 +586,7 @@ class MantenimientoParosController extends Controller
                 'turno' => 'nullable|integer|in:1,2,3',
                 'calidad' => 'nullable|integer|min:1|max:10',
                 'obs_cierre' => 'nullable|string|max:255',
+                'enviar_telegram' => 'nullable|boolean',
             ]);
 
             $usuario = Auth::user();
@@ -549,6 +617,12 @@ class MantenimientoParosController extends Controller
 
             // Actualizar paro
             $paro->update($updateData);
+            $paro->refresh();
+
+            $enviarTelegram = $request->boolean('enviar_telegram', false);
+            if ($enviarTelegram) {
+                $this->enviarNotificacionTelegramCierre($paro, $usuario);
+            }
 
             Log::info('Paro finalizado correctamente', [
                 'paro_id' => $id,
@@ -558,10 +632,11 @@ class MantenimientoParosController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Paro finalizado correctamente',
+                'message' => 'Paro finalizado correctamente' . ($enviarTelegram ? ' y notificación enviada a Telegram' : ''),
                 'data' => [
                     'id' => $paro->Id,
                     'folio' => $paro->Folio,
+                    'notificacion_enviada' => $enviarTelegram,
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {

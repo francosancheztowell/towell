@@ -144,7 +144,15 @@
             </div>
 
             <!-- Botones -->
-            <div class="grid grid-cols-2 gap-3 md:gap-4 mt-2 md:mt-3 pt-2 md:pt-3 border-t border-gray-200">
+            <div class="grid grid-cols-3 gap-3 md:gap-4 mt-2 md:mt-3 pt-2 md:pt-3 border-t border-gray-200">
+                <button
+                    type="button"
+                    id="btn-cancelar"
+                    class="px-4 py-2.5 md:px-6 md:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm md:text-base font-medium rounded-md transition-colors"
+                    onclick="window.location.href='{{ route('mantenimiento.reporte-fallos-paros') }}'"
+                >
+                    Ir a Solicitudes
+                </button>
                 <button
                     type="button"
                     id="btn-cancelar"

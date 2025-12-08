@@ -7,24 +7,32 @@
 @endsection
 
 @section('content')
-    <div class="container">
+    <div class="w-full">
     @if ($noResults ?? false)
         <div class="alert alert-warning text-center">No se encontraron resultados con la información proporcionada.</div>
         @endif
 
     <div class="bg-white overflow-hidden shadow-sm rounded-lg">
-        <div class="overflow-y-auto h-[640px] scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
-            <table class="min-w-full text-sm">
-                <thead class="sticky top-0 bg-blue-500 border-b-2 text-white z-20">
+        <div class="overflow-y-auto max-h-[70vh] relative scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+            <table class="min-w-full text-sm text-center table-sticky">
+                <thead class="bg-blue-500 text-white">
                     <tr>
-                        <th class="py-1 px-2 font-bold tracking-wider text-center">No. Julio</th>
-                        <th class="py-1 px-2 font-bold tracking-wider text-center">Tara</th>
-                        <th class="py-1 px-2 font-bold tracking-wider text-center">Departamento</th>
+                        <th class="py-2 px-2 font-bold tracking-wider text-center">No. Julio</th>
+                        <th class="py-2 px-2 font-bold tracking-wider text-center">Tara</th>
+                        <th class="py-2 px-2 font-bold tracking-wider text-center">Departamento</th>
                     </tr>
                 </thead>
                 <tbody id="julios-body" class="bg-white text-black">
                     @foreach ($julios as $julio)
-                        @php $uid = $julio->Id ?? uniqid(); @endphp
+                        @php
+                            $uid = $julio->Id ?? uniqid();
+                            $dep = strtoupper($julio->Departamento ?? '');
+                            $depBadge = $dep === 'URDIDO'
+                                ? 'bg-indigo-100 text-indigo-700'
+                                : ($dep === 'ENGOMADO'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-gray-100 text-gray-700');
+                        @endphp
                         <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
                             onclick="window.catalogManager?.selectRow(this, '{{ $uid }}', '{{ $julio->NoJulio }}')"
                             ondblclick="window.catalogManager?.deselectRow(this)"
@@ -33,9 +41,13 @@
                             data-tara="{{ $julio->Tara ?? 0 }}"
                             data-departamento="{{ $julio->Departamento ?? '' }}"
                             data-id="{{ $julio->Id ?? $uid }}">
-                            <td class="py-2 px-4 border-b">{{ $julio->NoJulio }}</td>
-                            <td class="py-2 px-4 border-b">{{ number_format($julio->Tara ?? 0, 2) }}</td>
-                            <td class="py-2 px-4 border-b">{{ $julio->Departamento ?? 'N/A' }}</td>
+                            <td class="py-2 px-4">{{ $julio->NoJulio }}</td>
+                            <td class="py-2 px-4">{{ number_format($julio->Tara ?? 0, 2) }}</td>
+                            <td class="py-2 px-4">
+                                <span class="px-2 py-1 rounded text-xs font-semibold {{ $depBadge }}">
+                                    {{ $julio->Departamento ?? 'N/A' }}
+                                </span>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -52,6 +64,20 @@
   .scrollbar-track-gray-100::-webkit-scrollbar-track { background-color: #f3f4f6; }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
   .swal2-input { width: 100% !important; }
+  /* Encabezado fijo en scroll interno */
+  .table-sticky { border-collapse: separate; border-spacing: 0; }
+  .table-sticky thead {
+    position: sticky;
+    top: 0;
+    z-index: 45;
+
+  }
+  .table-sticky thead th {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background-clip: padding-box;
+  }
 </style>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

@@ -191,6 +191,7 @@ class ReservarProgramarController extends Controller
                 'no_julio' => ['nullable','string','max:50'],
                 'no_orden' => ['nullable','string','max:50'],
                 'localidad' => ['nullable','string','max:10'],
+                'tipo_atado' => ['nullable','string','in:Normal,Especial'],
             ]);
 
             $noTelar = (string)$request->input('no_telar');
@@ -211,6 +212,7 @@ class ReservarProgramarController extends Controller
             if ($request->filled('no_julio')) $update['no_julio'] = (string)$request->input('no_julio');
             if ($request->filled('no_orden')) $update['no_orden'] = (string)$request->input('no_orden');
             if ($request->filled('localidad')) $update['localidad'] = (string)$request->input('localidad');
+            if ($request->filled('tipo_atado')) $update['tipo_atado'] = (string)$request->input('tipo_atado');
 
             if ($update) $telar->update($update);
 
@@ -1057,6 +1059,7 @@ class ReservarProgramarController extends Controller
             $q = DB::connection('sqlsrv_ti')
                 ->table('BOMTABLE as bt')
                 ->where('bt.DATAAREAID', 'PRO')
+                ->where('bt.ITEMGROUPID', 'JUL-URD') // Grupo requerido
                 ->where('bt.BOMID', 'LIKE', 'URD %'); // BOMs de urdido empiezan con 'URD '
 
             // Filtrar por término de búsqueda
@@ -1097,11 +1100,15 @@ class ReservarProgramarController extends Controller
                 return response()->json([]);
             }
 
-            // Join BOM + InventDim
-            // Filtros: Bom.BomId = valor seleccionado, Bom.DATAAREAID = 'PRO', InventDim.InventdimId = bom.inventDimId
+            // Join BOM + BOMTABLE + InventDim
+            // Filtros: BomId seleccionado, DATAAREAID = 'PRO', ITEMGROUPID = 'JUL-URD'
             // Agrupar por ItemId y ConfigId, sumando BomQty
             $results = DB::connection('sqlsrv_ti')
                 ->table('BOM as b')
+                ->join('BOMTABLE as bt', function($join) {
+                    $join->on('bt.BOMID', '=', 'b.BOMID')
+                         ->on('bt.DATAAREAID', '=', 'b.DATAAREAID');
+                })
                 ->join('INVENTDIM as id', 'id.INVENTDIMID', '=', 'b.INVENTDIMID')
                 ->join('INVENTTABLE as it', function($join) {
                     $join->on('it.ITEMID', '=', 'b.ITEMID')
@@ -1110,6 +1117,8 @@ class ReservarProgramarController extends Controller
                 ->where('b.BOMID', $bomId)
                 ->where('b.DATAAREAID', 'PRO')
                 ->where('id.DATAAREAID', 'PRO')
+                ->where('bt.DATAAREAID', 'PRO')
+                ->where('bt.ITEMGROUPID', 'JUL-URD')
                 ->select([
                     'b.ITEMID as ItemId',
                     DB::raw('SUM(CAST(b.BOMQTY AS DECIMAL(18,6))) as BomQty'),
@@ -1356,6 +1365,7 @@ class ReservarProgramarController extends Controller
             // Consulta base: BOMs de engomado empiezan con 'ENG'
             $q = DB::connection('sqlsrv_ti')
                 ->table('BOMTABLE as bt')
+                ->where('bt.ITEMGROUPID', 'JUL-ENG')
                 ->where('bt.DATAAREAID', 'PRO')
                 ->where('bt.BOMID', 'LIKE', 'ENG %'); // BOMs de engomado empiezan con 'ENG '
 

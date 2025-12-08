@@ -18,26 +18,26 @@
 <div class="w-full">
 
     {{-- =================== Tabla de requerimientos =================== --}}
-    <div class="bg-white overflow-hidden mb-4 border">
+    <div class="bg-white overflow-hidden mb-4">
         <div class="overflow-x-auto">
             <table id="tablaRequerimientos" class="w-full">
                 <thead>
-                    <tr class="bg-gray-100 border-b">
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-20">Telar</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-28">Fecha Req</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-20">Cuenta</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-20">Calibre</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-24">Hilo</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-28">Urdido</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-20">Tipo</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-28">Destino</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-28">Tipo Atado</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-24">Metros</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-24">Kilos</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-gray-700 w-24">Agrupar</th>
+                    <tr class="bg-blue-500">
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-20">Telar</th>
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-28">Fecha Req</th>
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-20">Cuenta</th>
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-20">Calibre</th>
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-24">Hilo</th>
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-28">Urdido</th>
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-20">Tipo</th>
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-28">Destino</th>
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-28">Tipo Atado</th>
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-24">Metros</th>
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-24">Kilos</th>
+                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-24">Agrupar</th>
                     </tr>
                 </thead>
-                <tbody id="tbodyRequerimientos" class="bg-white divide-y">
+                <tbody id="tbodyRequerimientos" class="bg-white">
                     {{-- filas dinámicas --}}
                 </tbody>
             </table>
@@ -45,11 +45,11 @@
     </div>
 
     {{-- =================== Resumen por semana =================== --}}
-    <div class="bg-white overflow-hidden rounded-lg border">
+    <div class="bg-white overflow-hidden">
         <div class="overflow-x-auto">
             <table id="tablaResumen" class="w-full">
                 <thead id="theadResumen">
-                    <tr class="bg-slate-100 border-b">
+                    <tr class="bg-slate-100">
                         <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Telar</th>
                         <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Cuenta</th>
                         <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Hilo</th>
@@ -60,7 +60,7 @@
                         <th class="px-2 py-1.5 text-center text-[10px] font-semibold text-green-700 bg-green-50/50" colspan="5">Kilos</th>
                         <th class="px-2 py-1.5 text-right text-[10px] font-semibold text-green-700 bg-green-50" rowspan="2">Total (kg)</th>
                     </tr>
-                    <tr class="border-b">
+                    <tr>
                         <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="0">Semana 1</th>
                         <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="1">Semana 2</th>
                         <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="2">Semana 3</th>
@@ -73,7 +73,7 @@
                         <th class="px-2 py-1 text-right text-[10px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="4">Semana 5</th>
                     </tr>
                 </thead>
-                <tbody id="tbodyResumen" class="bg-white divide-y">
+                <tbody id="tbodyResumen" class="bg-white">
                     {{-- filas dinámicas --}}
                 </tbody>
             </table>
@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700');
 
         const tr = document.createElement('tr');
-        tr.className = 'border-b hover:bg-gray-50';
+        tr.className = ' hover:bg-gray-50';
         tr.dataset.index = index;
         tr.dataset.telarId = telar.no_telar || '';
 
@@ -248,8 +248,8 @@ document.addEventListener('DOMContentLoaded', () => {
             </td>
             <td class="px-2 py-3 w-24">
                 <input type="text" placeholder="Kilos"
-                       class="w-full px-2 py-1.5 bg-transparent border-0 text-xs text-right"
-                       value="${telar.kilos ? formatNumberInput(telar.kilos) : ''}" data-field="kilos" disabled>
+                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       value="${telar.kilos ? formatNumberInput(telar.kilos) : ''}" data-field="kilos">
             </td>
             <td class="px-2 py-3 w-24 text-center">
                 <input type="checkbox" class="w-4 h-4" ${telar.agrupar ? 'checked' : ''} data-field="agrupar">
@@ -747,7 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sumaTotalMetros += Number(r.total || 0);
             sumaTotalKilos += Number(r.totalKilos || 0);
             const tr = document.createElement('tr');
-            tr.className = 'border-b hover:bg-gray-50';
+            tr.className = 'hover:bg-gray-50';
             tr.innerHTML = `
                 <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.telar}</td>
                 <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.cuenta || '-'}</td>
@@ -772,7 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Agregar fila de totales (sumas - solo lectura)
         const trTotal = document.createElement('tr');
-        trTotal.className = 'border-t-2 border-gray-400 bg-gray-100';
+        trTotal.className = 'bg-gray-100';
         trTotal.id = 'filaTotal';
 
         trTotal.innerHTML = `

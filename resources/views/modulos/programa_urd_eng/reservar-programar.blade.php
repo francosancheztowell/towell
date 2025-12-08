@@ -37,6 +37,9 @@
 @endsection
 
 @section('content')
+@php
+    $esSupervisor = strtolower(auth()->user()->puesto ?? '') === 'supervisor';
+@endphp
 <div class="w-full">
 
     {{-- =================== Tabla: Programación (telares) =================== --}}
@@ -173,7 +176,19 @@
                                             {{ $t['no_orden'] ?? '' }}
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            {{ $t['tipo_atado'] ?? 'Normal' }}
+                                            @php $tipoAtado = $t['tipo_atado'] ?? 'Normal'; @endphp
+                                            @if($esSupervisor)
+                                                <select
+                                                    class="tipo-atado-select w-full bg-white px-2 py-1 text-xs border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500"
+                                                    data-telar="{{ $t['no_telar'] ?? '' }}"
+                                                    data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
+                                                >
+                                                    <option value="Normal" {{ $tipoAtado === 'Normal' ? 'selected' : '' }}>Normal</option>
+                                                    <option value="Especial" {{ $tipoAtado === 'Especial' ? 'selected' : '' }}>Especial</option>
+                                                </select>
+                                            @else
+                                                <span class="text-gray-800 text-xs font-medium">{{ $tipoAtado }}</span>
+                                            @endif
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             <span class="px-2 py-0.5 rounded text-xs font-medium {{ $salonCls }}">
@@ -290,6 +305,7 @@ const API = {
     columnOptions: '{{ route("programa.urd.eng.column.options") }}'
 };
 
+const ES_SUPERVISOR = @json($esSupervisor);
 const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
 /* ---------- Helpers DOM ---------- */
@@ -528,6 +544,19 @@ const render = {
             tr.dataset.metros      = r.metros || '';
             tr.dataset.hasBoth     = hasBoth ? 'true' : 'false';
             tr.dataset.isReservado = reservado ? 'true' : 'false';
+            tr.dataset.tipoAtado   = r.tipo_atado || 'Normal';
+
+            const tipoAtado = r.tipo_atado || 'Normal';
+            const tipoAtadoCell = ES_SUPERVISOR
+                ? `<select
+                        class="tipo-atado-select w-full bg-white px-2 py-1 text-xs border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500"
+                        data-telar="${telarNo}"
+                        data-tipo="${tipoUpper}"
+                    >
+                        <option value="Normal" ${tipoAtado === 'Normal' ? 'selected' : ''}>Normal</option>
+                        <option value="Especial" ${tipoAtado === 'Especial' ? 'selected' : ''}>Especial</option>
+                   </select>`
+                : `<span class="text-gray-800 text-xs font-medium">${tipoAtado}</span>`;
 
             const checkboxChecked  = isInMultiple ? ' checked' : '';
             const checkboxDisabled = (reservado || tieneNoOrd) ? ' disabled' : '';
@@ -569,7 +598,7 @@ const render = {
                     ${r.no_orden || ''}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                    ${r.tipo_atado || 'Normal'}
+                    ${tipoAtadoCell}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     <span class="px-2 py-0.5 rounded text-xs font-medium ${fmt.salonBadge(r.salon)}">
@@ -615,6 +644,7 @@ const render = {
             const telNo      = tel.no_telar;
             const telJulio   = tel.no_julio;
             const telNoOrden = String(tel.no_orden || '').trim();
+                const telTipoAtado = tel.tipo_atado || 'Normal';
 
             data = data.filter(r => {
                 const hasTelar      = !!(r.NoTelarId && r.NoTelarId !== '');
@@ -910,6 +940,7 @@ const selection = {
             hilo:     row.dataset.hilo || '',
             no_julio: row.dataset.noJulio || '',
             no_orden: row.dataset.noOrden || '',
+            tipo_atado: row.querySelector('.tipo-atado-select')?.value || 'Normal',
             is_reservado: row.dataset.isReservado === 'true'
         };
 
@@ -1316,7 +1347,8 @@ const actions = {
                 cuenta:   tel.cuenta || (telarCompleto ? (telarCompleto.cuenta || '') : ''),
                 salon:    tel.salon  || (telarCompleto ? (telarCompleto.salon  || '') : ''),
                 calibre:  tel.calibre|| (telarCompleto ? (telarCompleto.calibre|| '') : ''),
-                hilo:     tel.hilo   || (telarCompleto ? (telarCompleto.hilo   || '') : '')
+                hilo:     tel.hilo   || (telarCompleto ? (telarCompleto.hilo   || '') : ''),
+                tipo_atado: tel.tipo_atado || (telarCompleto ? (telarCompleto.tipo_atado || 'Normal') : 'Normal')
             }];
 
             const telaresJson = encodeURIComponent(JSON.stringify(telarArray));
@@ -1572,6 +1604,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Checkboxes: selección múltiple
     $('#telaresTable tbody')?.addEventListener('change', e => {
         const target = e.target;
+        if (target.classList.contains('tipo-atado-select')) {
+            if (!ES_SUPERVISOR) return;
+            const row = target.closest('.selectable-row');
+            const telar = row?.dataset.telar || '';
+            const tipo  = row?.dataset.tipo || '';
+            const nuevo = target.value || 'Normal';
+
+            if (!telar) return;
+
+            // Actualizar visualmente datos locales
+            if (row && row.classList.contains('is-selected')) {
+                state.selectedTelar = {
+                    ...(state.selectedTelar || {}),
+                    tipo_atado: nuevo
+                };
+            }
+
+            // Enviar al backend
+            http.post(API.actualizarTelar, {
+                no_telar: telar,
+                tipo:     normalizeTipo(tipo),
+                tipo_atado: nuevo
+            }).catch(err => {
+                toast('error', 'No se pudo actualizar tipo de atado', err.message || '');
+                // Revertir select si falla
+                target.value = (row?.dataset.tipoAtadoPrev || 'Normal');
+            }).then(() => {
+                toast('success', 'Tipo de atado actualizado');
+            });
+
+            row.dataset.tipoAtadoPrev = nuevo;
+            return;
+        }
+
         if (!target.classList.contains('telar-checkbox')) return;
 
         e.stopPropagation();
