@@ -83,6 +83,7 @@ async function duplicarTelar(row) {
 				no_telar_id: telar,
 				salon_destino: datos.salon,
 				destinos: datos.destinos,
+				tamano_clave: datos.claveModelo,
 				cod_articulo: datos.codArticulo,
 				producto: datos.producto,
 				hilo: datos.hilo,
@@ -575,16 +576,15 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		const salonParaBuscar = selectSalon?.value || salonActual;
 		if (!salonParaBuscar || !tamanoClave) return;
 
-		fetch('/programa-tejido/datos-relacionados', {
-			method: 'POST',
+		const params = new URLSearchParams();
+		params.append('salon_tejido_id', salonParaBuscar);
+		params.append('tamano_clave', tamanoClave);
+
+		fetch('/programa-tejido/datos-relacionados?' + params.toString(), {
+			method: 'GET',
 			headers: {
-				'Content-Type': 'application/json',
-				'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-			},
-			body: JSON.stringify({
-				salon_tejido_id: salonParaBuscar,
-				tamano_clave: tamanoClave
-			})
+				'Accept': 'application/json'
+			}
 		})
 			.then(r => r.json())
 			.then(data => {
@@ -602,6 +602,10 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					if (inputDescripcion) inputDescripcion.value = data.datos.NombreProyecto || '';
 					if (inputCustname) inputCustname.value = data.datos.CustName || '';
 					if (inputInventSizeId) inputInventSizeId.value = data.datos.InventSizeId || '';
+
+					// Disparar cambio visual/interno si hay listeners
+					inputCodArticulo.dispatchEvent(new Event('input', { bubbles: true }));
+					inputProducto.dispatchEvent(new Event('input', { bubbles: true }));
 				}
 			})
 			.catch(() => {});
@@ -623,6 +627,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		inputClaveModelo.addEventListener('blur', (e) => {
 			// Delay para permitir click en sugerencia
 			setTimeout(() => containerSugerencias.classList.add('hidden'), 200);
+		// Si hay valor escrito, cargar datos relacionados
+		const val = inputClaveModelo.value?.trim();
+		if (val) cargarDatosRelacionados(val);
 		});
 
 		inputClaveModelo.addEventListener('keydown', (e) => {
@@ -859,6 +866,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				optionNA.value = 'NA';
 				optionNA.textContent = 'NA';
 				selectAplicacion.appendChild(optionNA);
+			}
+			// Si no hay selección previa, forzar NA como valor por defecto
+			if (!selectAplicacion.value) {
+				const optNa = Array.from(selectAplicacion.options).find(o => o.value === 'NA');
+				if (optNa) optNa.selected = true;
 			}
 		}
 

@@ -229,29 +229,11 @@ class ConsultarRequerimientoController extends Controller
                 return;
             }
 
-            $consumos = TejTramaConsumos::where('Folio', $req->Folio)->get();
-            $totalConsumos = $consumos->count();
-            $totalCantidad = $consumos->sum('Cantidad');
-
-            $lineas = $consumos->take(5)->map(function($c){
-                $calibre = $c->CalibreTrama ? number_format((float)$c->CalibreTrama, 2) : '-';
-                $fibra   = $c->FibraTrama ?? '-';
-                $color   = $c->CodColorTrama ?? '-';
-                $cant    = $c->Cantidad ? number_format((float)$c->Cantidad, 0) : '0';
-                return "• {$calibre} | {$fibra} | {$color} | Cant: {$cant}";
-            })->implode("\n");
-
-            $extra = $totalConsumos > 5 ? "\n... y " . ($totalConsumos - 5) . " más." : '';
-
-            $mensaje  = "📦 *SOLICITAR CONSUMO*\n";
+            $mensaje  = "📦 *SOLICITAR CONSUMO TRAMA*\n";
             $mensaje .= "Folio: {$req->Folio}\n";
             $mensaje .= "Fecha: " . now()->format('d/m/Y H:i') . "\n";
             $mensaje .= "Turno: " . ($req->Turno ?? 'N/A') . "\n";
             $mensaje .= "Operador: " . ($req->numero_empleado ?? 'N/A') . "\n";
-            $mensaje .= "Artículos: {$totalConsumos} | Cantidad total: " . number_format($totalCantidad, 0) . "\n";
-            if ($lineas) {
-                $mensaje .= "\nDetalle:\n{$lineas}{$extra}";
-            }
 
             $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
             $resp = Http::post($url, [

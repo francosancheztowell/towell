@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+// PDF facade (alias configurado en config/app.php)
+use PDF;
 use App\Helpers\TurnoHelper;
 use App\Helpers\FolioHelper;
 use App\Models\InvSecuenciaCorteEf;
@@ -249,7 +251,7 @@ class CortesEficienciaController extends Controller
                 $folioExistenteEnProceso = TejEficiencia::where('Folio', $validated['folio'])
                     ->where('Status', '!=', 'Finalizado')
                     ->first();
-                
+
                 if ($folioExistenteEnProceso) {
                     // Si el folio ya existe y está en proceso, usarlo (es una actualización)
                     $folioFinal = $validated['folio'];
@@ -456,12 +458,15 @@ class CortesEficienciaController extends Controller
                 'status_nuevo' => 'Finalizado'
             ]);
 
+            $pdfUrl = route('cortes.eficiencia.pdf', $corte->Folio);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Corte de eficiencia finalizado exitosamente',
                 'data' => [
                     'folio' => $corte->Folio,
-                    'status' => $corte->Status
+                    'status' => $corte->Status,
+                    'pdf_url' => $pdfUrl,
                 ]
             ]);
 
@@ -527,9 +532,9 @@ class CortesEficienciaController extends Controller
                     'status' => $corte->Status,
                     'usuario' => $corte->nombreEmpl,
                     'noEmpleado' => $corte->numero_empleado,
-                    'horario_1' => $corte->Horario1,
-                    'horario_2' => $corte->Horario2,
-                    'horario_3' => $corte->Horario3,
+                    'horario_1' => $this->formatearHora($corte->Horario1),
+                    'horario_2' => $this->formatearHora($corte->Horario2),
+                    'horario_3' => $this->formatearHora($corte->Horario3),
                     'datos_telares' => $lineas
                 ]
             ]);
@@ -542,6 +547,60 @@ class CortesEficienciaController extends Controller
                 'message' => 'Error al obtener el corte de eficiencia: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Descargar PDF de un corte de eficiencia
+     */
+    public function pdf($id)
+    {
+        $corte = TejEficiencia::where('Folio', $id)->first();
+        if (!$corte) {
+            return redirect()->route('cortes.eficiencia.consultar')->with('error', 'Folio no encontrado');
+        }
+
+        // Líneas del folio y turno/fecha
+        $lineas = TejEficienciaLine::where('Folio', $corte->Folio)
+            ->where('Date', $corte->Date)
+            ->where('Turno', $corte->Turno)
+            ->orderBy('NoTelarId')
+            ->get();
+
+        // Lista de telares en orden de secuencia
+        $telaresSecuencia = InvSecuenciaCorteEf::orderBy('Orden', 'asc')->pluck('NoTelarId')->toArray();
+        $telaresLineas = $lineas->pluck('NoTelarId')->unique()->toArray();
+        $telares = collect(array_unique(array_merge($telaresSecuencia, $telaresLineas)))->sort()->values();
+
+        // Indexado por telar para acceso rápido
+        $lineasPorTelar = $lineas->keyBy('NoTelarId');
+
+        $pdf = PDF::loadView('modulos.cortes-eficiencia.pdf', [
+            'corte' => $corte,
+            'telares' => $telares,
+            'lineasPorTelar' => $lineasPorTelar,
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download("corte-eficiencia-{$corte->Folio}.pdf");
+    }
+
+    /**
+     * Devuelve solo HH:MM si viene con segundos o fracciones; null si vacío
+     */
+    private function formatearHora($valor): ?string
+    {
+        if (empty($valor)) {
+            return null;
+        }
+        $str = (string) $valor;
+        // Remover milisegundos o fracciones si existen
+        if (str_contains($str, '.')) {
+            $str = explode('.', $str)[0];
+        }
+        // Tomar solo HH:MM si viene HH:MM:SS
+        if (strlen($str) >= 5) {
+            return substr($str, 0, 5);
+        }
+        return $str;
     }
 
     /**

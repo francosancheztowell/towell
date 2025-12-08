@@ -700,7 +700,7 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Control
     Route::get('/programa-tejido/calendario-id-options', [ProgramaTejidoController::class, 'getCalendarioIdOptions']);
     Route::get('/programa-tejido/calendario-lineas/{calendarioId}', [ProgramaTejidoController::class, 'getCalendarioLineas'])->name('programa-tejido.calendario-lineas');
     Route::get('/programa-tejido/aplicacion-id-options', [ProgramaTejidoController::class, 'getAplicacionIdOptions']);
-    Route::post('/programa-tejido/datos-relacionados', [ProgramaTejidoController::class, 'getDatosRelacionados']);
+    Route::match(['get','post'],'/programa-tejido/datos-relacionados', [ProgramaTejidoController::class, 'getDatosRelacionados']);
 Route::get('/programa-tejido/telares-by-salon', [ProgramaTejidoController::class, 'getTelaresBySalon']);
 Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoController::class, 'getUltimaFechaFinalTelar']);
 Route::get('/programa-tejido/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
@@ -812,6 +812,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::post('/modulo-cortes-de-eficiencia/guardar-hora', [CortesEficienciaController::class, 'guardarHora'])->name('cortes.eficiencia.guardar.hora');
     Route::post('/modulo-cortes-de-eficiencia/guardar-tabla', [CortesEficienciaController::class, 'guardarTabla'])->name('cortes.eficiencia.guardar.tabla');
     Route::post('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'store'])->name('cortes.eficiencia.store');
+    Route::get('/modulo-cortes-de-eficiencia/{id}/pdf', [CortesEficienciaController::class, 'pdf'])->name('cortes.eficiencia.pdf');
     Route::get('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'show'])->name('cortes.eficiencia.show');
     Route::put('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'update'])->name('cortes.eficiencia.update');
     Route::post('/modulo-cortes-de-eficiencia/{id}/finalizar', [CortesEficienciaController::class, 'finalizar'])->name('cortes.eficiencia.finalizar');

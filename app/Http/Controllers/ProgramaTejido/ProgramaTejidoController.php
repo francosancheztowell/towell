@@ -387,39 +387,85 @@ class ProgramaTejidoController extends Controller
     {
         try {
             $salon = $request->input('salon_tejido_id');
-            $tam   = $request->input('tamano_clave');
+            $tamRaw = $request->input('tamano_clave');
+            $tam   = $tamRaw ? trim($tamRaw) : null;
+            if ($tam) {
+                // Normalizar: quitar dobles espacios y usar mayúsculas para comparación flexible
+                $tam = preg_replace('/\s+/', ' ', $tam);
+            }
+
+            LogFacade::info('getDatosRelacionados request', [
+                'salon' => $salon,
+                'tamano_clave' => $tam,
+                'method' => $request->method(),
+                'all' => $request->all()
+            ]);
 
             if (!$salon) {
                 return response()->json(['error' => 'SalonTejidoId es requerido'], 400);
             }
 
-            $q = ReqModelosCodificados::where('SalonTejidoId', $salon);
+            // Usar solo columnas seguras y existentes
+            $selectCols = [
+                'TamanoClave',
+                'SalonTejidoId',
+                'FlogsId',
+                'NombreProyecto',
+                'InventSizeId',
+                'ItemId',
+                'Nombre as NombreProducto'
+            ];
+
+            $qBase = ReqModelosCodificados::where('SalonTejidoId', $salon);
             if ($tam) {
-                $q->where('TamanoClave', $tam);
+                // Intento exacto
+                $datos = (clone $qBase)
+                    ->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tam)])
+                    ->select($selectCols)
+                    ->first();
+
+                // Prefijo
+                if (!$datos) {
+                    $datos = (clone $qBase)
+                        ->whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tam) . '%'])
+                        ->select($selectCols)
+                        ->first();
+                }
+
+                // Contiene
+                if (!$datos) {
+                    $datos = (clone $qBase)
+                        ->whereRaw('UPPER(TamanoClave) like ?', ['%' . strtoupper($tam) . '%'])
+                        ->select($selectCols)
+                        ->first();
+                }
+            } else {
+                $datos = $qBase->select($selectCols)->first();
             }
 
-            $datos = $q->select(
-                'TamanoClave','SalonTejidoId','FlogsId','Nombre','NombreProyecto','InventSizeId',
-                'ItemId','CustName',
-                'CuentaRizo','CalibreRizo','CalibreRizo2','FibraRizo',
-                'CalibreTrama','CalibreTrama2','CodColorTrama','ColorTrama','FibraId',
-                'CalibrePie','CalibrePie2','CuentaPie','FibraPie',
-                'CodColorC1','NomColorC1','CodColorC2','NomColorC2','CodColorC3','NomColorC3','CodColorC4','NomColorC4','CodColorC5','NomColorC5',
-                'CalibreComb1','CalibreComb12','FibraComb1',
-                'CalibreComb2','CalibreComb22','FibraComb2',
-                'CalibreComb3','CalibreComb32','FibraComb3',
-                'CalibreComb4','CalibreComb42','FibraComb4',
-                'CalibreComb5','CalibreComb52','FibraComb5',
-                'AnchoToalla','LargoToalla','PesoCrudo','Luchaje','Peine','NoTiras','TotalMarbetes',
-                'CambioRepaso','Vendedor','CatCalidad','AnchoPeineTrama','LogLuchaTotal','MedidaPlano','Rasurado',
-                'CalTramaFondoC1','CalTramaFondoC12','FibraTramaFondoC1','PasadasTramaFondoC1',
-                'PasadasComb1','PasadasComb2','PasadasComb3','PasadasComb4','PasadasComb5',
-                'DobladilloId','Obs','Obs1','Obs2','Obs3','Obs4','Obs5',
-                'Total'
-            )->first();
+            if (!$datos) {
+                LogFacade::warning('getDatosRelacionados sin resultados', [
+                    'salon' => $salon,
+                    'tamano_clave' => $tam
+                ]);
+                return response()->json(['datos' => null]);
+            }
+
+            LogFacade::info('getDatosRelacionados result', [
+                'tamano_clave' => $tam,
+                'found' => (bool) $datos,
+                'item' => $datos->ItemId ?? null,
+                'nombre' => $datos->NombreProducto ?? null
+            ]);
 
             return response()->json(['datos' => $datos]);
         } catch (\Throwable $e) {
+            LogFacade::error('getDatosRelacionados error', [
+                'salon' => $request->input('salon_tejido_id'),
+                'tamano_clave' => $request->input('tamano_clave'),
+                'msg' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json(['error' => 'Error al obtener datos: '.$e->getMessage()], 500);
         }
     }

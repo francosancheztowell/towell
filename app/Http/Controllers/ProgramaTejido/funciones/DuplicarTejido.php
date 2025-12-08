@@ -26,6 +26,11 @@ class DuplicarTejido
             'destinos' => 'required|array|min:1',
             'destinos.*.telar' => 'required|string',
             'destinos.*.pedido' => 'nullable|string',
+            'tamano_clave' => 'nullable|string|max:100',
+            'invent_size_id' => 'nullable|string|max:100',
+            'cod_articulo' => 'nullable|string|max:100',
+            'producto' => 'nullable|string|max:255',
+            'custname' => 'nullable|string|max:255',
         ]);
 
         $salonOrigen = $request->input('salon_tejido_id');
@@ -34,8 +39,9 @@ class DuplicarTejido
         $destinos = $request->input('destinos', []);
         $codArticulo = $request->input('cod_articulo');
         $producto = $request->input('producto');
+        $tamanoClave = $request->input('tamano_clave'); // clave de modelo
         $hilo = $request->input('hilo');
-        $pedido = $request->input('pedido');
+        $pedido = self::sanitizeNumber($request->input('pedido'));
         $flog = $request->input('flog');
         $aplicacion = $request->input('aplicacion');
         $descripcion = $request->input('descripcion');
@@ -260,6 +266,9 @@ class DuplicarTejido
                     if ($inventSizeId) {
                         $nuevo->InventSizeId = $inventSizeId;
                     }
+                    if ($tamanoClave) {
+                        $nuevo->TamanoClave = $tamanoClave;
+                    }
                     // Si no hay inventSizeId nuevo, el valor del original se mantiene por el replicate()
 
                     // Actualizar campos con nuevos valores si se proporcionan
@@ -269,21 +278,25 @@ class DuplicarTejido
                     if ($producto) {
                         $nuevo->NombreProducto = $producto;
                     }
+                    if ($custname) {
+                        $nuevo->CustName = $custname;
+                    }
                     if ($hilo) {
                         $nuevo->FibraRizo = $hilo;
                     }
                     // Actualizar TotalPedido: usar el valor proporcionado o el del original
                     // TotalPedido = valor proporcionado (si Produccion es null, TotalPedido es el valor directo)
                     if ($pedidoDestino && $pedidoDestino !== '') {
-                        $nuevo->TotalPedido = is_numeric($pedidoDestino) ? (float)$pedidoDestino : (float)$pedidoDestino;
+                        $pedidoDestinoNum = self::sanitizeNumber($pedidoDestino);
+                        $nuevo->TotalPedido = $pedidoDestinoNum;
                     } elseif ($pedido && $pedido !== '') {
-                        $nuevo->TotalPedido = is_numeric($pedido) ? (float)$pedido : (float)$pedido;
+                        $nuevo->TotalPedido = $pedido;
                     } elseif (!empty($original->TotalPedido)) {
                         // Si no se proporciona un nuevo pedido, mantener el TotalPedido del original
-                        $nuevo->TotalPedido = (float)$original->TotalPedido;
+                        $nuevo->TotalPedido = self::sanitizeNumber($original->TotalPedido);
                     } elseif (!empty($original->SaldoPedido)) {
                         // Fallback: usar SaldoPedido del original si TotalPedido está vacío
-                        $nuevo->TotalPedido = (float)$original->SaldoPedido;
+                        $nuevo->TotalPedido = self::sanitizeNumber($original->SaldoPedido);
                     } else {
                         // Último fallback: 0 si no hay ningún valor
                         $nuevo->TotalPedido = 0;
@@ -320,8 +333,8 @@ class DuplicarTejido
                         $duracionOriginalSegundos = abs($finOriginal->getTimestamp() - $iniOriginal->getTimestamp());
 
                         // Obtener cantidad original y nueva
-                        $cantidadOriginal = (float) ($original->TotalPedido ?? $original->SaldoPedido ?? 0);
-                        $cantidadNueva = (float) ($nuevo->TotalPedido ?? $nuevo->SaldoPedido ?? 0);
+                        $cantidadOriginal = self::sanitizeNumber($original->TotalPedido ?? $original->SaldoPedido ?? 0);
+                        $cantidadNueva = self::sanitizeNumber($nuevo->TotalPedido ?? $nuevo->SaldoPedido ?? 0);
 
                         // Si las cantidades son diferentes, ajustar duración proporcionalmente
                         // Si cantidad nueva es mayor, durará más; si es menor, durará menos
@@ -332,6 +345,14 @@ class DuplicarTejido
                             // Si no hay cantidades válidas, mantener duración original
                             $duracionNuevaSegundos = $duracionOriginalSegundos;
                         }
+
+                        // Duración mínima de 1 segundo para evitar FechaFinal igual a FechaInicio
+                        $duracionAplicadaSegundos = max($duracionNuevaSegundos, 1);
+
+                        // Establecer una FechaFinal provisional basada en la nueva duración
+                        // Esto permite recalcular HorasProd y demás fórmulas con la nueva cantidad
+                        $fechaFinProvisional = $nuevoInicio->copy()->addSeconds((int) round($duracionAplicadaSegundos));
+                        $nuevo->FechaFinal = $fechaFinProvisional->format('Y-m-d H:i:s');
 
                         //  CALCULAR FECHA FINAL: Si hay calendario, calcular desde fecha inicio usando horas del calendario
                         // Si no hay calendario, usar duración proporcional
@@ -344,26 +365,65 @@ class DuplicarTejido
                             // Necesitamos calcular HorasProd antes de calcular la fecha final
                             $formulasTemporales = self::calcularFormulasEficiencia($nuevo);
 
-                            // Calcular horas necesarias
-                            // IMPORTANTE: Usar siempre HorasProd del original para mantener consistencia
-                            // El DiasEficiencia se forzará después para que coincida con el original
-                            $horasNecesariasPrograma = 0;
-                            if (!empty($original->HorasProd)) {
-                                // Usar HorasProd del original para mantener la misma cantidad de horas
-                                $horasNecesariasPrograma = (float) $original->HorasProd;
+                            // Calcular horas necesarias (usar horas recalculadas para la nueva cantidad)
+                            $horasProdCalculadas = $formulasTemporales['HorasProd'] ?? null;
 
-                                LogFacade::info('DuplicarTejido: Usando HorasProd del original para calcular fecha final', [
-                                    'horas_prod_original' => $horasNecesariasPrograma,
-                                    'dias_eficiencia_original' => $diasEficienciaOriginal ?? 'N/A'
-                                ]);
-                            } elseif (!empty($formulasTemporales['HorasProd'])) {
-                                $horasNecesariasPrograma = (float) $formulasTemporales['HorasProd'];
-                            } elseif (!empty($nuevo->HorasProd)) {
-                                $horasNecesariasPrograma = (float) $nuevo->HorasProd;
-                            } else {
-                                // Si no hay HorasProd, usar la duración calculada
-                                $horasNecesariasPrograma = $duracionNuevaSegundos / 3600.0;
+                            // Si no vino HorasProd en las fórmulas, calcularla manualmente para forzar el efecto de la nueva cantidad
+                            if ($horasProdCalculadas === null) {
+                                $cantidadParaHoras = self::sanitizeNumber($nuevo->SaldoPedido ?? $nuevo->Produccion ?? $nuevo->TotalPedido ?? 0);
+                                $vel = (float) ($nuevo->VelocidadSTD ?? 0);
+                                $efic = (float) ($nuevo->EficienciaSTD ?? 0);
+                                $noTiras = (float) ($nuevo->NoTiras ?? 0);
+                                $luchaje = (float) ($nuevo->Luchaje ?? 0);
+
+                                if ($noTiras > 0 && $luchaje > 0 && $vel > 0 && $efic > 0) {
+                                    $stdToaHra = ($noTiras * 60) / ($luchaje * $vel / 10000);
+                                    if ($stdToaHra > 0) {
+                                        $horasProdCalculadas = $cantidadParaHoras / ($stdToaHra * $efic);
+                                    }
+                                }
                             }
+
+                            // Horas proporcionales según la duración ajustada
+                            $horasProporcionales = $duracionAplicadaSegundos / 3600.0;
+
+                            // ¿La cantidad es prácticamente igual? (±5%)
+                            $mismoVolumen = ($cantidadOriginal > 0)
+                                ? (abs($cantidadNueva - $cantidadOriginal) / $cantidadOriginal) <= 0.05
+                                : false;
+
+                            if ($mismoVolumen) {
+                                // Si es el mismo volumen, respeta la duración original (proporcional)
+                                $horasNecesariasPrograma = max($horasProporcionales, 0.01);
+                            } else {
+                                // Si cambia el volumen:
+                                // 1) Usa HorasProd recalculada (más preciso)
+                                // 2) Luego HorasProd escalada
+                                // 3) Fallback a horas proporcionales
+                                $horasProdEscaladas = null;
+                                if (!empty($original->HorasProd) && $cantidadOriginal > 0 && $cantidadNueva > 0) {
+                                    $horasProdEscaladas = (float) $original->HorasProd * ($cantidadNueva / $cantidadOriginal);
+                                }
+
+                                $horasNecesariasPrograma = (float) (
+                                    $horasProdCalculadas
+                                    ?? $horasProdEscaladas
+                                    ?? $horasProporcionales
+                                );
+
+                                if ($horasNecesariasPrograma <= 0) {
+                                    $horasNecesariasPrograma = max($horasProporcionales, 0.01);
+                                }
+                            }
+
+                            LogFacade::info('DuplicarTejido: horas para fecha final', [
+                                'tamano_clave' => $nuevo->TamanoClave,
+                                'cantidad' => self::sanitizeNumber($nuevo->SaldoPedido ?? $nuevo->Produccion ?? $nuevo->TotalPedido ?? 0),
+                                'horas_necesarias' => $horasNecesariasPrograma,
+                                'horas_prod_calculadas' => $horasProdCalculadas,
+                                'duracion_nueva_seg' => $duracionNuevaSegundos,
+                                'horas_proporcionales' => $horasProporcionales,
+                            ]);
 
                             // Calcular fecha final desde fecha inicio recorriendo líneas del calendario
                             // Esto asegura que se salten los días de descanso automáticamente
@@ -375,7 +435,7 @@ class DuplicarTejido
 
                             if (!$nuevoFin) {
                                 // Si no se pudo calcular, usar fecha base
-                                $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($duracionNuevaSegundos));
+                                $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($duracionAplicadaSegundos));
                                 LogFacade::warning('DuplicarTejido: No se pudo calcular fecha final con calendario, usando fecha base', [
                                     'calendario_id' => $nuevo->CalendarioId,
                                     'fecha_inicio' => $nuevoInicio->format('Y-m-d H:i:s'),
@@ -394,7 +454,7 @@ class DuplicarTejido
                             }
                         } else {
                             // Sin calendario, usar duración proporcional
-                            $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($duracionNuevaSegundos));
+                            $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($duracionAplicadaSegundos));
                         }
 
                         $nuevo->FechaFinal = $nuevoFin->format('Y-m-d H:i:s');
@@ -415,37 +475,7 @@ class DuplicarTejido
                     if ($nuevo->FechaInicio && $nuevo->FechaFinal) {
                         $formulas = self::calcularFormulasEficiencia($nuevo);
 
-                        // IMPORTANTE: Si el registro original tiene DiasEficiencia, forzarlo para mantener consistencia
-                        // Esto asegura que el duplicado tenga el mismo DiasEficiencia que el original
-                        if (!empty($original->DiasEficiencia)) {
-                            $diasEficienciaOriginal = (float) $original->DiasEficiencia;
-                            $formulas['DiasEficiencia'] = $diasEficienciaOriginal;
-
-                            // IMPORTANTE: Recalcular StdHrsEfect y ProdKgDia2 usando el DiasEficiencia del original
-                            // porque estas fórmulas dependen de DiasEficiencia
-                            $cantidad = (float) ($nuevo->SaldoPedido ?? $nuevo->Produccion ?? $nuevo->TotalPedido ?? 0);
-                            $pesoCrudo = (float) ($nuevo->PesoCrudo ?? 0);
-
-                            if ($diasEficienciaOriginal > 0) {
-                                // Recalcular StdHrsEfect usando el DiasEficiencia del original
-                                $stdHrsEfect = ($cantidad / $diasEficienciaOriginal) / 24;
-                                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 2);
-
-                                // Recalcular ProdKgDia2 usando el StdHrsEfect recalculado
-                                if ($pesoCrudo > 0) {
-                                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
-                                }
-
-                                LogFacade::info('DuplicarTejido: Forzando DiasEficiencia del original y recalculando fórmulas dependientes', [
-                                    'programa_id' => $nuevo->Id ?? 'nuevo',
-                                    'dias_eficiencia_original' => $diasEficienciaOriginal,
-                                    'std_hrs_efect_recalculado' => $formulas['StdHrsEfect'] ?? 'N/A',
-                                    'prod_kg_dia2_recalculado' => $formulas['ProdKgDia2'] ?? 'N/A'
-                                ]);
-                            }
-                        }
-
-                        // Aplicar las fórmulas calculadas al registro
+                        // Aplicar las fórmulas calculadas al registro (ya recalculadas según nueva cantidad)
                         foreach ($formulas as $campo => $valor) {
                             $nuevo->{$campo} = $valor;
                         }
@@ -591,7 +621,7 @@ class DuplicarTejido
             // Parámetros base
             $vel = (float) ($programa->VelocidadSTD ?? 0);
             $efic = (float) ($programa->EficienciaSTD ?? 0);
-            $cantidad = (float) ($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
+            $cantidad = self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
             $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
             $noTiras = (float) ($programa->NoTiras ?? 0);
             $luchaje = (float) ($programa->Luchaje ?? 0);
@@ -1239,5 +1269,15 @@ class DuplicarTejido
             return null;
         }
     }
-}
 
+    /**
+     * Normaliza números con comas/espacios a float
+     */
+    private static function sanitizeNumber($value): float
+    {
+        if (is_null($value)) return 0.0;
+        if (is_numeric($value)) return (float)$value;
+        $clean = str_replace([',',' '], '', (string)$value);
+        return is_numeric($clean) ? (float)$clean : 0.0;
+    }
+}

@@ -86,7 +86,7 @@
                                             <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer {{ $c['cellHover'] }} px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $telar }}" data-horario="{{ $h }}" data-type="rpm">
                                                 <span class="valor-display-text">0</span>
                                             </button>
-                                            <div class="valor-edit-container hidden absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                            <div class="valor-edit-container hidden absolute top-10 left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-64">
                                                     <div class="number-options-flex flex space-x-1 min-w-max"></div>
                                                 </div>
@@ -99,7 +99,7 @@
                                             <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer {{ $c['cellHover'] }} px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $telar }}" data-horario="{{ $h }}" data-type="eficiencia">
                                                 <span class="valor-display-text">0%</span>
                                             </button>
-                                            <div class="valor-edit-container hidden absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                            <div class="valor-edit-container hidden absolute top-10 left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48">
                                                     <div class="number-options-flex flex space-x-1 min-w-max"></div>
                                                 </div>
@@ -167,6 +167,32 @@
         badgeFolio: () => document.getElementById('badge-folio'),
         folioText: () => document.getElementById('folio-text'),
     };
+
+    const horarioTomado = (h) => {
+        const txt = els.horaH(h)?.textContent?.trim();
+        return txt && txt !== '--:--' && txt !== '--';
+    };
+
+    const requireHorario = (h) => {
+        if (horarioTomado(h)) return true;
+        showToast({ icon:'warning', title:`Toma primero la hora del horario ${h}` });
+        return false;
+    };
+
+    const leerHorarios = () => {
+        const val = (h) => {
+            const t = els.horaH(h)?.textContent?.trim() || '';
+            return (t && t !== '--:--' && t !== '--') ? t : null;
+        };
+        return { 1: val(1), 2: val(2), 3: val(3) };
+    };
+
+    async function asegurarTurno(){
+        if (!state.turno) {
+            try { await cargarTurnoActual(); } catch {}
+        }
+        return state.turno;
+    }
 
     /** Actualizar badge del folio */
     function actualizarBadgeFolio() {
@@ -277,7 +303,7 @@
                 headers: { 'X-CSRF-TOKEN': csrf(), 'Accept': 'application/json' }
             });
             const d = await response.json();
-            
+
             // Si hay un folio en proceso (error 400)
             if (response.status === 400 && d.folio_existente) {
                 await Swal.fire({
@@ -291,16 +317,16 @@
                 window.location.href = routes.consultar;
                 return;
             }
-            
+
             if (!d.success) throw new Error(d.message || 'No se pudo generar folio');
             state.folio = d.folio; state.usuario = d.usuario?.nombre || ''; state.noEmpleado = d.usuario?.numero_empleado || ''; state.turno = d.turno || state.turno; state.status = 'En Proceso'; state.isNewRecord = false;
             actualizarBadgeFolio();
-            
+
             // Actualizar la URL con el folio para que al recargar se mantenga editando el mismo
             const newUrl = new URL(window.location.href);
             newUrl.searchParams.set('folio', d.folio);
             window.history.replaceState({}, '', newUrl.toString());
-            
+
         } catch (error) {
             console.error('Error al generar folio:', error);
             await Swal.fire({
@@ -341,6 +367,7 @@
         closeAllValorSelectors();
         const container = btn.parentElement.querySelector('.valor-edit-container');
         const telar=btn.dataset.telar, horario=parseInt(btn.dataset.horario,10), tipo=btn.dataset.type;
+        if (!requireHorario(horario)) return;
         if (container.classList.contains('hidden')){
             const currentText = btn.querySelector('.valor-display-text').textContent;
             const currentValue = tipo==='rpm' ? parseInt(currentText,10)||0 : parseInt(currentText.replace('%',''),10)||0;
@@ -357,14 +384,11 @@
 
     function buildNumberOptions(container, tipo, horario, currentValue){
         const flex = container.querySelector('.number-options-flex');
-        if (flex.children.length){ highlightCurrentOption(container,currentValue); return; }
-        const max=(tipo==='rpm')?500:100; const hover=(horario===1?'hover:bg-blue-100':(horario===2?'hover:bg-green-100':'hover:bg-yellow-100'));
-        const optionWidth=36, viewport=300, visible=Math.ceil(viewport/optionWidth), buffer=20; const start=Math.max(0,currentValue-Math.floor(visible/2)-buffer); const end=Math.min(max+1,start+visible+buffer*2);
+        flex.innerHTML = '';
+        const max=(tipo==='rpm')?400:100; const hover=(horario===1?'hover:bg-blue-100':(horario===2?'hover:bg-green-100':'hover:bg-yellow-100'));
         const mk=i=>{ const s=document.createElement('span'); s.className=`number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer ${hover} rounded transition-colors bg-gray-100 text-gray-700`; s.dataset.value=String(i); s.textContent=String(i); if(i===currentValue){ s.classList.remove('bg-gray-100','text-gray-700'); s.classList.add('bg-blue-500','text-white'); } return s; };
-        if(start>0){ const ph=document.createElement('div'); ph.className='inline-block'; ph.style.width=`${start*optionWidth}px`; ph.style.height='32px'; flex.appendChild(ph); }
-        for(let i=start;i<end;i++) flex.appendChild(mk(i));
-        if(end<max+1){ const ph2=document.createElement('div'); ph2.className='inline-block'; ph2.style.width=`${(max+1-end)*optionWidth}px`; ph2.style.height='32px'; flex.appendChild(ph2); }
-        const sc=container.querySelector('.number-scroll-container'); let loading=false; sc.addEventListener('scroll',()=>{ if(loading) return; if(sc.scrollLeft+sc.clientWidth>sc.scrollWidth-100){ loading=true; const count=flex.querySelectorAll('.number-option').length; if(count<max+1){ const start2=count,end2=Math.min(start2+60,max+1); for(let i=start2;i<end2;i++) flex.appendChild(mk(i)); } loading=false; } },{passive:true});
+        for(let i=0;i<=max;i++) flex.appendChild(mk(i));
+        highlightCurrentOption(container,currentValue);
     }
 
     function selectNumberOption(option){
@@ -383,24 +407,39 @@
 
     /** Hora por horario */
     async function actualizarYGuardarHoraHorario(h){
-        if (!state.folio || !state.turno) return showToast({ icon:'warning', title:'Faltan datos internos para guardar hora' });
+        const turnoVal = await asegurarTurno();
+        if (!state.folio || !turnoVal) return showToast({ icon:'warning', title:'Faltan datos internos para guardar hora' });
+        const turno = Number.isFinite(parseInt(turnoVal,10)) ? parseInt(turnoVal,10) : turnoVal;
         const hora = horaActualStr();
         try {
-            const data = await fetchJSON(routes.guardarHora, { method:'POST', headers: baseHeaders(), body: JSON.stringify({ folio:state.folio, turno:state.turno, horario:h, hora, fecha: state.fecha }) });
+            const data = await fetchJSON(routes.guardarHora, { method:'POST', headers: baseHeaders(), body: JSON.stringify({ folio:state.folio, turno, horario:h, hora, fecha: state.fecha }) });
             if (!data.success) throw new Error(data.message || 'Error al guardar hora');
-            els.horaH(h).textContent = hora; showToast({ title:'Hora guardada', text:`Horario ${h} - ${hora}` });
-        } catch (e) { showToast({ icon:'warning', title:'Hora actualizada', html:`<div class='text-center'><div class='text-2xl mb-2'>${emojiHorario(h)}</div><p class='font-mono text-lg'>${hora}</p><p class='text-xs text-red-500 mt-1'>No guardado en BD</p></div>` }); }
+            els.horaH(h).textContent = hora;
+            showToast({ title:'Hora guardada', text:`Horario ${h} - ${hora}` });
+        } catch (e) { showToast({ icon:'warning', title:'Hora no guardada', html:`<div class='text-center'><div class='text-2xl mb-2'>${emojiHorario(h)}</div><p class='font-mono text-lg'>${hora}</p><p class='text-xs text-red-500 mt-1'>${e.message || 'No guardado en BD'}</p></div>` }); }
     }
 
     /** Guardado automático */
     const guardarAutomatico = debounce(async () => {
         if (!state.folio || !state.fecha || !state.turno) return;
         const datos = recopilarDatosTelares(); if (!datos.length) return;
-        const payload = { folio: state.folio, fecha: state.fecha, turno: state.turno, status: state.status, usuario: state.usuario, noEmpleado: state.noEmpleado, datos_telares: datos, horario1:null, horario2:null, horario3:null };
-        try { 
+        const horarios = leerHorarios();
+        const payload = {
+            folio: state.folio,
+            fecha: state.fecha,
+            turno: state.turno,
+            status: state.status,
+            usuario: state.usuario,
+            noEmpleado: state.noEmpleado,
+            datos_telares: datos,
+            horario1: horarios[1],
+            horario2: horarios[2],
+            horario3: horarios[3],
+        };
+        try {
             const response = await fetch(routes.store, { method:'POST', headers: baseHeaders(), body: JSON.stringify(payload) });
             const r = await response.json();
-            
+
             // Si hay un folio en proceso
             if (response.status === 400 && r.folio_existente) {
                 await Swal.fire({
@@ -414,20 +453,20 @@
                 window.location.href = routes.consultar;
                 return;
             }
-            
+
             if (!r.success) throw new Error(r.message || 'Error al guardar');
-            
+
             // Actualizar el folio del state con el folio real guardado en BD
             // Esto es importante porque el backend puede haber generado un folio diferente al sugerido
             if (r.folio && r.folio !== state.folio) {
                 state.folio = r.folio;
                 actualizarBadgeFolio();
             }
-            
-            state.isNewRecord = false; 
-            floatingBadge('Guardado automáticamente'); 
-        } catch (e) { 
-            floatingBadge(`Error: ${e.message}`, true); 
+
+            state.isNewRecord = false;
+            floatingBadge('Guardado automáticamente');
+        } catch (e) {
+            floatingBadge(`Error: ${e.message}`, true);
         }
     }, 900);
 
@@ -463,6 +502,7 @@
 
     async function abrirModalObservaciones(checkbox){
         const telar = checkbox.dataset.telar; const horario = checkbox.dataset.horario; const key = `${telar}-${horario}`; const cur = state.observaciones[key] || '';
+        if (!requireHorario(parseInt(horario,10))) { checkbox.checked = !!cur; return; }
         const r = await Swal.fire({ title:'Observaciones', html:`<div class='text-left mb-4'><p class='text-sm text-gray-600 mb-2'>Telar: <strong>${telar}</strong> | Horario: <strong>${horario}</strong></p></div><textarea id='swal-textarea' class='w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none' rows='4' placeholder='Escriba sus observaciones aquí...'>${cur}</textarea>`, width:500, showCancelButton:true, confirmButtonText:'Guardar', cancelButtonText:'Cancelar', confirmButtonColor:'#2563eb', cancelButtonColor:'#6b7280', focusConfirm:false, didOpen:()=>document.getElementById('swal-textarea')?.focus(), preConfirm:()=>document.getElementById('swal-textarea')?.value || '' });
         if (!r.isConfirmed) { checkbox.checked = !!cur; return; }
         state.observaciones[key] = r.value; checkbox.checked = r.value.trim() !== ''; guardarAutomatico(); showToast({ title:'Observación guardada', text:`Telar ${telar} - Horario ${horario}` });
