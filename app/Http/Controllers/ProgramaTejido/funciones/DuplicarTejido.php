@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ProgramaTejido\funciones;
 use App\Models\ReqProgramaTejido;
 use App\Models\ReqCalendarioLine;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Helpers\StringTruncator;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
@@ -276,7 +277,7 @@ class DuplicarTejido
                         $nuevo->ItemId = $codArticulo;
                     }
                     if ($producto) {
-                        $nuevo->NombreProducto = $producto;
+                        $nuevo->NombreProducto = StringTruncator::truncate('NombreProducto', $producto);
                     }
                     if ($custname) {
                         $nuevo->CustName = $custname;
@@ -308,13 +309,13 @@ class DuplicarTejido
                         $nuevo->FlogsId = $flog;
                     }
                     if ($descripcion) {
-                        $nuevo->NombreProyecto = $descripcion;
+                        $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', $descripcion);
                     }
                     if ($custname) {
-                        $nuevo->CustName = $custname;
+                        $nuevo->CustName = StringTruncator::truncate('CustName', $custname);
                     }
                     if ($aplicacion) {
-                        $nuevo->AplicacionId = $aplicacion;
+                        $nuevo->AplicacionId = StringTruncator::truncate('AplicacionId', $aplicacion);
                     }
 
                     // Calcular FechaInicio y FechaFinal del nuevo registro
@@ -468,6 +469,19 @@ class DuplicarTejido
                         $fibraRizoNuevo = trim((string) $nuevo->FibraRizo);
                         $fibraRizoAnterior = trim((string) $ultimoRegistroDestino->FibraRizo);
                         $nuevo->CambioHilo = ($fibraRizoNuevo !== $fibraRizoAnterior) ? '1' : '0';
+                    }
+
+                    // Truncar campos string a sus límites de BD para evitar errores de longitud
+                    $camposTruncar = [
+                        'Maquina', 'NombreProyecto', 'CustName', 'AplicacionId', 'NombreProducto',
+                        'FlogsId', 'TipoPedido', 'Observaciones', 'FibraTrama', 'FibraComb1',
+                        'FibraComb2', 'FibraComb3', 'FibraComb4', 'FibraComb5', 'FibraPie',
+                        'SalonTejidoId', 'NoTelarId', 'Rasurado', 'TamanoClave'
+                    ];
+                    foreach ($camposTruncar as $campoStr) {
+                        if (isset($nuevo->{$campoStr})) {
+                            $nuevo->{$campoStr} = StringTruncator::truncate($campoStr, $nuevo->{$campoStr});
+                        }
                     }
 
                     // Calcular campos calculables (igual que en create)
