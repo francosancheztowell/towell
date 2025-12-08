@@ -202,7 +202,7 @@
 
             const tr = document.createElement('tr');
             tr.id = filaId;
-            tr.className = 'border-b hover:bg-gray-50 cursor-pointer transition-colors';
+            tr.className = ' hover:bg-gray-50 cursor-pointer transition-colors';
             tr.dataset.filaId = filaId;
 
             tr.innerHTML = `
@@ -217,7 +217,7 @@
                 <td class="px-2 py-3 text-xs text-center">${fmtNumber(g.metros)}</td>
                 <td class="px-2 py-3 text-xs text-center">${fmtNumber(g.kilos)}</td>
                 <td class="px-2 py-3 text-center">
-                    <input type="text" placeholder="Buscar BOM..." class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <input type="text" placeholder="Buscar BOM..." class="w-full px-2 py-1.5 border border-gray-500 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                            data-grupo="${g.telaresStr}" data-fila-id="${filaId}" data-kilos="${g.kilos || 0}" data-bom-input="true" data-bom-id="" autocomplete="off"
                            onclick="event.stopPropagation();">
                 </td>
@@ -304,7 +304,7 @@
             container.innerHTML = '';
             items.forEach((it, idx) => {
                 const div = document.createElement('div');
-                div.className = 'px-3 py-2 hover:bg-blue-50 cursor-pointer text-xs border-b border-gray-100 last:border-b-0';
+                div.className = 'px-3 py-2 hover:bg-blue-50 cursor-pointer text-xs  border-gray-100';
                 div.textContent = getLabel(it);
                 div.addEventListener('click', () => { if (activeInput) onSelect(activeInput, it, hide); });
                 div.addEventListener('mouseenter', () => {
@@ -466,7 +466,7 @@
             const consumo = Math.round(toNumber(m.BomQty,0)*1000)/1000;
             const kilos   = kilosProg * consumo;
             const tr = document.createElement('tr');
-            tr.className = 'border-b hover:bg-gray-50';
+            tr.className = 'hover:bg-gray-50';
             tr.innerHTML = `
                 <td class="px-2 py-3 text-xs text-center">${m.ItemId || '-'}</td>
                 <td class="px-2 py-3 text-xs text-center">${m.ConfigId || '-'}</td>
@@ -496,7 +496,7 @@
             const consumo = Math.round(toNumber(m.BomQty,0)*1000)/1000;
             const kilos   = kilosProg * consumo;
             const tr = document.createElement('tr');
-            tr.className = 'border-b hover:bg-gray-50';
+            tr.className = 'hover:bg-gray-50';
             tr.innerHTML = `
                 <td class="px-2 py-3 text-xs text-center">${m.ItemId || '-'}</td>
                 <td class="px-2 py-3 text-xs text-center">${m.ConfigId || '-'}</td>
@@ -585,7 +585,7 @@
             const checkboxKey = `${m.ItemId || ''}_${m.InventSerialId || ''}`;
 
             const tr = document.createElement('tr');
-            tr.className = 'border-b hover:bg-gray-50';
+            tr.className = 'hover:bg-gray-50';
             tr.dataset.materialData = JSON.stringify(m); // Almacenar datos completos en el DOM
             tr.innerHTML = `
                 <td class="px-2 py-3 text-xs text-center">${m.ItemId || '-'}</td>

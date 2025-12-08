@@ -36,15 +36,15 @@
       hoverBg="hover:bg-orange-100"
       />
 
-    {{-- <x-navbar.button-report
-      id="btn-visualizar"
-      title="Visualizar"
+    <x-navbar.button-report
+      id="btn-pdf"
+      title="PDF"
       module="Cortes de Eficiencia"
       :disabled="true"
-      icon="fa-eye"
-      iconColor="text-purple-600"
-      hoverBg="hover:bg-purple-100"
-      /> --}}
+      icon="fa-file-pdf"
+      iconColor="text-red-600"
+      hoverBg="hover:bg-red-100"
+      />
 
     <x-navbar.button-report
       id="btn-fechas"
@@ -71,7 +71,7 @@
                     <col style="width: 25%">
                     <col style="width: 20%">
                 </colgroup>
-                <thead class="bg-blue-600 text-white sticky top-0 z-10">
+                <thead class="bg-blue-500 text-white sticky top-0 z-10">
                     <tr>
                         <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Folio</th>
                         <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Fecha</th>
@@ -92,7 +92,7 @@
                     </colgroup>
                     <tbody class="divide-y divide-gray-100">
                         @foreach($cortes as $corte)
-                        <tr class="hover:bg-blue-50 cursor-pointer transition-colors corte-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $corte->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
+                        <tr class="hover:bg-blue-600 hover:text-white cursor-pointer transition-colors corte-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $corte->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
                             id="row-{{ $corte->Folio }}"
                             data-folio="{{ $corte->Folio }}"
                             onclick="CortesManager.seleccionar('{{ $corte->Folio }}', this)"
@@ -109,11 +109,11 @@
                             <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $corte->numero_empleado ?? 'N/A' }}</td>
                             <td class="px-4 py-3">
                                 @if($corte->Status === 'Finalizado')
-                                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>
+                                    <span class="status-badge-finalizado px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>
                                 @elseif($corte->Status === 'En Proceso')
-                                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-700">En Proceso</span>
+                                    <span class="status-badge-proceso px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-700">En Proceso</span>
                                 @else
-                                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700">{{ $corte->Status }}</span>
+                                    <span class="status-badge-otro px-3 py-1.5 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700">{{ $corte->Status }}</span>
                                 @endif
                             </td>
                         </tr>
@@ -176,6 +176,14 @@
         </div>
     </div>
 
+<style>
+    .selected-row td, .selected-row span {
+        color: #fff !important;
+    }
+    .selected-row .status-badge-finalizado { color: #15803d !important; }
+    .selected-row .status-badge-proceso { color: #1d4ed8 !important; }
+    .selected-row .status-badge-otro { color: #854d0e !important; }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 (() => {
@@ -205,7 +213,8 @@
                     editar: document.getElementById('btn-editar'),
                     finalizar: document.getElementById('btn-finalizar'),
                     visualizar: document.getElementById('btn-visualizar'),
-                    fechas: document.getElementById('btn-fechas')
+                    fechas: document.getElementById('btn-fechas'),
+                    pdf: document.getElementById('btn-pdf')
                 },
                 modal: {
                     fechas: document.getElementById('modal-fechas'),
@@ -235,7 +244,8 @@
             this.dom.btns.editar?.addEventListener('click', () => this.accionEditar());
             this.dom.btns.finalizar?.addEventListener('click', () => this.accionFinalizar());
             this.dom.btns.visualizar?.addEventListener('click', () => this.accionVisualizar());
-            
+            this.dom.btns.pdf?.addEventListener('click', () => this.accionPdf());
+
             // Abrir/cerrar modal de fechas
             this.dom.btns.fechas?.addEventListener('click', () => this.abrirModalFechas());
             this.dom.modal.close?.addEventListener('click', () => this.cerrarModalFechas());
@@ -256,10 +266,10 @@
 
         highlightRow(row) {
             document.querySelectorAll('tbody tr').forEach(tr => {
-                tr.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-600');
+                tr.classList.remove('bg-blue-500', 'text-white', 'selected-row');
             });
             if (row) {
-                row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-600');
+                row.classList.add('bg-blue-500', 'text-white', 'selected-row');
             }
         }
 
@@ -303,6 +313,7 @@
             if (this.dom.btns.editar) this.dom.btns.editar.disabled = !hayFolioSeleccionado || isFinalizado;
             if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = !hayFolioSeleccionado || isFinalizado;
             if (this.dom.btns.visualizar) this.dom.btns.visualizar.disabled = !hayFolioSeleccionado;
+            if (this.dom.btns.pdf) this.dom.btns.pdf.disabled = !hayFolioSeleccionado;
         }
 
         async accionNuevo() {
@@ -328,7 +339,7 @@
                         cancelButtonText: 'Cancelar',
                         confirmButtonColor: '#3085d6'
                     });
-                    
+
                     if (result.isConfirmed) {
                         // Redirigir al folio existente para editarlo
                         window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio_existente;
@@ -342,7 +353,7 @@
 
                 // Folio generado exitosamente, redirigir a la página de edición con el nuevo folio
                 window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio;
-                
+
             } catch (error) {
                 Swal.fire({
                     icon: 'error',
@@ -374,6 +385,18 @@
                 return;
             }
             window.location.href = '/modulo-cortes-de-eficiencia/visualizar/' + this.state.folio;
+        }
+
+        accionPdf() {
+            if (!this.state.folio) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin selección',
+                    text: 'Selecciona un folio para descargar PDF'
+                });
+                return;
+            }
+            window.open(`/modulo-cortes-de-eficiencia/${this.state.folio}/pdf`, '_blank');
         }
 
         accionFinalizar() {
@@ -420,7 +443,9 @@
                 const data = await res.json();
 
                 if (data.success) {
+                    const pdfUrl = data.data?.pdf_url;
                     await Swal.fire('¡Finalizado!', 'El registro se ha cerrado correctamente.', 'success');
+                    if (pdfUrl) window.open(pdfUrl, '_blank');
                     window.location.reload();
                 } else {
                     throw new Error(data.message || 'No se pudo finalizar');
@@ -449,15 +474,15 @@
                 Swal.fire('Fecha requerida', 'Selecciona una fecha para visualizar.', 'warning');
                 return;
             }
-            
+
             // Buscar el primer folio de esa fecha
             const fecha = sel.value; // formato YYYY-MM-DD
             const rows = document.querySelectorAll('tbody tr[data-folio]');
-            
+
             for (const row of rows) {
                 const fechaCell = row.children[1]?.textContent?.trim();
                 if (!fechaCell) continue;
-                
+
                 // Convertir formato d/m/Y a Y-m-d para comparar
                 const partes = fechaCell.split('/');
                 if (partes.length === 3) {
@@ -470,7 +495,7 @@
                     }
                 }
             }
-            
+
             Swal.fire('Sin folios', 'No se encontraron folios para la fecha seleccionada.', 'info');
         }
     }

@@ -210,14 +210,6 @@
                             @endif
                         </span>
                     </div>
-                    <div class="flex items-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Paros:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Total_Paros ?? '-' }}</span>
-                    </div>
-                    <div class="flex items-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">T. Paro:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Tiempo_Paro ?? '-' }}</span>
-                    </div>
                 </div>
             </div>
         </div>

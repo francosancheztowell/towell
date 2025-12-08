@@ -4,23 +4,15 @@
 
 @section('content')
 <div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
-    <div class="flex items-center justify-between mb-4">
-        <div>
-            <h2 class="text-xl font-semibold text-gray-800">Cortes de Eficiencia</h2>
-            <p class="text-sm text-gray-600 mt-0.5">Folio: <span class="font-medium">{{ $folio }}</span> · Fecha: <span class="font-medium">{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</span></p>
-        </div>
-        <div class="flex items-center gap-2">
-            <a href="{{ route('cortes.eficiencia.consultar') }}" class="px-3 py-2 rounded-md text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition">Regresar</a>
-        </div>
-    </div>
+
 
     <div class="flex-1 bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
         <div class="flex-1 overflow-auto">
-            <table class="min-w-full text-sm border-collapse">
+            <table class="min-w-full text-sm border-separate border-spacing-0">
                 <thead class="bg-gray-100 sticky top-0 z-10">
                     <!-- Fila principal: Fecha y headers de Turnos -->
                     <tr class="border-b-2 border-gray-300">
-                        <th rowspan="3" class="px-4 py-3 border border-gray-300 min-w-[80px] sticky left-0 bg-gray-100 z-20 font-bold">Fecha</th>
+                        <th rowspan="3" class="px-4 py-3 border border-gray-300 min-w-[80px] sticky left-0 top-0 bg-gray-100 z-50 shadow-md">Fecha</th>
                         <th rowspan="3" class="px-4 py-3 border border-gray-300 min-w-[100px] font-bold">Telar</th>
                         <th rowspan="2" class="px-3 py-2 border border-gray-300 min-w-[90px] font-bold">RPM Std</th>
                         <th rowspan="2" class="px-3 py-2 border border-gray-300 min-w-[90px] font-bold">% EF Std</th>
@@ -28,7 +20,7 @@
                         <th colspan="6" class="px-4 py-2 text-center border border-gray-300 bg-green-50 font-bold">Turno 2</th>
                         <th colspan="6" class="px-4 py-2 text-center border border-gray-300 bg-yellow-50 font-bold">Turno 3</th>
                     </tr>
-                    
+
                     <!-- Fila de horarios -->
                     <tr class="border-b border-gray-300">
                         @for ($turno = 1; $turno <= 3; $turno++)
@@ -40,7 +32,7 @@
                             @endfor
                         @endfor
                     </tr>
-                    
+
                     <!-- Fila de columnas RPM / %EF -->
                     <tr class="bg-gray-200 border-b-2 border-gray-300">
                         @for ($turno = 1; $turno <= 3; $turno++)
@@ -57,14 +49,14 @@
                             $t1 = $row['t1'];
                             $t2 = $row['t2'];
                             $t3 = $row['t3'];
-                            $val = function($line,$campo){ 
-                                return $line ? ($line->$campo ?? '') : ''; 
+                            $val = function($line,$campo){
+                                return $line ? ($line->$campo ?? '') : '';
                             };
-                            $efi = function($line, $campo){ 
-                                if(!$line) return ''; 
-                                $e=$line->$campo; 
-                                if($e===null) return ''; 
-                                return number_format($e, 2); 
+                            $efi = function($line, $campo){
+                                if(!$line) return '';
+                                $e=$line->$campo;
+                                if($e===null) return '';
+                                return number_format($e, 2);
                             };
                         @endphp
                         <tr class="hover:bg-gray-50">
@@ -76,7 +68,7 @@
                             <td class="px-4 py-3 font-bold text-gray-900 border border-gray-300 bg-gray-50">{{ $row['telar'] }}</td>
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700">{{ $val($t1,'RpmStd') }}</td>
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium">{{ $efi($t1,'EficienciaSTD') }}</td>
-                            
+
                             <!-- Turno 1 - 3 Horarios -->
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 bg-blue-50/30">{{ $val($t1,'RpmR1') }}</td>
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium bg-blue-50/30">{{ $efi($t1,'EficienciaR1') }}</td>
@@ -84,7 +76,7 @@
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium bg-blue-50/30">{{ $efi($t1,'EficienciaR2') }}</td>
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 bg-blue-50/30">{{ $val($t1,'RpmR3') }}</td>
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium bg-blue-50/30">{{ $efi($t1,'EficienciaR3') }}</td>
-                            
+
                             <!-- Turno 2 - 3 Horarios -->
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 bg-green-50/30">{{ $val($t2,'RpmR1') }}</td>
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium bg-green-50/30">{{ $efi($t2,'EficienciaR1') }}</td>
@@ -92,7 +84,7 @@
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium bg-green-50/30">{{ $efi($t2,'EficienciaR2') }}</td>
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 bg-green-50/30">{{ $val($t2,'RpmR3') }}</td>
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium bg-green-50/30">{{ $efi($t2,'EficienciaR3') }}</td>
-                            
+
                             <!-- Turno 3 - 3 Horarios -->
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 bg-yellow-50/30">{{ $val($t3,'RpmR1') }}</td>
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium bg-yellow-50/30">{{ $efi($t3,'EficienciaR1') }}</td>

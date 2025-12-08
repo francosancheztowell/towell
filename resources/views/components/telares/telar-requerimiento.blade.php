@@ -291,11 +291,6 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     const rizo = tipo === 'rizo' ? 1 : 0;
     const pie = tipo === 'pie' ? 1 : 0;
 
-    // Desmarcar otros checkboxes del mismo tipo en todas las fechas
-    document.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`).forEach(cb => {
-        if (cb !== checkbox) cb.checked = false;
-    });
-
     // Convertir fecha del formato dd/mm a formato ISO (YYYY-MM-DD)
     function convertirFecha(fechaTexto, fechaISOExistente) {
         // Si ya tenemos una fecha ISO (del header modificado), usarla directamente
@@ -326,6 +321,70 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         return;
     }
 
+    // Si el checkbox se deseleccionó, eliminar el registro
+    if (!checkbox.checked) {
+        const datosEliminar = {
+            no_telar: String(telarId),
+            tipo: tipo === 'rizo' ? 'Rizo' : 'Pie',
+            fecha: fechaConvertida,
+            turno: parseInt(numeroTurno)
+        };
+
+        // Para DELETE, axios envía los datos en el body pero Laravel los lee desde input()
+        axios({
+            method: 'delete',
+            url: '/inventario-telares/eliminar',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json'
+            },
+            data: datosEliminar
+        })
+        .then(response => {
+            // Después de eliminar exitosamente, obtener los datos actualizados
+            obtenerInventarioTelares();
+
+            // Mostrar notificación de éxito
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Eliminado con éxito',
+                    showConfirmButton: false,
+                    timer: 2000,
+                    timerProgressBar: true,
+                    position: 'bottom-end',
+                    toast: true
+                });
+            }
+        })
+        .catch(error => {
+            // Mostrar notificación de error
+            if (typeof Swal !== 'undefined') {
+                let errorMessage = 'Error desconocido';
+
+                if (error.response?.data?.message) {
+                    errorMessage = error.response.data.message;
+                }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al eliminar',
+                    text: errorMessage,
+                    showConfirmButton: false,
+                    timer: 4000,
+                    timerProgressBar: true,
+                    position: 'bottom-end',
+                    toast: true
+                });
+            }
+            // Re-marcar el checkbox si hubo error
+            checkbox.checked = true;
+        });
+
+        return; // Salir de la función si se deseleccionó
+    }
+
+    // Si el checkbox se seleccionó, guardar el registro
     // Verificar que tenemos cuenta válida (calibre puede ser null)
     if (!cuentaSeleccionada || cuentaSeleccionada === '') {
         alert('No se encontró cuenta para este telar. Verifique los datos del telar.');
@@ -413,6 +472,8 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
                 toast: true
             });
         }
+        // Desmarcar checkbox si hubo error
+        checkbox.checked = false;
     });
 
     // NOTA: Sistema anterior deshabilitado - ahora usamos solo /inventario-telares/guardar

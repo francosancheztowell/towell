@@ -15,7 +15,7 @@
         <div class="overflow-x-auto">
             <table id="tablaOrdenes" class="w-full">
                 <thead>
-                    <tr class="bg-slate-100 border-b">
+                    <tr class="bg-blue-500 text-white">
                         <th class="px-2 py-2 text-center text-xs font-semibold w-24">Telar</th>
                         <th class="px-2 py-2 text-center text-xs font-semibold w-28">Fec Req</th>
                         <th class="px-2 py-2 text-center text-xs font-semibold w-20">Cuenta</th>
@@ -43,7 +43,7 @@
             <div class="overflow-x-auto overflow-y-auto flex-1">
                 <table id="tablaMaterialesUrdido" class="w-full">
                     <thead class="sticky top-0 bg-slate-100 z-10">
-                        <tr class="bg-slate-100 border-b">
+                        <tr class="bg-blue-500 text-white">
                             <th class="px-2 py-2 text-center text-xs font-semibold w-32">Articulo</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-32">Config</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-28">Consumo</th>
@@ -62,7 +62,7 @@
             <div class="overflow-x-auto overflow-y-auto flex-1">
                 <table id="tablaMaterialesEngomado" class="w-full">
                     <thead class="sticky top-0 bg-slate-100 z-10">
-                        <tr class="bg-slate-100 border-b">
+                        <tr class="bg-blue-500 text-white">
                             <th class="px-2 py-2 text-center text-xs font-semibold w-24">Articulo</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-24">Config</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-20">Tamaño</th>
@@ -94,7 +94,7 @@
             <div class="overflow-x-auto overflow-y-auto flex-1">
                 <table id="tablaConstruccionUrdido" class="w-full">
                     <thead class="sticky top-0 bg-slate-100 z-10">
-                        <tr class="bg-slate-100 border-b">
+                        <tr class="bg-blue-500 text-white">
                             <th class="px-2 py-1 text-center text-xs font-semibold">No. Julios</th>
                             <th class="px-2 py-1 text-center text-xs font-semibold">Hilos</th>
                             <th class="px-2 py-1 text-center text-xs font-semibold">Observaciones</th>
@@ -155,7 +155,7 @@
             <div class="overflow-x-auto overflow-y-auto flex-1">
                 <table id="tablaDatosEngomado" class="w-full">
                     <thead class="sticky top-0 bg-slate-100 z-10">
-                        <tr class="bg-slate-100 border-b">
+                        <tr class="bg-blue-500 text-white">
                             <th class="px-2 py-2 text-center text-xs font-semibold w-24">Núcleo</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-28">No. de Telas</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-28">Ancho Balonas</th>

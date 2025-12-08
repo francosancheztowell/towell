@@ -140,8 +140,8 @@
 
                 <!-- Calidad (Ocupa 2 columnas: 2 y 3, misma fila que Atendio) -->
                 <div class="md:col-span-2">
-                    <label class="block text-sm md:text-md font-medium text-gray-700 mb-2">Calidad (1-10)</label>
-                    <div class="flex items-center justify-start gap-5 md:gap-7 w-full ml-4" id="calidad-stars">
+                    <label class="block text-sm md:text-md font-medium text-gray-700">Calidad (1-5)</label>
+                    <div class="flex items-center justify-start gap-8 md:gap-12 w-full ml-2 md:ml-4" id="calidad-stars">
                         <!-- Las estrellas se generarán dinámicamente -->
                     </div>
                     <input
@@ -150,7 +150,7 @@
                         name="calidad"
                         value=""
                     >
-                    <span id="calidad-value" class="text-xs text-gray-500 ml-2">0/10</span>
+                    <span id="calidad-value" class="text-xs text-gray-500 ml-2">0/5</span>
                 </div>
 
                 <!-- Turno (Oculto - se guardará pero no se mostrará) -->
@@ -173,7 +173,18 @@
                     placeholder="Observaciones de cierre"
                 ></textarea>
             </div>
-
+            <div class="mt-3 md:mt-4">
+                <label class="inline-flex items-center text-sm md:text-base text-gray-700">
+                    <input
+                        type="checkbox"
+                        id="enviar_telegram"
+                        name="enviar_telegram"
+                        value="1"
+                        class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    >
+                    <span class="ml-2">Enviar a Telegram</span>
+                </label>
+            </div>
             <!-- Botones -->
             <div class="grid grid-cols-2 gap-3 md:gap-4 mt-4 md:mt-6 pt-3 md:pt-4 border-t border-gray-200">
                 <button
@@ -274,6 +285,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Inicializar sistema de estrellas para Calidad
     let calidadSeleccionadaGlobal = 0;
+    const maxCalidad = 5;
 
     function inicializarEstrellas() {
         const starsContainer = document.getElementById('calidad-stars');
@@ -294,10 +306,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Crear 10 estrellas
-        for (let i = 1; i <= 10; i++) {
+        // Crear 5 estrellas
+        for (let i = 1; i <= maxCalidad; i++) {
             const star = document.createElement('span');
-            star.className = 'text-3xl md:text-4xl cursor-pointer text-gray-300 hover:text-yellow-400 transition-colors flex-shrink-0';
+            star.className = 'text-5xl md:text-6xl cursor-pointer text-gray-300 hover:text-yellow-400 transition-colors flex-shrink-0 px-2';
             star.innerHTML = '★';
             star.dataset.value = i;
 
@@ -305,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 calidadSeleccionadaGlobal = parseInt(this.dataset.value);
                 calidadInput.value = calidadSeleccionadaGlobal;
                 actualizarEstrellas();
-                calidadValueSpan.textContent = `${calidadSeleccionadaGlobal}/10`;
+                calidadValueSpan.textContent = `${calidadSeleccionadaGlobal}/${maxCalidad}`;
             });
 
             star.addEventListener('mouseenter', function() {
@@ -354,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('turno').value = paro.TurnoAtendio;
                 }
                 if (paro.Calidad !== null && paro.Calidad !== undefined) {
-                    const calidad = parseInt(paro.Calidad);
+                    const calidad = Math.min(Math.max(parseInt(paro.Calidad), 0), maxCalidad);
                     calidadSeleccionadaGlobal = calidad;
                     document.getElementById('calidad').value = calidad;
                     // Actualizar estrellas visualmente
@@ -369,7 +381,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             star.classList.add('text-gray-300');
                         }
                     });
-                    document.getElementById('calidad-value').textContent = `${calidad}/10`;
+                    document.getElementById('calidad-value').textContent = `${calidad}/${maxCalidad}`;
                 }
                 if (paro.ObsCierre) {
                     document.getElementById('obs_cierre').value = paro.ObsCierre;
@@ -414,6 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     turno: formData.get('turno'),
                     calidad: formData.get('calidad') ? parseInt(formData.get('calidad')) : null,
                     obs_cierre: formData.get('obs_cierre'),
+                    enviar_telegram: formData.has('enviar_telegram'),
                 })
             });
 

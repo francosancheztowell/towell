@@ -4,6 +4,7 @@ namespace App\Http\Controllers\OrdenDeCambio\Felpa;
 
 use App\Http\Controllers\Controller;
 use App\Models\ReqProgramaTejido;
+use App\Models\ReqModelosCodificados;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -252,12 +253,12 @@ class OrdenDeCambioFelpaController extends Controller
         }
 
         // Rizo
-        $this->establecerFormulaCelda($sheet, 'O9', '=REGISTRO!AD' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'P9', '=REGISTRO!AD' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'O9', '=REGISTRO!AF' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'P9', '=REGISTRO!AF' . $filaRegistro);
 
         // Pie
-        $this->establecerFormulaCelda($sheet, 'O10', '=REGISTRO!AH' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'P10', '=REGISTRO!AH' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'O10', '=REGISTRO!AJ' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'P10', '=REGISTRO!AJ' . $filaRegistro);
 
         // Clave AX
         $this->establecerFormulaCelda($sheet, 'J10', '=REGISTRO!I' . $filaRegistro);
@@ -298,7 +299,8 @@ class OrdenDeCambioFelpaController extends Controller
         $this->establecerFormulaCelda($sheet, 'A14', '=REGISTRO!R' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'B14', '=REGISTRO!S' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'C14', '=REGISTRO!T' . $filaRegistro);
-
+        $this->establecerFormulaCelda($sheet, 'D14', '=REGISTRO!X' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'E14', '=REGISTRO!Y' . $filaRegistro);
         // Observaciones
         $this->establecerFormulaCelda($sheet, 'O14', '=REGISTRO!BC' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'P14', '=REGISTRO!BC' . $filaRegistro);
@@ -307,17 +309,18 @@ class OrdenDeCambioFelpaController extends Controller
         $this->establecerFormulaCelda($sheet, 'N16', '=REGISTRO!CI' . $filaRegistro);
 
         // Rizo / pie / ancho
-        $this->establecerFormulaCelda($sheet, 'F16', '=REGISTRO!AD' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'I16', '=REGISTRO!AH' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'F16', '=REGISTRO!AF' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'I16', '=REGISTRO!AJ' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'B16', '=REGISTRO!Q' . $filaRegistro);
-
+        $this->establecerFormulaCelda($sheet, 'O14', '=REGISTRO!BC' . $filaRegistro);
         // Metros de rollo
+        // Primero establecer K17 para que H17 pueda referenciarlo
+        $this->establecerFormulaCelda($sheet, 'K17', '=REGISTRO!AX' . $filaRegistro);
         $this->establecerFormulaCelda(
             $sheet,
             'H17',
-            '=REGISTRO!R' . $filaRegistro . '*REGISTRO!AX' . $filaRegistro . '/100'
+            '=(K17*REGISTRO!R' . $filaRegistro . ')/100'
         );
-        $this->establecerFormulaCelda($sheet, 'K17', '=H17');
 
         // Cenefa
         $this->establecerFormulaCelda($sheet, 'C17', '=REGISTRO!AT' . $filaRegistro);
@@ -326,6 +329,8 @@ class OrdenDeCambioFelpaController extends Controller
         // Med inicio rizo a cenefa
         $this->establecerFormulaCelda($sheet, 'C19', '=REGISTRO!AU' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'D19', '=REGISTRO!AU' . $filaRegistro);
+
+
 
         // Fórmula K19
         if ($tipoFormato === 'smit' || $tipoFormato === 'jacquard') {
@@ -346,16 +351,6 @@ class OrdenDeCambioFelpaController extends Controller
 
         // Cenefa trama (fórmulas)
         $this->establecerCenefaTramaFormulas($sheet, $filaRegistro);
-
-        // Repeticiones
-        $this->establecerFormulaCelda($sheet, 'L17', '=REGISTRO!AX' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'M17', '=REGISTRO!AX' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'N17', '=REGISTRO!AX' . $filaRegistro);
-
-        // Peine
-        $this->establecerFormulaCelda($sheet, 'E16', '=REGISTRO!P' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'F16', '=REGISTRO!P' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'G16', '=REGISTRO!P' . $filaRegistro);
     }
 
     /**
@@ -913,15 +908,14 @@ class OrdenDeCambioFelpaController extends Controller
             $this->establecerFormulaCelda($sheet, 'H11', '=REGISTRO!X' . $filaRegistro);
 
             // Altura de rizo - AA
-            $this->establecerFormulaCelda($sheet, 'F14', '=REGISTRO!AA' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'F14', '=REGISTRO!AD' . $filaRegistro);
             $this->establecerFormulaCelda($sheet, 'G14', '=REGISTRO!AA' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'H14', '=REGISTRO!AA' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'H14', '=REGISTRO!Z' . $filaRegistro);
 
             // Obs rizo - AB
-            $this->establecerFormulaCelda($sheet, 'F15', '=REGISTRO!AB' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'G15', '=REGISTRO!AB' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'H15', '=REGISTRO!AB' . $filaRegistro);
-        } catch (\Exception $e) {
+            $this->establecerFormulaCelda($sheet, 'F15', '=REGISTRO!AG' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'I15', '=REGISTRO!AG' . $filaRegistro);
+          } catch (\Exception $e) {
             Log::warning('Error al establecer plano de dobladillo con fórmulas', [
                 'error' => $e->getMessage(),
             ]);
@@ -940,9 +934,9 @@ class OrdenDeCambioFelpaController extends Controller
             $this->establecerFormulaCelda($sheet, 'K11', '=REGISTRO!Z' . $filaRegistro);
 
             // Tra: U, hilo V, obs W
-            $this->establecerFormulaCelda($sheet, 'I14', '=REGISTRO!U' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'J14', '=REGISTRO!V' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'K14', '=REGISTRO!W' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'I14', '=REGISTRO!AH' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'J14', '=REGISTRO!U' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'K14', '=REGISTRO!AL' . $filaRegistro);
         } catch (\Exception $e) {
             Log::warning('Error al establecer hilos con fórmulas', [
                 'error' => $e->getMessage(),
@@ -963,10 +957,9 @@ class OrdenDeCambioFelpaController extends Controller
             $this->establecerFormulaCelda($sheet, 'O11', '=REGISTRO!AM' . $filaRegistro);
 
             // C4 - AR, AS
-            $this->establecerFormulaCelda($sheet, 'L14', '=REGISTRO!AR' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'M14', '=REGISTRO!AR' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'L14', '=REGISTRO!AN' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'M14', '=REGISTRO!AP' . $filaRegistro);
             $this->establecerFormulaCelda($sheet, 'N14', '=REGISTRO!AR' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'O14', '=REGISTRO!AS' . $filaRegistro);
         } catch (\Exception $e) {
             Log::warning('Error al establecer cenefa trama con fórmulas', [
                 'error' => $e->getMessage(),
@@ -976,9 +969,13 @@ class OrdenDeCambioFelpaController extends Controller
 
     /**
      * Mapear ReqProgramaTejido a datos REGISTRO.
+     * Obtiene datos de ReqModelosCodificados cuando están disponibles.
      */
     protected function mapearDatosBDaRegistro(ReqProgramaTejido $registro, string $horaActual): array
     {
+        // Obtener modelo codificado si existe
+        $modeloCodificado = $this->obtenerModeloCodificado($registro);
+
         // Fechas
         $fechaOrden = '';
         if ($registro->ProgramarProd) {
@@ -1012,9 +1009,10 @@ class OrdenDeCambioFelpaController extends Controller
         }
 
         // Metros de rollo y toallas por rollo
-        $largo        = $registro->AnchoToalla ?? $registro->LargoCrudo ?? '';
-        $repeticiones = $registro->NoTiras ?? 2;
-        $tiras        = $registro->NoTiras ?? 2;
+        // Usar datos de ReqModelosCodificados si están disponibles
+        $largo        = $modeloCodificado?->LargoToalla ?? $registro->LargoToalla ?? $registro->AnchoToalla ?? $registro->LargoCrudo ?? '';
+        $repeticiones = $modeloCodificado?->Repeticiones ?? $registro->NoTiras ?? 2;
+        $tiras        = $modeloCodificado?->NoTiras ?? $registro->NoTiras ?? 2;
 
         $mtsRollo = '';
         if (!empty($largo) && !empty($repeticiones)) {
@@ -1040,101 +1038,137 @@ class OrdenDeCambioFelpaController extends Controller
             'fecha_cumplimiento'   => $fechaCumplimiento,
             'departamento'         => $registro->SalonTejidoId ?? '',
             'telar'                => $registro->NoTelarId ?? '',
-            'prioridad'            => $registro->Prioridad ?? '',
-            'modelo'               => $registro->NombreProducto ?? $registro->NombreProyecto ?? '',
-            'clave_modelo'         => $registro->TamanoClave ?? '',
-            'clave_ax'             => $registro->InventSizeId ?? '',
-            'tolerancia'           => '',
-            'codigo_dibujo'        => '',
+            'prioridad'            => $modeloCodificado?->Prioridad ?? $registro->Prioridad ?? '',
+            'modelo'               => $modeloCodificado?->Nombre ?? $registro->NombreProducto ?? $registro->NombreProyecto ?? '',
+            'clave_modelo'         => $modeloCodificado?->ClaveModelo ?? $registro->TamanoClave ?? '',
+            'clave_ax'             => $modeloCodificado?->ItemId ?? $registro->ItemId ?? '',
+            'tolerancia'           => $modeloCodificado?->Tolerancia ?? $registro->Tolerancia ?? '',
+            'codigo_dibujo'        => $modeloCodificado?->CodigoDibujo ?? $registro->CodigoDibujo ?? '',
             'fecha_compromiso'     => $fechaCompromiso,
-            'nombre_formato_logistico' => $registro->NombreProyecto ?? '',
-            'clave'                => '',
+            'nombre_formato_logistico' => $modeloCodificado?->NombreProyecto ?? $registro->NombreProyecto ?? '',
+            'clave'                => $modeloCodificado?->Clave ?? '',
             'cantidad_producir'    => $registro->SaldoPedido ?? '',
-            'peine'                => $registro->Peine ?? '',
-            'ancho'                => $registro->Ancho ? $registro->Ancho . ' Cms.' : '',
+            'peine'                => $modeloCodificado?->Peine ?? $registro->Peine ?? '',
+            'ancho'                => ($modeloCodificado?->AnchoToalla ?? $registro->Ancho) ? (($modeloCodificado?->AnchoToalla ?? $registro->Ancho) . ' Cms.') : '',
             'largo'                => $largo,
-            'p_crudo'              => $registro->PesoCrudo ?? '',
-            'luchaje'              => $registro->Luchaje ?? '',
-            'tra'                  => $registro->CalibreTrama ?? '',
-            'hilo_tra'             => $registro->FibraTrama ?? '',
-            'obs_tra'              => '',
+            'p_crudo'              => $modeloCodificado?->PesoCrudo ?? $registro->PesoCrudo ?? '',
+            'luchaje'              => $modeloCodificado?->Luchaje ?? $registro->Luchaje ?? '',
+            'tra'                  => $modeloCodificado?->CalibreTrama ?? $registro->Tra ?? '',
+            'hilo_tra'             => $modeloCodificado?->FibraId ?? $registro->FibraTrama ?? '',
+            'obs_tra'              => $modeloCodificado?->Obs ?? '',
             'tipo_plano'           => '',
-            'med_plano'            => $registro->MedidaPlano ?? '',
-            'tipo_rizo'            => '',
-            'alt_rizo'             => '',
-            'obs_rizo'             => '',
-            'velocidad_minima'     => $registro->VelocidadSTD ?? '',
-            'rizo'                 => $registro->CalibreRizo ?? '',
-            'hilo_rizo'            => $registro->FibraRizo ?? '',
-            'cuenta_rizo'          => $registro->CuentaRizo ?? '',
-            'obs_rizo_detalle'     => '',
-            'pie'                  => $registro->CalibrePie ?? '',
-            'hilo_pie'             => $registro->FibraPie ?? '',
-            'cuenta_pie'           => $registro->CuentaPie ?? '',
-            'obs_pie'              => '',
-            'c1'                   => $registro->CalibreComb1 ?? '',
-            'obs_c1'               => '',
-            'c2'                   => $registro->CalibreComb2 ?? '',
-            'obs_c2'               => '',
-            'c3'                   => $registro->CalibreComb3 ?? '',
-            'obs_c3'               => '',
-            'c4'                   => $registro->CalibreComb4 ?? '',
-            'obs_c4'               => '',
-            'med_cenefa'           => '',
-            'med_inicio_rizo_cenefa' => '',
-            'rasurada'             => $registro->Rasurado ?? 'NO',
+            'med_plano'            => $modeloCodificado?->MedidaPlano ?? $registro->MedidaPlano ?? '',
+            'tipo_rizo'            => $modeloCodificado?->TipoRizo ?? $registro->TipoRizo ?? '',
+            'alt_rizo'             => $modeloCodificado?->AlturaRizo ?? '',
+            'obs_rizo'             => $modeloCodificado?->Obs ?? '',
+            'velocidad_minima'     => $modeloCodificado?->VelocidadSTD ?? $registro->VelocidadSTD ?? '',
+            'rizo'                 => $modeloCodificado?->CalibreRizo ?? $registro->CalibreRizo ?? '',
+            'hilo_rizo'            => $modeloCodificado?->FibraRizo ?? $registro->FibraRizo ?? '',
+            'cuenta_rizo'          => $modeloCodificado?->CuentaRizo ?? $registro->CuentaRizo ?? '',
+            'obs_rizo_detalle'     => $modeloCodificado?->Obs ?? '',
+            'pie'                  => $modeloCodificado?->CalibrePie ?? $registro->CalibrePie ?? '',
+            'hilo_pie'             => $modeloCodificado?->FibraPie ?? $registro->FibraPie ?? '',
+            'cuenta_pie'           => $modeloCodificado?->CuentaPie ?? $registro->CuentaPie ?? '',
+            'obs_pie'              => $modeloCodificado?->Obs ?? '',
+            'c1'                   => $modeloCodificado?->CalibreComb1 ?? $registro->CalibreComb1 ?? '',
+            'obs_c1'               => $modeloCodificado?->Obs1 ?? '',
+            'c2'                   => $modeloCodificado?->CalibreComb2 ?? $registro->CalibreComb2 ?? '',
+            'obs_c2'               => $modeloCodificado?->Obs2 ?? '',
+            'c3'                   => $modeloCodificado?->CalibreComb3 ?? $registro->CalibreComb3 ?? '',
+            'obs_c3'               => $modeloCodificado?->Obs3 ?? '',
+            'c4'                   => $modeloCodificado?->CalibreComb4 ?? $registro->CalibreComb4 ?? '',
+            'obs_c4'               => $modeloCodificado?->Obs4 ?? '',
+            'med_cenefa'           => $modeloCodificado?->MedidaCenefa ?? '',
+            'med_inicio_rizo_cenefa' => $modeloCodificado?->MedIniRizoCenefa ?? '',
+            'rasurada'             => $modeloCodificado?->Rasurado ?? $registro->Rasurado ?? 'NO',
             'tiras'                => $tiras,
             'repeticiones'         => $repeticiones,
-            'no_marbetes'          => $registro->SaldoMarbete ?? '',
-            'cambio_repaso'        => $registro->CambioHilo ?? 'NO',
-            'vendedor'             => '',
+            'no_marbetes'          => $modeloCodificado?->TotalMarbetes ?? $registro->SaldoMarbete ?? '',
+            'cambio_repaso'        => $modeloCodificado?->CambioRepaso ?? $registro->CambioHilo ?? 'NO',
+            'vendedor'             => $modeloCodificado?->Vendedor ?? '',
             'no_orden'             => $registro->NoProduccion ?? '',
-            'observaciones'        => $registro->Observaciones ?? '',
-            'trama_ancho_peine'    => $registro->Ancho ?? '',
-            'log_lucha_total'      => '',
-            'c1_trama_fondo'       => '',
-            'hilo_c1_trama'        => '',
+            'observaciones'        => $modeloCodificado?->Obs5 ?? $registro->Observaciones ?? '',
+            'trama_ancho_peine'    => $modeloCodificado?->AnchoPeineTrama ?? $registro->Ancho ?? '',
+            'log_lucha_total'      => $modeloCodificado?->LogLuchaTotal ?? '',
+            'c1_trama_fondo'       => $modeloCodificado?->CalTramaFondoC1 ?? '',
+            'hilo_c1_trama'        => $modeloCodificado?->FibraTramaFondoC1 ?? '',
             'obs_c1_trama'         => '',
-            'pasadasc1'            => $registro->PasadasComb1 ?? '',
-            'c1_pasadas'           => $registro->CalibreComb1 ?? '',
-            'hilo_c1_pasadas'      => $registro->FibraComb1 ?? '',
-            'obs_c1_pasadas'       => '',
-            'pasadasc2'            => $registro->PasadasComb2 ?? '',
-            'c2_pasadas'           => $registro->CalibreComb2 ?? '',
-            'hilo_c2_pasadas'      => $registro->FibraComb2 ?? '',
-            'obs_c2_pasadas'       => '',
-            'pasadasc3'            => $registro->PasadasComb3 ?? '',
-            'c3_pasadas'           => $registro->CalibreComb3 ?? '',
-            'hilo_c3_pasadas'      => $registro->FibraComb3 ?? '',
-            'obs_c3_pasadas'       => '',
-            'pasadasc4'            => $registro->PasadasComb4 ?? '',
-            'c4_pasadas'           => $registro->CalibreComb4 ?? '',
-            'hilo_c4_pasadas'      => $registro->FibraComb4 ?? '',
-            'obs_c4_pasadas'       => '',
-            'pasadasc5'            => $registro->PasadasComb5 ?? '',
-            'c5_pasadas'           => $registro->CalibreComb5 ?? '',
-            'hilo_c5_pasadas'      => $registro->FibraComb5 ?? '',
-            'obs_c5_pasadas'       => '',
-            'total_pasadas'        => '',
-            'contraccion'          => '',
-            'tramas_cm_tejido'     => '',
-            'contrac_rizo'         => '',
-            'clasificacion_kg'     => '',
-            'kg_dia'               => '',
-            'densidad'             => $registro->PesoGRM2 ?? '',
-            'pzas_dia_pasadas'     => '',
-            'pzas_dia_formula'     => '',
-            'dif'                  => '',
-            'efic'                 => $registro->EficienciaSTD ?? '',
-            'rev'                  => '',
+            'pasadasc1'            => $modeloCodificado?->PasadasComb1 ?? $registro->PasadasComb1 ?? '',
+            'c1_pasadas'           => $modeloCodificado?->CalibreComb1 ?? $registro->CalibreComb1 ?? '',
+            'hilo_c1_pasadas'      => $modeloCodificado?->FibraComb1 ?? $registro->FibraComb1 ?? '',
+            'obs_c1_pasadas'       => $modeloCodificado?->Obs1 ?? '',
+            'pasadasc2'            => $modeloCodificado?->PasadasComb2 ?? $registro->PasadasComb2 ?? '',
+            'c2_pasadas'           => $modeloCodificado?->CalibreComb2 ?? $registro->CalibreComb2 ?? '',
+            'hilo_c2_pasadas'      => $modeloCodificado?->FibraComb2 ?? $registro->FibraComb2 ?? '',
+            'obs_c2_pasadas'       => $modeloCodificado?->Obs2 ?? '',
+            'pasadasc3'            => $modeloCodificado?->PasadasComb3 ?? $registro->PasadasComb3 ?? '',
+            'c3_pasadas'           => $modeloCodificado?->CalibreComb3 ?? $registro->CalibreComb3 ?? '',
+            'hilo_c3_pasadas'      => $modeloCodificado?->FibraComb3 ?? $registro->FibraComb3 ?? '',
+            'obs_c3_pasadas'       => $modeloCodificado?->Obs3 ?? '',
+            'pasadasc4'            => $modeloCodificado?->PasadasComb4 ?? $registro->PasadasComb4 ?? '',
+            'c4_pasadas'           => $modeloCodificado?->CalibreComb4 ?? $registro->CalibreComb4 ?? '',
+            'hilo_c4_pasadas'      => $modeloCodificado?->FibraComb4 ?? $registro->FibraComb4 ?? '',
+            'obs_c4_pasadas'       => $modeloCodificado?->Obs4 ?? '',
+            'pasadasc5'            => $modeloCodificado?->PasadasComb5 ?? $registro->PasadasComb5 ?? '',
+            'c5_pasadas'           => $modeloCodificado?->CalibreComb5 ?? $registro->CalibreComb5 ?? '',
+            'hilo_c5_pasadas'      => $modeloCodificado?->FibraComb5 ?? $registro->FibraComb5 ?? '',
+            'obs_c5_pasadas'       => $modeloCodificado?->Obs5 ?? '',
+            'total_pasadas'        => $modeloCodificado?->Total ?? '',
+            'contraccion'          => $modeloCodificado?->Contraccion ?? '',
+            'tramas_cm_tejido'     => $modeloCodificado?->TramasCMTejido ?? '',
+            'contrac_rizo'         => $modeloCodificado?->ContracRizo ?? '',
+            'clasificacion_kg'     => $modeloCodificado?->ClasificacionKG ?? '',
+            'kg_dia'               => $modeloCodificado?->KGDia ?? '',
+            'densidad'             => $modeloCodificado?->Densidad ?? $registro->PesoGRM2 ?? '',
+            'pzas_dia_pasadas'     => $modeloCodificado?->PzasDiaPasadas ?? '',
+            'pzas_dia_formula'     => $modeloCodificado?->PzasDiaFormula ?? '',
+            'dif'                  => $modeloCodificado?->DIF ?? '',
+            'efic'                 => $modeloCodificado?->EFIC ?? $registro->EficienciaSTD ?? '',
+            'rev'                  => $modeloCodificado?->Rev ?? '',
             'tiras_final'          => $tiras,
-            'pasadastotal'         => '',
+            'pasadastotal'         => $modeloCodificado?->PASADAS ?? '',
             'folio_codificacion'   => $registro->NoProduccion ?? '',
             'hora_impresion'       => $horaActual,
             'mts_rollo'            => $mtsRollo,
             'programa_corte_rollo' => $mtsRollo,
             'toallas_rollo'        => $toallasRollo,
         ];
+    }
+
+    /**
+     * Obtener modelo codificado desde ReqModelosCodificados usando TamanoClave y SalonTejidoId.
+     * Retorna un objeto vacío si no se encuentra.
+     */
+    protected function obtenerModeloCodificado(ReqProgramaTejido $registro): ?ReqModelosCodificados
+    {
+        try {
+            $tamanoClave = $registro->TamanoClave ?? '';
+            $salonTejidoId = $registro->SalonTejidoId ?? '';
+
+            if (empty($tamanoClave) && empty($salonTejidoId)) {
+                return null;
+            }
+
+            $query = ReqModelosCodificados::query();
+
+            if (!empty($tamanoClave)) {
+                $query->where('TamanoClave', $tamanoClave);
+            }
+
+            if (!empty($salonTejidoId)) {
+                $query->where('SalonTejidoId', $salonTejidoId);
+            }
+
+            // Ordenar por fecha más reciente para obtener el modelo más actualizado
+            return $query->orderByDesc('FechaTejido')->first();
+        } catch (\Exception $e) {
+            Log::warning('Error al obtener modelo codificado', [
+                'tamano_clave' => $registro->TamanoClave ?? '',
+                'salon_tejido_id' => $registro->SalonTejidoId ?? '',
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 
     /**

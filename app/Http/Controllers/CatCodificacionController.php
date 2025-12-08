@@ -137,17 +137,11 @@ class CatCodificacionController extends Controller
     public function getAllFast(): JsonResponse
     {
         try {
-            Log::info('CatCodificacionController::getAllFast - INICIO');
-
             $columnas = self::COLUMNS;
             $table    = (new CatCodificados())->getTable();
 
-            Log::info('CatCodificacionController::getAllFast - Tabla: ' . $table . ', Columnas: ' . count($columnas));
-
             // Deshabilitar query log para mejor rendimiento
             DB::connection()->disableQueryLog();
-
-            Log::info('CatCodificacionController::getAllFast - Ejecutando consulta...');
 
             // Consulta directa SIN ordenamiento para máxima velocidad
             // El ordenamiento es costoso y no es necesario para la carga inicial
@@ -155,11 +149,8 @@ class CatCodificacionController extends Controller
                 ->select($columnas)
                 ->get();
 
-            Log::info('CatCodificacionController::getAllFast - Consulta completada. Registros: ' . $data->count());
 
             $mapped = $data->map(fn($row) => array_values((array) $row));
-
-            Log::info('CatCodificacionController::getAllFast - Mapeo completado. Total: ' . $mapped->count());
 
             return response()->json([
                 's' => true,             // success

@@ -9,6 +9,7 @@ use App\Models\UrdConsumoHilo;
 use App\Models\SSYSFoliosSecuencia;
 use App\Models\TejInventarioTelares;
 use App\Helpers\TurnoHelper;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -67,33 +68,22 @@ class ProgramarUrdEngController extends Controller
             // Obtener TipoAtado del grupo (tabla 1) - puede ser "Normal" o "Especial"
             $tipoAtado = $grupo['tipoAtado'] ?? '';
 
-            // Obtener ItemId de la BOM de urdido para BomFormula
+            // Obtener ItemId de la BOM de urdido para BomFormula (simple y directo)
             $bomFormulaUrdido = null;
-            $bomUrdId = $grupo['bomId'] ?? null;
-            if ($bomUrdId) {
-                try {
-                    // Buscar el ItemId de la BOM de urdido en la tabla BOM
-                    $bomItem = DB::connection('sqlsrv_ti')
-                        ->table('BOM as b')
-                        ->join('BOMTABLE as bt', function($join) {
-                            $join->on('bt.BOMID', '=', 'b.BOMID')
-                                 ->on('bt.DATAAREAID', '=', 'b.DATAAREAID');
-                        })
-                        ->where('bt.BOMID', $bomUrdId)
-                        ->where('bt.DATAAREAID', 'PRO')
-                        ->where('bt.ITEMGROUPID', 'JUL-URD')
-                        ->select('b.ITEMID')
-                        ->first();
+            $bomUrdId = trim($grupo['bomId'] ?? '');
+            if ($bomUrdId !== '') {
+                $bomItem = DB::connection('sqlsrv_ti')
+                    ->table('BOM as b')
+                    ->join('BOMTABLE as bt', function($join) {
+                        $join->on('bt.BOMID', '=', 'b.BOMID')
+                             ->on('bt.DATAAREAID', '=', 'b.DATAAREAID');
+                    })
+                    ->where('bt.BOMID', $bomUrdId)     // BomId
+                    ->where('bt.ITEMGROUPID', 'JUL-URD') // ItemGroupId JUL-URD
+                    ->where('bt.DATAAREAID', 'PRO')    // DataAreaId PRO
+                    ->value('b.ITEMID');
 
-                    if ($bomItem && isset($bomItem->ITEMID)) {
-                        $bomFormulaUrdido = $bomItem->ITEMID;
-                    }
-                } catch (\Throwable $e) {
-                    Log::warning('Error al obtener ItemId de BOM de urdido', [
-                        'bomId' => $bomUrdId,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+                $bomFormulaUrdido = $bomItem ?: null;
             }
 
             // =================== PASO 3: Guardar Tabla 2 (UrdProgramaUrdido) PRIMERO ===================
@@ -281,7 +271,6 @@ class ProgramarUrdEngController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Órdenes creadas exitosamente',
-                'redirect_url' => 'http://127.0.0.1:8000/programa-urd-eng/reservar-programar',
                 'data' => [
                     'folio' => $folio,
                     'folioConsumo' => $folioConsumo,
@@ -333,7 +322,7 @@ class ProgramarUrdEngController extends Controller
         }
 
         // Si ya es una instancia de Carbon, retornarla
-        if ($prodDate instanceof \Carbon\Carbon) {
+        if ($prodDate instanceof Carbon) {
             return $prodDate->format('Y-m-d');
         }
 
@@ -341,7 +330,7 @@ class ProgramarUrdEngController extends Controller
         if (is_string($prodDate)) {
             try {
                 // Intentar parsear como fecha
-                $date = \Carbon\Carbon::parse($prodDate);
+                $date = Carbon::parse($prodDate);
                 return $date->format('Y-m-d');
             } catch (\Exception $e) {
                 // Si no se puede parsear, retornar null
@@ -352,7 +341,7 @@ class ProgramarUrdEngController extends Controller
         // Si es un timestamp numérico
         if (is_numeric($prodDate)) {
             try {
-                $date = \Carbon\Carbon::createFromTimestamp($prodDate);
+                $date = Carbon::createFromTimestamp($prodDate);
                 return $date->format('Y-m-d');
             } catch (\Exception $e) {
                 return null;
