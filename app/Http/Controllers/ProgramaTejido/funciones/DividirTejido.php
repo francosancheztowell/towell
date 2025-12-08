@@ -108,16 +108,7 @@ class DividirTejido
                 }
             }
 
-            // Validar que la suma de cantidades no exceda el original
-            $sumaCantidades = $cantidadParaOriginal + array_sum($cantidadesNuevos);
-            if ($sumaCantidades > $cantidadOriginalTotal) {
-                DBFacade::rollBack();
-                ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
-                return response()->json([
-                    'success' => false,
-                    'message' => "La suma de cantidades ({$sumaCantidades}) excede el saldo original ({$cantidadOriginalTotal})"
-                ], 400);
-            }
+            // (Validación de suma removida a solicitud)
 
             $idsParaObserver = [];
             $totalDivididos = 0;
