@@ -46,6 +46,7 @@ use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoController;
 use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\NotificarMontadoJulioController;
 use App\Http\Controllers\NotificarMontRollosController;
+use App\Http\Controllers\TelDesarrolladoresController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
 
@@ -625,9 +626,7 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
         })->name('bpm');
 
         // Desarrolladores
-        Route::get('/desarrolladores', function () {
-            return view('modulos.desarrolladores.desarrolladores');
-        })->name('desarrolladores');
+        Route::get('/desarrolladores', [TelDesarrolladoresController::class, 'index'])->name('desarrolladores');
     });
 
     // Notificar Montado de Julios (fuera del grupo para acceso desde módulos)
@@ -1073,11 +1072,5 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     // ============================================
     // MÓDULO DESARROLLADORES
     // ============================================
-
-    Route::get('/desarrolladores', function () {
-            return view('modulos.desarrolladores.desarrolladores');
-        })->name('desarrolladores');
-
-    // RUTAS DE MÓDULOS (MOVIDAS A MÓDULOS ORGANIZADOS)
-
-});
+    Route::get('/desarrolladores', [TelDesarrolladoresController::class, 'index'])->name('desarrolladores');
+    });
