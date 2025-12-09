@@ -8,6 +8,7 @@ use App\Http\Controllers\CatalagoTelarController;
 use App\Http\Controllers\CatalagoVelocidadController;
 use App\Http\Controllers\CortesEficienciaController;
 use App\Http\Controllers\ProgramaTejido\ProgramaTejidoController;
+use App\Http\Controllers\ProgramaTejido\ColumnasProgramaTejidoController;
 use App\Http\Controllers\RequerimientoController;
 use App\Http\Controllers\SecuenciaInvTelasController;
 use App\Http\Controllers\SecuenciaInvTramaController;
@@ -706,6 +707,9 @@ Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoControlle
 Route::get('/programa-tejido/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
 Route::get('/programa-tejido/eficiencia-std', [ProgramaTejidoController::class, 'getEficienciaStd']);
 Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, 'getVelocidadStd']);
+// Estado de columnas (ocultar/mostrar) por usuario
+Route::get('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'index']);
+Route::post('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'store']);
 
 // ============================================
 // RUTAS SIMULACIÓN

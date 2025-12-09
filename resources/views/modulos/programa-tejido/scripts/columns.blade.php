@@ -1,47 +1,102 @@
-// ===== Definición de grupos de columnas =====
-// Orden: Estado (sin grupo) -> Grupo 1 -> Grupo 2 -> Grupo 3 -> Grupo 4 -> Grupo 5 -> Grupo 6 -> Grupo 7
 const columnGroups = {
 	1: {
-		name: 'Grupo 1 - Cuenta/Salón/Telar',
-		fields: ['CuentaRizo', 'SalonTejidoId', 'NoTelarId', 'Ultimo', 'CambioHilo'],
-		defaultVisible: true // VISIBLE por defecto
+		name: 'Grupo 1',
+		fields: [
+			'CuentaRizo','CalibreRizo2','SalonTejidoId','NoTelarId','Ultimo','CambioHilo',
+			'CalendarioId','NoExisteBase','ItemId','InventSizeId','Rasurado'
+		],
+		defaultVisible: true
 	},
 	2: {
-		name: 'Grupo 2 - Máquina/Hilo',
-		fields: ['Maquina', 'Ancho', 'EficienciaSTD', 'VelocidadSTD', 'FibraRizo', 'CalibrePie2'],
-		defaultVisible: true // VISIBLE por defecto
+		name: 'Grupo 2',
+		fields: [
+			'PasadasTrama','PasadasComb1','PasadasComb2','PasadasComb3','PasadasComb4','PasadasComb5',
+			'AnchoToalla','CodColorTrama','ColorTrama',
+			'CalibreComb1','FibraComb1','CodColorComb1','NombreCC1',
+			'CalibreComb2','FibraComb2','CodColorComb2','NombreCC2',
+			'CalibreComb3','FibraComb3','CodColorComb3','NombreCC3',
+			'CalibreComb4','FibraComb4','CodColorComb4','NombreCC4',
+			'CalibreComb5','FibraComb5','CodColorComb5','NombreCC5',
+			'MedidaPlano','CuentaPie','CodColorCtaPie','NombreCPie','PesoGRM2'
+		],
+		defaultVisible: true
 	},
 	3: {
-		name: 'Grupo 3 - Jornada/Clave',
-		fields: ['CalendarioId', 'TamanoClave', 'NoExisteBase'],
-		defaultVisible: true // VISIBLE por defecto
-	},
-	4: {
-		name: 'Grupo 4 - Producto/Pedido',
-		fields: ['NombreProducto', 'SaldoPedido', 'ProgramarProd', 'NoProduccion', 'Programado', 'NombreProyecto', 'AplicacionId', 'Observaciones', 'TipoPedido'],
-		defaultVisible: true // VISIBLE por defecto
-	},
-	5: {
-		name: 'Grupo 5 - Producción',
-		fields: ['NoTiras', 'Peine', 'LargoCrudo', 'PesoCrudo', 'Luchaje', 'CalibreTrama2', 'DobladilloId', 'DiasEficiencia', 'ProdKgDia', 'StdDia'],
-		defaultVisible: true // VISIBLE por defecto
-	},
-	6: {
-		name: 'Grupo 6 - Pasadas/Colores',
-		fields: ['PasadasTrama', 'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4', 'PasadasComb5', 'AnchoToalla', 'ColorTrama', 'CalibreComb1', 'NombreCC1', 'CalibreComb2', 'NombreCC2', 'CalibreComb3', 'NombreCC3', 'CalibreComb4', 'NombreCC4', 'CalibreComb5', 'NombreCC5', 'MedidaPlano', 'CuentaPie', 'NombreCPie', 'PesoGRM2'],
-		defaultVisible: true // VISIBLE por defecto
-	},
-	7: {
-		name: 'Grupo 7 - Fechas',
-		fields: ['FechaInicio', 'FechaFinal', 'EntregaProduc', 'EntregaPT', 'EntregaCte', 'PTvsCte'],
-		defaultVisible: true // VISIBLE por defecto
-	},
-	8: {
-		name: 'Grupo 8 - Otras columnas',
-		fields: ['CalibreRizo2', 'ItemId', 'InventSizeId', 'Rasurado', 'TotalPedido', 'Produccion', 'SaldoMarbete', 'OrdCompartida', 'FlogsId', 'CategoriaCalidad', 'CustName', 'FibraTrama', 'CodColorTrama', 'FibraComb1', 'CodColorComb1', 'FibraComb2', 'CodColorComb2', 'FibraComb3', 'CodColorComb3', 'FibraComb4', 'CodColorComb4', 'FibraComb5', 'CodColorComb5', 'CodColorCtaPie', 'ProdKgDia2', 'StdToaHra', 'DiasJornada', 'HorasProd', 'StdHrsEfect'],
-		defaultVisible: true // VISIBLE por defecto
+		name: 'Grupo 3',
+		fields: ['ProdKgDia','StdToaHra','DiasJornada','HorasProd','StdHrsEfect'],
+		defaultVisible: true
 	}
 };
+
+// ===== Persistencia de columnas ocultas (usa hiddenColumns global de state.blade) =====
+const COLUMN_STATE_ENDPOINT = '/programa-tejido/columnas';
+const CURRENT_USER_ID = (window?.App?.user?.id) ?? (window?.authUserId) ?? null;
+let saveHiddenColumnsTimer = null;
+let isInitializingColumns = false; // evita guardar mientras cargamos estados
+let tableLoadingContainer = null;
+let pendingHiddenFields = null; // campos que deben ocultarse cuando columnsData esté listo
+
+async function loadPersistedHiddenColumns() {
+	try {
+		setTableLoading(true);
+
+		isInitializingColumns = true;
+		const res = await fetch(COLUMN_STATE_ENDPOINT, {
+			method: 'GET',
+			headers: { 'Accept': 'application/json' },
+			credentials: 'same-origin'
+		});
+		if (!res.ok) return;
+		const data = await res.json();
+		if (!data.success || !data.data) return;
+
+		// Guardar pendientes y aplicar cuando columnsData esté listo
+		pendingHiddenFields = Object.entries(data.data || {})
+			.filter(([, hidden]) => hidden)
+			.map(([field]) => field);
+		tryApplyHiddenFields();
+	} catch (e) {
+		console.warn('No se pudo cargar estado de columnas', e);
+	} finally {
+		isInitializingColumns = false;
+		// si no se aplicó aún, se liberará en tryApplyHiddenFields cuando columnsData esté listo
+	}
+}
+
+function scheduleSaveHiddenColumns() {
+	if (isInitializingColumns) return;
+	if (saveHiddenColumnsTimer) clearTimeout(saveHiddenColumnsTimer);
+	saveHiddenColumnsTimer = setTimeout(saveHiddenColumns, 400);
+}
+
+async function saveHiddenColumns() {
+	try {
+		const columnas = {};
+		// Enviar estado completo: true = oculta, false = visible
+		columnsData.forEach((col, idx) => {
+			if (col?.field) columnas[col.field] = hiddenColumns.includes(idx);
+		});
+
+		const body = { columnas };
+		if (CURRENT_USER_ID) body.usuario_id = CURRENT_USER_ID;
+
+		const res = await fetch(COLUMN_STATE_ENDPOINT, {
+			method: 'POST',
+			headers: {
+				'Accept': 'application/json',
+				'Content-Type': 'application/json',
+				'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+			},
+			credentials: 'same-origin',
+			body: JSON.stringify(body)
+		});
+		if (!res.ok) {
+			console.warn('No se pudo guardar estado de columnas (respuesta no OK)', res.status);
+		}
+	} catch (e) {
+		console.warn('No se pudo guardar estado de columnas', e);
+	}
+}
 
 // Función para obtener el índice de una columna por su campo
 function getColumnIndexByField(field) {
@@ -65,6 +120,80 @@ function getGroupColumns(groupId) {
 	return group.fields.map(field => getColumnIndexByField(field)).filter(idx => idx !== -1);
 }
 
+function tryApplyHiddenFields() {
+	try {
+		if (!Array.isArray(columnsData) || columnsData.length === 0) {
+			// reintentar hasta que exista columnsData
+			return setTimeout(tryApplyHiddenFields, 80);
+		}
+		if (!Array.isArray(hiddenColumns)) hiddenColumns = [];
+
+		// Si no hay pendientes, solo liberar la tabla
+		if (!pendingHiddenFields || pendingHiddenFields.length === 0) {
+			setTableLoading(false);
+			return;
+		}
+
+		// Aplicar estados de oculto según pendientes
+		pendingHiddenFields.forEach(field => {
+			const idx = getColumnIndexByField(field);
+			if (idx !== -1 && !hiddenColumns.includes(idx)) {
+				hideColumn(idx, true);
+			}
+		});
+		updatePinnedColumnsPositions();
+		pendingHiddenFields = null;
+		setTableLoading(false);
+	} catch (e) {
+		console.warn('No se pudo aplicar columnas ocultas', e);
+		setTableLoading(false);
+	}
+}
+
+function setTableLoading(isLoading) {
+	try {
+		const table = document.getElementById('mainTable');
+		if (!table) return;
+		if (!tableLoadingContainer) {
+			tableLoadingContainer = table.closest('.table-responsive') || table;
+		}
+		const c = tableLoadingContainer;
+		if (isLoading) {
+			if (!c.querySelector('.pt-columns-loading')) {
+				const overlay = document.createElement('div');
+				overlay.className = 'pt-columns-loading';
+				overlay.style.position = 'absolute';
+				overlay.style.inset = '0';
+			overlay.style.display = 'flex';
+			overlay.style.alignItems = 'center';
+			overlay.style.justifyContent = 'center';
+			overlay.style.backgroundColor = 'transparent'; // no cubras la tabla
+			overlay.style.zIndex = '999';
+			overlay.style.pointerEvents = 'none'; // no bloquees clicks
+			overlay.innerHTML = `
+				<div class="flex items-center gap-2 px-3 py-1.5 bg-white rounded shadow text-gray-700 text-sm">
+					<svg class="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+					  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+					  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+					</svg>
+					<span class="font-medium whitespace-nowrap">Cargando columnas...</span>
+				</div>
+			`;
+				// asegurar contenedor relativo
+				if (getComputedStyle(c).position === 'static') {
+					c.style.position = 'relative';
+				}
+				c.appendChild(overlay);
+			}
+		} else {
+			const overlay = c.querySelector('.pt-columns-loading');
+			if (overlay) overlay.remove();
+		}
+	} catch (e) {
+		console.warn('No se pudo ajustar visibilidad de tabla', e);
+	}
+}
+
 // Función para verificar si un grupo está visible
 function isGroupVisible(groupId) {
 	const groupColumns = getGroupColumns(groupId);
@@ -83,6 +212,7 @@ function toggleGroupVisibility(groupId, visible, silent = false) {
 			hideColumn(index, silent);
 		}
 	});
+	if (!silent) scheduleSaveHiddenColumns();
 }
 
 // Función para fijar/desfijar un grupo completo
@@ -471,6 +601,7 @@ function resetColumnVisibility() {
 // Función para inicializar la visibilidad de columnas según grupos
 function initializeColumnVisibility() {
 	try {
+		isInitializingColumns = true;
 		Object.keys(columnGroups).forEach(groupId => {
 			const group = columnGroups[groupId];
 			const groupIdNum = parseInt(groupId);
@@ -478,6 +609,8 @@ function initializeColumnVisibility() {
 		});
 	} catch (error) {
 		console.error('Error al inicializar visibilidad de columnas:', error);
+	} finally {
+		isInitializingColumns = false;
 	}
 }
 
@@ -496,6 +629,7 @@ function showColumn(index, silent = false) {
 	if (!silent && typeof showToast === 'function') {
 		showToast(`Columna visible`, 'info');
 	}
+	if (!silent) scheduleSaveHiddenColumns();
 }
 
 function hideColumn(index, silent = false) {
@@ -510,6 +644,7 @@ function hideColumn(index, silent = false) {
 	if (!silent && typeof showToast === 'function') {
 		showToast(`Columna oculta`, 'info');
 	}
+	if (!silent) scheduleSaveHiddenColumns();
 }
 
 function togglePinColumn(index) {
@@ -591,4 +726,8 @@ window.toggleGroupVisibility = toggleGroupVisibility;
 window.toggleGroupPin = toggleGroupPin;
 window.getColumnGroup = getColumnGroup;
 window.getGroupColumns = getGroupColumns;
+
+// Cargar estados persistidos al inicio
+setTableLoading(true);
+loadPersistedHiddenColumns();
 

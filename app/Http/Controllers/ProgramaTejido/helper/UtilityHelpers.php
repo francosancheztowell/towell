@@ -202,12 +202,6 @@ class UtilityHelpers
             if ($anterior && $anterior->FibraRizo !== null && $anterior->FibraRizo !== '' && $anterior->FibraRizo !== $nuevoHilo) {
                 $anterior->CambioHilo = 1;
                 $anterior->save();
-                Log::info('CambioHilo marcado', [
-                    'salon'=>$salon,
-                    'telar'=>$noTelarId,
-                    'ant'=>$anterior->FibraRizo,
-                    'nuevo'=>$nuevoHilo
-                ]);
             }
         } catch (\Throwable $e) {
             Log::warning('marcarCambioHiloAnterior error', ['msg'=>$e->getMessage()]);
