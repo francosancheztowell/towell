@@ -27,6 +27,51 @@ class TelDesarrolladoresController extends Controller
             ->get();
     }
 
+    public function seleccionarProduccion(Request $request, $telarId)
+    {
+        $producciones = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
+            ->whereNotNull('NoProduccion')
+            ->where('NoProduccion', '!=', '')
+            ->select('NoProduccion', 'NombreProducto', 'FechaInicio', 'FlogsId', 'ItemId')
+            ->distinct()
+            ->orderBy('NoProduccion')
+            ->get();
+
+        return view('modulos.desarrolladores.seleccionar-produccion', compact('producciones', 'telarId'));
+    }
+
+    public function obtenerProducciones(Request $request, $telarId)
+    {
+        try {
+            $producciones = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
+                ->whereNotNull('NoProduccion')
+                ->where('NoProduccion', '!=', '')
+                ->select('NoProduccion', 'NombreProducto', 'FechaInicio')
+                ->distinct()
+                ->orderBy('NoProduccion')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'producciones' => $producciones
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener las producciones: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function formularioDesarrollador(Request $request, $telarId, $noProduccion)
+    {
+        $datosProduccion = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
+            ->where('NoProduccion', $noProduccion)
+            ->first();
+        
+        return view('modulos.desarrolladores.formulario', compact('datosProduccion', 'telarId', 'noProduccion'));
+    }
+
     protected function store(Request $request){
         try {
             $validated = $request->validate([

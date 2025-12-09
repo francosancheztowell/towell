@@ -1073,5 +1073,13 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     // MÓDULO DESARROLLADORES
     // ============================================
     Route::get('/desarrolladores', [TelDesarrolladoresController::class, 'index'])->name('desarrolladores');
+    Route::get('/desarrolladores/telar/{telarId}/producciones', [TelDesarrolladoresController::class, 'obtenerProducciones'])->name('desarrolladores.obtener-producciones');
+    Route::get('/desarrolladores/telar/{telarId}', [TelDesarrolladoresController::class, 'seleccionarProduccion'])->name('desarrolladores.seleccionar-produccion');
+    Route::get('/desarrolladores/telar/{telarId}/produccion/{noProduccion}', [TelDesarrolladoresController::class, 'formularioDesarrollador'])->name('desarrolladores.formulario');
     Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])->name('desarrolladores.store');
-    });
+    
+    // ============================================
+    // MÓDULO Catalogo De Desarrolladores
+    // ============================================
+    // Route::get('catalogo-desarrolladores', [])
+}); 
