@@ -99,6 +99,7 @@ class UtilityHelpers
             ['field' => 'SaldoMarbete', 'label' => 'Saldo Marbetes', 'dateType' => null],
             ['field' => 'OrdCompartida', 'label' => 'Ord. Comp.', 'dateType' => null],
             ['field' => 'FlogsId', 'label' => 'Id Flog', 'dateType' => null],
+            ['field' => 'CategoriaCalidad', 'label' => 'Categoría Calidad', 'dateType' => null],
             ['field' => 'CustName', 'label' => 'Nombre Cliente', 'dateType' => null],
             ['field' => 'FibraTrama', 'label' => 'Fibra Trama', 'dateType' => null],
             ['field' => 'CodColorTrama', 'label' => 'Código Color Tra', 'dateType' => null],
