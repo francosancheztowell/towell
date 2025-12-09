@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class catDesarrolladoresModel extends Model
 {
-    //
     use HasFactory;
 
     protected $table = 'cat_desarrolladores';
@@ -18,6 +17,5 @@ class catDesarrolladoresModel extends Model
         'Turno'
     ];
 
-    public $timestamps = false;
-        
+    public $timestamps = false;       
 }

@@ -64,6 +64,61 @@ class TelDesarrolladoresController extends Controller
         }
     }
 
+    public function obtenerDetallesOrden($noProduccion)
+    {
+        try {
+            // Obtener detalles de la orden - agrupando combinaciones (Trama, Comb1-5)
+            $detalles = \App\Models\ReqProgramaTejido::where('NoProduccion', $noProduccion)
+                ->select(
+                    DB::raw("'Trama' as Articulo"),
+                    'FibraTrama as Fibra',
+                    'CodColorTrama as CodColor',
+                    'ColorTrama as NombreColor',
+                    'PasadasTrama as Pasadas'
+                )
+                ->first();
+
+            $combinaciones = [];
+            
+            if ($detalles) {
+                $ordenData = \App\Models\ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
+                
+                // Trama
+                $combinaciones[] = [
+                    'Articulo' => 'Trama',
+                    'Fibra' => $ordenData->FibraTrama ?? '',
+                    'CodColor' => $ordenData->CodColorTrama ?? '',
+                    'NombreColor' => $ordenData->ColorTrama ?? '',
+                    'Pasadas' => $ordenData->PasadasTrama ?? ''
+                ];
+
+                // Comb1-5
+                for ($i = 1; $i <= 5; $i++) {
+                    $pasadas = $ordenData->{"PasadasComb$i"} ?? null;
+                    if ($pasadas && $pasadas > 0) {
+                        $combinaciones[] = [
+                            'Articulo' => "Comb$i",
+                            'Fibra' => $ordenData->{"FibraComb$i"} ?? '',
+                            'CodColor' => $ordenData->{"CodColorComb$i"} ?? '',
+                            'NombreColor' => $ordenData->{"NomColorC$i"} ?? '',
+                            'Pasadas' => $pasadas
+                        ];
+                    }
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'detalles' => $combinaciones
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los detalles: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function formularioDesarrollador(Request $request, $telarId, $noProduccion)
     {
         $datosProduccion = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
