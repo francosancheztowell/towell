@@ -9,6 +9,7 @@ use App\Models\ReqMatrizHilos;
 use App\Models\ReqCalendarioLine;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use Illuminate\Support\Facades\Log as LogFacade;
 
 class ReqProgramaTejidoObserver
 {
@@ -351,11 +352,17 @@ class ReqProgramaTejidoObserver
     {
             // Usar 'float' para todos los campos para mantener precisión
             $pasadasTrama = $this->resolveField($programa, ['PasadasTrama'], 'float');
-            $calibreTrama = $this->resolveField($programa, ['CalibreTrama'], 'float');
+            $calibreTrama = $this->resolveField($programa, ['CalibreTrama2'], 'float');
             $anchoToalla = $this->resolveField($programa, ['AnchoToalla'], 'float');
 
             if ($pasadasTrama <= 0 || $calibreTrama <= 0 || $anchoToalla <= 0) {
-                // Sin logging para mejorar rendimiento
+                LogFacade::info('Observer: Trama no calculada (faltan datos)', [
+                    'programa_id' => $programa->Id ?? null,
+                    'pasadas_trama' => $pasadasTrama,
+                    'calibre_trama' => $calibreTrama,
+                    'ancho_toalla' => $anchoToalla,
+                    'pzas_dia' => $pzasDia,
+                ]);
                 return null;
             }
             $trama = ((((0.59 * ((($pasadasTrama * 1.001) * $anchoToalla) / 100.0)) / $calibreTrama) * $pzasDia) / 1000.0);
@@ -375,10 +382,18 @@ class ReqProgramaTejidoObserver
 
             $pasadas = $this->resolveField($programa, $candidatesPasadas, 'float');
             $calibre = $this->resolveField($programa, $candidatesCalibre, 'float');
-            $anchoToalla = $this->resolveField($programa, ['AnchoToalla', 'Ancho', 'LargoToalla'], 'float');
+            // Usar AnchoToalla y, si no existe, Ancho como fallback
+            $anchoToalla = $this->resolveField($programa, ['AnchoToalla', 'Ancho'], 'float');
 
             if ($pasadas <= 0 || $calibre <= 0 || $anchoToalla <= 0) {
-                // Sin logging para mejorar rendimiento
+                LogFacade::info('Observer: Combinación no calculada (faltan datos)', [
+                    'programa_id' => $programa->Id ?? null,
+                    'comb_num' => $numero,
+                    'pasadas' => $pasadas,
+                    'calibre' => $calibre,
+                    'ancho_toalla' => $anchoToalla,
+                    'pzas_dia' => $pzasDia,
+                ]);
                 return null;
             }
 
