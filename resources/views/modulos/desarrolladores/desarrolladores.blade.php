@@ -79,18 +79,33 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                             <label for="NumeroJulioRizo" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Rizo <span class="text-red-500">*</span></label>
-                            <input type="text" id="NumeroJulioRizo" name="NumeroJulioRizo" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Ingrese número de julio rizo">
+                            <select id="NumeroJulioRizo" name="NumeroJulioRizo" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="" disabled selected>Selecciona un Julio</option>
+                                @foreach ($juliosRizo ?? [] as $julio)
+                                    <option value="{{ $julio->NoJulio }}">{{ $julio->NoJulio }}</option>
+                                @endforeach
+                            </select>
                         </div>
 
                         <div>
                             <label for="NumeroJulioPie" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Pie <span class="text-red-500">*</span></label>
-                            <input type="text" id="NumeroJulioPie" name="NumeroJulioPie" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Ingrese número de julio pie">
+                            <select id="NumeroJulioPie" name="NumeroJulioPie" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="" disabled selected>Selecciona un Julio</option>
+                                @foreach ($juliosPie ?? [] as $julio)
+                                    <option value="{{ $julio->NoJulio }}">{{ $julio->NoJulio }}</option>
+                                @endforeach
+                            </select>
                         </div>
 
                         <div>
                             <label for="TotalPasadasDibujo" class="block text-sm font-medium text-gray-700 mb-1">Total Pasadas del Dibujo <span class="text-red-500">*</span></label>
-                            <div class="relative" data-number-selector data-min="0" data-max="500" data-step="1">
-                                <input type="number" id="TotalPasadasDibujo" name="TotalPasadasDibujo" min="0" step="1" required class="hidden">
+                            <input type="number" id="TotalPasadasDibujo" name="TotalPasadasDibujo" min="1000" step="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Ingrese total de pasadas">
+                        </div>
+
+                        <div>
+                            <label for="EficienciaInicio" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia de Inicio <span class="text-red-500">*</span></label>
+                            <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1">
+                                <input type="number" id="EficienciaInicio" name="EficienciaInicio" min="0" step="1" required class="hidden">
                                 <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
                                     <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -99,11 +114,6 @@
                                     <div class="number-selector-track flex gap-2 px-2 py-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-x-auto"></div>
                                 </div>
                             </div>
-                        </div>
-
-                        <div>
-                            <label for="EficienciaInicio" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia de Inicio <span class="text-red-500">*</span></label>
-                            <input type="number" id="EficienciaInicio" name="EficienciaInicio" required step="0.01" min="0" max="100" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00 %">
                         </div>
 
                         <div>
@@ -118,12 +128,26 @@
 
                         <div>
                             <label for="EficienciaFinal" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Final <span class="text-red-500">*</span></label>
-                            <input type="number" id="EficienciaFinal" name="EficienciaFinal" required step="0.01" min="0" max="100" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00 %">
+                            <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1">
+                                <input type="number" id="EficienciaFinal" name="EficienciaFinal" min="0" step="1" required class="hidden">
+                                <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
+                                    <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                <div class="number-selector-options hidden absolute left-0 right-0 mt-2 z-20">
+                                    <div class="number-selector-track flex gap-2 px-2 py-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-x-auto"></div>
+                                </div>
+                            </div>
                         </div>
 
                         <div>
                             <label for="Desarrollador" class="block text-sm font-medium text-gray-700 mb-1">Desarrollador <span class="text-red-500">*</span></label>
-                            <input type="text" id="Desarrollador" name="Desarrollador" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Nombre del desarrollador">
+                            <select id="Desarrollador" name="Desarrollador" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="" disabled selected>Selecciona un Desarrollador</option>
+                                @foreach ($desarrolladores ?? [] as $desarrollador)
+                                    <option value="{{ $desarrollador->nombre }}">{{ $desarrollador->nombre }}</option>
+                                @endforeach
+                            </select>
                         </div>
 
                         <div>
@@ -140,11 +164,37 @@
                             <label for="LongitudLuchaTot" class="block text-sm font-medium text-gray-700 mb-1">Long. De Lucha Tot. <span class="text-red-500">*</span></label>
                             <input type="number" id="LongitudLuchaTot" name="LongitudLuchaTot" required step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
                         </div>
+                    </div>
 
-                        <div>
-                            <label for="CodificacionModelo" class="block text-sm font-medium text-gray-700 mb-1">Codificación Modelo <span class="text-red-500">*</span></label>
-                            <input type="text" id="CodificacionModelo" name="CodificacionModelo" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Ingrese codificación">
+                    <!-- Codificación Modelo - Sección separada con auto-avance -->
+                    <div class="mt-6 pt-6 border-t">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Codificación Modelo <span class="text-red-500">*</span></label>
+                        <div class="overflow-x-auto pb-2">
+                            <div class="flex justify-start items-center gap-2 min-w-max px-2">
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="0" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="1" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="2" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="3" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="4" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="5" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="6" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="7" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="8" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="9" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="10" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="11" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="12" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="13" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="14" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="15" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="16" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="17" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="18" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="19" required>
+                                <span class="text-lg font-bold text-gray-600">.JCS</span>
+                            </div>
                         </div>
+                        <input type="hidden" id="CodificacionModelo" name="CodificacionModelo" required>
                     </div>
 
                     <div class="mt-6 flex justify-end gap-3 pt-4 border-t">
@@ -174,6 +224,56 @@
         const btnCancelarFormulario = document.getElementById('btnCancelarFormulario');
         const form = document.getElementById('formDesarrollador');
         const numberSelectors = [];
+        const codificacionInputs = document.querySelectorAll('.codificacion-char');
+        const codificacionHidden = document.getElementById('CodificacionModelo');
+
+        // Auto-avance en inputs de codificación
+        codificacionInputs.forEach((input, index) => {
+            input.addEventListener('input', function(e) {
+                const value = this.value.toUpperCase();
+                this.value = value;
+                
+                // Auto-avanzar al siguiente input si se ingresó un caracter
+                if (value.length === 1 && index < codificacionInputs.length - 1) {
+                    codificacionInputs[index + 1].focus();
+                }
+                
+                // Actualizar el campo hidden con el valor completo
+                updateCodificacionModelo();
+            });
+
+            // Manejar backspace para retroceder
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace' && this.value === '' && index > 0) {
+                    codificacionInputs[index - 1].focus();
+                }
+            });
+
+            // Manejar pegado
+            input.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text').toUpperCase();
+                const chars = pastedText.split('');
+                
+                chars.forEach((char, i) => {
+                    const targetIndex = index + i;
+                    if (targetIndex < codificacionInputs.length) {
+                        codificacionInputs[targetIndex].value = char;
+                    }
+                });
+                
+                // Mover foco al último caracter pegado o al final
+                const lastIndex = Math.min(index + chars.length, codificacionInputs.length - 1);
+                codificacionInputs[lastIndex].focus();
+                
+                updateCodificacionModelo();
+            });
+        });
+
+        function updateCodificacionModelo() {
+            const fullCode = Array.from(codificacionInputs).map(input => input.value).join('');
+            codificacionHidden.value = fullCode + '.JCS';
+        }
 
         // Evento al seleccionar un telar - Cargar producciones en tabla
         selectTelar.addEventListener('change', function() {
@@ -213,7 +313,7 @@
                                     ${produccion.NoProduccion}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    ${produccion.FechaInicio || 'N/A'}
+                                    ${produccion.FechaInicio ? new Date(produccion.FechaInicio).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'}) : 'N/A'}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-600">
                                     ${produccion.NombreProducto || 'N/A'}
@@ -279,6 +379,8 @@
         btnCancelarFormulario.addEventListener('click', function() {
             form.reset();
             resetNumberSelectors();
+            codificacionInputs.forEach(input => input.value = '');
+            codificacionHidden.value = '';
             formContainer.classList.add('hidden');
             document.querySelectorAll('.checkbox-produccion').forEach(cb => cb.checked = false);
         });

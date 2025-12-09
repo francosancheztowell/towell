@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\TelTelaresOperador;
+use App\Models\catDesarrolladoresModel;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
@@ -14,8 +15,11 @@ class TelDesarrolladoresController extends Controller
     {
 
         $telares = $this->obtenerTelares();
+        $juliosRizo = $this->obtenerJuliosEngomado();
+        $juliosPie = $this->obtenerJuliosEngomado();
+        $desarrolladores = catDesarrolladoresModel::all();
 
-        return view('modulos.desarrolladores.desarrolladores', compact( 'telares'));
+        return view('modulos.desarrolladores.desarrolladores', compact( 'telares', 'juliosRizo', 'juliosPie', 'desarrolladores'));
     }
 
     protected function obtenerTelares()
@@ -24,6 +28,16 @@ class TelDesarrolladoresController extends Controller
             ->whereNotNull('NoTelarId')
             ->groupBy('NoTelarId')
             ->orderBy('NoTelarId')
+            ->get();
+    }
+
+    protected function obtenerJuliosEngomado()
+    {
+        return \App\Models\UrdCatJulios::where('Departamento', 'engomado')
+            ->whereNotNull('NoJulio')
+            ->select('NoJulio')
+            ->distinct()
+            ->orderBy('NoJulio')
             ->get();
     }
 

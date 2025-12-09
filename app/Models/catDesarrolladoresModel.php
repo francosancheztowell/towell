@@ -13,7 +13,7 @@ class catDesarrolladoresModel extends Model
     protected $table = 'cat_desarrolladores';
 
     protected $fillable = [
-        'clave?empleado',
+        'clave_empleado',
         'nombre',
         'Turno'
     ];

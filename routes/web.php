@@ -33,6 +33,7 @@ use App\Http\Controllers\ProgramarEngomadoController;
 use App\Http\Controllers\ModuloProduccionEngomadoController;
 use App\Http\Controllers\ModuloProduccionUrdidoController;
 use App\Http\Controllers\CatalogosUrdidoController;
+use App\Http\Controllers\catDesarrolladoresController;
 use App\Http\Controllers\PDFController;
 use App\Http\Controllers\TelActividadesBPMController;
 use App\Http\Controllers\TelBpmController;
@@ -1080,5 +1081,8 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     // ============================================
     // MÓDULO Catalogo De Desarrolladores
     // ============================================
-    // Route::get('catalogo-desarrolladores', [])
+    Route::get('catalogo-desarrolladores', [catDesarrolladoresController::class, 'index'])->name('desarrolladores.catalogo-desarrolladores');
+    Route::post('catalogo-desarrolladores', [catDesarrolladoresController::class, 'store'])->name('cat-desarrolladores.store');
+    Route::put('catalogo-desarrolladores/{cat_desarrolladore}', [catDesarrolladoresController::class, 'update'])->name('cat-desarrolladores.update');
+    Route::delete('catalogo-desarrolladores/{cat_desarrolladore}', [catDesarrolladoresController::class, 'destroy'])->name('cat-desarrolladores.destroy');
 }); 
