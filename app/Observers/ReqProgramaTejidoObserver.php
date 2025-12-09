@@ -145,7 +145,7 @@ class ReqProgramaTejidoObserver
             $totalPzas = (float) ($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
             $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
 
-            // Precalcular horas por día (usando calendario si existe, con fallback a 24h)
+            // Precalcular horas por día SIN usar calendario (mantener lógica original estable)
             $inicioPeriodo = $inicio->copy()->startOfDay();
             $finPeriodo = $fin->copy()->startOfDay();
             $diasTotales = $inicioPeriodo->diffInDays($finPeriodo) + 1;
@@ -156,7 +156,6 @@ class ReqProgramaTejidoObserver
                 ->setDateInterval('1 day');
 
             $horasPorDia = [];
-            $horasTrabajoTotales = 0.0;
 
             /** @var Carbon|\DateTimeInterface|string|int|float|null $dia */
             foreach ($periodo as $index => $dia) {
@@ -201,16 +200,15 @@ class ReqProgramaTejidoObserver
                     continue;
                 }
 
-                // Horas del día (usa calendario si existe, con fallback a 24h)
-                $horasDia = $this->obtenerHorasDiaSeguro($programa, $diaNormalizado, $fraccion);
+                // Usar fracción * 24h (sin calendario) para distribuir piezas/kilos
+                $horasDia = $fraccion * 24.0;
                 $horasPorDia[$diaNormalizado->toDateString()] = $horasDia;
-                $horasTrabajoTotales += $horasDia;
             }
 
-            // Si hay horas en calendario, usar esas; si no, usar totalHoras como referencia
-            $horasReferencia = $horasTrabajoTotales > 0 ? $horasTrabajoTotales : $totalHoras;
+            // Referencia de horas: usar las horas totales de la ventana (duración real)
+            $horasReferencia = $totalHoras;
 
-            // Calcular StdHrEfectivo (piezas por hora) con la referencia correcta
+            // Calcular StdHrEfectivo (piezas por hora) con referencia de duración real
             $stdHrEfectivo = ($horasReferencia > 0) ? ($totalPzas / $horasReferencia) : 0.0;
 
             // Calcular ProdKgDia directamente para máxima precisión
@@ -252,14 +250,9 @@ class ReqProgramaTejidoObserver
                 $inicioDia = $diaNormalizado->copy();
                 $finDia = $diaNormalizado->copy()->endOfDay();
 
-                // Recuperar la fracción calculada previamente y las horas del día
-                $fraccion = 0.0;
-                $horasDia = 0.0;
-                if (isset($horasPorDia[$diaNormalizado->toDateString()])) {
-                    $horasDia = $horasPorDia[$diaNormalizado->toDateString()];
-                    // fracción = horasDia / 24 como referencia de proporcionalidad del día
-                    $fraccion = $horasDia > 0 ? ($horasDia / 24.0) : 0.0;
-                }
+                // Recuperar horas del día ya calculadas (basadas en fracción*24)
+                $horasDia = $horasPorDia[$diaNormalizado->toDateString()] ?? 0.0;
+                $fraccion = $horasDia > 0 ? ($horasDia / 24.0) : 0.0;
 
                 // Distribuir proporcionalmente
                 if ($fraccion > 0) {

@@ -34,6 +34,13 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
             // Logging removido para rendimiento
 
+            // Valores auxiliares leídos del Excel
+            $colorC1Excel = $this->parseString($this->getValue($row, ['COLOR C1']), 120);
+            $colorC2Excel = $this->parseString($this->getValue($row, ['COLOR C2']), 120);
+            $colorC3Excel = $this->parseString($this->getValue($row, ['COLOR C3']), 120);
+            $colorC4Excel = $this->parseString($this->getValue($row, ['COLOR C4']), 120);
+            $colorC5Excel = $this->parseString($this->getValue($row, ['COLOR C5']), 120);
+
             // Detectar si el campo Ultimo contiene "ULTIMO" y establecerlo a '1'
             $ultimoValue = $this->getValue($row, ['Último','Ultimo','ultimo']);
             $isUltimo = (strtoupper(trim((string)($ultimoValue ?? ''))) === 'ULTIMO');
@@ -49,7 +56,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 // Producto: ampliar alias y permitir fallback luego si sigue nulo
                 'NombreProducto'  => $this->parseString($this->getValue($row, [
                     'NombreProducto','Nombre Producto','nombre_producto','producto',
-                    'Nombre del Producto','Producto Final','Producto/Nombre','prod'
+                    'Nombre del Producto','Producto Final','Producto/Nombre','prod','Producto Final Nombre'
                 ]), 200),
                 'TamanoClave'     => $this->parseString($this->getValue($row, ['Clave Mod.','Clave mod.','Clave Mod','Tamaño Clave','Tamano Clave','tamano_clave']), 40),
                 'MedidaPlano'     => $this->parseFloat($this->getValue($row, ['Plano','Medida Plano','medida_plano'])),
@@ -70,7 +77,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                                     ])),
                 // Campo blanco (base): se rellena desde ReqModelosCodificados
                 'CalibreTrama'    => null,
-                'FibraTrama'      => $this->parseString($this->getValue($row, ['Fibra Trama','fibra_trama']), 30),
+                'FibraTrama'      => $this->parseString($this->getValue($row, ['COLOR TRA']), 30),
                 'DobladilloId'    => $this->parseString($this->getValue($row, ['Dobladillo','Dob']), 20),
                 'PasadasTrama'    => $this->parseFloat($this->getValue($row, ['Pasadas Tra','Pasadas Trama','pasadas_trama'])),
 
@@ -78,7 +85,8 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 // C1
                 'CalibreComb1'    => null,
                 'CalibreComb12'   => $this->parseFloat($this->getValue($row, ['Calibre C1'])),
-                'FibraComb1'      => $this->parseString($this->getValue($row, ['FIBRA C1','Fibra Comb1','fibra comb1','fibra_comb1']), 30),
+                // FibraComb1 ya no se lee del Excel; se rellenará desde NombreCC1
+                'FibraComb1'      => null,
 
                 // Campos ahora provienen de modelos codificados
                 'CodColorComb1'   => null,
@@ -89,7 +97,8 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 // C2
                 'CalibreComb2'    => null,
                 'CalibreComb22'   => $this->parseFloat($this->getValue($row, ['Calibre C2'])),
-                'FibraComb2'      => $this->parseString($this->getValue($row, ['FIBRA C2','Fibra Comb2','fibra comb2','fibra_comb2']), 30),
+                // FibraComb2 ya no se lee del Excel; se rellenará desde NombreCC2
+                'FibraComb2'      => null,
                 'CodColorComb2'   => null,
                 'NombreCC2'       => null,
                 'PasadasComb2'    => $this->parseFloat($this->getValue($row, ['Pasadas C2','Pasadas Comb2','pasadas c2','pasadas_comb2'])),
@@ -97,7 +106,8 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 // C3
                 'CalibreComb3'    => null,
                 'CalibreComb32'   => $this->parseFloat($this->getValue($row, ['Calibre C3'])),
-                'FibraComb3'      => $this->parseString($this->getValue($row, ['FIBRA C3','Fibra Comb3','fibra comb3','fibra_comb3']), 30),
+                // FibraComb3 ya no se lee del Excel; se rellenará desde NombreCC3
+                'FibraComb3'      => null,
                 'CodColorComb3'   => null,
                 'NombreCC3'       => null,
                 'PasadasComb3'    => $this->parseFloat($this->getValue($row, ['Pasadas C3','Pasadas Comb3','pasadas c3','pasadas_comb3'])),
@@ -105,7 +115,8 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 // C4
                 'CalibreComb4'    => null,
                 'CalibreComb42'   => $this->parseFloat($this->getValue($row, ['Calibre C4'])),
-                'FibraComb4'      => $this->parseString($this->getValue($row, ['FIBRA C4','Fibra Comb4','fibra comb4','fibra_comb4']), 30),
+                // FibraComb4 ya no se lee del Excel; se rellenará desde NombreCC4
+                'FibraComb4'      => null,
                 'CodColorComb4'   => null,
                 'NombreCC4'       => null,
                 'PasadasComb4'    => $this->parseFloat($this->getValue($row, ['Pasadas C4','Pasadas Comb4','pasadas c4','pasadas_comb4'])),
@@ -113,7 +124,8 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 // C5
                 'CalibreComb5'    => null,
                 'CalibreComb52'   => $this->parseFloat($this->getValue($row, ['Calibre C5'])),
-                'FibraComb5'      => $this->parseString($this->getValue($row, ['FIBRA C5','Fibra Comb5','fibra comb5','fibra_comb5']), 30),
+                // FibraComb5 ya no se lee del Excel; se rellenará desde NombreCC5
+                'FibraComb5'      => null,
                 'CodColorComb5'   => null,
                 'NombreCC5'       => null,
                 'PasadasComb5'    => $this->parseFloat($this->getValue($row, ['Pasadas C5','Pasadas Comb5','pasadas c5','pasadas_comb5'])),
@@ -148,7 +160,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'EntregaProduc'   => $this->parseDateOnly($this->getValue($row, ['EntregaProduc','Fecha Compromiso Prod.','Entrega Producción','Entrega Produccion','entrega_produc'])),
                 'EntregaPT'       => $this->parseDateOnly($this->getValue($row, ['EntregaPT','Fecha Compromiso PT','Entrega PT','entrega_pt'])),
                 'EntregaCte'      => $this->parseDate($this->getValue($row, ['Entrega','Entrega Cte','entrega_cte'])),
-                'PTvsCte'         => $this->parseInteger($this->getValue($row, ['Dif vs Compromiso','PT vs Cte','pt vs cte','pt_vs_cte'])),
+                'PTvsCte'         => $this->parseFloat($this->getValue($row, ['Dif vs Compromiso','PT vs Cte','pt vs cte','pt_vs_cte'])),
 
                 /* ===== ESTADO ===== */
                 'EnProceso'       => $this->parseBoolean($this->getValue($row, ['Estado','estado','en_proceso'])),
@@ -172,21 +184,25 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'CalibrePie2'     => $this->parseFloat($this->getValue($row, ['Calibre Pie'])),
                 // Campo blanco (base): se rellena desde ReqModelosCodificados
                 'CalibrePie'      => null,
-                'FlogsId'         => $this->parseString($this->getValue($row, ['Id Flog','flogs_id']), 40),
+                'FlogsId'         => $this->parseString($this->getValue($row, ['IdFlog','idflog','id_flog','FlogsId','flogs_id','Flogs']), 40),
                 'NombreProyecto'  => $this->parseString($this->getValue($row, ['Descrip.','Descrip','Descripción','Descripcion','nombre_proyecto']), 120),
-                'CustName'        => $this->parseString($this->getValue($row, ['CustName','cust_name']), 120),
+                // CustName y CategoriaCalidad se llenan solo desde TwFlogsCustomer (no desde Excel)
+                'CustName'        => null,
                 'AplicacionId'    => $this->parseString($this->getValue($row, ['Aplic.','Aplic','aplicacion_id']), 20),
                 'Observaciones'   => $this->parseString($this->getValue($row, ['Obs','Observaciones','observaciones']), 200),
                 'TipoPedido'      => $this->parseString($this->getValue($row, ['Tipo Ped.','Tipo Ped','tipo_pedido']), 40),
                 'NoTiras'         => $this->parseFloat($this->getValue($row, ['Tiras','No Tiras','no_tiras'])),
 
                 // Pedido / Producción
-                'TotalPedido'     => $this->parseFloat($this->getValue($row, ['TotalPedido','Total Ped','total_pedido','total pedido','Total'])),
+                // TotalPedido ya no se lee del Excel; se igualará a SaldoPedido
+                'TotalPedido'     => null,
                 'Produccion'      => $this->parseFloat($this->getValue($row, ['Producción','Produccion','produccion','Producción'])),
                 'SaldoPedido'     => $this->parseFloat($this->getValue($row, ['Saldos','Saldo Pedido','saldo_pedido','saldos'])),
                 'SaldoMarbete'    => $this->parseInteger($this->getValue($row, ['Saldo Marbete','saldo_marbete','Marbete','marbete'])),
                 'ProgramarProd'   => $this->parseDateOnly($this->getValue($row, ['Day Sheduling','Day Scheduling','Día Scheduling','Dia Scheduling','programar_prod'])),
                 'NoProduccion'    => $this->parseString($this->getValue($row, ['Orden Prod.','Orden Prod','no_produccion']), 30),
+                // Campo OrdCompartida: se toma del Excel usando la columna "Dividir"
+                'OrdCompartida'   => $this->parseString($this->getValue($row, ['Dividir','dividir','OrdCompartida','ord_compartida']), 30),
                 'Programado'      => $this->parseDateOnly($this->getValue($row, ['INN','Inn','programado'])),
 
                 // Calc4..6 en BD son FLOAT
@@ -195,6 +211,34 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'Calc6'           => $this->parseFloat($this->getValue($row, ['Calc6','calc6','Calc 6'])),
             ];
 
+            // TotalPedido se rellena con el valor de SaldoPedido (no se importa aparte)
+            $data['TotalPedido'] = $data['SaldoPedido'];
+
+            // Si viene FlogsId/IdFlog, obtener CustName y CategoriaCalidad desde TwFlogsCustomer (otra conexión)
+            if (!empty($data['FlogsId'])) {
+                // Conexión específica, igual que en ReservarProgramarController
+                $flogsConn = 'sqlsrv_ti';
+                try {
+                    $flog = DB::connection($flogsConn)
+                        ->table('TwFlogsCustomer')
+                        ->select(['IdFlog','CustName','CategoriaCalidad'])
+                        ->where('IdFlog', $data['FlogsId'])
+                        ->first();
+
+                    if ($flog) {
+                        // CustName siempre se toma del flog
+                        $data['CustName'] = $this->parseString($flog->CustName ?? null, 120);
+                        $data['CategoriaCalidad'] = $this->parseString($flog->CategoriaCalidad ?? null, 20);
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Import PT: error al buscar TwFlogsCustomer', [
+                        'row_num' => $this->rowCounter,
+                        'flogs_id' => $data['FlogsId'],
+                        'conn' => $flogsConn,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
             // Fallback: si NombreProducto viene nulo, intenta con otras columnas conocidas
             if ($data['NombreProducto'] === null) {
                 $fallbackNombre = $this->parseString($this->getValue($row, [
@@ -211,8 +255,46 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 return null;
             }
 
+
+
             // Buscar en ReqModelosCodificados por SalonTejidoId + TamanoClave y actualizar campos verdes
             $this->enrichFromModelosCodificados($data);
+
+            // Si NombreCC1 no vino de codificados, intentar con COLOR C1 del Excel
+            if ($data['NombreCC1'] === null && $colorC1Excel !== null) {
+                $data['NombreCC1'] = $colorC1Excel;
+            }
+
+            // Si NombreCC2 no vino de codificados, intentar con COLOR C2 del Excel
+            if ($data['NombreCC2'] === null && $colorC2Excel !== null) {
+                $data['NombreCC2'] = $colorC2Excel;
+            }
+
+            // Si NombreCC3 no vino de codificados, intentar con COLOR C3 del Excel
+            if ($data['NombreCC3'] === null && $colorC3Excel !== null) {
+                $data['NombreCC3'] = $colorC3Excel;
+            }
+
+            // Si NombreCC4 no vino de codificados, intentar con COLOR C4 del Excel
+            if ($data['NombreCC4'] === null && $colorC4Excel !== null) {
+                $data['NombreCC4'] = $colorC4Excel;
+            }
+
+            // Si NombreCC5 no vino de codificados, intentar con COLOR C5 del Excel
+            if ($data['NombreCC5'] === null && $colorC5Excel !== null) {
+                $data['NombreCC5'] = $colorC5Excel;
+            }
+
+            // FibraComb1 debe reflejar NombreCC1 (no se toma del Excel directamente)
+            $data['FibraComb1'] = $this->parseString($data['NombreCC1'] ?? null, 30);
+            // FibraComb2 debe reflejar NombreCC2 (no se toma del Excel directamente)
+            $data['FibraComb2'] = $this->parseString($data['NombreCC2'] ?? null, 30);
+            // FibraComb3 debe reflejar NombreCC3 (no se toma del Excel directamente)
+            $data['FibraComb3'] = $this->parseString($data['NombreCC3'] ?? null, 30);
+            // FibraComb4 debe reflejar NombreCC4 (no se toma del Excel directamente)
+            $data['FibraComb4'] = $this->parseString($data['NombreCC4'] ?? null, 30);
+            // FibraComb5 debe reflejar NombreCC5 (no se toma del Excel directamente)
+            $data['FibraComb5'] = $this->parseString($data['NombreCC5'] ?? null, 30);
 
             // Recorta contra el esquema real (INFORMATION_SCHEMA)
             $this->enforceSchemaStringLengths($data);
@@ -225,7 +307,12 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
             return $modelo;
 
         } catch (\Throwable $e) {
-            // Silenciar logs detallados para rendimiento; se incrementa skippedRows
+            // Loguear causa de error de fila para diagnóstico
+            Log::error('Import PT: error en fila', [
+                'row_num' => $this->rowCounter,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             $this->skippedRows++;
             return null;
         }
@@ -297,7 +384,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
      * - Unix timestamp
      * - Strings comunes (incluye "08-sep", "29-sep 13:45", "a. m./p. m.")
  */
-private function parseDate($value): ?string
+    private function parseDate($value): ?string
 {
     if ($value === null || $value === '') return null;
 
@@ -356,6 +443,23 @@ private function parseDate($value): ?string
             Log::warning('No se pudo parsear fecha', ['valor' => $value, 'msg' => $e->getMessage()]);
             return null;
         }
+    }
+
+    /**
+     * Retorna el primer valor no vacío de un arreglo por lista de claves (case-insensitive)
+     */
+    private function firstNonEmpty(array $data, array $keys): ?string
+    {
+        foreach ($keys as $k) {
+            foreach ($data as $dk => $dv) {
+                if (strcasecmp((string)$dk, (string)$k) === 0) {
+                    if ($dv !== null && $dv !== '') {
+                        return (string)$dv;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private function parseDiaMesNombre(string $s): ?string
@@ -503,7 +607,8 @@ private function parseDate($value): ?string
     private function findFirstColumnContaining(array $row, array $mustContain, array $mustNotContain = [])
     {
         foreach ($row as $key => $value) {
-            $k = mb_strtolower($key, 'UTF-8');
+            // Asegurar que la clave sea string antes de normalizar
+            $k = mb_strtolower((string)$key, 'UTF-8');
 
             $ok = true;
             foreach ($mustContain as $w) {
@@ -689,12 +794,18 @@ private function parseDate($value): ?string
             'SalonTejidoId','NoTelarId','AplicacionId'
         ];
 
+        $missing = [];
         foreach ($relevant as $k) {
             if (array_key_exists($k, $data)) {
                 $v = $data[$k];
-                if ($v !== null && $v !== '') return false;
+                if ($v !== null && $v !== '') {
+                    return false;
+                }
             }
+            $missing[] = $k;
         }
+
+
 
         // Si no hay ninguno relevante, omite la fila
         return true;

@@ -38,7 +38,7 @@ const columnGroups = {
 	},
 	8: {
 		name: 'Grupo 8 - Otras columnas',
-		fields: ['CalibreRizo2', 'ItemId', 'InventSizeId', 'Rasurado', 'TotalPedido', 'Produccion', 'SaldoMarbete', 'OrdCompartida', 'FlogsId', 'CustName', 'FibraTrama', 'CodColorTrama', 'FibraComb1', 'CodColorComb1', 'FibraComb2', 'CodColorComb2', 'FibraComb3', 'CodColorComb3', 'FibraComb4', 'CodColorComb4', 'FibraComb5', 'CodColorComb5', 'CodColorCtaPie', 'ProdKgDia2', 'StdToaHra', 'DiasJornada', 'HorasProd', 'StdHrsEfect'],
+		fields: ['CalibreRizo2', 'ItemId', 'InventSizeId', 'Rasurado', 'TotalPedido', 'Produccion', 'SaldoMarbete', 'OrdCompartida', 'FlogsId', 'CategoriaCalidad', 'CustName', 'FibraTrama', 'CodColorTrama', 'FibraComb1', 'CodColorComb1', 'FibraComb2', 'CodColorComb2', 'FibraComb3', 'CodColorComb3', 'FibraComb4', 'CodColorComb4', 'FibraComb5', 'CodColorComb5', 'CodColorCtaPie', 'ProdKgDia2', 'StdToaHra', 'DiasJornada', 'HorasProd', 'StdHrsEfect'],
 		defaultVisible: false // OCULTO por defecto
 	}
 };

@@ -44,6 +44,8 @@ class ReqProgramaTejido extends Model
         'CalibreRizo2','CalibrePie2','CalibreTrama2','CalibreComb1','CalibreComb2','CalibreComb3','CalibreComb4','CalibreComb5',
         // Campos que también usas aunque no estuvieran arriba en fillable en tu código previo
         'ItemId','Rasurado','NombreProducto','TotalPedido',
+        // Calidad
+        'CategoriaCalidad',
         // Prioridad
         'Prioridad',
         // Nuevo campo
@@ -121,12 +123,13 @@ class ReqProgramaTejido extends Model
         'EntregaPT' => 'date',
         'EntregaCte' => 'datetime',
 
-        'PTvsCte' => 'integer',
+        'PTvsCte' => 'float',
         'CreatedAt' => 'datetime',
         'UpdatedAt' => 'datetime',
         'RowNum' => 'integer',
         'LargoCrudo' => 'integer',
         'OrdCompartida' => 'integer', // INT para relacionar registros divididos
+        'CategoriaCalidad' => 'string',
     ];
 
     /* ===========================

@@ -36,7 +36,7 @@ class ProgramaTejidoController extends Controller
                 'Id','EnProceso','CuentaRizo','CalibreRizo2','SalonTejidoId','NoTelarId','Ultimo','CambioHilo','Maquina',
                 'Ancho','EficienciaSTD','VelocidadSTD','FibraRizo','CalibrePie2','CalendarioId','TamanoClave','NoExisteBase',
                 'ItemId','InventSizeId','Rasurado','NombreProducto','TotalPedido','Produccion','SaldoPedido','SaldoMarbete',
-                'ProgramarProd','OrdCompartida','NoProduccion','Programado','FlogsId','NombreProyecto','CustName','AplicacionId',
+                'ProgramarProd','OrdCompartida','NoProduccion','Programado','FlogsId','CategoriaCalidad','NombreProyecto','CustName','AplicacionId',
                 'Observaciones','TipoPedido','NoTiras','Peine','Luchaje','PesoCrudo','LargoCrudo','CalibreTrama2','FibraTrama','DobladilloId',
                 'PasadasTrama','PasadasComb1','PasadasComb2','PasadasComb3','PasadasComb4','PasadasComb5','AnchoToalla',
                 'CodColorTrama','ColorTrama','CalibreComb1','FibraComb1','CodColorComb1','NombreCC1','CalibreComb2',

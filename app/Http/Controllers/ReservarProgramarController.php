@@ -985,46 +985,7 @@ class ReservarProgramarController extends Controller
         return null;
     }
 
-    /** Carga todas las líneas de programas en un rango y las agrupa por ProgramaId */
-    private function cargarLineasPorPrograma(array $programaIds, string $ini, string $fin): array
-    {
-        if (empty($programaIds)) {
-            Log::warning('cargarLineasPorPrograma: programaIds vacío');
-            return [];
-        }
 
-        try {
-            $lineas = ReqProgramaTejidoLine::whereIn('ProgramaId', $programaIds)
-                ->whereDate('Fecha', '>=', $ini)
-                ->whereDate('Fecha', '<=', $fin)
-                ->orderBy('ProgramaId')
-                ->orderBy('Fecha')
-                ->get();
-
-            if ($lineas->isEmpty()) {
-                $lineas = ReqProgramaTejidoLine::whereIn('ProgramaId', $programaIds)
-                    ->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$ini])
-                    ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fin])
-                    ->orderBy('ProgramaId')
-                    ->orderBy('Fecha')
-                    ->get();
-            }
-        } catch (\Throwable $e) {
-            Log::error('cargarLineasPorPrograma - Error en consulta', [
-                'error' => $e->getMessage(),
-            ]);
-            $lineas = collect();
-        }
-
-        $map = [];
-        foreach ($lineas as $l) {
-            $pid = $l->ProgramaId;
-            $map[$pid] ??= collect();
-            $map[$pid]->push($l);
-        }
-
-        return $map;
-    }
 
     /** Hilo: '' => buscar vacío/null; null => sin filtro; string => coincidencia exacta (case-insensitive) */
     private function matchHilo($esperado, string $actual): bool
