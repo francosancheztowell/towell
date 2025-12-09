@@ -26,12 +26,32 @@ async function duplicarTelar(row) {
 	const saldo = row.querySelector('[data-column="SaldoPedido"]')?.textContent?.trim() || pedido;
 
 	// Verificar si el registro ya tiene OrdCompartida (ya fue dividido antes)
-	const ordCompartida = row.querySelector('[data-column="OrdCompartida"]')?.textContent?.trim() || '';
+	const ordCompartidaCell = row.querySelector('[data-column="OrdCompartida"]')?.textContent || '';
+	const ordCompartidaAttr = row.getAttribute('data-ord-compartida') || row.dataset?.ordCompartida || '';
+	let ordCompartida = (ordCompartidaCell || ordCompartidaAttr || '').toString().trim();
 	const registroId = row.getAttribute('data-id');
+
+	// Fallback: si no se obtuvo del DOM, intentar obtener del backend
+	if (!ordCompartida && registroId) {
+		try {
+			const resp = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo`, {
+				headers: { 'Accept': 'application/json' }
+			});
+			if (resp.ok) {
+				const data = await resp.json();
+				if (data?.registro?.OrdCompartida !== undefined && data.registro.OrdCompartida !== null) {
+					ordCompartida = String(data.registro.OrdCompartida).trim();
+				}
+			}
+		} catch (err) {
+			console.warn('No se pudo obtener OrdCompartida del backend', err);
+		}
+	}
 
 	// Resetear variables globales
 	registrosOrdCompartidaExistentes = [];
-	ordCompartidaActual = ordCompartida ? parseInt(ordCompartida) : null;
+	const ordNum = Number(ordCompartida);
+	ordCompartidaActual = Number.isFinite(ordNum) ? ordNum : null;
 
 	// Modal con formato de tabla
 	const resultado = await Swal.fire({
@@ -209,7 +229,8 @@ async function duplicarTelar(row) {
 // Genera el HTML del modal de duplicar
 function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, registroId }) {
 	// Determinar si ya está dividido (tiene OrdCompartida)
-	const yaDividido = ordCompartida && ordCompartida !== '' && ordCompartida !== '0';
+	const ordNum = Number(ordCompartida);
+	const yaDividido = Number.isFinite(ordNum) && ordNum !== 0;
 	const badgeOrdCompartida = yaDividido
 		? ''
 		: '';

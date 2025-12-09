@@ -184,7 +184,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'CalibrePie2'     => $this->parseFloat($this->getValue($row, ['Calibre Pie'])),
                 // Campo blanco (base): se rellena desde ReqModelosCodificados
                 'CalibrePie'      => null,
-                'FlogsId'         => $this->parseString($this->getValue($row, ['IdFlog','idflog','id_flog','FlogsId','flogs_id','Flogs']), 40),
+                'FlogsId'         => $this->parseString($this->getValue($row, ['Flogs','idflog','id_flog','FlogsId','flogs_id','Flogs']), 40),
                 'NombreProyecto'  => $this->parseString($this->getValue($row, ['Descrip.','Descrip','Descripción','Descripcion','nombre_proyecto']), 120),
                 // CustName y CategoriaCalidad se llenan solo desde TwFlogsCustomer (no desde Excel)
                 'CustName'        => null,

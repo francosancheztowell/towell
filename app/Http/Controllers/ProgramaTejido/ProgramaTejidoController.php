@@ -1100,22 +1100,26 @@ class ProgramaTejidoController extends Controller
      */
     public function balancear()
     {
-        // Obtener todos los registros que tienen OrdCompartida (no null)
+        // Obtener todos los registros que tienen OrdCompartida (no null ni vacío)
         // Incluimos campos adicionales para calcular la fecha final en el frontend
-        $registrosCompartidos = ReqProgramaTejido::select([
-            'Id', 'SalonTejidoId', 'NoTelarId', 'ItemId', 'NombreProducto',
-            'TamanoClave', 'TotalPedido', 'SaldoPedido', 'Produccion',
-            'FechaInicio', 'FechaFinal', 'OrdCompartida',
-            'VelocidadSTD', 'EficienciaSTD', 'NoTiras', 'Luchaje', 'PesoCrudo'
-        ])
-        ->whereNotNull('OrdCompartida')
-        ->orderBy('OrdCompartida')
-        ->orderBy('SalonTejidoId')
-        ->orderBy('NoTelarId')
-        ->get();
+        $registrosCompartidos = ReqProgramaTejido::query()
+            ->select([
+                'Id', 'SalonTejidoId', 'NoTelarId', 'ItemId', 'NombreProducto',
+                'TamanoClave', 'TotalPedido', 'SaldoPedido', 'Produccion',
+                'FechaInicio', 'FechaFinal', 'OrdCompartida',
+                'VelocidadSTD', 'EficienciaSTD', 'NoTiras', 'Luchaje', 'PesoCrudo'
+            ])
+            ->whereNotNull('OrdCompartida')
+            ->whereRaw("LTRIM(RTRIM(CAST(OrdCompartida AS NVARCHAR(50)))) <> ''")
+            ->orderBy('OrdCompartida')
+            ->orderBy('SalonTejidoId')
+            ->orderBy('NoTelarId')
+            ->get();
 
-        // Agrupar por OrdCompartida
-        $gruposCompartidos = $registrosCompartidos->groupBy('OrdCompartida');
+        // Agrupar por OrdCompartida (normalizada) para evitar fallas por espacios o tipos
+        $gruposCompartidos = $registrosCompartidos->groupBy(function ($item) {
+            return (string) ((int) $item->OrdCompartida);
+        });
 
         return view('modulos.programa-tejido.balancear', [
             'gruposCompartidos' => $gruposCompartidos
@@ -1169,6 +1173,14 @@ class ProgramaTejidoController extends Controller
     public function getRegistrosPorOrdCompartida($ordCompartida)
     {
         try {
+            $ordCompartida = $this->normalizeOrdCompartida($ordCompartida);
+            if ($ordCompartida === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'OrdCompartida inválida'
+                ], 400);
+            }
+
             $registros = ReqProgramaTejido::select([
                 'Id', 'SalonTejidoId', 'NoTelarId', 'ItemId', 'NombreProducto',
                 'TamanoClave', 'TotalPedido', 'SaldoPedido', 'Produccion',
@@ -1176,7 +1188,7 @@ class ProgramaTejidoController extends Controller
                 'VelocidadSTD', 'EficienciaSTD', 'NoTiras', 'Luchaje', 'PesoCrudo',
                 'EnProceso', 'Ultimo'
             ])
-            ->where('OrdCompartida', $ordCompartida)
+            ->whereRaw("CAST(OrdCompartida AS BIGINT) = ?", [$ordCompartida])
             ->orderBy('SalonTejidoId')
             ->orderBy('NoTelarId')
             ->get();
@@ -1198,5 +1210,20 @@ class ProgramaTejidoController extends Controller
                 'message' => 'Error al obtener los registros: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Normaliza OrdCompartida: trim y castea a entero; null si vacío o no numérico.
+     */
+    private function normalizeOrdCompartida($value): ?int
+    {
+        if (is_null($value)) {
+            return null;
+        }
+        $trimmed = trim((string) $value);
+        if ($trimmed === '' || !is_numeric($trimmed)) {
+            return null;
+        }
+        return (int) $trimmed;
     }
 }
