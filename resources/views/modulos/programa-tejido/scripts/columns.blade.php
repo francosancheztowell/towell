@@ -4,7 +4,7 @@ const columnGroups = {
 	1: {
 		name: 'Grupo 1 - Cuenta/Salón/Telar',
 		fields: ['CuentaRizo', 'SalonTejidoId', 'NoTelarId', 'Ultimo', 'CambioHilo'],
-		defaultVisible: false // OCULTO por defecto
+		defaultVisible: true // VISIBLE por defecto
 	},
 	2: {
 		name: 'Grupo 2 - Máquina/Hilo',
@@ -14,7 +14,7 @@ const columnGroups = {
 	3: {
 		name: 'Grupo 3 - Jornada/Clave',
 		fields: ['CalendarioId', 'TamanoClave', 'NoExisteBase'],
-		defaultVisible: false // OCULTO por defecto
+		defaultVisible: true // VISIBLE por defecto
 	},
 	4: {
 		name: 'Grupo 4 - Producto/Pedido',
@@ -29,7 +29,7 @@ const columnGroups = {
 	6: {
 		name: 'Grupo 6 - Pasadas/Colores',
 		fields: ['PasadasTrama', 'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4', 'PasadasComb5', 'AnchoToalla', 'ColorTrama', 'CalibreComb1', 'NombreCC1', 'CalibreComb2', 'NombreCC2', 'CalibreComb3', 'NombreCC3', 'CalibreComb4', 'NombreCC4', 'CalibreComb5', 'NombreCC5', 'MedidaPlano', 'CuentaPie', 'NombreCPie', 'PesoGRM2'],
-		defaultVisible: false // OCULTO por defecto
+		defaultVisible: true // VISIBLE por defecto
 	},
 	7: {
 		name: 'Grupo 7 - Fechas',
@@ -39,7 +39,7 @@ const columnGroups = {
 	8: {
 		name: 'Grupo 8 - Otras columnas',
 		fields: ['CalibreRizo2', 'ItemId', 'InventSizeId', 'Rasurado', 'TotalPedido', 'Produccion', 'SaldoMarbete', 'OrdCompartida', 'FlogsId', 'CategoriaCalidad', 'CustName', 'FibraTrama', 'CodColorTrama', 'FibraComb1', 'CodColorComb1', 'FibraComb2', 'CodColorComb2', 'FibraComb3', 'CodColorComb3', 'FibraComb4', 'CodColorComb4', 'FibraComb5', 'CodColorComb5', 'CodColorCtaPie', 'ProdKgDia2', 'StdToaHra', 'DiasJornada', 'HorasProd', 'StdHrsEfect'],
-		defaultVisible: false // OCULTO por defecto
+		defaultVisible: true // VISIBLE por defecto
 	}
 };
 
