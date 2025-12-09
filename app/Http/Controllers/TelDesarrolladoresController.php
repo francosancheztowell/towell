@@ -27,19 +27,6 @@ class TelDesarrolladoresController extends Controller
             ->get();
     }
 
-    public function seleccionarProduccion(Request $request, $telarId)
-    {
-        $producciones = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
-            ->whereNotNull('NoProduccion')
-            ->where('NoProduccion', '!=', '')
-            ->select('NoProduccion', 'NombreProducto', 'FechaInicio', 'FlogsId', 'ItemId')
-            ->distinct()
-            ->orderBy('NoProduccion')
-            ->get();
-
-        return view('modulos.desarrolladores.seleccionar-produccion', compact('producciones', 'telarId'));
-    }
-
     public function obtenerProducciones(Request $request, $telarId)
     {
         try {
@@ -55,7 +42,7 @@ class TelDesarrolladoresController extends Controller
                 'success' => true,
                 'producciones' => $producciones
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener las producciones: ' . $e->getMessage()
