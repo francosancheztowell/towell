@@ -120,10 +120,12 @@ const gruposData = @json($gruposCompartidos ?? []);
 let filaSeleccionada = null;
 let ordCompartidaSeleccionada = null;
 let adjustingPedidos = false;
+let adjustingFromTotal = false;
 let lastEditedInput = null;
 let totalDisponibleBalanceo = null;
 
-function seleccionarFila(fila, ordCompartida) {
+// Asegurar que la función esté disponible globalmente
+window.seleccionarFila = function(fila, ordCompartida) {
 	// Deseleccionar fila anterior
 	document.querySelectorAll('.selectable-row.selected').forEach(row => {
 		row.classList.remove('selected');
@@ -139,9 +141,9 @@ function seleccionarFila(fila, ordCompartida) {
 	if (btnDetalles) {
 		btnDetalles.disabled = false;
 	}
-}
+};
 
-function verDetallesSeleccionado() {
+window.verDetallesSeleccionado = function() {
 	if (!ordCompartidaSeleccionada) {
 		Swal.fire({
 			icon: 'info',
@@ -153,7 +155,7 @@ function verDetallesSeleccionado() {
 	}
 
 	verDetallesGrupo(ordCompartidaSeleccionada);
-}
+};
 
 function formatearFecha(fecha) {
 	if (!fecha) return '-';
@@ -200,13 +202,14 @@ function verDetallesGrupo(ordCompartida) {
 			<td class="px-3 py-2 text-sm text-gray-600">${reg.NombreProducto || '-'}</td>
 			<td class="px-3 py-2">
 				<input type="number"
-					class="pedido-input w-full px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+					class="pedido-input w-full px-1 py-0.5 text-xs text-right border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
 					data-id="${reg.Id}"
 					data-original="${reg.TotalPedido || 0}"
 					data-fecha-inicio="${fechaInicio || ''}"
 					data-duracion-original="${duracionOriginalMs}"
 					value="${reg.TotalPedido || 0}"
 					min="0"
+					step="1"
 					oninput="calcularTotalesYFechas(this)">
 			</td>
 			<td class="px-3 py-2 text-sm text-right">${Number(reg.Produccion || 0).toLocaleString('es-MX')}</td>
@@ -236,8 +239,8 @@ function verDetallesGrupo(ordCompartida) {
 							<th class="px-3 py-2 text-right text-xs">Pedido</th>
 							<th class="px-3 py-2 text-right text-xs">Producción</th>
 							<th class="px-3 py-2 text-right text-xs">Saldo</th>
-							<th class="px-3 py-2 text-center text-xs">F. Inicio</th>
-							<th class="px-3 py-2 text-center text-xs">F. Final</th>
+							<th class="px-3 py-2 text-center text-xs">F.Inicio</th>
+							<th class="px-3 py-2 text-center text-xs">F.Final</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -246,7 +249,15 @@ function verDetallesGrupo(ordCompartida) {
 					<tfoot class="bg-gray-100">
 						<tr>
 							<td colspan="2" class="px-3 py-2 text-sm font-semibold text-gray-700 text-right">Totales:</td>
-							<td class="px-3 py-2 text-sm text-right font-bold text-gray-900" id="total-pedido">${totalPedido.toLocaleString('es-MX')}</td>
+							<td class="px-3 py-2 text-sm text-right">
+								<input type="number"
+									id="total-pedido-input"
+									class="w-full px-1 py-0.5 text-xs text-right font-bold text-gray-900 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+									value="${totalPedido}"
+									min="0"
+									step="1"
+									oninput="actualizarPedidosDesdeTotal(this)">
+							</td>
 							<td class="px-3 py-2 text-sm text-right font-bold text-gray-900">${totalProduccion.toLocaleString('es-MX')}</td>
 							<td class="px-3 py-2 text-sm text-right font-bold text-green-600" id="total-saldo">${totalSaldo.toLocaleString('es-MX')}</td>
 							<td colspan="2"></td>
@@ -279,7 +290,7 @@ function verDetallesGrupo(ordCompartida) {
 	});
 }
 
-function calcularTotalesYFechas(changedInput = null) {
+window.calcularTotalesYFechas = function(changedInput = null) {
 	if (adjustingPedidos) return;
 	lastEditedInput = changedInput || lastEditedInput;
 
@@ -295,7 +306,11 @@ function calcularTotalesYFechas(changedInput = null) {
 	};
 
 	inputs.forEach(input => {
-		const pedido = Number(input.value) || 0;
+		// Redondear el valor del input a entero si tiene decimales
+		if (input.value && input.value.includes('.')) {
+			input.value = Math.round(Number(input.value) || 0);
+		}
+		const pedido = Math.round(Number(input.value) || 0);
 		const pedidoOriginal = Number(input.dataset.original) || 0;
 		const fechaInicioMs = Number(input.dataset.fechaInicio) || 0;
 		const duracionOriginalMs = Number(input.dataset.duracionOriginal) || 0;
@@ -332,46 +347,125 @@ function calcularTotalesYFechas(changedInput = null) {
 		}
 	});
 
-	// Ajustar automáticamente para conservar el total original
-	const totalDisponibleEl = document.getElementById('total-disponible');
-	const totalDisponible = totalDisponibleEl ? parseNumber(totalDisponibleEl.textContent) : (totalDisponibleBalanceo || inputs.reduce((s, i) => s + (Number(i.dataset.original) || 0), 0));
-	if (totalDisponible > 0 && inputs.length > 1) {
-		const diff = totalDisponible - totalPedido;
-		if (Math.abs(diff) > 0.0001) {
-			// Elegir un input distinto al que se editó para compensar
-			const targets = inputs.filter(inp => inp !== lastEditedInput);
-			const target = targets[0] || inputs[0];
-			const valActual = Number(target.value) || 0;
-			let nuevoValor = valActual + diff;
-			if (nuevoValor < 0) {
-				nuevoValor = 0;
+	// Ajustar automáticamente para conservar el total original (lógica original restaurada)
+	// PERO solo si NO estamos ajustando desde el total
+	if (!adjustingFromTotal) {
+		const totalDisponibleEl = document.getElementById('total-disponible');
+		const totalDisponible = totalDisponibleEl ? parseNumber(totalDisponibleEl.textContent) : (totalDisponibleBalanceo || inputs.reduce((s, i) => s + (Number(i.dataset.original) || 0), 0));
+		if (totalDisponible > 0 && inputs.length > 1) {
+			const diff = totalDisponible - totalPedido;
+			if (Math.abs(diff) > 0.0001) {
+				// Elegir un input distinto al que se editó para compensar
+				const targets = inputs.filter(inp => inp !== lastEditedInput);
+				const target = targets[0] || inputs[0];
+				const valActual = Number(target.value) || 0;
+				let nuevoValor = Math.round(valActual + diff);
+				if (nuevoValor < 0) {
+					nuevoValor = 0;
+				}
+				adjustingPedidos = true;
+				target.value = nuevoValor;
+				adjustingPedidos = false;
+				// Recalcular con el ajuste aplicado
+				return calcularTotalesYFechas(target);
 			}
-			adjustingPedidos = true;
-			target.value = nuevoValor;
-			adjustingPedidos = false;
-			// Recalcular con el ajuste aplicado
-			return calcularTotalesYFechas(target);
 		}
 	}
 
 	// Actualizar totales
-	const totalPedidoEl = document.getElementById('total-pedido');
+	const totalPedidoInput = document.getElementById('total-pedido-input');
 	const totalSaldoEl = document.getElementById('total-saldo');
-		if (totalPedidoEl) totalPedidoEl.textContent = totalPedido.toLocaleString('es-MX');
-		if (totalSaldoEl) totalSaldoEl.textContent = totalSaldo.toLocaleString('es-MX');
-}
+
+	// Solo actualizar el input del total si no estamos ajustando desde el total
+	// y si no está enfocado (para evitar conflictos cuando el usuario lo edita)
+	if (totalPedidoInput && !adjustingPedidos && !adjustingFromTotal && document.activeElement !== totalPedidoInput) {
+		totalPedidoInput.value = totalPedido;
+	}
+
+	if (totalSaldoEl) totalSaldoEl.textContent = totalSaldo.toLocaleString('es-MX');
+
+	// Actualizar la referencia del total disponible
+	const totalDisponibleEl = document.getElementById('total-disponible');
+	if (totalDisponibleEl) {
+		totalDisponibleEl.textContent = totalPedido;
+		if (totalDisponibleBalanceo !== null) {
+			totalDisponibleBalanceo = totalPedido;
+		}
+	}
+};
 
 // Alias para compatibilidad
-function calcularTotales() {
+window.calcularTotales = function() {
 	calcularTotalesYFechas();
-}
+};
+
+// Función para actualizar los inputs individuales cuando se cambia el total
+window.actualizarPedidosDesdeTotal = function(totalInput) {
+	if (adjustingPedidos || adjustingFromTotal) return;
+
+	// Redondear el valor del total a entero si tiene decimales
+	if (totalInput.value && totalInput.value.includes('.')) {
+		totalInput.value = Math.round(Number(totalInput.value) || 0);
+	}
+	const nuevoTotal = Math.round(Number(totalInput.value) || 0);
+	const inputs = Array.from(document.querySelectorAll('.pedido-input'));
+
+	if (inputs.length === 0) return;
+
+	// Calcular el total actual
+	let totalActual = 0;
+	inputs.forEach(input => {
+		totalActual += Number(input.value) || 0;
+	});
+
+	const diferencia = nuevoTotal - totalActual;
+
+	if (Math.abs(diferencia) < 0.0001) {
+		// No hay diferencia, no hacer nada
+		return;
+	}
+
+	// Marcar que estamos ajustando desde el total
+	adjustingFromTotal = true;
+
+	// Distribuir la diferencia proporcionalmente entre los inputs
+	// O si solo hay un input, agregar toda la diferencia a ese
+	if (inputs.length === 1) {
+		const input = inputs[0];
+		const valorActual = Number(input.value) || 0;
+		input.value = Math.round(Math.max(0, valorActual + diferencia));
+		calcularTotalesYFechas(input);
+	} else {
+		// Distribuir proporcionalmente según el valor actual de cada input
+		let diferenciaRestante = diferencia;
+
+		inputs.forEach((input, index) => {
+			const valorActual = Number(input.value) || 0;
+			const proporcion = totalActual > 0 ? valorActual / totalActual : 1 / inputs.length;
+			const diferenciaInput = diferencia * proporcion;
+
+			if (index === inputs.length - 1) {
+				// El último input recibe la diferencia restante para evitar errores de redondeo
+				input.value = Math.round(Math.max(0, valorActual + diferenciaRestante));
+			} else {
+				const nuevoValor = Math.round(Math.max(0, valorActual + diferenciaInput));
+				input.value = nuevoValor;
+				diferenciaRestante -= diferenciaInput;
+			}
+		});
+
+		calcularTotalesYFechas();
+	}
+
+	adjustingFromTotal = false;
+};
 
 /**
  * Aplica balanceo automático tipo "bubble sort" iterativo
  * Mueve cantidades del telar que termina más tarde al que termina más temprano
  * hasta que las fechas finales converjan lo más posible
  */
-function aplicarBalanceoAutomatico() {
+window.aplicarBalanceoAutomatico = function() {
 	const inputs = document.querySelectorAll('.pedido-input');
 
 	if (inputs.length < 2) {
@@ -536,7 +630,7 @@ function aplicarBalanceoAutomatico() {
 		`;
 		tablaDetalles.parentElement.insertBefore(banner, tablaDetalles);
 	}
-}
+};
 
 async function guardarCambiosPedido(ordCompartida) {
 	const inputs = document.querySelectorAll('.pedido-input');
