@@ -142,8 +142,8 @@
 	/* Columnas fijadas */
 	.pinned-column {
 		position: sticky !important;
-		background-color: #3b82f6 !important;
-		color: #fff !important;
+		background-color: #f3f8ff !important;
+		color: #000000 !important;
 	}
 
 	/* Estilos para drag and drop */
@@ -2419,9 +2419,8 @@
 		}
 		const btnInlineEdit = document.getElementById('btnInlineEdit');
 		if (btnInlineEdit) {
-			// Remover onclick del HTML si existe para evitar doble ejecución
-			btnInlineEdit.removeAttribute('onclick');
-			btnInlineEdit.addEventListener('click', toggleInlineEditMode);
+			// Quitar el botón de editar de la navbar para esta vista
+			btnInlineEdit.remove();
 		}
 		if (btnEliminarLayout) {
 			btnEliminarLayout.disabled = true;

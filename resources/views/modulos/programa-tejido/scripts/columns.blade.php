@@ -127,9 +127,9 @@ function tryApplyHiddenFields() {
 			return setTimeout(tryApplyHiddenFields, 80);
 		}
 		if (!Array.isArray(hiddenColumns)) hiddenColumns = [];
-
-		// Si no hay pendientes, solo liberar la tabla
 		if (!pendingHiddenFields || pendingHiddenFields.length === 0) {
+			pinDefaultColumns();
+			updatePinnedColumnsPositions();
 			setTableLoading(false);
 			return;
 		}
@@ -141,6 +141,10 @@ function tryApplyHiddenFields() {
 				hideColumn(idx, true);
 			}
 		});
+
+		// Fijar columnas por defecto después de aplicar estados
+		pinDefaultColumns();
+
 		updatePinnedColumnsPositions();
 		pendingHiddenFields = null;
 		setTableLoading(false);
@@ -583,6 +587,9 @@ function resetColumnVisibility() {
 		// Desfijar todas las columnas
 		pinnedColumns = [];
 
+		// Fijar columnas por defecto
+		pinDefaultColumns();
+
 		// Actualizar posiciones
 		updatePinnedColumnsPositions();
 
@@ -727,7 +734,40 @@ window.toggleGroupPin = toggleGroupPin;
 window.getColumnGroup = getColumnGroup;
 window.getGroupColumns = getGroupColumns;
 
+// Función para fijar columnas por defecto
+function pinDefaultColumns() {
+	const defaultPinnedFields = ['Ultimo', 'CambioHilo', 'Maquina', 'NombreProducto','Ancho'];
+
+	defaultPinnedFields.forEach(field => {
+		const index = getColumnIndexByField(field);
+		if (index !== -1 && !pinnedColumns.includes(index)) {
+			pinnedColumns.push(index);
+		}
+	});
+
+	// Ordenar las columnas fijadas
+	pinnedColumns.sort((a, b) => a - b);
+
+	// Actualizar posiciones después de un breve delay para asegurar que el DOM esté listo
+	setTimeout(() => {
+		updatePinnedColumnsPositions();
+	}, 100);
+}
+
 // Cargar estados persistidos al inicio
 setTableLoading(true);
 loadPersistedHiddenColumns();
+
+// Fijar columnas por defecto después de que se carguen los datos
+document.addEventListener('DOMContentLoaded', function() {
+	// Esperar a que columnsData esté disponible
+	const checkAndPin = () => {
+		if (Array.isArray(columnsData) && columnsData.length > 0) {
+			pinDefaultColumns();
+		} else {
+			setTimeout(checkAndPin, 50);
+		}
+	};
+	checkAndPin();
+});
 
