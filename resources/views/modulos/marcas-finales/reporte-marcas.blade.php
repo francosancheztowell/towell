@@ -28,6 +28,20 @@
         <div>
             <h2 class="text-xl font-semibold text-gray-800">Marcas Finales de Turno</h2>
         </div>
+        <div class="flex gap-2">
+            <button onclick="exportarExcel()" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Exportar Excel
+            </button>
+            <button onclick="descargarPDF()" class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                </svg>
+                Descargar PDF
+            </button>
+        </div>
     </div>
 
     <div class="flex-1 bg-white rounded-lg shadow-md overflow-hidden">
@@ -98,4 +112,52 @@
         </div>
     </div>
 </div>
+
+<script>
+function exportarExcel() {
+    const fecha = '{{ $fecha }}';
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ route("marcas.reporte.excel") }}';
+    
+    const csrfToken = document.createElement('input');
+    csrfToken.type = 'hidden';
+    csrfToken.name = '_token';
+    csrfToken.value = '{{ csrf_token() }}';
+    
+    const fechaInput = document.createElement('input');
+    fechaInput.type = 'hidden';
+    fechaInput.name = 'fecha';
+    fechaInput.value = fecha;
+    
+    form.appendChild(csrfToken);
+    form.appendChild(fechaInput);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+function descargarPDF() {
+    const fecha = '{{ $fecha }}';
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ route("marcas.reporte.pdf") }}';
+    
+    const csrfToken = document.createElement('input');
+    csrfToken.type = 'hidden';
+    csrfToken.name = '_token';
+    csrfToken.value = '{{ csrf_token() }}';
+    
+    const fechaInput = document.createElement('input');
+    fechaInput.type = 'hidden';
+    fechaInput.name = 'fecha';
+    fechaInput.value = fecha;
+    
+    form.appendChild(csrfToken);
+    form.appendChild(fechaInput);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+</script>
 @endsection

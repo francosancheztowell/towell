@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Helpers\TurnoHelper;
+use App\Exports\MarcasFinalesExport;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class MarcasController extends Controller
 {
@@ -450,45 +453,7 @@ public function finalizar($folio)
 
             // Normalizar fecha básica (sin validaciones avanzadas)
             $fechaNorm = date('Y-m-d', strtotime($fecha));
-
-            // Obtener primer folio por turno para esa fecha (ordenado por Folio ASC para tomar el primero creado)
-            $foliosTurno = TejMarcas::where('Date', $fechaNorm)
-                ->orderBy('Turno')
-                ->orderBy('Folio')
-                ->get()
-                ->groupBy('Turno')
-                ->map(fn($grp) => $grp->first());
-
-            // Secuencia base de telares para orden y para mostrar aunque no tengan líneas
-            $secuencia = $this->obtenerSecuenciaTelares();
-            $telaresSecuencia = $secuencia->pluck('NoTelarId')->toArray();
-
-            $tablas = [];
-            foreach ([1,2,3] as $turno) {
-                $folioTurno = $foliosTurno->get($turno);
-                if (!$folioTurno) {
-                    // No existe folio para este turno; aún así construir tabla vacía
-                    $tablas[] = [
-                        'turno' => $turno,
-                        'folio' => null,
-                        'lineas' => collect([]),
-                        'telares' => $telaresSecuencia,
-                    ];
-                    continue;
-                }
-
-                $lineas = TejMarcasLine::where('Folio', $folioTurno->Folio)
-                    ->orderBy('NoTelarId')
-                    ->get()
-                    ->keyBy('NoTelarId');
-
-                $tablas[] = [
-                    'turno' => $turno,
-                    'folio' => $folioTurno->Folio,
-                    'lineas' => $lineas,
-                    'telares' => $telaresSecuencia,
-                ];
-            }
+            $tablas = $this->obtenerDatosReporte($fechaNorm);
 
             return view('modulos.marcas-finales.reporte-marcas', [
                 'fecha' => $fechaNorm,
@@ -497,6 +462,95 @@ public function finalizar($folio)
         } catch (\Exception $e) {
             return redirect()->route('marcas.consultar')->with('error', 'Error al generar reporte: ' . $e->getMessage());
         }
+    }
+
+    public function exportarExcel(Request $request)
+    {
+        try {
+            $fecha = $request->input('fecha');
+            if (!$fecha) {
+                return response()->json(['error' => 'Fecha requerida'], 400);
+            }
+
+            $fechaNorm = str_replace('/', '-', $fecha);
+            $tablas = $this->obtenerDatosReporte($fechaNorm);
+
+            $filename = 'marcas_finales_' . $fechaNorm . '.xlsx';
+            
+            return Excel::download(new MarcasFinalesExport($tablas, $fechaNorm), $filename);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function descargarPDF(Request $request)
+    {
+        try {
+            $fecha = $request->input('fecha');
+            if (!$fecha) {
+                return response()->json(['error' => 'Fecha requerida'], 400);
+            }
+
+            $fechaNorm = str_replace('/', '-', $fecha);
+            $tablas = $this->obtenerDatosReporte($fechaNorm);
+            
+            // Indexar por turno para acceso directo
+            $porTurno = collect($tablas)->keyBy('turno');
+            
+            // Unificar lista de telares
+            $telares = collect([]);
+            foreach ($tablas as $t) {
+                $telares = $telares->merge($t['telares']);
+            }
+            $telares = $telares->unique()->sort()->values();
+
+            $pdf = Pdf::loadView('modulos.marcas-finales.reporte-marcas-pdf', [
+                'fecha' => $fechaNorm,
+                'tablas' => $tablas,
+                'telares' => $telares,
+                'porTurno' => $porTurno,
+            ])->setPaper('a4', 'landscape');
+
+            return $pdf->download('marcas_finales_' . $fechaNorm . '.pdf');
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al generar PDF: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function obtenerDatosReporte($fechaNorm)
+    {
+        $tablas = [];
+        $telaresSecuencia = $this->obtenerSecuenciaTelares()->pluck('NoTelarId');
+
+        foreach ([1, 2, 3] as $turno) {
+            $folioTurno = TejMarcas::where('Date', $fechaNorm)
+                ->where('Turno', $turno)
+                ->first();
+
+            if (!$folioTurno) {
+                $tablas[] = [
+                    'turno' => $turno,
+                    'folio' => null,
+                    'lineas' => collect(),
+                    'telares' => $telaresSecuencia,
+                ];
+                continue;
+            }
+
+            $lineas = TejMarcasLine::where('Folio', $folioTurno->Folio)
+                ->orderBy('NoTelarId')
+                ->get()
+                ->keyBy('NoTelarId');
+
+            $tablas[] = [
+                'turno' => $turno,
+                'folio' => $folioTurno->Folio,
+                'lineas' => $lineas,
+                'telares' => $telaresSecuencia,
+            ];
+        }
+
+        return $tablas;
     }
 
     private function obtenerSecuenciaTelares()
