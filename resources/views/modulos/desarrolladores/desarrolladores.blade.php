@@ -2,3 +2,595 @@
 
 @section('page-title', 'Desarrolladores')
 
+@section('navbar-right')
+    <x-navbar.button-create/>
+@endsection
+
+@section('content')
+    <div class="flex w-full flex-col px-4 py-4 md:px-6 lg:px-6">
+        <div class="bg-white flex flex-col rounded-md max-w-full p-6">
+            <!-- Layout en columnas: Select a la izquierda, tabla a la derecha -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Columna: Select de Telares -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Seleccionar Telar</label>
+                    <select name="telar_operador" id="telarOperador" class="w-full md:w-60 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="" disabled selected>Selecciona un Telar</option>
+                        @foreach ($telares ?? [] as $telar)
+                            <option value="{{ $telar->NoTelarId }}">
+                                {{ $telar->NoTelarId }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Columna: Tabla de Producciones -->
+                <div class="md:col-span-2">
+                    <div id="tablaProducciones" class="hidden">
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">Producciones Disponibles</h3>
+                            <p class="text-sm text-gray-600">Selecciona una producción para continuar</p>
+                        </div>
+
+                        <!-- Contenedor con scroll: horizontal para columnas y vertical limitado -->
+                        <div class="overflow-x-auto overflow-y-auto max-h-96 rounded-lg border border-gray-200">
+                            <table class="min-w-full divide-y divide-red-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Orden</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Cambio</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modelo</th>
+                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Seleccionar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bodyProducciones" class="bg-white divide-y divide-gray-200">
+                                    <!-- Las filas se cargarán dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Mensaje cuando no hay datos -->
+                        <div id="noDataMessage" class="hidden text-center py-8 text-gray-500">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p class="mt-2 text-sm">No se encontraron producciones para este telar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario inline debajo -->
+            <div id="formContainer" class="hidden mt-8 border-t pt-6">
+                <div class="mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">Datos del Desarrollador</h3>
+                    <div class="flex flex-wrap gap-4 mt-2 text-sm text-gray-700">
+                        <span>Telar: <strong id="formTelarId" class="text-blue-600">-</strong></span>
+                        <span>No. Orden: <strong id="formNoProduccion" class="text-blue-600">-</strong></span>
+                        <span>Modelo: <strong id="formNombreProducto">-</strong></span>
+                    </div>
+                </div>
+
+                <form id="formDesarrollador" method="POST" action="{{ route('desarrolladores.store') }}">
+                    @csrf
+                    <input type="hidden" name="NoTelarId" id="inputTelarId" value="">
+                    <input type="hidden" name="NoProduccion" id="inputNoProduccion" value="">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label for="NumeroJulioRizo" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Rizo <span class="text-red-500">*</span></label>
+                            <select id="NumeroJulioRizo" name="NumeroJulioRizo" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="" disabled selected>Selecciona un Julio</option>
+                                @foreach ($juliosRizo ?? [] as $julio)
+                                    <option value="{{ $julio->NoJulio }}">{{ $julio->NoJulio }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="NumeroJulioPie" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Pie <span class="text-red-500">*</span></label>
+                            <select id="NumeroJulioPie" name="NumeroJulioPie" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="" disabled selected>Selecciona un Julio</option>
+                                @foreach ($juliosPie ?? [] as $julio)
+                                    <option value="{{ $julio->NoJulio }}">{{ $julio->NoJulio }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="TotalPasadasDibujo" class="block text-sm font-medium text-gray-700 mb-1">Total Pasadas del Dibujo <span class="text-red-500">*</span></label>
+                            <input type="number" id="TotalPasadasDibujo" name="TotalPasadasDibujo" min="1000" step="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Ingrese total de pasadas">
+                        </div>
+
+                        <div>
+                            <label for="EficienciaInicio" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia de Inicio <span class="text-red-500">*</span></label>
+                            <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1">
+                                <input type="number" id="EficienciaInicio" name="EficienciaInicio" min="0" step="1" required class="hidden">
+                                <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
+                                    <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                <div class="number-selector-options hidden absolute left-0 right-0 mt-2 z-20">
+                                    <div class="number-selector-track flex gap-2 px-2 py-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-x-auto"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="HoraInicio" class="block text-sm font-medium text-gray-700 mb-1">Hora Inicio <span class="text-red-500">*</span></label>
+                            <input type="time" id="HoraInicio" name="HoraInicio" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        </div>
+
+                        <div>
+                            <label for="HoraFinal" class="block text-sm font-medium text-gray-700 mb-1">Hora Final <span class="text-red-500">*</span></label>
+                            <input type="time" id="HoraFinal" name="HoraFinal" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        </div>
+
+                        <div>
+                            <label for="EficienciaFinal" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Final <span class="text-red-500">*</span></label>
+                            <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1">
+                                <input type="number" id="EficienciaFinal" name="EficienciaFinal" min="0" step="1" required class="hidden">
+                                <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
+                                    <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                <div class="number-selector-options hidden absolute left-0 right-0 mt-2 z-20">
+                                    <div class="number-selector-track flex gap-2 px-2 py-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-x-auto"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="Desarrollador" class="block text-sm font-medium text-gray-700 mb-1">Desarrollador <span class="text-red-500">*</span></label>
+                            <select id="Desarrollador" name="Desarrollador" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="" disabled selected>Selecciona un Desarrollador</option>
+                                @foreach ($desarrolladores ?? [] as $desarrollador)
+                                    <option value="{{ $desarrollador->nombre }}">{{ $desarrollador->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="TramaAnchoPeine" class="block text-sm font-medium text-gray-700 mb-1">Trama Ancho de Peine <span class="text-red-500">*</span></label>
+                            <input type="number" id="TramaAnchoPeine" name="TramaAnchoPeine" required step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                        </div>
+
+                        <div>
+                            <label for="DesperdicioTrama" class="block text-sm font-medium text-gray-700 mb-1">Desperdicio Trama <span class="text-red-500">*</span></label>
+                            <input type="number" id="DesperdicioTrama" name="DesperdicioTrama" required step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                        </div>
+
+                        <div>
+                            <label for="LongitudLuchaTot" class="block text-sm font-medium text-gray-700 mb-1">Long. De Lucha Tot. <span class="text-red-500">*</span></label>
+                            <input type="number" id="LongitudLuchaTot" name="LongitudLuchaTot" required step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <!-- Codificación Modelo - Sección separada con auto-avance -->
+                    <div class="mt-6 pt-6 border-t">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Codificación Modelo <span class="text-red-500">*</span></label>
+                        <div class="overflow-x-auto pb-2">
+                            <div class="flex justify-start items-center gap-2 min-w-max px-2">
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="0" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="1" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="2" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="3" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="4" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="5" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="6" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="7" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="8" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="9" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="10" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="11" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="12" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="13" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="14" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="15" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="16" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="17" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="18" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="19" required>
+                                <span class="text-lg font-bold text-gray-600">.JCS</span>
+                            </div>
+                        </div>
+                        <input type="hidden" id="CodificacionModelo" name="CodificacionModelo" required>
+                    </div>
+
+                    <!-- Tabla de Detalles de la Orden -->
+                    <div class="mt-6 pt-6 border-t">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Detalles de la Orden</h3>
+                        <div class="overflow-x-auto rounded-lg border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artículo</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fibra</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cod Color</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre Color</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pasadas <span class="text-red-500">*</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bodyDetallesOrden" class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="5" class="px-6 py-4 text-center text-gray-500 text-sm">
+                                            Selecciona una producción para ver los detalles
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-end gap-3 pt-4 border-t">
+                        <button type="button" id="btnCancelarFormulario" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium">Cancelar</button>
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+@endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectTelar = document.getElementById('telarOperador');
+        const tablaProducciones = document.getElementById('tablaProducciones');
+        const bodyProducciones = document.getElementById('bodyProducciones');
+        const noDataMessage = document.getElementById('noDataMessage');
+        const formContainer = document.getElementById('formContainer');
+        const inputTelarId = document.getElementById('inputTelarId');
+        const inputNoProduccion = document.getElementById('inputNoProduccion');
+        const formTelarId = document.getElementById('formTelarId');
+        const formNoProduccion = document.getElementById('formNoProduccion');
+        const formNombreProducto = document.getElementById('formNombreProducto');
+        const btnCancelarFormulario = document.getElementById('btnCancelarFormulario');
+        const form = document.getElementById('formDesarrollador');
+        const numberSelectors = [];
+        const codificacionInputs = document.querySelectorAll('.codificacion-char');
+        const codificacionHidden = document.getElementById('CodificacionModelo');
+
+        // Auto-avance en inputs de codificación
+        codificacionInputs.forEach((input, index) => {
+            input.addEventListener('input', function(e) {
+                const value = this.value.toUpperCase();
+                this.value = value;
+                
+                // Auto-avanzar al siguiente input si se ingresó un caracter
+                if (value.length === 1 && index < codificacionInputs.length - 1) {
+                    codificacionInputs[index + 1].focus();
+                }
+                
+                // Actualizar el campo hidden con el valor completo
+                updateCodificacionModelo();
+            });
+
+            // Manejar backspace para retroceder
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace' && this.value === '' && index > 0) {
+                    codificacionInputs[index - 1].focus();
+                }
+            });
+
+            // Manejar pegado
+            input.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text').toUpperCase();
+                const chars = pastedText.split('');
+                
+                chars.forEach((char, i) => {
+                    const targetIndex = index + i;
+                    if (targetIndex < codificacionInputs.length) {
+                        codificacionInputs[targetIndex].value = char;
+                    }
+                });
+                
+                // Mover foco al último caracter pegado o al final
+                const lastIndex = Math.min(index + chars.length, codificacionInputs.length - 1);
+                codificacionInputs[lastIndex].focus();
+                
+                updateCodificacionModelo();
+            });
+        });
+
+        function updateCodificacionModelo() {
+            const fullCode = Array.from(codificacionInputs).map(input => input.value).join('');
+            codificacionHidden.value = fullCode + '.JCS';
+        }
+
+        // Evento al seleccionar un telar - Cargar producciones en tabla
+        selectTelar.addEventListener('change', function() {
+            const telarSeleccionado = this.value;
+            if (telarSeleccionado) {
+                cargarProducciones(telarSeleccionado);
+            }
+        });
+
+        function cargarProducciones(telarId) {
+            // Mostrar loading
+            bodyProducciones.innerHTML = `
+                <tr>
+                    <td colspan="4" class="px-6 py-4 text-center text-gray-500">
+                        <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="mt-2">Cargando producciones...</p>
+                    </td>
+                </tr>
+            `;
+            tablaProducciones.classList.remove('hidden');
+            noDataMessage.classList.add('hidden');
+
+            // Petición AJAX
+            fetch(`/desarrolladores/telar/${telarId}/producciones`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.producciones.length > 0) {
+                        bodyProducciones.innerHTML = '';
+                        data.producciones.forEach(produccion => {
+                            const row = document.createElement('tr');
+                            row.className = 'hover:bg-gray-50 transition-colors';
+                            row.innerHTML = `
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    ${produccion.NoProduccion}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    ${produccion.FechaInicio ? new Date(produccion.FechaInicio).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'}) : 'N/A'}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600">
+                                    ${produccion.NombreProducto || 'N/A'}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <input type="checkbox" 
+                                           class="checkbox-produccion w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                                           data-telar="${telarId}"
+                                           data-produccion="${produccion.NoProduccion}"
+                                           data-modelo="${produccion.NombreProducto || ''}"
+                                           onchange="seleccionarProduccion(this)">
+                                </td>
+                            `;
+                            bodyProducciones.appendChild(row);
+                        });
+                    } else {
+                        bodyProducciones.innerHTML = '';
+                        noDataMessage.classList.remove('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    bodyProducciones.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="px-6 py-4 text-center text-red-500">
+                                Error al cargar las producciones
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+
+        // Función global para manejar la selección: mostrar formulario debajo
+        window.seleccionarProduccion = function(checkbox) {
+            if (checkbox.checked) {
+                // Desmarcar otros checkboxes
+                document.querySelectorAll('.checkbox-produccion').forEach(cb => {
+                    if (cb !== checkbox) {
+                        cb.checked = false;
+                    }
+                });
+
+                const telarId = checkbox.dataset.telar;
+                const noProduccion = checkbox.dataset.produccion;
+                const modelo = checkbox.dataset.modelo || '';
+                
+                // Mostrar formulario inline y setear datos
+                inputTelarId.value = telarId;
+                inputNoProduccion.value = noProduccion;
+                formTelarId.textContent = telarId;
+                formNoProduccion.textContent = noProduccion;
+                formNombreProducto.textContent = modelo || '-';
+
+                // Resetear y preparar selectores numéricos
+                resetNumberSelectors();
+                initNumberSelectors();
+
+                // Cargar detalles de la orden
+                cargarDetallesOrden(noProduccion);
+
+                formContainer.classList.remove('hidden');
+            }
+        };
+
+        // Función para cargar detalles de la orden
+        function cargarDetallesOrden(noProduccion) {
+            const bodyDetallesOrden = document.getElementById('bodyDetallesOrden');
+            
+            // Mostrar loading
+            bodyDetallesOrden.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                        <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="mt-2">Cargando detalles...</p>
+                    </td>
+                </tr>
+            `;
+
+            // Petición AJAX
+            fetch(`/desarrolladores/orden/${noProduccion}/detalles`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.detalles.length > 0) {
+                        bodyDetallesOrden.innerHTML = '';
+                        data.detalles.forEach((detalle, index) => {
+                            const row = document.createElement('tr');
+                            row.className = 'hover:bg-gray-50 transition-colors';
+                            row.innerHTML = `
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    ${detalle.Articulo || '-'}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    ${detalle.Fibra || '-'}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    ${detalle.CodColor || '-'}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600">
+                                    ${detalle.NombreColor || '-'}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <input type="number" 
+                                           name="pasadas[${index}]" 
+                                           min="1" 
+                                           step="1" 
+                                           required
+                                           class="w-24 px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                           placeholder="0">
+                                </td>
+                            `;
+                            bodyDetallesOrden.appendChild(row);
+                        });
+                    } else {
+                        bodyDetallesOrden.innerHTML = `
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-500 text-sm">
+                                    No se encontraron detalles para esta orden
+                                </td>
+                            </tr>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    bodyDetallesOrden.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="px-6 py-4 text-center text-red-500">
+                                Error al cargar los detalles
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+
+        // Cancelar formulario vuelve a ocultarlo y limpia selección
+        btnCancelarFormulario.addEventListener('click', function() {
+            form.reset();
+            resetNumberSelectors();
+            codificacionInputs.forEach(input => input.value = '');
+            codificacionHidden.value = '';
+            formContainer.classList.add('hidden');
+            document.querySelectorAll('.checkbox-produccion').forEach(cb => cb.checked = false);
+            // Limpiar tabla de detalles
+            document.getElementById('bodyDetallesOrden').innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-4 text-center text-gray-500 text-sm">
+                        Selecciona una producción para ver los detalles
+                    </td>
+                </tr>
+            `;
+        });
+
+        // Lógica de selectores numéricos (tomada del formulario original)
+        function initNumberSelectors() {
+            document.querySelectorAll('[data-number-selector]').forEach(selector => {
+                const hiddenInput = selector.querySelector('input[type="number"]');
+                const triggerBtn = selector.querySelector('.number-selector-btn');
+                const valueSpan = selector.querySelector('.number-selector-value');
+                const optionsWrapper = selector.querySelector('.number-selector-options');
+                const track = selector.querySelector('.number-selector-track');
+
+                if (!hiddenInput || !triggerBtn || !valueSpan || !optionsWrapper || !track) {
+                    return;
+                }
+
+                const min = parseInt(selector.dataset.min ?? hiddenInput.min ?? '0', 10);
+                const max = parseInt(selector.dataset.max ?? hiddenInput.max ?? '100', 10);
+                const step = parseInt(selector.dataset.step ?? hiddenInput.step ?? '1', 10);
+
+                buildSelectorOptions(track, min, max, step);
+
+                triggerBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const shouldOpen = optionsWrapper.classList.contains('hidden');
+                    closeAllNumberSelectors();
+                    if (shouldOpen) {
+                        optionsWrapper.classList.remove('hidden');
+                    }
+                });
+
+                track.addEventListener('click', (event) => {
+                    const option = event.target.closest('.number-option');
+                    if (!option) return;
+                    event.preventDefault();
+                    setNumberSelectorValue(option.dataset.value);
+                });
+
+                const setNumberSelectorValue = (value) => {
+                    hiddenInput.value = value;
+                    valueSpan.textContent = value;
+                    valueSpan.classList.remove('text-gray-400');
+                    valueSpan.classList.add('text-blue-600');
+                    track.querySelectorAll('.number-option').forEach(opt => {
+                        const isActive = opt.dataset.value === String(value);
+                        opt.classList.toggle('bg-blue-600', isActive);
+                        opt.classList.toggle('text-white', isActive);
+                        opt.classList.toggle('border-blue-600', isActive);
+                    });
+                    optionsWrapper.classList.add('hidden');
+                };
+
+                const resetSelector = () => {
+                    hiddenInput.value = '';
+                    valueSpan.textContent = 'Selecciona';
+                    valueSpan.classList.remove('text-blue-600');
+                    valueSpan.classList.add('text-gray-400');
+                    track.querySelectorAll('.number-option').forEach(opt => {
+                        opt.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+                    });
+                    optionsWrapper.classList.add('hidden');
+                };
+
+                if (hiddenInput.value !== '') {
+                    setNumberSelectorValue(hiddenInput.value);
+                } else {
+                    resetSelector();
+                }
+
+                numberSelectors.push({ optionsWrapper, reset: resetSelector });
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!event.target.closest('[data-number-selector]')) {
+                    closeAllNumberSelectors();
+                }
+            });
+        }
+
+        function buildSelectorOptions(track, min, max, step) {
+            track.innerHTML = '';
+            for (let value = min; value <= max; value += step) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.dataset.value = String(value);
+                button.textContent = String(value);
+                button.className = 'number-option shrink-0 px-3 py-2 text-sm font-semibold border border-gray-300 rounded-md bg-white hover:bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-500';
+                track.appendChild(button);
+            }
+        }
+
+        function closeAllNumberSelectors() {
+            numberSelectors.forEach(selector => {
+                selector.optionsWrapper.classList.add('hidden');
+            });
+        }
+
+        function resetNumberSelectors() {
+            numberSelectors.forEach(selector => selector.reset());
+        }
+    });
+</script>
+@endpush

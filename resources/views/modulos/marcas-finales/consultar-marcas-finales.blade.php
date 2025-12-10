@@ -144,9 +144,9 @@
     @endphp
 
     <!-- Modal Fechas -->
-    <div id="modal-fechas" class="flex inset-0 z-50 items-center fixed">
+    <div id="modal-fechas" class="hidden fixed inset-0 z-50 flex items-center justify-center">
         <div class="absolute inset-0 bg-black/40" data-close="true"></div>
-        <div class="relative mx-auto mt-24 w-full max-w-md rounded-lg bg-white shadow-lg">
+        <div class="relative w-full max-w-md rounded-lg bg-white shadow-lg">
             <div class="px-4 py-3 border-b flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-gray-800">Selecciona una fecha</h3>
                 <button id="modal-fechas-close" class="text-gray-500 hover:text-gray-700" aria-label="Cerrar">
@@ -165,7 +165,6 @@
                 <button id="modal-fechas-ok" class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700" data-action="confirm-fecha">Generar Reporte</button>
             </div>
         </div>
-    
     </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -404,10 +403,14 @@
 
                 if (response.status === 400 && data.folio_existente) {
                     // Ya existe un folio en proceso
+                    const mensaje = data.creado_por_otro 
+                        ? `Otro usuario está creando un folio en este momento (${data.folio_existente}). Por favor, espere unos segundos e intente nuevamente.`
+                        : `Ya existe un folio en proceso: ${data.folio_existente}. Debe finalizarlo antes de crear uno nuevo.`;
+                    
                     Swal.fire({
                         icon: 'warning',
-                        title: 'Folio en proceso',
-                        text: 'Ya existe un folio en proceso: ' + data.folio_existente + '. Debe finalizarlo antes de crear uno nuevo.',
+                        title: data.creado_por_otro ? 'Folio en creación' : 'Folio en proceso',
+                        text: mensaje,
                         confirmButtonText: 'Entendido',
                         confirmButtonColor: '#3085d6'
                     });
@@ -420,7 +423,7 @@
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'No se pudo verificar el estado de los folios'
+                    text: 'No se pudo verificar el estado de los folios. Por favor, intente nuevamente.'
                 });
             }
         }
@@ -517,59 +520,89 @@
         }
 
         async validarParaFinalizar() {
-            try {
-                Swal.fire({ title: 'Validando...', didOpen: () => Swal.showLoading() });
+    try {
+        Swal.fire({ title: 'Validando...', didOpen: () => Swal.showLoading() });
 
-                const res = await fetch(`${CONFIG.urls.detalle}${this.state.folio}`, {
-                    headers: { 'Accept': 'application/json' }
-                });
+        const res = await fetch(`${CONFIG.urls.detalle}${this.state.folio}`, {
+            headers: { 'Accept': 'application/json' }
+        });
 
-                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-                const data = await res.json();
-                Swal.close();
+        if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+        const data = await res.json();
+        Swal.close();
 
-                if (!data.success) throw new Error(data.message || 'No se pudo obtener el detalle');
+        if (!data.success) throw new Error(data.message || 'No se pudo obtener el detalle');
 
-                const lineas = Array.isArray(data.lineas) ? data.lineas : [];
-                if (lineas.length === 0) {
-                    await Swal.fire({
-                        icon: 'warning',
-                        title: 'No hay líneas',
-                        text: 'No puedes finalizar un folio sin líneas capturadas.'
-                    });
-                    return false;
-                }
-
-                const esVacioOCero = (v) => {
-                    if (v === null || v === undefined) return true;
-                    if (typeof v === 'string' && v.trim() === '') return true;
-                    const n = Number(v);
-                    if (Number.isNaN(n)) return true;
-                    return n <= 0;
-                };
-
-                // Solo validar el campo Marcas
-                let lineasConMarcasInvalidas = 0;
-                for (const l of lineas) {
-                    if (esVacioOCero(l.Marcas)) lineasConMarcasInvalidas++;
-                }
-
-                if (lineasConMarcasInvalidas > 0) {
-                    await Swal.fire({
-                        icon: 'warning',
-                        title: 'No se puede finalizar',
-                        text: `Hay ${lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0.`,
-                        confirmButtonText: 'Entendido'
-                    });
-                    return false;
-                }
-
-                return true;
-            } catch (err) {
-                Swal.close();
-                throw err;
-            }
+        const lineas = Array.isArray(data.lineas) ? data.lineas : [];
+        if (lineas.length === 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'No hay líneas',
+                text: 'No puedes finalizar un folio sin líneas capturadas.'
+            });
+            return false;
         }
+
+        const esVacioOCero = (v) => {
+            if (v === null || v === undefined) return true;
+            if (typeof v === 'string' && v.trim() === '') return true;
+            const n = Number(v);
+            if (Number.isNaN(n)) return true;
+            return n <= 0;
+        };
+
+        // Validar campos Marcas y Eficiencia
+        let lineasConMarcasInvalidas = 0;
+        let lineasConEficienciaInvalida = 0;
+        
+        for (const l of lineas) {
+            if (esVacioOCero(l.Marcas)) lineasConMarcasInvalidas++;
+            if (esVacioOCero(l.Eficiencia)) lineasConEficienciaInvalida++;
+        }
+
+        // Mostrar errores específicos
+        if (lineasConMarcasInvalidas > 0 && lineasConEficienciaInvalida > 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'No se puede finalizar',
+                html: `
+                    <p>Se encontraron los siguientes problemas:</p>
+                    <ul class="text-left mt-2">
+                        <li>• ${lineasConMarcasInvalidas} línea(s) con el campo <strong>Marcas</strong> vacío o en 0</li>
+                        <li>• ${lineasConEficienciaInvalida} línea(s) con el campo <strong>% Efi</strong> vacío o en 0</li>
+                    </ul>
+                `,
+                confirmButtonText: 'Entendido'
+            });
+            return false;
+        }
+
+        if (lineasConMarcasInvalidas > 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'No se puede finalizar',
+                text: `Hay ${lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0.`,
+                confirmButtonText: 'Entendido'
+            });
+            return false;
+        }
+
+        if (lineasConEficienciaInvalida > 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'No se puede finalizar',
+                text: `Hay ${lineasConEficienciaInvalida} línea(s) con el campo % Efi vacío o en 0.`,
+                confirmButtonText: 'Entendido'
+            });
+            return false;
+        }
+
+        return true;
+    } catch (err) {
+        Swal.close();
+        throw err;
+    }
+}
 
         abrirModalFechas() {
             if (!this.dom.modal.fechas) return;

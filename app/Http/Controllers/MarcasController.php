@@ -67,38 +67,50 @@ class MarcasController extends Controller
                 ], 401);
             }
 
-            // Validar que no exista otro folio "En Proceso"
-            $folioEnProceso = TejMarcas::where('Status', 'En Proceso')->first();
-            
-            if ($folioEnProceso) {
+            // Usar transacción con bloqueo para prevenir creación simultánea
+            return DB::transaction(function () use ($usuario) {
+                // Bloquear la tabla para lectura/escritura (lock pessimista)
+                // Esto garantiza que solo una solicitud pueda ejecutarse a la vez
+                $folioEnProceso = TejMarcas::where('Status', 'En Proceso')
+                    ->lockForUpdate()
+                    ->first();
+                
+                if ($folioEnProceso) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
+                        'folio_existente' => $folioEnProceso->Folio,
+                        'creado_por_otro' => true
+                    ], 400);
+                }
+
+                // Obtener el último folio con bloqueo
+                $ultimoFolio = TejMarcas::orderByDesc('Folio')
+                    ->lockForUpdate()
+                    ->value('Folio');
+
+                if ($ultimoFolio) {
+                    $soloDigitos = preg_replace('/\D/', '', $ultimoFolio);
+                    $numero = intval($soloDigitos) + 1;
+                    $nuevoFolio = 'FM' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+                } else {
+                    $nuevoFolio = 'FM0001';
+                }
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
-                    'folio_existente' => $folioEnProceso->Folio
-                ], 400);
-            }
-
-            $ultimoFolio = TejMarcas::orderByDesc('Folio')->value('Folio');
-
-            if ($ultimoFolio) {
-                $soloDigitos = preg_replace('/\D/', '', $ultimoFolio);
-                $numero = intval($soloDigitos) + 1;
-                $nuevoFolio = 'FM' . str_pad($numero, 4, '0', STR_PAD_LEFT);
-            } else {
-                $nuevoFolio = 'FM0001';
-            }
-
-            return response()->json([
-                'success' => true,
-                'folio' => $nuevoFolio,
-                'turno' => TurnoHelper::getTurnoActual(),
-                'usuario' => $usuario->nombre ?? 'Usuario',
-                'numero_empleado' => $usuario->numero_empleado ?? ''
-            ]);
+                    'success' => true,
+                    'folio' => $nuevoFolio,
+                    'turno' => TurnoHelper::getTurnoActual(),
+                    'usuario' => $usuario->nombre ?? 'Usuario',
+                    'numero_empleado' => $usuario->numero_empleado ?? ''
+                ]);
+            }, 5); // 5 intentos máximo si hay deadlock
+            
         } catch (\Exception $e) {
+            Log::error('Error al generar folio: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al generar folio'
+                'message' => 'Error al generar folio. Por favor, intente nuevamente.'
             ], 500);
         }
     }
@@ -298,41 +310,74 @@ class MarcasController extends Controller
     {
         return $this->store($request);
     }
-
-    public function finalizar($folio)
-    {
-        try {
-            if (!Auth::check()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Usuario no autenticado'
-                ], 401);
-            }
-
-            $marca = TejMarcas::find($folio);
-            if (!$marca) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Marca no encontrada'
-                ], 404);
-            }
-
-            $marca->update([
-                'Status' => 'Finalizado',
-                'updated_at' => now()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Marca finalizada correctamente'
-            ]);
-        } catch (\Exception $e) {
+public function finalizar($folio)
+{
+    try {
+        if (!Auth::check()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al finalizar marca'
-            ], 500);
+                'message' => 'Usuario no autenticado'
+            ], 401);
         }
+
+        $marca = TejMarcas::find($folio);
+        if (!$marca) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Marca no encontrada'
+            ], 404);
+        }
+
+        // Validar que todas las líneas tengan Marcas y Eficiencia > 0
+        $lineas = TejMarcasLine::where('Folio', $folio)->get();
+        
+        if ($lineas->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede finalizar un folio sin líneas capturadas'
+            ], 400);
+        }
+
+        $lineasConMarcasInvalidas = $lineas->filter(function($l) {
+            return is_null($l->Marcas) || $l->Marcas <= 0;
+        })->count();
+
+        $lineasConEficienciaInvalida = $lineas->filter(function($l) {
+            return is_null($l->Eficiencia) || $l->Eficiencia <= 0;
+        })->count();
+
+        if ($lineasConMarcasInvalidas > 0 || $lineasConEficienciaInvalida > 0) {
+            $errores = [];
+            if ($lineasConMarcasInvalidas > 0) {
+                $errores[] = "{$lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0";
+            }
+            if ($lineasConEficienciaInvalida > 0) {
+                $errores[] = "{$lineasConEficienciaInvalida} línea(s) con el campo % Efi vacío o en 0";
+            }
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede finalizar: ' . implode(', ', $errores)
+            ], 400);
+        }
+
+        $marca->update([
+            'Status' => 'Finalizado',
+            'updated_at' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Marca finalizada correctamente'
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error al finalizar marca: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al finalizar marca'
+        ], 500);
     }
+}
 
     public function visualizar($folio)
     {
