@@ -542,8 +542,8 @@ tbody input:focus{ border-color:#3b82f6; box-shadow:0 0 0 1px #3b82f6; outline:n
 .valor-edit-container{ z-index:1000; box-shadow:0 10px 25px rgba(0,0,0,.08); }
 .number-option{ transition:transform .12s ease; flex-shrink:0; }
 .number-option:hover{ transform:scale(1.08); }
-.valor-edit-container.hidden{ opacity:0; transform: translateX(-50%) translateY(-100%) scale(.95); transition:all .18s ease; }
-.valor-edit-container:not(.hidden){ opacity:1; transform: translateX(-50%) translateY(-100%) scale(1); transition:all .18s ease; }
+.valor-edit-container.hidden{ opacity:0; transform: translateX(-50%) translateY(0) scale(.95); transition:all .18s ease; }
+.valor-edit-container:not(.hidden){ opacity:1; transform: translateX(-50%) translateY(0) scale(1); transition:all .18s ease; }
 </style>
 
 @endsection
