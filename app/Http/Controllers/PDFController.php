@@ -10,7 +10,6 @@ use App\Models\UrdJuliosOrden;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 
 class PDFController extends Controller
