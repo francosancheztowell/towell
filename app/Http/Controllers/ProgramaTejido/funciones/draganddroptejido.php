@@ -38,6 +38,9 @@ class DragAndDropTejido
         }
 
         try {
+            // Forzar limpieza de selección en front (bandera)
+            $desSeleccionar = true;
+
             $resultado = self::moverAposicion($registro, (int) $data['new_position']);
 
             return response()->json([
@@ -46,6 +49,7 @@ class DragAndDropTejido
                 'cascaded_records' => count($resultado['detalles']),
                 'detalles'         => $resultado['detalles'],
                 'registro_id'      => $registro->Id,
+                'deseleccionar'    => $desSeleccionar,
             ]);
         } catch (\Throwable $e) {
             return response()->json([

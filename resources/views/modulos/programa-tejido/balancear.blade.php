@@ -14,7 +14,7 @@
 						<tr>
 							<th class="px-4 py-3 text-left text-xs tracking-wider">Orden</th>
 							<th class="px-4 py-3 text-left text-xs tracking-wider">Telar</th>
-							<th class="px-4 py-3 text-left text-xs tracking-wider">Artículo</th>
+							<th class="px-4 py-3 text-left text-xs tracking-wider">Nombre Producto</th>
 							<th class="px-4 py-3 text-right text-xs tracking-wider">Cantidad</th>
 							<th class="px-4 py-3 text-right text-xs tracking-wider">Saldo</th>
 						</tr>
@@ -26,6 +26,12 @@
 							$totalSaldo = $registros->sum('SaldoPedido');
 							$primerRegistro = $registros->first();
 							$telaresLista = $registros->pluck('NoTelarId')->implode(', ');
+							$productosUnicos = $registros->pluck('NombreProducto')->filter()->unique()->values();
+							$productosDisplay = $productosUnicos->take(3)->implode(', ');
+							if ($productosUnicos->count() > 3) {
+								$productosDisplay .= ' +' . ($productosUnicos->count() - 3) . ' más';
+							}
+							$productosTitulo = $productosUnicos->implode(', ');
 						@endphp
 						<tr class="transition-colors border-b border-gray-200 cursor-pointer selectable-row"
 							data-ord-compartida="{{ $ordCompartida }}"
@@ -38,9 +44,9 @@
 							<td class="px-4 py-3 text-sm">
 								{{ $telaresLista }}
 							</td>
-							<!-- Artículo (del primer registro) -->
-							<td class="px-4 py-3 text-sm" title="{{ $primerRegistro->NombreProducto }}">
-								{{ $primerRegistro->ItemId }}
+							<!-- Producto (únicos; muestra primeros y resume si hay muchos) -->
+							<td class="px-4 py-3 text-sm" title="{{ $productosTitulo ?: ($primerRegistro->NombreProducto ?? '') }}">
+								{{ $productosDisplay ?: ($primerRegistro->NombreProducto ?? '') }}
 							</td>
 							<!-- Cantidad Total -->
 							<td class="px-4 py-3 text-sm text-right font-medium">
@@ -113,6 +119,9 @@
 const gruposData = @json($gruposCompartidos ?? []);
 let filaSeleccionada = null;
 let ordCompartidaSeleccionada = null;
+let adjustingPedidos = false;
+let lastEditedInput = null;
+let totalDisponibleBalanceo = null;
 
 function seleccionarFila(fila, ordCompartida) {
 	// Deseleccionar fila anterior
@@ -175,6 +184,7 @@ function verDetallesGrupo(ordCompartida) {
 	const totalPedido = registros.reduce((sum, r) => sum + (Number(r.TotalPedido) || 0), 0);
 	const totalProduccion = registros.reduce((sum, r) => sum + (Number(r.Produccion) || 0), 0);
 	const totalSaldo = registros.reduce((sum, r) => sum + (Number(r.SaldoPedido) || 0), 0);
+	totalDisponibleBalanceo = totalPedido; // guardar target para ajustes
 	const primerRegistro = registros[0];
 
 	// Generar filas de la tabla con input para Pedido
@@ -187,7 +197,7 @@ function verDetallesGrupo(ordCompartida) {
 		return `
 		<tr class="hover:bg-gray-50 border-b border-gray-200" data-registro-id="${reg.Id}">
 			<td class="px-3 py-2 text-sm font-medium text-gray-900">${reg.NoTelarId || '-'}</td>
-			<td class="px-3 py-2 text-sm text-gray-600">${reg.ItemId || '-'}</td>
+			<td class="px-3 py-2 text-sm text-gray-600">${reg.NombreProducto || '-'}</td>
 			<td class="px-3 py-2">
 				<input type="number"
 					class="pedido-input w-full px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -197,10 +207,10 @@ function verDetallesGrupo(ordCompartida) {
 					data-duracion-original="${duracionOriginalMs}"
 					value="${reg.TotalPedido || 0}"
 					min="0"
-					oninput="calcularTotalesYFechas()">
+					oninput="calcularTotalesYFechas(this)">
 			</td>
-			<td class="px-3 py-2 text-sm text-right">${Number(reg.Produccion || 0).toLocaleString()}</td>
-			<td class="px-3 py-2 text-sm text-right saldo-display ${(reg.SaldoPedido || 0) > 0 ? 'text-green-600 font-medium' : 'text-gray-500'}" data-produccion="${reg.Produccion || 0}">${Number(reg.SaldoPedido || 0).toLocaleString()}</td>
+			<td class="px-3 py-2 text-sm text-right">${Number(reg.Produccion || 0).toLocaleString('es-MX')}</td>
+			<td class="px-3 py-2 text-sm text-right saldo-display ${(reg.SaldoPedido || 0) > 0 ? 'text-green-600 font-medium' : 'text-gray-500'}" data-produccion="${reg.Produccion || 0}">${Number(reg.SaldoPedido || 0).toLocaleString('es-MX')}</td>
 			<td class="px-3 py-2 text-sm text-center text-gray-600">${formatearFecha(reg.FechaInicio)}</td>
 			<td class="px-3 py-2 text-sm text-center text-gray-600 fecha-final-display">${formatearFecha(reg.FechaFinal)}</td>
 		</tr>
@@ -222,7 +232,7 @@ function verDetallesGrupo(ordCompartida) {
 					<thead class="bg-blue-500 text-white">
 						<tr>
 							<th class="px-3 py-2 text-left text-xs">Telar</th>
-							<th class="px-3 py-2 text-left text-xs">Artículo</th>
+							<th class="px-3 py-2 text-left text-xs">Producto</th>
 							<th class="px-3 py-2 text-right text-xs">Pedido</th>
 							<th class="px-3 py-2 text-right text-xs">Producción</th>
 							<th class="px-3 py-2 text-right text-xs">Saldo</th>
@@ -236,13 +246,15 @@ function verDetallesGrupo(ordCompartida) {
 					<tfoot class="bg-gray-100">
 						<tr>
 							<td colspan="2" class="px-3 py-2 text-sm font-semibold text-gray-700 text-right">Totales:</td>
-							<td class="px-3 py-2 text-sm text-right font-bold text-gray-900" id="total-pedido">${totalPedido.toLocaleString()}</td>
-							<td class="px-3 py-2 text-sm text-right font-bold text-gray-900">${totalProduccion.toLocaleString()}</td>
-							<td class="px-3 py-2 text-sm text-right font-bold text-green-600" id="total-saldo">${totalSaldo.toLocaleString()}</td>
+							<td class="px-3 py-2 text-sm text-right font-bold text-gray-900" id="total-pedido">${totalPedido.toLocaleString('es-MX')}</td>
+							<td class="px-3 py-2 text-sm text-right font-bold text-gray-900">${totalProduccion.toLocaleString('es-MX')}</td>
+							<td class="px-3 py-2 text-sm text-right font-bold text-green-600" id="total-saldo">${totalSaldo.toLocaleString('es-MX')}</td>
 							<td colspan="2"></td>
 						</tr>
 					</tfoot>
 				</table>
+				<!-- Total disponible (hidden) para conservar suma de pedido -->
+				<div id="total-disponible" class="hidden">{{ $gruposCompartidos ? '' : '' }}{{ $gruposCompartidos ? '' : '' }}${totalPedido}</div>
 			</div>
 		</div>
 	`;
@@ -267,10 +279,20 @@ function verDetallesGrupo(ordCompartida) {
 	});
 }
 
-function calcularTotalesYFechas() {
-	const inputs = document.querySelectorAll('.pedido-input');
+function calcularTotalesYFechas(changedInput = null) {
+	if (adjustingPedidos) return;
+	lastEditedInput = changedInput || lastEditedInput;
+
+	const inputs = Array.from(document.querySelectorAll('.pedido-input'));
 	let totalPedido = 0;
 	let totalSaldo = 0;
+
+	// Parsing helper
+	const parseNumber = (val) => {
+		if (val === null || val === undefined) return 0;
+		const n = Number(String(val).replace(/[^0-9.\-]/g, ''));
+		return isNaN(n) ? 0 : n;
+	};
 
 	inputs.forEach(input => {
 		const pedido = Number(input.value) || 0;
@@ -288,24 +310,18 @@ function calcularTotalesYFechas() {
 		totalSaldo += saldo;
 
 		// Actualizar saldo en la celda
-		saldoCell.textContent = saldo.toLocaleString();
+		saldoCell.textContent = saldo.toLocaleString('es-MX');
 		saldoCell.className = `px-3 py-2 text-sm text-right saldo-display ${saldo > 0 ? 'text-green-600 font-medium' : 'text-gray-500'}`;
 
 		// Calcular nueva fecha final proporcionalmente
 		if (fechaInicioMs && duracionOriginalMs && pedidoOriginal > 0 && fechaFinalCell) {
-			// Factor = nueva cantidad / cantidad original
-			const factor = pedido / pedidoOriginal;
-			// Nueva duración = duración original * factor
+			const factor = pedido / pedidoOriginal; // Factor = nueva cantidad / cantidad original
 			const nuevaDuracionMs = duracionOriginalMs * factor;
-			// Nueva fecha final = fecha inicio + nueva duración
 			const nuevaFechaFinalMs = fechaInicioMs + nuevaDuracionMs;
 			const nuevaFechaFinal = new Date(nuevaFechaFinalMs);
 
-			// Formatear y mostrar
 			fechaFinalCell.textContent = formatearFecha(nuevaFechaFinal.toISOString());
-
-			// Guardar el timestamp calculado para enviarlo al backend
-			input.dataset.fechaFinalCalculada = nuevaFechaFinalMs;
+			input.dataset.fechaFinalCalculada = nuevaFechaFinalMs; // Guardar timestamp calculado
 
 			// Resaltar si cambió
 			if (factor !== 1) {
@@ -316,11 +332,33 @@ function calcularTotalesYFechas() {
 		}
 	});
 
+	// Ajustar automáticamente para conservar el total original
+	const totalDisponibleEl = document.getElementById('total-disponible');
+	const totalDisponible = totalDisponibleEl ? parseNumber(totalDisponibleEl.textContent) : (totalDisponibleBalanceo || inputs.reduce((s, i) => s + (Number(i.dataset.original) || 0), 0));
+	if (totalDisponible > 0 && inputs.length > 1) {
+		const diff = totalDisponible - totalPedido;
+		if (Math.abs(diff) > 0.0001) {
+			// Elegir un input distinto al que se editó para compensar
+			const targets = inputs.filter(inp => inp !== lastEditedInput);
+			const target = targets[0] || inputs[0];
+			const valActual = Number(target.value) || 0;
+			let nuevoValor = valActual + diff;
+			if (nuevoValor < 0) {
+				nuevoValor = 0;
+			}
+			adjustingPedidos = true;
+			target.value = nuevoValor;
+			adjustingPedidos = false;
+			// Recalcular con el ajuste aplicado
+			return calcularTotalesYFechas(target);
+		}
+	}
+
 	// Actualizar totales
 	const totalPedidoEl = document.getElementById('total-pedido');
 	const totalSaldoEl = document.getElementById('total-saldo');
-	if (totalPedidoEl) totalPedidoEl.textContent = totalPedido.toLocaleString();
-	if (totalSaldoEl) totalSaldoEl.textContent = totalSaldo.toLocaleString();
+		if (totalPedidoEl) totalPedidoEl.textContent = totalPedido.toLocaleString('es-MX');
+		if (totalSaldoEl) totalSaldoEl.textContent = totalSaldo.toLocaleString('es-MX');
 }
 
 // Alias para compatibilidad
@@ -590,9 +628,9 @@ function actualizarFilaPrincipal(ordCompartida) {
 	const fila = document.querySelector(`tr[data-ord-compartida="${ordCompartida}"]`);
 	if (fila) {
 		const celdas = fila.querySelectorAll('td');
-		if (celdas[3]) celdas[3].textContent = totalCantidad.toLocaleString();
+		if (celdas[3]) celdas[3].textContent = totalCantidad.toLocaleString('es-MX');
 		if (celdas[4]) {
-			celdas[4].textContent = totalSaldo.toLocaleString();
+			celdas[4].textContent = totalSaldo.toLocaleString('es-MX');
 			celdas[4].className = `px-4 py-3 text-sm text-right font-medium saldo-cell ${totalSaldo > 0 ? 'text-green-600' : 'text-gray-500'}`;
 		}
 	}
