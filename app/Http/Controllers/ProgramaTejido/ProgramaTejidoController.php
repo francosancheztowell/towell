@@ -823,18 +823,12 @@ class ProgramaTejidoController extends Controller
                 $registro->VelocidadSTD = $nuevaVelocidad;
             }
 
-            // Actualizar Maquina con el nuevo número de telar
-            // Formato: Prefijo del salón + espacio + número de telar (ej: "SMI 320" -> "SMI 319")
-            $maquinaActual = $registro->Maquina ?? '';
-            if (preg_match('/^([A-Za-z]+)\s*\d*/', $maquinaActual, $matches)) {
-                // Usar el prefijo existente (ej: "SMI", "SMIT")
-                $prefijo = $matches[1];
-            } else {
-                // Fallback: usar las primeras 3-4 letras del salón destino
-                $prefijo = substr($nuevoSalon, 0, 4);
-                $prefijo = rtrim($prefijo, '0123456789'); // Remover números del final si hay
-            }
-            $registro->Maquina = trim($prefijo) . ' ' . $nuevoTelar;
+            // Actualizar Maquina con prefijo según salón destino (SMI / JAC) y número de telar
+            $registro->Maquina = $this->construirMaquinaSegunSalon(
+                $registro->Maquina ?? '',
+                $nuevoSalon,
+                $nuevoTelar
+            );
 
             // Actualizar Ancho y AnchoToalla del modelo codificado si existe
             if ($modeloDestino && $modeloDestino->AnchoToalla) {
@@ -1225,5 +1219,38 @@ class ProgramaTejidoController extends Controller
             return null;
         }
         return (int) $trimmed;
+    }
+
+    /**
+     * Construye el valor de Maquina con prefijo dependiente del salón.
+     * - Si el salón contiene "SMI" / "SMIT" => prefijo "SMI"
+     * - Si el salón contiene "JAC" / "JACQUARD" => prefijo "JAC"
+     * - Si no, intenta usar el prefijo existente (letras iniciales) del valor previo
+     * - Fallback: primeras 4 letras del salón sin números
+     */
+    private function construirMaquinaSegunSalon(string $maquinaBase, ?string $salon, $nuevoTelar): string
+    {
+        $salonNorm = strtoupper(trim((string) $salon));
+
+        if ($salonNorm !== '') {
+            if (preg_match('/SMI(T)?/i', $salonNorm)) {
+                $prefijo = 'SMI';
+            } elseif (preg_match('/JAC/i', $salonNorm)) {
+                $prefijo = 'JAC';
+            }
+        }
+
+        if (!isset($prefijo)) {
+            if (preg_match('/^([A-Za-z]+)/', $maquinaBase, $m)) {
+                $prefijo = $m[1];
+            }
+        }
+
+        if (!isset($prefijo)) {
+            $prefijo = substr($salonNorm, 0, 4);
+            $prefijo = rtrim($prefijo, '0123456789');
+        }
+
+        return trim($prefijo) . ' ' . $nuevoTelar;
     }
 }

@@ -132,6 +132,10 @@
 		<i class="fas fa-plus-circle text-blue-500"></i>
 		<span>Crear </span>
 	</button>
+	<button id="contextMenuEditar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+		<i class="fas fa-pen text-yellow-500"></i>
+		<span>Editar fila</span>
+	</button>
 </div>
 
 <style>
@@ -248,6 +252,61 @@
 	@include('modulos.programa-tejido.scripts.columns')
 
 	@include('modulos.programa-tejido.scripts.selection')
+
+	// ===== Edición puntual de una sola fila =====
+	let inlineEditSingleRow = null;
+
+	function editarFilaSeleccionada() {
+		if (selectedRowIndex === null || selectedRowIndex === undefined || selectedRowIndex < 0) {
+			showToast('Selecciona primero una fila para editar', 'info');
+			return;
+		}
+		const row = allRows[selectedRowIndex] || $$('.selectable-row')[selectedRowIndex];
+		if (!row) {
+			showToast('No se pudo identificar la fila seleccionada', 'error');
+			return;
+		}
+
+		// Activar modo inline solo para esa fila
+		inlineEditMode = true;
+		inlineEditSingleRow = row;
+		document.body.classList.add('inline-edit-mode');
+
+		// Restaurar y preparar únicamente la fila seleccionada
+		restoreInlineEditing();
+		makeRowInlineEditable(row);
+
+		showToast('Edición activada solo para la fila seleccionada', 'info');
+	}
+
+	// Desactiva la edición de la fila anterior cuando se selecciona otra
+	const _oldSelectRow = typeof selectRow === 'function' ? selectRow : null;
+	selectRow = function(row, index) {
+		// Si hay una fila en edición puntual y no es la misma, restaurar
+		if (inlineEditMode && inlineEditSingleRow && inlineEditSingleRow !== row) {
+			restoreInlineEditing();
+			inlineEditMode = false;
+			inlineEditSingleRow = null;
+			document.body.classList.remove('inline-edit-mode');
+		}
+		if (_oldSelectRow) {
+			_oldSelectRow(row, index);
+		}
+	};
+
+	// También al deseleccionar (por botones o reset)
+	const _oldDeselectRow = typeof deselectRow === 'function' ? deselectRow : null;
+	deselectRow = function() {
+		if (inlineEditMode && inlineEditSingleRow) {
+			restoreInlineEditing();
+			inlineEditMode = false;
+			inlineEditSingleRow = null;
+			document.body.classList.remove('inline-edit-mode');
+		}
+		if (_oldDeselectRow) {
+			_oldDeselectRow();
+		}
+	};
 
 	// Función para mostrar/ocultar loading rápido
 	function showLoading() {
@@ -846,6 +905,7 @@
 	// ===== Drag and Drop =====
 	// Variables globales para drag and drop
 	let dragStartPosition = null; // Guardar posición inicial del drag
+	let originalOrderIds = []; // Guardar orden original para revertir en errores/cancel
 
 	// Función helper para obtener el telar de una fila (con cache)
 	function getRowTelar(row) {
@@ -898,6 +958,41 @@
 		return normalizeTelarValue(a) === normalizeTelarValue(b);
 	}
 
+	// Restaurar orden original del tbody (si se canceló o hubo error)
+	function restoreOriginalOrder() {
+		try {
+			if (!originalOrderIds || originalOrderIds.length === 0) return;
+			const tb = tbodyEl();
+			if (!tb) return;
+
+			const rowMap = new Map();
+			tb.querySelectorAll('.selectable-row').forEach(row => {
+				const id = row.getAttribute('data-id') || '';
+				rowMap.set(id, row);
+			});
+
+			const fragment = document.createDocumentFragment();
+			originalOrderIds.forEach(id => {
+				const row = rowMap.get(id);
+				if (row) fragment.appendChild(row);
+			});
+			// Agregar filas no mapeadas al final
+			rowMap.forEach((row, id) => {
+				if (!originalOrderIds.includes(id)) {
+					fragment.appendChild(row);
+				}
+			});
+
+			tb.innerHTML = '';
+			tb.appendChild(fragment);
+
+			allRows = Array.from(tb.querySelectorAll('.selectable-row'));
+			clearRowCache();
+		} finally {
+			originalOrderIds = [];
+		}
+	}
+
 	function getRowsByTelar(telarId) {
 		return allRows.filter(row => isSameTelar(getRowTelar(row), telarId));
 	}
@@ -921,6 +1016,11 @@
 		if (!btn || !tb) return;
 
 		if (dragDropMode) {
+			// Limpiar selección al activar drag and drop
+			if (typeof deselectRow === 'function') {
+				deselectRow();
+			}
+
 			// Activar modo drag and drop
 			btn.classList.remove('bg-black', 'hover:bg-gray-800', 'focus:ring-gray-500');
 			btn.classList.add('bg-gray-400', 'hover:bg-gray-500', 'ring-2', 'ring-gray-300');
@@ -1006,6 +1106,17 @@
 		draggedRowSalon = getRowSalon(this);
 		draggedRowCambioHilo = getRowCambioHilo(this);
 		dragStartPosition = this.rowIndex;
+
+		// Tomar snapshot del orden actual (para restaurar si se cancela/error)
+		const tbSnapshot = tbodyEl();
+		if (tbSnapshot) {
+			originalOrderIds = Array.from(tbSnapshot.querySelectorAll('.selectable-row')).map(r => r.getAttribute('data-id') || '');
+		}
+
+		// Limpiar selección para evitar bloqueos visuales/botones
+		if (typeof deselectRow === 'function') {
+			deselectRow();
+		}
 
 		this.classList.add('dragging');
 		this.style.opacity = '0.4';
@@ -1472,6 +1583,7 @@
 		// VALIDACIÓN: Si solo hay un registro en el telar, no tiene sentido moverlo
 		if (allRowsSameTelar.length < 2) {
 			showToast('Se requieren al menos dos registros para reordenar la prioridad', 'info');
+			restoreOriginalOrder();
 			return;
 		}
 
@@ -1494,6 +1606,7 @@
 
 		if (nuevaPosicion === -1) {
 			showToast('Error al calcular la nueva posición', 'error');
+			restoreOriginalOrder();
 			return;
 		}
 
@@ -1508,6 +1621,7 @@
 
 		if (posicionOriginal === nuevaPosicion) {
 			showToast('El registro ya está en esa posición', 'info');
+			restoreOriginalOrder();
 			return;
 		}
 
@@ -1529,6 +1643,7 @@
 			hideLoading();
 
 			if (data.success) {
+				originalOrderIds = []; // confirmamos nuevo orden
 				updateTableAfterDragDrop(data.detalles, registroId);
 				showToast(` Prioridad actualizada<br>${data.cascaded_records || 0} registro(s) recalculado(s)`, 'success');
 
@@ -1605,6 +1720,7 @@
 					confirmButtonColor: '#dc2626',
 					width: '500px'
 				});
+				restoreOriginalOrder();
 				return;
 			}
 
@@ -1674,27 +1790,7 @@
 
 			if (!confirmacion.isConfirmed) {
 				showToast('Operación cancelada', 'info');
-				// Restaurar posición visual del elemento arrastrado
-				const tb = tbodyEl();
-				if (tb && draggedRow) {
-					// Buscar la posición original del registro arrastrado
-					const originalRows = allRows.filter(row => isSameTelar(getRowTelar(row), draggedRowTelar));
-					if (originalRows.length > 0) {
-						// Intentar restaurar la posición original
-						const originalIndex = originalRows.indexOf(draggedRow);
-						if (originalIndex !== -1 && originalIndex < originalRows.length - 1) {
-							tb.insertBefore(draggedRow, originalRows[originalIndex + 1]);
-						} else {
-							// Si es el último, agregarlo al final
-							const lastRow = originalRows[originalRows.length - 1];
-							if (lastRow && lastRow.nextSibling) {
-								tb.insertBefore(draggedRow, lastRow.nextSibling);
-							} else {
-								tb.appendChild(draggedRow);
-							}
-						}
-					}
-				}
+				restoreOriginalOrder();
 				return;
 			}
 
@@ -1715,6 +1811,7 @@
 			if (!cambioResponse.ok) {
 				hideLoading();
 				showToast('No se pudo cambiar de telar', 'error');
+				restoreOriginalOrder();
 				return;
 			}
 
@@ -1728,28 +1825,12 @@
 					text: cambio.message || 'No se pudo cambiar de telar',
 					confirmButtonColor: '#dc2626'
 				});
-				// Restaurar posición visual
-				const tb = tbodyEl();
-				if (tb && draggedRow) {
-				const originalRows = allRows.filter(row => isSameTelar(getRowTelar(row), draggedRowTelar));
-					if (originalRows.length > 0) {
-						const originalIndex = originalRows.indexOf(draggedRow);
-						if (originalIndex !== -1 && originalIndex < originalRows.length - 1) {
-							tb.insertBefore(draggedRow, originalRows[originalIndex + 1]);
-						} else if (originalRows.length > 0) {
-							const lastRow = originalRows[originalRows.length - 1];
-							if (lastRow && lastRow.nextSibling) {
-								tb.insertBefore(draggedRow, lastRow.nextSibling);
-							} else {
-								tb.appendChild(draggedRow);
-							}
-						}
-					}
-				}
+				restoreOriginalOrder();
 				return;
 			}
 
 			// Éxito: mostrar mensaje y recargar página
+			originalOrderIds = []; // confirmar nuevo orden
 			Swal.fire({
 				icon: 'success',
 				title: '¡Cambio realizado!',
@@ -1779,24 +1860,7 @@
 				text: 'Ocurrió un error al procesar el cambio de telar: ' + (error.message || 'Error desconocido'),
 				confirmButtonColor: '#dc2626'
 			});
-			// Restaurar posición visual en caso de error
-			const tb = tbodyEl();
-			if (tb && draggedRow) {
-				const originalRows = allRows.filter(row => isSameTelar(getRowTelar(row), draggedRowTelar));
-				if (originalRows.length > 0) {
-					const originalIndex = originalRows.indexOf(draggedRow);
-					if (originalIndex !== -1 && originalIndex < originalRows.length - 1) {
-						tb.insertBefore(draggedRow, originalRows[originalIndex + 1]);
-					} else if (originalRows.length > 0) {
-						const lastRow = originalRows[originalRows.length - 1];
-						if (lastRow && lastRow.nextSibling) {
-							tb.insertBefore(draggedRow, lastRow.nextSibling);
-						} else {
-							tb.appendChild(draggedRow);
-						}
-					}
-				}
-			}
+			restoreOriginalOrder();
 		}
 	}
 
@@ -2003,6 +2067,7 @@
 
 		// Event listener para la opción del menú (Crear = abrir modal duplicar/dividir)
 		const btnCrear = document.getElementById('contextMenuCrear');
+		const btnEditarFila = document.getElementById('contextMenuEditar');
 
 		if (btnCrear) {
 			btnCrear.addEventListener('click', () => {
@@ -2011,6 +2076,13 @@
 					duplicarTelar(contextMenuRow);
 				}
 				hideContextMenu();
+			});
+		}
+
+		if (btnEditarFila) {
+			btnEditarFila.addEventListener('click', () => {
+				hideContextMenu();
+				editarFilaSeleccionada();
 			});
 		}
 	}
