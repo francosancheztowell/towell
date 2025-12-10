@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Http\Controllers\ProgramaTejido;
+
 use App\Helpers\StringTruncator;
 use App\Models\ReqModelosCodificados;
 use App\Models\ReqProgramaTejido;
@@ -33,18 +35,101 @@ class ProgramaTejidoController extends Controller
     {
         try {
             $registros = ReqProgramaTejido::select([
-                'Id','EnProceso','CuentaRizo','CalibreRizo2','SalonTejidoId','NoTelarId','Ultimo','CambioHilo','Maquina',
-                'Ancho','EficienciaSTD','VelocidadSTD','FibraRizo','CalibrePie2','CalendarioId','TamanoClave','NoExisteBase',
-                'ItemId','InventSizeId','Rasurado','NombreProducto','TotalPedido','Produccion','SaldoPedido','SaldoMarbete',
-                'ProgramarProd','OrdCompartida','NoProduccion','Programado','FlogsId','CategoriaCalidad','NombreProyecto','CustName','AplicacionId',
-                'Observaciones','TipoPedido','NoTiras','Peine','Luchaje','PesoCrudo','LargoCrudo','CalibreTrama2','FibraTrama','DobladilloId',
-                'PasadasTrama','PasadasComb1','PasadasComb2','PasadasComb3','PasadasComb4','PasadasComb5','AnchoToalla',
-                'CodColorTrama','ColorTrama','CalibreComb1','FibraComb1','CodColorComb1','NombreCC1','CalibreComb2',
-                'FibraComb2','CodColorComb2','NombreCC2','CalibreComb3','FibraComb3','CodColorComb3','NombreCC3',
-                'CalibreComb4','FibraComb4','CodColorComb4','NombreCC4','CalibreComb5','FibraComb5','CodColorComb5',
-                'NombreCC5','MedidaPlano','CuentaPie','CodColorCtaPie','NombreCPie','PesoGRM2','DiasEficiencia','ProdKgDia',
-                'StdDia','ProdKgDia2','StdToaHra','DiasJornada','HorasProd','StdHrsEfect','FechaInicio','Calc4','Calc5','Calc6',
-                'FechaFinal','EntregaProduc','EntregaPT','EntregaCte','PTvsCte'
+                'Id',
+                'EnProceso',
+                'CuentaRizo',
+                'CalibreRizo2',
+                'SalonTejidoId',
+                'NoTelarId',
+                'Ultimo',
+                'CambioHilo',
+                'Maquina',
+                'Ancho',
+                'EficienciaSTD',
+                'VelocidadSTD',
+                'FibraRizo',
+                'CalibrePie2',
+                'CalendarioId',
+                'TamanoClave',
+                'NoExisteBase',
+                'ItemId',
+                'InventSizeId',
+                'Rasurado',
+                'NombreProducto',
+                'TotalPedido',
+                'Produccion',
+                'SaldoPedido',
+                'SaldoMarbete',
+                'ProgramarProd',
+                'OrdCompartida',
+                'NoProduccion',
+                'Programado',
+                'FlogsId',
+                'CategoriaCalidad',
+                'NombreProyecto',
+                'CustName',
+                'AplicacionId',
+                'Observaciones',
+                'TipoPedido',
+                'NoTiras',
+                'Peine',
+                'Luchaje',
+                'PesoCrudo',
+                'LargoCrudo',
+                'CalibreTrama2',
+                'FibraTrama',
+                'DobladilloId',
+                'PasadasTrama',
+                'PasadasComb1',
+                'PasadasComb2',
+                'PasadasComb3',
+                'PasadasComb4',
+                'PasadasComb5',
+                'AnchoToalla',
+                'CodColorTrama',
+                'ColorTrama',
+                'CalibreComb1',
+                'FibraComb1',
+                'CodColorComb1',
+                'NombreCC1',
+                'CalibreComb2',
+                'FibraComb2',
+                'CodColorComb2',
+                'NombreCC2',
+                'CalibreComb3',
+                'FibraComb3',
+                'CodColorComb3',
+                'NombreCC3',
+                'CalibreComb4',
+                'FibraComb4',
+                'CodColorComb4',
+                'NombreCC4',
+                'CalibreComb5',
+                'FibraComb5',
+                'CodColorComb5',
+                'NombreCC5',
+                'MedidaPlano',
+                'CuentaPie',
+                'CodColorCtaPie',
+                'NombreCPie',
+                'PesoGRM2',
+                'DiasEficiencia',
+                'ProdKgDia',
+                'StdDia',
+                'ProdKgDia2',
+                'StdToaHra',
+                'DiasJornada',
+                'HorasProd',
+                'StdHrsEfect',
+                'FechaInicio',
+                'Calc4',
+                'Calc5',
+                'Calc6',
+                'FechaFinal',
+                'EntregaProduc',
+                'EntregaPT',
+                'EntregaCte',
+                'PTvsCte'
             ])->ordenado()->get();
 
             $columns = UtilityHelpers::getTableColumns();
@@ -59,7 +144,7 @@ class ProgramaTejidoController extends Controller
             return view('modulos.programa-tejido.req-programa-tejido', [
                 'registros' => collect(),
                 'columns' => UtilityHelpers::getTableColumns(),
-                'error' => 'Error al cargar los datos: '.$e->getMessage(),
+                'error' => 'Error al cargar los datos: ' . $e->getMessage(),
             ]);
         }
     }
@@ -130,7 +215,7 @@ class ProgramaTejidoController extends Controller
                     ->where('NoTelarId', $noTelarId)
                     ->where(function ($query) {
                         $query->where('Ultimo', '1')
-                              ->orWhere('Ultimo', 'UL');
+                            ->orWhere('Ultimo', 'UL');
                     })
                     ->update(['Ultimo' => 0]);
 
@@ -194,11 +279,26 @@ class ProgramaTejidoController extends Controller
                 UpdateHelpers::aplicarFallbackModeloCodificado($nuevo, $request);
 
                 // Truncamientos finales para strings críticos
-                foreach ([
-                    'NombreProducto','NombreProyecto','NombreCC1','NombreCC2','NombreCC3','NombreCC4','NombreCC5',
-                          'NombreCPie','ColorTrama','CodColorTrama','Maquina','FlogsId','AplicacionId','CalendarioId',
-                    'Observaciones','Rasurado'
-                ] as $campoStr) {
+                foreach (
+                    [
+                        'NombreProducto',
+                        'NombreProyecto',
+                        'NombreCC1',
+                        'NombreCC2',
+                        'NombreCC3',
+                        'NombreCC4',
+                        'NombreCC5',
+                        'NombreCPie',
+                        'ColorTrama',
+                        'CodColorTrama',
+                        'Maquina',
+                        'FlogsId',
+                        'AplicacionId',
+                        'CalendarioId',
+                        'Observaciones',
+                        'Rasurado'
+                    ] as $campoStr
+                ) {
                     if (isset($nuevo->{$campoStr}) && is_string($nuevo->{$campoStr})) {
                         $nuevo->{$campoStr} = StringTruncator::truncate($campoStr, $nuevo->{$campoStr});
                     }
@@ -222,7 +322,7 @@ class ProgramaTejidoController extends Controller
         } catch (\Throwable $e) {
             DBFacade::rollBack();
             LogFacade::error('ProgramaTejido.store error', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            return response()->json(['success' => false, 'message' => 'Error al crear programa de tejido: '.$e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Error al crear programa de tejido: ' . $e->getMessage()], 500);
         }
     }
 
@@ -251,18 +351,18 @@ class ProgramaTejidoController extends Controller
     public function getTamanoClaveBySalon(Request $request)
     {
         $salon  = $request->input('salon_tejido_id');
-        $search = $request->input('search','');
+        $search = $request->input('search', '');
 
         $q = ReqModelosCodificados::query()
             ->select('TamanoClave')
             ->whereNotNull('TamanoClave')
-            ->where('TamanoClave','!=','');
+            ->where('TamanoClave', '!=', '');
 
         if ($salon) {
             $q->where('SalonTejidoId', $salon);
         }
         if ($search) {
-            $q->where('TamanoClave','LIKE',"%{$search}%");
+            $q->where('TamanoClave', 'LIKE', "%{$search}%");
         }
 
         $op = $q->distinct()->limit(50)->get()->pluck('TamanoClave')->filter()->values();
@@ -294,9 +394,9 @@ class ProgramaTejidoController extends Controller
             $op = DBFacade::connection('sqlsrv_ti')
                 ->table('dbo.TwFlogsTable as f')
                 ->select('f.IDFLOG')
-                ->whereIn('f.ESTADOFLOG', [4,5])
-                ->whereIn('f.TIPOPEDIDO', [1,2,3])
-                ->where('f.DATAAREAID','PRO')
+                ->whereIn('f.ESTADOFLOG', [4, 5])
+                ->whereIn('f.TIPOPEDIDO', [1, 2, 3])
+                ->where('f.DATAAREAID', 'PRO')
                 ->whereNotNull('f.IDFLOG')
                 ->distinct()
                 ->orderBy('f.IDFLOG')
@@ -308,7 +408,7 @@ class ProgramaTejidoController extends Controller
             return response()->json($op);
         } catch (\Throwable $e) {
             LogFacade::error('getFlogsIdFromTwFlogsTable', ['msg' => $e->getMessage()]);
-            return response()->json(['error' => 'Error al cargar opciones de FlogsId: '.$e->getMessage()], 500);
+            return response()->json(['error' => 'Error al cargar opciones de FlogsId: ' . $e->getMessage()], 500);
         }
     }
 
@@ -318,12 +418,12 @@ class ProgramaTejidoController extends Controller
             $row = DBFacade::connection('sqlsrv_ti')
                 ->table('dbo.TwFlogsTable as f')
                 ->select('f.NAMEPROYECT as NombreProyecto')
-                ->where('f.IDFLOG',$idflog)
+                ->where('f.IDFLOG', $idflog)
                 ->first();
 
             return response()->json(['nombreProyecto' => $row->NombreProyecto ?? '']);
         } catch (\Throwable $e) {
-            LogFacade::error('getDescripcionByIdFlog', ['idflog'=>$idflog,'msg'=>$e->getMessage()]);
+            LogFacade::error('getDescripcionByIdFlog', ['idflog' => $idflog, 'msg' => $e->getMessage()]);
             return response()->json(['nombreProyecto' => ''], 500);
         }
     }
@@ -340,7 +440,7 @@ class ProgramaTejidoController extends Controller
             $lineas = \App\Models\ReqCalendarioLine::where('CalendarioId', $calendarioId)
                 ->orderBy('FechaInicio')
                 ->get()
-                ->map(function($linea) {
+                ->map(function ($linea) {
                     return [
                         'Id' => $linea->Id,
                         'CalendarioId' => $linea->CalendarioId,
@@ -367,7 +467,7 @@ class ProgramaTejidoController extends Controller
             $op = ReqProgramaTejido::query()
                 ->select('AplicacionId')
                 ->whereNotNull('AplicacionId')
-                ->where('AplicacionId','!=','')
+                ->where('AplicacionId', '!=', '')
                 ->distinct()
                 ->pluck('AplicacionId')
                 ->filter()
@@ -379,7 +479,7 @@ class ProgramaTejidoController extends Controller
 
             return response()->json($op);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al cargar opciones de aplicación: '.$e->getMessage()]);
+            return response()->json(['error' => 'Error al cargar opciones de aplicación: ' . $e->getMessage()]);
         }
     }
 
@@ -466,7 +566,7 @@ class ProgramaTejidoController extends Controller
                 'msg' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json(['error' => 'Error al obtener datos: '.$e->getMessage()], 500);
+            return response()->json(['error' => 'Error al obtener datos: ' . $e->getMessage()], 500);
         }
     }
 
@@ -499,7 +599,7 @@ class ProgramaTejidoController extends Controller
 
             return response()->json($telares);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al obtener telares: '.$e->getMessage()], 500);
+            return response()->json(['error' => 'Error al obtener telares: ' . $e->getMessage()], 500);
         }
     }
 
@@ -517,7 +617,7 @@ class ProgramaTejidoController extends Controller
                 ->telar($telar)
                 ->whereNotNull('FechaFinal')
                 ->orderByDesc('FechaFinal')
-                ->select('FechaFinal','FibraRizo','Maquina','Ancho')
+                ->select('FechaFinal', 'FibraRizo', 'Maquina', 'Ancho')
                 ->first();
 
             return response()->json([
@@ -527,7 +627,7 @@ class ProgramaTejidoController extends Controller
                 'ancho' => $ultimo->Ancho ?? null,
             ]);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al obtener última fecha final: '.$e->getMessage()], 500);
+            return response()->json(['error' => 'Error al obtener última fecha final: ' . $e->getMessage()], 500);
         }
     }
 
@@ -536,7 +636,7 @@ class ProgramaTejidoController extends Controller
         try {
             $op = \App\Models\ReqMatrizHilos::query()
                 ->whereNotNull('Hilo')
-                ->where('Hilo','!=','')
+                ->where('Hilo', '!=', '')
                 ->distinct()
                 ->pluck('Hilo')
                 ->sort()
@@ -545,7 +645,7 @@ class ProgramaTejidoController extends Controller
 
             return response()->json($op);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al cargar opciones de hilos: '.$e->getMessage()], 500);
+            return response()->json(['error' => 'Error al cargar opciones de hilos: ' . $e->getMessage()], 500);
         }
     }
 
@@ -778,7 +878,7 @@ class ProgramaTejidoController extends Controller
 
             $inicioOrigen = $origenRegistros->first()?->FechaInicio;
             $origenSin = $origenRegistros
-                ->reject(fn ($item) => $item->Id === $registro->Id)
+                ->reject(fn($item) => $item->Id === $registro->Id)
                 ->values();
 
             $destRegistrosOriginal = ReqProgramaTejido::query()
@@ -981,7 +1081,7 @@ class ProgramaTejidoController extends Controller
         $nuevoSalon = $request->input('nuevo_salon') ?? $salon;
 
         DBFacade::beginTransaction();
-            ReqProgramaTejido::unsetEventDispatcher();
+        ReqProgramaTejido::unsetEventDispatcher();
 
         try {
             // Obtener todos los registros del telar ordenados
@@ -1048,11 +1148,11 @@ class ProgramaTejidoController extends Controller
 
             // Re-habilitar observer y regenerar líneas
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
-                $observer = new ReqProgramaTejidoObserver();
-                foreach ($idsActualizados as $idAct) {
-                    if ($r = ReqProgramaTejido::find($idAct)) {
-                        $observer->saved($r);
-                    }
+            $observer = new ReqProgramaTejidoObserver();
+            foreach ($idsActualizados as $idAct) {
+                if ($r = ReqProgramaTejido::find($idAct)) {
+                    $observer->saved($r);
+                }
             }
 
             return response()->json([
@@ -1098,10 +1198,23 @@ class ProgramaTejidoController extends Controller
         // Incluimos campos adicionales para calcular la fecha final en el frontend
         $registrosCompartidos = ReqProgramaTejido::query()
             ->select([
-                'Id', 'SalonTejidoId', 'NoTelarId', 'ItemId', 'NombreProducto',
-                'TamanoClave', 'TotalPedido', 'SaldoPedido', 'Produccion',
-                'FechaInicio', 'FechaFinal', 'OrdCompartida',
-                'VelocidadSTD', 'EficienciaSTD', 'NoTiras', 'Luchaje', 'PesoCrudo'
+                'Id',
+                'SalonTejidoId',
+                'NoTelarId',
+                'ItemId',
+                'NombreProducto',
+                'TamanoClave',
+                'TotalPedido',
+                'SaldoPedido',
+                'Produccion',
+                'FechaInicio',
+                'FechaFinal',
+                'OrdCompartida',
+                'VelocidadSTD',
+                'EficienciaSTD',
+                'NoTiras',
+                'Luchaje',
+                'PesoCrudo'
             ])
             ->whereNotNull('OrdCompartida')
             ->whereRaw("LTRIM(RTRIM(CAST(OrdCompartida AS NVARCHAR(50)))) <> ''")
@@ -1127,10 +1240,21 @@ class ProgramaTejidoController extends Controller
     {
         try {
             $registro = ReqProgramaTejido::select([
-                'Id', 'SalonTejidoId', 'NoTelarId', 'ItemId', 'NombreProducto',
-                'TamanoClave', 'TotalPedido', 'SaldoPedido', 'Produccion',
-                'FechaInicio', 'FechaFinal', 'OrdCompartida', 'FlogsId',
-                'CustName', 'NombreProyecto'
+                'Id',
+                'SalonTejidoId',
+                'NoTelarId',
+                'ItemId',
+                'NombreProducto',
+                'TamanoClave',
+                'TotalPedido',
+                'SaldoPedido',
+                'Produccion',
+                'FechaInicio',
+                'FechaFinal',
+                'OrdCompartida',
+                'FlogsId',
+                'CustName',
+                'NombreProyecto'
             ])->find($id);
 
             if (!$registro) {
@@ -1176,16 +1300,32 @@ class ProgramaTejidoController extends Controller
             }
 
             $registros = ReqProgramaTejido::select([
-                'Id', 'SalonTejidoId', 'NoTelarId', 'ItemId', 'NombreProducto',
-                'TamanoClave', 'TotalPedido', 'SaldoPedido', 'Produccion',
-                'FechaInicio', 'FechaFinal', 'OrdCompartida', 'FibraRizo',
-                'VelocidadSTD', 'EficienciaSTD', 'NoTiras', 'Luchaje', 'PesoCrudo',
-                'EnProceso', 'Ultimo'
+                'Id',
+                'SalonTejidoId',
+                'NoTelarId',
+                'ItemId',
+                'NombreProducto',
+                'TamanoClave',
+                'TotalPedido',
+                'SaldoPedido',
+                'Produccion',
+                'FechaInicio',
+                'FechaFinal',
+                'OrdCompartida',
+                'FibraRizo',
+                'VelocidadSTD',
+                'EficienciaSTD',
+                'NoTiras',
+                'Luchaje',
+                'PesoCrudo',
+                'EnProceso',
+                'Ultimo',
+                'StdDia'
             ])
-            ->whereRaw("CAST(OrdCompartida AS BIGINT) = ?", [$ordCompartida])
-            ->orderBy('SalonTejidoId')
-            ->orderBy('NoTelarId')
-            ->get();
+                ->whereRaw("CAST(OrdCompartida AS BIGINT) = ?", [$ordCompartida])
+                ->orderBy('SalonTejidoId')
+                ->orderBy('NoTelarId')
+                ->get();
 
             // Calcular el total original (suma de todos los TotalPedido)
             $totalOriginal = $registros->sum('TotalPedido');
