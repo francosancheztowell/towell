@@ -4,6 +4,8 @@
 	let lastEditedInput = null;
 	let totalDisponibleBalanceo = null;
 	let gruposDataCache = {};
+let lineasCache = {}; // programaId => líneas originales
+let currentGanttRegistros = []; // registros actuales en modal
 
 	function formatearFecha(fecha) {
 		if (!fecha) return '-';
@@ -18,6 +20,22 @@
 		} catch (e) {
 			return '-';
 		}
+	}
+
+	function getCurrentInputsMap() {
+		const map = {};
+		document.querySelectorAll('.pedido-input').forEach(inp => {
+			const id = inp.dataset.id;
+			if (!id) return;
+			map[id] = {
+				pedido: Number(inp.value) || 0,
+				pedidoOriginal: Number(inp.dataset.original) || 0,
+				fechaInicioMs: Number(inp.dataset.fechaInicio) || 0,
+				duracionOriginalMs: Number(inp.dataset.duracionOriginal) || 0,
+				fechaFinalCalcMs: Number(inp.dataset.fechaFinalCalculada) || 0,
+			};
+		});
+		return map;
 	}
 
 	async function fetchRegistrosOrdCompartida(ordCompartida) {
@@ -38,6 +56,7 @@
 	window.verDetallesGrupoBalanceo = async function(ordCompartida) {
 		try {
 			const registros = await fetchRegistrosOrdCompartida(ordCompartida);
+		currentGanttRegistros = registros;
 			if (!registros.length) {
 				Swal.fire({
 					icon: 'error',
@@ -52,6 +71,7 @@
 			const totalProduccion = registros.reduce((sum, r) => sum + (Number(r.Produccion) || 0), 0);
 			const totalSaldo = registros.reduce((sum, r) => sum + (Number(r.SaldoPedido) || 0), 0);
 			totalDisponibleBalanceo = totalPedido;
+			lineasCache = {}; // reset cache de líneas
 
 			const filasHTML = registros.map(reg => {
 				const fechaInicio = reg.FechaInicio ? new Date(reg.FechaInicio).getTime() : null;
@@ -85,6 +105,57 @@
 
 			const htmlContent = `
 			<div class="text-left">
+				<style>
+					#gantt-ord-container {
+						overflow-x: auto;
+						border: 1px solid #e5e7eb;
+						border-radius: 8px;
+						background: #fff;
+					}
+					.gantt-grid {
+						display: grid;
+						grid-auto-rows: minmax(34px, auto);
+						width: max-content;
+					}
+					.gantt-cell {
+						border: 1px solid #e5e7eb;
+						padding: 6px 8px;
+						font-size: 12px;
+						line-height: 1.25;
+						text-align: center;
+						min-width: 80px;
+						box-sizing: border-box;
+					}
+					.gantt-header {
+						background: #f9fafb;
+						font-weight: 600;
+						color: #374151;
+						position: sticky;
+						top: 0;
+						z-index: 1;
+					}
+					.gantt-label {
+						font-weight: 600;
+						background: #f3f4f6;
+						text-align: left;
+						position: sticky;
+						left: 0;
+						z-index: 2;
+					}
+					.gantt-row {
+						display: contents;
+					}
+					.gantt-bar {
+						background: #fef2f2;
+						color: #991b1b;
+						font-weight: 600;
+					}
+					.gantt-bar-alt {
+						background: #ecfdf3;
+						color: #166534;
+						font-weight: 600;
+					}
+				</style>
 				<div class="mb-3 flex justify-end">
 					<button type="button" onclick="aplicarBalanceoAutomatico()"
 						class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors flex items-center gap-2 text-sm font-medium">
@@ -92,50 +163,60 @@
 						Balancear Fechas
 					</button>
 				</div>
-				<div class="overflow-x-auto border border-gray-200 rounded-lg">
-					<table class="w-full" id="tabla-detalles">
-						<thead class="bg-blue-500 text-white">
-							<tr>
-								<th class="px-3 py-2 text-left text-xs">Telar</th>
-								<th class="px-3 py-2 text-left text-xs">Producto</th>
-								<th class="px-3 py-2 text-right text-xs">Std/Día</th>
-								<th class="px-3 py-2 text-right text-xs">Pedido</th>
-								<th class="px-3 py-2 text-right text-xs">Producción</th>
-								<th class="px-3 py-2 text-right text-xs">Saldo</th>
-								<th class="px-3 py-2 text-center text-xs">F.Inicio</th>
-								<th class="px-3 py-2 text-center text-xs">F.Final</th>
-							</tr>
-						</thead>
-						<tbody>
-							${filasHTML}
-						</tbody>
-						<tfoot class="bg-gray-100">
-							<tr>
-								<td colspan="3" class="px-3 py-2 text-sm font-semibold text-gray-700 text-right">Totales:</td>
-								<td class="px-3 py-2 text-right">
-									<input type="number"
-										id="total-pedido-input"
-										class="w-24 px-2 py-1 text-sm text-right font-bold text-gray-900 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-										value="${totalPedido}"
-										min="0"
-										step="1"
-										oninput="actualizarPedidosDesdeTotal(this)">
-								</td>
-								<td class="px-3 py-2 text-sm text-right font-bold text-gray-900">${totalProduccion.toLocaleString('es-MX')}</td>
-								<td class="px-3 py-2 text-sm text-right font-bold text-green-600" id="total-saldo">${totalSaldo.toLocaleString('es-MX')}</td>
-								<td colspan="2"></td>
-							</tr>
-						</tfoot>
-					</table>
-					<div id="total-disponible" class="hidden">${totalPedido}</div>
+				<div class="flex flex-row gap-4 items-stretch justify-between" style="flex-wrap: nowrap;">
+					<div class="overflow-x-auto border border-gray-200 rounded-lg bg-white flex flex-col" style="flex: 0 0 42%; min-width: 370px;">
+						<table class="w-full" id="tabla-detalles">
+							<thead class="bg-blue-500 text-white">
+								<tr>
+									<th class="px-3 py-2 text-left text-xs">Telar</th>
+									<th class="px-3 py-2 text-left text-xs">Producto</th>
+									<th class="px-3 py-2 text-right text-xs">Std/Día</th>
+									<th class="px-3 py-2 text-right text-xs">Pedido</th>
+									<th class="px-3 py-2 text-right text-xs">Producción</th>
+									<th class="px-3 py-2 text-right text-xs">Saldo</th>
+									<th class="px-3 py-2 text-center text-xs">F.Inicio</th>
+									<th class="px-3 py-2 text-center text-xs">F.Final</th>
+								</tr>
+							</thead>
+							<tbody>
+								${filasHTML}
+							</tbody>
+							<tfoot class="bg-gray-100">
+								<tr>
+									<td colspan="3" class="px-3 py-2 text-sm font-semibold text-gray-700 text-right">Totales:</td>
+									<td class="px-3 py-2 text-right">
+										<input type="number"
+											id="total-pedido-input"
+											class="w-24 px-2 py-1 text-sm text-right font-bold text-gray-900 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+											value="${totalPedido}"
+											min="0"
+											step="1"
+											oninput="actualizarPedidosDesdeTotal(this)">
+									</td>
+									<td class="px-3 py-2 text-sm text-right font-bold text-gray-900">${totalProduccion.toLocaleString('es-MX')}</td>
+									<td class="px-3 py-2 text-sm text-right font-bold text-green-600" id="total-saldo">${totalSaldo.toLocaleString('es-MX')}</td>
+									<td colspan="2"></td>
+								</tr>
+							</tfoot>
+						</table>
+						<div id="total-disponible" class="hidden">${totalPedido}</div>
+					</div>
+
+					<div class="border border-gray-200 rounded-lg p-1 bg-white flex flex-col" style="flex: 1 1 0; min-width: 460px;">
+						<div id="gantt-ord-container" class="min-h-[150px] max-h-[70vh] overflow-auto">
+							<div id="gantt-loading" class="p-3 text-sm text-gray-500">Cargando líneas...</div>
+							<div id="gantt-ord"></div>
+						</div>
+
+					</div>
 				</div>
 			</div>
 		`;
 
 			Swal.fire({
-				title: 'Detalles de orden',
+				title: 'Balanceo de orden',
 				html: htmlContent,
-				width: '850px',
+				width: '100%',
 				showCloseButton: true,
 				showConfirmButton: true,
 				confirmButtonText: '<i class="fa-solid fa-save mr-2"></i> Guardar',
@@ -148,6 +229,9 @@
 				},
 				preConfirm: () => {
 					return guardarCambiosPedido(ordCompartida);
+				},
+				didOpen: () => {
+					renderGanttOrd(registros, ordCompartida);
 				}
 			});
 		} catch (error) {
@@ -250,6 +334,9 @@
 				totalDisponibleBalanceo = totalPedido;
 			}
 		}
+
+		// actualizar vista previa del gantt con los cambios locales
+		updateGanttPreview();
 	};
 
 	window.actualizarPedidosDesdeTotal = function(totalInput) {
@@ -299,9 +386,216 @@
 			});
 
 			calcularTotalesYFechas();
+			updateGanttPreview();
 		}
 
 		adjustingFromTotal = false;
+	};
+
+	// =================== GANTT simple (sin librería) ===================
+	function parseDateISO(str) {
+		if (!str) return null;
+		const d = new Date(str);
+		return isNaN(d.getTime()) ? null : d;
+	}
+
+	function formatShort(d) {
+		return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+	}
+
+	function buildDateRange(minDate, maxDate) {
+		const res = [];
+		const cur = new Date(minDate.getTime());
+		while (cur <= maxDate) {
+			res.push(new Date(cur.getTime()));
+			cur.setDate(cur.getDate() + 1);
+		}
+		return res;
+	}
+
+	function mapWithScaledTimeline(reg, lineas, inputsMap) {
+		const datos = inputsMap[String(reg.Id)] || {};
+		const nuevoPedido = datos.pedido ?? Number(reg.TotalPedido || 0);
+		const pedidoOriginal = datos.pedidoOriginal ?? Number(reg.TotalPedido || 0);
+		const factor = pedidoOriginal > 0 ? (nuevoPedido / pedidoOriginal) : 1;
+
+		const fechaInicioMs = datos.fechaInicioMs || (reg.FechaInicio ? new Date(reg.FechaInicio).getTime() : 0);
+		const fechaFinalCalcMs = datos.fechaFinalCalcMs || 0;
+		const duracionOriginalMs = datos.duracionOriginalMs || 0;
+		const fechaFinOriginalMs = duracionOriginalMs > 0 && fechaInicioMs ? fechaInicioMs + duracionOriginalMs : (reg.FechaFinal ? new Date(reg.FechaFinal).getTime() : 0);
+		const fechaFinDestinoMs = fechaFinalCalcMs || fechaFinOriginalMs;
+
+		const map = {};
+
+		if (!lineas || !lineas.length || !fechaInicioMs || !fechaFinDestinoMs) {
+			const key = fechaInicioMs ? new Date(fechaInicioMs).toISOString().slice(0, 10) : 'N/A';
+			map[key] = nuevoPedido;
+			return { map, min: fechaInicioMs, max: fechaFinDestinoMs };
+		}
+
+		lineas.forEach(l => {
+			const d = parseDateISO(l.Fecha);
+			if (!d) return;
+			const t = d.getTime();
+			// si hay una nueva fecha fin calculada, descartamos líneas fuera del rango
+			if (fechaInicioMs && t < fechaInicioMs) return;
+			if (fechaFinDestinoMs && t > fechaFinDestinoMs) return;
+			const key = d.toISOString().slice(0, 10);
+			const qty = Number(l.Cantidad || 0) * factor;
+			map[key] = (map[key] || 0) + Math.round((qty + Number.EPSILON) * 1000) / 1000;
+		});
+
+		const keys = Object.keys(map);
+		let minKey = fechaInicioMs;
+		let maxKey = fechaFinDestinoMs;
+		if (keys.length) {
+			const first = new Date(keys[0]);
+			const last = new Date(keys[keys.length - 1]);
+			minKey = first.getTime();
+			maxKey = last.getTime();
+		}
+
+		return { map, min: minKey, max: maxKey };
+	}
+
+	function updateGanttPreview() {
+		if (!currentGanttRegistros || !currentGanttRegistros.length) return;
+		const inputsMap = getCurrentInputsMap();
+		const rows = [];
+		let minD = null;
+		let maxD = null;
+
+		currentGanttRegistros.forEach(reg => {
+			const lineas = lineasCache[reg.Id] || [];
+			const result = mapWithScaledTimeline(reg, lineas, inputsMap);
+			const map = result.map || {};
+			if (!Object.keys(map).length) return;
+			const minLocal = result.min;
+			const maxLocal = result.max;
+			if (minLocal && (!minD || minLocal < minD)) minD = minLocal;
+			if (maxLocal && (!maxD || maxLocal > maxD)) maxD = maxLocal;
+
+			rows.push({
+				label: `Telar ${reg.NoTelarId || '-'} · ${reg.NombreProducto || ''}`.trim(),
+				map
+			});
+		});
+
+		if (!rows.length || !minD || !maxD) return;
+		const days = buildDateRange(new Date(minD), new Date(maxD));
+		renderGanttGrid(days, rows);
+	}
+
+	async function fetchLineasPrograma(programaId) {
+		if (lineasCache[programaId]) return lineasCache[programaId];
+		const resp = await fetch(`/planeacion/req-programa-tejido-line?programa_id=${programaId}&per_page=5000&sort=Fecha&dir=asc`, {
+			headers: { 'Accept': 'application/json' }
+		});
+		const json = await resp.json();
+		if (!json?.success || !json.data?.data) return [];
+		lineasCache[programaId] = json.data.data;
+		return lineasCache[programaId];
+	}
+
+	function renderGanttGrid(dates, rows) {
+		const cont = document.getElementById('gantt-ord');
+		const loader = document.getElementById('gantt-loading');
+		if (!cont) return;
+		if (loader) loader.classList.add('hidden');
+
+		if (!dates.length || !rows.length) {
+			cont.innerHTML = '<div class="p-3 text-sm text-gray-500">Sin datos para mostrar.</div>';
+			return;
+		}
+
+		// grid columns: 1 label + N dates
+		const template = `180px repeat(${dates.length}, 70px)`;
+		let html = `<div class="gantt-grid" style="grid-template-columns:${template}">`;
+
+		// header
+		html += `<div class="gantt-cell gantt-header gantt-label"></div>`;
+		dates.forEach(d => {
+			html += `<div class="gantt-cell gantt-header">${formatShort(d)}</div>`;
+		});
+
+		// rows
+		rows.forEach((row, idx) => {
+			html += `<div class="gantt-cell gantt-label">${row.label}</div>`;
+			dates.forEach(d => {
+				const key = d.toISOString().slice(0, 10);
+				const qty = row.map[key] || 0;
+				const cls = qty > 0 ? (idx % 2 === 0 ? 'gantt-bar' : 'gantt-bar-alt') : '';
+				html += `<div class="gantt-cell ${cls}">${qty ? qty : ''}</div>`;
+			});
+		});
+
+		html += `</div>`;
+		cont.innerHTML = html;
+	}
+
+	async function renderGanttOrd(registros, ordCompartida) {
+		const loader = document.getElementById('gantt-loading');
+		if (loader) loader.classList.remove('hidden');
+		const cont = document.getElementById('gantt-ord');
+		if (cont) cont.innerHTML = '';
+
+		try {
+			const subset = registros.slice(0, 30); // limitar para no saturar
+			const data = await Promise.all(subset.map(async reg => {
+				const lineas = await fetchLineasPrograma(reg.Id);
+				return { reg, lineas };
+			}));
+			currentGanttRegistros = registros;
+
+			let minD = null;
+			let maxD = null;
+			const rows = [];
+
+			data.forEach(({ reg, lineas }) => {
+				const map = {};
+				let localMin = parseDateISO(reg.FechaInicio);
+				let localMax = parseDateISO(reg.FechaFinal);
+
+				if (Array.isArray(lineas) && lineas.length) {
+					lineas.forEach(l => {
+						const d = parseDateISO(l.Fecha);
+						if (!d) return;
+						const key = d.toISOString().slice(0, 10);
+						const qty = Number(l.Cantidad || 0);
+						map[key] = (map[key] || 0) + Math.round((qty + Number.EPSILON) * 1000) / 1000;
+						if (!localMin || d < localMin) localMin = d;
+						if (!localMax || d > localMax) localMax = d;
+					});
+				}
+
+				if (!localMin || !localMax) return;
+				if (!minD || localMin < minD) minD = localMin;
+				if (!maxD || localMax > maxD) maxD = localMax;
+
+				const label = `Telar ${reg.NoTelarId || '-'} · ${reg.NombreProducto || ''}`.trim();
+				rows.push({ label, map });
+			});
+
+			if (!minD || !maxD || rows.length === 0) {
+				if (cont) cont.innerHTML = '<div class="p-3 text-sm text-gray-500">No hay líneas para mostrar.</div>';
+				if (loader) loader.classList.add('hidden');
+				return;
+			}
+
+			const days = buildDateRange(minD, maxD);
+			renderGanttGrid(days, rows);
+		} catch (e) {
+			console.error('Error al renderizar gantt', e);
+			if (cont) cont.innerHTML = '<div class="p-3 text-sm text-red-600">No se pudo cargar el gantt.</div>';
+		} finally {
+			if (loader) loader.classList.add('hidden');
+		}
+	}
+
+	window.recargarGanttOrdCompartida = function(ordCompartida) {
+		const registros = gruposDataCache[ordCompartida] || [];
+		if (!registros.length) return;
+		renderGanttOrd(registros, ordCompartida);
 	};
 
 	window.aplicarBalanceoAutomatico = function() {
