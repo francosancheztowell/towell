@@ -86,7 +86,7 @@
                                             <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer {{ $c['cellHover'] }} px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $telar }}" data-horario="{{ $h }}" data-type="rpm">
                                                 <span class="valor-display-text">0</span>
                                             </button>
-                                            <div class="valor-edit-container hidden absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                            <div class="valor-edit-container hidden absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-64">
                                                     <div class="number-options-flex flex space-x-1 min-w-max"></div>
                                                 </div>
@@ -99,7 +99,7 @@
                                             <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer {{ $c['cellHover'] }} px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $telar }}" data-horario="{{ $h }}" data-type="eficiencia">
                                                 <span class="valor-display-text">0%</span>
                                             </button>
-                                            <div class="valor-edit-container hidden absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                                            <div class="valor-edit-container hidden absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
                                                 <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48">
                                                     <div class="number-options-flex flex space-x-1 min-w-max"></div>
                                                 </div>
@@ -502,8 +502,8 @@ tbody input:focus{ border-color:#3b82f6; box-shadow:0 0 0 1px #3b82f6; outline:n
 .valor-edit-container{ z-index:1000; box-shadow:0 10px 25px rgba(0,0,0,.08); }
 .number-option{ transition:transform .12s ease; flex-shrink:0; }
 .number-option:hover{ transform:scale(1.08); }
-.valor-edit-container.hidden{ opacity:0; transform: translateX(-50%) translateY(-100%) scale(.95); transition:all .18s ease; }
-.valor-edit-container:not(.hidden){ opacity:1; transform: translateX(-50%) translateY(-100%) scale(1); transition:all .18s ease; }
+.valor-edit-container.hidden{ opacity:0; transform: translateX(-50%) translateY(0) scale(.95); transition:all .18s ease; }
+.valor-edit-container:not(.hidden){ opacity:1; transform: translateX(-50%) translateY(0) scale(1); transition:all .18s ease; }
 </style>
 
 @endsection
