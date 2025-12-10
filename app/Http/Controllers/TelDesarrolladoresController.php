@@ -67,25 +67,15 @@ class TelDesarrolladoresController extends Controller
     public function obtenerDetallesOrden($noProduccion)
     {
         try {
-            // Obtener detalles de la orden - agrupando combinaciones (Trama, Comb1-5)
-            $detalles = \App\Models\ReqProgramaTejido::where('NoProduccion', $noProduccion)
-                ->select(
-                    DB::raw("'Trama' as Articulo"),
-                    'FibraTrama as Fibra',
-                    'CodColorTrama as CodColor',
-                    'ColorTrama as NombreColor',
-                    'PasadasTrama as Pasadas'
-                )
-                ->first();
+            // Obtener detalles de la orden
+            $ordenData = \App\Models\ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
 
             $combinaciones = [];
             
-            if ($detalles) {
-                $ordenData = \App\Models\ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
-                
+            if ($ordenData) {
                 // Trama
                 $combinaciones[] = [
-                    'Articulo' => 'Trama',
+                    'Articulo' => $ordenData->CalibreTrama ?? '',
                     'Fibra' => $ordenData->FibraTrama ?? '',
                     'CodColor' => $ordenData->CodColorTrama ?? '',
                     'NombreColor' => $ordenData->ColorTrama ?? '',
@@ -97,7 +87,7 @@ class TelDesarrolladoresController extends Controller
                     $pasadas = $ordenData->{"PasadasComb$i"} ?? null;
                     if ($pasadas && $pasadas > 0) {
                         $combinaciones[] = [
-                            'Articulo' => "Comb$i",
+                            'Articulo' => $ordenData->{"CalibreComb$i"} ?? '',
                             'Fibra' => $ordenData->{"FibraComb$i"} ?? '',
                             'CodColor' => $ordenData->{"CodColorComb$i"} ?? '',
                             'NombreColor' => $ordenData->{"NomColorC$i"} ?? '',
