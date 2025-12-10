@@ -208,7 +208,7 @@
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fibra</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cod Color</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre Color</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pasadas</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pasadas <span class="text-red-500">*</span></th>
                                     </tr>
                                 </thead>
                                 <tbody id="bodyDetallesOrden" class="bg-white divide-y divide-gray-200">
@@ -426,7 +426,7 @@
                 .then(data => {
                     if (data.success && data.detalles.length > 0) {
                         bodyDetallesOrden.innerHTML = '';
-                        data.detalles.forEach(detalle => {
+                        data.detalles.forEach((detalle, index) => {
                             const row = document.createElement('tr');
                             row.className = 'hover:bg-gray-50 transition-colors';
                             row.innerHTML = `
@@ -442,8 +442,14 @@
                                 <td class="px-6 py-4 text-sm text-gray-600">
                                     ${detalle.NombreColor || '-'}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    ${detalle.Pasadas || '-'}
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <input type="number" 
+                                           name="pasadas[${index}]" 
+                                           min="1" 
+                                           step="1" 
+                                           required
+                                           class="w-24 px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                           placeholder="0">
                                 </td>
                             `;
                             bodyDetallesOrden.appendChild(row);
