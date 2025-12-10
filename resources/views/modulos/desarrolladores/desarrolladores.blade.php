@@ -104,7 +104,7 @@
 
                         <div>
                             <label for="EficienciaInicio" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia de Inicio <span class="text-red-500">*</span></label>
-                            <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1">
+                            <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1" data-suggested="80">
                                 <input type="number" id="EficienciaInicio" name="EficienciaInicio" min="0" step="1" required class="hidden">
                                 <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
                                     <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
@@ -128,7 +128,7 @@
 
                         <div>
                             <label for="EficienciaFinal" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Final <span class="text-red-500">*</span></label>
-                            <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1">
+                            <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1" data-suggested="80">
                                 <input type="number" id="EficienciaFinal" name="EficienciaFinal" min="0" step="1" required class="hidden">
                                 <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
                                     <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
@@ -251,6 +251,25 @@
         const numberSelectors = [];
         const codificacionInputs = document.querySelectorAll('.codificacion-char');
         const codificacionHidden = document.getElementById('CodificacionModelo');
+
+        // Auto-focus de Total Pasadas del Dibujo a Eficiencia Inicio
+        const totalPasadasDibujo = document.getElementById('TotalPasadasDibujo');
+        if (totalPasadasDibujo) {
+            totalPasadasDibujo.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    // Buscar el botón del selector de Eficiencia Inicio
+                    const eficienciaInicioWrapper = document.querySelector('[data-number-selector] #EficienciaInicio');
+                    if (eficienciaInicioWrapper) {
+                        const triggerBtn = eficienciaInicioWrapper.closest('[data-number-selector]').querySelector('.number-selector-btn');
+                        if (triggerBtn) {
+                            triggerBtn.focus();
+                            triggerBtn.click();
+                        }
+                    }
+                }
+            });
+        }
 
         // Auto-avance en inputs de codificación
         codificacionInputs.forEach((input, index) => {
@@ -519,6 +538,22 @@
                     closeAllNumberSelectors();
                     if (shouldOpen) {
                         optionsWrapper.classList.remove('hidden');
+                        
+                        // Si hay un valor sugerido, hacer scroll a ese elemento
+                        const suggestedValue = selector.dataset.suggested;
+                        if (suggestedValue && hiddenInput.value === '') {
+                            setTimeout(() => {
+                                const suggestedOption = track.querySelector(`[data-value="${suggestedValue}"]`);
+                                if (suggestedOption) {
+                                    suggestedOption.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                                    // Resaltar visualmente el valor sugerido
+                                    suggestedOption.classList.add('ring-2', 'ring-yellow-400');
+                                    setTimeout(() => {
+                                        suggestedOption.classList.remove('ring-2', 'ring-yellow-400');
+                                    }, 1500);
+                                }
+                            }, 100);
+                        }
                     }
                 });
 
