@@ -577,42 +577,14 @@
             return n <= 0;
         };
 
-        // Validar campos Marcas y Eficiencia
-        let lineasConMarcasInvalidas = 0;
+        // Validar solo campo Eficiencia
         let lineasConEficienciaInvalida = 0;
         
         for (const l of lineas) {
-            if (esVacioOCero(l.Marcas)) lineasConMarcasInvalidas++;
             if (esVacioOCero(l.Eficiencia)) lineasConEficienciaInvalida++;
         }
 
-        // Mostrar errores específicos
-        if (lineasConMarcasInvalidas > 0 && lineasConEficienciaInvalida > 0) {
-            await Swal.fire({
-                icon: 'warning',
-                title: 'No se puede finalizar',
-                html: `
-                    <p>Se encontraron los siguientes problemas:</p>
-                    <ul class="text-left mt-2">
-                        <li>• ${lineasConMarcasInvalidas} línea(s) con el campo <strong>Marcas</strong> vacío o en 0</li>
-                        <li>• ${lineasConEficienciaInvalida} línea(s) con el campo <strong>% Efi</strong> vacío o en 0</li>
-                    </ul>
-                `,
-                confirmButtonText: 'Entendido'
-            });
-            return false;
-        }
-
-        if (lineasConMarcasInvalidas > 0) {
-            await Swal.fire({
-                icon: 'warning',
-                title: 'No se puede finalizar',
-                text: `Hay ${lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0.`,
-                confirmButtonText: 'Entendido'
-            });
-            return false;
-        }
-
+        // Mostrar error si hay eficiencias inválidas
         if (lineasConEficienciaInvalida > 0) {
             await Swal.fire({
                 icon: 'warning',
