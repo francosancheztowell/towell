@@ -44,7 +44,7 @@ class ReqProgramaTejidoObserver
             // Guardar las fórmulas en el modelo del programa (para acceso posterior)
             if (!empty($formulas)) {
                 // Log para verificar qué fórmulas se están calculando
-                \Illuminate\Support\Facades\Log::info('Observer: Fórmulas calculadas', [
+               LogFacade::info('Observer: Fórmulas calculadas', [
                     'programa_id' => $programa->Id,
                     'formulas_keys' => array_keys($formulas),
                     'horasprod_en_formulas' => $formulas['HorasProd'] ?? 'NO EXISTE',
@@ -80,7 +80,7 @@ class ReqProgramaTejidoObserver
                     ->where('Id', $programa->Id)
                         ->update($formulasParaGuardar);
 
-                    \Illuminate\Support\Facades\Log::info('Observer: Fórmulas guardadas en BD', [
+                    LogFacade::info('Observer: Fórmulas guardadas en BD', [
                         'programa_id' => $programa->Id,
                         'filas_actualizadas' => $updated,
                         'formulas_guardadas' => array_keys($formulasParaGuardar),
@@ -89,13 +89,13 @@ class ReqProgramaTejidoObserver
                         'todas_las_formulas' => $formulasParaGuardar
                     ]);
                 } else {
-                    \Illuminate\Support\Facades\Log::warning('Observer: No hay fórmulas válidas para guardar', [
+                   LogFacade::warning('Observer: No hay fórmulas válidas para guardar', [
                         'programa_id' => $programa->Id,
                         'formulas_calculadas' => array_keys($formulas)
                     ]);
                 }
             } else {
-                \Illuminate\Support\Facades\Log::warning('Observer: No se calcularon fórmulas', [
+               LogFacade::warning('Observer: No se calcularon fórmulas', [
                     'programa_id' => $programa->Id
                 ]);
             }
@@ -129,7 +129,7 @@ class ReqProgramaTejidoObserver
                     // Ahora solo registramos la alerta y continuamos para que ReqProgramaTejidoLine se genere.
                     $mensaje = "No hay fechas disponibles en el calendario '{$programa->CalendarioId}' para el período del programa (Inicio: {$inicio->format('Y-m-d H:i')}, Fin: {$fin->format('Y-m-d H:i')})";
 
-                    \Illuminate\Support\Facades\Log::warning('Observer: No hay fechas disponibles en calendario, se continúa sin frenar líneas', [
+                    LogFacade::warning('Observer: No hay fechas disponibles en calendario, se continúa sin frenar líneas', [
                         'programa_id' => $programa->Id,
                         'calendario_id' => $programa->CalendarioId,
                         'fecha_inicio' => $inicio->format('Y-m-d H:i:s'),
@@ -499,7 +499,7 @@ class ReqProgramaTejidoObserver
 
             // Log para debugging cuando se actualiza eficiencia
             if ($programa->Id) {
-                \Illuminate\Support\Facades\Log::debug('Observer: Iniciando cálculo de fórmulas', [
+               LogFacade::debug('Observer: Iniciando cálculo de fórmulas', [
                     'programa_id' => $programa->Id,
                     'eficiencia_std_leida' => $efic,
                     'eficiencia_std_atributo' => $programa->getAttribute('EficienciaSTD'),
@@ -557,7 +557,7 @@ class ReqProgramaTejidoObserver
 
             // Log para debugging
             if ($programa->Id && ($velocidadCambio || ($velocidadOriginal > 0 && $velocidadNueva > 0 && $velocidadOriginal !== $velocidadNueva))) {
-                \Illuminate\Support\Facades\Log::info('Observer: Detectado cambio de velocidad', [
+                LogFacade::info('Observer: Detectado cambio de velocidad', [
                     'programa_id' => $programa->Id,
                     'velocidad_original' => $velocidadOriginal,
                     'velocidad_nueva' => $velocidadNueva,
@@ -599,7 +599,7 @@ class ReqProgramaTejidoObserver
                     $formulas['StdToaHra'] = (float) $stdToaHra;
 
                     if ($programa->Id) {
-                        \Illuminate\Support\Facades\Log::info('Observer: StdToaHra recalculado por cambio de velocidad', [
+                       LogFacade::info('Observer: StdToaHra recalculado por cambio de velocidad', [
                             'programa_id' => $programa->Id,
                             'velocidad_original' => $velocidadOriginal,
                             'velocidad_nueva' => $velocidadNueva,
@@ -622,7 +622,7 @@ class ReqProgramaTejidoObserver
                 } else {
                     // Si no se pudo calcular, mantener el valor anterior pero loguear
                     if ($programa->Id) {
-                        \Illuminate\Support\Facades\Log::warning('Observer: No se pudo recalcular StdToaHra (denominador <= 0)', [
+                       LogFacade::warning('Observer: No se pudo recalcular StdToaHra (denominador <= 0)', [
                             'programa_id' => $programa->Id,
                             'velocidad_original' => $velocidadOriginal,
                             'velocidad_nueva' => $velocidadNueva,
@@ -638,7 +638,7 @@ class ReqProgramaTejidoObserver
             } else {
                 // Si debe recalcularse pero faltan datos, loguear
                 if ($programa->Id && $debeRecalcular) {
-                    \Illuminate\Support\Facades\Log::warning('Observer: No se pudo recalcular StdToaHra (faltan datos)', [
+                   LogFacade::warning('Observer: No se pudo recalcular StdToaHra (faltan datos)', [
                         'programa_id' => $programa->Id,
                         'velocidad_original' => $velocidadOriginal,
                         'velocidad_nueva' => $velocidadNueva,
@@ -654,7 +654,7 @@ class ReqProgramaTejidoObserver
 
             // Log para debugging
             if ($programa->Id) {
-                \Illuminate\Support\Facades\Log::info('Observer: StdToaHra', [
+               LogFacade::info('Observer: StdToaHra', [
                     'programa_id' => $programa->Id,
                     'stdtoahra_usado' => $stdToaHra,
                     'stdtoahra_del_modelo' => $programa->StdToaHra ?? 0,
@@ -702,7 +702,7 @@ class ReqProgramaTejidoObserver
 
                 // Log para debugging cuando se actualiza eficiencia (INFO para que se muestre)
                 if ($programa->Id) {
-                    \Illuminate\Support\Facades\Log::info('Observer: Calculando HorasProd', [
+                   LogFacade::info('Observer: Calculando HorasProd', [
                         'programa_id' => $programa->Id,
                         'eficiencia_std' => $efic,
                         'stdtoahra_usado' => $stdToaHraParaCalculos,
@@ -717,7 +717,7 @@ class ReqProgramaTejidoObserver
             } else {
                 // Log si no se puede calcular HorasProd
                 if ($programa->Id) {
-                    \Illuminate\Support\Facades\Log::warning('Observer: No se pudo calcular HorasProd', [
+                   LogFacade::warning('Observer: No se pudo calcular HorasProd', [
                         'programa_id' => $programa->Id,
                         'stdtoahra' => $stdToaHra,
                         'efic' => $efic,
@@ -937,7 +937,7 @@ class ReqProgramaTejidoObserver
             return $porcentajeCobertura >= 90;
 
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Error al validar fechas disponibles en calendario', [
+           LogFacade::error('Error al validar fechas disponibles en calendario', [
                 'calendario_id' => $calendarioId,
                 'fecha_inicio' => $fechaInicio->format('Y-m-d H:i:s'),
                 'fecha_fin' => $fechaFin->format('Y-m-d H:i:s'),
@@ -1001,7 +1001,7 @@ class ReqProgramaTejidoObserver
             if ($lineasCalendario->isEmpty()) {
                 $mensaje = "No hay fechas disponibles en el calendario '{$programa->CalendarioId}' para el día {$dia->format('Y-m-d')}";
 
-                \Illuminate\Support\Facades\Log::error('Observer: No hay líneas de calendario para el día', [
+               LogFacade::error('Observer: No hay líneas de calendario para el día', [
                     'programa_id' => $programa->Id,
                     'calendario_id' => $programa->CalendarioId,
                     'dia' => $dia->format('Y-m-d'),
@@ -1031,7 +1031,7 @@ class ReqProgramaTejidoObserver
             // Si no hay HorasTurno definidas en las líneas, es un error
             $mensaje = "Las líneas del calendario '{$programa->CalendarioId}' para el día {$dia->format('Y-m-d')} no tienen HorasTurno definidas";
 
-            \Illuminate\Support\Facades\Log::error('Observer: Líneas de calendario sin HorasTurno', [
+           LogFacade::error('Observer: Líneas de calendario sin HorasTurno', [
                 'programa_id' => $programa->Id,
                 'calendario_id' => $programa->CalendarioId,
                 'dia' => $dia->format('Y-m-d'),
@@ -1045,7 +1045,7 @@ class ReqProgramaTejidoObserver
             throw $e;
         } catch (\Throwable $e) {
             // Para otros errores inesperados (errores de BD, etc.), registrar y lanzar excepción
-            \Illuminate\Support\Facades\Log::error('Error inesperado al obtener horas del calendario', [
+           LogFacade::error('Error inesperado al obtener horas del calendario', [
                 'programa_id' => $programa->Id,
                 'calendario_id' => $programa->CalendarioId,
                 'dia' => $dia->toDateString(),
@@ -1064,7 +1064,7 @@ class ReqProgramaTejidoObserver
         try {
             return $this->obtenerHorasDiaDesdeCalendario($programa, $dia, $fraccion);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Observer: Fallback 24h para día sin líneas de calendario', [
+           LogFacade::warning('Observer: Fallback 24h para día sin líneas de calendario', [
                 'programa_id' => $programa->Id,
                 'calendario_id' => $programa->CalendarioId,
                 'dia' => $dia->format('Y-m-d'),

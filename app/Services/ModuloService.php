@@ -388,8 +388,7 @@ class ModuloService
 
             // Tejedores » Configurar
             'Telares x Operador' => '/tel-telares-operador',
-            'Telares por Operador' => '/tel-telares-operador',
-            'Telares x operador' => '/tel-telares-operador',
+            'Catalogo Desarrolladores' => 'catalogo-desarrolladores',
             'ActividadesBPM' => '/tel-actividades-bpm',
             'Actividades BPM' => '/tel-actividades-bpm',
 

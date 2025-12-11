@@ -96,13 +96,16 @@
 					</thead>
 					<tbody class="bg-white divide-y divide-gray-100">
 						@foreach($registros as $index => $registro)
-						<tr class="hover:bg-blue-50 cursor-pointer selectable-row" data-row-index="{{ $index }}" data-id="{{ $registro->Id ?? $registro->id ?? '' }}">
+						<tr class="hover:bg-blue-50 cursor-pointer selectable-row"
+							data-row-index="{{ $index }}"
+							data-id="{{ $registro->Id ?? $registro->id ?? '' }}"
+							@if(!empty($registro->OrdCompartida)) data-ord-compartida="{{ $registro->OrdCompartida }}" @endif>
 							@foreach($columns as $colIndex => $col)
 							@php
-								$rawValue = $registro->{$col['field']} ?? '';
-								if ($rawValue instanceof \Carbon\Carbon) {
-									$rawValue = $rawValue->format('Y-m-d H:i:s');
-								}
+							$rawValue = $registro->{$col['field']} ?? '';
+							if ($rawValue instanceof \Carbon\Carbon) {
+							$rawValue = $rawValue->format('Y-m-d H:i:s');
+							}
 							@endphp
 							<td class="px-3 py-2 text-sm text-gray-700 {{ ($col['dateType'] ?? null) ? 'whitespace-normal' : 'whitespace-nowrap' }} column-{{ $colIndex }}"
 								data-column="{{ $col['field'] }}"
@@ -183,7 +186,7 @@
 		transition: background-color 0.3s ease-in-out;
 	}
 
-	.selectable-row.dragging ~ tr td,
+	.selectable-row.dragging~tr td,
 	.selectable-row.dragging td {
 		transition: none !important;
 	}
@@ -228,6 +231,7 @@
 			opacity: 0;
 			transform: scale(0.95);
 		}
+
 		to {
 			opacity: 1;
 			transform: scale(1);
@@ -279,6 +283,31 @@
 		showToast('Edición activada solo para la fila seleccionada', 'info');
 	}
 
+	// Control del botón Balancear (navbar)
+	let balanceBtn = null;
+
+	function setBalanceBtnDisabled() {
+		if (!balanceBtn) return;
+		balanceBtn.classList.remove('bg-green-500', 'hover:bg-green-600', 'focus:ring-teal-400');
+		balanceBtn.classList.add('bg-gray-400', 'opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+	}
+
+	function setBalanceBtnEnabled() {
+		if (!balanceBtn) return;
+		balanceBtn.classList.add('bg-green-500', 'hover:bg-green-600', 'focus:ring-teal-400');
+		balanceBtn.classList.remove('bg-gray-400', 'opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+	}
+
+	function updateBalanceBtnState(row) {
+		if (!balanceBtn) return;
+		const ordCompartida = row?.getAttribute('data-ord-compartida');
+		if (ordCompartida) {
+			setBalanceBtnEnabled();
+		} else {
+			setBalanceBtnDisabled();
+		}
+	}
+
 	// Desactiva la edición de la fila anterior cuando se selecciona otra
 	const _oldSelectRow = typeof selectRow === 'function' ? selectRow : null;
 	selectRow = function(row, index) {
@@ -289,6 +318,7 @@
 			inlineEditSingleRow = null;
 			document.body.classList.remove('inline-edit-mode');
 		}
+		updateBalanceBtnState(row);
 		if (_oldSelectRow) {
 			_oldSelectRow(row, index);
 		}
@@ -303,6 +333,7 @@
 			inlineEditSingleRow = null;
 			document.body.classList.remove('inline-edit-mode');
 		}
+		updateBalanceBtnState(null);
 		if (_oldDeselectRow) {
 			_oldDeselectRow();
 		}
@@ -399,7 +430,9 @@
 
 		try {
 			const response = await fetch('/planeacion/catalogos/matriz-hilos/list', {
-				headers: { 'Accept': 'application/json' }
+				headers: {
+					'Accept': 'application/json'
+				}
 			});
 			const data = await response.json();
 			if (data.success && data.data && Array.isArray(data.data)) {
@@ -421,7 +454,9 @@
 
 		try {
 			const response = await fetch('/programa-tejido/aplicacion-id-options', {
-				headers: { 'Accept': 'application/json' }
+				headers: {
+					'Accept': 'application/json'
+				}
 			});
 			const data = await response.json();
 			if (Array.isArray(data)) {
@@ -443,7 +478,9 @@
 
 		try {
 			const response = await fetch('/programa-tejido/calendario-id-options', {
-				headers: { 'Accept': 'application/json' }
+				headers: {
+					'Accept': 'application/json'
+				}
 			});
 			const data = await response.json();
 			if (Array.isArray(data)) {
@@ -675,9 +712,9 @@
 
 		const sameValue =
 			(normalizedValue === null && normalizedOriginal === null) ||
-			(typeof normalizedValue === 'number' && typeof normalizedOriginal === 'number'
-				? isNearlyEqual(normalizedValue, normalizedOriginal)
-				: normalizedValue === normalizedOriginal);
+			(typeof normalizedValue === 'number' && typeof normalizedOriginal === 'number' ?
+				isNearlyEqual(normalizedValue, normalizedOriginal) :
+				normalizedValue === normalizedOriginal);
 
 		if (sameValue) return;
 
@@ -1198,9 +1235,9 @@
 						posicionObjetivo = isBeforeTarget ? targetRowIndexInTelar : targetRowIndexInTelar + 1;
 					} else {
 						// Fallback: contar cuántas filas del telar destino están antes del draggedRow
-					for (let i = 0; i < draggedRowIndex; i++) {
+						for (let i = 0; i < draggedRowIndex; i++) {
 							if (allRowsInDOM[i] !== draggedRow && isSameTelar(getRowTelar(allRowsInDOM[i]), targetTelar)) {
-							posicionObjetivo++;
+								posicionObjetivo++;
 							}
 						}
 					}
@@ -1272,7 +1309,10 @@
 
 		if (draggableElements.length === 0) return null;
 
-		let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
+		let closest = {
+			offset: Number.NEGATIVE_INFINITY,
+			element: null
+		};
 
 		for (let i = 0; i < draggableElements.length; i++) {
 			const child = draggableElements[i];
@@ -1280,7 +1320,10 @@
 			const offset = y - box.top - box.height / 2;
 
 			if (offset < 0 && offset > closest.offset) {
-				closest = { offset: offset, element: child };
+				closest = {
+					offset: offset,
+					element: child
+				};
 			}
 		}
 
@@ -1297,10 +1340,10 @@
 
 		// Obtener las filas del telar destino ANTES de incluir el draggedRow
 		// Esto es importante porque el draggedRow puede haber sido movido visualmente al telar destino
-			const targetRowsOriginal = allRowsInDOM.filter(row => {
-				const rowTelar = getRowTelar(row);
-				return isSameTelar(rowTelar, targetTelar) && row !== draggedRow;
-			});
+		const targetRowsOriginal = allRowsInDOM.filter(row => {
+			const rowTelar = getRowTelar(row);
+			return isSameTelar(rowTelar, targetTelar) && row !== draggedRow;
+		});
 
 		// Encontrar la posición del draggedRow en el DOM (después del reordenamiento visual)
 		const draggedRowIndex = allRowsInDOM.indexOf(draggedRow);
@@ -1428,8 +1471,8 @@
 		// Esto evita el problema de detectar el telar equivocado en los límites entre telares
 		if (e.clientY) {
 			// Obtener las filas adyacentes al draggedRow en su posición actual del DOM
-		const prevRow = draggedIndex > 0 ? allRowsInDOM[draggedIndex - 1] : null;
-		const nextRow = draggedIndex < allRowsInDOM.length - 1 ? allRowsInDOM[draggedIndex + 1] : null;
+			const prevRow = draggedIndex > 0 ? allRowsInDOM[draggedIndex - 1] : null;
+			const nextRow = draggedIndex < allRowsInDOM.length - 1 ? allRowsInDOM[draggedIndex + 1] : null;
 
 			const prevTelar = prevRow ? getRowTelar(prevRow) : null;
 			const nextTelar = nextRow ? getRowTelar(nextRow) : null;
@@ -1442,9 +1485,9 @@
 			}
 			// CASO 2: Ambas filas son del telar origen → movimiento dentro del mismo telar
 			else if (prevTelar && nextTelar &&
-					 isSameTelar(prevTelar, draggedRowTelar) &&
-					 isSameTelar(nextTelar, draggedRowTelar)) {
-			targetTelar = draggedRowTelar;
+				isSameTelar(prevTelar, draggedRowTelar) &&
+				isSameTelar(nextTelar, draggedRowTelar)) {
+				targetTelar = draggedRowTelar;
 				targetRow = prevRow;
 				targetSalon = getRowSalon(prevRow);
 			}
@@ -1477,7 +1520,7 @@
 				targetTelar = prevTelar;
 				targetRow = prevRow;
 				targetSalon = getRowSalon(prevRow);
-		}
+			}
 			// CASO 8: Fallback - usar fila siguiente
 			else if (nextRow) {
 				targetTelar = nextTelar;
@@ -2141,118 +2184,6 @@
 	// Modal Duplicar/Dividir Telar - Cargado desde componente separado
 	@include('modulos.programa-tejido.modal.duplicar-dividir')
 
-	// Función para dividir telar
-	async function dividirTelar(row) {
-		const telar = getRowTelar(row);
-		const salon = getRowSalon(row);
-
-		if (!telar || !salon) {
-			showToast('No se pudo obtener la información del telar', 'error');
-			return;
-		}
-
-		// Obtener todos los registros del telar
-		const rowsSameTelar = getRowsByTelar(telar);
-		if (rowsSameTelar.length < 2) {
-			showToast('Se requieren al menos 2 registros para dividir un telar', 'error');
-			return;
-		}
-
-		// Obtener el índice de la fila seleccionada dentro del telar
-		const rowIndex = rowsSameTelar.indexOf(row);
-		if (rowIndex === -1) {
-			showToast('No se pudo determinar la posición del registro', 'error');
-			return;
-		}
-
-		// Mostrar modal para seleccionar dónde dividir
-		const { value: posicionDivision } = await Swal.fire({
-			title: 'Dividir Telar',
-			html: `
-				<div class="text-left">
-					<p class="mb-3">Selecciona dónde dividir el telar <strong>${telar}</strong> (Salón ${salon}):</p>
-					<p class="text-sm text-gray-600 mb-4">Los registros desde la posición seleccionada en adelante se moverán a un nuevo telar.</p>
-					<div class="mb-4">
-						<label class="block text-sm font-medium text-gray-700 mb-2">Posición de división:</label>
-						<select id="posicionDivision" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-							${rowsSameTelar.map((r, idx) => {
-								const registroId = r.getAttribute('data-id');
-								const fechaInicio = r.querySelector('[data-column="FechaInicio"]')?.textContent?.trim() || '';
-								return `<option value="${idx}" ${idx === rowIndex ? 'selected' : ''}>Posición ${idx + 1}${fechaInicio ? ' - ' + fechaInicio : ''}</option>`;
-							}).join('')}
-						</select>
-					</div>
-					<div class="mb-4">
-						<label class="block text-sm font-medium text-gray-700 mb-2">Nuevo telar:</label>
-						<input type="text" id="nuevoTelar" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: ${telar}-2" required>
-					</div>
-					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-2">Nuevo salón (opcional):</label>
-						<input type="text" id="nuevoSalon" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="${salon}">
-					</div>
-				</div>
-			`,
-			icon: 'question',
-			showCancelButton: true,
-			confirmButtonText: 'Dividir',
-			cancelButtonText: 'Cancelar',
-			confirmButtonColor: '#f59e0b',
-			cancelButtonColor: '#6b7280',
-			width: '500px',
-			preConfirm: () => {
-				const posicion = document.getElementById('posicionDivision').value;
-				const nuevoTelar = document.getElementById('nuevoTelar').value.trim();
-				if (!nuevoTelar) {
-					Swal.showValidationMessage('El nuevo telar es requerido');
-					return false;
-				}
-				return {
-					posicion: parseInt(posicion),
-					nuevoTelar: nuevoTelar,
-					nuevoSalon: document.getElementById('nuevoSalon').value.trim() || salon
-				};
-			}
-		});
-
-		if (!posicionDivision) {
-			return;
-		}
-
-		showLoading();
-		try {
-			const response = await fetch('/planeacion/programa-tejido/dividir-telar', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-				},
-				body: JSON.stringify({
-					salon_tejido_id: salon,
-					no_telar_id: telar,
-					posicion_division: posicionDivision.posicion,
-					nuevo_telar: posicionDivision.nuevoTelar,
-					nuevo_salon: posicionDivision.nuevoSalon
-				})
-			});
-
-			const data = await response.json();
-			hideLoading();
-
-			if (data.success) {
-				showToast(data.message || 'Telar dividido correctamente', 'success');
-				// Recargar la página después de un breve delay
-				setTimeout(() => {
-					window.location.reload();
-				}, 1000);
-			} else {
-				showToast(data.message || 'Error al dividir el telar', 'error');
-			}
-		} catch (error) {
-			hideLoading();
-			showToast('Ocurrió un error al procesar la solicitud', 'error');
-			console.error('Error al dividir telar:', error);
-		}
-	}
 
 	// ===== Init =====
 	document.addEventListener('DOMContentLoaded', function() {
@@ -2272,6 +2203,30 @@
 		}
 		updateFilterCount();
 		window.addEventListener('resize', () => updatePinnedColumnsPositions());
+
+		// Interceptar el botón de navbar "Balancear" para abrir el modal en sitio
+		balanceBtn = document.querySelector('a[title="Balancear"]');
+		if (balanceBtn) {
+			setBalanceBtnDisabled();
+			balanceBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				if (selectedRowIndex === null || selectedRowIndex === undefined || selectedRowIndex < 0) {
+					showToast('Selecciona primero un registro con OrdCompartida', 'info');
+					return;
+				}
+				const row = allRows[selectedRowIndex] || $$('.selectable-row')[selectedRowIndex];
+				if (!row) {
+					showToast('No se pudo identificar el registro seleccionado', 'error');
+					return;
+				}
+				const ordCompartida = row.getAttribute('data-ord-compartida');
+				if (!ordCompartida) {
+					showToast('El registro seleccionado no tiene OrdCompartida', 'info');
+					return;
+				}
+				verDetallesGrupoBalanceo(parseInt(ordCompartida));
+			});
+		}
 
 		// ===== Botón Restablecer (Columnas + Filtros) =====
 		const btnResetColumns = document.getElementById('btnResetColumns');
@@ -2298,8 +2253,14 @@
 				conCambioHilo: false,
 			};
 			dateRangeFilters = {
-				fechaInicio: { desde: null, hasta: null },
-				fechaFinal: { desde: null, hasta: null },
+				fechaInicio: {
+					desde: null,
+					hasta: null
+				},
+				fechaFinal: {
+					desde: null,
+					hasta: null
+				},
 			};
 			lastFilterState = null;
 
@@ -2391,7 +2352,10 @@
 					// Seleccionar la fila
 					selectRow(filaEncontrada, filaIndex);
 					// Hacer scroll hacia la fila
-					filaEncontrada.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					filaEncontrada.scrollIntoView({
+						behavior: 'smooth',
+						block: 'center'
+					});
 					// Resaltar brevemente la fila
 					filaEncontrada.classList.add('bg-yellow-100');
 					setTimeout(() => {
@@ -2573,9 +2537,9 @@
 			}
 			tb.appendChild(fragment);
 
-		// IMPORTANTE: Actualizar allRows después de manipular el DOM
-		allRows = Array.from(tb.querySelectorAll('.selectable-row'));
-		clearRowCache(); // Limpiar cache después de aplicar filtros
+			// IMPORTANTE: Actualizar allRows después de manipular el DOM
+			allRows = Array.from(tb.querySelectorAll('.selectable-row'));
+			clearRowCache(); // Limpiar cache después de aplicar filtros
 		} catch (e) {}
 	}
 
@@ -2689,7 +2653,10 @@
 			}
 		});
 	});
+
+	// Funcionalidad de balanceo importada desde componente separado
 </script>
+@include('modulos.programa-tejido.balancear')
 
 @include('components.ui.toast-notification')
 @endsection

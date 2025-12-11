@@ -995,12 +995,16 @@ class DuplicarTejido
      * @param float $horasNecesarias Horas de trabajo necesarias (HorasProd)
      * @return Carbon|null Fecha final calculada, o null si no hay fechas en el calendario
      */
-    private static function calcularFechaFinalDesdeInicio(
+    public static function calcularFechaFinalDesdeInicio(
         string $calendarioId,
         Carbon $fechaInicio,
         float $horasNecesarias
     ): ?Carbon {
         try {
+            // Si no se requieren horas, devolver inicio
+            if ($horasNecesarias <= 0) {
+                return $fechaInicio;
+            }
             // Obtener TODAS las líneas del calendario ordenadas por fecha
             // No limitar la consulta, necesitamos todas las líneas para calcular correctamente
             $lineasCalendario = ReqCalendarioLine::where('CalendarioId', $calendarioId)
@@ -1073,12 +1077,13 @@ class DuplicarTejido
                 // (esto salta los días de descanso entre líneas - EXTENDIENDO hacia adelante)
                 // IMPORTANTE: Esto extiende la fecha hacia adelante para compensar días de descanso
                 if ($fechaActual->lt($lineaInicio)) {
+                    $fechaAnterior = $fechaActual->copy();
                     $fechaActual = $lineaInicio->copy();
                     LogFacade::debug('calcularFechaFinalDesdeInicio: Saltando días de descanso', [
-                        'fecha_anterior' => $fechaActual->copy()->subDays(1)->format('Y-m-d H:i:s'),
+                        'fecha_anterior' => $fechaAnterior->format('Y-m-d H:i:s'),
                         'fecha_nueva' => $fechaActual->format('Y-m-d H:i:s'),
                         'linea_inicio' => $lineaInicio->format('Y-m-d H:i:s'),
-                        'dias_saltados' => $fechaActual->diffInDays($lineaInicio->copy()->subDays(1))
+                        'dias_saltados' => $fechaAnterior->diffInDays($fechaActual)
                     ]);
                 }
 
@@ -1191,8 +1196,8 @@ class DuplicarTejido
 
                     // Si la fecha actual está antes del inicio de esta línea, avanzar al inicio
                     // (esto salta los días de descanso entre líneas)
-                    if ($fechaActual->lt($lineaInicio)) {
-                        $fechaActual = $lineaInicio->copy();
+                if ($fechaActual->lt($lineaInicio)) {
+                    $fechaActual = $lineaInicio->copy();
                     }
 
                     // Si la fecha actual está después del fin de esta línea, saltar a la siguiente
@@ -1237,42 +1242,14 @@ class DuplicarTejido
                 // Si aún quedan horas después de buscar todas las líneas adicionales,
                 // extender día por día hasta alcanzar las horas restantes
                 if ($horasRestantes > 0.0001) {
-                    LogFacade::warning('calcularFechaFinalDesdeInicio: Aún quedan horas después de buscar líneas adicionales', [
+                    // Fallback: sumar horas de manera continua para no bloquear si no hay más líneas
+                    LogFacade::warning('calcularFechaFinalDesdeInicio: Aún quedan horas, se suma en continuo sin calendario', [
                         'calendario_id' => $calendarioId,
                         'horas_restantes' => $horasRestantes,
                         'fecha_actual' => $fechaActual->format('Y-m-d H:i:s')
                     ]);
-
-                    // Extender la fecha final día por día hasta alcanzar las horas restantes
-                    while ($horasRestantes > 0.0001) {
-                        $fechaActual->addDay();
-
-                        // Verificar si este día tiene líneas de calendario (es día de trabajo)
-                        $fechaDiaInicio = $fechaActual->copy()->startOfDay();
-                        $fechaDiaFin = $fechaActual->copy()->endOfDay();
-
-                        $lineasDelDia = ReqCalendarioLine::where('CalendarioId', $calendarioId)
-                            ->where(function($query) use ($fechaDiaInicio, $fechaDiaFin) {
-                                $query->where('FechaInicio', '<=', $fechaDiaFin)
-                                      ->where('FechaFin', '>=', $fechaDiaInicio);
-                            })
-                            ->get();
-
-                        // Si hay líneas en este día, restar las horas
-                        if ($lineasDelDia->isNotEmpty()) {
-                            $horasDelDia = 0;
-                            foreach ($lineasDelDia as $linea) {
-                                $horasDelDia += (float) ($linea->HorasTurno ?? 0);
-                            }
-                            $horasRestantes -= $horasDelDia;
-                        }
-                        // Si no hay líneas, es día de descanso y no se restan horas, pero se avanza el día
-
-                        // Límite de seguridad
-                        if ($fechaActual->diffInDays($fechaInicio) > 365) {
-                            break;
-                        }
-                    }
+                    $fechaActual = $fechaActual->copy()->addSeconds((int) round($horasRestantes * 3600));
+                    $horasRestantes = 0;
                 }
             }
 

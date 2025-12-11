@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\ProgramaTejido\funciones;
 
+use App\Models\ReqModelosCodificados;
 use App\Models\ReqProgramaTejido;
 use App\Http\Controllers\ProgramaTejido\helper\DateHelpers;
 use App\Observers\ReqProgramaTejidoObserver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-
+use Carbon\Carbon;
 class BalancearTejido
 {
     /**
@@ -28,6 +29,7 @@ class BalancearTejido
             $cambios = $request->input('cambios');
             $actualizados = 0;
             $registrosConFechaActualizada = [];
+            $registrosActualizados = [];
 
             // Desactivar observer temporalmente para evitar loops
             ReqProgramaTejido::unsetEventDispatcher();
@@ -60,6 +62,7 @@ class BalancearTejido
 
                     $registro->save();
                     $actualizados++;
+                    $registrosActualizados[] = $registro;
 
                     // Si cambió la fecha final, guardar para cascada posterior
                     if ($fechaFinalCambiada) {
@@ -81,6 +84,22 @@ class BalancearTejido
                         'registro_id' => $registroActualizado->Id,
                         'error' => $e->getMessage()
                     ]);
+                }
+            }
+
+            // Regenerar líneas diarias (ReqProgramaTejidoLine) para todos los registros actualizados.
+            // Esto asegura que, si se acortó la fecha final, también se eliminen las líneas sobrantes.
+            if (!empty($registrosActualizados)) {
+                $observer = new ReqProgramaTejidoObserver();
+                foreach ($registrosActualizados as $registroActualizado) {
+                    try {
+                        $observer->saved($registroActualizado);
+                    } catch (\Throwable $e) {
+                        Log::warning('BalancearTejido: Error al regenerar líneas', [
+                            'registro_id' => $registroActualizado->Id ?? null,
+                            'error' => $e->getMessage()
+                        ]);
+                    }
                 }
             }
 
@@ -123,7 +142,7 @@ class BalancearTejido
             $total = 0;
 
             if ($programa->TamanoClave) {
-                $modelo = \App\Models\ReqModelosCodificados::where('TamanoClave', $programa->TamanoClave)->first();
+                $modelo = ReqModelosCodificados::where('TamanoClave', $programa->TamanoClave)->first();
                 if ($modelo) {
                     $total = (float) ($modelo->Total ?? 0);
                     $noTiras = (float) ($modelo->NoTiras ?? 0);
@@ -132,8 +151,8 @@ class BalancearTejido
                 }
             }
 
-            $inicio = \Carbon\Carbon::parse($programa->FechaInicio);
-            $fin = \Carbon\Carbon::parse($programa->FechaFinal);
+            $inicio = Carbon::parse($programa->FechaInicio);
+            $fin = Carbon::parse($programa->FechaFinal);
             $diffSegundos = abs($fin->getTimestamp() - $inicio->getTimestamp());
             $diffDias = $diffSegundos / (60 * 60 * 24);
 

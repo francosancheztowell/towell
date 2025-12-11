@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Helpers\TurnoHelper;
+use App\Exports\MarcasFinalesExport;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class MarcasController extends Controller
 {
@@ -67,38 +70,50 @@ class MarcasController extends Controller
                 ], 401);
             }
 
-            // Validar que no exista otro folio "En Proceso"
-            $folioEnProceso = TejMarcas::where('Status', 'En Proceso')->first();
-            
-            if ($folioEnProceso) {
+            // Usar transacción con bloqueo para prevenir creación simultánea
+            return DB::transaction(function () use ($usuario) {
+                // Bloquear la tabla para lectura/escritura (lock pessimista)
+                // Esto garantiza que solo una solicitud pueda ejecutarse a la vez
+                $folioEnProceso = TejMarcas::where('Status', 'En Proceso')
+                    ->lockForUpdate()
+                    ->first();
+                
+                if ($folioEnProceso) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
+                        'folio_existente' => $folioEnProceso->Folio,
+                        'creado_por_otro' => true
+                    ], 400);
+                }
+
+                // Obtener el último folio con bloqueo
+                $ultimoFolio = TejMarcas::orderByDesc('Folio')
+                    ->lockForUpdate()
+                    ->value('Folio');
+
+                if ($ultimoFolio) {
+                    $soloDigitos = preg_replace('/\D/', '', $ultimoFolio);
+                    $numero = intval($soloDigitos) + 1;
+                    $nuevoFolio = 'FM' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+                } else {
+                    $nuevoFolio = 'FM0001';
+                }
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
-                    'folio_existente' => $folioEnProceso->Folio
-                ], 400);
-            }
-
-            $ultimoFolio = TejMarcas::orderByDesc('Folio')->value('Folio');
-
-            if ($ultimoFolio) {
-                $soloDigitos = preg_replace('/\D/', '', $ultimoFolio);
-                $numero = intval($soloDigitos) + 1;
-                $nuevoFolio = 'FM' . str_pad($numero, 4, '0', STR_PAD_LEFT);
-            } else {
-                $nuevoFolio = 'FM0001';
-            }
-
-            return response()->json([
-                'success' => true,
-                'folio' => $nuevoFolio,
-                'turno' => TurnoHelper::getTurnoActual(),
-                'usuario' => $usuario->nombre ?? 'Usuario',
-                'numero_empleado' => $usuario->numero_empleado ?? ''
-            ]);
+                    'success' => true,
+                    'folio' => $nuevoFolio,
+                    'turno' => TurnoHelper::getTurnoActual(),
+                    'usuario' => $usuario->nombre ?? 'Usuario',
+                    'numero_empleado' => $usuario->numero_empleado ?? ''
+                ]);
+            }, 5); // 5 intentos máximo si hay deadlock
+            
         } catch (\Exception $e) {
+            Log::error('Error al generar folio: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al generar folio'
+                'message' => 'Error al generar folio. Por favor, intente nuevamente.'
             ], 500);
         }
     }
@@ -298,41 +313,74 @@ class MarcasController extends Controller
     {
         return $this->store($request);
     }
-
-    public function finalizar($folio)
-    {
-        try {
-            if (!Auth::check()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Usuario no autenticado'
-                ], 401);
-            }
-
-            $marca = TejMarcas::find($folio);
-            if (!$marca) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Marca no encontrada'
-                ], 404);
-            }
-
-            $marca->update([
-                'Status' => 'Finalizado',
-                'updated_at' => now()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Marca finalizada correctamente'
-            ]);
-        } catch (\Exception $e) {
+public function finalizar($folio)
+{
+    try {
+        if (!Auth::check()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al finalizar marca'
-            ], 500);
+                'message' => 'Usuario no autenticado'
+            ], 401);
         }
+
+        $marca = TejMarcas::find($folio);
+        if (!$marca) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Marca no encontrada'
+            ], 404);
+        }
+
+        // Validar que todas las líneas tengan Marcas y Eficiencia > 0
+        $lineas = TejMarcasLine::where('Folio', $folio)->get();
+        
+        if ($lineas->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede finalizar un folio sin líneas capturadas'
+            ], 400);
+        }
+
+        $lineasConMarcasInvalidas = $lineas->filter(function($l) {
+            return is_null($l->Marcas) || $l->Marcas <= 0;
+        })->count();
+
+        $lineasConEficienciaInvalida = $lineas->filter(function($l) {
+            return is_null($l->Eficiencia) || $l->Eficiencia <= 0;
+        })->count();
+
+        if ($lineasConMarcasInvalidas > 0 || $lineasConEficienciaInvalida > 0) {
+            $errores = [];
+            if ($lineasConMarcasInvalidas > 0) {
+                $errores[] = "{$lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0";
+            }
+            if ($lineasConEficienciaInvalida > 0) {
+                $errores[] = "{$lineasConEficienciaInvalida} línea(s) con el campo % Efi vacío o en 0";
+            }
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede finalizar: ' . implode(', ', $errores)
+            ], 400);
+        }
+
+        $marca->update([
+            'Status' => 'Finalizado',
+            'updated_at' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Marca finalizada correctamente'
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error al finalizar marca: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al finalizar marca'
+        ], 500);
     }
+}
 
     public function visualizar($folio)
     {
@@ -405,45 +453,7 @@ class MarcasController extends Controller
 
             // Normalizar fecha básica (sin validaciones avanzadas)
             $fechaNorm = date('Y-m-d', strtotime($fecha));
-
-            // Obtener primer folio por turno para esa fecha (ordenado por Folio ASC para tomar el primero creado)
-            $foliosTurno = TejMarcas::where('Date', $fechaNorm)
-                ->orderBy('Turno')
-                ->orderBy('Folio')
-                ->get()
-                ->groupBy('Turno')
-                ->map(fn($grp) => $grp->first());
-
-            // Secuencia base de telares para orden y para mostrar aunque no tengan líneas
-            $secuencia = $this->obtenerSecuenciaTelares();
-            $telaresSecuencia = $secuencia->pluck('NoTelarId')->toArray();
-
-            $tablas = [];
-            foreach ([1,2,3] as $turno) {
-                $folioTurno = $foliosTurno->get($turno);
-                if (!$folioTurno) {
-                    // No existe folio para este turno; aún así construir tabla vacía
-                    $tablas[] = [
-                        'turno' => $turno,
-                        'folio' => null,
-                        'lineas' => collect([]),
-                        'telares' => $telaresSecuencia,
-                    ];
-                    continue;
-                }
-
-                $lineas = TejMarcasLine::where('Folio', $folioTurno->Folio)
-                    ->orderBy('NoTelarId')
-                    ->get()
-                    ->keyBy('NoTelarId');
-
-                $tablas[] = [
-                    'turno' => $turno,
-                    'folio' => $folioTurno->Folio,
-                    'lineas' => $lineas,
-                    'telares' => $telaresSecuencia,
-                ];
-            }
+            $tablas = $this->obtenerDatosReporte($fechaNorm);
 
             return view('modulos.marcas-finales.reporte-marcas', [
                 'fecha' => $fechaNorm,
@@ -452,6 +462,95 @@ class MarcasController extends Controller
         } catch (\Exception $e) {
             return redirect()->route('marcas.consultar')->with('error', 'Error al generar reporte: ' . $e->getMessage());
         }
+    }
+
+    public function exportarExcel(Request $request)
+    {
+        try {
+            $fecha = $request->input('fecha');
+            if (!$fecha) {
+                return response()->json(['error' => 'Fecha requerida'], 400);
+            }
+
+            $fechaNorm = str_replace('/', '-', $fecha);
+            $tablas = $this->obtenerDatosReporte($fechaNorm);
+
+            $filename = 'marcas_finales_' . $fechaNorm . '.xlsx';
+            
+            return Excel::download(new MarcasFinalesExport($tablas, $fechaNorm), $filename);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function descargarPDF(Request $request)
+    {
+        try {
+            $fecha = $request->input('fecha');
+            if (!$fecha) {
+                return response()->json(['error' => 'Fecha requerida'], 400);
+            }
+
+            $fechaNorm = str_replace('/', '-', $fecha);
+            $tablas = $this->obtenerDatosReporte($fechaNorm);
+            
+            // Indexar por turno para acceso directo
+            $porTurno = collect($tablas)->keyBy('turno');
+            
+            // Unificar lista de telares
+            $telares = collect([]);
+            foreach ($tablas as $t) {
+                $telares = $telares->merge($t['telares']);
+            }
+            $telares = $telares->unique()->sort()->values();
+
+            $pdf = Pdf::loadView('modulos.marcas-finales.reporte-marcas-pdf', [
+                'fecha' => $fechaNorm,
+                'tablas' => $tablas,
+                'telares' => $telares,
+                'porTurno' => $porTurno,
+            ])->setPaper('a4', 'landscape');
+
+            return $pdf->download('marcas_finales_' . $fechaNorm . '.pdf');
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al generar PDF: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function obtenerDatosReporte($fechaNorm)
+    {
+        $tablas = [];
+        $telaresSecuencia = $this->obtenerSecuenciaTelares()->pluck('NoTelarId');
+
+        foreach ([1, 2, 3] as $turno) {
+            $folioTurno = TejMarcas::where('Date', $fechaNorm)
+                ->where('Turno', $turno)
+                ->first();
+
+            if (!$folioTurno) {
+                $tablas[] = [
+                    'turno' => $turno,
+                    'folio' => null,
+                    'lineas' => collect(),
+                    'telares' => $telaresSecuencia,
+                ];
+                continue;
+            }
+
+            $lineas = TejMarcasLine::where('Folio', $folioTurno->Folio)
+                ->orderBy('NoTelarId')
+                ->get()
+                ->keyBy('NoTelarId');
+
+            $tablas[] = [
+                'turno' => $turno,
+                'folio' => $folioTurno->Folio,
+                'lineas' => $lineas,
+                'telares' => $telaresSecuencia,
+            ];
+        }
+
+        return $tablas;
     }
 
     private function obtenerSecuenciaTelares()
