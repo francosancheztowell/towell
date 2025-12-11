@@ -5,10 +5,10 @@
         // ==========================
         // Estado global / caches
         // ==========================
-        let adjustingPedidos = false;
-        let adjustingFromTotal = false;
-        let lastEditedInput = null;
-        let totalDisponibleBalanceo = null;
+	let adjustingPedidos = false;
+	let adjustingFromTotal = false;
+	let lastEditedInput = null;
+	let totalDisponibleBalanceo = null;
 
         let gruposDataCache = {};       // ordCompartida => registros
         let lineasCache = {};           // programaId => líneas originales
@@ -18,20 +18,20 @@
         // Helpers generales
         // ==========================
 
-        function formatearFecha(fecha) {
-            if (!fecha) return '-';
-            try {
-                const d = new Date(fecha);
+	function formatearFecha(fecha) {
+		if (!fecha) return '-';
+		try {
+			const d = new Date(fecha);
                 if (d.getFullYear() <= 1970 || isNaN(d.getTime())) return '-';
-                return d.toLocaleDateString('es-MX', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                });
-            } catch (e) {
-                return '-';
-            }
-        }
+			return d.toLocaleDateString('es-MX', {
+				day: '2-digit',
+				month: '2-digit',
+				year: 'numeric'
+			});
+		} catch (e) {
+			return '-';
+		}
+	}
 
         function parseNumber(val) {
             if (val === null || val === undefined) return 0;
@@ -69,15 +69,15 @@
                 { headers: { Accept: 'application/json' } }
             );
 
-            const data = await resp.json();
+		const data = await resp.json();
 
-            if (data?.success && Array.isArray(data.registros)) {
-                gruposDataCache[ordCompartida] = data.registros;
-                return data.registros;
-            }
+		if (data?.success && Array.isArray(data.registros)) {
+			gruposDataCache[ordCompartida] = data.registros;
+			return data.registros;
+		}
 
-            throw new Error(data?.message || 'No se pudieron obtener los registros');
-        }
+		throw new Error(data?.message || 'No se pudieron obtener los registros');
+	}
 
         async function fetchLineasPrograma(programaId) {
             if (lineasCache[programaId]) {
@@ -270,8 +270,8 @@
                 cont.innerHTML =
                     '<div class="p-3 text-sm text-gray-500">Sin datos para mostrar.</div>';
                 if (wrapper) wrapper.style.height = '180px';
-                return;
-            }
+				return;
+			}
 
             // Altura dinámica según número de registros
             if (wrapper) {
@@ -323,6 +323,38 @@
 
             html += `</div>`;
             cont.innerHTML = html;
+
+            // Auto-scroll a la fecha actual si existe; si no, al último día (con clamp)
+            if (wrapper) {
+                requestAnimationFrame(() => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    // Buscar índice de la fecha más cercana a hoy
+                    let targetIndex = dates.findIndex(
+                        d => d.getTime() >= today.getTime()
+                    );
+                    if (targetIndex === -1) {
+                        targetIndex = dates.length - 1; // último día
+                    }
+
+                    const headers = cont.querySelectorAll('.gantt-header');
+                    // headers[0] es la celda vacía de etiquetas; los días empiezan en 1
+                    const targetHeader = headers[targetIndex + 1];
+                    if (targetHeader) {
+                        const targetLeft =
+                            targetHeader.offsetLeft +
+                            targetHeader.offsetWidth / 2 -
+                            wrapper.clientWidth / 2;
+                        const maxScroll =
+                            Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+                        wrapper.scrollLeft = Math.min(
+                            Math.max(0, targetLeft),
+                            maxScroll
+                        );
+                    }
+                });
+            }
         }
 
         async function renderGanttOrd(registros) {
@@ -438,31 +470,31 @@
         // ==========================
 
         window.calcularTotalesYFechas = function (changedInput = null) {
-            if (adjustingPedidos) return;
-            lastEditedInput = changedInput || lastEditedInput;
+		if (adjustingPedidos) return;
+		lastEditedInput = changedInput || lastEditedInput;
 
-            const inputs = Array.from(document.querySelectorAll('.pedido-input'));
-            let totalPedido = 0;
-            let totalSaldo = 0;
+		const inputs = Array.from(document.querySelectorAll('.pedido-input'));
+		let totalPedido = 0;
+		let totalSaldo = 0;
 
-            inputs.forEach(input => {
+		inputs.forEach(input => {
                 // Redondear si meten decimales
-                if (input.value && input.value.includes('.')) {
-                    input.value = Math.round(Number(input.value) || 0);
-                }
+			if (input.value && input.value.includes('.')) {
+				input.value = Math.round(Number(input.value) || 0);
+			}
 
-                const pedido = Math.round(Number(input.value) || 0);
-                const pedidoOriginal = Number(input.dataset.original) || 0;
-                const fechaInicioMs = Number(input.dataset.fechaInicio) || 0;
+			const pedido = Math.round(Number(input.value) || 0);
+			const pedidoOriginal = Number(input.dataset.original) || 0;
+			const fechaInicioMs = Number(input.dataset.fechaInicio) || 0;
                 const duracionOriginalMs =
                     Number(input.dataset.duracionOriginal) || 0;
                 const stdDia = Number(input.dataset.stdDia) || 0;
 
-                const row = input.closest('tr');
-                const saldoCell = row.querySelector('.saldo-display');
-                const fechaFinalCell = row.querySelector('.fecha-final-display');
+			const row = input.closest('tr');
+			const saldoCell = row.querySelector('.saldo-display');
+			const fechaFinalCell = row.querySelector('.fecha-final-display');
 
-                const produccion = Number(saldoCell.dataset.produccion) || 0;
+			const produccion = Number(saldoCell.dataset.produccion) || 0;
 
                 // saldo original de BD (por referencia)
                 const saldoOriginalBD =
@@ -470,13 +502,13 @@
                     Math.max(0, pedidoOriginal - produccion);
 
                 // saldo NUEVO
-                const saldo = pedido - produccion;
+			const saldo = pedido - produccion;
 
-                totalPedido += pedido;
-                totalSaldo += saldo;
+			totalPedido += pedido;
+			totalSaldo += saldo;
 
                 // actualizar saldo visual
-                saldoCell.textContent = saldo.toLocaleString('es-MX');
+			saldoCell.textContent = saldo.toLocaleString('es-MX');
                 saldoCell.className =
                     'px-3 py-2 text-sm text-right saldo-display ' +
                     (saldo > 0 ? 'text-green-600 font-medium' : 'text-gray-500');
@@ -507,7 +539,7 @@
                         fechaFinalCell.textContent = formatearFecha(
                             nuevaFechaFinal.toISOString()
                         );
-                        input.dataset.fechaFinalCalculada = nuevaFechaFinalMs;
+				input.dataset.fechaFinalCalculada = nuevaFechaFinalMs;
 
                         // comparar contra fecha fin original (solo para resaltar)
                         const fechaFinOriginalMs =
@@ -524,18 +556,18 @@
                                 'text-blue-600',
                                 'font-medium'
                             );
-                        } else {
+				} else {
                             fechaFinalCell.classList.remove(
                                 'text-blue-600',
                                 'font-medium'
                             );
                         }
-                    }
-                }
-            });
+				}
+			}
+		});
 
             // Ajuste automático para que la suma de pedidos se mantenga
-            if (!adjustingFromTotal) {
+		if (!adjustingFromTotal) {
                 const totalDisponibleEl =
                     document.getElementById('total-disponible');
                 const totalDisponible = totalDisponibleEl
@@ -546,31 +578,31 @@
                           0
                       );
 
-                if (totalDisponible > 0 && inputs.length > 1) {
-                    const diff = totalDisponible - totalPedido;
+			if (totalDisponible > 0 && inputs.length > 1) {
+				const diff = totalDisponible - totalPedido;
 
-                    if (Math.abs(diff) > 0.0001) {
+				if (Math.abs(diff) > 0.0001) {
                         const targets = inputs.filter(
                             inp => inp !== lastEditedInput
                         );
-                        const target = targets[0] || inputs[0];
-                        const valActual = Number(target.value) || 0;
-                        let nuevoValor = Math.round(valActual + diff);
+					const target = targets[0] || inputs[0];
+					const valActual = Number(target.value) || 0;
+					let nuevoValor = Math.round(valActual + diff);
 
                         if (nuevoValor < 0) nuevoValor = 0;
 
-                        adjustingPedidos = true;
-                        target.value = nuevoValor;
-                        adjustingPedidos = false;
+					adjustingPedidos = true;
+					target.value = nuevoValor;
+					adjustingPedidos = false;
 
                         return window.calcularTotalesYFechas(target);
-                    }
-                }
-            }
+				}
+			}
+		}
 
             // Totales
-            const totalPedidoInput = document.getElementById('total-pedido-input');
-            const totalSaldoEl = document.getElementById('total-saldo');
+		const totalPedidoInput = document.getElementById('total-pedido-input');
+		const totalSaldoEl = document.getElementById('total-saldo');
 
             if (
                 totalPedidoInput &&
@@ -578,107 +610,107 @@
                 !adjustingFromTotal &&
                 document.activeElement !== totalPedidoInput
             ) {
-                totalPedidoInput.value = totalPedido;
-            }
+			totalPedidoInput.value = totalPedido;
+		}
 
             if (totalSaldoEl) {
                 totalSaldoEl.textContent = totalSaldo.toLocaleString('es-MX');
             }
 
-            const totalDisponibleEl = document.getElementById('total-disponible');
-            if (totalDisponibleEl) {
-                totalDisponibleEl.textContent = totalPedido;
-                if (totalDisponibleBalanceo !== null) {
-                    totalDisponibleBalanceo = totalPedido;
-                }
-            }
+		const totalDisponibleEl = document.getElementById('total-disponible');
+		if (totalDisponibleEl) {
+			totalDisponibleEl.textContent = totalPedido;
+			if (totalDisponibleBalanceo !== null) {
+				totalDisponibleBalanceo = totalPedido;
+			}
+		}
 
             // actualizar vista previa del gantt
             updateGanttPreview();
-        };
+	};
 
         window.actualizarPedidosDesdeTotal = function (totalInput) {
-            if (adjustingPedidos || adjustingFromTotal) return;
+		if (adjustingPedidos || adjustingFromTotal) return;
 
-            if (totalInput.value && totalInput.value.includes('.')) {
-                totalInput.value = Math.round(Number(totalInput.value) || 0);
-            }
+		if (totalInput.value && totalInput.value.includes('.')) {
+			totalInput.value = Math.round(Number(totalInput.value) || 0);
+		}
 
-            const nuevoTotal = Math.round(Number(totalInput.value) || 0);
-            const inputs = Array.from(document.querySelectorAll('.pedido-input'));
-            if (inputs.length === 0) return;
+		const nuevoTotal = Math.round(Number(totalInput.value) || 0);
+		const inputs = Array.from(document.querySelectorAll('.pedido-input'));
+		if (inputs.length === 0) return;
 
-            let totalActual = 0;
-            inputs.forEach(input => {
-                totalActual += Number(input.value) || 0;
-            });
+		let totalActual = 0;
+		inputs.forEach(input => {
+			totalActual += Number(input.value) || 0;
+		});
 
-            const diferencia = nuevoTotal - totalActual;
+		const diferencia = nuevoTotal - totalActual;
             if (Math.abs(diferencia) < 0.0001) return;
 
-            adjustingFromTotal = true;
+		adjustingFromTotal = true;
 
-            if (inputs.length === 1) {
-                const input = inputs[0];
-                const valorActual = Number(input.value) || 0;
-                input.value = Math.round(Math.max(0, valorActual + diferencia));
+		if (inputs.length === 1) {
+			const input = inputs[0];
+			const valorActual = Number(input.value) || 0;
+			input.value = Math.round(Math.max(0, valorActual + diferencia));
                 window.calcularTotalesYFechas(input);
-            } else {
-                let diferenciaRestante = diferencia;
+		} else {
+			let diferenciaRestante = diferencia;
 
-                inputs.forEach((input, index) => {
-                    const valorActual = Number(input.value) || 0;
+			inputs.forEach((input, index) => {
+				const valorActual = Number(input.value) || 0;
                     const proporcion =
                         totalActual > 0
                             ? valorActual / totalActual
                             : 1 / inputs.length;
-                    const diferenciaInput = diferencia * proporcion;
+				const diferenciaInput = diferencia * proporcion;
 
-                    if (index === inputs.length - 1) {
+				if (index === inputs.length - 1) {
                         input.value = Math.round(
                             Math.max(0, valorActual + diferenciaRestante)
                         );
-                    } else {
+				} else {
                         const nuevoValor = Math.round(
                             Math.max(0, valorActual + diferenciaInput)
                         );
-                        input.value = nuevoValor;
-                        diferenciaRestante -= diferenciaInput;
-                    }
-                });
+					input.value = nuevoValor;
+					diferenciaRestante -= diferenciaInput;
+				}
+			});
 
                 window.calcularTotalesYFechas();
                 updateGanttPreview();
-            }
+		}
 
-            adjustingFromTotal = false;
-        };
+		adjustingFromTotal = false;
+	};
 
         // ==========================
         // Balanceo automático
         // ==========================
 
         window.aplicarBalanceoAutomatico = function () {
-            const inputs = document.querySelectorAll('.pedido-input');
+		const inputs = document.querySelectorAll('.pedido-input');
 
-            if (inputs.length < 2) {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'No se puede balancear',
-                    text: 'Se necesitan al menos 2 telares para balancear.',
-                    confirmButtonColor: '#3b82f6'
-                });
-                return;
-            }
+		if (inputs.length < 2) {
+			Swal.fire({
+				icon: 'info',
+				title: 'No se puede balancear',
+				text: 'Se necesitan al menos 2 telares para balancear.',
+				confirmButtonColor: '#3b82f6'
+			});
+			return;
+		}
 
-            const telares = [];
+		const telares = [];
 
-            inputs.forEach(input => {
-                const pedidoOriginal = Number(input.dataset.original) || 0;
-                const fechaInicioMs = Number(input.dataset.fechaInicio) || 0;
+		inputs.forEach(input => {
+			const pedidoOriginal = Number(input.dataset.original) || 0;
+			const fechaInicioMs = Number(input.dataset.fechaInicio) || 0;
                 const duracionOriginalMs =
                     Number(input.dataset.duracionOriginal) || 0;
-                const row = input.closest('tr');
+			const row = input.closest('tr');
                 const saldoCell = row.querySelector('.saldo-display');
                 const produccion =
                     Number(saldoCell?.dataset.produccion || 0) || 0;
@@ -687,16 +719,16 @@
                     Math.max(0, pedidoOriginal - produccion);
 
                 // tasa basada en saldo original / duración
-                let tasaProduccion = 0;
+			let tasaProduccion = 0;
                 if (duracionOriginalMs > 0 && saldoOriginalBD > 0) {
                     tasaProduccion = saldoOriginalBD / duracionOriginalMs;
-                }
+			}
 
-                telares.push({
+			telares.push({
                     input,
                     row,
                     pedidoOriginal,
-                    cantidad: Number(input.value) || 0,
+				cantidad: Number(input.value) || 0,
                     fechaInicioMs,
                     duracionOriginalMs,
                     tasaProduccion,
@@ -708,38 +740,38 @@
                 t => t.tasaProduccion > 0 && t.fechaInicioMs > 0
             );
 
-            if (telaresValidos.length < 2) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Datos insuficientes',
-                    text: 'No hay suficientes telares con datos válidos para balancear.',
-                    confirmButtonColor: '#3b82f6'
-                });
-                return;
-            }
+		if (telaresValidos.length < 2) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Datos insuficientes',
+				text: 'No hay suficientes telares con datos válidos para balancear.',
+				confirmButtonColor: '#3b82f6'
+			});
+			return;
+		}
 
-            function calcularFechaFinal(telar) {
+		function calcularFechaFinal(telar) {
                 if (telar.tasaProduccion <= 0 || telar.cantidad <= 0)
                     return telar.fechaInicioMs;
-                const duracionMs = telar.cantidad / telar.tasaProduccion;
-                return telar.fechaInicioMs + duracionMs;
-            }
+			const duracionMs = telar.cantidad / telar.tasaProduccion;
+			return telar.fechaInicioMs + duracionMs;
+		}
 
-            const maxIteraciones = 1000;
-            const toleranciaDias = 0.5;
-            const cantidadMinima = 100;
-            let iteracion = 0;
+		const maxIteraciones = 1000;
+		const toleranciaDias = 0.5;
+		const cantidadMinima = 100;
+		let iteracion = 0;
 
-            while (iteracion < maxIteraciones) {
-                telaresValidos.forEach(t => {
-                    t.fechaFinalMs = calcularFechaFinal(t);
-                });
+		while (iteracion < maxIteraciones) {
+			telaresValidos.forEach(t => {
+				t.fechaFinalMs = calcularFechaFinal(t);
+			});
 
-                let telarTarde = telaresValidos[0];
-                let telarTemprano = telaresValidos[0];
+			let telarTarde = telaresValidos[0];
+			let telarTemprano = telaresValidos[0];
 
-                telaresValidos.forEach(t => {
-                    if (t.fechaFinalMs > telarTarde.fechaFinalMs) telarTarde = t;
+			telaresValidos.forEach(t => {
+				if (t.fechaFinalMs > telarTarde.fechaFinalMs) telarTarde = t;
                     if (t.fechaFinalMs < telarTemprano.fechaFinalMs)
                         telarTemprano = t;
                 });
@@ -755,23 +787,23 @@
                     telarTarde.tasaProduccion * tiempoAMoverMs
                 );
 
-                const maxPuedeQuitar = telarTarde.cantidad - cantidadMinima;
-                if (cantidadAMover > maxPuedeQuitar) {
-                    cantidadAMover = Math.max(0, maxPuedeQuitar);
-                }
+			const maxPuedeQuitar = telarTarde.cantidad - cantidadMinima;
+			if (cantidadAMover > maxPuedeQuitar) {
+				cantidadAMover = Math.max(0, maxPuedeQuitar);
+			}
 
                 if (cantidadAMover <= 0) break;
 
-                telarTarde.cantidad -= cantidadAMover;
-                telarTemprano.cantidad += cantidadAMover;
+			telarTarde.cantidad -= cantidadAMover;
+			telarTemprano.cantidad += cantidadAMover;
 
-                iteracion++;
-            }
+			iteracion++;
+		}
 
-            telaresValidos.forEach(telar => {
-                telar.input.value = Math.round(telar.cantidad);
-                telar.input.classList.add('bg-green-50', 'border-green-500');
-            });
+		telaresValidos.forEach(telar => {
+			telar.input.value = Math.round(telar.cantidad);
+			telar.input.classList.add('bg-green-50', 'border-green-500');
+		});
 
             window.calcularTotalesYFechas();
         };
@@ -780,62 +812,62 @@
         // Guardar cambios
         // ==========================
 
-        async function guardarCambiosPedido(ordCompartida) {
-            const inputs = document.querySelectorAll('.pedido-input');
-            const cambios = [];
+	async function guardarCambiosPedido(ordCompartida) {
+		const inputs = document.querySelectorAll('.pedido-input');
+		const cambios = [];
 
-            inputs.forEach(input => {
-                const id = input.dataset.id;
-                const valorOriginal = Number(input.dataset.original) || 0;
-                const valorNuevo = Number(input.value) || 0;
+		inputs.forEach(input => {
+			const id = input.dataset.id;
+			const valorOriginal = Number(input.dataset.original) || 0;
+			const valorNuevo = Number(input.value) || 0;
                 const fechaFinalCalculadaMs =
                     Number(input.dataset.fechaFinalCalculada) || 0;
 
-                if (valorOriginal !== valorNuevo) {
-                    const cambio = {
+			if (valorOriginal !== valorNuevo) {
+				const cambio = {
                         id,
-                        total_pedido: valorNuevo
-                    };
+					total_pedido: valorNuevo
+				};
 
-                    if (fechaFinalCalculadaMs > 0) {
-                        const fechaFinal = new Date(fechaFinalCalculadaMs);
+				if (fechaFinalCalculadaMs > 0) {
+					const fechaFinal = new Date(fechaFinalCalculadaMs);
                         cambio.fecha_final = fechaFinal
                             .toISOString()
                             .slice(0, 19)
                             .replace('T', ' ');
-                    }
+				}
 
-                    cambios.push(cambio);
-                }
-            });
+				cambios.push(cambio);
+			}
+		});
 
-            if (cambios.length === 0) {
-                Swal.showValidationMessage('No hay cambios para guardar');
-                return false;
-            }
+		if (cambios.length === 0) {
+			Swal.showValidationMessage('No hay cambios para guardar');
+			return false;
+		}
 
-            try {
+		try {
                 const response = await fetch(
                     '/planeacion/programa-tejido/actualizar-pedidos-balanceo',
                     {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
                             'X-CSRF-TOKEN':
                                 document.querySelector(
                                     'meta[name="csrf-token"]'
                                 ).content
-                        },
-                        body: JSON.stringify({
+				},
+				body: JSON.stringify({
                             cambios,
-                            ord_compartida: ordCompartida
-                        })
+					ord_compartida: ordCompartida
+				})
                     }
                 );
 
-                const data = await response.json();
+			const data = await response.json();
 
-                if (data.success) {
+			if (data.success) {
                     try {
                         // Refrescar cache y Gantt con datos reales regenerados por el observer
                         lineasCache = {};
@@ -848,35 +880,35 @@
                         // si falla el refresco, no bloquear el guardado
                     }
 
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Guardado',
+				Swal.fire({
+					icon: 'success',
+					title: 'Guardado',
                         text:
                             data.message ||
                             'Los cambios se guardaron correctamente',
-                        confirmButtonColor: '#3b82f6',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
+					confirmButtonColor: '#3b82f6',
+					timer: 2000,
+					showConfirmButton: false
+				});
 
                     setTimeout(() => {
                         window.location.reload();
                     }, 600);
 
-                    return true;
-                }
+				return true;
+			}
 
                 Swal.showValidationMessage(
                     data.message || 'Error al guardar los cambios'
                 );
                 return false;
-            } catch (error) {
+		} catch (error) {
                 Swal.showValidationMessage(
                     'Error de conexión al guardar los cambios'
                 );
-                return false;
-            }
-        }
+			return false;
+		}
+	}
 
         // ==========================
         // Expuestos globales
@@ -1184,4 +1216,4 @@
             }
         };
     })();
-    </script>
+</script>

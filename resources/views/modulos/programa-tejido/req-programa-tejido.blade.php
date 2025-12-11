@@ -754,6 +754,8 @@
 
 			updateRowWithResponse(row, data.data || {}, field, normalizedValue);
 			showToast('Registro actualizado correctamente', 'success');
+			// Recargar para asegurar datos frescos (fechas y fórmulas recalculadas)
+			setTimeout(() => window.location.reload(), 400);
 		} catch (error) {
 			showToast(error.message || 'Error al actualizar el registro', 'error');
 			const cell = input.closest('td');
