@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\Auth;
 use App\Helpers\TurnoHelper;
 use App\Exports\MarcasFinalesExport;
 use Maatwebsite\Excel\Facades\Excel;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use Illuminate\Support\Facades\Http;
 
 class MarcasController extends Controller
 {
@@ -491,7 +493,8 @@ public function finalizar($folio)
                 return response()->json(['error' => 'Fecha requerida'], 400);
             }
 
-            $fechaNorm = str_replace('/', '-', $fecha);
+            // Normalizar fecha (acepta yyyy-mm-dd o formatos parseables por strtotime)
+            $fechaNorm = date('Y-m-d', strtotime(str_replace('/', '-', $fecha)));
             $tablas = $this->obtenerDatosReporte($fechaNorm);
             
             // Indexar por turno para acceso directo
@@ -504,16 +507,107 @@ public function finalizar($folio)
             }
             $telares = $telares->unique()->sort()->values();
 
-            $pdf = Pdf::loadView('modulos.marcas-finales.reporte-marcas-pdf', [
-                'fecha' => $fechaNorm,
-                'tablas' => $tablas,
+            $html = view('modulos.marcas-finales.reporte-marcas-pdf', [
+                'fecha'   => $fechaNorm,
+                'tablas'  => $tablas,
                 'telares' => $telares,
-                'porTurno' => $porTurno,
-            ])->setPaper('a4', 'landscape');
+                'porTurno'=> $porTurno,
+            ])->render();
 
-            return $pdf->download('marcas_finales_' . $fechaNorm . '.pdf');
+            $options = new Options();
+            $options->set('isHtml5ParserEnabled', true);
+            $options->set('isRemoteEnabled', true);
+            $options->set('defaultFont', 'Arial');
+            $options->set('isPhpEnabled', false);
+            $options->set('chroot', public_path());
+            $options->set('tempDir', sys_get_temp_dir());
+
+            $dompdf = new Dompdf($options);
+            $dompdf->loadHtml($html, 'UTF-8');
+            $dompdf->setPaper('a4', 'landscape');
+            $dompdf->render();
+
+            $filename = 'marcas_finales_' . $fechaNorm . '.pdf';
+
+            $pdfContent = $dompdf->output();
+
+            // Enviar el PDF a Telegram (no bloquea la descarga si falla)
+            $this->enviarReporteMarcasPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
+
+            return response($pdfContent, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
         } catch (\Exception $e) {
+            Log::error('Error al generar PDF de marcas finales', [
+                'error' => $e->getMessage(),
+            ]);
             return response()->json(['error' => 'Error al generar PDF: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Enviar el PDF del reporte de marcas finales a Telegram.
+     */
+    private function enviarReporteMarcasPdfTelegram(string $pdfContent, string $filename, string $fecha, $usuario = null): void
+    {
+        try {
+            $botToken = config('services.telegram.bot_token');
+            $chatId = config('services.telegram.chat_id');
+
+            if (empty($botToken) || empty($chatId)) {
+                Log::warning('No se pudo enviar PDF a Telegram: credenciales no configuradas');
+                return;
+            }
+
+            $nombreUsuario = $usuario->nombre ?? $usuario->name ?? null;
+            $numeroEmpleado = $usuario->numero_empleado ?? null;
+
+            $caption = "Reporte Marcas Finales\n";
+            $caption .= "Fecha: {$fecha}\n";
+            if (!empty($nombreUsuario)) {
+                $caption .= "Generado por: {$nombreUsuario}";
+                if (!empty($numeroEmpleado)) {
+                    $caption .= " ({$numeroEmpleado})";
+                }
+            }
+
+            $url = "https://api.telegram.org/bot{$botToken}/sendDocument";
+            $response = Http::timeout(20)
+                ->attach('document', $pdfContent, $filename)
+                ->post($url, [
+                    'chat_id' => $chatId,
+                    'caption' => $caption,
+                ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                if ($data['ok'] ?? false) {
+                    Log::info('PDF de marcas finales enviado a Telegram', [
+                        'fecha' => $fecha,
+                        'chat_id' => $chatId,
+                        'filename' => $filename,
+                    ]);
+                } else {
+                    Log::error('Telegram respondió con ok=false al enviar PDF', [
+                        'response' => $data,
+                        'fecha' => $fecha,
+                        'filename' => $filename,
+                    ]);
+                }
+            } else {
+                Log::error('Error HTTP al enviar PDF a Telegram', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'fecha' => $fecha,
+                    'filename' => $filename,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Excepción al enviar PDF de marcas finales a Telegram', [
+                'error' => $e->getMessage(),
+                'fecha' => $fecha,
+                'filename' => $filename,
+            ]);
         }
     }
 
