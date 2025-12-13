@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\Auth;
 use App\Helpers\TurnoHelper;
 use App\Exports\MarcasFinalesExport;
 use Maatwebsite\Excel\Facades\Excel;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class MarcasController extends Controller
 {
@@ -491,7 +492,8 @@ public function finalizar($folio)
                 return response()->json(['error' => 'Fecha requerida'], 400);
             }
 
-            $fechaNorm = str_replace('/', '-', $fecha);
+            // Normalizar fecha (acepta yyyy-mm-dd o formatos parseables por strtotime)
+            $fechaNorm = date('Y-m-d', strtotime(str_replace('/', '-', $fecha)));
             $tablas = $this->obtenerDatosReporte($fechaNorm);
             
             // Indexar por turno para acceso directo
@@ -504,15 +506,35 @@ public function finalizar($folio)
             }
             $telares = $telares->unique()->sort()->values();
 
-            $pdf = Pdf::loadView('modulos.marcas-finales.reporte-marcas-pdf', [
-                'fecha' => $fechaNorm,
-                'tablas' => $tablas,
+            $html = view('modulos.marcas-finales.reporte-marcas-pdf', [
+                'fecha'   => $fechaNorm,
+                'tablas'  => $tablas,
                 'telares' => $telares,
-                'porTurno' => $porTurno,
-            ])->setPaper('a4', 'landscape');
+                'porTurno'=> $porTurno,
+            ])->render();
 
-            return $pdf->download('marcas_finales_' . $fechaNorm . '.pdf');
+            $options = new Options();
+            $options->set('isHtml5ParserEnabled', true);
+            $options->set('isRemoteEnabled', true);
+            $options->set('defaultFont', 'Arial');
+            $options->set('isPhpEnabled', false);
+            $options->set('chroot', public_path());
+            $options->set('tempDir', sys_get_temp_dir());
+
+            $dompdf = new Dompdf($options);
+            $dompdf->loadHtml($html, 'UTF-8');
+            $dompdf->setPaper('a4', 'landscape');
+            $dompdf->render();
+
+            $filename = 'marcas_finales_' . $fechaNorm . '.pdf';
+
+            return response($dompdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
         } catch (\Exception $e) {
+            Log::error('Error al generar PDF de marcas finales', [
+                'error' => $e->getMessage(),
+            ]);
             return response()->json(['error' => 'Error al generar PDF: ' . $e->getMessage()], 500);
         }
     }

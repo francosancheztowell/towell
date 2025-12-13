@@ -137,27 +137,46 @@ function exportarExcel() {
     document.body.removeChild(form);
 }
 
-function descargarPDF() {
+async function descargarPDF() {
     const fecha = '{{ $fecha }}';
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '{{ route("marcas.reporte.pdf") }}';
-    
-    const csrfToken = document.createElement('input');
-    csrfToken.type = 'hidden';
-    csrfToken.name = '_token';
-    csrfToken.value = '{{ csrf_token() }}';
-    
-    const fechaInput = document.createElement('input');
-    fechaInput.type = 'hidden';
-    fechaInput.name = 'fecha';
-    fechaInput.value = fecha;
-    
-    form.appendChild(csrfToken);
-    form.appendChild(fechaInput);
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+    const url = '{{ route("marcas.reporte.pdf") }}';
+    const token = '{{ csrf_token() }}';
+
+    try {
+        const body = new URLSearchParams({ fecha });
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-CSRF-TOKEN': token,
+                'Accept': 'application/pdf'
+            },
+            body
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('Error al descargar PDF:', response.status, text);
+            alert('No se pudo generar el PDF. Revisa la consola para más detalle.');
+            return;
+        }
+
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `marcas_finales_${String(fecha).replaceAll('/', '-')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        window.URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+        console.error('Excepción al descargar PDF:', e);
+        alert('Ocurrió un error al intentar descargar el PDF.');
+    }
 }
 </script>
 @endsection
