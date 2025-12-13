@@ -79,7 +79,7 @@ class MarcasController extends Controller
                 $folioEnProceso = TejMarcas::where('Status', 'En Proceso')
                     ->lockForUpdate()
                     ->first();
-                
+
                 if ($folioEnProceso) {
                     return response()->json([
                         'success' => false,
@@ -110,7 +110,7 @@ class MarcasController extends Controller
                     'numero_empleado' => $usuario->numero_empleado ?? ''
                 ]);
             }, 5); // 5 intentos máximo si hay deadlock
-            
+
         } catch (\Exception $e) {
             Log::error('Error al generar folio: ' . $e->getMessage());
             return response()->json([
@@ -237,7 +237,7 @@ class MarcasController extends Controller
 
                     // Prioridad: valor capturado (PorcentajeEfi) si viene, si no STD convertido, si no 0
                     $efiPercent = isset($linea['PorcentajeEfi']) ? (int)$linea['PorcentajeEfi'] : $stdEfiPercent;
-                    
+
                     // Asegurar rango 0-100
                     if ($efiPercent < 0) $efiPercent = 0;
                     if ($efiPercent > 100) $efiPercent = 100;
@@ -335,7 +335,7 @@ public function finalizar($folio)
 
         // Validar que todas las líneas tengan Marcas y Eficiencia > 0
         $lineas = TejMarcasLine::where('Folio', $folio)->get();
-        
+
         if ($lineas->isEmpty()) {
             return response()->json([
                 'success' => false,
@@ -359,7 +359,7 @@ public function finalizar($folio)
             if ($lineasConEficienciaInvalida > 0) {
                 $errores[] = "{$lineasConEficienciaInvalida} línea(s) con el campo % Efi vacío o en 0";
             }
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se puede finalizar: ' . implode(', ', $errores)
@@ -478,7 +478,7 @@ public function finalizar($folio)
             $tablas = $this->obtenerDatosReporte($fechaNorm);
 
             $filename = 'marcas_finales_' . $fechaNorm . '.xlsx';
-            
+
             return Excel::download(new MarcasFinalesExport($tablas, $fechaNorm), $filename);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
@@ -496,10 +496,10 @@ public function finalizar($folio)
             // Normalizar fecha (acepta yyyy-mm-dd o formatos parseables por strtotime)
             $fechaNorm = date('Y-m-d', strtotime(str_replace('/', '-', $fecha)));
             $tablas = $this->obtenerDatosReporte($fechaNorm);
-            
+
             // Indexar por turno para acceso directo
             $porTurno = collect($tablas)->keyBy('turno');
-            
+
             // Unificar lista de telares
             $telares = collect([]);
             foreach ($tablas as $t) {
@@ -531,8 +531,30 @@ public function finalizar($folio)
 
             $pdfContent = $dompdf->output();
 
+            // Validar que el PDF se generó correctamente
+            if (empty($pdfContent)) {
+                Log::error('PDF generado está vacío', ['fecha' => $fechaNorm]);
+                return response()->json(['error' => 'Error: PDF generado está vacío'], 500);
+            }
+
+            $pdfSizeKB = strlen($pdfContent) / 1024;
+            Log::info('PDF generado exitosamente', [
+                'fecha' => $fechaNorm,
+                'size_kb' => round($pdfSizeKB, 2),
+                'filename' => $filename,
+            ]);
+
             // Enviar el PDF a Telegram (no bloquea la descarga si falla)
-            $this->enviarReporteMarcasPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
+            // Hacer esto en background para no afectar la descarga del usuario
+            try {
+                $this->enviarReporteMarcasPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
+            } catch (\Throwable $e) {
+                Log::error('Error al enviar PDF a Telegram (no bloquea descarga)', [
+                    'error' => $e->getMessage(),
+                    'fecha' => $fechaNorm,
+                ]);
+                // No lanzamos la excepción para que el usuario pueda descargar el PDF
+            }
 
             return response($pdfContent, 200)
                 ->header('Content-Type', 'application/pdf')
@@ -559,6 +581,26 @@ public function finalizar($folio)
                 return;
             }
 
+            // Validar que el PDF content no esté vacío
+            if (empty($pdfContent)) {
+                Log::warning('No se pudo enviar PDF a Telegram: contenido vacío', [
+                    'fecha' => $fecha,
+                    'filename' => $filename,
+                ]);
+                return;
+            }
+
+            // Verificar tamaño del archivo (Telegram tiene límite de 50MB)
+            $pdfSizeMB = strlen($pdfContent) / 1024 / 1024;
+            if ($pdfSizeMB > 50) {
+                Log::warning('PDF demasiado grande para enviar a Telegram', [
+                    'fecha' => $fecha,
+                    'filename' => $filename,
+                    'size_mb' => round($pdfSizeMB, 2),
+                ]);
+                return;
+            }
+
             $nombreUsuario = $usuario->nombre ?? $usuario->name ?? null;
             $numeroEmpleado = $usuario->numero_empleado ?? null;
 
@@ -572,7 +614,16 @@ public function finalizar($folio)
             }
 
             $url = "https://api.telegram.org/bot{$botToken}/sendDocument";
-            $response = Http::timeout(20)
+
+            // Log de envío (para debugging)
+            Log::info('Intentando enviar PDF a Telegram', [
+                'fecha' => $fecha,
+                'filename' => $filename,
+                'size_kb' => round(strlen($pdfContent) / 1024, 2),
+                'chat_id' => $chatId,
+            ]);
+
+            $response = Http::timeout(30) // Aumentar timeout a 30 segundos
                 ->attach('document', $pdfContent, $filename)
                 ->post($url, [
                     'chat_id' => $chatId,
@@ -582,16 +633,19 @@ public function finalizar($folio)
             if ($response->successful()) {
                 $data = $response->json();
                 if ($data['ok'] ?? false) {
-                    Log::info('PDF de marcas finales enviado a Telegram', [
+                    Log::info('PDF de marcas finales enviado exitosamente a Telegram', [
                         'fecha' => $fecha,
                         'chat_id' => $chatId,
                         'filename' => $filename,
+                        'message_id' => $data['result']['message_id'] ?? null,
                     ]);
                 } else {
                     Log::error('Telegram respondió con ok=false al enviar PDF', [
                         'response' => $data,
                         'fecha' => $fecha,
                         'filename' => $filename,
+                        'error_code' => $data['error_code'] ?? null,
+                        'description' => $data['description'] ?? null,
                     ]);
                 }
             } else {
@@ -600,11 +654,13 @@ public function finalizar($folio)
                     'body' => $response->body(),
                     'fecha' => $fecha,
                     'filename' => $filename,
+                    'headers' => $response->headers(),
                 ]);
             }
         } catch (\Throwable $e) {
             Log::error('Excepción al enviar PDF de marcas finales a Telegram', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
                 'fecha' => $fecha,
                 'filename' => $filename,
             ]);
