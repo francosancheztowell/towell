@@ -12,6 +12,7 @@ use App\Http\Controllers\ProgramaTejido\funciones\DragAndDropTejido;
 use App\Http\Controllers\ProgramaTejido\funciones\EditTejido;
 use App\Http\Controllers\ProgramaTejido\funciones\DuplicarTejido;
 use App\Http\Controllers\ProgramaTejido\funciones\DividirTejido;
+use App\Http\Controllers\ProgramaTejido\funciones\VincularTejido;
 use App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\ProgramaTejido\funciones\UpdateTejido;
 use App\Http\Controllers\ProgramaTejido\helper\UpdateHelpers;
@@ -1187,6 +1188,14 @@ class ProgramaTejidoController extends Controller
     public function dividirSaldo(Request $request)
     {
         return DividirTejido::dividir($request);
+    }
+
+    /**
+     * Vincular tejidos nuevos desde cero con un OrdCompartida
+     */
+    public function vincularTelar(Request $request)
+    {
+        return VincularTejido::vincular($request);
     }
 
     /**

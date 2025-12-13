@@ -1430,7 +1430,7 @@
 		e.preventDefault();
 
 		if (!draggedRow) {
-			console.error('❌ handleDrop: draggedRow es null');
+			console.error(' handleDrop: draggedRow es null');
 			showToast('Error: No se encontró el registro arrastrado', 'error');
 			return false;
 		}
