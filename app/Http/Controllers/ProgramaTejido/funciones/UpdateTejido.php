@@ -54,6 +54,7 @@ class UpdateTejido
             'pedido' => ['nullable','numeric','min:0'],         // Pedido (TotalPedido)
             'programar_prod' => ['nullable','date'],            // Dia Scheduling
             'idflog' => ['nullable','string'],                  // Id Flog
+            'descripcion' => ['nullable','string'],             // NombreProyecto / descripción
             'aplicacion_id' => ['nullable','string'],           // Aplicaciones
             'no_tiras' => ['nullable','numeric'],               // Tiras
             'peine' => ['nullable','numeric'],                  // Pei
@@ -130,6 +131,11 @@ class UpdateTejido
 
         // 7) Id Flog (FlogsId) y TipoPedido
         UpdateHelpers::applyFlogYTipoPedido($registro, $data['idflog'] ?? null);
+
+        // 7b) Descripción / NombreProyecto
+        if (array_key_exists('descripcion', $data)) {
+            $registro->NombreProyecto = $data['descripcion'] ?: null;
+        }
 
         // 8) Aplicaciones (AplicacionId)
         if (array_key_exists('aplicacion_id', $data)) {

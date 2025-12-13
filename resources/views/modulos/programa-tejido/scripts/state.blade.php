@@ -112,6 +112,7 @@ const createDateTimeFieldConfig = () => ({
 // - Pedido (TotalPedido)
 // - Dia Scheduling (ProgramarProd)
 // - Id Flog (FlogsId)
+// - Descripción (NombreProyecto)
 // - Aplicaciones (AplicacionId) - SELECT con catálogo
 // - Tiras (NoTiras)
 // - Pei (Peine)
@@ -130,6 +131,7 @@ const inlineEditableFields = {
 	TotalPedido: { type: 'number', step: '0.01', min: 0 },
 	ProgramarProd: createDateFieldConfig(),
 	FlogsId: { type: 'text', maxLength: 20 },
+	NombreProyecto: { type: 'text', maxLength: 150 },
 	AplicacionId: { type: 'select', catalog: 'aplicaciones' }, // Select con catálogo de aplicaciones
 	NoTiras: { type: 'number', step: '1', min: 0 },
 	Peine: { type: 'number', step: '1', min: 0 },
@@ -158,6 +160,7 @@ const inlineFieldPayloadMap = {
 	TotalPedido: 'pedido',
 	ProgramarProd: 'programar_prod',
 	FlogsId: 'idflog',
+	NombreProyecto: 'descripcion',
 	AplicacionId: 'aplicacion_id',
 	NoTiras: 'no_tiras',
 	Peine: 'peine',

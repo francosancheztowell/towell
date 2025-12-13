@@ -535,7 +535,7 @@
                     }
 
                     if (nuevaFechaFinalMs) {
-                        const nuevaFechaFinal = new Date(nuevaFechaFinalMs);
+				const nuevaFechaFinal = new Date(nuevaFechaFinalMs);
                         fechaFinalCell.textContent = formatearFecha(
                             nuevaFechaFinal.toISOString()
                         );
@@ -733,8 +733,8 @@
                     duracionOriginalMs,
                     tasaProduccion,
                     produccion
-                });
-            });
+			});
+		});
 
             const telaresValidos = telares.filter(
                 t => t.tasaProduccion > 0 && t.fechaInicioMs > 0
@@ -774,7 +774,7 @@
 				if (t.fechaFinalMs > telarTarde.fechaFinalMs) telarTarde = t;
                     if (t.fechaFinalMs < telarTemprano.fechaFinalMs)
                         telarTemprano = t;
-                });
+			});
 
                 const diferenciaDias =
                     (telarTarde.fechaFinalMs - telarTemprano.fechaFinalMs) /
