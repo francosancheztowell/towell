@@ -28,6 +28,15 @@
       hoverBg="hover:bg-blue-100" />
 
     <x-navbar.button-report
+        id="btn-visualizar"
+        title="Visualizar"
+        module="Marcas Finales"
+        :disabled="true"
+        icon="fa-eye"
+        iconColor="text-gray-700"
+        hoverBg="hover:bg-gray-100" />
+
+    <x-navbar.button-report
       id="btn-finalizar"
       title="Finalizar"
       module="Marcas Finales"
@@ -379,12 +388,13 @@
         }
 
         actualizarBotones() {
-            const isFinalizado = this.state.status === 'Finalizado';
             const hayFolioSeleccionado = this.state.folio !== null;
+            const isEnProceso = this.state.status === 'En Proceso';
 
             if (this.dom.btns.nuevo) this.dom.btns.nuevo.disabled = false;
-            if (this.dom.btns.editar) this.dom.btns.editar.disabled = !hayFolioSeleccionado || isFinalizado;
-            if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = !hayFolioSeleccionado || isFinalizado;
+            // Editar y Finalizar solo cuando está "En Proceso"
+            if (this.dom.btns.editar) this.dom.btns.editar.disabled = !hayFolioSeleccionado || !isEnProceso;
+            if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = !hayFolioSeleccionado || !isEnProceso;
             if (this.dom.btns.visualizar) this.dom.btns.visualizar.disabled = !hayFolioSeleccionado; // visualizar siempre disponible si hay folio
         }
 
@@ -437,6 +447,14 @@
                 });
                 return;
             }
+            if (this.state.status !== 'En Proceso') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Edición no disponible',
+                    text: 'Solo puedes editar folios con estado "En Proceso".'
+                });
+                return;
+            }
             window.location.href = CONFIG.urls.editar + this.state.folio;
         }
 
@@ -458,6 +476,14 @@
                     icon: 'warning',
                     title: 'Sin selección',
                     text: 'Selecciona un folio para finalizar'
+                });
+                return;
+            }
+            if (this.state.status !== 'En Proceso') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'No se puede finalizar',
+                    text: 'Solo puedes finalizar folios con estado "En Proceso".'
                 });
                 return;
             }
@@ -551,42 +577,14 @@
             return n <= 0;
         };
 
-        // Validar campos Marcas y Eficiencia
-        let lineasConMarcasInvalidas = 0;
+        // Validar solo campo Eficiencia
         let lineasConEficienciaInvalida = 0;
         
         for (const l of lineas) {
-            if (esVacioOCero(l.Marcas)) lineasConMarcasInvalidas++;
             if (esVacioOCero(l.Eficiencia)) lineasConEficienciaInvalida++;
         }
 
-        // Mostrar errores específicos
-        if (lineasConMarcasInvalidas > 0 && lineasConEficienciaInvalida > 0) {
-            await Swal.fire({
-                icon: 'warning',
-                title: 'No se puede finalizar',
-                html: `
-                    <p>Se encontraron los siguientes problemas:</p>
-                    <ul class="text-left mt-2">
-                        <li>• ${lineasConMarcasInvalidas} línea(s) con el campo <strong>Marcas</strong> vacío o en 0</li>
-                        <li>• ${lineasConEficienciaInvalida} línea(s) con el campo <strong>% Efi</strong> vacío o en 0</li>
-                    </ul>
-                `,
-                confirmButtonText: 'Entendido'
-            });
-            return false;
-        }
-
-        if (lineasConMarcasInvalidas > 0) {
-            await Swal.fire({
-                icon: 'warning',
-                title: 'No se puede finalizar',
-                text: `Hay ${lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0.`,
-                confirmButtonText: 'Entendido'
-            });
-            return false;
-        }
-
+        // Mostrar error si hay eficiencias inválidas
         if (lineasConEficienciaInvalida > 0) {
             await Swal.fire({
                 icon: 'warning',

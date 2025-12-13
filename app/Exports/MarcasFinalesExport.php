@@ -7,12 +7,18 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use Carbon\Carbon;
+use App\Models\TejMarcas;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 
-class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, WithColumnWidths, WithTitle
+class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, WithColumnWidths, WithTitle, WithEvents, WithColumnFormatting
 {
     protected $tablas;
     protected $fecha;
@@ -26,62 +32,89 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
     public function collection()
     {
         $data = collect([]);
-        
+
         // Indexar por turno para acceso directo
         $porTurno = collect($this->tablas)->keyBy('turno');
-        
-        // Unificar lista de telares
-        $telares = collect([]);
-        foreach ($this->tablas as $t) {
-            $telares = $telares->merge($t['telares']);
-        }
-        $telares = $telares->unique()->sort()->values();
 
-        $get = function($turno, $telar) use ($porTurno) {
-            return optional(optional($porTurno->get($turno))['lineas'])->get($telar);
-        };
+        // Mapa Telar -> Salón (si viene en la secuencia)
+        $salonPorTelar = collect($this->tablas)
+            ->flatMap(function ($t) {
+                return collect($t['telares'])->mapWithKeys(function ($obj) {
+                    // los elementos de 'telares' pueden ser enteros o stdClass {NoTelarId, SalonId}
+                    if (is_object($obj) && isset($obj->NoTelarId)) {
+                        return [$obj->NoTelarId => ($obj->SalonId ?? null)];
+                    }
+                    return [$obj => null];
+                });
+            });
 
-        $fmtEfi = function($linea) {
-            if (!$linea) return '';
-            $e = $linea->Eficiencia ?? $linea->EficienciaSTD ?? $linea->EficienciaStd ?? null;
-            if ($e === null || $e === '') return '';
-            if (is_numeric($e) && $e <= 1) $e = $e * 100;
-            return intval(round($e)) . '%';
-        };
+        // Orden: Turno 1, 2, 3; dentro de cada turno, telar en el orden provisto
+        foreach ([1, 2, 3] as $turno) {
+            $tabla = $porTurno->get($turno);
+            if (!$tabla) continue;
 
-        $val = function($l, $c) {
-            return $l ? ($l->$c ?? '') : '';
-        };
+            $folio = $tabla['folio'];
+            $infoFolio = [
+                'Status' => '',
+                'numero_empleado' => '',
+                'nombreEmpl' => ''
+            ];
+            if ($folio) {
+                $m = TejMarcas::find($folio);
+                if ($m) {
+                    $infoFolio['Status'] = $m->Status ?? '';
+                    $infoFolio['numero_empleado'] = $m->numero_empleado ?? '';
+                    $infoFolio['nombreEmpl'] = $m->nombreEmpl ?? '';
+                }
+            }
 
-        foreach ($telares as $telar) {
-            $t1 = $get(1, $telar);
-            $t2 = $get(2, $telar);
-            $t3 = $get(3, $telar);
+            // Lista de telares en el orden recibido
+            $telares = collect($tabla['telares'])->map(function ($obj) {
+                return is_object($obj) && isset($obj->NoTelarId) ? $obj->NoTelarId : $obj;
+            })->values();
 
-            $data->push([
-                'telar' => $telar,
-                // Turno 1
-                't1_eficiencia' => $fmtEfi($t1),
-                't1_marcas' => $val($t1, 'Marcas'),
-                't1_trama' => $val($t1, 'Trama'),
-                't1_pie' => $val($t1, 'Pie'),
-                't1_rizo' => $val($t1, 'Rizo'),
-                't1_otros' => $val($t1, 'Otros'),
-                // Turno 2
-                't2_eficiencia' => $fmtEfi($t2),
-                't2_marcas' => $val($t2, 'Marcas'),
-                't2_trama' => $val($t2, 'Trama'),
-                't2_pie' => $val($t2, 'Pie'),
-                't2_rizo' => $val($t2, 'Rizo'),
-                't2_otros' => $val($t2, 'Otros'),
-                // Turno 3
-                't3_eficiencia' => $fmtEfi($t3),
-                't3_marcas' => $val($t3, 'Marcas'),
-                't3_trama' => $val($t3, 'Trama'),
-                't3_pie' => $val($t3, 'Pie'),
-                't3_rizo' => $val($t3, 'Rizo'),
-                't3_otros' => $val($t3, 'Otros'),
-            ]);
+            foreach ($telares as $telar) {
+                $linea = optional($tabla['lineas'])->get($telar);
+
+                // Fecha: usar la de la línea o la recibida en el constructor
+                $fecha = null;
+                try {
+                    if ($linea && $linea->Date) {
+                        $fecha = Carbon::parse($linea->Date);
+                    } else {
+                        $fecha = Carbon::parse($this->fecha);
+                    }
+                } catch (\Throwable $th) {
+                    $fecha = null;
+                }
+
+                // Eficiencia como entero (0-100)
+                $ef = null;
+                if ($linea) {
+                    $e = $linea->Eficiencia ?? $linea->EficienciaSTD ?? $linea->EficienciaStd ?? null;
+                    if ($e !== null && $e !== '') {
+                        if (is_numeric($e) && $e <= 1) $e = $e * 100; // si viene 0-1
+                        $ef = intval(round($e));
+                    }
+                }
+
+                $data->push([
+                    'Folio' => $folio ?? '',
+                    'Fecha' => $fecha, // Carbon para poder darle formato de fecha
+                    'Turno' => $turno,
+                    'Cve Empleado' => $infoFolio['numero_empleado'],
+                    'Nombre Empleado' => $infoFolio['nombreEmpl'],
+                    'Status' => $infoFolio['Status'],
+                    'Telar' => $telar,
+                    'Salon' => $salonPorTelar->get($telar) ?? ($linea->SalonTejidoId ?? ''),
+                    'Eficiencia' => $ef,
+                    'Marcas' => $linea->Marcas ?? null,
+                    'Trama' => $linea->Trama ?? null,
+                    'Pie' => $linea->Pie ?? null,
+                    'Rizo' => $linea->Rizo ?? null,
+                    'Otros' => $linea->Otros ?? null,
+                ]);
+            }
         }
 
         return $data;
@@ -90,33 +123,26 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
     public function headings(): array
     {
         return [
+            'Folio',
+            'Fecha',
+            'Turno',
+            'Cve Empleado',
+            'Nombre Empleado',
+            'Status',
             'Telar',
-            // Turno 1
-            '% Ef T1',
-            'Marcas T1',
-            'TRAMA T1',
-            'PIE T1',
-            'RIZO T1',
-            'OTROS T1',
-            // Turno 2
-            '% Ef T2',
-            'Marcas T2',
-            'TRAMA T2',
-            'PIE T2',
-            'RIZO T2',
-            'OTROS T2',
-            // Turno 3
-            '% Ef T3',
-            'Marcas T3',
-            'TRAMA T3',
-            'PIE T3',
-            'RIZO T3',
-            'OTROS T3',
+            'Salon',
+            'Eficiencia',
+            'Marcas',
+            'Trama',
+            'Pie',
+            'Rizo',
+            'Otros',
         ];
     }
 
     public function styles(Worksheet $sheet)
     {
+        // Encabezado: azul con letras blancas y centrado
         return [
             1 => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
@@ -135,15 +161,63 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
     public function columnWidths(): array
     {
         return [
-            'A' => 10,
-            'B' => 10, 'C' => 12, 'D' => 12, 'E' => 10, 'F' => 10, 'G' => 12,
-            'H' => 10, 'I' => 12, 'J' => 12, 'K' => 10, 'L' => 10, 'M' => 12,
-            'N' => 10, 'O' => 12, 'P' => 12, 'Q' => 10, 'R' => 10, 'S' => 12,
+            'A' => 12, // Folio
+            'B' => 12, // Fecha
+            'C' => 8,  // Turno
+            'D' => 14, // Cve Empleado
+            'E' => 22, // Nombre
+            'F' => 14, // Status
+            'G' => 10, // Telar
+            'H' => 10, // Salon
+            'I' => 12, // Eficiencia
+            'J' => 10, // Marcas
+            'K' => 10, // Trama
+            'L' => 8,  // Pie
+            'M' => 8,  // Rizo
+            'N' => 10, // Otros
         ];
     }
 
     public function title(): string
     {
-        return 'Marcas Finales ' . $this->fecha;
+        // Nombre de la hoja: Reporte Marcas finales "fecha"
+        try {
+            $f = Carbon::parse($this->fecha)->format('d/m/Y');
+        } catch (\Throwable $th) {
+            $f = (string) $this->fecha;
+        }
+        return 'Reporte Marcas finales ' . $f;
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                $highestRow = $sheet->getHighestRow();
+                $highestColumn = $sheet->getHighestColumn();
+                $range = 'A1:' . $highestColumn . $highestRow;
+
+                // Bordes negros para toda la tabla
+                $sheet->getStyle($range)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('000000'));
+
+                // Altura del encabezado
+                $sheet->getRowDimension(1)->setRowHeight(20);
+            }
+        ];
+    }
+
+    public function columnFormats(): array
+    {
+        return [
+            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY, // Fecha
+            'C' => NumberFormat::FORMAT_NUMBER,        // Turno
+            'I' => NumberFormat::FORMAT_NUMBER,        // Eficiencia (entero)
+            'J' => NumberFormat::FORMAT_NUMBER,
+            'K' => NumberFormat::FORMAT_NUMBER,
+            'L' => NumberFormat::FORMAT_NUMBER,
+            'M' => NumberFormat::FORMAT_NUMBER,
+            'N' => NumberFormat::FORMAT_NUMBER,
+        ];
     }
 }

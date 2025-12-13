@@ -5,6 +5,19 @@
 let registrosOrdCompartidaExistentes = [];
 let ordCompartidaActual = null;
 
+// Función global para obtener el modo actual (para compatibilidad con radio buttons)
+function getModoActual() {
+	if (document.getElementById('modo-duplicar')?.checked) return 'duplicar';
+	if (document.getElementById('modo-dividir')?.checked) return 'dividir';
+	return 'duplicar'; // por defecto
+}
+
+// Función para verificar si el checkbox de vincular está activo
+function estaVincularActivado() {
+	const checkbox = document.getElementById('checkbox-vincular');
+	return checkbox && checkbox.checked;
+}
+
 // ===== Función para duplicar y dividir telar =====
 async function duplicarTelar(row) {
 	const telar = getRowTelar(row);
@@ -80,14 +93,19 @@ async function duplicarTelar(row) {
 
 	const datos = resultado.value;
 
-	// Determinar endpoint según el modo
+	// Determinar endpoint según el modo y si el checkbox de vincular está activo
+	const usarVincular = datos.vincular === true && datos.modo === 'duplicar';
 	const endpoint = datos.modo === 'dividir'
 		? '/planeacion/programa-tejido/dividir-saldo'
-		: '/planeacion/programa-tejido/duplicar-telar';
+		: usarVincular
+			? '/planeacion/programa-tejido/vincular-telar'
+			: '/planeacion/programa-tejido/duplicar-telar';
 
 	const mensajeExito = datos.modo === 'dividir'
 		? 'Registro dividido correctamente'
-		: 'Telar duplicado correctamente';
+		: usarVincular
+			? 'Registro vinculado correctamente'
+			: 'Telar duplicado correctamente';
 
 	// Enviar al backend
 	showLoading();
@@ -324,8 +342,11 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 			<input type="hidden" id="swal-inventsizeid" value="">
 
 			<!-- Switch Dividir/Duplicar (pill reactivo: Duplicar azul, Dividir verde) -->
-			<div class="my-4 flex justify-center">
-				<!-- checkbox oculto solo para estado lógico -->
+			<div class="my-4 flex items-center justify-center gap-4">
+				<!-- radio buttons ocultos para estado lógico de los 2 modos -->
+				<input type="radio" id="modo-duplicar" name="modo-switch" class="hidden" checked>
+				<input type="radio" id="modo-dividir" name="modo-switch" class="hidden">
+				<!-- checkbox manteniendo compatibilidad con lógica existente -->
 				<input type="checkbox" id="switch-modo" class="hidden" checked>
 
 				<div class="inline-flex items-center rounded-full px-1 py-1 text-xs font-medium shadow-sm gap-1">
@@ -341,6 +362,14 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 						class="px-4 py-1 rounded-full transition-all duration-200 bg-white text-gray-700 shadow-sm opacity-80">
 						Dividir
 					</button>
+				</div>
+
+				<!-- Checkbox Vincular (solo visible en modo Duplicar) -->
+				<div id="checkbox-vincular-container" class="flex items-center gap-2">
+					<input type="checkbox" id="checkbox-vincular" class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
+					<label for="checkbox-vincular" class="text-sm text-gray-700 cursor-pointer">
+						Vincular
+					</label>
 				</div>
 
 				<div id="modo-descripcion" class="hidden">
@@ -434,7 +463,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const firstPedidoInput = tbody.querySelector('input[name="pedido-destino[]"]');
 
 	function recomputeState() {
-		const esDuplicar = switchModo?.checked ?? true;
+		const modoActual = getModoActual();
+		const esDuplicar = modoActual === 'duplicar';
 		const telarInputs = document.querySelectorAll('[name="telar-destino[]"]'); // select o input
 		const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
 
@@ -895,10 +925,12 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			}
 		}
 
+		// Siempre empezar en modo Duplicar (el usuario puede cambiar manualmente a Dividir si lo desea)
+		document.getElementById('modo-duplicar').checked = true;
+		switchModo.checked = true;
+
 		// Aplicar estilo inicial del switch (después de que los telares estén cargados)
-		if (switchModo) {
-			actualizarEstiloSwitch();
-		}
+		actualizarEstiloSwitch();
 		recomputeState();
 	});
 
@@ -963,7 +995,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 	// Evento para añadir nuevas filas de telar/pedido
 	btnAdd.addEventListener('click', () => {
-		const esDuplicar = switchModo?.checked ?? true;
+		const modoActual = getModoActual();
+		const esDuplicar = modoActual === 'duplicar';
 
 		if (!esDuplicar) {
 			// Modo dividir: usar la función especializada
@@ -1016,6 +1049,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const pillDividir = document.getElementById('pill-dividir');
 	const descDuplicar = document.getElementById('desc-duplicar');
 	const descDividir = document.getElementById('desc-dividir');
+	const checkboxVincular = document.getElementById('checkbox-vincular');
+	const checkboxVincularContainer = document.getElementById('checkbox-vincular-container');
 	const thTelar = document.getElementById('th-telar');
 	const thPedido = document.getElementById('th-pedido');
 	const telarOriginal = document.getElementById('telar-original')?.value || telarActual;
@@ -1383,74 +1418,95 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	}
 
 	function actualizarEstiloSwitch() {
-		const esDuplicar = switchModo.checked;
+		const modoActual = getModoActual();
+		const vincularActivado = checkboxVincular && checkboxVincular.checked;
 
-		if (esDuplicar) {
-			// Activo: Duplicar (azul), Dividir en modo "apagado" (blanco/gris)
-			if (pillDuplicar && pillDividir) {
-				// Duplicar → azul
+		// Resetear todos los botones a estado inactivo
+		[pillDuplicar, pillDividir].forEach(pill => {
+			if (pill) {
+				pill.classList.add('bg-white', 'text-gray-700', 'opacity-80', 'shadow-sm');
+				pill.classList.remove('bg-blue-500', 'bg-green-500', 'text-white', 'opacity-100', 'shadow-md');
+			}
+		});
+
+		// Ocultar todas las descripciones
+		[descDuplicar, descDividir].forEach(desc => {
+			if (desc) desc.classList.add('hidden');
+		});
+
+		// Mostrar/ocultar checkbox de vincular según el modo
+		if (checkboxVincularContainer) {
+			checkboxVincularContainer.style.display = modoActual === 'duplicar' ? 'flex' : 'none';
+		}
+
+		if (modoActual === 'duplicar') {
+			// Activo: Duplicar (azul)
+			if (pillDuplicar) {
 				pillDuplicar.classList.add('bg-blue-500', 'text-white', 'opacity-100', 'shadow-md');
 				pillDuplicar.classList.remove('bg-white', 'text-gray-700', 'opacity-80', 'shadow-sm');
-
-				// Dividir → blanco/gris
-				pillDividir.classList.add('bg-white', 'text-gray-700', 'opacity-80', 'shadow-sm');
-				pillDividir.classList.remove('bg-green-500', 'text-white', 'opacity-100', 'shadow-md');
 			}
-			descDuplicar.classList.remove('hidden');
-			descDividir.classList.add('hidden');
+			if (descDuplicar) descDuplicar.classList.remove('hidden');
 
-			// Botón confirmar azul
+			// Botón confirmar: azul si no está vinculando, morado si está vinculando
 			if (confirmButton) {
-				confirmButton.textContent = 'Duplicar';
-				confirmButton.classList.remove('bg-green-500', 'hover:bg-green-600');
-				confirmButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+				if (vincularActivado) {
+					confirmButton.textContent = 'Vincular';
+					confirmButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-green-500', 'hover:bg-green-600');
+					confirmButton.classList.add('bg-purple-500', 'hover:bg-purple-600');
+				} else {
+					confirmButton.textContent = 'Duplicar';
+					confirmButton.classList.remove('bg-green-500', 'hover:bg-green-600', 'bg-purple-500', 'hover:bg-purple-600');
+					confirmButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+				}
 			}
-		} else {
-			// Activo: Dividir (verde), Duplicar en modo "apagado" (blanco/gris)
-			if (pillDuplicar && pillDividir) {
-				// Dividir → verde
+		} else if (modoActual === 'dividir') {
+			// Activo: Dividir (verde)
+			if (pillDividir) {
 				pillDividir.classList.add('bg-green-500', 'text-white', 'opacity-100', 'shadow-md');
 				pillDividir.classList.remove('bg-white', 'text-gray-700', 'opacity-80', 'shadow-sm');
-
-				// Duplicar → blanco/gris
-				pillDuplicar.classList.add('bg-white', 'text-gray-700', 'opacity-80', 'shadow-sm');
-				pillDuplicar.classList.remove('bg-blue-500', 'text-white', 'opacity-100', 'shadow-md');
 			}
-			descDividir.classList.remove('hidden');
-			descDuplicar.classList.add('hidden');
+			if (descDividir) descDividir.classList.remove('hidden');
 
 			// Botón confirmar verde
 			if (confirmButton) {
 				confirmButton.textContent = 'Dividir';
-				confirmButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+				confirmButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-purple-500', 'hover:bg-purple-600');
 				confirmButton.classList.add('bg-green-500', 'hover:bg-green-600');
 			}
 		}
 
 		// Reconstruir la tabla según el modo
-		reconstruirTablaSegunModo(esDuplicar);
+		reconstruirTablaSegunModo(modoActual === 'duplicar');
 	}
 
-	if (switchModo) {
-		// Click en Duplicar
-		if (pillDuplicar) {
-			pillDuplicar.addEventListener('click', () => {
-				switchModo.checked = true;
-				actualizarEstiloSwitch();
-			});
-		}
-
-		// Click en Dividir
-		if (pillDividir) {
-			pillDividir.addEventListener('click', () => {
-				switchModo.checked = false;
-				actualizarEstiloSwitch();
-			});
-		}
-
-		// Estado inicial (no reconstruir aún, se hará después de cargar datos)
-		// actualizarEstiloSwitch();
+	// Event listeners para los botones del switch
+	if (pillDuplicar) {
+		pillDuplicar.addEventListener('click', () => {
+			document.getElementById('modo-duplicar').checked = true;
+			switchModo.checked = true; // mantener compatibilidad
+			actualizarEstiloSwitch();
+		});
 	}
+
+	if (pillDividir) {
+		pillDividir.addEventListener('click', () => {
+			document.getElementById('modo-dividir').checked = true;
+			switchModo.checked = false; // mantener compatibilidad
+			actualizarEstiloSwitch();
+		});
+	}
+
+	// Event listener para el checkbox de vincular
+	if (checkboxVincular) {
+		// Asegurar que el checkbox esté desactivado por defecto
+		checkboxVincular.checked = false;
+		checkboxVincular.addEventListener('change', () => {
+			actualizarEstiloSwitch();
+		});
+	}
+
+	// Estado inicial: actualizar estilos y mostrar/ocultar checkbox según el modo
+	actualizarEstiloSwitch();
 
 	// Evaluar estado inicial (por si ya vienen valores prellenados)
 	recomputeState();
@@ -1466,16 +1522,19 @@ function validarYCapturarDatosDuplicar() {
 	const flog = document.getElementById('swal-flog').value;
 	const salon = document.getElementById('swal-salon').value;
 	const aplicacion = document.getElementById('swal-aplicacion').value;
-	// Modo: duplicar (true) o dividir (false)
-	const switchModo = document.getElementById('switch-modo');
-	const modo = switchModo?.checked ? 'duplicar' : 'dividir';
+	// Modo: duplicar o dividir
+	const modo = getModoActual();
+	// Verificar si el checkbox de vincular está activo
+	const vincular = estaVincularActivado();
 	// Datos adicionales del codificado (no mostrados en el modal)
 	const descripcion = document.getElementById('swal-descripcion')?.value || '';
 	const custname = document.getElementById('swal-custname')?.value || '';
 	const inventSizeId = document.getElementById('swal-inventsizeid')?.value || '';
 
 	// OrdCompartida existente (si el registro ya fue dividido antes)
-	const ordCompartidaExistente = document.getElementById('ord-compartida-original')?.value || '';
+	// IMPORTANTE: Si el checkbox de vincular está activo, siempre debe ser null para crear uno nuevo
+	const ordCompartidaExistenteRaw = document.getElementById('ord-compartida-original')?.value || '';
+	const ordCompartidaExistente = vincular ? null : (ordCompartidaExistenteRaw || null);
 	const registroIdOriginal = document.getElementById('registro-id-original')?.value || '';
 
 	// Capturar múltiples filas de telar/pedido
@@ -1506,7 +1565,7 @@ function validarYCapturarDatosDuplicar() {
 
 	return {
 		codArticulo, claveModelo, producto, hilo, pedido, flog, salon, aplicacion,
-		modo, descripcion, custname, inventSizeId, destinos,
+		modo, vincular, descripcion, custname, inventSizeId, destinos,
 		ord_compartida_existente: ordCompartidaExistente,
 		registro_id_original: registroIdOriginal
 	};

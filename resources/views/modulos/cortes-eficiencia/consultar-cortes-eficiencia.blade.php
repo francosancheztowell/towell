@@ -36,7 +36,7 @@
       hoverBg="hover:bg-orange-100"
       />
 
-    <x-navbar.button-report
+    {{-- <x-navbar.button-report
       id="btn-pdf"
       title="PDF"
       module="Cortes de Eficiencia"
@@ -44,7 +44,7 @@
       icon="fa-file-pdf"
       iconColor="text-red-600"
       hoverBg="hover:bg-red-100"
-      />
+      /> --}}
 
     <x-navbar.button-report
       id="btn-fechas"
