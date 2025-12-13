@@ -36,7 +36,7 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
 
             // Extraer datos de la fila directamente
             $salon = $this->parseString($this->getValue($row, ['Salon', 'salon', 'SalonTejidoId', 'salontejidoid']), 20);
-            $telar = $this->parseString($this->getValue($row, ['NoTelar', 'No Telar', 'notelar', 'Telar']), 10);
+            $telar = $this->parseTelar($this->getValue($row, ['NoTelar', 'No Telar', 'notelar', 'Telar']), 10);
             $fibra = $this->parseString($this->getValue($row, ['Fibra', 'FibraId', 'fibraid']), 60);
             $velocidad = $this->parseFloat($this->getValue($row, ['RPM', 'rpm', 'Velocidad', 'velocidad']));
             $densidad = $this->parseString($this->getValue($row, ['Densidad', 'densidad']), 10);
@@ -149,6 +149,38 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
         }
 
         return $value;
+    }
+
+    /**
+     * Normaliza NoTelar permitiendo solo dígitos; si no hay dígitos, retorna null.
+     */
+    private function parseTelar($value, $maxLength = null)
+    {
+        if (is_null($value) || $value === '') {
+            return null;
+        }
+
+        // Forzar a string y limpiar
+        $value = (string) $value;
+        $value = trim($value);
+
+        // Si viene una fórmula de Excel, limpiarla
+        if (strpos($value, '=') === 0) {
+            $value = $this->cleanExcelFormula($value);
+        }
+
+        // Conservar solo dígitos
+        $digits = preg_replace('/\D+/', '', $value);
+
+        if ($digits === '' || $digits === null) {
+            return null;
+        }
+
+        if ($maxLength && strlen($digits) > $maxLength) {
+            $digits = substr($digits, 0, $maxLength);
+        }
+
+        return $digits;
     }
 
     private function cleanExcelFormula($formula)

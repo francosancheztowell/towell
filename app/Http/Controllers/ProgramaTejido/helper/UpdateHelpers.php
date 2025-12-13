@@ -185,16 +185,17 @@ class UpdateHelpers
 
     public static function applyFlogYTipoPedido(ReqProgramaTejido $r, ?string $flog): void
     {
-        if ($flog !== null) {
-            $prev = $r->getOriginal('FlogsId');
-            $r->FlogsId = $flog ?: null;
-            Log::info('UPDATE FlogsId', ['Id'=>$r->Id,'prev'=>$prev,'nuevo'=>$r->FlogsId]);
+        $prev = $r->getOriginal('FlogsId');
+        $r->FlogsId = $flog ?: null;
+        Log::info('UPDATE FlogsId', ['Id'=>$r->Id,'prev'=>$prev,'nuevo'=>$r->FlogsId]);
 
-            if ($flog && strlen($flog) >= 2) {
-                $pref = strtoupper(substr($flog,0,2));
-                $r->TipoPedido = $pref;
-                Log::info('TipoPedido desde FlogsId', ['Id'=>$r->Id,'prefijo'=>$pref]);
-            }
+        // Si se limpia el Flog, también limpiar TipoPedido; si no, derivarlo
+        if ($r->FlogsId && strlen($r->FlogsId) >= 2) {
+            $pref = strtoupper(substr($r->FlogsId,0,2));
+            $r->TipoPedido = $pref;
+            Log::info('TipoPedido desde FlogsId', ['Id'=>$r->Id,'prefijo'=>$pref]);
+        } else {
+            $r->TipoPedido = null;
         }
     }
 

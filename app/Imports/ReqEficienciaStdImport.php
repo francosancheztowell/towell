@@ -104,8 +104,8 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
                 // Extraer valores usando los encabezados exactos: Salon, No Telar, Fibra, Eficiencia, Densidad
                 $salon = $this->parseString($this->getValueByKey($row, 'Salon', ['salon', 'SalonTejidoId', 'salontejidoid']), 20);
 
-                // Buscar "No Telar" con más variaciones posibles
-                $telar = $this->parseString($this->getValueByKey($row, 'No Telar', [
+                // Buscar "No Telar" con más variaciones posibles y normalizar a dígitos
+                $telar = $this->parseTelar($this->getValueByKey($row, 'No Telar', [
                     'NoTelar',
                     'notelar',
                     'no telar',
@@ -209,6 +209,56 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
         }
 
         return $value;
+    }
+
+    /**
+     * Normaliza NoTelar permitiendo solo dígitos; si no hay dígitos, retorna null.
+     */
+    private function parseTelar($value, int $maxLength = 10)
+    {
+        if (is_null($value) || $value === '') {
+            return null;
+        }
+
+        // Forzar a string y limpiar
+        $value = (string) $value;
+        $value = trim($value);
+
+        // Si viene una fórmula de Excel, limpiarla
+        if (strpos($value, '=') === 0) {
+            $value = $this->cleanExcelFormula($value);
+        }
+
+        // Conservar solo dígitos
+        $digits = preg_replace('/\D+/', '', $value);
+
+        if ($digits === '' || $digits === null) {
+            return null;
+        }
+
+        if ($maxLength && strlen($digits) > $maxLength) {
+            $digits = substr($digits, 0, $maxLength);
+        }
+
+        return $digits;
+    }
+
+    /**
+     * Limpia una fórmula de Excel extrayendo texto entre comillas si existe.
+     */
+    private function cleanExcelFormula($formula)
+    {
+        $formula = trim($formula);
+        if (strpos($formula, '=') === 0) {
+            $formula = substr($formula, 1);
+        }
+
+        // Extraer texto entre comillas si existe
+        if (preg_match('/"([^"]*)"/', $formula, $matches)) {
+            return $matches[1];
+        }
+
+        return $formula;
     }
 
     /**

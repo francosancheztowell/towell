@@ -19,22 +19,43 @@ class CatCodificacionController extends Controller
 {
     /**
      * Columnas usadas en vista y API (una sola fuente de verdad)
+     * (YA CON NOMBRES NUEVOS)
      */
     private const COLUMNS = [
-        'NumOrden', 'FechaOrden', 'FechaCumplimiento', 'Departamento', 'TelarId', 'Prioridad',
-        'Modelo', 'ClaveModelo', 'Tamano', 'InventSizeId', 'Tolerancia', 'CodigoDibujo', 'FechaCompromiso',
-        'FlogsId', 'Clave', 'Cantidad', 'Peine', 'Ancho', 'Largo', 'P_crudo', 'Luchaje', 'Tra', 'Hilo',
-        'CodColorTrama', 'NombreColorTrama', 'OBS_Trama', 'Tipoplano', 'Medplano', 'TipoRizo', 'AlturaRizo',
-        'OBS', 'VelocMinima', 'Rizo', 'Hilo_2', 'Cuenta', 'OBS_2', 'Pie', 'Hilo_3', 'Cuenta_2', 'OBS_3',
-        'C1', 'OBS_11', 'C2', 'OBS_12', 'C3', 'OBS_13', 'C4', 'OBS_14', 'MedCenefa', 'MedInicioRizoCenefa',
-        'Razurada', 'TIRAS', 'RepeticionesP/corte', 'NoMarbete', 'CambioRepaso', 'Vendedor', 'NoOrden',
-        'Observaciones', 'TramaAnchoPeine', 'LogLuchaTotal', 'C1TramaFondo', 'Hilo_4', 'OBS_4', 'PASADAS',
-        'C1_2', 'Hilo_5', 'OBS_5', 'CodColor', 'NombreColor', 'PASADAS_2', 'C2_2', 'Hilo_6', 'OBS_6',
-        'CodColor_2', 'NombreColor_2', 'PASADAS_3', 'C3_2', 'Hilo_7', 'OBS_7', 'CodColor_3', 'NombreColor_3',
-        'PASADAS_4', 'C4_2', 'Hilo_8', 'OBS_8', 'Cod Color_4', 'NombreColor_4', 'PASADAS_5', 'C5', 'Hilo_9',
-        'OBS_9', 'Cod Color_5', 'NombreColor_5', 'PASADAS_6', 'TOTAL', 'RespInicio', 'HrInicio', 'HrTermino',
-        'MinutosCambio', 'PesoMuestra', 'RegAlinacion', 'estecamponotienenombre1', 'OBSParaPro',
-        'CantidadProducir_2', 'Tejidas', 'pzaXrollo',
+        'Id',
+
+        'OrdenTejido', 'FechaTejido', 'FechaCumplimiento', 'Departamento', 'TelarId', 'Prioridad', 'Nombre',
+        'ClaveModelo', 'ItemId', 'InventSizeId', 'Tolerancia', 'CodigoDibujo', 'FechaCompromiso', 'FlogsId',
+        'NombreProyecto',
+
+        'Clave', 'Cantidad', 'Peine', 'Ancho', 'Largo', 'P_crudo', 'Luchaje', 'Tra', 'CalibreTrama2',
+        'CodColorTrama', 'ColorTrama', 'FibraId',
+
+        'DobladilloId', 'MedidaPlano', 'TipoRizo', 'AlturaRizo', 'Obs', 'VelocidadSTD',
+
+        'CalibreRizo', 'CalibreRizo2', 'CuentaRizo', 'FibraRizo',
+        'CalibrePie', 'CalibrePie2', 'CuentaPie', 'FibraPie',
+
+        'Comb1', 'Obs1', 'Comb2', 'Obs2', 'Comb3', 'Obs3', 'Comb4', 'Obs4',
+        'MedidaCenefa', 'MedIniRizoCenefa', 'Razurada',
+
+        'NoTiras', 'Repeticiones', 'NoMarbete', 'CambioRepaso',
+        'Vendedor', 'NoOrden', 'Obs5',
+
+        'TramaAnchoPeine', 'LogLuchaTotal',
+
+        'CalTramaFondoC1', 'CalTramaFondoC12', 'FibraTramaFondoC1', 'PasadasTramaFondoC1',
+
+        'CalibreComb1', 'CalibreComb12', 'FibraComb1', 'CodColorC1', 'NomColorC1', 'PasadasComb1',
+        'CalibreComb2', 'CalibreComb22', 'FibraComb2', 'CodColorC2', 'NomColorC2', 'PasadasComb2',
+        'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorC3', 'NomColorC3', 'PasadasComb3',
+        'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorC4', 'NomColorC4', 'PasadasComb4',
+        'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5', 'PasadasComb5',
+
+        'Total',
+
+        'RespInicio', 'HrInicio', 'HrTermino', 'MinutosCambio', 'PesoMuestra', 'RegAlinacion',
+        'Supervisor', 'OBSParaPro', 'CantidadProducir_2', 'Tejidas', 'pzaXrollo',
     ];
 
     /**
@@ -134,7 +155,7 @@ class CatCodificacionController extends Controller
      * API: datos compactos para carga rápida en tabla (getAllFast).
      * Máxima velocidad: sin ordenamiento, consulta directa, sin query log.
      */
-    public function getAllFast(): JsonResponse
+    public function getAllFast(Request $request): JsonResponse
     {
         try {
             $columnas = self::COLUMNS;
@@ -145,9 +166,14 @@ class CatCodificacionController extends Controller
 
             // Consulta directa SIN ordenamiento para máxima velocidad
             // El ordenamiento es costoso y no es necesario para la carga inicial
-            $data = DB::table($table)
-                ->select($columnas)
-                ->get();
+            $query = DB::table($table)->select($columnas);
+
+            // Búsqueda directa por Id (index) si se envía ?id=123
+            if ($request->filled('id')) {
+                $query->where('Id', (int) $request->input('id'));
+            }
+
+            $data = $query->get();
 
 
             $mapped = $data->map(fn($row) => array_values((array) $row));
