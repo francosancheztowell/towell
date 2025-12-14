@@ -18,6 +18,36 @@ function estaVincularActivado() {
 	return checkbox && checkbox.checked;
 }
 
+// Funciones helper para obtener datos de la fila
+function getRowTelar(row) {
+	if (!row) return null;
+	const telarCell = row.querySelector('[data-column="NoTelarId"]');
+	return telarCell ? telarCell.textContent.trim() : null;
+}
+
+function getRowSalon(row) {
+	if (!row) return null;
+	const salonCell = row.querySelector('[data-column="SalonTejidoId"]');
+	return salonCell ? salonCell.textContent.trim() : null;
+}
+
+// Funciones helper para mostrar/ocultar loading
+function showLoading() {
+	if (window.PT && window.PT.loader) {
+		window.PT.loader.show();
+	} else if (typeof Swal !== 'undefined') {
+		Swal.showLoading();
+	}
+}
+
+function hideLoading() {
+	if (window.PT && window.PT.loader) {
+		window.PT.loader.hide();
+	} else if (typeof Swal !== 'undefined') {
+		Swal.hideLoading();
+	}
+}
+
 // ===== Función para duplicar y dividir telar =====
 async function duplicarTelar(row) {
 	const telar = getRowTelar(row);
@@ -1155,15 +1185,51 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 	// Función para cargar registros existentes de OrdCompartida
 	async function cargarRegistrosOrdCompartida(ordCompartida) {
-		if (!ordCompartida) return;
+		// Validar que ordCompartida sea válido
+		if (!ordCompartida) {
+			console.warn('cargarRegistrosOrdCompartida: ordCompartida no proporcionado');
+			return;
+		}
+
+		// Convertir a número y validar
+		const ordCompartidaNum = parseInt(ordCompartida, 10);
+		if (isNaN(ordCompartidaNum) || ordCompartidaNum <= 0) {
+			console.warn('cargarRegistrosOrdCompartida: ordCompartida inválido:', ordCompartida);
+			return;
+		}
 
 		try {
-			const response = await fetch(`/planeacion/programa-tejido/registros-ord-compartida/${ordCompartida}`, {
+			// Construir la URL de forma más robusta
+			const baseUrl = window.location.origin;
+			const url = `${baseUrl}/planeacion/programa-tejido/registros-ord-compartida/${ordCompartidaNum}`;
+
+			const csrfToken = document.querySelector('meta[name="csrf-token"]');
+			if (!csrfToken) {
+				console.error('No se encontró el token CSRF');
+				return;
+			}
+
+			const response = await fetch(url, {
+				method: 'GET',
 				headers: {
 					'Accept': 'application/json',
-					'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-				}
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': csrfToken.content,
+					'X-Requested-With': 'XMLHttpRequest'
+				},
+				credentials: 'same-origin'
 			});
+
+			// Validar que la respuesta sea exitosa
+			if (!response.ok) {
+				throw new Error(`Error HTTP: ${response.status} ${response.statusText}`);
+			}
+
+			// Validar que la respuesta sea JSON
+			const contentType = response.headers.get('content-type');
+			if (!contentType || !contentType.includes('application/json')) {
+				throw new Error('La respuesta no es JSON válido');
+			}
 
 			const data = await response.json();
 
@@ -1327,6 +1393,24 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			}
 		} catch (error) {
 			console.error('Error al cargar registros de OrdCompartida:', error);
+
+			// Mostrar mensaje de error al usuario si existe la función showToast
+			if (typeof showToast === 'function') {
+				let mensaje = 'Error al cargar los registros vinculados';
+				if (error.message) {
+					mensaje += `: ${error.message}`;
+				}
+				showToast(mensaje, 'error');
+			}
+
+			// Limpiar registros existentes en caso de error
+			registrosOrdCompartidaExistentes = [];
+
+			// Limpiar la tabla si existe
+			const tbody = document.querySelector('#tabla-telares-destino tbody');
+			if (tbody) {
+				tbody.innerHTML = '';
+			}
 		}
 	}
 

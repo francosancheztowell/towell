@@ -31,6 +31,12 @@ function selectRow(rowElement, rowIndex) {
 		}
 
 		selectedRowIndex = rowIndex;
+		window.selectedRowIndex = rowIndex; // Sincronizar con window
+
+		// Disparar evento personalizado para notificar cambio de selección
+		document.dispatchEvent(new CustomEvent('pt:selection-changed', {
+			detail: { rowIndex, rowElement }
+		}));
 
 		// Habilitar botones editar, eliminar y ver líneas (local y layout)
 		const btnEditar = document.getElementById('btn-editar-programa');
@@ -74,6 +80,12 @@ function deselectRow() {
 			}
 		}
 		selectedRowIndex = -1;
+		window.selectedRowIndex = -1; // Sincronizar con window
+
+		// Disparar evento personalizado para notificar cambio de selección
+		document.dispatchEvent(new CustomEvent('pt:selection-changed', {
+			detail: { rowIndex: -1, rowElement: null }
+		}));
 
 		// Deshabilitar botones editar y eliminar (local y layout)
 		const btnEditar = document.getElementById('btn-editar-programa');
@@ -96,9 +108,9 @@ function deselectRow() {
 	}
 }
 
-
-
-
+// Exponer funciones globalmente
+window.selectRow = selectRow;
+window.deselectRow = deselectRow;
 
 
 

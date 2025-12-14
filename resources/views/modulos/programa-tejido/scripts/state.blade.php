@@ -4,6 +4,7 @@ let hiddenColumns = [];
 let pinnedColumns = [];
 let allRows = [];
 let selectedRowIndex = -1;
+window.selectedRowIndex = selectedRowIndex; // Exponer globalmente
 let dragDropMode = false;
 let draggedRow = null;
 let draggedRowIndex = -1;
