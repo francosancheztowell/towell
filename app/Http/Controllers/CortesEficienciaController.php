@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 // PDF facade (alias configurado en config/app.php)
 use PDF;
+use App\Exports\CortesEficienciaExport;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Helpers\TurnoHelper;
 use App\Helpers\FolioHelper;
 use App\Models\InvSecuenciaCorteEf;
@@ -769,53 +771,129 @@ class CortesEficienciaController extends Controller
                     ->with('error', 'Folio no encontrado');
             }
 
-            $fecha = $corteBase->Date;
-
-            // Obtener todas las líneas de los tres turnos de esa fecha
-            $lineasFecha = TejEficienciaLine::where('Date', $fecha)
-                ->orderBy('NoTelarId')
-                ->get();
-
-            // Secuencia de telares para orden base
-            $secuencia = InvSecuenciaCorteEf::orderBy('Orden', 'asc')->get(['NoTelarId']);
-            $telaresSecuencia = $secuencia->pluck('NoTelarId')->toArray();
-
-            // Lista unificada de telares (secuencia + presentes en líneas)
-            $telaresLineas = $lineasFecha->pluck('NoTelarId')->unique()->toArray();
-            $telares = collect(array_unique(array_merge($telaresSecuencia, $telaresLineas)))->sort()->values();
-
-            // Agrupar por telar y turno
-            $porTelarTurno = [];
-            foreach ($lineasFecha as $l) {
-                $telar = $l->NoTelarId;
-                $turno = (string)$l->Turno; // "1","2","3"
-                if (!isset($porTelarTurno[$telar])) $porTelarTurno[$telar] = [];
-                $porTelarTurno[$telar][$turno] = $l;
-            }
-
-            // Preparar estructura para la vista
-            $datos = $telares->map(function($telar) use ($porTelarTurno) {
-                $t1 = $porTelarTurno[$telar]['1'] ?? null;
-                $t2 = $porTelarTurno[$telar]['2'] ?? null;
-                $t3 = $porTelarTurno[$telar]['3'] ?? null;
-                return [
-                    'telar' => $telar,
-                    't1' => $t1,
-                    't2' => $t2,
-                    't3' => $t3,
-                ];
-            });
+            $info = $this->obtenerDatosVisualizacionPorFecha($corteBase->Date);
 
             return view('modulos.cortes-eficiencia.visualizar-cortes-eficiencia', [
                 'folio' => $folio,
-                'fecha' => $fecha,
-                'datos' => $datos,
+                'fecha' => $info['fecha'],
+                'datos' => $info['datos'],
+                'foliosPorTurno' => $info['foliosPorTurno'],
             ]);
         } catch (\Exception $e) {
             Log::error('Error al visualizar cortes de eficiencia: ' . $e->getMessage());
             return redirect()->route('cortes.eficiencia.consultar')
                 ->with('error', 'Error al visualizar: ' . $e->getMessage());
         }
+    }
+
+    public function exportarVisualizacionExcel(Request $request)
+    {
+        try {
+            $fecha = $request->input('fecha');
+            if (!$fecha) {
+                return response()->json(['error' => 'Fecha requerida'], 400);
+            }
+
+            $fechaNorm = $this->normalizarFecha($fecha);
+            $info = $this->obtenerDatosVisualizacionPorFecha($fechaNorm);
+
+            if ($info['datos']->isEmpty()) {
+                return response()->json(['error' => 'Sin datos para la fecha seleccionada'], 404);
+            }
+
+            $filename = 'cortes_eficiencia_' . $fechaNorm . '.xlsx';
+
+            return Excel::download(new CortesEficienciaExport($info, $fechaNorm), $filename);
+        } catch (\Throwable $th) {
+            Log::error('Error al exportar Excel de cortes de eficiencia', [
+                'mensaje' => $th->getMessage()
+            ]);
+            return response()->json(['error' => 'Error al exportar: ' . $th->getMessage()], 500);
+        }
+    }
+
+    public function descargarVisualizacionPDF(Request $request)
+    {
+        try {
+            $fecha = $request->input('fecha');
+            if (!$fecha) {
+                return response()->json(['error' => 'Fecha requerida'], 400);
+            }
+
+            $fechaNorm = $this->normalizarFecha($fecha);
+            $info = $this->obtenerDatosVisualizacionPorFecha($fechaNorm);
+            if ($info['datos']->isEmpty()) {
+                return response()->json(['error' => 'Sin datos para la fecha seleccionada'], 404);
+            }
+
+            $pdf = PDF::loadView('modulos.cortes-eficiencia.visualizar-cortes-eficiencia-pdf', [
+                'fecha' => $info['fecha'],
+                'datos' => $info['datos'],
+                'foliosPorTurno' => $info['foliosPorTurno'],
+            ])->setPaper('a4', 'landscape');
+
+            $filename = 'cortes_eficiencia_' . $fechaNorm . '.pdf';
+
+            return response($pdf->output(), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"'
+            ]);
+        } catch (\Throwable $th) {
+            Log::error('Error al generar PDF de cortes de eficiencia', [
+                'mensaje' => $th->getMessage()
+            ]);
+            return response()->json(['error' => 'Error al generar PDF: ' . $th->getMessage()], 500);
+        }
+    }
+
+    private function obtenerDatosVisualizacionPorFecha($fecha)
+    {
+        $fechaNorm = $this->normalizarFecha($fecha);
+
+        $lineasFecha = TejEficienciaLine::where('Date', $fechaNorm)
+            ->orderBy('NoTelarId')
+            ->get();
+
+        $secuencia = InvSecuenciaCorteEf::orderBy('Orden', 'asc')->get(['NoTelarId']);
+        $telaresSecuencia = $secuencia->pluck('NoTelarId')->toArray();
+        $telaresLineas = $lineasFecha->pluck('NoTelarId')->unique()->toArray();
+        $telares = collect(array_unique(array_merge($telaresSecuencia, $telaresLineas)))->sort()->values();
+
+        $porTelarTurno = [];
+        $foliosPorTurno = [];
+
+        foreach ($lineasFecha as $linea) {
+            $telar = $linea->NoTelarId;
+            $turno = (string)$linea->Turno;
+            if (!isset($porTelarTurno[$telar])) {
+                $porTelarTurno[$telar] = [];
+            }
+            $porTelarTurno[$telar][$turno] = $linea;
+            $foliosPorTurno[$turno] = $linea->Folio;
+        }
+
+        $datos = $telares->map(function ($telar) use ($porTelarTurno) {
+            $t1 = $porTelarTurno[$telar]['1'] ?? null;
+            $t2 = $porTelarTurno[$telar]['2'] ?? null;
+            $t3 = $porTelarTurno[$telar]['3'] ?? null;
+            return [
+                'telar' => $telar,
+                't1' => $t1,
+                't2' => $t2,
+                't3' => $t3,
+            ];
+        });
+
+        return [
+            'fecha' => $fechaNorm,
+            'datos' => $datos,
+            'foliosPorTurno' => $foliosPorTurno,
+        ];
+    }
+
+    private function normalizarFecha($fecha)
+    {
+        return date('Y-m-d', strtotime(str_replace('/', '-', $fecha)));
     }
 
     /**

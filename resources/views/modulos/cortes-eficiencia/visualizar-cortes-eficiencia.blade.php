@@ -4,7 +4,17 @@
 
 @section('content')
 <div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
-
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-semibold text-gray-800">Cortes de Eficiencia - {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</h2>
+        <div class="flex gap-2">
+            <button onclick="exportarCortesExcel('{{ $fecha }}')" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors">
+                <i class="fa fa-file-excel mr-2"></i> Exportar Excel
+            </button>
+            <button onclick="descargarCortesPDF('{{ $fecha }}')" class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors">
+                <i class="fa fa-file-pdf mr-2"></i> Descargar PDF
+            </button>
+        </div>
+    </div>
 
     <div class="flex-1 bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
         <div class="flex-1 overflow-auto">
@@ -103,4 +113,64 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+    function exportarCortesExcel(fecha) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ route("cortes.eficiencia.visualizar.excel") }}';
+
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = '_token';
+        csrf.value = '{{ csrf_token() }}';
+
+        const fechaInput = document.createElement('input');
+        fechaInput.type = 'hidden';
+        fechaInput.name = 'fecha';
+        fechaInput.value = fecha;
+
+        form.appendChild(csrf);
+        form.appendChild(fechaInput);
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+    }
+
+    async function descargarCortesPDF(fecha) {
+        try {
+            const response = await fetch('{{ route("cortes.eficiencia.visualizar.pdf") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/pdf'
+                },
+                body: new URLSearchParams({ fecha })
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                console.error('Error al descargar PDF:', response.status, text);
+                alert('No se pudo generar el PDF.');
+                return;
+            }
+
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const enlace = document.createElement('a');
+            enlace.href = blobUrl;
+            enlace.download = `cortes_eficiencia_${fecha}.pdf`;
+            document.body.appendChild(enlace);
+            enlace.click();
+            enlace.remove();
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (error) {
+            console.error('Excepción al descargar PDF:', error);
+            alert('Ocurrió un error al intentar descargar el PDF.');
+        }
+    }
+</script>
+@endpush
 @endsection

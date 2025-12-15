@@ -824,6 +824,8 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::put('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'update'])->name('cortes.eficiencia.update');
     Route::post('/modulo-cortes-de-eficiencia/{id}/finalizar', [CortesEficienciaController::class, 'finalizar'])->name('cortes.eficiencia.finalizar');
     Route::get('/modulo-cortes-de-eficiencia/visualizar/{folio}', [CortesEficienciaController::class, 'visualizar'])->name('cortes.eficiencia.visualizar');
+    Route::post('/modulo-cortes-de-eficiencia/visualizar/exportar-excel', [CortesEficienciaController::class, 'exportarVisualizacionExcel'])->name('cortes.eficiencia.visualizar.excel');
+    Route::post('/modulo-cortes-de-eficiencia/visualizar/descargar-pdf', [CortesEficienciaController::class, 'descargarVisualizacionPDF'])->name('cortes.eficiencia.visualizar.pdf');
     Route::get('/modulo-nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('modulo.nuevo.requerimiento');
     Route::post('/modulo-nuevo-requerimiento/guardar', [NuevoRequerimientoController::class, 'guardarRequerimientos'])->name('modulo.nuevo.requerimiento.store');
     Route::get('/modulo-nuevo-requerimiento/turno-info', [NuevoRequerimientoController::class, 'getTurnoInfo'])->name('modulo.nuevo.requerimiento.turno.info');
