@@ -463,7 +463,7 @@ class DuplicarTejido
     /**
      * Fórmulas: DEJAMOS diffDias = (FechaFinal - FechaInicio) como tú quieres.
      */
-    private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
+    public static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
         $formulas = [];
 

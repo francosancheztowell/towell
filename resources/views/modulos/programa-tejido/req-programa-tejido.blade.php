@@ -136,7 +136,8 @@
 
   td { transition: background-color 0.3s ease-in-out; }
   .selectable-row.dragging ~ tr td, .selectable-row.dragging td { transition: none !important; }
-  td.bg-yellow-100 { background-color: #fef3c7 !important; }
+  .selectable-row.bg-yellow-100 { background-color: #fef3c7 !important; }
+  .selectable-row.bg-yellow-100 td { background-color: #fef3c7 !important; }
 
   .inline-edit-mode .selectable-row { cursor: text !important; }
   .inline-edit-input {
@@ -154,6 +155,16 @@
     border-color: #2563eb;
     box-shadow: 0 0 0 1px #2563eb33;
     background-color: #fff;
+  }
+  .inline-edit-input-wide {
+    min-width: 150px;
+    width: auto !important;
+    max-width: 200px;
+  }
+  td[data-column="TotalPedido"] .inline-edit-input-container {
+    width: auto;
+    min-width: 150px;
+    max-width: 200px;
   }
   .inline-edit-row.inline-saving { opacity: 0.7; }
 
@@ -506,24 +517,24 @@
           window.toggleInlineEditMode();
         }
 
-        // Resaltar la fila seleccionada brevemente
-        row.classList.add('bg-yellow-100');
-        setTimeout(() => {
-          row.classList.remove('bg-yellow-100');
-        }, 2000);
+        // Activar edición en todas las celdas editables de esta fila
+        if (typeof window.enableInlineEditForAllCellsInRow === 'function') {
+          window.enableInlineEditForAllCellsInRow(row);
+        } else {
+          // Fallback: activar manualmente cada celda editable
+          const editableCells = row.querySelectorAll('td[data-column]');
+          editableCells.forEach(cell => {
+            const col = cell.getAttribute('data-column');
+            if (col && typeof uiInlineEditableFields !== 'undefined' && uiInlineEditableFields[col]) {
+              if (typeof window.enableInlineEditForCell === 'function') {
+                window.enableInlineEditForCell(cell);
+              }
+            }
+          });
+        }
 
         if (typeof window.showToast === 'function') {
-          window.showToast('Modo edición activado. Haz clic en cualquier celda editable para modificar.', 'info');
-        } else if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'info',
-            title: 'Modo edición activado',
-            text: 'Haz clic en cualquier celda editable para modificar.',
-            timer: 3000,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end'
-          });
+          window.showToast('Edición activada en la fila seleccionada', 'success');
         }
       } else {
         toast('Edición inline no disponible', 'error');
@@ -1101,9 +1112,17 @@
     // =========================
     // Restaurar selección
     // =========================
+    window.yellowHighlightTimeout = null;
+
     function restoreSelectionAfterReload() {
       const tb = tbodyEl();
       if (!tb) return;
+
+      // Cancelar timeout anterior si existe
+      if (window.yellowHighlightTimeout) {
+        clearTimeout(window.yellowHighlightTimeout);
+        window.yellowHighlightTimeout = null;
+      }
 
       const urlParams = new URLSearchParams(window.location.search);
       const registroIdParam = urlParams.get('registro_id');
@@ -1122,8 +1141,17 @@
       if (typeof window.selectRow === 'function' && idx >= 0) window.selectRow(targetRow, idx);
 
       targetRow.scrollIntoView({ behavior:'smooth', block:'center' });
-      targetRow.classList.add('bg-yellow-100');
-      setTimeout(() => targetRow.classList.remove('bg-yellow-100'), 1800);
+      // Solo agregar amarillo temporal si no está en modo edición inline (muy breve, 500ms)
+      if (!inlineEditMode && !window.inlineEditMode) {
+        targetRow.classList.add('bg-yellow-100');
+        window.yellowHighlightTimeout = setTimeout(() => {
+          // Solo quitar si no está en modo edición inline y no hay inputs editando
+          if (!inlineEditMode && !window.inlineEditMode && !targetRow.querySelector('.inline-edit-input')) {
+            targetRow.classList.remove('bg-yellow-100');
+          }
+          window.yellowHighlightTimeout = null;
+        }, 500);
+      }
 
       if (registroIdParam) {
         const cleanUrl = new URL(window.location.href);
