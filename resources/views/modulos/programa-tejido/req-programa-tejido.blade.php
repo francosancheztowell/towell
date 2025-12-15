@@ -177,6 +177,7 @@
   {!! view('modulos.programa-tejido.scripts.filters')->render() !!}
   {!! view('modulos.programa-tejido.scripts.columns')->render() !!}
   {!! view('modulos.programa-tejido.scripts.selection')->render() !!}
+  {!! view('modulos.programa-tejido.scripts.inline-edit')->render() !!}
 
   (function () {
     window.PT = window.PT || {};
@@ -477,6 +478,57 @@
     window.descargarPrograma = PT.actions.descargarPrograma;
     window.abrirNuevo = PT.actions.abrirNuevo;
     window.eliminarRegistro = PT.actions.eliminarRegistro;
+
+    // =========================
+    // Editar fila seleccionada
+    // =========================
+    window.editarFilaSeleccionada = function() {
+      const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row');
+      if (window.selectedRowIndex === null || window.selectedRowIndex === undefined || window.selectedRowIndex < 0) {
+        toast('Por favor, selecciona un registro primero', 'info');
+        return;
+      }
+
+      const row = rows[window.selectedRowIndex];
+      if (!row) {
+        toast('No se pudo encontrar el registro seleccionado', 'error');
+        return;
+      }
+
+      // Activar edición inline
+      if (typeof window.toggleInlineEditMode === 'function') {
+        // Verificar si el modo inline ya está activado mirando la clase en el tbody
+        const tb = qs('#mainTable tbody');
+        const isActive = tb && tb.classList.contains('inline-edit-mode');
+
+        // Si no está activado, activarlo
+        if (!isActive) {
+          window.toggleInlineEditMode();
+        }
+
+        // Resaltar la fila seleccionada brevemente
+        row.classList.add('bg-yellow-100');
+        setTimeout(() => {
+          row.classList.remove('bg-yellow-100');
+        }, 2000);
+
+        if (typeof window.showToast === 'function') {
+          window.showToast('Modo edición activado. Haz clic en cualquier celda editable para modificar.', 'info');
+        } else if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'info',
+            title: 'Modo edición activado',
+            text: 'Haz clic en cualquier celda editable para modificar.',
+            timer: 3000,
+            showConfirmButton: false,
+            toast: true,
+            position: 'top-end'
+          });
+        }
+      } else {
+        toast('Edición inline no disponible', 'error');
+      }
+    };
 
     // =========================
     // Drag & Drop

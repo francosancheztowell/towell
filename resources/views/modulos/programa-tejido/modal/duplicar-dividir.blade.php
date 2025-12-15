@@ -956,8 +956,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		}
 
 		// Siempre empezar en modo Duplicar (el usuario puede cambiar manualmente a Dividir si lo desea)
-		document.getElementById('modo-duplicar').checked = true;
-		switchModo.checked = true;
+		const modoDuplicar = document.getElementById('modo-duplicar');
+		if (modoDuplicar) modoDuplicar.checked = true;
+		if (switchModo) switchModo.checked = true;
 
 		// Aplicar estilo inicial del switch (después de que los telares estén cargados)
 		actualizarEstiloSwitch();
@@ -1566,16 +1567,18 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	// Event listeners para los botones del switch
 	if (pillDuplicar) {
 		pillDuplicar.addEventListener('click', () => {
-			document.getElementById('modo-duplicar').checked = true;
-			switchModo.checked = true; // mantener compatibilidad
+			const modoDuplicar = document.getElementById('modo-duplicar');
+			if (modoDuplicar) modoDuplicar.checked = true;
+			if (switchModo) switchModo.checked = true; // mantener compatibilidad
 			actualizarEstiloSwitch();
 		});
 	}
 
 	if (pillDividir) {
 		pillDividir.addEventListener('click', () => {
-			document.getElementById('modo-dividir').checked = true;
-			switchModo.checked = false; // mantener compatibilidad
+			const modoDividir = document.getElementById('modo-dividir');
+			if (modoDividir) modoDividir.checked = true;
+			if (switchModo) switchModo.checked = false; // mantener compatibilidad
 			actualizarEstiloSwitch();
 		});
 	}

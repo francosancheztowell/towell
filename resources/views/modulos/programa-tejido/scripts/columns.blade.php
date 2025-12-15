@@ -365,7 +365,7 @@ function openPinColumnsModal() {
 					toggleGroupPin(groupId, this.checked);
 					// Actualizar todos los checkboxes individuales del grupo
 					document.querySelectorAll(`#swal2-html-container .column-toggle-pin[data-group-id="${groupId}"]`).forEach(cb => {
-						cb.checked = this.checked;
+						if (cb) cb.checked = this.checked;
 					});
 				});
 			});
@@ -501,14 +501,14 @@ function openHideColumnsModal() {
 
 			// Event listeners para checkboxes de grupo
 			document.querySelectorAll('#swal2-html-container .group-toggle-hide').forEach(checkbox => {
-				checkbox.addEventListener('change', function() {
-					const groupId = parseInt(this.dataset.groupId);
-					toggleGroupVisibility(groupId, !this.checked);
-					// Actualizar todos los checkboxes individuales del grupo
-					document.querySelectorAll(`#swal2-html-container .column-toggle-hide[data-group-id="${groupId}"]`).forEach(cb => {
-						cb.checked = this.checked;
-					});
+			checkbox.addEventListener('change', function() {
+				const groupId = parseInt(this.dataset.groupId);
+				toggleGroupVisibility(groupId, !this.checked);
+				// Actualizar todos los checkboxes individuales del grupo
+				document.querySelectorAll(`#swal2-html-container .column-toggle-hide[data-group-id="${groupId}"]`).forEach(cb => {
+					if (cb) cb.checked = this.checked;
 				});
+			});
 			});
 		}
 	});
