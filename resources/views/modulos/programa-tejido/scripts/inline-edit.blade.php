@@ -1,17 +1,50 @@
-// ==========================
-// Inline Edit - Estado / Config
-// ==========================
+// =========================
+// Inline Edit - Estado
+// =========================
 // inlineEditMode y catalogosCache ya están declarados en state.blade.php
 // inlineFieldPayloadMap también está en state.blade.php y usa nombres de BD
 // uiInlineEditableFields ahora usa directamente los nombres de BD que coinciden con data-column
 
+// Helpers de formateo mejorados
+function parseSqlDateTimeLocal(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim().replace('T', ' ').replace('Z', '');
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (m) {
+    const Y = +m[1], Mo = +m[2] - 1, D = +m[3];
+    const hh = +(m[4] || 0), mm = +(m[5] || 0), ss = +(m[6] || 0);
+    const d = new Date(Y, Mo, D, hh, mm, ss, 0);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function formatDateOnlyDisplay(raw) {
+  const d = parseSqlDateTimeLocal(raw);
+  if (!d) return '';
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatDateTimeDisplay(raw) {
+  const d = parseSqlDateTimeLocal(raw);
+  if (!d) return '';
+  const date = d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${date}<br>${hh}:${mm}`;
+}
+
+function formatNumber2(raw) {
+  if (raw == null || raw === '') return '';
+  const n = Number(raw);
+  if (!isFinite(n)) return String(raw);
+  return n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Mantener formatDateDisplay para compatibilidad con código existente
 function formatDateDisplay(isoOrDate) {
-  if (!isoOrDate) return '';
-  try {
-    const d = new Date(String(isoOrDate).includes('T') ? isoOrDate : (String(isoOrDate).trim() + 'T00:00:00'));
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch { return ''; }
+  return formatDateOnlyDisplay(isoOrDate);
 }
 
 function toInputDate(val) {
@@ -157,7 +190,17 @@ const uiInlineEditableFields = {
     type: 'number',
     step: 1,
     displayFormatter: (v) => (v == null || v === '') ? '' : String(v)
-  }
+  },
+  // NOTA: Las siguientes columnas NO son editables (calculadas automáticamente):
+  // - DiasEficiencia (Dias Ef)
+  // - ProdKgDia
+  // - StdDia
+  // - ProdKgDia2
+  // - StdToaHra
+  // - HorasProd
+  // - StdHrsEfect
+  // - FechaInicio (Inicio)
+  // - FechaFinal (Fin)
 };
 
 // ==========================
@@ -246,18 +289,32 @@ const uiInlineEditableFields = {
   }
 
   // ====== Editar SOLO la celda clickeada ======
-  async function enableInlineEditForCell(cell) {
+  window.enableInlineEditForCell = async function enableInlineEditForCell(cell) {
     if (!cell) {
       console.log('enableInlineEditForCell: cell es null');
       return;
     }
 
     const row = cell.closest('.selectable-row');
-    const rowId = row?.getAttribute('data-id');
+    if (!row) {
+      console.log('enableInlineEditForCell: no se encontró row');
+      return;
+    }
+
+    const rowId = row.getAttribute('data-id');
     if (!rowId) {
       console.log('enableInlineEditForCell: no se encontró rowId');
       return;
     }
+
+    // Asegurar que solo esta fila específica tenga el amarillo (limpiar otras filas)
+    const allRows = window.allRows?.length ? window.allRows : Array.from(document.querySelectorAll('.selectable-row'));
+    allRows.forEach(r => {
+      if (r !== row && r.classList.contains('bg-yellow-100') && !r.querySelector('.inline-edit-input')) {
+        // Solo quitar amarillo de filas que no están en edición
+        r.classList.remove('bg-yellow-100');
+      }
+    });
 
     const columnName = cell.getAttribute('data-column');
     if (!columnName) {
@@ -281,9 +338,15 @@ const uiInlineEditableFields = {
     const cfg = uiInlineEditableFields[columnName];
     const currentValue = getCellValue(cell);
     const originalDisplay = cell.dataset.originalValue ?? cell.innerHTML;
-    cell.dataset.originalValue = originalDisplay;
+    const originalDataValue = cell.dataset.value;
 
-    row.classList.add('inline-edit-row');
+    // Guardar valores originales para poder restaurarlos
+    cell.dataset.originalValue = originalDisplay;
+    if (originalDataValue !== undefined) {
+      cell.dataset.originalDataValue = originalDataValue;
+    }
+
+    // NO agregar amarillo al inicio, solo cuando hay cambios
 
     const wrap = document.createElement('div');
     wrap.className = 'inline-edit-input-container';
@@ -293,7 +356,11 @@ const uiInlineEditableFields = {
 
     if (cfg.type === 'select' && cfg.catalog) {
       input = document.createElement('select');
-      input.className = 'inline-edit-input w-full';
+      // Agregar clase especial para TotalPedido si es select (aunque no debería serlo)
+      const baseClass = columnName === 'TotalPedido'
+        ? 'inline-edit-input inline-edit-input-wide w-full'
+        : 'inline-edit-input w-full';
+      input.className = baseClass;
       input.dataset.field = columnName;
       input.dataset.rowId = rowId;
 
@@ -327,18 +394,34 @@ const uiInlineEditableFields = {
         if (byText) byText.selected = true;
       }
 
-    } else if (cfg.type === 'date') {
+    } else if (cfg.type === 'date' || cfg.type === 'datetime-local') {
       input = document.createElement('input');
-      input.type = 'date';
-      input.className = 'inline-edit-input w-full';
+      input.type = cfg.type;
+      // Agregar clase especial para TotalPedido si es fecha (aunque no debería serlo)
+      const baseClass = columnName === 'TotalPedido'
+        ? 'inline-edit-input inline-edit-input-wide w-full'
+        : 'inline-edit-input w-full';
+      input.className = baseClass;
       input.dataset.field = columnName;
       input.dataset.rowId = rowId;
-      input.value = cfg.inputFormatter ? cfg.inputFormatter(currentValue) : currentValue;
+
+      // Para datetime-local, usar el data-value original si existe para preservar segundos
+      let dateValue = currentValue;
+      if (cfg.type === 'datetime-local' && originalDataValue) {
+        // Usar el valor original del data-value que tiene la fecha completa con segundos
+        dateValue = originalDataValue;
+      }
+
+      input.value = cfg.inputFormatter ? cfg.inputFormatter(dateValue) : dateValue;
 
     } else {
       input = document.createElement('input');
       input.type = cfg.type || 'text';
-      input.className = 'inline-edit-input w-full';
+      // Agregar clase especial para TotalPedido para hacerlo más ancho
+      const baseClass = columnName === 'TotalPedido'
+        ? 'inline-edit-input inline-edit-input-wide w-full'
+        : 'inline-edit-input w-full';
+      input.className = baseClass;
       input.dataset.field = columnName;
       input.dataset.rowId = rowId;
 
@@ -347,17 +430,67 @@ const uiInlineEditableFields = {
       if (cfg.min !== undefined) input.min = cfg.min;
 
       if (cfg.type === 'number') {
-        const num = parseFloat(String(currentValue).replace(/[^\d.-]/g, ''));
-        input.value = isNaN(num) ? '' : String(Math.round(num));
+        // Mantener el valor original sin redondear para preservar decimales
+        // No usar parseFloat que puede perder precisión, usar el valor tal cual
+        const numStr = String(currentValue).replace(/[^\d.-]/g, '');
+        if (numStr === '' || numStr === '-') {
+          input.value = '';
+        } else {
+          // Preservar todos los decimales del valor original
+          input.value = numStr;
+        }
       } else {
         input.value = currentValue;
       }
     }
 
     function cancel() {
+      // Limpiar timeout del amarillo si existe
+      if (yellowTimeout) {
+        clearTimeout(yellowTimeout);
+        yellowTimeout = null;
+      }
+
       cell.innerHTML = originalDisplay;
-      row.classList.remove('inline-edit-row');
+      // Solo quitar el amarillo si no hay otras celdas en edición
+      const otherInputs = row.querySelectorAll('.inline-edit-input');
+      if (otherInputs.length === 0 || (otherInputs.length === 1 && otherInputs[0] === input)) {
+        row.classList.remove('inline-edit-row');
+        row.classList.remove('bg-yellow-100');
+      }
     }
+
+    // Variable para el timeout del amarillo (ya no se usa, el amarillo permanece hasta guardar)
+    let yellowTimeout = null;
+
+    // Mostrar amarillo cuando hay cambios y mantenerlo hasta que se guarde completamente
+    input.addEventListener('input', () => {
+      const newVal = (input.value ?? '').trim();
+      // Para datetime-local, usar el valor original del data-value si existe
+      let compareValue = currentValue;
+      if (cfg.type === 'datetime-local' && originalDataValue) {
+        compareValue = originalDataValue;
+      }
+      const oldVal = (cfg.type === 'date' || cfg.type === 'datetime-local')
+        ? (cfg.inputFormatter ? cfg.inputFormatter(compareValue) : compareValue)
+        : String(compareValue ?? '');
+
+      // Limpiar timeout anterior si existe (ya no se usa, pero por si acaso)
+      if (yellowTimeout) {
+        clearTimeout(yellowTimeout);
+        yellowTimeout = null;
+      }
+
+      // Si hay cambios, mostrar amarillo y mantenerlo hasta guardar
+      if (newVal !== String(oldVal ?? '')) {
+        row.classList.add('inline-edit-row');
+        row.classList.add('bg-yellow-100');
+        // NO quitar el amarillo automáticamente, permanecerá hasta que se guarde
+      } else {
+        // Si no hay cambios, quitar amarillo inmediatamente
+        row.classList.remove('bg-yellow-100');
+      }
+    });
 
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -372,12 +505,20 @@ const uiInlineEditableFields = {
     input.addEventListener('blur', () => {
       setTimeout(() => {
         const newVal = (input.value ?? '').trim();
-        const oldVal = (cfg.type === 'date')
-          ? (cfg.inputFormatter ? cfg.inputFormatter(currentValue) : currentValue)
-          : String(currentValue ?? '');
+        // Para datetime-local, usar el valor original del data-value si existe
+        let compareValue = currentValue;
+        if (cfg.type === 'datetime-local' && originalDataValue) {
+          compareValue = originalDataValue;
+        }
+        const oldVal = (cfg.type === 'date' || cfg.type === 'datetime-local')
+          ? (cfg.inputFormatter ? cfg.inputFormatter(compareValue) : compareValue)
+          : String(compareValue ?? '');
 
-        if (newVal !== String(oldVal ?? '')) saveInlineField(input, row, cell);
-        else cancel();
+        if (newVal !== String(oldVal ?? '')) {
+          saveInlineField(input, row, cell);
+        } else {
+          cancel();
+        }
       }, 150);
     });
 
@@ -385,31 +526,42 @@ const uiInlineEditableFields = {
     cell.innerHTML = '';
     cell.appendChild(wrap);
 
-    input.focus();
-    input.select?.();
+    // No hacer focus automático para que no se active el amarillo
+    // input.focus();
+    // input.select?.();
   }
 
   // actualizar más celdas si backend recalcula cosas (fechas, saldo, etc.)
   function applyRowUpdatesFromBackend(row, data) {
     if (!row || !data) return;
 
-    // Los nombres de backend coinciden directamente con data-column
+    const num2Cols = new Set([
+      'DiasEficiencia','ProdKgDia','StdDia','ProdKgDia2','StdToaHra','HorasProd','StdHrsEfect','DiasJornada','PesoGRM2',
+      'TotalPedido','LargoCrudo','Luchaje','PesoCrudo'
+    ]);
+
+    const dateTimeCols = new Set(['FechaInicio','FechaFinal','EntregaCte']);
+    const dateOnlyCols = new Set(['EntregaProduc','EntregaPT','ProgramarProd']);
+
     Object.entries(data).forEach(([backendKey, raw]) => {
       if (raw === undefined) return;
+
       const td = row.querySelector(`td[data-column="${backendKey}"]`);
       if (!td) return;
 
-      let display = (raw ?? '') + '';
+      let display = '';
       const cfg = uiInlineEditableFields[backendKey];
 
-      // Formatear según el tipo de campo
-      if (cfg && cfg.displayFormatter) {
+      if (dateTimeCols.has(backendKey)) {
+        display = raw ? formatDateTimeDisplay(raw) : '';
+      } else if (dateOnlyCols.has(backendKey) || backendKey.startsWith('Entrega')) {
+        display = raw ? formatDateOnlyDisplay(raw) : '';
+      } else if (num2Cols.has(backendKey)) {
+        display = formatNumber2(raw);
+      } else if (cfg && cfg.displayFormatter) {
         display = cfg.displayFormatter(raw);
-      } else if (backendKey === 'TotalPedido' || backendKey === 'SaldoPedido') {
-        display = (raw == null) ? '' : Number(raw).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      } else if (backendKey.includes('Fecha') || backendKey.includes('Entrega')) {
-        const d = raw ? String(raw).replace(' ', 'T') : '';
-        display = d ? formatDateDisplay(d) : '';
+      } else {
+        display = (raw == null || raw === '') ? '' : String(raw);
       }
 
       setCellValue(td, display, raw);
@@ -454,15 +606,23 @@ const uiInlineEditableFields = {
         throw new Error(result?.message || 'Error al guardar');
       }
 
-      // display
+      // display - formatear bien al instante (sin recargar)
       let displayValue = '';
-      if (cfg.displayFormatter) displayValue = cfg.displayFormatter(value, input);
-      else displayValue = (value == null) ? '' : String(value);
+      if (cfg?.displayFormatter) {
+        displayValue = cfg.displayFormatter(value, input);
+      } else if (cfg?.type === 'number') {
+        displayValue = formatNumber2(value);
+      } else {
+        displayValue = (value == null) ? '' : String(value);
+      }
 
       setCellValue(cell, displayValue, value);
 
       // si backend manda resumen, actualiza otras celdas (fechas/saldo/etc)
       if (result?.data) applyRowUpdatesFromBackend(row, result.data);
+
+      // Quitar amarillo después de guardar exitosamente
+      row.classList.remove('bg-yellow-100');
 
       if (typeof window.showToast === 'function') {
         window.showToast('Campo actualizado', 'success');
@@ -476,6 +636,9 @@ const uiInlineEditableFields = {
       const original = cell.dataset.originalValue ?? '';
       cell.innerHTML = original;
 
+      // Mantener amarillo si hay error (para indicar que hay cambios pendientes)
+      // No quitar el amarillo aquí, se mantendrá hasta que se guarde exitosamente
+
       if (typeof window.showToast === 'function') {
         window.showToast(`Error: ${e.message}`, 'error');
       } else if (typeof Swal !== 'undefined') {
@@ -483,9 +646,72 @@ const uiInlineEditableFields = {
       }
     } finally {
       row.classList.remove('inline-saving');
-      row.classList.remove('inline-edit-row');
+      // No remover inline-edit-row ni bg-yellow-100 aquí
+      // El amarillo permanecerá hasta que se guarde exitosamente o se cancele
     }
   }
+
+  // Cerrar edición inline de una fila (restaurar valores originales)
+  window.closeInlineEditForRow = function(row) {
+    if (!row) return;
+
+    const cells = row.querySelectorAll('td[data-column]');
+    cells.forEach(cell => {
+      const inputContainer = cell.querySelector('.inline-edit-input-container');
+      if (inputContainer) {
+        // Siempre restaurar el valor original guardado
+        const originalValue = cell.dataset.originalValue;
+        if (originalValue !== undefined && originalValue !== null) {
+          cell.innerHTML = originalValue;
+          // Restaurar también el data-value si existe
+          const originalDataValue = cell.dataset.originalDataValue;
+          if (originalDataValue !== undefined) {
+            cell.dataset.value = originalDataValue;
+          }
+        } else {
+          // Si no hay valor original, obtener el valor del input y formatearlo
+          const input = cell.querySelector('.inline-edit-input');
+          if (input) {
+            const currentValue = input.value;
+            const col = cell.getAttribute('data-column');
+            const cfg = uiInlineEditableFields[col];
+            if (cfg && cfg.displayFormatter) {
+              cell.innerHTML = cfg.displayFormatter(currentValue, input);
+            } else {
+              cell.innerHTML = currentValue || '';
+            }
+          }
+        }
+      }
+    });
+
+    // Remover clases de edición
+    row.classList.remove('inline-edit-row');
+    row.classList.remove('bg-yellow-100');
+  };
+
+  // Activar edición en todas las celdas editables de una fila
+  window.enableInlineEditForAllCellsInRow = async function(row) {
+    if (!row) return;
+
+    // NO agregar amarillo al inicio, solo cuando hay cambios
+
+    const cells = row.querySelectorAll('td[data-column]');
+    const editableCells = Array.from(cells).filter(cell => {
+      const col = cell.getAttribute('data-column');
+      return col && uiInlineEditableFields[col] && !cell.querySelector('.inline-edit-input');
+    });
+
+    // Activar edición en todas las celdas editables simultáneamente
+    const promises = editableCells.map(cell => {
+      if (window.enableInlineEditForCell) {
+        return window.enableInlineEditForCell(cell);
+      }
+      return Promise.resolve();
+    });
+
+    await Promise.all(promises);
+  };
 
   // Aplicar modo inline
   window.applyInlineModeToRows = function() {
@@ -525,7 +751,9 @@ const uiInlineEditableFields = {
       e.stopPropagation();
 
       console.log('Activando edición para:', col, 'en modo inline:', inlineEditMode);
-      enableInlineEditForCell(cell);
+      if (window.enableInlineEditForCell) {
+        window.enableInlineEditForCell(cell);
+      }
     };
 
     tb.addEventListener('click', tb._inlineEditHandler, true); // Usar capture phase para tener prioridad
@@ -534,6 +762,7 @@ const uiInlineEditableFields = {
 
   window.toggleInlineEditMode = function() {
     inlineEditMode = !inlineEditMode;
+    window.inlineEditMode = inlineEditMode; // Sincronizar con window
 
     const tb = tbodyEl();
     if (inlineEditMode) {
@@ -552,10 +781,12 @@ const uiInlineEditableFields = {
         delete tb._inlineEditHandler;
         delete tb.dataset.inlineBound;
       }
-      // cerrar inputs abiertos
-      $$('.inline-edit-input-container').forEach(c => {
-        const td = c.closest('td');
-        if (td) td.innerHTML = td.dataset.originalValue || td.innerHTML;
+      // cerrar inputs abiertos y limpiar ediciones de todas las filas
+      const rowsWithInputs = $$('.selectable-row').filter(row => row.querySelector('.inline-edit-input'));
+      rowsWithInputs.forEach(row => {
+        if (typeof window.closeInlineEditForRow === 'function') {
+          window.closeInlineEditForRow(row);
+        }
       });
       if (typeof window.showToast === 'function') window.showToast('Edición inline desactivada', 'info');
     }

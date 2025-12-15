@@ -1,9 +1,28 @@
 // ===== Selección de filas - OPTIMIZADO =====
 function selectRow(rowElement, rowIndex) {
 	try {
+		// Cancelar cualquier timeout de amarillo temporal
+		if (typeof window.yellowHighlightTimeout !== 'undefined' && window.yellowHighlightTimeout) {
+			clearTimeout(window.yellowHighlightTimeout);
+			window.yellowHighlightTimeout = null;
+		}
+
 		// Toggle si ya estaba seleccionada
 		if (selectedRowIndex === rowIndex && rowElement.classList.contains('bg-blue-500')) {
 			return deselectRow();
+		}
+
+		// Cerrar edición inline de la fila anterior si existe y desactivar modo inline
+		if (selectedRowIndex >= 0 && selectedRowIndex !== rowIndex) {
+			const rows = allRows.length > 0 ? allRows : $$('.selectable-row');
+			const previousRow = rows[selectedRowIndex];
+			if (previousRow && typeof window.closeInlineEditForRow === 'function') {
+				window.closeInlineEditForRow(previousRow);
+			}
+			// Desactivar modo inline cuando se selecciona otra fila
+			if (typeof window.toggleInlineEditMode === 'function' && (inlineEditMode || window.inlineEditMode)) {
+				window.toggleInlineEditMode();
+			}
 		}
 
 		// Limpiar selección previa (optimizado con allRows)
@@ -12,6 +31,10 @@ function selectRow(rowElement, rowIndex) {
 			const row = rows[i];
 			row.classList.remove('bg-blue-500', 'text-white');
 			row.classList.add('hover:bg-blue-50');
+			// Quitar amarillo si no está en modo edición inline
+			if (!inlineEditMode && !window.inlineEditMode && !row.querySelector('.inline-edit-input')) {
+				row.classList.remove('bg-yellow-100');
+			}
 			const tds = row.querySelectorAll('td');
 			for (let j = 0; j < tds.length; j++) {
 				const td = tds[j];
@@ -23,6 +46,10 @@ function selectRow(rowElement, rowIndex) {
 		// Seleccionar actual
 		rowElement.classList.add('bg-blue-500', 'text-white');
 		rowElement.classList.remove('hover:bg-blue-50');
+		// Quitar amarillo si no está en modo edición inline
+		if (!inlineEditMode && !window.inlineEditMode) {
+			rowElement.classList.remove('bg-yellow-100');
+		}
 		const tds = rowElement.querySelectorAll('td');
 		for (let i = 0; i < tds.length; i++) {
 			const td = tds[i];
@@ -66,12 +93,25 @@ function selectRow(rowElement, rowIndex) {
 
 function deselectRow() {
 	try {
+		// Cerrar edición inline de la fila seleccionada si existe
+		if (selectedRowIndex >= 0) {
+			const rows = allRows.length > 0 ? allRows : $$('.selectable-row');
+			const currentRow = rows[selectedRowIndex];
+			if (currentRow && typeof window.closeInlineEditForRow === 'function') {
+				window.closeInlineEditForRow(currentRow);
+			}
+		}
+
 		// Optimizado con allRows
 		const rows = allRows.length > 0 ? allRows : $$('.selectable-row');
 		for (let i = 0; i < rows.length; i++) {
 			const row = rows[i];
 			row.classList.remove('bg-blue-500', 'text-white');
 			row.classList.add('hover:bg-blue-50');
+			// Quitar amarillo si no está en modo edición inline
+			if (!inlineEditMode && !window.inlineEditMode && !row.querySelector('.inline-edit-input')) {
+				row.classList.remove('bg-yellow-100');
+			}
 			const tds = row.querySelectorAll('td');
 			for (let j = 0; j < tds.length; j++) {
 				const td = tds[j];

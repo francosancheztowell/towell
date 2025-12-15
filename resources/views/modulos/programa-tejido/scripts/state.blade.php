@@ -18,6 +18,7 @@ let dragOverThrottle = null;
 let lastDragOverTime = 0;
 
 let inlineEditMode = false;
+window.inlineEditMode = inlineEditMode; // Exponer globalmente
 
 const normalizeDateValue = (value) => {
 	if (value === undefined || value === null) return '';

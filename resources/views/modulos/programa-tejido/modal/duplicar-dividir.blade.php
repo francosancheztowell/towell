@@ -424,8 +424,8 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 						<tr>
 							<th id="th-telar" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">Telar</th>
 							<th id="th-pedido" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">Pedido</th>
-							<th class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 45%;">Observaciones</th>
 							<th class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">% Segundos</th>
+							<th class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 45%;">Observaciones</th>
 							<th class="py-2 px-2 text-center border-b border-gray-300 w-10">
 								<button type="button" id="btn-add-telar-row" class="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Añadir fila">
 									<i class="fas fa-plus-circle text-lg"></i>
@@ -445,13 +445,13 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 							</td>
 							<td class="p-2 border-r border-gray-200">
-								<input type="text" name="observaciones-destino[]" value=""
-									placeholder="Observaciones..."
+								<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
+									placeholder="0.00"
 									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 							</td>
 							<td class="p-2 border-r border-gray-200">
-								<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
-									placeholder="0.00"
+								<input type="text" name="observaciones-destino[]" value=""
+									placeholder="Observaciones..."
 									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 							</td>
 							<td class="p-2 text-center w-10"></td>
@@ -1069,11 +1069,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
-				'<input type="text" name="observaciones-destino[]" placeholder="Observaciones..."' +
+				'<input type="number" name="porcentaje-segundos-destino[]" value="5" placeholder="0.00" step="0.01" min="0"' +
 					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
-				'<input type="number" name="porcentaje-segundos-destino[]" value="5" placeholder="0.00" step="0.01" min="0"' +
+				'<input type="text" name="observaciones-destino[]" placeholder="Observaciones..."' +
 					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 			'</td>' +
 			'<td class="p-2 text-center w-10">' +
@@ -1140,13 +1140,13 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
 				<td class="p-2 border-r border-gray-200">
-					<input type="text" name="observaciones-destino[]" value=""
-						placeholder="Observaciones..."
+					<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
+						placeholder="0.00"
 						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
 				<td class="p-2 border-r border-gray-200">
-					<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
-						placeholder="0.00"
+					<input type="text" name="observaciones-destino[]" value=""
+						placeholder="Observaciones..."
 						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
 				<td class="p-2 text-center w-10"></td>
@@ -1198,13 +1198,13 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 							oninput="actualizarResumenCantidades()">
 					</td>
 					<td class="p-2 border-r border-gray-200">
-						<input type="text" name="observaciones-destino[]" value=""
-							placeholder="Observaciones..."
+						<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
+							placeholder="0.00"
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 					</td>
 					<td class="p-2 border-r border-gray-200">
-						<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
-							placeholder="0.00"
+						<input type="text" name="observaciones-destino[]" value=""
+							placeholder="Observaciones..."
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 					</td>
 					<td class="p-2 text-center w-10">
@@ -1322,14 +1322,14 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 								oninput="actualizarResumenCantidades()">
 						</td>
 						<td class="p-2 border-r border-gray-200">
-							<input type="text" name="observaciones-destino[]" value="${reg.Observaciones || ''}"
-								placeholder="Observaciones..."
+							<input type="number" name="porcentaje-segundos-destino[]" value="${reg.PorcentajeSegundos !== null && reg.PorcentajeSegundos !== undefined ? reg.PorcentajeSegundos : '5'}" step="0.01" min="0"
+								placeholder="0.00"
 								data-registro-id="${reg.Id}"
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 						</td>
 						<td class="p-2 border-r border-gray-200">
-							<input type="number" name="porcentaje-segundos-destino[]" value="${reg.PorcentajeSegundos !== null && reg.PorcentajeSegundos !== undefined ? reg.PorcentajeSegundos : '5'}" step="0.01" min="0"
-								placeholder="0.00"
+							<input type="text" name="observaciones-destino[]" value="${reg.Observaciones || ''}"
+								placeholder="Observaciones..."
 								data-registro-id="${reg.Id}"
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 						</td>
@@ -1528,11 +1528,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					oninput="actualizarResumenCantidades()">
 			</td>
 			<td class="p-2 border-r border-gray-200">
-				<input type="text" name="observaciones-destino[]" placeholder="Observaciones..."
+				<input type="number" name="porcentaje-segundos-destino[]" value="5" placeholder="0.00" step="0.01" min="0"
 					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 			</td>
 			<td class="p-2 border-r border-gray-200">
-				<input type="number" name="porcentaje-segundos-destino[]" value="5" placeholder="0.00" step="0.01" min="0"
+				<input type="text" name="observaciones-destino[]" placeholder="Observaciones..."
 					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 			</td>
 			<td class="p-2 text-center w-10">
