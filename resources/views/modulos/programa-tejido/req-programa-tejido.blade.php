@@ -184,9 +184,9 @@
 <script>
   @include('modulos.programa-tejido.modal.duplicar-dividir')
 
-  {!! view('modulos.programa-tejido.scripts.state')->render() !!}
-  {!! view('modulos.programa-tejido.scripts.filters')->render() !!}
-  {!! view('modulos.programa-tejido.scripts.columns')->render() !!}
+  {!! view('modulos.programa-tejido.scripts.state', ['columns' => $columns ?? []])->render() !!}
+  {!! view('modulos.programa-tejido.scripts.filters', ['columns' => $columns ?? []])->render() !!}
+  {!! view('modulos.programa-tejido.scripts.columns', ['columns' => $columns ?? []])->render() !!}
   {!! view('modulos.programa-tejido.scripts.selection')->render() !!}
   {!! view('modulos.programa-tejido.scripts.inline-edit')->render() !!}
 
