@@ -1188,15 +1188,35 @@
         const assignClickEvents = () => {
           if (!window.dragDropMode && window.allRows && window.allRows.length > 0) {
             window.allRows.forEach((row, i) => {
-              // Asignar evento con addEventListener (permite múltiples listeners)
-              row.addEventListener('click', function(e) {
+              // Remover listener anterior si existe
+              if (row._selectionHandler) {
+                row.removeEventListener('click', row._selectionHandler);
+              }
+
+              // Crear nuevo handler
+              row._selectionHandler = function(e) {
+                // No seleccionar si estamos en modo inline edit y se hace click en una celda editable
+                if (inlineEditMode) {
+                  const cell = e.target.closest('td[data-column]');
+                  if (cell) {
+                    const col = cell.getAttribute('data-column');
+                    if (col && uiInlineEditableFields && uiInlineEditableFields[col]) {
+                      // El modo inline manejará este click
+                      return;
+                    }
+                  }
+                }
+
                 e.stopPropagation();
                 if (typeof window.selectRow === 'function') {
                   window.selectRow(row, i);
                 } else {
                   console.warn('window.selectRow no está disponible. Verifica que selection.blade.php se haya cargado.');
                 }
-              });
+              };
+
+              // Asignar evento con addEventListener (permite múltiples listeners)
+              row.addEventListener('click', row._selectionHandler);
             });
           }
         };

@@ -247,17 +247,36 @@ const uiInlineEditableFields = {
 
   // ====== Editar SOLO la celda clickeada ======
   async function enableInlineEditForCell(cell) {
-    if (!cell) return;
+    if (!cell) {
+      console.log('enableInlineEditForCell: cell es null');
+      return;
+    }
 
     const row = cell.closest('.selectable-row');
     const rowId = row?.getAttribute('data-id');
-    if (!rowId) return;
+    if (!rowId) {
+      console.log('enableInlineEditForCell: no se encontró rowId');
+      return;
+    }
 
     const columnName = cell.getAttribute('data-column');
-    if (!columnName || !uiInlineEditableFields[columnName]) return;
+    if (!columnName) {
+      console.log('enableInlineEditForCell: no se encontró columnName');
+      return;
+    }
+
+    if (!uiInlineEditableFields[columnName]) {
+      console.log('enableInlineEditForCell: campo no editable:', columnName);
+      return;
+    }
 
     // si ya está editando esa celda
-    if (cell.querySelector('.inline-edit-input')) return;
+    if (cell.querySelector('.inline-edit-input')) {
+      console.log('enableInlineEditForCell: ya hay un input en esta celda');
+      return;
+    }
+
+    console.log('enableInlineEditForCell: activando edición para', columnName, 'en fila', rowId);
 
     const cfg = uiInlineEditableFields[columnName];
     const currentValue = getCellValue(cell);
@@ -476,31 +495,41 @@ const uiInlineEditableFields = {
     rows.forEach(r => r.classList.add('inline-edit-ready'));
 
     const tb = tbodyEl();
-    if (tb && !tb.dataset.inlineBound) {
-      tb.dataset.inlineBound = '1';
+    if (!tb) return;
 
-      tb.addEventListener('click', function inlineEditClickHandler(e) {
-        if (!inlineEditMode) return;
-
-        const cell = e.target.closest('td[data-column]');
-        if (!cell) return;
-
-        const col = cell.getAttribute('data-column');
-        if (!col) return;
-
-        // Verificar si el campo es editable
-        if (!uiInlineEditableFields[col]) {
-          console.log('Campo no editable:', col);
-          return;
-        }
-
-        // Evitar que se active si se hace click en un input existente
-        if (cell.querySelector('.inline-edit-input')) return;
-
-        console.log('Activando edición para:', col);
-        enableInlineEditForCell(cell);
-      });
+    // Remover listener anterior si existe
+    if (tb.dataset.inlineBound && tb._inlineEditHandler) {
+      tb.removeEventListener('click', tb._inlineEditHandler);
     }
+
+    // Crear nuevo handler
+    tb._inlineEditHandler = function inlineEditClickHandler(e) {
+      if (!inlineEditMode) return;
+
+      // Buscar la celda clickeada
+      const cell = e.target.closest('td[data-column]');
+      if (!cell) return;
+
+      const col = cell.getAttribute('data-column');
+      if (!col) return;
+
+      // Verificar si el campo es editable
+      if (!uiInlineEditableFields[col]) {
+        return; // No es editable, dejar que el evento continúe
+      }
+
+      // Evitar que se active si se hace click en un input existente
+      if (cell.querySelector('.inline-edit-input')) return;
+
+      // Detener propagación SOLO si es una celda editable
+      e.stopPropagation();
+
+      console.log('Activando edición para:', col, 'en modo inline:', inlineEditMode);
+      enableInlineEditForCell(cell);
+    };
+
+    tb.addEventListener('click', tb._inlineEditHandler, true); // Usar capture phase para tener prioridad
+    tb.dataset.inlineBound = '1';
   };
 
   window.toggleInlineEditMode = function() {
@@ -509,10 +538,20 @@ const uiInlineEditableFields = {
     const tb = tbodyEl();
     if (inlineEditMode) {
       tb?.classList.add('inline-edit-mode');
+      // Forzar re-aplicación del modo inline
+      if (tb?.dataset.inlineBound) {
+        delete tb.dataset.inlineBound;
+      }
       window.applyInlineModeToRows();
       if (typeof window.showToast === 'function') window.showToast('Edición inline activada: clic en una celda editable', 'info');
     } else {
       tb?.classList.remove('inline-edit-mode');
+      // Remover listener
+      if (tb?._inlineEditHandler) {
+        tb.removeEventListener('click', tb._inlineEditHandler, true);
+        delete tb._inlineEditHandler;
+        delete tb.dataset.inlineBound;
+      }
       // cerrar inputs abiertos
       $$('.inline-edit-input-container').forEach(c => {
         const td = c.closest('td');

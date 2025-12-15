@@ -33,6 +33,7 @@ class UtilityHelpers
             ['field' => 'Rasurado', 'label' => 'Rasurado', 'dateType' => null],
             ['field' => 'NombreProducto', 'label' => 'Producto', 'dateType' => null],
             ['field' => 'TotalPedido', 'label' => 'Pedido', 'dateType' => null],
+            ['field' => 'PorcentajeSegundos', 'label' => '% Segundos', 'dateType' => null],
             ['field' => 'Produccion', 'label' => 'Producción', 'dateType' => null],
             ['field' => 'SaldoPedido', 'label' => 'Saldos', 'dateType' => null],
             ['field' => 'SaldoMarbete', 'label' => 'Saldo Marbetes', 'dateType' => null],
