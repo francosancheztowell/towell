@@ -53,7 +53,9 @@ class ReqProgramaTejido extends Model
         // Campo para dividir registros (relaciona registros que comparten el mismo origen)
         'OrdCompartida',
         // Porcentaje de segundos
-        'PorcentajeSegundos'
+        'PorcentajeSegundos',
+        // Pedido temporal
+        'PedidoTempo'
     ];
 
     /**
@@ -73,6 +75,7 @@ class ReqProgramaTejido extends Model
         'CalibrePie' => 'float',
         'CalibrePie2' => 'float', // REAL en SQL Server
         'TotalPedido' => 'float',
+        'PedidoTempo' => 'float',
         'Produccion' => 'float',
         'SaldoPedido' => 'float',
         'SaldoMarbete' => 'integer',

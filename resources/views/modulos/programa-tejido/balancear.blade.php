@@ -431,14 +431,14 @@
             (saldo > 0 ? 'text-green-600 font-medium' : 'text-gray-500');
         });
 
-        // Ajuste automático para mantener suma de pedidos
+        // Ajuste automático para mantener suma de pedidos (solo cuando hay exactamente 2 registros)
         if (!adjustingFromTotal) {
           const totalDisponibleEl = document.getElementById('total-disponible');
           const totalDisponible = totalDisponibleEl
             ? parseNumber(totalDisponibleEl.textContent)
             : (totalDisponibleBalanceo ?? inputs.reduce((s, i) => s + (Number(i.dataset.original) || 0), 0));
 
-          if (totalDisponible > 0 && inputs.length > 1) {
+          if (totalDisponible > 0 && inputs.length === 2) {
             const diff = totalDisponible - totalPedido;
             if (Math.abs(diff) > 0.0001) {
               const targets = inputs.filter(inp => inp !== lastEditedInput);

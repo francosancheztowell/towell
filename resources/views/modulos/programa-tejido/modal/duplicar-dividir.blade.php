@@ -423,9 +423,10 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 					<thead class="bg-gray-100">
 						<tr>
 							<th id="th-telar" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">Telar</th>
-							<th id="th-pedido" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">Pedido</th>
-							<th class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">% Segundos</th>
-							<th class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 45%;">Observaciones</th>
+							<th id="th-pedido-tempo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">Pedido</th>
+							<th class="py-2 px-3 text-xs font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">% Segundas</th>
+							<th class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">Total</th>
+							<th class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 40%;">Observaciones</th>
 							<th class="py-2 px-2 text-center border-b border-gray-300 w-10">
 								<button type="button" id="btn-add-telar-row" class="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Añadir fila">
 									<i class="fas fa-plus-circle text-lg"></i>
@@ -441,19 +442,23 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 								</select>
 							</td>
 							<td class="p-2 border-r border-gray-200">
-								<input type="text" name="pedido-destino[]" value="${pedido}"
+								<input type="text" name="pedido-tempo-destino[]" value=""
 									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 							</td>
-							<td class="p-2 border-r border-gray-200">
-								<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
-									placeholder="0.00"
-									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-							</td>
-							<td class="p-2 border-r border-gray-200">
-								<input type="text" name="observaciones-destino[]" value=""
-									placeholder="Observaciones..."
-									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-							</td>
+						<td class="p-2 border-r border-gray-200">
+							<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
+								placeholder="0.00"
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+						</td>
+						<td class="p-2 border-r border-gray-200">
+							<input type="text" name="pedido-destino[]" value="${pedido}"
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+						</td>
+						<td class="p-2 border-r border-gray-200">
+							<input type="text" name="observaciones-destino[]" value=""
+								placeholder="Observaciones..."
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+						</td>
 							<td class="p-2 text-center w-10"></td>
 						</tr>
 					</tbody>
@@ -503,6 +508,58 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	// Inputs/Selects de la primera fila Telar/Pedido
 	const firstTelarSelect = tbody.querySelector('select[name="telar-destino[]"]');
 	const firstPedidoInput = tbody.querySelector('input[name="pedido-destino[]"]');
+
+	// Función para calcular el Total basado en PedidoTempo y PorcentajeSegundos
+	function calcularTotalDesdePedidoTempo(row) {
+		if (!row) return;
+
+		const pedidoTempoInput = row.querySelector('input[name="pedido-tempo-destino[]"]');
+		const porcentajeSegundosInput = row.querySelector('input[name="porcentaje-segundos-destino[]"]');
+		const totalInput = row.querySelector('input[name="pedido-destino[]"]');
+
+		if (!pedidoTempoInput || !totalInput) return;
+
+		const pedidoTempo = parseFloat(pedidoTempoInput.value) || 0;
+		const porcentajeSegundos = parseFloat(porcentajeSegundosInput?.value) || 0;
+
+		// Calcular: Total = PedidoTempo * (1 + PorcentajeSegundos / 100)
+		const total = pedidoTempo * (1 + porcentajeSegundos / 100);
+
+		// Actualizar el campo Total solo si hay un valor en PedidoTempo
+		if (pedidoTempo > 0) {
+			// Si el total es un número entero (sin decimales), omitir .00
+			if (total % 1 === 0) {
+				totalInput.value = total.toString();
+			} else {
+				totalInput.value = total.toFixed(2);
+			}
+		} else {
+			totalInput.value = '';
+		}
+
+		// Disparar evento input para actualizar el estado
+		totalInput.dispatchEvent(new Event('input', { bubbles: true }));
+	}
+
+	// Función para agregar event listeners de cálculo automático a una fila
+	function agregarListenersCalculoAutomatico(row) {
+		if (!row) return;
+
+		const pedidoTempoInput = row.querySelector('input[name="pedido-tempo-destino[]"]');
+		const porcentajeSegundosInput = row.querySelector('input[name="porcentaje-segundos-destino[]"]');
+
+		if (pedidoTempoInput) {
+			pedidoTempoInput.addEventListener('input', () => {
+				calcularTotalDesdePedidoTempo(row);
+			});
+		}
+
+		if (porcentajeSegundosInput) {
+			porcentajeSegundosInput.addEventListener('input', () => {
+				calcularTotalDesdePedidoTempo(row);
+			});
+		}
+	}
 
 	function recomputeState() {
 		const modoActual = getModoActual();
@@ -881,6 +938,12 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		firstPedidoInput.addEventListener('input', recomputeState);
 	}
 
+	// Agregar listeners para cálculo automático en la fila principal inicial
+	const filaPrincipalInicial = document.getElementById('fila-principal');
+	if (filaPrincipalInicial) {
+		agregarListenersCalculoAutomatico(filaPrincipalInicial);
+	}
+
 	// Cargar datos en paralelo para mayor velocidad
 	const fetchSalones = fetch('/programa-tejido/salon-tejido-options', {
 		headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
@@ -1065,11 +1128,15 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				'</select>' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
-				'<input type="text" name="pedido-destino[]" placeholder=""' +
+				'<input type="text" name="pedido-tempo-destino[]" placeholder=""' +
 					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
 				'<input type="number" name="porcentaje-segundos-destino[]" value="5" placeholder="0.00" step="0.01" min="0"' +
+					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
+			'</td>' +
+			'<td class="p-2 border-r border-gray-200">' +
+				'<input type="text" name="pedido-destino[]" placeholder=""' +
 					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
@@ -1092,6 +1159,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		const pedidoInput = newRow.querySelector('input[name="pedido-destino[]"]');
 		if (telarSelect) telarSelect.addEventListener('change', recomputeState);
 		if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
+
+		// Agregar listeners para cálculo automático
+		agregarListenersCalculoAutomatico(newRow);
 	});
 
 	// ===== Switch Dividir/Duplicar =====
@@ -1103,7 +1173,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const checkboxVincular = document.getElementById('checkbox-vincular');
 	const checkboxVincularContainer = document.getElementById('checkbox-vincular-container');
 	const thTelar = document.getElementById('th-telar');
-	const thPedido = document.getElementById('th-pedido');
+	const thPedidoTempo = document.getElementById('th-pedido-tempo');
 	const telarOriginal = document.getElementById('telar-original')?.value || telarActual;
 	const pedidoOriginal = document.getElementById('pedido-original')?.value || '';
 
@@ -1126,7 +1196,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			// === MODO DUPLICAR ===
 			// Header normal
 			if (thTelar) thTelar.textContent = 'Telar';
-			if (thPedido) thPedido.textContent = 'Pedido';
+			if (thPedidoTempo) thPedidoTempo.textContent = 'Pedido';
 
 			// Primera fila: select editable para telar destino
 			filaPrincipal.innerHTML = `
@@ -1136,12 +1206,16 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					</select>
 				</td>
 				<td class="p-2 border-r border-gray-200">
-					<input type="text" name="pedido-destino[]" value="${pedidoOriginal}"
+					<input type="text" name="pedido-tempo-destino[]" value=""
 						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
 				<td class="p-2 border-r border-gray-200">
 					<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
 						placeholder="0.00"
+						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+				</td>
+				<td class="p-2 border-r border-gray-200">
+					<input type="text" name="pedido-destino[]" value="${pedidoOriginal}"
 						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
 				<td class="p-2 border-r border-gray-200">
@@ -1171,11 +1245,14 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			if (telarSelect) telarSelect.addEventListener('change', recomputeState);
 			if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
 
+			// Agregar listeners para cálculo automático
+			agregarListenersCalculoAutomatico(filaPrincipal);
+
 		} else {
 			// === MODO DIVIDIR ===
 			// Header indica origen y destino
 			if (thTelar) thTelar.textContent = 'Telar';
-			if (thPedido) thPedido.textContent = 'Cantidad a asignar';
+			if (thPedidoTempo) thPedidoTempo.textContent = 'Pedido';
 
 			// Verificar si ya tiene OrdCompartida (ya fue dividido antes)
 			if (tieneOrdCompartida) {
@@ -1193,14 +1270,18 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 						</div>
 					</td>
 					<td class="p-2 border-r border-gray-200">
-						<input type="text" name="pedido-destino[]" value="${pedidoOriginal}" placeholder="Cantidad para este telar..."
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-							oninput="actualizarResumenCantidades()">
+						<input type="text" name="pedido-tempo-destino[]" value=""
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 					</td>
 					<td class="p-2 border-r border-gray-200">
 						<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
 							placeholder="0.00"
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+					</td>
+					<td class="p-2 border-r border-gray-200">
+						<input type="text" name="pedido-destino[]" value="${pedidoOriginal}" placeholder="Cantidad para este telar..."
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+							oninput="actualizarResumenCantidades()">
 					</td>
 					<td class="p-2 border-r border-gray-200">
 						<input type="text" name="observaciones-destino[]" value=""
@@ -1214,6 +1295,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 				// Agregar automáticamente una fila para el telar destino
 				agregarFilaDividir();
+
+				// Agregar listeners para cálculo automático en la fila principal
+				agregarListenersCalculoAutomatico(filaPrincipal);
 			}
 
 			// Re-registrar eventos
@@ -1315,17 +1399,22 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 							</div>
 						</td>
 						<td class="p-2 border-r border-gray-200">
-							<input type="text" name="pedido-destino[]" value="${reg.TotalPedido || 0}"
-								placeholder="Cantidad..."
+							<input type="text" name="pedido-tempo-destino[]" value="${reg.PedidoTempo || ''}"
 								data-registro-id="${reg.Id}"
-								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-								oninput="actualizarResumenCantidades()">
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 						</td>
 						<td class="p-2 border-r border-gray-200">
 							<input type="number" name="porcentaje-segundos-destino[]" value="${reg.PorcentajeSegundos !== null && reg.PorcentajeSegundos !== undefined ? reg.PorcentajeSegundos : '5'}" step="0.01" min="0"
 								placeholder="0.00"
 								data-registro-id="${reg.Id}"
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+						</td>
+						<td class="p-2 border-r border-gray-200">
+							<input type="text" name="pedido-destino[]" value="${reg.TotalPedido || 0}"
+								placeholder="Cantidad..."
+								data-registro-id="${reg.Id}"
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+								oninput="actualizarResumenCantidades()">
 						</td>
 						<td class="p-2 border-r border-gray-200">
 							<input type="text" name="observaciones-destino[]" value="${reg.Observaciones || ''}"
@@ -1439,6 +1528,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 							recomputeState();
 						});
 					}
+
+					// Agregar listeners para cálculo automático
+					agregarListenersCalculoAutomatico(newRow);
 				});
 
 				// Actualizar resumen
@@ -1523,13 +1615,17 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				</div>
 			</td>
 			<td class="p-2 border-r border-gray-200">
-				<input type="text" name="pedido-destino[]" placeholder="Cantidad para este telar..."
-					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-					oninput="actualizarResumenCantidades()">
+				<input type="text" name="pedido-tempo-destino[]" value=""
+					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 			</td>
 			<td class="p-2 border-r border-gray-200">
 				<input type="number" name="porcentaje-segundos-destino[]" value="5" placeholder="0.00" step="0.01" min="0"
 					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+			</td>
+			<td class="p-2 border-r border-gray-200">
+				<input type="text" name="pedido-destino[]" placeholder="Cantidad para este telar..."
+					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+					oninput="actualizarResumenCantidades()">
 			</td>
 			<td class="p-2 border-r border-gray-200">
 				<input type="text" name="observaciones-destino[]" placeholder="Observaciones..."
@@ -1560,6 +1656,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				recomputeState();
 			});
 		}
+
+		// Agregar listeners para cálculo automático
+		agregarListenersCalculoAutomatico(newRow);
 	}
 
 	function actualizarEstiloSwitch() {
@@ -1684,9 +1783,10 @@ function validarYCapturarDatosDuplicar() {
 	const ordCompartidaExistente = vincular ? null : (ordCompartidaExistenteRaw || null);
 	const registroIdOriginal = document.getElementById('registro-id-original')?.value || '';
 
-	// Capturar múltiples filas de telar/pedido/observaciones/porcentaje_segundos
+	// Capturar múltiples filas de telar/pedido-tempo/observaciones/pedido/porcentaje_segundos
 	// Nota: en modo dividir, el primer telar es un input readonly, no un select
 	const telarInputs = document.querySelectorAll('[name="telar-destino[]"]'); // Captura tanto select como input
+	const pedidoTempoInputs = document.querySelectorAll('input[name="pedido-tempo-destino[]"]');
 	const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
 	const observacionesInputs = document.querySelectorAll('input[name="observaciones-destino[]"]');
 	const porcentajeSegundosInputs = document.querySelectorAll('input[name="porcentaje-segundos-destino[]"]');
@@ -1695,6 +1795,7 @@ function validarYCapturarDatosDuplicar() {
 
 	telarInputs.forEach((input, idx) => {
 		const telarVal = input.value.trim();
+		const pedidoTempoVal = pedidoTempoInputs[idx]?.value.trim() || null;
 		const pedidoVal = pedidoInputs[idx]?.value.trim() || '';
 		const observacionesVal = observacionesInputs[idx]?.value.trim() || null;
 		const porcentajeSegundosVal = porcentajeSegundosInputs[idx]?.value.trim() || null;
@@ -1706,6 +1807,7 @@ function validarYCapturarDatosDuplicar() {
 		if (telarVal || pedidoVal) {
 			destinos.push({
 				telar: telarVal,
+				pedido_tempo: pedidoTempoVal,
 				pedido: pedidoVal,
 				observaciones: observacionesVal,
 				porcentaje_segundos: porcentajeSegundosVal ? parseFloat(porcentajeSegundosVal) : null,
