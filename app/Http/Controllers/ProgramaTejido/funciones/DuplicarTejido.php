@@ -25,6 +25,8 @@ class DuplicarTejido
             'destinos'        => 'required|array|min:1',
             'destinos.*.telar'  => 'required|string',
             'destinos.*.pedido' => 'nullable|string',
+            'destinos.*.observaciones' => 'nullable|string|max:500',
+            'destinos.*.porcentaje_segundos' => 'nullable|numeric|min:0',
 
             'tamano_clave'   => 'nullable|string|max:100',
             'invent_size_id' => 'nullable|string|max:100',
@@ -80,6 +82,10 @@ class DuplicarTejido
             foreach ($destinos as $destino) {
                 $telarDestino = $destino['telar'];
                 $pedidoDestinoRaw = $destino['pedido'] ?? null;
+                $observacionesDestino = $destino['observaciones'] ?? null;
+                $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
+                    ? (float)$destino['porcentaje_segundos']
+                    : null;
 
                 $ultimoDestino = ReqProgramaTejido::query()
                     ->salon($salonDestino)
@@ -125,6 +131,14 @@ class DuplicarTejido
                 if ($flog)         $nuevo->FlogsId = $flog;
                 if ($aplicacion)   $nuevo->AplicacionId = StringTruncator::truncate('AplicacionId', $aplicacion);
                 if ($descripcion)  $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', $descripcion);
+
+                // ===== Observaciones y PorcentajeSegundos =====
+                if ($observacionesDestino !== null && $observacionesDestino !== '') {
+                    $nuevo->Observaciones = StringTruncator::truncate('Observaciones', $observacionesDestino);
+                }
+                if ($porcentajeSegundosDestino !== null) {
+                    $nuevo->PorcentajeSegundos = $porcentajeSegundosDestino;
+                }
 
                 // ===== TotalPedido / SaldoPedido =====
                 $pedidoDestino = ($pedidoDestinoRaw !== null && $pedidoDestinoRaw !== '') ? self::sanitizeNumber($pedidoDestinoRaw) : null;

@@ -51,7 +51,9 @@ class ReqProgramaTejido extends Model
         // Nuevo campo
         'LargoCrudo',
         // Campo para dividir registros (relaciona registros que comparten el mismo origen)
-        'OrdCompartida'
+        'OrdCompartida',
+        // Porcentaje de segundos
+        'PorcentajeSegundos'
     ];
 
     /**
@@ -130,6 +132,7 @@ class ReqProgramaTejido extends Model
         'LargoCrudo' => 'integer',
         'OrdCompartida' => 'integer', // INT para relacionar registros divididos
         'CategoriaCalidad' => 'string',
+        'PorcentajeSegundos' => 'float',
     ];
 
     /* ===========================
