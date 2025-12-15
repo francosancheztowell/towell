@@ -224,10 +224,10 @@ class DuplicarTejido
                     'dias_jornada'  => $nuevo->DiasJornada ?? null,
                 ]);
 
-                // Truncar strings
+                // Truncar strings (FlogsId se asigna directamente y no necesita truncamiento)
                 foreach ([
                     'Maquina','NombreProyecto','CustName','AplicacionId','NombreProducto',
-                    'FlogsId','TipoPedido','Observaciones','FibraTrama','FibraComb1','FibraComb2',
+                    'TipoPedido','Observaciones','FibraTrama','FibraComb1','FibraComb2',
                     'FibraComb3','FibraComb4','FibraComb5','FibraPie','SalonTejidoId','NoTelarId',
                     'Rasurado','TamanoClave'
                 ] as $campoStr) {

@@ -19,7 +19,7 @@ class StringTruncator
         'Ultimo'         => 2,
         'CambioHilo'     => 2,
         'Maquina'        => 15,
-        'FlogsId'        => 20,
+        'FlogsId'        => 25,
         'NombreProyecto' => 60,
         'CustName'       => 60,
         'AplicacionId'   => 10,
