@@ -6,8 +6,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 // PDF facade (alias configurado en config/app.php)
 use PDF;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use App\Exports\CortesEficienciaExport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Helpers\TurnoHelper;
@@ -826,18 +829,51 @@ class CortesEficienciaController extends Controller
                 return response()->json(['error' => 'Sin datos para la fecha seleccionada'], 404);
             }
 
-            $pdf = PDF::loadView('modulos.cortes-eficiencia.visualizar-cortes-eficiencia-pdf', [
+            $html = view('modulos.cortes-eficiencia.visualizar-cortes-eficiencia-pdf', [
                 'fecha' => $info['fecha'],
                 'datos' => $info['datos'],
                 'foliosPorTurno' => $info['foliosPorTurno'],
-            ])->setPaper('a4', 'landscape');
+            ])->render();
 
+            $options = new Options();
+            $options->set('isHtml5ParserEnabled', true);
+            $options->set('isRemoteEnabled', true);
+            $options->set('defaultFont', 'Arial');
+            $options->set('isPhpEnabled', false);
+            $options->set('chroot', public_path());
+            $options->set('tempDir', sys_get_temp_dir());
+
+            $dompdf = new Dompdf($options);
+            $dompdf->loadHtml($html, 'UTF-8');
+            $dompdf->setPaper('a4', 'landscape');
+            $dompdf->render();
+
+            $pdfContent = $dompdf->output();
             $filename = 'cortes_eficiencia_' . $fechaNorm . '.pdf';
 
-            return response($pdf->output(), 200, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"'
+            if (empty($pdfContent)) {
+                Log::error('PDF de cortes de eficiencia generado vacío', ['fecha' => $fechaNorm]);
+                return response()->json(['error' => 'Error: PDF generado está vacío'], 500);
+            }
+
+            Log::info('PDF de cortes de eficiencia generado correctamente', [
+                'fecha' => $fechaNorm,
+                'filename' => $filename,
+                'size_kb' => round(strlen($pdfContent) / 1024, 2),
             ]);
+
+            try {
+                $this->enviarReporteCortesPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
+            } catch (\Throwable $e) {
+                Log::error('Error al enviar PDF de cortes a Telegram (continuando con descarga)', [
+                    'error' => $e->getMessage(),
+                    'fecha' => $fechaNorm,
+                ]);
+            }
+
+            return response($pdfContent, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
         } catch (\Throwable $th) {
             Log::error('Error al generar PDF de cortes de eficiencia', [
                 'mensaje' => $th->getMessage()
@@ -889,6 +925,97 @@ class CortesEficienciaController extends Controller
             'datos' => $datos,
             'foliosPorTurno' => $foliosPorTurno,
         ];
+    }
+
+    private function enviarReporteCortesPdfTelegram(string $pdfContent, string $filename, string $fecha, $usuario = null): void
+    {
+        try {
+            $botToken = config('services.telegram.bot_token');
+            $chatId = config('services.telegram.chat_id');
+
+            if (empty($botToken) || empty($chatId)) {
+                Log::warning('No se pudo enviar PDF de cortes: credenciales Telegram no configuradas');
+                return;
+            }
+
+            if (empty($pdfContent)) {
+                Log::warning('PDF de cortes vacío, no se envía a Telegram', [
+                    'fecha' => $fecha,
+                    'filename' => $filename,
+                ]);
+                return;
+            }
+
+            $pdfSizeMB = strlen($pdfContent) / 1024 / 1024;
+            if ($pdfSizeMB > 50) {
+                Log::warning('PDF de cortes excede límite de Telegram', [
+                    'fecha' => $fecha,
+                    'filename' => $filename,
+                    'size_mb' => round($pdfSizeMB, 2),
+                ]);
+                return;
+            }
+
+            $nombreUsuario = $usuario->nombre ?? $usuario->name ?? null;
+            $numeroEmpleado = $usuario->numero_empleado ?? null;
+
+            $caption = "Reporte Cortes de Eficiencia\n";
+            $caption .= "Fecha: {$fecha}\n";
+            if (!empty($nombreUsuario)) {
+                $caption .= "Generado por: {$nombreUsuario}";
+                if (!empty($numeroEmpleado)) {
+                    $caption .= " ({$numeroEmpleado})";
+                }
+            }
+
+            $url = "https://api.telegram.org/bot{$botToken}/sendDocument";
+
+            Log::info('Enviando reporte de cortes a Telegram', [
+                'fecha' => $fecha,
+                'filename' => $filename,
+                'size_kb' => round(strlen($pdfContent) / 1024, 2),
+                'chat_id' => $chatId,
+            ]);
+
+            $response = Http::timeout(30)
+                ->attach('document', $pdfContent, $filename)
+                ->post($url, [
+                    'chat_id' => $chatId,
+                    'caption' => $caption,
+                ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                if ($data['ok'] ?? false) {
+                    Log::info('PDF de cortes enviado a Telegram', [
+                        'fecha' => $fecha,
+                        'filename' => $filename,
+                        'chat_id' => $chatId,
+                        'message_id' => $data['result']['message_id'] ?? null,
+                    ]);
+                } else {
+                    Log::error('Telegram respondió ok=false para cortes', [
+                        'response' => $data,
+                        'fecha' => $fecha,
+                        'filename' => $filename,
+                    ]);
+                }
+            } else {
+                Log::error('Error HTTP al enviar cortes a Telegram', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'fecha' => $fecha,
+                    'filename' => $filename,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Excepción al enviar PDF de cortes a Telegram', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'fecha' => $fecha,
+                'filename' => $filename,
+            ]);
+        }
     }
 
     private function normalizarFecha($fecha)
