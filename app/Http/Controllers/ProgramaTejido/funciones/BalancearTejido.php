@@ -13,11 +13,71 @@ use Illuminate\Support\Facades\Log;
 
 class BalancearTejido
 {
+    /** Cache para modelo (TamanoClave) */
     private static array $modeloCache = [];
 
     /** si el cambio de fin es menor a esto, NO cascada (evita “rebotes”) */
     private const CASCADE_THRESHOLD_SECONDS = 300; // 5 min
 
+    // =========================================================
+    // PREVIEW EXACTO (NO GUARDA) - PARA EL MODAL (CALENDARIO)
+    // =========================================================
+    public static function previewFechas(Request $request)
+    {
+        $request->validate([
+            'cambios' => 'required|array|min:1',
+            'cambios.*.id' => 'required|integer',
+            'cambios.*.total_pedido' => 'required|numeric|min:0',
+            'cambios.*.modo' => 'nullable|string|in:saldo,total',
+            'ord_compartida' => 'required|integer',
+        ]);
+
+        $cambios = $request->input('cambios', []);
+
+        // Cargar registros una sola vez
+        $ids = array_values(array_unique(array_map(fn($c) => (int)$c['id'], $cambios)));
+        $regs = ReqProgramaTejido::whereIn('Id', $ids)->get()->keyBy('Id');
+
+        $resp = [];
+
+        foreach ($cambios as $cambio) {
+            $id = (int)$cambio['id'];
+            /** @var ReqProgramaTejido|null $r */
+            $r = $regs->get($id);
+            if (!$r) continue;
+
+            $produccion = (float)($r->Produccion ?? 0);
+            $input = (float)$cambio['total_pedido'];
+
+            // Importante: para este modal, SIEMPRE manda modo=total desde JS
+            [$total, $saldo] = self::resolverTotalSaldo($input, $produccion, $cambio['modo'] ?? 'total');
+
+            // Mutar EN MEMORIA (no save)
+            $r->TotalPedido = $total;
+            $r->SaldoPedido = $saldo;
+
+            [$inicio, $fin, $horas] = self::calcularInicioFinExactos($r);
+
+            $resp[] = [
+                'id' => (int)$r->Id,
+                'fecha_inicio' => $inicio ? $inicio->format('Y-m-d H:i:s') : null,
+                'fecha_final'  => $fin ? $fin->format('Y-m-d H:i:s') : null,
+                'horas_prod'   => $horas,
+                'saldo'        => $saldo,
+                'total'        => $total,
+                'calendario_id'=> $r->CalendarioId ?? null,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $resp,
+        ]);
+    }
+
+    // =========================================================
+    // GUARDAR (CALENDARIO EXACTO) - IGNORA fecha_final del front
+    // =========================================================
     public static function actualizarPedidos(Request $request)
     {
         $dispatcher = ReqProgramaTejido::getEventDispatcher();
@@ -26,9 +86,10 @@ class BalancearTejido
             $request->validate([
                 'cambios' => 'required|array',
                 'cambios.*.id' => 'required|integer',
-                'cambios.*.total_pedido' => 'required|numeric|min:0', // (en UI puede venir saldo o total)
+                'cambios.*.total_pedido' => 'required|numeric|min:0',
+                // aunque venga, lo ignoramos (para evitar fechas falsas del modal)
                 'cambios.*.fecha_final' => 'nullable|string',
-                'cambios.*.modo' => 'nullable|string|in:saldo,total', // opcional
+                'cambios.*.modo' => 'nullable|string|in:saldo,total',
                 'ord_compartida' => 'required|integer',
             ]);
 
@@ -42,92 +103,45 @@ class BalancearTejido
             DB::beginTransaction();
 
             foreach ($cambios as $cambio) {
-                $registro = ReqProgramaTejido::find($cambio['id']);
+                $registro = ReqProgramaTejido::find((int)$cambio['id']);
                 if (!$registro) continue;
 
                 $produccion = (float)($registro->Produccion ?? 0);
 
-                // OJO: puede ser saldo o total dependiendo de tu UI
                 $input = (float)$cambio['total_pedido'];
 
-                [$total, $saldo, $modoDetectado] = self::resolverTotalSaldo(
+                // Para el modal: SIEMPRE manda modo=total (aun así dejamos fallback)
+                [$total, $saldo] = self::resolverTotalSaldo(
                     $input,
                     $produccion,
-                    $cambio['modo'] ?? null
+                    $cambio['modo'] ?? 'total'
                 );
 
                 $registro->TotalPedido = $total;
                 $registro->SaldoPedido = $saldo;
 
                 $fechaFinalAntes = $registro->FechaFinal;
-                $fechaFinalCambiada = false;
 
-                // 1) Si el usuario mandó fecha_final: respetar
-                $fechaFinalManual = isset($cambio['fecha_final']) ? trim((string)$cambio['fecha_final']) : '';
-                if ($fechaFinalManual !== '') {
-                    $fin = self::parseFecha($fechaFinalManual);
-                    if ($fin) {
-                        $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
-                    } else {
-                        Log::warning('BalancearTejido: fecha_final inválida, se ignora', [
-                            'id' => $registro->Id,
-                            'fecha_final_raw' => $fechaFinalManual,
-                        ]);
-                    }
+                // ===== SIEMPRE recalcular FechaFinal EXACTA con calendario =====
+                if (!empty($registro->FechaInicio)) {
+                    [$inicio, $fin, $horas] = self::calcularInicioFinExactos($registro);
+
+                    if ($inicio) $registro->FechaInicio = $inicio->format('Y-m-d H:i:s');
+                    if ($fin)    $registro->FechaFinal  = $fin->format('Y-m-d H:i:s');
+
+                    Log::info('BalancearTejido: recalculo exacto (save)', [
+                        'id' => $registro->Id,
+                        'input_total' => $input,
+                        'total' => $total,
+                        'saldo' => $saldo,
+                        'horas' => $horas,
+                        'inicio' => $registro->FechaInicio,
+                        'fin' => $registro->FechaFinal,
+                        'calendario_id' => $registro->CalendarioId ?? null,
+                    ]);
                 }
 
-                // 2) Si NO mandó fecha_final: auto-recalcular por horas/calendario
-                if ($fechaFinalManual === '' && !empty($registro->FechaInicio)) {
-                    $inicio = Carbon::parse($registro->FechaInicio);
-
-                    if (!empty($registro->CalendarioId)) {
-                        $snap = self::snapInicioAlCalendario($registro->CalendarioId, $inicio);
-                        if ($snap) {
-                            $inicio = $snap;
-                            $registro->FechaInicio = $inicio->format('Y-m-d H:i:s');
-                        }
-                    }
-
-                    $horasNecesarias = self::calcularHorasProd($registro);
-
-                    if ($horasNecesarias > 0) {
-                        $finCalc = null;
-
-                        if (!empty($registro->CalendarioId)) {
-                            $finCalc = self::calcularFechaFinalDesdeInicio($registro->CalendarioId, $inicio, $horasNecesarias);
-                        }
-
-                        if (!$finCalc) {
-                            $finCalc = $inicio->copy()->addSeconds((int)ceil($horasNecesarias * 3600)); // ceil evita “subestimar”
-                        }
-
-                        $registro->FechaFinal = $finCalc->format('Y-m-d H:i:s');
-
-                        Log::info('BalancearTejido: auto FechaFinal', [
-                            'id' => $registro->Id,
-                            'modo_input' => $modoDetectado,
-                            'produccion' => $produccion,
-                            'input' => $input,
-                            'total' => $total,
-                            'saldo' => $saldo,
-                            'horas' => $horasNecesarias,
-                            'inicio' => $registro->FechaInicio,
-                            'fin' => $registro->FechaFinal,
-                            'calendario_id' => $registro->CalendarioId ?? null,
-                        ]);
-                    } else {
-                        Log::warning('BalancearTejido: horasNecesarias=0 (datos incompletos modelo/STD)', [
-                            'id' => $registro->Id,
-                            'modo_input' => $modoDetectado,
-                            'vel' => $registro->VelocidadSTD ?? null,
-                            'efic' => $registro->EficienciaSTD ?? null,
-                            'tamano' => $registro->TamanoClave ?? null,
-                            'saldo' => $registro->SaldoPedido ?? null,
-                        ]);
-                    }
-                }
-
-                // 3) Fórmulas
+                // ===== Fórmulas EXACTAS (igual que DuplicarTejido) =====
                 if (!empty($registro->FechaInicio) && !empty($registro->FechaFinal)) {
                     $formulas = self::calcularFormulasEficiencia($registro);
                     foreach ($formulas as $campo => $valor) {
@@ -138,30 +152,19 @@ class BalancearTejido
                 $registro->save();
                 $idsAfectados[] = $registro->Id;
 
-                // ¿cambió FechaFinal “de verdad”? (umbral)
+                // Cascada si cambió FechaFinal "de verdad"
                 $delta = self::diffSecondsNullable($fechaFinalAntes, $registro->FechaFinal);
-
-                if ($delta === null) {
-                    // si antes no había fecha, sí consideramos cambio
-                    $fechaFinalCambiada = !empty($registro->FechaFinal);
-                } else {
-                    $fechaFinalCambiada = ($delta >= self::CASCADE_THRESHOLD_SECONDS);
-                }
+                $fechaFinalCambiada = ($delta === null)
+                    ? !empty($registro->FechaFinal)
+                    : ($delta >= self::CASCADE_THRESHOLD_SECONDS);
 
                 if ($fechaFinalCambiada) {
                     $key = trim((string)$registro->SalonTejidoId) . '|' . trim((string)$registro->NoTelarId);
                     $porTelar[$key][] = $registro->Id;
-
-                    Log::info('BalancearTejido: marcar cascada', [
-                        'id' => $registro->Id,
-                        'delta_seg' => $delta,
-                        'threshold' => self::CASCADE_THRESHOLD_SECONDS,
-                        'telar' => $key,
-                    ]);
                 }
             }
 
-            // 4) Cascada por telar
+            // Cascada por telar (mantener secuencia real)
             foreach ($porTelar as $key => $idsBase) {
                 $base = ReqProgramaTejido::whereIn('Id', $idsBase)
                     ->orderBy('FechaInicio', 'asc')
@@ -183,7 +186,7 @@ class BalancearTejido
             }
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
-            // 5) Regenerar líneas diarias
+            // Regenerar líneas diarias (observer)
             $idsAfectados = array_values(array_unique(array_filter($idsAfectados)));
             if (!empty($idsAfectados)) {
                 $observer = new ReqProgramaTejidoObserver();
@@ -222,13 +225,47 @@ class BalancearTejido
         }
     }
 
-    /**
-     * Resuelve si input viene como SALDO o TOTAL.
-     * - Si mandas modo='saldo' o 'total' lo respeta.
-     * - Si no, auto:
-     *    - si Produccion>0 y input < Produccion => input es saldo
-     *    - si no => input es total
-     */
+    // =========================================================
+    // Core: inicio + fin exacto por calendario
+    // =========================================================
+    private static function calcularInicioFinExactos(ReqProgramaTejido $r): array
+    {
+        if (empty($r->FechaInicio)) {
+            return [null, null, 0.0];
+        }
+
+        $inicio = Carbon::parse($r->FechaInicio);
+
+        // Snap a calendario si hay
+        if (!empty($r->CalendarioId)) {
+            $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
+            if ($snap) $inicio = $snap;
+        }
+
+        $horasNecesarias = self::calcularHorasProd($r);
+
+        if ($horasNecesarias <= 0) {
+            // fallback mínimo, pero mejor que null
+            $fin = $inicio->copy()->addDays(30);
+            return [$inicio, $fin, 0.0];
+        }
+
+        if (!empty($r->CalendarioId)) {
+            $fin = self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horasNecesarias);
+            if (!$fin) {
+                $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+            }
+            return [$inicio, $fin, $horasNecesarias];
+        }
+
+        // sin calendario, continuo
+        $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+        return [$inicio, $fin, $horasNecesarias];
+    }
+
+    // =========================================================
+    // Resolver total/saldo
+    // =========================================================
     private static function resolverTotalSaldo(float $input, float $produccion, ?string $modo): array
     {
         $input = max(0, $input);
@@ -237,25 +274,13 @@ class BalancearTejido
         if ($modo === 'saldo') {
             $saldo = $input;
             $total = $produccion + $saldo;
-            return [$total, $saldo, 'saldo_explicit'];
+            return [$total, $saldo];
         }
 
-        if ($modo === 'total') {
-            $total = $input;
-            $saldo = max(0, $total - $produccion);
-            return [$total, $saldo, 'total_explicit'];
-        }
-
-        // auto
-        if ($produccion > 0 && $input < $produccion) {
-            $saldo = $input;
-            $total = $produccion + $saldo;
-            return [$total, $saldo, 'auto_saldo'];
-        }
-
+        // default total
         $total = $input;
         $saldo = max(0, $total - $produccion);
-        return [$total, $saldo, 'auto_total'];
+        return [$total, $saldo];
     }
 
     private static function diffSecondsNullable($a, $b): ?int
@@ -270,6 +295,9 @@ class BalancearTejido
         }
     }
 
+    // =========================================================
+    // Cascada por telar
+    // =========================================================
     private static function cascadeFechasTelarDesde(ReqProgramaTejido $base): array
     {
         $salon = trim((string)$base->SalonTejidoId);
@@ -305,51 +333,39 @@ class BalancearTejido
             $r->FechaInicio = $inicio->format('Y-m-d H:i:s');
 
             $horas = self::calcularHorasProd($r);
-            $fin = null;
 
             if ($horas > 0) {
-                if (!empty($r->CalendarioId)) {
-                    $fin = self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horas);
-                }
-                if (!$fin) {
-                    $fin = $inicio->copy()->addSeconds((int)ceil($horas * 3600));
-                }
+                $fin = !empty($r->CalendarioId)
+                    ? (self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horas) ?: $inicio->copy()->addSeconds((int)($horas * 3600)))
+                    : $inicio->copy()->addSeconds((int)($horas * 3600));
             } else {
-                $fin = $inicio->copy();
+                $fin = $inicio->copy()->addDays(30);
             }
 
             $r->FechaFinal = $fin->format('Y-m-d H:i:s');
 
             $formulas = self::calcularFormulasEficiencia($r);
-            foreach ($formulas as $campo => $valor) {
-                $r->{$campo} = $valor;
-            }
+            foreach ($formulas as $campo => $valor) $r->{$campo} = $valor;
 
             $r->save();
             $ids[] = $r->Id;
 
             $cursor = $fin->copy();
-
-            Log::info('BalancearTejido: cascada', [
-                'id' => $r->Id,
-                'inicio' => $r->FechaInicio,
-                'fin' => $r->FechaFinal,
-                'horas' => $horas,
-                'saldo' => $r->SaldoPedido ?? null,
-                'calendario_id' => $r->CalendarioId ?? null,
-            ]);
         }
 
         return $ids;
     }
 
+    // =========================================================
+    // HorasProd EXACTO (igual a DuplicarTejido)
+    // =========================================================
     private static function calcularHorasProd(ReqProgramaTejido $p): float
     {
-        $vel  = (float)($p->VelocidadSTD ?? 0);
-        $efic = (float)($p->EficienciaSTD ?? 0);
+        $vel   = (float) ($p->VelocidadSTD ?? 0);
+        $efic  = (float) ($p->EficienciaSTD ?? 0);
         if ($efic > 1) $efic = $efic / 100;
 
-        $cant = (float)($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
+        $cantidad = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
 
         $m = self::getModeloParams($p->TamanoClave ?? null, $p);
 
@@ -363,8 +379,8 @@ class BalancearTejido
             }
         }
 
-        if ($stdToaHra > 0 && $efic > 0 && $cant > 0) {
-            return $cant / ($stdToaHra * $efic);
+        if ($stdToaHra > 0 && $efic > 0 && $cantidad > 0) {
+            return $cantidad / ($stdToaHra * $efic);
         }
 
         return 0.0;
@@ -389,9 +405,13 @@ class BalancearTejido
         return $ini->copy();
     }
 
+    /**
+     * FechaFinal recorriendo líneas reales (FechaInicio/FechaFin).
+     * No usa HorasTurno: usa DURACIÓN REAL.
+     */
     public static function calcularFechaFinalDesdeInicio(string $calendarioId, Carbon $fechaInicio, float $horasNecesarias): ?Carbon
     {
-        $segundosRestantes = (int)max(0, ceil($horasNecesarias * 3600));
+        $segundosRestantes = (int)(max(0, $horasNecesarias) * 3600);
         if ($segundosRestantes <= 0) return $fechaInicio->copy();
 
         $cursor = $fechaInicio->copy();
@@ -403,9 +423,7 @@ class BalancearTejido
                 ->limit(5000)
                 ->get();
 
-            if ($lineas->isEmpty()) {
-                return null;
-            }
+            if ($lineas->isEmpty()) return null;
 
             foreach ($lineas as $linea) {
                 if ($segundosRestantes <= 0) break;
@@ -413,10 +431,7 @@ class BalancearTejido
                 $ini = Carbon::parse($linea->FechaInicio);
                 $fin = Carbon::parse($linea->FechaFin);
 
-                if ($cursor->lt($ini)) {
-                    // gap real del calendario (aquí es donde “salta” días si no hay líneas)
-                    $cursor = $ini->copy();
-                }
+                if ($cursor->lt($ini)) $cursor = $ini->copy();
                 if ($cursor->gte($fin)) continue;
 
                 $disponibles = $cursor->diffInSeconds($fin, true);
@@ -435,21 +450,92 @@ class BalancearTejido
             }
 
             $ultimaFin = Carbon::parse($lineas->last()->FechaFin);
-            if ($cursor->lt($ultimaFin)) {
-                $cursor = $ultimaFin->copy();
-            }
+            if ($cursor->lt($ultimaFin)) $cursor = $ultimaFin->copy();
         }
 
         return $cursor;
     }
 
+    // =========================================================
+    // Fórmulas EXACTAS (copiadas de DuplicarTejido)
+    // =========================================================
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        // (la dejo igual que la tienes, está bien para cálculo/estadísticos)
-        // ... pega tu misma implementación aquí sin cambios ...
-        return [];
+        $formulas = [];
+
+        try {
+            $vel = (float) ($programa->VelocidadSTD ?? 0);
+            $efic = (float) ($programa->EficienciaSTD ?? 0);
+            $cantidad = self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
+            $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
+
+            $m = self::getModeloParams($programa->TamanoClave ?? null, $programa);
+
+            if ($efic > 1) $efic = $efic / 100;
+
+            $inicio = Carbon::parse($programa->FechaInicio);
+            $fin    = Carbon::parse($programa->FechaFinal);
+            $diffSeg = abs($fin->getTimestamp() - $inicio->getTimestamp());
+            $diffDias = $diffSeg / 86400;
+
+            // StdToaHra
+            $stdToaHra = 0;
+            if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
+                $parte1 = $m['total'];
+                $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
+                $den = ($parte1 + $parte2) / $vel;
+                if ($den > 0) {
+                    $stdToaHra = ($m['no_tiras'] * 60) / $den;
+                    $formulas['StdToaHra'] = (float) round($stdToaHra, 2);
+                }
+            }
+
+            // PesoGRM2
+            $largoToalla = (float) ($programa->LargoToalla ?? 0);
+            $anchoToalla = (float) ($programa->AnchoToalla ?? 0);
+            if ($pesoCrudo > 0 && $largoToalla > 0 && $anchoToalla > 0) {
+                $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 10000) / ($largoToalla * $anchoToalla), 2);
+            }
+
+            if ($diffDias > 0) $formulas['DiasEficiencia'] = (float) round($diffDias, 2);
+
+            if ($stdToaHra > 0 && $efic > 0) {
+                $stdDia = $stdToaHra * $efic * 24;
+                $formulas['StdDia'] = (float) round($stdDia, 2);
+
+                if ($pesoCrudo > 0) {
+                    $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 2);
+                }
+            }
+
+            if ($diffDias > 0) {
+                $stdHrsEfect = ($cantidad / $diffDias) / 24;
+                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 2);
+
+                if ($pesoCrudo > 0) {
+                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
+                }
+            }
+
+            if ($stdToaHra > 0 && $efic > 0) {
+                $horasProd = $cantidad / ($stdToaHra * $efic);
+                $formulas['HorasProd'] = (float) round($horasProd, 2);
+                $formulas['DiasJornada'] = (float) round($horasProd / 24, 2);
+            }
+
+        } catch (\Throwable $e) {
+            Log::warning('BalancearTejido: Error al calcular fórmulas', [
+                'error' => $e->getMessage(),
+                'programa_id' => $programa->Id ?? null,
+            ]);
+        }
+
+        return $formulas;
     }
 
+    // =========================================================
+    // Modelo params (cache)
+    // =========================================================
     private static function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
     {
         $noTiras = (float)($p->NoTiras ?? 0);
@@ -486,12 +572,11 @@ class BalancearTejido
         ];
     }
 
-    private static function parseFecha(string $raw): ?Carbon
+    private static function sanitizeNumber($value): float
     {
-        try {
-            return Carbon::parse($raw);
-        } catch (\Throwable $e) {
-            return null;
-        }
+        if ($value === null) return 0.0;
+        if (is_numeric($value)) return (float)$value;
+        $clean = str_replace([',', ' '], '', (string)$value);
+        return is_numeric($clean) ? (float)$clean : 0.0;
     }
 }

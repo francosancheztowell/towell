@@ -1,4 +1,4 @@
-﻿@extends('layouts.app', ['ocultarBotones' => true])
+@extends('layouts.app', ['ocultarBotones' => true])
 
 @section('page-title', 'Programa de Tejido')
 
@@ -121,7 +121,8 @@
   </button>
 </div>
 
-{{-- OJO: EL JS de duplicar/dividir NO VA AQUÍ (si lo incluyes aquí se imprime) --}}
+{{-- Modal duplicar/dividir --}}
+@include('modulos.programa-tejido.modal.duplicar-dividir')
 
 <style>
   .pinned-column { position: sticky !important; background-color: #f3f8ff !important; color: #000 !important; }
@@ -163,21 +164,11 @@
   #contextMenu button:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
 
-{{-- balanceo --}}
-@include('modulos.programa-tejido.balancear')
-
-@include('components.ui.toast-notification')
-@endsection
-
-@push('scripts')
 <script>
-  @include('modulos.programa-tejido.modal.duplicar-dividir')
-
-  {!! view('modulos.programa-tejido.scripts.state')->render() !!}
-  {!! view('modulos.programa-tejido.scripts.filters')->render() !!}
-  {!! view('modulos.programa-tejido.scripts.columns')->render() !!}
-  {!! view('modulos.programa-tejido.scripts.selection')->render() !!}
-  {!! view('modulos.programa-tejido.scripts.inline-edit')->render() !!}
+  @include('modulos.programa-tejido.scripts.state')
+  @include('modulos.programa-tejido.scripts.filters')
+  @include('modulos.programa-tejido.scripts.columns')
+  @include('modulos.programa-tejido.scripts.selection')
 
   (function () {
     window.PT = window.PT || {};
@@ -198,12 +189,15 @@
     const DD_ACTIVE_CLASSES = ['bg-gray-400','hover:bg-gray-500','text-white','opacity-80'];
 
     function findDragDropButton() {
+      // 1) ids comunes
       return (
         qs('#btnDragDrop') ||
         qs('#layoutBtnDragDrop') ||
         qs('#btn-dragdrop') ||
+        // 2) por onclick
         qs('button[onclick*="toggleDragDropMode"]') ||
         qs('a[onclick*="toggleDragDropMode"]') ||
+        // 3) por title (fallback)
         qs('button[title*="Drag"]') ||
         qs('button[title*="Arrastr"]') ||
         qs('a[title*="Drag"]') ||
@@ -215,9 +209,11 @@
       const btn = findDragDropButton();
       if (!btn) return;
 
+      // guardar clases originales una sola vez
       if (!btn.dataset.ddOrigClass) btn.dataset.ddOrigClass = btn.className;
 
       if (isActive) {
+        // Restaurar base y luego “gris” al final para que Tailwind lo gane
         btn.className = btn.dataset.ddOrigClass + ' ' + DD_ACTIVE_CLASSES.join(' ');
         btn.setAttribute('aria-pressed', 'true');
       } else {
@@ -325,13 +321,6 @@
 
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape' && !menu.classList.contains('hidden')) hide();
-        });
-
-        // Ocultar menú cuando cambia la selección de fila
-        document.addEventListener('pt:selection-changed', () => {
-          if (!menu.classList.contains('hidden')) {
-            hide();
-          }
         });
 
         const tb = tbodyEl();
@@ -480,57 +469,6 @@
     window.eliminarRegistro = PT.actions.eliminarRegistro;
 
     // =========================
-    // Editar fila seleccionada
-    // =========================
-    window.editarFilaSeleccionada = function() {
-      const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row');
-      if (window.selectedRowIndex === null || window.selectedRowIndex === undefined || window.selectedRowIndex < 0) {
-        toast('Por favor, selecciona un registro primero', 'info');
-        return;
-      }
-
-      const row = rows[window.selectedRowIndex];
-      if (!row) {
-        toast('No se pudo encontrar el registro seleccionado', 'error');
-        return;
-      }
-
-      // Activar edición inline
-      if (typeof window.toggleInlineEditMode === 'function') {
-        // Verificar si el modo inline ya está activado mirando la clase en el tbody
-        const tb = qs('#mainTable tbody');
-        const isActive = tb && tb.classList.contains('inline-edit-mode');
-
-        // Si no está activado, activarlo
-        if (!isActive) {
-          window.toggleInlineEditMode();
-        }
-
-        // Resaltar la fila seleccionada brevemente
-        row.classList.add('bg-yellow-100');
-        setTimeout(() => {
-          row.classList.remove('bg-yellow-100');
-        }, 2000);
-
-        if (typeof window.showToast === 'function') {
-          window.showToast('Modo edición activado. Haz clic en cualquier celda editable para modificar.', 'info');
-        } else if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'info',
-            title: 'Modo edición activado',
-            text: 'Haz clic en cualquier celda editable para modificar.',
-            timer: 3000,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end'
-          });
-        }
-      } else {
-        toast('Edición inline no disponible', 'error');
-      }
-    };
-
-    // =========================
     // Drag & Drop
     // =========================
     PT.dragdrop = PT.dragdrop || (function(){
@@ -617,15 +555,7 @@
           row.draggable = false;
           row.classList.remove('cursor-move', 'cursor-not-allowed');
           row.style.opacity = '';
-          // Asignar evento click para selección
-          row.addEventListener('click', function(e) {
-            e.stopPropagation();
-            if (typeof window.selectRow === 'function') {
-              window.selectRow(row, i);
-            } else {
-              console.warn('window.selectRow no está disponible.');
-            }
-          });
+          row.onclick = () => (typeof window.selectRow === 'function' ? window.selectRow(row, i) : null);
         });
 
         toast('Modo arrastrar desactivado', 'info');
@@ -999,19 +929,10 @@
 
       const tb = tbodyEl();
       const rows = window.allRows?.length ? window.allRows : (tb ? qsa('.selectable-row', tb) : []);
-
-      // Validar que selectedRowIndex sea válido
-      const selectedIndex = window.selectedRowIndex;
-      const isValidIndex = selectedIndex !== null && selectedIndex !== undefined && selectedIndex >= 0 && selectedIndex < rows.length;
-      const row = isValidIndex ? rows[selectedIndex] : null;
+      const row = (window.selectedRowIndex >= 0) ? rows[window.selectedRowIndex] : null;
       const ord = row?.getAttribute('data-ord-compartida');
 
-      // Habilitar solo si hay una fila seleccionada con OrdCompartida
-      if (ord && ord.trim() !== '') {
-        enable();
-      } else {
-        disable();
-      }
+      ord ? enable() : disable();
     }
 
     document.addEventListener('pt:selection-changed', updateBalanceBtnState);
@@ -1184,40 +1105,19 @@
       const tb = tbodyEl();
       if (tb) {
         refreshAllRows();
-        // Función helper para asignar eventos onclick
-        const assignClickEvents = () => {
-          if (!window.dragDropMode && window.allRows && window.allRows.length > 0) {
-            window.allRows.forEach((row, i) => {
-              // Asignar evento con addEventListener (permite múltiples listeners)
-              row.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (typeof window.selectRow === 'function') {
-                  window.selectRow(row, i);
-                } else {
-                  console.warn('window.selectRow no está disponible. Verifica que selection.blade.php se haya cargado.');
-                }
-              });
-            });
-          }
-        };
-
-        // Intentar asignar eventos inmediatamente
-        assignClickEvents();
-
-        // Reintentar después de un breve delay para asegurar que los scripts se hayan cargado
-        setTimeout(assignClickEvents, 100);
-        setTimeout(assignClickEvents, 500);
+        if (!window.dragDropMode) {
+          window.allRows.forEach((row, i) => { row.onclick = () => (typeof window.selectRow === 'function' ? window.selectRow(row, i) : null); });
+        }
       }
 
+      // asegurar estado visual del botón (por si el layout lo pinta tarde)
       setTimeout(() => setDragDropButtonGray(!!window.dragDropMode), 0);
 
       window.addEventListener('resize', () => { if (typeof window.updatePinnedColumnsPositions === 'function') window.updatePinnedColumnsPositions(); });
 
       bindLayoutButtons();
+      updateBalanceBtnState();
       restoreSelectionAfterReload();
-      // Actualizar estado del botón balancear después de restaurar selección
-      // (también se actualizará automáticamente por el evento pt:selection-changed)
-      setTimeout(() => updateBalanceBtnState(), 100);
       showSavedToastIfAny();
 
       const balanceBtn = document.querySelector('a[title="Balancear"]');
@@ -1252,4 +1152,9 @@
 
   })();
 </script>
-@endpush
+
+{{-- balanceo --}}
+@include('modulos.programa-tejido.balancear')
+
+@include('components.ui.toast-notification')
+@endsection

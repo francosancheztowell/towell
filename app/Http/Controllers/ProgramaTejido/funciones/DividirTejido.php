@@ -29,6 +29,8 @@ class DividirTejido
             'destinos' => 'required|array|min:1',
             'destinos.*.telar' => 'required|string',
             'destinos.*.pedido' => 'nullable|string',
+            'destinos.*.observaciones' => 'nullable|string|max:500',
+            'destinos.*.porcentaje_segundos' => 'nullable|numeric|min:0',
         ]);
 
         $salonOrigen = $request->input('salon_tejido_id');
@@ -96,19 +98,30 @@ class DividirTejido
             $cantidadesNuevos = [];
 
             // Procesar destinos: el primero es el original (mantener), los demás son nuevos
+            $observacionesOriginal = null;
+            $porcentajeSegundosOriginal = null;
+
             foreach ($destinos as $index => $destino) {
                 $pedidoDestino = isset($destino['pedido']) && $destino['pedido'] !== ''
                     ? (float) $destino['pedido']
                     : 0;
+                $observacionesDestino = $destino['observaciones'] ?? null;
+                $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
+                    ? (float)$destino['porcentaje_segundos']
+                    : null;
 
                 if ($index === 0) {
                     // Primer registro = el original, se actualiza con la nueva cantidad
                     $cantidadParaOriginal = $pedidoDestino;
+                    $observacionesOriginal = $observacionesDestino;
+                    $porcentajeSegundosOriginal = $porcentajeSegundosDestino;
                 } else {
                     // Nuevos registros a crear
                     $destinosNuevos[] = [
                         'telar' => $destino['telar'],
-                        'pedido' => $pedidoDestino
+                        'pedido' => $pedidoDestino,
+                        'observaciones' => $observacionesDestino,
+                        'porcentaje_segundos' => $porcentajeSegundosDestino
                     ];
                     $cantidadesNuevos[] = $pedidoDestino;
                 }
@@ -140,6 +153,14 @@ class DividirTejido
             // SaldoPedido = TotalPedido - Produccion (si hay producción)
             $produccionOriginal = (float) ($registroOriginal->Produccion ?? 0);
             $registroOriginal->SaldoPedido = max(0, $cantidadParaOriginal - $produccionOriginal);
+
+            // Actualizar Observaciones y PorcentajeSegundos del registro original
+            if ($observacionesOriginal !== null && $observacionesOriginal !== '') {
+                $registroOriginal->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesOriginal);
+            }
+            if ($porcentajeSegundosOriginal !== null) {
+                $registroOriginal->PorcentajeSegundos = $porcentajeSegundosOriginal;
+            }
             // Ajustar Maquina al telar origen seleccionado
             $registroOriginal->Maquina = self::construirMaquina(
                 $registroOriginal->Maquina ?? null,
@@ -230,6 +251,16 @@ class DividirTejido
                 if ($descripcion) $nuevo->NombreProyecto = $descripcion;
                 if ($custname) $nuevo->CustName = $custname;
                 if ($aplicacion) $nuevo->AplicacionId = $aplicacion;
+
+                // Observaciones y PorcentajeSegundos del destino
+                $observacionesDestino = $destino['observaciones'] ?? null;
+                $porcentajeSegundosDestino = $destino['porcentaje_segundos'] ?? null;
+                if ($observacionesDestino !== null && $observacionesDestino !== '') {
+                    $nuevo->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesDestino);
+                }
+                if ($porcentajeSegundosDestino !== null && $porcentajeSegundosDestino !== '') {
+                    $nuevo->PorcentajeSegundos = (float)$porcentajeSegundosDestino;
+                }
 
                 // Calcular fechas proporcionalmente
                 $nuevoInicio = $fechaInicioBase->copy();
@@ -478,11 +509,23 @@ class DividirTejido
                 if (isset($destinosPorId[$registroId])) {
                     $destino = $destinosPorId[$registroId];
                     $nuevaCantidad = (float) ($destino['pedido'] ?? 0);
+                    $observacionesDestino = $destino['observaciones'] ?? null;
+                    $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
+                        ? (float)$destino['porcentaje_segundos']
+                        : null;
 
                     if ($nuevaCantidad > 0) {
                         $registro->TotalPedido = $nuevaCantidad;
                         $produccion = (float) ($registro->Produccion ?? 0);
                         $registro->SaldoPedido = max(0, $nuevaCantidad - $produccion);
+
+                        // Observaciones y PorcentajeSegundos
+                        if ($observacionesDestino !== null && $observacionesDestino !== '') {
+                            $registro->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesDestino);
+                        }
+                        if ($porcentajeSegundosDestino !== null) {
+                            $registro->PorcentajeSegundos = $porcentajeSegundosDestino;
+                        }
 
                         // Ajustar Maquina al telar (si se recibe telar en destino existente)
                         $telarDestino = $destino['telar'] ?? $registro->NoTelarId;
@@ -519,6 +562,10 @@ class DividirTejido
             foreach ($destinosNuevos as $destino) {
                 $telarDestino = $destino['telar'] ?? '';
                 $pedidoDestino = (float) ($destino['pedido'] ?? 0);
+                $observacionesDestino = $destino['observaciones'] ?? null;
+                $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
+                    ? (float)$destino['porcentaje_segundos']
+                    : null;
 
                 if (empty($telarDestino) || $pedidoDestino <= 0) {
                     continue;
@@ -569,6 +616,14 @@ class DividirTejido
                     $salonDestino,
                     $telarDestino
                 );
+
+                // Observaciones y PorcentajeSegundos
+                if ($observacionesDestino !== null && $observacionesDestino !== '') {
+                    $nuevo->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesDestino);
+                }
+                if ($porcentajeSegundosDestino !== null) {
+                    $nuevo->PorcentajeSegundos = $porcentajeSegundosDestino;
+                }
 
                 // Fechas
                 $nuevo->FechaInicio = $fechaInicioNuevo->format('Y-m-d H:i:s');

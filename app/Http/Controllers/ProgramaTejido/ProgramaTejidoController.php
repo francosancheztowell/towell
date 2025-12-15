@@ -1286,6 +1286,14 @@ class ProgramaTejidoController extends Controller
     }
 
     /**
+     * Preview de fechas exactas para el modal de balanceo (no guarda)
+     */
+    public function previewFechasBalanceo(Request $request)
+    {
+        return BalancearTejido::previewFechas($request);
+    }
+
+    /**
      * Actualizar los pedidos desde la pantalla de balanceo
      */
     public function actualizarPedidosBalanceo(Request $request)

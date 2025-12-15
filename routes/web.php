@@ -687,6 +687,7 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Control
     Route::get('/planeacion/programa-tejido/registros-ord-compartida/{ordCompartida}', [ProgramaTejidoController::class, 'getRegistrosPorOrdCompartida'])->name('programa-tejido.registros-ord-compartida');
     Route::get('/planeacion/programa-tejido/balancear', [ProgramaTejidoController::class, 'balancear'])->name('programa-tejido.balancear');
     Route::get('/planeacion/programa-tejido/{id}/detalles-balanceo', [ProgramaTejidoController::class, 'detallesBalanceo'])->name('programa-tejido.detalles-balanceo');
+    Route::post('/planeacion/programa-tejido/preview-fechas-balanceo', [ProgramaTejidoController::class, 'previewFechasBalanceo'])->name('programa-tejido.preview-fechas-balanceo');
     Route::post('/planeacion/programa-tejido/actualizar-pedidos-balanceo', [ProgramaTejidoController::class, 'actualizarPedidosBalanceo'])->name('programa-tejido.actualizar-pedidos-balanceo');
     Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'destroy'])->name('programa-tejido.destroy');
         // JSON: ReqProgramaTejidoLine dentro de planeación
