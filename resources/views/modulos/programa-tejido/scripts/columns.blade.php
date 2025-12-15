@@ -233,15 +233,31 @@ function toggleGroupPin(groupId, pin) {
 
 // ===== Controles de columnas desde navbar =====
 function openPinColumnsModal() {
-	const columns = getColumnsData();
+	// Verificar que columnsData esté disponible
+	if (!Array.isArray(columnsData) || columnsData.length === 0) {
+		if (typeof showToast === 'function') {
+			showToast('Las columnas aún no están disponibles. Por favor, espera un momento e intenta de nuevo.', 'warning');
+		} else {
+			alert('Las columnas aún no están disponibles. Por favor, espera un momento e intenta de nuevo.');
+		}
+		return;
+	}
+
 	const pinnedColumns = getPinnedColumns();
 
-	// Agrupar columnas por grupo
+	// Agrupar columnas por grupo usando el índice real de columnsData
 	const groupedColumns = {};
 	const ungroupedColumns = [];
 
-	columns.forEach((col, index) => {
+	columnsData.forEach((col, realIndex) => {
+		if (!col || !col.field) return; // Saltar columnas sin field
+
 		const groupId = getColumnGroup(col.field);
+		const colData = {
+			label: col.label || col.field || '',
+			field: col.field
+		};
+
 		if (groupId) {
 			if (!groupedColumns[groupId]) {
 				groupedColumns[groupId] = {
@@ -249,9 +265,9 @@ function openPinColumnsModal() {
 					columns: []
 				};
 			}
-			groupedColumns[groupId].columns.push({ col, index });
+			groupedColumns[groupId].columns.push({ col: colData, index: realIndex });
 		} else {
-			ungroupedColumns.push({ col, index });
+			ungroupedColumns.push({ col: colData, index: realIndex });
 		}
 	});
 
@@ -374,15 +390,31 @@ function openPinColumnsModal() {
 }
 
 function openHideColumnsModal() {
-	const columns = getColumnsData();
+	// Verificar que columnsData esté disponible
+	if (!Array.isArray(columnsData) || columnsData.length === 0) {
+		if (typeof showToast === 'function') {
+			showToast('Las columnas aún no están disponibles. Por favor, espera un momento e intenta de nuevo.', 'warning');
+		} else {
+			alert('Las columnas aún no están disponibles. Por favor, espera un momento e intenta de nuevo.');
+		}
+		return;
+	}
+
 	const hiddenColumns = getHiddenColumns();
 
-	// Agrupar columnas por grupo
+	// Agrupar columnas por grupo usando el índice real de columnsData
 	const groupedColumns = {};
 	const ungroupedColumns = [];
 
-	columns.forEach((col, index) => {
+	columnsData.forEach((col, realIndex) => {
+		if (!col || !col.field) return; // Saltar columnas sin field
+
 		const groupId = getColumnGroup(col.field);
+		const colData = {
+			label: col.label || col.field || '',
+			field: col.field
+		};
+
 		if (groupId) {
 			if (!groupedColumns[groupId]) {
 				groupedColumns[groupId] = {
@@ -390,9 +422,9 @@ function openHideColumnsModal() {
 					columns: []
 				};
 			}
-			groupedColumns[groupId].columns.push({ col, index });
+			groupedColumns[groupId].columns.push({ col: colData, index: realIndex });
 		} else {
-			ungroupedColumns.push({ col, index });
+			ungroupedColumns.push({ col: colData, index: realIndex });
 		}
 	});
 
@@ -531,10 +563,14 @@ function updateGroupCheckboxState(groupId, type) {
 }
 
 function getColumnsData() {
+	if (!Array.isArray(columnsData) || columnsData.length === 0) {
+		console.warn('getColumnsData: columnsData no está disponible o está vacío');
+		return [];
+	}
 	return columnsData.map(c => ({
-		label: c.label,
-		field: c.field
-	}));
+		label: c.label || c.field || '',
+		field: c.field || ''
+	})).filter(c => c.field); // Filtrar columnas sin field
 }
 
 function getPinnedColumns() {
