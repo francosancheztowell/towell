@@ -489,6 +489,35 @@ class DateHelpers
                 $formulas['DiasJornada'] = (float)round($horasProdRaw / 24, 2);
             }
 
+            // EntregaCte = FechaFinal + 12 días
+            $entregaCteCalculada = null;
+            if (!empty($programa->FechaFinal)) {
+                try {
+                    $fechaFinal = Carbon::parse($programa->FechaFinal);
+                    $entregaCteCalculada = $fechaFinal->copy()->addDays(12);
+                    $formulas['EntregaCte'] = $entregaCteCalculada->format('Y-m-d H:i:s');
+                } catch (\Throwable $e) {
+                    // Si hay error al parsear, no establecer EntregaCte
+                }
+            }
+
+            // PTvsCte = EntregaCte - EntregaPT (diferencia en días)
+            if (!empty($programa->EntregaPT)) {
+                try {
+                    $entregaPT = Carbon::parse($programa->EntregaPT);
+                    // Usar EntregaCte calculada si existe, sino usar la del programa si existe
+                    $entregaCteParaCalcular = $entregaCteCalculada
+                        ?: (!empty($programa->EntregaCte) ? Carbon::parse($programa->EntregaCte) : null);
+
+                    if ($entregaCteParaCalcular) {
+                        $diferenciaDias = $entregaCteParaCalcular->diffInDays($entregaPT, false);
+                        $formulas['PTvsCte'] = (float)round($diferenciaDias, 2);
+                    }
+                } catch (\Throwable $e) {
+                    // Si hay error al parsear, no establecer PTvsCte
+                }
+            }
+
         } catch (\Throwable $e) {
             Log::warning('DateHelpers: Error al calcular fórmulas', [
                 'error' => $e->getMessage(),

@@ -29,6 +29,7 @@ class DividirTejido
             'destinos' => 'required|array|min:1',
             'destinos.*.telar' => 'required|string',
             'destinos.*.pedido' => 'nullable|string',
+            'destinos.*.pedido_tempo' => 'nullable|string',
             'destinos.*.observaciones' => 'nullable|string|max:500',
             'destinos.*.porcentaje_segundos' => 'nullable|numeric|min:0',
             'registro_id_original' => 'nullable|integer',
@@ -113,6 +114,7 @@ class DividirTejido
                 $pedidoDestino = isset($destino['pedido']) && $destino['pedido'] !== ''
                     ? (float) $destino['pedido']
                     : 0;
+                $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
                 $observacionesDestino = $destino['observaciones'] ?? null;
                 $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
                     ? (float)$destino['porcentaje_segundos']
@@ -162,7 +164,10 @@ class DividirTejido
             $produccionOriginal = (float) ($registroOriginal->Produccion ?? 0);
             $registroOriginal->SaldoPedido = max(0, $cantidadParaOriginal - $produccionOriginal);
 
-            // Actualizar Observaciones y PorcentajeSegundos del registro original
+            // Actualizar PedidoTempo, Observaciones y PorcentajeSegundos del registro original
+            if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
+                $registroOriginal->PedidoTempo = $pedidoTempoDestino;
+            }
             if ($observacionesOriginal !== null && $observacionesOriginal !== '') {
                 $registroOriginal->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesOriginal);
             }
@@ -260,9 +265,13 @@ class DividirTejido
                 if ($custname) $nuevo->CustName = $custname;
                 if ($aplicacion) $nuevo->AplicacionId = $aplicacion;
 
-                // Observaciones y PorcentajeSegundos del destino
+                // PedidoTempo, Observaciones y PorcentajeSegundos del destino
+                $pedidoTempoDestinoNuevo = $destino['pedido_tempo'] ?? null;
                 $observacionesDestino = $destino['observaciones'] ?? null;
                 $porcentajeSegundosDestino = $destino['porcentaje_segundos'] ?? null;
+                if ($pedidoTempoDestinoNuevo !== null && $pedidoTempoDestinoNuevo !== '') {
+                    $nuevo->PedidoTempo = $pedidoTempoDestinoNuevo;
+                }
                 if ($observacionesDestino !== null && $observacionesDestino !== '') {
                     $nuevo->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesDestino);
                 }
@@ -444,6 +453,35 @@ class DividirTejido
                 $formulas['DiasJornada'] = (float) round($horasProd / 24, 2);
             }
 
+            // EntregaCte = FechaFinal + 12 días
+            $entregaCteCalculada = null;
+            if (!empty($programa->FechaFinal)) {
+                try {
+                    $fechaFinal = Carbon::parse($programa->FechaFinal);
+                    $entregaCteCalculada = $fechaFinal->copy()->addDays(12);
+                    $formulas['EntregaCte'] = $entregaCteCalculada->format('Y-m-d H:i:s');
+                } catch (\Throwable $e) {
+                    // Si hay error al parsear, no establecer EntregaCte
+                }
+            }
+
+            // PTvsCte = EntregaCte - EntregaPT (diferencia en días)
+            if (!empty($programa->EntregaPT)) {
+                try {
+                    $entregaPT = Carbon::parse($programa->EntregaPT);
+                    // Usar EntregaCte calculada si existe, sino usar la del programa si existe
+                    $entregaCteParaCalcular = $entregaCteCalculada
+                        ?: (!empty($programa->EntregaCte) ? Carbon::parse($programa->EntregaCte) : null);
+
+                    if ($entregaCteParaCalcular) {
+                        $diferenciaDias = $entregaCteParaCalcular->diffInDays($entregaPT, false);
+                        $formulas['PTvsCte'] = (float) round($diferenciaDias, 2);
+                    }
+                } catch (\Throwable $e) {
+                    // Si hay error al parsear, no establecer PTvsCte
+                }
+            }
+
         } catch (\Throwable $e) {
             LogFacade::warning('DividirTejido: Error al calcular fórmulas de eficiencia', [
                 'error' => $e->getMessage(),
@@ -517,6 +555,7 @@ class DividirTejido
                 if (isset($destinosPorId[$registroId])) {
                     $destino = $destinosPorId[$registroId];
                     $nuevaCantidad = (float) ($destino['pedido'] ?? 0);
+                    $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
                     $observacionesDestino = $destino['observaciones'] ?? null;
                     $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
                         ? (float)$destino['porcentaje_segundos']
@@ -527,7 +566,10 @@ class DividirTejido
                         $produccion = (float) ($registro->Produccion ?? 0);
                         $registro->SaldoPedido = max(0, $nuevaCantidad - $produccion);
 
-                        // Observaciones y PorcentajeSegundos
+                        // PedidoTempo, Observaciones y PorcentajeSegundos
+                        if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
+                            $registro->PedidoTempo = $pedidoTempoDestino;
+                        }
                         if ($observacionesDestino !== null && $observacionesDestino !== '') {
                             $registro->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesDestino);
                         }
@@ -570,6 +612,7 @@ class DividirTejido
             foreach ($destinosNuevos as $destino) {
                 $telarDestino = $destino['telar'] ?? '';
                 $pedidoDestino = (float) ($destino['pedido'] ?? 0);
+                $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
                 $observacionesDestino = $destino['observaciones'] ?? null;
                 $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
                     ? (float)$destino['porcentaje_segundos']
@@ -625,7 +668,10 @@ class DividirTejido
                     $telarDestino
                 );
 
-                // Observaciones y PorcentajeSegundos
+                // PedidoTempo, Observaciones y PorcentajeSegundos
+                if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
+                    $nuevo->PedidoTempo = $pedidoTempoDestino;
+                }
                 if ($observacionesDestino !== null && $observacionesDestino !== '') {
                     $nuevo->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesDestino);
                 }
