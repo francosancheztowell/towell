@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ProgramaTejido;
 
 use App\Helpers\StringTruncator;
+use App\Models\ReqAplicaciones;
 use App\Models\ReqModelosCodificados;
 use App\Models\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
@@ -466,11 +467,11 @@ class ProgramaTejidoController extends Controller
     public function getAplicacionIdOptions()
     {
         try {
-            $op = ReqProgramaTejido::query()
+            $op = ReqAplicaciones::query()
                 ->select('AplicacionId')
                 ->whereNotNull('AplicacionId')
                 ->where('AplicacionId', '!=', '')
-                ->distinct()
+                ->orderBy('AplicacionId')
                 ->pluck('AplicacionId')
                 ->filter()
                 ->values();

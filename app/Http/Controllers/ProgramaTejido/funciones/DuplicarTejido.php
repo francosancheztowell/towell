@@ -40,6 +40,7 @@ class DuplicarTejido
             'flog'          => 'nullable|string',
             'aplicacion'    => 'nullable|string',
             'descripcion'   => 'nullable|string',
+            'registro_id_original' => 'nullable|integer',
         ]);
 
         $salonOrigen  = $data['salon_tejido_id'];
@@ -58,6 +59,7 @@ class DuplicarTejido
         $flog           = $data['flog'] ?? null;
         $aplicacion     = $data['aplicacion'] ?? null;
         $descripcion    = $data['descripcion'] ?? null;
+        $registroIdOriginal = $data['registro_id_original'] ?? null;
 
         // Guardar y restaurar dispatcher para no romper otros flujos
         $dispatcher = ReqProgramaTejido::getEventDispatcher();
@@ -66,7 +68,20 @@ class DuplicarTejido
         DBFacade::beginTransaction();
 
         try {
-            $original = self::obtenerUltimoRegistroTelar($salonOrigen, $telarOrigen);
+            // Obtener el registro específico a duplicar, o como fallback el último del telar
+            $original = null;
+            if ($registroIdOriginal) {
+                $original = ReqProgramaTejido::find($registroIdOriginal);
+                // Verificar que el registro encontrado pertenece al telar y salón correctos
+                if ($original && ($original->SalonTejidoId !== $salonOrigen || $original->NoTelarId !== $telarOrigen)) {
+                    $original = null; // No es del telar correcto, usar fallback
+                }
+            }
+
+            // Fallback: obtener el último registro del telar
+            if (!$original) {
+                $original = self::obtenerUltimoRegistroTelar($salonOrigen, $telarOrigen);
+            }
 
             if (!$original) {
                 DBFacade::rollBack();

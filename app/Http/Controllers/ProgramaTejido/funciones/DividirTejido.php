@@ -31,6 +31,7 @@ class DividirTejido
             'destinos.*.pedido' => 'nullable|string',
             'destinos.*.observaciones' => 'nullable|string|max:500',
             'destinos.*.porcentaje_segundos' => 'nullable|numeric|min:0',
+            'registro_id_original' => 'nullable|integer',
         ]);
 
         $salonOrigen = $request->input('salon_tejido_id');
@@ -45,10 +46,10 @@ class DividirTejido
         $descripcion = $request->input('descripcion');
         $custname = $request->input('custname');
         $inventSizeId = $request->input('invent_size_id');
+        $registroIdOriginal = $request->input('registro_id_original');
 
         // Verificar si es una redistribución de un grupo existente
         $ordCompartidaExistente = $request->input('ord_compartida_existente');
-        $registroIdOriginal = $request->input('registro_id_original');
         $esRedistribucion = !empty($ordCompartidaExistente) && $ordCompartidaExistente !== '0';
 
         DBFacade::beginTransaction();
@@ -65,7 +66,14 @@ class DividirTejido
             // 2) Si no, usar el último del telar (fallback anterior).
             if (!empty($registroIdOriginal)) {
                 $registroOriginal = ReqProgramaTejido::find($registroIdOriginal);
-            } else {
+                // Verificar que el registro encontrado pertenece al telar y salón correctos
+                if ($registroOriginal && ($registroOriginal->SalonTejidoId !== $salonOrigen || $registroOriginal->NoTelarId !== $telarOrigen)) {
+                    $registroOriginal = null; // No es del telar correcto, usar fallback
+                }
+            }
+
+            // Fallback: obtener el último registro del telar
+            if (!$registroOriginal) {
                 $registroOriginal = ReqProgramaTejido::query()
                     ->salon($salonOrigen)
                     ->telar($telarOrigen)
