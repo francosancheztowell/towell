@@ -1121,6 +1121,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		const claveModeloActual = inputClaveModelo?.value?.trim();
 		if (claveModeloActual) {
 			validarClaveModeloEnSalon(selectSalon.value, claveModeloActual);
+		} else {
+			// Si no hay clave modelo, ocultar la alerta automáticamente
+			ocultarAlertaClaveModelo();
 		}
 	});
 
@@ -1153,7 +1156,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				'</select>' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
-				'<input type="text" name="pedido-tempo-destino[]" value="${pedidoOriginal}" placeholder=""' +
+				'<input type="number" name="pedido-tempo-destino[]" value="${pedidoOriginal}" placeholder=""' +
 					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
@@ -1161,7 +1164,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
-				'<input type="text" name="pedido-destino[]" placeholder=""' +
+				'<input type="number" name="pedido-destino[]" placeholder=""' +
 					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
