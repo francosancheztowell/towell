@@ -128,13 +128,13 @@
             <h3 class="text-2xl font-semibold text-gray-700 mb-3">No hay cortes de eficiencia registrados</h3>
             <p class="text-gray-500 text-lg mb-6">Toca "Nuevo" para crear el primer registro.</p>
         <x-navbar.button-create
-                  id="btn-nuevo-empty"
-          title="Nuevo"
-          module="Cortes de Eficiencia"
-          :disabled="false"
-          icon="fa-plus"
-          iconColor="text-green-600"
-          hoverBg="hover:bg-green-100" />
+                id="btn-nuevo-empty"
+                title="Nuevo"
+                module="Cortes de Eficiencia"
+                :disabled="false"
+                icon="fa-plus"
+                iconColor="text-green-600"
+                hoverBg="hover:bg-green-100" />
         </div>
     @endif
     </div>
@@ -239,6 +239,10 @@
                     }
                 }, 100);
             }
+        }
+
+        function useState2(value:string){
+            return [value, (newValue:string) => console.log(newValue);];
         }
 
         bindEvents() {

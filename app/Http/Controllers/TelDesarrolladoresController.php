@@ -47,7 +47,7 @@ class TelDesarrolladoresController extends Controller
             $producciones = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
                 ->whereNotNull('NoProduccion')
                 ->where('NoProduccion', '!=', '')
-                ->select('NoProduccion', 'NombreProducto', 'FechaInicio')
+                ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
                 ->distinct()
                 ->orderBy('NoProduccion')
                 ->get();
