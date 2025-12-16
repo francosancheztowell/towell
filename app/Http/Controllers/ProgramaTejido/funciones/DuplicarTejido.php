@@ -128,7 +128,7 @@ class DuplicarTejido
                 if ($producto)     $nuevo->NombreProducto = StringTruncator::truncate('NombreProducto', $producto);
                 if ($custname)     $nuevo->CustName = StringTruncator::truncate('CustName', $custname);
                 if ($hilo)         $nuevo->FibraRizo = $hilo;
-                if ($flog)         $nuevo->FlogsId = $flog;
+                if ($flog)         $nuevo->FlogsId = StringTruncator::truncate('FlogsId', $flog);
                 if ($aplicacion)   $nuevo->AplicacionId = StringTruncator::truncate('AplicacionId', $aplicacion);
                 if ($descripcion)  $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', $descripcion);
 
@@ -224,7 +224,7 @@ class DuplicarTejido
                     'dias_jornada'  => $nuevo->DiasJornada ?? null,
                 ]);
 
-                // Truncar strings (FlogsId se asigna directamente y no necesita truncamiento)
+                // Truncar strings (FlogsId ya se truncó arriba a 80 caracteres)
                 foreach ([
                     'Maquina','NombreProyecto','CustName','AplicacionId','NombreProducto',
                     'TipoPedido','Observaciones','FibraTrama','FibraComb1','FibraComb2',
