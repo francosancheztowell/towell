@@ -16,6 +16,27 @@
         </div>
     </div>
 
+    @php
+        $folioTurnos = [
+            1 => $foliosPorTurno['1'] ?? null,
+            2 => $foliosPorTurno['2'] ?? null,
+            3 => $foliosPorTurno['3'] ?? null,
+        ];
+        $badgeColors = [
+            1 => 'bg-blue-50 text-blue-800 border-blue-200',
+            2 => 'bg-green-50 text-green-800 border-green-200',
+            3 => 'bg-yellow-50 text-yellow-900 border-yellow-200',
+        ];
+    @endphp
+    <div class="flex flex-wrap gap-3 text-sm text-gray-700 mb-4">
+        @foreach($folioTurnos as $turno => $folio)
+            <span class="px-3 py-1 rounded-full border {{ $badgeColors[$turno] }}">
+                <span class="font-semibold">Turno {{ $turno }}:</span>
+                <span>{{ $folio ?? 'Sin folio registrado' }}</span>
+            </span>
+        @endforeach
+    </div>
+
     <div class="flex-1 bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
         <div class="flex-1 overflow-auto">
             <table class="min-w-full text-sm border-separate border-spacing-0">

@@ -1,6 +1,12 @@
 @extends('layouts.app')
 
-@section('page-title', 'Cortes de Eficiencia')
+@php
+    $soloLectura = $soloLectura ?? false;
+    $folioInicial = $folioInicial ?? request()->query('folio');
+    $tituloPagina = $soloLectura ? 'Visualizar Corte de Eficiencia' : 'Cortes de Eficiencia';
+@endphp
+
+@section('page-title', $tituloPagina)
 
 {{-- Sin botones superiores ni barra de datos --}}
 @section('navbar-right')
@@ -137,6 +143,10 @@
         observaciones: {},
         debounceTimer: null,
     };
+    const PAGE_MODE = @json([
+        'soloLectura' => $soloLectura,
+        'folioInicial' => $folioInicial,
+    ]);
 
     /** Rutas */
     const routes = {
@@ -227,10 +237,28 @@
             return;
         }
 
-        bindEvents();
+        if (PAGE_MODE.soloLectura) {
+            aplicarModoSoloLectura();
+        } else {
+            bindEvents();
+        }
         try { await Promise.all([cargarTurnoActual(), cargarDatosTelaresStd()]); } catch {}
-        const qp = new URLSearchParams(location.search).get('folio');
-        try { qp ? await cargarCorteExistente(qp) : await generarNuevoFolio(); } catch (e) { if (!qp) await generarNuevoFolio(); }
+        const qp = PAGE_MODE.folioInicial || new URLSearchParams(location.search).get('folio');
+        try {
+            if (qp) {
+                await cargarCorteExistente(qp);
+            } else if (!PAGE_MODE.soloLectura) {
+                await generarNuevoFolio();
+            } else {
+                Swal.fire('Aviso', 'No se encontró el folio solicitado.', 'warning').then(() => {
+                    window.location.href = routes.consultar;
+                });
+            }
+        } catch (e) {
+            if (!qp && !PAGE_MODE.soloLectura) {
+                await generarNuevoFolio();
+            }
+        }
     });
 
     function bindEvents(){
@@ -254,6 +282,24 @@
         // Escape cierra selectores
         document.addEventListener('keydown', (e)=>{ if (e.key==='Escape') closeAllValorSelectors(); });
         document.addEventListener('click', (e)=>{ if (!e.target.closest('.valor-edit-container') && !e.target.closest('.valor-display-btn')) closeAllValorSelectors(); });
+    }
+
+    function aplicarModoSoloLectura(){
+        document.querySelectorAll('[data-action="tomar-hora"]').forEach(btn => {
+            btn.setAttribute('disabled', 'disabled');
+            btn.classList.add('opacity-60', 'cursor-not-allowed');
+        });
+        document.querySelectorAll('input[data-field="rpm_std"], input[data-field="eficiencia_std"]').forEach(input => {
+            input.readOnly = true;
+            input.classList.add('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+        });
+        document.querySelectorAll('.valor-display-btn').forEach(btn => {
+            btn.classList.add('pointer-events-none', 'opacity-70', 'cursor-not-allowed');
+        });
+        document.querySelectorAll('.obs-checkbox').forEach(cb => {
+            cb.setAttribute('disabled', 'disabled');
+            cb.classList.add('cursor-not-allowed', 'opacity-60');
+        });
     }
 
     /** Datos base */
@@ -364,6 +410,7 @@
 
     /** Selectores */
     function toggleValorSelector(btn){
+        if (PAGE_MODE.soloLectura) return;
         closeAllValorSelectors();
         const container = btn.parentElement.querySelector('.valor-edit-container');
         const telar=btn.dataset.telar, horario=parseInt(btn.dataset.horario,10), tipo=btn.dataset.type;
@@ -392,6 +439,7 @@
     }
 
     function selectNumberOption(option){
+        if (PAGE_MODE.soloLectura) return;
         const val=parseInt(option.dataset.value,10); const container=option.closest('.valor-edit-container'); const btn=container.parentElement.querySelector('.valor-display-btn'); const tipo=btn.dataset.type;
         btn.querySelector('.valor-display-text').textContent = (tipo==='rpm')?String(val):`${val}%`; container.classList.add('hidden'); btn.classList.add('bg-green-100'); setTimeout(()=>btn.classList.remove('bg-green-100'),250); guardarAutomatico();
     }
@@ -407,6 +455,7 @@
 
     /** Hora por horario */
     async function actualizarYGuardarHoraHorario(h){
+        if (PAGE_MODE.soloLectura) return;
         const turnoVal = await asegurarTurno();
         if (!state.folio || !turnoVal) return showToast({ icon:'warning', title:'Faltan datos internos para guardar hora' });
         const turno = Number.isFinite(parseInt(turnoVal,10)) ? parseInt(turnoVal,10) : turnoVal;
@@ -421,6 +470,7 @@
 
     /** Guardado automático */
     const guardarAutomatico = debounce(async () => {
+        if (PAGE_MODE.soloLectura) return;
         if (!state.folio || !state.fecha || !state.turno) return;
         const datos = recopilarDatosTelares(); if (!datos.length) return;
         const horarios = leerHorarios();
@@ -501,6 +551,7 @@
     }
 
     async function abrirModalObservaciones(checkbox){
+        if (PAGE_MODE.soloLectura) return;
         const telar = checkbox.dataset.telar; const horario = checkbox.dataset.horario; const key = `${telar}-${horario}`; const cur = state.observaciones[key] || '';
         if (!requireHorario(parseInt(horario,10))) { checkbox.checked = !!cur; return; }
         const r = await Swal.fire({ title:'Observaciones', html:`<div class='text-left mb-4'><p class='text-sm text-gray-600 mb-2'>Telar: <strong>${telar}</strong> | Horario: <strong>${horario}</strong></p></div><textarea id='swal-textarea' class='w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none' rows='4' placeholder='Escriba sus observaciones aquí...'>${cur}</textarea>`, width:500, showCancelButton:true, confirmButtonText:'Guardar', cancelButtonText:'Cancelar', confirmButtonColor:'#2563eb', cancelButtonColor:'#6b7280', focusConfirm:false, didOpen:()=>document.getElementById('swal-textarea')?.focus(), preConfirm:()=>document.getElementById('swal-textarea')?.value || '' });

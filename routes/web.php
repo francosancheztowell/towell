@@ -788,6 +788,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::post('/modulo-marcas/generar-folio', [MarcasController::class, 'generarFolio'])->name('marcas.generar.folio');
     Route::get('/modulo-marcas/obtener-datos-std', [MarcasController::class, 'obtenerDatosSTD'])->name('marcas.datos.std');
     Route::post('/modulo-marcas/store', [MarcasController::class, 'store'])->name('marcas.store');
+    Route::get('/modulo-marcas/visualizar/{folio}', [MarcasController::class, 'visualizarFolio'])->name('marcas.visualizar');
     Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])->name('marcas.show');
     Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])->name('marcas.update');
     Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])->name('marcas.finalizar');
@@ -824,6 +825,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::put('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'update'])->name('cortes.eficiencia.update');
     Route::post('/modulo-cortes-de-eficiencia/{id}/finalizar', [CortesEficienciaController::class, 'finalizar'])->name('cortes.eficiencia.finalizar');
     Route::get('/modulo-cortes-de-eficiencia/visualizar/{folio}', [CortesEficienciaController::class, 'visualizar'])->name('cortes.eficiencia.visualizar');
+    Route::get('/modulo-cortes-de-eficiencia/visualizar-folio/{folio}', [CortesEficienciaController::class, 'visualizarFolio'])->name('cortes.eficiencia.visualizar.folio');
     Route::post('/modulo-cortes-de-eficiencia/visualizar/exportar-excel', [CortesEficienciaController::class, 'exportarVisualizacionExcel'])->name('cortes.eficiencia.visualizar.excel');
     Route::post('/modulo-cortes-de-eficiencia/visualizar/descargar-pdf', [CortesEficienciaController::class, 'descargarVisualizacionPDF'])->name('cortes.eficiencia.visualizar.pdf');
     Route::get('/modulo-nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('modulo.nuevo.requerimiento');

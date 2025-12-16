@@ -789,6 +789,31 @@ class CortesEficienciaController extends Controller
         }
     }
 
+    public function visualizarFolio($folio)
+    {
+        try {
+            $corte = TejEficiencia::where('Folio', $folio)->first();
+            if (!$corte) {
+                return redirect()->route('cortes.eficiencia.consultar')
+                    ->with('error', 'Folio no encontrado');
+            }
+
+            $telares = InvSecuenciaCorteEf::orderBy('Orden', 'asc')
+                ->pluck('NoTelarId')
+                ->toArray();
+
+            return view('modulos.cortes-eficiencia.cortes-eficiencia', [
+                'telares' => $telares,
+                'soloLectura' => true,
+                'folioInicial' => $corte->Folio,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al visualizar folio de cortes: ' . $e->getMessage());
+            return redirect()->route('cortes.eficiencia.consultar')
+                ->with('error', 'Error al visualizar folio');
+        }
+    }
+
     public function exportarVisualizacionExcel(Request $request)
     {
         try {
@@ -886,7 +911,8 @@ class CortesEficienciaController extends Controller
     {
         $fechaNorm = $this->normalizarFecha($fecha);
 
-        $lineasFecha = TejEficienciaLine::where('Date', $fechaNorm)
+        $lineasFecha = TejEficienciaLine::whereDate('Date', $fechaNorm)
+            ->orderBy('Turno')
             ->orderBy('NoTelarId')
             ->get();
 
@@ -905,7 +931,9 @@ class CortesEficienciaController extends Controller
                 $porTelarTurno[$telar] = [];
             }
             $porTelarTurno[$telar][$turno] = $linea;
-            $foliosPorTurno[$turno] = $linea->Folio;
+            if (!isset($foliosPorTurno[$turno])) {
+                $foliosPorTurno[$turno] = $linea->Folio;
+            }
         }
 
         $datos = $telares->map(function ($telar) use ($porTelarTurno) {

@@ -27,6 +27,15 @@
       hoverBg="hover:bg-blue-100" />
 
     <x-navbar.button-report
+      id="btn-visualizar"
+      title="Visualizar"
+      module="Cortes de Eficiencia"
+      :disabled="true"
+      icon="fa-eye"
+      iconColor="text-gray-700"
+      hoverBg="hover:bg-gray-100" />
+
+    <x-navbar.button-report
       id="btn-finalizar"
       title="Finalizar"
       module="Cortes de Eficiencia"
@@ -35,16 +44,6 @@
       iconColor="text-orange-600"
       hoverBg="hover:bg-orange-100"
       />
-
-    {{-- <x-navbar.button-report
-      id="btn-pdf"
-      title="PDF"
-      module="Cortes de Eficiencia"
-      :disabled="true"
-      icon="fa-file-pdf"
-      iconColor="text-red-600"
-      hoverBg="hover:bg-red-100"
-      /> --}}
 
     <x-navbar.button-report
       id="btn-fechas"
@@ -63,17 +62,6 @@
     @if(isset($cortes) && $cortes->count() > 0)
         <!-- Tabla con header fijo -->
         <div class="flex-1 flex flex-col overflow-hidden">
-            {{-- <div class="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-800">Cortes de Eficiencia</h2>
-                <div class="flex gap-2">
-                    <button id="btn-exportar-excel" class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-md disabled:opacity-50">
-                        <i class="fa fa-file-excel mr-2"></i> Excel
-                    </button>
-                    <button id="btn-descargar-pdf" class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md disabled:opacity-50">
-                        <i class="fa fa-file-pdf mr-2"></i> PDF
-                    </button>
-                </div>
-            </div> --}}
             <table class="w-full text-sm border-collapse">
                 <colgroup>
                     <col style="width: 20%">
@@ -205,7 +193,8 @@
         urls: {
             detalle: '/modulo-cortes-de-eficiencia/',
             editar: '{{ url("/modulo-cortes-de-eficiencia") }}?folio=',
-            finalizar: '/modulo-cortes-de-eficiencia/{folio}/finalizar'
+            finalizar: '/modulo-cortes-de-eficiencia/{folio}/finalizar',
+            visualizarFolio: '/modulo-cortes-de-eficiencia/visualizar-folio/'
         },
         timeout: 30000,
         ultimoFolio: @json(isset($ultimoFolio) ? $ultimoFolio->Folio : null)
@@ -417,7 +406,7 @@
                 });
                 return;
             }
-            window.location.href = '/modulo-cortes-de-eficiencia/visualizar/' + this.state.folio;
+            window.location.href = `${CONFIG.urls.visualizarFolio}${this.state.folio}`;
         }
 
         accionPdf() {
@@ -476,16 +465,25 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    const pdfUrl = data.data?.pdf_url;
                     await Swal.fire('¡Finalizado!', 'El registro se ha cerrado correctamente.', 'success');
-                    if (pdfUrl) window.open(pdfUrl, '_blank');
-                    window.location.reload();
+                    this.state.status = 'Finalizado';
+                    this.actualizarBotones();
+                    this.actualizarFilaFinalizada();
                 } else {
                     throw new Error(data.message || 'No se pudo finalizar');
                 }
 
             } catch (err) {
                 Swal.fire('Error', err.message, 'error');
+            }
+        }
+
+        actualizarFilaFinalizada() {
+            const row = document.querySelector(`tr[data-folio="${this.state.folio}"]`);
+            if (!row) return;
+            const statusCell = row.querySelector('td:last-child');
+            if (statusCell) {
+                statusCell.innerHTML = '<span class="status-badge-finalizado px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>';
             }
         }
 
