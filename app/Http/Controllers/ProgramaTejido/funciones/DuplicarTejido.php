@@ -180,7 +180,22 @@ class DuplicarTejido
                 // ===== FechaInicio (snap al calendario si cae en gap) =====
                 $inicio = $fechaInicioBase->copy();
                 if (!empty($nuevo->CalendarioId)) {
-                    $inicio = self::snapInicioAlCalendario($nuevo->CalendarioId, $inicio) ?? $inicio;
+                    $inicioAjustado = self::snapInicioAlCalendario($nuevo->CalendarioId, $inicio);
+                    if ($inicioAjustado) {
+                        $inicio = $inicioAjustado;
+                    } else {
+                        // Si no se pudo ajustar, buscar la primera línea disponible del calendario
+                        LogFacade::warning('DuplicarTejido: No se pudo ajustar fecha inicio al calendario, buscando primera línea disponible', [
+                            'calendario_id' => $nuevo->CalendarioId,
+                            'fecha_inicio_base' => $fechaInicioBase->format('Y-m-d H:i:s'),
+                        ]);
+                        $primeraLinea = ReqCalendarioLine::where('CalendarioId', $nuevo->CalendarioId)
+                            ->orderBy('FechaInicio')
+                            ->first();
+                        if ($primeraLinea) {
+                            $inicio = Carbon::parse($primeraLinea->FechaInicio);
+                        }
+                    }
                 }
                 $nuevo->FechaInicio = $inicio->format('Y-m-d H:i:s');
 
@@ -203,9 +218,16 @@ class DuplicarTejido
                 } else {
                     // ===== FechaFinal desde calendario por DURACIÓN REAL de líneas =====
                     if (!empty($nuevo->CalendarioId)) {
+                        // Asegurar que la fecha inicio esté dentro de una línea válida antes de calcular fin
+                        $inicioValidado = self::validarYajustarFechaEnCalendario($nuevo->CalendarioId, $inicio);
+                        if ($inicioValidado) {
+                            $inicio = $inicioValidado;
+                            $nuevo->FechaInicio = $inicio->format('Y-m-d H:i:s');
+                        }
+
                         $fin = self::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
 
-                if (!$fin) {
+                        if (!$fin) {
                             // si no hay líneas suficientes, fallback continuo
                             LogFacade::warning('DuplicarTejido: No se pudo calcular fecha final con calendario (sin líneas suficientes). Fallback continuo.', [
                                 'calendario_id' => $nuevo->CalendarioId,
@@ -213,13 +235,37 @@ class DuplicarTejido
                                 'horas'         => $horasNecesarias,
                             ]);
                             $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
-                }
+                        }
 
-                $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
+                        $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
+
+                        // Validar que FechaFinal esté dentro del calendario si existe
+                        if (!empty($nuevo->CalendarioId)) {
+                            $finValidada = self::validarYajustarFechaEnCalendario($nuevo->CalendarioId, $fin);
+                            if ($finValidada && $finValidada->notEqualTo($fin)) {
+                                LogFacade::warning('DuplicarTejido: FechaFinal ajustada para estar dentro del calendario', [
+                                    'calendario_id' => $nuevo->CalendarioId,
+                                    'fecha_final_original' => $fin->format('Y-m-d H:i:s'),
+                                    'fecha_final_ajustada' => $finValidada->format('Y-m-d H:i:s'),
+                                ]);
+                                $nuevo->FechaFinal = $finValidada->format('Y-m-d H:i:s');
+                            }
+                        }
                     } else {
                         // sin calendario, continuo
                         $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
                     }
+                }
+
+                // Verificar que FechaFinal >= FechaInicio
+                if (Carbon::parse($nuevo->FechaFinal)->lt(Carbon::parse($nuevo->FechaInicio))) {
+                    LogFacade::error('DuplicarTejido: FechaFinal es menor que FechaInicio, ajustando', [
+                        'telar_destino' => $telarDestino,
+                        'fecha_inicio' => $nuevo->FechaInicio,
+                        'fecha_final' => $nuevo->FechaFinal,
+                    ]);
+                    // Ajustar FechaFinal para que sea al menos igual a FechaInicio
+                    $nuevo->FechaFinal = $nuevo->FechaInicio;
                 }
 
                 // ===== CambioHilo =====
@@ -233,15 +279,24 @@ class DuplicarTejido
                     $nuevo->{$campo} = $valor;
                 }
 
-                // (opcional) log para verificar el bug original:
+                // Log para verificar que las fechas cuadren correctamente
+                $fechaInicioCarbon = Carbon::parse($nuevo->FechaInicio);
+                $fechaFinalCarbon = Carbon::parse($nuevo->FechaFinal);
+                $diferenciaSegundos = $fechaFinalCarbon->diffInSeconds($fechaInicioCarbon, false);
+
                 LogFacade::info('DuplicarTejido: resumen fechas/horas', [
                     'telar_destino' => $telarDestino,
                     'calendario_id' => $nuevo->CalendarioId ?? null,
                     'fecha_inicio'  => $nuevo->FechaInicio,
                     'fecha_final'   => $nuevo->FechaFinal,
+                    'diferencia_segundos' => $diferenciaSegundos,
+                    'diferencia_horas' => $diferenciaSegundos / 3600,
+                    'horas_necesarias' => $horasNecesarias,
                     'dias_ef'       => $nuevo->DiasEficiencia ?? null,
                     'horas_prod'    => $nuevo->HorasProd ?? null,
                     'dias_jornada'  => $nuevo->DiasJornada ?? null,
+                    'fecha_inicio_valida_en_calendario' => !empty($nuevo->CalendarioId) ? self::validarYajustarFechaEnCalendario($nuevo->CalendarioId, $fechaInicioCarbon) !== null : 'N/A',
+                    'fecha_final_valida_en_calendario' => !empty($nuevo->CalendarioId) ? self::validarYajustarFechaEnCalendario($nuevo->CalendarioId, $fechaFinalCarbon) !== null : 'N/A',
                 ]);
 
                 // Truncar strings (FlogsId ya se truncó arriba a 80 caracteres)
@@ -356,6 +411,38 @@ class DuplicarTejido
 
         // Si estaba en gap, brincar al inicio de la línea
         return $ini->copy();
+    }
+
+    /**
+     * Valida que la fecha esté dentro de una línea válida del calendario.
+     * Si no está, la ajusta al inicio de la línea más cercana.
+     */
+    private static function validarYajustarFechaEnCalendario(string $calendarioId, Carbon $fecha): ?Carbon
+    {
+        // Buscar línea que contenga la fecha
+        $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+            ->where('FechaInicio', '<=', $fecha)
+            ->where('FechaFin', '>', $fecha)
+            ->orderBy('FechaInicio')
+            ->first();
+
+        if ($linea) {
+            // La fecha está dentro de una línea válida
+            return $fecha->copy();
+        }
+
+        // Si no está dentro, buscar la siguiente línea disponible
+        $siguienteLinea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+            ->where('FechaFin', '>', $fecha)
+            ->orderBy('FechaInicio')
+            ->first();
+
+        if ($siguienteLinea) {
+            return Carbon::parse($siguienteLinea->FechaInicio);
+        }
+
+        // Si no hay líneas futuras, retornar null (se usará fallback)
+        return null;
     }
 
     /**
