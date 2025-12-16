@@ -1,51 +1,55 @@
 <script>
     /* ============================================================
-     * DRAG & DROP (ÚNICO) - ESTABLE
-     * - Sin duplicados
-     * - getDragAfterElement desde DOM (NO allRows)
-     * - FIX BORDE TELAR:
-     *     si estás en mitad superior de OTRO telar => se interpreta como “final del telar actual”
-     *     para cambio real: soltar en mitad inferior o mantener ALT
-     * - Drop usa el telar decidido en dragOver (ddLastOver)
+     * DRAG & DROP - RÁPIDO + ESTABLE (120-200 filas)
+     * FIX CRÍTICO:
+     *   - Drop es async, dragend limpia globals => bug.
+     *   - Solución: snapshot "ctx" en drop y NO usar globals después de await.
+     * Extras:
+     *   - restoreOriginalOrder usa Set (O(n))
+     *   - TelarScan usa indexMap (idx O(1))
      * ============================================================ */
 
-    const DD_LOG_ENABLED = true;
+    let DD_LOG_ENABLED = false;
+    window.setDDLog = (v) => { DD_LOG_ENABLED = !!v; console.log('[DragDrop] logs=', DD_LOG_ENABLED); };
+
     function ddLog(step, payload) {
       if (!DD_LOG_ENABLED) return;
       payload !== undefined ? console.log('[DragDrop]', step, payload) : console.log('[DragDrop]', step);
     }
 
-    // --- Asegurar globals esperados ---
     window.dragDropMode = window.dragDropMode ?? false;
     window.allRows = window.allRows ?? [];
 
-    // Cache: usa Map normal para compatibilidad
     let rowCache = new Map();
     function clearRowCache() { rowCache = new Map(); }
 
-    // Helpers DOM
     function tbodyEl() { return document.querySelector('#mainTable tbody'); }
-    function $$(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
 
-    // Helpers Telar/Salon/CambioHilo
-    function getRowTelar(row) {
+    function getRowMeta(row) {
       if (!row) return null;
       if (!rowCache.has(row)) {
         const telarCell = row.querySelector('[data-column="NoTelarId"]');
         const salonCell = row.querySelector('[data-column="SalonTejidoId"]');
         const cambioHiloCell = row.querySelector('[data-column="CambioHilo"]');
+        const enProcesoCell = row.querySelector('[data-column="EnProceso"]');
+        const checkbox = enProcesoCell ? enProcesoCell.querySelector('input[type="checkbox"]') : null;
+
         rowCache.set(row, {
+          id: row.getAttribute('data-id') || '',
           telar: telarCell ? telarCell.textContent.trim() : null,
           salon: salonCell ? salonCell.textContent.trim() : null,
-          cambioHilo: cambioHiloCell ? cambioHiloCell.textContent.trim() : null
+          cambioHilo: cambioHiloCell ? cambioHiloCell.textContent.trim() : null,
+          enProceso: !!(checkbox && checkbox.checked),
         });
       }
-      return rowCache.get(row).telar;
+      return rowCache.get(row);
     }
-    function getRowSalon(row) { if (!row) return null; if (!rowCache.has(row)) getRowTelar(row); return rowCache.get(row).salon; }
-    function getRowCambioHilo(row){ if (!row) return null; if (!rowCache.has(row)) getRowTelar(row); return rowCache.get(row).cambioHilo; }
 
-    // Comparación telar robusta
+    function getRowTelar(row){ const m = getRowMeta(row); return m ? m.telar : null; }
+    function getRowSalon(row){ const m = getRowMeta(row); return m ? m.salon : null; }
+    function getRowCambioHilo(row){ const m = getRowMeta(row); return m ? m.cambioHilo : null; }
+    function isRowEnProceso(row){ const m = getRowMeta(row); return !!(m && m.enProceso); }
+
     function normalizeTelarValue(value) {
       if (value === undefined || value === null) return '';
       const str = String(value).trim();
@@ -56,15 +60,9 @@
     }
     function isSameTelar(a,b){ return normalizeTelarValue(a) === normalizeTelarValue(b); }
 
-    // EnProceso
-    function isRowEnProceso(row) {
-      const enProcesoCell = row?.querySelector?.('[data-column="EnProceso"]');
-      if (!enProcesoCell) return false;
-      const checkbox = enProcesoCell.querySelector('input[type="checkbox"]');
-      return !!(checkbox && checkbox.checked);
-    }
-
+    // -------------------------
     // Estado D&D
+    // -------------------------
     let draggedRow = null;
     let draggedRowTelar = null;
     let draggedRowSalon = null;
@@ -74,29 +72,66 @@
     let draggedRowOriginalTelarIndex = null;
     let dragBlockedReason = null;
     let dragDropPerformed = false;
-    let lastDragOverTime = 0;
 
-    // “Último over” (clave para no brincar de telar)
     let ddLastOver = { row:null, rawTelar:null, decisionTelar:null, salon:null, isBefore:false, y:null };
+    let ddLastSig = null;
 
+    // scan cache por telar destino (para EnProceso)
+    let ddTelarScan = { telarNorm:null, rows:null, indexMap:null, lastEnProceso:-1 };
+    function resetTelarScan(){ ddTelarScan = { telarNorm:null, rows:null, indexMap:null, lastEnProceso:-1 }; }
+
+    function buildTelarScanFromDOM(decisionTelar) {
+      const tb = tbodyEl();
+      if (!tb) return { rows: [], indexMap: new Map(), lastEnProceso: -1 };
+
+      const norm = normalizeTelarValue(decisionTelar);
+      if (ddTelarScan.telarNorm === norm && ddTelarScan.rows && ddTelarScan.indexMap) return ddTelarScan;
+
+      const rows = [];
+      const indexMap = new Map();
+      let lastEnProceso = -1;
+
+      for (const r of tb.children) {
+        if (!r.classList || !r.classList.contains('selectable-row')) continue;
+        if (r === draggedRow) continue;
+        if (!isSameTelar(getRowTelar(r), decisionTelar)) continue;
+
+        if (isRowEnProceso(r)) lastEnProceso = rows.length;
+        indexMap.set(r, rows.length);
+        rows.push(r);
+      }
+
+      ddTelarScan = { telarNorm: norm, rows, indexMap, lastEnProceso };
+      return ddTelarScan;
+    }
+
+    // -------------------------
     // Restaurar orden original
+    // -------------------------
     function restoreOriginalOrder() {
       try {
         if (!originalOrderIds.length) return;
         const tb = tbodyEl();
         if (!tb) return;
 
+        const idSet = new Set(originalOrderIds);
+
         const rowMap = new Map();
-        $$('.selectable-row', tb).forEach(r => rowMap.set(r.getAttribute('data-id')||'', r));
+        for (const r of tb.querySelectorAll('.selectable-row')) {
+          rowMap.set(r.getAttribute('data-id') || '', r);
+        }
 
         const frag = document.createDocumentFragment();
-        originalOrderIds.forEach(id => { const r = rowMap.get(id); if (r) frag.appendChild(r); });
-        rowMap.forEach((r,id)=>{ if (!originalOrderIds.includes(id)) frag.appendChild(r); });
+        for (const id of originalOrderIds) {
+          const r = rowMap.get(id);
+          if (r) frag.appendChild(r);
+        }
+        rowMap.forEach((r, id) => { if (!idSet.has(id)) frag.appendChild(r); });
 
         tb.innerHTML = '';
         tb.appendChild(frag);
 
-        window.allRows = $$('.selectable-row', tb);
+        window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
         clearRowCache();
         ddLog('restoreOriginalOrder', { total: window.allRows.length });
       } finally {
@@ -104,21 +139,83 @@
       }
     }
 
-    // afterElement SIEMPRE del DOM actual
-    function getDragAfterElement(container, y) {
-      const draggable = Array.from(container.querySelectorAll('.selectable-row:not(.dragging)'));
-      if (!draggable.length) return null;
+    // -------------------------
+    // Inserción visual (O(1))
+    // -------------------------
+    function placeDraggedRowRelative(targetRow, isBefore) {
+      const tb = tbodyEl();
+      if (!tb || !draggedRow || !targetRow || targetRow === draggedRow) return;
 
-      let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
-      for (const child of draggable) {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) closest = { offset, element: child };
+      if (isBefore) {
+        if (draggedRow.nextElementSibling === targetRow) return;
+        tb.insertBefore(draggedRow, targetRow);
+      } else {
+        const next = targetRow.nextElementSibling;
+        if (next === draggedRow) return;
+        tb.insertBefore(draggedRow, next);
       }
-      return closest.element;
     }
 
-    // Toggle (export global)
+    // FIN del telar actual usando scan cache (sin loop reverse)
+    function placeDraggedRowEndOfTelar(telarValue) {
+      const tb = tbodyEl();
+      if (!tb || !draggedRow) return;
+
+      const scan = buildTelarScanFromDOM(telarValue);
+      const last = scan.rows && scan.rows.length ? scan.rows[scan.rows.length - 1] : null;
+
+      if (!last) return; // no hay otro registro del telar
+      tb.insertBefore(draggedRow, last.nextElementSibling);
+    }
+
+    // -------------------------
+    // Scheduler rAF
+    // -------------------------
+    let rafPending = false;
+    let rafMode = null;
+    let rafTargetRow = null;
+    let rafIsBefore = false;
+    let rafTelar = null;
+
+    function runPlacementNow() {
+      if (!draggedRow) return;
+      if (rafMode === 'relative') placeDraggedRowRelative(rafTargetRow, rafIsBefore);
+      else if (rafMode === 'endTelar') placeDraggedRowEndOfTelar(rafTelar);
+      else if (rafMode === 'append') {
+        const tb = tbodyEl();
+        if (tb) tb.appendChild(draggedRow);
+      }
+    }
+    function flushPlacement() {
+      if (!rafPending) return;
+      rafPending = false;
+      runPlacementNow();
+    }
+    function schedulePlaceRelative(targetRow, isBefore) {
+      rafMode = 'relative';
+      rafTargetRow = targetRow;
+      rafIsBefore = isBefore;
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(() => { rafPending = false; runPlacementNow(); });
+    }
+    function schedulePlaceEndTelar(telarValue) {
+      rafMode = 'endTelar';
+      rafTelar = telarValue;
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(() => { rafPending = false; runPlacementNow(); });
+    }
+    function scheduleAppendEnd() {
+      rafMode = 'append';
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(() => { rafPending = false; runPlacementNow(); });
+    }
+
+    // -------------------------
+    // Toggle modo D&D
+    // -------------------------
     function toggleDragDropMode() {
       window.dragDropMode = !window.dragDropMode;
 
@@ -126,8 +223,7 @@
       const tb = tbodyEl();
       if (!btn || !tb) return;
 
-      // snapshot de filas (siempre)
-      window.allRows = $$('.selectable-row', tb);
+      window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
       clearRowCache();
 
       if (window.dragDropMode) {
@@ -137,25 +233,21 @@
         btn.classList.add('bg-gray-400','hover:bg-gray-500','ring-2','ring-gray-300');
         btn.title = 'Desactivar arrastrar filas';
 
-        window.allRows.forEach(row => {
-          const enProceso = isRowEnProceso(row);
+        window.allRows.forEach((row) => {
+          const meta = getRowMeta(row);
+          const enProceso = !!meta.enProceso;
+
           row.draggable = !enProceso;
           row.onclick = null;
 
-          // important: evitar duplicados
           row.removeEventListener('dragstart', handleDragStart);
-          row.removeEventListener('dragover', handleDragOver);
-          row.removeEventListener('drop', handleDrop);
           row.removeEventListener('dragend', handleDragEnd);
 
           if (!enProceso) {
             row.classList.add('cursor-move');
             row.classList.remove('cursor-not-allowed');
             row.style.opacity = '';
-
             row.addEventListener('dragstart', handleDragStart);
-            row.addEventListener('dragover', handleDragOver);
-            row.addEventListener('drop', handleDrop);
             row.addEventListener('dragend', handleDragEnd);
           } else {
             row.classList.add('cursor-not-allowed');
@@ -164,7 +256,8 @@
           }
         });
 
-        // drop en huecos
+        tb.removeEventListener('dragover', handleDragOver);
+        tb.removeEventListener('drop', handleDrop);
         tb.addEventListener('dragover', handleDragOver);
         tb.addEventListener('drop', handleDrop);
 
@@ -177,19 +270,15 @@
       btn.classList.add('bg-black','hover:bg-gray-800','focus:ring-gray-500');
       btn.title = 'Activar/Desactivar arrastrar filas';
 
-      window.allRows = $$('.selectable-row', tb);
+      window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
       clearRowCache();
 
       window.allRows.forEach((row, i) => {
         row.draggable = false;
         row.classList.remove('cursor-move','cursor-not-allowed');
         row.style.opacity = '';
-
         row.removeEventListener('dragstart', handleDragStart);
-        row.removeEventListener('dragover', handleDragOver);
-        row.removeEventListener('drop', handleDrop);
         row.removeEventListener('dragend', handleDragEnd);
-
         row.onclick = () => (typeof selectRow === 'function' ? selectRow(row, i) : null);
       });
 
@@ -200,7 +289,9 @@
     }
     window.toggleDragDropMode = toggleDragDropMode;
 
+    // -------------------------
     // DragStart
+    // -------------------------
     function handleDragStart(e) {
       if (isRowEnProceso(this)) {
         e.preventDefault();
@@ -215,14 +306,21 @@
 
       dragBlockedReason = null;
       dragDropPerformed = false;
-      lastDragOverTime = 0;
+      ddLastSig = null;
+      resetTelarScan();
 
       const tb = tbodyEl();
       if (tb) {
-        const snapshot = $$('.selectable-row', tb);
+        const snapshot = Array.from(tb.querySelectorAll('.selectable-row'));
         originalOrderIds = snapshot.map(r => r.getAttribute('data-id') || '');
-        const sameTelar = snapshot.filter(r => isSameTelar(getRowTelar(r), draggedRowTelar));
-        draggedRowOriginalTelarIndex = sameTelar.indexOf(draggedRow);
+
+        let idx = -1, count = 0;
+        for (const r of snapshot) {
+          if (!isSameTelar(getRowTelar(r), draggedRowTelar)) continue;
+          if (r === draggedRow) { idx = count; break; }
+          count++;
+        }
+        draggedRowOriginalTelarIndex = idx;
       }
 
       ddLastOver = { row:null, rawTelar:null, decisionTelar:null, salon:null, isBefore:false, y:null };
@@ -233,98 +331,71 @@
       this.style.opacity = '0.4';
 
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', draggedRow.getAttribute('data-id') || '');
+      e.dataTransfer.setData('text/plain', getRowMeta(draggedRow).id);
 
       ddLog('dragStart', {
-        id: draggedRow.getAttribute('data-id'),
+        id: getRowMeta(draggedRow).id,
         telar: draggedRowTelar,
         salon: draggedRowSalon,
         originalIndexTelar: draggedRowOriginalTelarIndex
       });
     }
 
-    // DragOver (FIX borde telar)
+    // -------------------------
+    // DragOver (delegado en TBODY)
+    // -------------------------
     function handleDragOver(e) {
       e.preventDefault();
       e.stopPropagation();
 
       dragBlockedReason = null;
+      if (!draggedRow) return false;
 
-      let targetRow = this;
+      const targetRow = e.target?.closest?.('.selectable-row') || null;
+      if (targetRow === draggedRow) return false;
 
-      // si es TBODY, encontrar fila más cercana al mouse
-      if (this.tagName === 'TBODY') {
-        const rows = $$('.selectable-row', this);
-        let closest = null, best = Infinity;
-        for (const r of rows) {
-          if (r === draggedRow) continue;
-          const rect = r.getBoundingClientRect();
-          const dist = Math.abs(e.clientY - (rect.top + rect.height/2));
-          if (dist < best) { best = dist; closest = r; }
-        }
-        if (!closest) return false;
-        targetRow = closest;
+      if (!targetRow) {
+        ddLastOver = { row:null, rawTelar:null, decisionTelar: draggedRowTelar, salon: draggedRowSalon, isBefore:false, y:e.clientY };
+        scheduleAppendEnd();
+        return false;
       }
 
-      if (!draggedRow || targetRow === draggedRow) return false;
-
-      // throttle
-      const now = performance.now();
-      if (now - lastDragOverTime < 16) return false;
-      lastDragOverTime = now;
-
-      // limpiar clases de target previo
-      if (ddLastOver.row && ddLastOver.row !== targetRow) {
-        ddLastOver.row.classList.remove('drag-over','drag-over-warning','drop-not-allowed');
-      }
+      const rect = targetRow.getBoundingClientRect();
+      const isBefore = e.clientY < (rect.top + rect.height / 2);
 
       const rawTargetTelar = getRowTelar(targetRow);
       const rawTargetSalon = getRowSalon(targetRow);
 
-      const rect = targetRow.getBoundingClientRect();
-      const isBefore = e.clientY < (rect.top + rect.height/2);
+      const borderSnapToEnd = (!isSameTelar(rawTargetTelar, draggedRowTelar) && isBefore && !e.altKey);
 
-      // FIX: si estás en mitad superior de OTRO telar y NO presionas ALT -> se interpreta como final del telar actual
       let decisionTelar = rawTargetTelar;
-      if (!isSameTelar(rawTargetTelar, draggedRowTelar) && isBefore && !e.altKey) {
-        decisionTelar = draggedRowTelar;
+      if (borderSnapToEnd) decisionTelar = draggedRowTelar;
+
+      const sig = `${getRowMeta(targetRow).id}|${isBefore ? 1 : 0}|${normalizeTelarValue(decisionTelar)}|${e.altKey ? 1 : 0}|${borderSnapToEnd ? 1 : 0}`;
+      if (sig === ddLastSig) return false;
+      ddLastSig = sig;
+
+      if (ddLastOver.row && ddLastOver.row !== targetRow) {
+        ddLastOver.row.classList.remove('drag-over','drag-over-warning','drop-not-allowed');
       }
 
       ddLastOver = { row: targetRow, rawTelar: rawTargetTelar, decisionTelar, salon: rawTargetSalon, isBefore, y: e.clientY };
 
-      ddLog('dragOver', {
-        targetId: targetRow.getAttribute('data-id'),
-        rawTargetTelar,
-        decisionTelar,
-        draggedTelar: draggedRowTelar,
-        isBefore,
-        altKey: !!e.altKey
-      });
-
-      // validación EnProceso SOLO si realmente cambia de telar
+      // validación EnProceso solo si cambia de telar
       if (!isSameTelar(decisionTelar, draggedRowTelar)) {
-        const tb = tbodyEl();
-        if (tb) {
-          const allDOM = $$('.selectable-row', tb);
-          const targetTelarRows = allDOM.filter(r => r !== draggedRow && isSameTelar(getRowTelar(r), decisionTelar));
+        const scan = buildTelarScanFromDOM(decisionTelar);
+        const idx = scan.indexMap?.get(targetRow);
+        const posObjetivo = (typeof idx === 'number') ? (isBefore ? idx : idx + 1) : (scan.rows?.length || 0);
 
-          const idx = targetTelarRows.indexOf(targetRow);
-          const posObjetivo = idx !== -1 ? (isBefore ? idx : idx + 1) : targetTelarRows.length;
-
-          let ultimoEnProcesoIndex = -1;
-          for (let i=0;i<targetTelarRows.length;i++) if (isRowEnProceso(targetTelarRows[i])) ultimoEnProcesoIndex = i;
-
-          if (ultimoEnProcesoIndex !== -1 && posObjetivo <= ultimoEnProcesoIndex) {
-            dragBlockedReason = 'No se puede colocar antes de un registro en proceso en el telar destino.';
-            e.dataTransfer.dropEffect = 'none';
-            targetRow.classList.add('drop-not-allowed');
-            targetRow.classList.remove('drag-over','drag-over-warning');
-            return false;
-          }
+        if (scan.lastEnProceso !== -1 && posObjetivo <= scan.lastEnProceso) {
+          dragBlockedReason = 'No se puede colocar antes de un registro en proceso en el telar destino.';
+          e.dataTransfer.dropEffect = 'none';
+          targetRow.classList.add('drop-not-allowed');
+          targetRow.classList.remove('drag-over','drag-over-warning');
+          return false;
         }
       }
 
-      // feedback visual según decisionTelar
       if (isSameTelar(decisionTelar, draggedRowTelar)) {
         e.dataTransfer.dropEffect = 'move';
         targetRow.classList.add('drag-over');
@@ -335,45 +406,52 @@
         targetRow.classList.remove('drag-over','drop-not-allowed');
       }
 
-      // reordenamiento visual DOM
       if (!targetRow.classList.contains('drop-not-allowed')) {
-        const tb = tbodyEl();
-        if (tb) {
-          const after = getDragAfterElement(tb, e.clientY);
-          if (after == null) tb.appendChild(draggedRow);
-          else tb.insertBefore(draggedRow, after);
-        }
+        if (borderSnapToEnd) schedulePlaceEndTelar(draggedRowTelar);
+        else schedulePlaceRelative(targetRow, isBefore);
       }
 
       return false;
     }
 
-    // Posición destino (cambio telar)
-    function calcularPosicionObjetivo(targetTelar, targetRowElement) {
+    // -------------------------
+    // Posición destino por DOM (DROP)
+    // -------------------------
+    function calcularPosicionObjetivoDOM(targetTelar, targetRowElement, isBefore, draggedEl) {
       const tb = tbodyEl();
       if (!tb) return 0;
 
-      const allDOM = $$('.selectable-row', tb);
-      const targetRows = allDOM.filter(r => r !== draggedRow && isSameTelar(getRowTelar(r), targetTelar));
-
-      if (!targetRowElement) return targetRows.length;
-
-      const targetIndex = allDOM.indexOf(targetRowElement);
-      if (targetIndex === -1) return targetRows.length;
-
       let count = 0;
-      for (let i=0;i<targetIndex;i++) {
-        const r = allDOM[i];
-        if (r !== draggedRow && isSameTelar(getRowTelar(r), targetTelar)) count++;
+
+      if (!targetRowElement) {
+        for (const r of tb.children) {
+          if (!r.classList || !r.classList.contains('selectable-row')) continue;
+          if (r === draggedEl) continue;
+          if (isSameTelar(getRowTelar(r), targetTelar)) count++;
+        }
+        return count;
       }
-      return ddLastOver.isBefore ? count : count + 1;
+
+      for (const r of tb.children) {
+        if (!r.classList || !r.classList.contains('selectable-row')) continue;
+        if (r === draggedEl) continue;
+
+        if (isSameTelar(getRowTelar(r), targetTelar)) {
+          if (r === targetRowElement) return isBefore ? count : count + 1;
+          count++;
+        }
+      }
+      return count;
     }
 
-    // Drop
+    // -------------------------
+    // Drop (delegado en TBODY)
+    // -------------------------
     async function handleDrop(e) {
       e.stopPropagation();
       e.preventDefault();
 
+      flushPlacement();
       dragDropPerformed = true;
 
       if (!draggedRow) {
@@ -382,8 +460,16 @@
         return false;
       }
 
-      const registroId = (e.dataTransfer?.getData?.('text/plain')) || draggedRow.getAttribute('data-id');
-      if (!registroId) {
+      // SNAPSHOT CRÍTICO (para que dragend no te rompa)
+      const ctx = {
+        draggedRowEl: draggedRow,
+        draggedId: (e.dataTransfer?.getData?.('text/plain')) || getRowMeta(draggedRow).id,
+        draggedTelar: draggedRowTelar,
+        draggedSalon: draggedRowSalon,
+        originalIndexTelar: draggedRowOriginalTelarIndex
+      };
+
+      if (!ctx.draggedId) {
         if (typeof showToast === 'function') showToast('Error: No se pudo obtener el ID del registro', 'error');
         restoreOriginalOrder();
         return false;
@@ -395,41 +481,42 @@
         return false;
       }
 
-      const targetTelar = ddLastOver.decisionTelar || draggedRowTelar;
-      const targetSalon = ddLastOver.salon || draggedRowSalon;
+      // EXTRAER TODO ANTES DE AWAIT
+      const targetTelar = ddLastOver.decisionTelar || ctx.draggedTelar;
+      const targetSalon = ddLastOver.salon || ctx.draggedSalon;
+      const overRow = ddLastOver.row;
+      const isBefore = !!ddLastOver.isBefore;
 
-      ddLog('DROP', { registroId, draggedRowTelar, rawOverTelar: ddLastOver.rawTelar, decisionTelar: ddLastOver.decisionTelar, isBefore: ddLastOver.isBefore });
-
-      const esMismoTelar = isSameTelar(draggedRowTelar, targetTelar);
+      const esMismoTelar = isSameTelar(ctx.draggedTelar, targetTelar);
       if (esMismoTelar) {
-        await procesarMovimientoMismoTelar(registroId);
+        await procesarMovimientoMismoTelar(ctx);
         return false;
       }
 
-      let targetPosition = calcularPosicionObjetivo(targetTelar, ddLastOver.row);
+      let targetPosition = calcularPosicionObjetivoDOM(targetTelar, overRow, isBefore, ctx.draggedRowEl);
 
       // Ajuste EnProceso destino
-      const tb = tbodyEl();
-      const allDOM = tb ? $$('.selectable-row', tb) : [];
-      const targetRowsDOM = allDOM.filter(r => r !== draggedRow && isSameTelar(getRowTelar(r), targetTelar));
-
-      let minAllowed = 0;
-      for (let i=0;i<targetRowsDOM.length;i++) if (isRowEnProceso(targetRowsDOM[i])) minAllowed = i + 1;
-
+      const scan = buildTelarScanFromDOM(targetTelar);
+      const minAllowed = (scan.lastEnProceso !== -1) ? (scan.lastEnProceso + 1) : 0;
       targetPosition = Math.max(minAllowed, targetPosition);
-      targetPosition = Math.max(0, Math.min(targetPosition, targetRowsDOM.length));
+      targetPosition = Math.max(0, Math.min(targetPosition, (scan.rows?.length || 0)));
 
-      await procesarMovimientoOtroTelar(registroId, targetSalon, targetTelar, targetPosition);
+      await procesarMovimientoOtroTelar(ctx, targetSalon, targetTelar, targetPosition);
       return false;
     }
 
-    // MISMO TELAR
-    async function procesarMovimientoMismoTelar(registroId) {
+    // -------------------------
+    // MISMO TELAR (usa ctx)
+    // -------------------------
+    async function procesarMovimientoMismoTelar(ctx) {
       const tb = tbodyEl();
       if (!tb) { restoreOriginalOrder(); return; }
 
-      const allDOM = $$('.selectable-row', tb);
-      const rowsSameTelar = allDOM.filter(r => isSameTelar(getRowTelar(r), draggedRowTelar));
+      const rowsSameTelar = [];
+      for (const r of tb.children) {
+        if (!r.classList || !r.classList.contains('selectable-row')) continue;
+        if (isSameTelar(getRowTelar(r), ctx.draggedTelar)) rowsSameTelar.push(r);
+      }
 
       if (rowsSameTelar.length < 2) {
         if (typeof showToast === 'function') showToast('Se requieren al menos dos registros para reordenar la prioridad', 'info');
@@ -437,10 +524,8 @@
         return;
       }
 
-      const nuevaPosicion = rowsSameTelar.indexOf(draggedRow);
-      const posicionOriginal = (typeof draggedRowOriginalTelarIndex === 'number' && draggedRowOriginalTelarIndex >= 0) ? draggedRowOriginalTelarIndex : null;
-
-      ddLog('MismoTelar posiciones', { registroId, telar: draggedRowTelar, posicionOriginal, nuevaPosicion, total: rowsSameTelar.length });
+      const nuevaPosicion = rowsSameTelar.indexOf(ctx.draggedRowEl);
+      const posicionOriginal = (typeof ctx.originalIndexTelar === 'number' && ctx.originalIndexTelar >= 0) ? ctx.originalIndexTelar : null;
 
       if (posicionOriginal !== null && posicionOriginal === nuevaPosicion) {
         if (typeof showToast === 'function') showToast('El registro ya está en esa posición', 'info');
@@ -450,7 +535,7 @@
 
       if (typeof showLoading === 'function') showLoading();
       try {
-        const response = await fetch(`/planeacion/programa-tejido/${registroId}/prioridad/mover`, {
+        const response = await fetch(`/planeacion/programa-tejido/${ctx.draggedId}/prioridad/mover`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -462,15 +547,11 @@
         const data = await response.json();
         if (typeof hideLoading === 'function') hideLoading();
 
-        ddLog('Backend mismo telar', data);
-
         if (data.success) {
-          originalOrderIds = []; // confirmar
-          if (typeof updateTableAfterDragDrop === 'function') updateTableAfterDragDrop(data.detalles, registroId);
+          originalOrderIds = [];
+          if (typeof updateTableAfterDragDrop === 'function') updateTableAfterDragDrop(data.detalles, ctx.draggedId);
           if (typeof showToast === 'function') showToast(`Prioridad actualizada<br>${data.cascaded_records || 0} registro(s) recalculado(s)`, 'success');
-
-          // refrescar allRows/cache
-          window.allRows = $$('.selectable-row', tb);
+          window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
           clearRowCache();
         } else {
           if (typeof showToast === 'function') showToast(data.message || 'No se pudo actualizar la prioridad', 'error');
@@ -483,13 +564,14 @@
       }
     }
 
-    // OTRO TELAR (tus endpoints)
-    async function procesarMovimientoOtroTelar(registroId, nuevoSalon, nuevoTelar, targetPosition) {
+    // -------------------------
+    // OTRO TELAR (usa ctx)
+    // -------------------------
+    async function procesarMovimientoOtroTelar(ctx, nuevoSalon, nuevoTelar, targetPosition) {
       if (typeof showLoading === 'function') showLoading();
 
       try {
-        // 1) verificar
-        const verifRes = await fetch(`/planeacion/programa-tejido/${registroId}/verificar-cambio-telar`, {
+        const verifRes = await fetch(`/planeacion/programa-tejido/${ctx.draggedId}/verificar-cambio-telar`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -508,8 +590,6 @@
         const verificacion = await verifRes.json();
         if (typeof hideLoading === 'function') hideLoading();
 
-        ddLog('Verificación cambio telar', verificacion);
-
         if (!verificacion.puede_mover) {
           await Swal.fire({
             icon: 'error',
@@ -521,7 +601,6 @@
           return;
         }
 
-        // 2) confirmar
         const cambiosHTML =
           (verificacion.cambios && Array.isArray(verificacion.cambios) && verificacion.cambios.length)
             ? `
@@ -554,7 +633,7 @@
           html: `
             <div class="text-left">
               <div class="text-sm text-gray-700">
-                <div><b>Origen:</b> Telar ${draggedRowTelar} (Salón ${draggedRowSalon})</div>
+                <div><b>Origen:</b> Telar ${ctx.draggedTelar} (Salón ${ctx.draggedSalon})</div>
                 <div><b>Destino:</b> Telar ${nuevoTelar} (Salón ${nuevoSalon})</div>
                 <div class="mt-2"><b>Posición destino:</b> ${targetPosition}</div>
               </div>
@@ -575,9 +654,8 @@
           return;
         }
 
-        // 3) aplicar
         if (typeof showLoading === 'function') showLoading();
-        const cambioRes = await fetch(`/planeacion/programa-tejido/${registroId}/cambiar-telar`, {
+        const cambioRes = await fetch(`/planeacion/programa-tejido/${ctx.draggedId}/cambiar-telar`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -588,8 +666,6 @@
 
         const cambio = await cambioRes.json();
         if (typeof hideLoading === 'function') hideLoading();
-
-        ddLog('Cambio telar backend', cambio);
 
         if (!cambio.success) {
           if (typeof showToast === 'function') showToast(cambio.message || 'No se pudo cambiar de telar', 'error');
@@ -612,22 +688,30 @@
       }
     }
 
+    // -------------------------
     // DragEnd
+    // -------------------------
     function handleDragEnd() {
       this.classList.remove('dragging');
       this.style.opacity = '';
 
-      const tb = tbodyEl();
-      if (tb) $$('.selectable-row', tb).forEach(r => r.classList.remove('drag-over','drag-over-warning','drop-not-allowed'));
+      if (ddLastOver.row) ddLastOver.row.classList.remove('drag-over','drag-over-warning','drop-not-allowed');
 
+      // limpiar estado (ya es seguro porque drop usa ctx snapshot)
       draggedRow = null;
       draggedRowTelar = null;
       draggedRowSalon = null;
       draggedRowCambioHilo = null;
 
-      lastDragOverTime = 0;
       draggedRowOriginalTelarIndex = null;
       ddLastOver = { row:null, rawTelar:null, decisionTelar:null, salon:null, isBefore:false, y:null };
+      ddLastSig = null;
+      resetTelarScan();
+
+      rafPending = false;
+      rafMode = null;
+      rafTargetRow = null;
+      rafTelar = null;
 
       if (!dragDropPerformed && dragBlockedReason) {
         if (typeof showToast === 'function') showToast(dragBlockedReason, 'error');

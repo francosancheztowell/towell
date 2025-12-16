@@ -15,10 +15,6 @@ class DragAndDropTejido
 {
     /**
      * Mover registro a una posición específica (drag and drop)
-     *
-     * @param Request $request
-     * @param int $id ID del registro a mover
-     * @return \Illuminate\Http\JsonResponse
      */
     public static function mover(Request $request, int $id)
     {
@@ -38,9 +34,6 @@ class DragAndDropTejido
         }
 
         try {
-            // Forzar limpieza de selección en front (bandera)
-            $desSeleccionar = true;
-
             $resultado = self::moverAposicion($registro, (int) $data['new_position']);
 
             return response()->json([
@@ -49,7 +42,7 @@ class DragAndDropTejido
                 'cascaded_records' => count($resultado['detalles']),
                 'detalles'         => $resultado['detalles'],
                 'registro_id'      => $registro->Id,
-                'deseleccionar'    => $desSeleccionar,
+                'deseleccionar'    => true,
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -62,79 +55,90 @@ class DragAndDropTejido
     /**
      * Mover un registro a una posición específica y recalcular fechas
      *
-     * @param ReqProgramaTejido $registro
-     * @param int $nuevaPosicion
      * @return array{success: bool, detalles: array}
      */
     private static function moverAposicion(ReqProgramaTejido $registro, int $nuevaPosicion): array
     {
-        DB::beginTransaction();
+        // IMPORTANTE: guardar/restaurar dispatcher (evita duplicar observers)
+        $dispatcher = ReqProgramaTejido::getEventDispatcher();
 
         try {
-            // 1) Obtener registros del mismo salón/telar bloqueados para reordenar
-            $registros = self::obtenerRegistrosBloqueadosPorTelar($registro);
+            $resultado = DB::transaction(function () use ($registro, $nuevaPosicion) {
+                // 1) Obtener registros del mismo salón/telar bloqueados
+                $registros = self::obtenerRegistrosBloqueadosPorTelar($registro);
 
-            // 2) Validaciones de negocio
-            self::validarCantidadRegistros($registros);
+                // 2) Validaciones de negocio
+                self::validarCantidadRegistros($registros);
 
-            $inicioOriginal = self::obtenerInicioOriginal($registros);
-            $idxActual      = self::obtenerIndiceRegistro($registros, $registro);
+                $inicioOriginal = self::obtenerInicioOriginal($registros);
+                $idxActual      = self::obtenerIndiceRegistro($registros, $registro);
 
-            self::validarPosicionPermitida($registros, $nuevaPosicion);
-            self::validarRangoPosicion($registros, $nuevaPosicion);
+                self::validarPosicionPermitida($registros, $nuevaPosicion);
+                self::validarRangoPosicion($registros, $nuevaPosicion);
 
-            if ($idxActual === $nuevaPosicion) {
-                throw new \RuntimeException('El registro ya está en esa posición.');
-            }
+                if ($idxActual === $nuevaPosicion) {
+                    throw new \RuntimeException('El registro ya está en esa posición.');
+                }
 
-            // Guardar IDs de los registros afectados para regenerar líneas después
-            $idsAfectados = $registros->pluck('Id')->toArray();
+                // 3) Reordenar colección en memoria
+                $registrosReordenados = self::reordenarColeccion($registros, $idxActual, $nuevaPosicion);
 
-            // 3) Reordenar colección en memoria
-            $registrosReordenados = self::reordenarColeccion($registros, $idxActual, $nuevaPosicion);
+                // 4) Deshabilitar eventos de Eloquent (evita regeneración duplicada)
+                ReqProgramaTejido::unsetEventDispatcher();
 
-            // 4) Deshabilitar observers para evitar regeneración duplicada
-            ReqProgramaTejido::unsetEventDispatcher();
+                // 5) Recalcular fechas para toda la secuencia
+                [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal);
 
-            // 5) Recalcular fechas para toda la secuencia
-            [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal);
+                // Solo regenerar lo que realmente se actualizó
+                $idsAfectados = array_map('intval', array_keys($updates));
 
-            foreach ($updates as $idU => $data) {
-                DB::table('ReqProgramaTejido')
-                    ->where('Id', $idU)
-                    ->update($data);
-            }
+                // Updates (120-200 está OK así; si quieres lo convertimos a 1 query con VALUES)
+                foreach ($updates as $idU => $dataU) {
+                    DB::table('ReqProgramaTejido')
+                        ->where('Id', $idU)
+                        ->update($dataU);
+                }
 
-            DB::commit();
+                return [
+                    'detalles'     => $detalles,
+                    'idsAfectados' => $idsAfectados,
+                ];
+            }, 3);
 
-            // 6) Re-habilitar observer
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            // Restaurar dispatcher SIEMPRE
+            ReqProgramaTejido::setEventDispatcher($dispatcher);
 
-            // 7) Regenerar líneas para TODOS los registros afectados
-            $observer = new ReqProgramaTejidoObserver();
-            foreach ($idsAfectados as $idAct) {
-                if ($r = ReqProgramaTejido::find($idAct)) {
-                    $observer->saved($r);
+            // 6) Regenerar líneas (fuera del lock/transaction para no alargar bloqueos)
+            //    OPTIMIZADO: un solo query en vez de N finds
+            $idsAfectados = $resultado['idsAfectados'] ?? [];
+            if (!empty($idsAfectados)) {
+                $observer = new ReqProgramaTejidoObserver();
+
+                $modelos = ReqProgramaTejido::query()
+                    ->whereIn('Id', $idsAfectados)
+                    ->get();
+
+                foreach ($modelos as $m) {
+                    $observer->saved($m);
                 }
             }
 
-
-
             return [
                 'success'  => true,
-                'detalles' => $detalles,
+                'detalles' => $resultado['detalles'] ?? [],
             ];
         } catch (\Throwable $e) {
-            DB::rollBack();
-
-            // Aseguramos que el observer quede registrado aunque haya error
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            // Restaurar dispatcher aunque explote
+            if ($dispatcher) {
+                ReqProgramaTejido::setEventDispatcher($dispatcher);
+            }
 
             Log::error('moverAposicion error', [
-                'id'            => $registro->Id ?? null,
-                'nueva_posicion'=> $nuevaPosicion,
-                'msg'           => $e->getMessage(),
-                'trace'         => $e->getTraceAsString(),
+                'id'             => $registro->Id ?? null,
+                'nueva_posicion' => $nuevaPosicion,
+                'msg'            => $e->getMessage(),
+                // Nota: el trace pesa; si quieres, solo loguearlo en local:
+                // 'trace'       => app()->environment('local') ? $e->getTraceAsString() : null,
             ]);
 
             throw $e;
@@ -155,12 +159,11 @@ class DragAndDropTejido
             ->telar($registro->NoTelarId)
             ->orderBy('FechaInicio', 'asc')
             ->lockForUpdate()
+            // Si DateHelpers NO necesita todas las columnas, reduce payload:
+            // ->select(['Id','SalonTejidoId','NoTelarId','FechaInicio','FechaFinal','EnProceso', ...])
             ->get();
     }
 
-    /**
-     * Deben existir al menos 2 registros para poder reordenar.
-     */
     private static function validarCantidadRegistros(Collection $registros): void
     {
         if ($registros->count() < 2) {
@@ -168,9 +171,6 @@ class DragAndDropTejido
         }
     }
 
-    /**
-     * Obtiene la fecha de inicio del primer registro, validando que sea correcta.
-     */
     private static function obtenerInicioOriginal(Collection $registros): Carbon
     {
         $primero = $registros->first();
@@ -186,9 +186,6 @@ class DragAndDropTejido
         return $inicioOriginal;
     }
 
-    /**
-     * Obtiene el índice actual del registro dentro de la colección.
-     */
     private static function obtenerIndiceRegistro(Collection $registros, ReqProgramaTejido $registro): int
     {
         $idxActual = $registros->search(fn ($r) => $r->Id === $registro->Id);
@@ -200,9 +197,6 @@ class DragAndDropTejido
         return (int) $idxActual;
     }
 
-    /**
-     * No se puede colocar antes de un registro en proceso.
-     */
     private static function validarPosicionPermitida(Collection $registros, int $nuevaPosicion): void
     {
         $ultimoEnProcesoIndex = -1;
@@ -220,16 +214,12 @@ class DragAndDropTejido
         $posicionMinima = $ultimoEnProcesoIndex + 1;
 
         if ($nuevaPosicion < $posicionMinima) {
-            // Nota: mensaje idéntico al original (sumando +1 para versión "humana")
             throw new \RuntimeException(
                 'No se puede colocar un registro antes de uno que está en proceso. La posición mínima permitida es ' . ($posicionMinima + 1) . '.'
             );
         }
     }
 
-    /**
-     * Valida que la nueva posición esté dentro del rango de la colección.
-     */
     private static function validarRangoPosicion(Collection $registros, int $nuevaPosicion): void
     {
         if ($nuevaPosicion < 0 || $nuevaPosicion >= $registros->count()) {
@@ -237,18 +227,11 @@ class DragAndDropTejido
         }
     }
 
-    /**
-     * Reordena la colección moviendo el registro desde idxActual a nuevaPosicion.
-     */
     private static function reordenarColeccion(Collection $registros, int $idxActual, int $nuevaPosicion): Collection
     {
-        // Extraer el registro actual
         $registroMovido = $registros->splice($idxActual, 1)->first();
-
-        // Insertarlo en la nueva posición
         $registros->splice($nuevaPosicion, 0, [$registroMovido]);
 
         return $registros->values();
     }
-
 }
