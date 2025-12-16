@@ -48,6 +48,7 @@ class VincularTejido
             'aplicacion'    => 'nullable|string',
             'descripcion'   => 'nullable|string',
             'ord_compartida_existente' => 'nullable|integer|min:1', // OrdCompartida existente para vincular (solo si es > 0)
+            'registro_id_original' => 'nullable|integer',
         ]);
 
         $salonOrigen  = $data['salon_tejido_id'];
@@ -66,6 +67,7 @@ class VincularTejido
         $aplicacion     = $data['aplicacion'] ?? null;
         $descripcion    = $data['descripcion'] ?? null;
         $ordCompartidaExistente = $data['ord_compartida_existente'] ?? null;
+        $registroIdOriginal = $data['registro_id_original'] ?? null;
 
         // Guardar y restaurar dispatcher para no romper otros flujos
         $dispatcher = ReqProgramaTejido::getEventDispatcher();
@@ -99,8 +101,20 @@ class VincularTejido
                 // Crear un nuevo OrdCompartida verificando que no esté en uso
                 $ordCompartidaAVincular = self::obtenerNuevoOrdCompartidaDisponible();
             }
-            // Obtener el registro original como base (similar a duplicar)
-            $original = self::obtenerUltimoRegistroTelar($salonOrigen, $telarOrigen);
+            // Obtener el registro específico a vincular, o como fallback el último del telar
+            $original = null;
+            if ($registroIdOriginal) {
+                $original = ReqProgramaTejido::find($registroIdOriginal);
+                // Verificar que el registro encontrado pertenece al telar y salón correctos
+                if ($original && ($original->SalonTejidoId !== $salonOrigen || $original->NoTelarId !== $telarOrigen)) {
+                    $original = null; // No es del telar correcto, usar fallback
+                }
+            }
+
+            // Fallback: obtener el último registro del telar
+            if (!$original) {
+                $original = self::obtenerUltimoRegistroTelar($salonOrigen, $telarOrigen);
+            }
 
             if (!$original) {
                 DBFacade::rollBack();

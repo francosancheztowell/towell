@@ -67,6 +67,7 @@ async function duplicarTelar(row) {
 	const pedido = row.querySelector('[data-column="TotalPedido"]')?.textContent?.trim() || '';
 	const flog = row.querySelector('[data-column="FlogsId"]')?.textContent?.trim() || '';
 	const saldo = row.querySelector('[data-column="SaldoPedido"]')?.textContent?.trim() || pedido;
+	const aplicacion = row.querySelector('[data-column="AplicacionId"]')?.textContent?.trim() || '';
 
 	// Verificar si el registro ya tiene OrdCompartida (ya fue dividido antes)
 	const ordCompartidaCell = row.querySelector('[data-column="OrdCompartida"]')?.textContent || '';
@@ -75,7 +76,8 @@ async function duplicarTelar(row) {
 	const registroId = row.getAttribute('data-id');
 
 	// Fallback: si no se obtuvo del DOM, intentar obtener del backend
-	if (!ordCompartida && registroId) {
+	let aplicacionBackend = '';
+	if ((!ordCompartida || !aplicacion) && registroId) {
 		try {
 			const resp = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo`, {
 				headers: { 'Accept': 'application/json' }
@@ -85,11 +87,17 @@ async function duplicarTelar(row) {
 				if (data?.registro?.OrdCompartida !== undefined && data.registro.OrdCompartida !== null) {
 					ordCompartida = String(data.registro.OrdCompartida).trim();
 				}
+				if (data?.registro?.AplicacionId !== undefined && data.registro.AplicacionId !== null) {
+					aplicacionBackend = String(data.registro.AplicacionId).trim();
+				}
 			}
 		} catch (err) {
-			console.warn('No se pudo obtener OrdCompartida del backend', err);
+			console.warn('No se pudo obtener datos adicionales del backend', err);
 		}
 	}
+
+	// Usar aplicación del backend si no se obtuvo del DOM
+	const aplicacionFinal = aplicacion || aplicacionBackend;
 
 	// Resetear variables globales
 	registrosOrdCompartidaExistentes = [];
@@ -98,7 +106,7 @@ async function duplicarTelar(row) {
 
 	// Modal con formato de tabla
 	const resultado = await Swal.fire({
-		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, registroId }),
+		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, aplicacion: aplicacionFinal, registroId }),
 		width: '750px',
 		showCancelButton: true,
 		confirmButtonText: 'Aceptar',
@@ -275,7 +283,7 @@ async function duplicarTelar(row) {
 }
 
 // Genera el HTML del modal de duplicar
-function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, registroId }) {
+function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, aplicacion, registroId }) {
 	// Determinar si ya está dividido (tiene OrdCompartida)
 	const ordNum = Number(ordCompartida);
 	const yaDividido = Number.isFinite(ordNum) && ordNum !== 0;
@@ -370,6 +378,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 			<input type="hidden" id="swal-descripcion" value="">
 			<input type="hidden" id="swal-custname" value="">
 			<input type="hidden" id="swal-inventsizeid" value="">
+			<input type="hidden" id="swal-aplicacion-original" value="${aplicacion}">
 
 			<!-- Switch Dividir/Duplicar (pill reactivo: Duplicar azul, Dividir verde) -->
 			<div class="my-4 flex items-center justify-center gap-4">
@@ -442,11 +451,11 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 								</select>
 							</td>
 							<td class="p-2 border-r border-gray-200">
-								<input type="text" name="pedido-tempo-destino[]" value=""
+								<input type="text" name="pedido-tempo-destino[]" value="${pedido}"
 									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 							</td>
 						<td class="p-2 border-r border-gray-200">
-							<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
+							<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0"
 								placeholder="0.00"
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 						</td>
@@ -504,6 +513,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const inputDescripcion = document.getElementById('swal-descripcion');
 	const inputCustname = document.getElementById('swal-custname');
 	const inputInventSizeId = document.getElementById('swal-inventsizeid');
+	const aplicacionOriginal = document.getElementById('swal-aplicacion-original')?.value || '';
 
 	// Inputs/Selects de la primera fila Telar/Pedido
 	const firstTelarSelect = tbody.querySelector('select[name="telar-destino[]"]');
@@ -1014,6 +1024,10 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				const option = document.createElement('option');
 				option.value = item;
 				option.textContent = item;
+				// Preseleccionar la aplicación del registro original si existe
+				if (item === aplicacionOriginal) {
+					option.selected = true;
+				}
 				selectAplicacion.appendChild(option);
 			});
 			// Agregar opción NA si no existe
@@ -1021,9 +1035,20 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				const optionNA = document.createElement('option');
 				optionNA.value = 'NA';
 				optionNA.textContent = 'NA';
+				// Preseleccionar NA si no hay aplicación original y es la opción por defecto
+				if (!aplicacionOriginal && !selectAplicacion.value) {
+					optionNA.selected = true;
+				}
 				selectAplicacion.appendChild(optionNA);
 			}
-			// Si no hay selección previa, forzar NA como valor por defecto
+			// Si hay aplicación original pero no se preseleccionó (no existe en opciones), intentar preseleccionar
+			if (aplicacionOriginal && !selectAplicacion.value) {
+				const optOriginal = Array.from(selectAplicacion.options).find(o => o.value === aplicacionOriginal);
+				if (optOriginal) {
+					optOriginal.selected = true;
+				}
+			}
+			// Si no hay selección previa y no hay aplicación original, forzar NA como valor por defecto
 			if (!selectAplicacion.value) {
 				const optNa = Array.from(selectAplicacion.options).find(o => o.value === 'NA');
 				if (optNa) optNa.selected = true;
@@ -1128,11 +1153,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				'</select>' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
-				'<input type="text" name="pedido-tempo-destino[]" placeholder=""' +
+				'<input type="text" name="pedido-tempo-destino[]" value="${pedidoOriginal}" placeholder=""' +
 					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
-				'<input type="number" name="porcentaje-segundos-destino[]" value="5" placeholder="0.00" step="0.01" min="0"' +
+				'<input type="number" name="porcentaje-segundos-destino[]" value="0" placeholder="0.00" step="0.01" min="0"' +
 					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
@@ -1206,11 +1231,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					</select>
 				</td>
 				<td class="p-2 border-r border-gray-200">
-					<input type="text" name="pedido-tempo-destino[]" value=""
+					<input type="text" name="pedido-tempo-destino[]" value="${pedidoOriginal}"
 						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
 				<td class="p-2 border-r border-gray-200">
-					<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
+					<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0"
 						placeholder="0.00"
 						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
@@ -1270,11 +1295,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 						</div>
 					</td>
 					<td class="p-2 border-r border-gray-200">
-						<input type="text" name="pedido-tempo-destino[]" value=""
+						<input type="text" name="pedido-tempo-destino[]" value="${pedidoOriginal}"
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 					</td>
 					<td class="p-2 border-r border-gray-200">
-						<input type="number" name="porcentaje-segundos-destino[]" value="5" step="0.01" min="0"
+						<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0"
 							placeholder="0.00"
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 					</td>
@@ -1404,7 +1429,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 						</td>
 						<td class="p-2 border-r border-gray-200">
-							<input type="number" name="porcentaje-segundos-destino[]" value="${reg.PorcentajeSegundos !== null && reg.PorcentajeSegundos !== undefined ? reg.PorcentajeSegundos : '5'}" step="0.01" min="0"
+							<input type="number" name="porcentaje-segundos-destino[]" value="${reg.PorcentajeSegundos !== null && reg.PorcentajeSegundos !== undefined ? reg.PorcentajeSegundos : '0'}" step="0.01" min="0"
 								placeholder="0.00"
 								data-registro-id="${reg.Id}"
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
@@ -1619,7 +1644,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 			</td>
 			<td class="p-2 border-r border-gray-200">
-				<input type="number" name="porcentaje-segundos-destino[]" value="5" placeholder="0.00" step="0.01" min="0"
+				<input type="number" name="porcentaje-segundos-destino[]" value="0" placeholder="0.00" step="0.01" min="0"
 					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 			</td>
 			<td class="p-2 border-r border-gray-200">
