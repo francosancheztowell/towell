@@ -318,7 +318,21 @@
 
         function updateCodificacionModelo() {
             const fullCode = Array.from(codificacionInputs).map(input => input.value).join('');
-            codificacionHidden.value = fullCode + '.JCS';
+            codificacionHidden.value = fullCode ? (fullCode + '.JCS') : '';
+        }
+
+        function setCodificacionFromCodigoDibujo(codigoDibujo) {
+            const normalized = String(codigoDibujo ?? '')
+                .toUpperCase()
+                .trim()
+                .replace(/\.JC5$/i, '')
+                .replace(/\.JCS$/i, '')
+                .replace(/\s+/g, '');
+
+            codificacionInputs.forEach((input, index) => {
+                input.value = normalized[index] ?? '';
+            });
+            updateCodificacionModelo();
         }
 
         // Evento al seleccionar un telar - Cargar producciones en tabla
@@ -374,6 +388,8 @@
                                     <input type="checkbox" 
                                            class="checkbox-produccion w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
                                            data-telar="${telarId}"
+                                           data-salon="${produccion.SalonTejidoId ?? ''}"
+                                           data-tamano="${produccion.TamanoClave ?? ''}"
                                            data-produccion="${produccion.NoProduccion}"
                                            data-modelo="${produccion.NombreProducto || ''}"
                                            onchange="seleccionarProduccion(this)">
@@ -411,6 +427,8 @@
                 const telarId = checkbox.dataset.telar;
                 const noProduccion = checkbox.dataset.produccion;
                 const modelo = checkbox.dataset.modelo || '';
+                const salonTejidoId = checkbox.dataset.salon || '';
+                const tamanoClave = checkbox.dataset.tamano || '';
                 
                 // Mostrar formulario inline y setear datos
                 inputTelarId.value = telarId;
@@ -418,6 +436,25 @@
                 formTelarId.textContent = telarId;
                 formNoProduccion.textContent = noProduccion;
                 formNombreProducto.textContent = modelo || '-';
+
+                // Obtener CodigoDibujo por SalonTejidoId + TamanoClave y auto-llenar codificación
+                if (salonTejidoId && tamanoClave) {
+                    fetch(`/desarrolladores/modelo-codificado/${encodeURIComponent(salonTejidoId)}/${encodeURIComponent(tamanoClave)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.codigoDibujo) {
+                                setCodificacionFromCodigoDibujo(data.codigoDibujo);
+                            } else {
+                                setCodificacionFromCodigoDibujo('');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error al obtener CodigoDibujo:', error);
+                            setCodificacionFromCodigoDibujo('');
+                        });
+                } else {
+                    setCodificacionFromCodigoDibujo('');
+                }
 
                 // Resetear y preparar selectores numéricos
                 resetNumberSelectors();

@@ -3,11 +3,11 @@ namespace App\Http\Controllers;
 
 use App\Models\TelTelaresOperador;
 use App\Models\catDesarrolladoresModel;
+use App\Models\ReqModelosCodificados;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
-use League\Config\Exception\ValidationException;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class TelDesarrolladoresController extends Controller
 {
@@ -105,6 +105,40 @@ class TelDesarrolladoresController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener los detalles: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function obtenerCodigoDibujo(Request $request, $salonTejidoId, $tamanoClave)
+    {
+        try {
+            $codigoDibujo = ReqModelosCodificados::query()
+                ->where('SalonTejidoId', $salonTejidoId)
+                ->where('TamanoClave', $tamanoClave)
+                ->whereNotNull('CodigoDibujo')
+                ->orderByDesc('Id')
+                ->value('CodigoDibujo');
+
+            if (!$codigoDibujo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró CodigoDibujo para los parámetros proporcionados.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'codigoDibujo' => $codigoDibujo
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error al obtener CodigoDibujo: ' . $e->getMessage(), [
+                'salonTejidoId' => $salonTejidoId,
+                'tamanoClave' => $tamanoClave,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener CodigoDibujo'
             ], 500);
         }
     }
