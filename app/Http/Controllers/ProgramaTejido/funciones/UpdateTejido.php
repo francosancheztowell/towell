@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\ProgramaTejido\funciones;
 
+use App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\ProgramaTejido\helper\UpdateHelpers;
 use App\Http\Controllers\ProgramaTejido\helper\UtilityHelpers;
@@ -210,7 +211,7 @@ class UpdateTejido
                 $registro->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
             } else {
                 if (!empty($registro->CalendarioId)) {
-                    $fin = DuplicarTejido::calcularFechaFinalDesdeInicio($registro->CalendarioId, $inicio, $horasNecesarias);
+                    $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registro->CalendarioId, $inicio, $horasNecesarias);
                     if (!$fin) $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
                     $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
                 } else {
