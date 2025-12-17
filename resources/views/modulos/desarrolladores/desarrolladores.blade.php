@@ -203,7 +203,7 @@
                             </div>
                         </div>
                         <input type="hidden" id="CodificacionModelo" name="CodificacionModelo" required>
-                        <p id="codificacionNoData" class="mt-2 text-sm text-red-500 hidden">No se obtuvieron datos.</p>
+                        {{-- <p id="codificacionNoData" class="mt-2 text-sm text-red-500 hidden">No se obtuvieron datos.</p>  --}}
                     </div>
 
                     <!-- Tabla de Detalles de la Orden -->

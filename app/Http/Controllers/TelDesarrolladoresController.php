@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Helpers\TelDesarrolladoresHelper;
 use App\Models\TelTelaresOperador;
 use App\Models\catDesarrolladoresModel;
 use App\Models\ReqModelosCodificados;
@@ -71,8 +72,33 @@ class TelDesarrolladoresController extends Controller
 
             $detalles = [];
 
+            $isZeroish = static function ($value): bool {
+                $text = trim((string) ($value ?? ''));
+                if ($text === '') {
+                    return true;
+                }
+
+                return (bool) preg_match('/^0+(?:\.0+)?$/', $text);
+            };
+
+            $shouldIncludeDetalle = static function (array $fila) use ($isZeroish): bool {
+                $calibre = trim((string) ($fila['Calibre'] ?? ''));
+                if ($calibre === '') {
+                    return false;
+                }
+
+                $keys = ['Calibre', 'Hilo', 'Fibra', 'CodColor', 'NombreColor', 'Pasadas'];
+                foreach ($keys as $key) {
+                    if (!$isZeroish($fila[$key] ?? '')) {
+                        return true;
+                    }
+                }
+
+                return false;
+            };
+
             if ($ordenData) {
-                $detalles[] = $this->mapDetalleFila(
+                $filaTrama = TelDesarrolladoresHelper::mapDetalleFila(
                     $ordenData,
                     'CalibreTrama',
                     'CalibreTrama2',
@@ -82,8 +108,12 @@ class TelDesarrolladoresController extends Controller
                     'PasadasTramaFondoC1'
                 );
 
+                if ($shouldIncludeDetalle($filaTrama)) {
+                    $detalles[] = $filaTrama;
+                }
+
                 for ($i = 1; $i <= 5; $i++) {
-                    $detalles[] = $this->mapDetalleFila(
+                    $filaComb = TelDesarrolladoresHelper::mapDetalleFila(
                         $ordenData,
                         "CalibreComb{$i}",
                         "CalibreComb{$i}2",
@@ -94,6 +124,10 @@ class TelDesarrolladoresController extends Controller
                             : "NomColorC{$i}",
                         "PasadasComb{$i}"
                     );
+
+                    if ($shouldIncludeDetalle($filaComb)) {
+                        $detalles[] = $filaComb;
+                    }
                 }
             }
 
@@ -109,26 +143,7 @@ class TelDesarrolladoresController extends Controller
         }
     }
 
-    private function mapDetalleFila($ordenData, $calibreKey, $hiloKey, $fibraKey, $colorKey, $nombreColorKey, $pasadasKey)
-    {
-        $nombreColor = data_get($ordenData, $nombreColorKey);
-        $alternateNombreColor = null;
-
-        if (substr($nombreColorKey, 0, 8) === 'NombreCC' && $nombreColor === null) {
-            $indice = (int) filter_var($nombreColorKey, FILTER_SANITIZE_NUMBER_INT);
-            $alternateNombreColor = data_get($ordenData, "NomColorC{$indice}");
-        }
-
-        return [
-            'Calibre' => data_get($ordenData, $calibreKey) ?? '',
-            'Hilo' => data_get($ordenData, $hiloKey) ?? '',
-            'Fibra' => data_get($ordenData, $fibraKey) ?? '',
-            'CodColor' => data_get($ordenData, $colorKey) ?? '',
-            'NombreColor' => $nombreColor ?? $alternateNombreColor ?? '',
-            'Pasadas' => data_get($ordenData, $pasadasKey) ?? '',
-            'pasadasField' => $pasadasKey
-        ];
-    }
+    
 
     public function obtenerCodigoDibujo(Request $request, $salonTejidoId, $tamanoClave)
     {
