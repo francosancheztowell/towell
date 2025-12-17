@@ -67,39 +67,39 @@ class TelDesarrolladoresController extends Controller
     public function obtenerDetallesOrden($noProduccion)
     {
         try {
-            // Obtener detalles de la orden
             $ordenData = \App\Models\ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
 
-            $combinaciones = [];
-            
-            if ($ordenData) {
-                // Trama
-                $combinaciones[] = [
-                    'Articulo' => $ordenData->CalibreTrama ?? '',
-                    'Fibra' => $ordenData->FibraTrama ?? '',
-                    'CodColor' => $ordenData->CodColorTrama ?? '',
-                    'NombreColor' => $ordenData->ColorTrama ?? '',
-                    'Pasadas' => $ordenData->PasadasTrama ?? ''
-                ];
+            $detalles = [];
 
-                // Comb1-5
+            if ($ordenData) {
+                $detalles[] = $this->mapDetalleFila(
+                    $ordenData,
+                    'CalibreTrama',
+                    'CalibreTrama2',
+                    'FibraTrama',
+                    'CodColorTrama',
+                    'ColorTrama',
+                    'PasadasTramaFondoC1'
+                );
+
                 for ($i = 1; $i <= 5; $i++) {
-                    $pasadas = $ordenData->{"PasadasComb$i"} ?? null;
-                    if ($pasadas && $pasadas > 0) {
-                        $combinaciones[] = [
-                            'Articulo' => $ordenData->{"CalibreComb$i"} ?? '',
-                            'Fibra' => $ordenData->{"FibraComb$i"} ?? '',
-                            'CodColor' => $ordenData->{"CodColorComb$i"} ?? '',
-                            'NombreColor' => $ordenData->{"NomColorC$i"} ?? '',
-                            'Pasadas' => $pasadas
-                        ];
-                    }
+                    $detalles[] = $this->mapDetalleFila(
+                        $ordenData,
+                        "CalibreComb{$i}",
+                        "CalibreComb{$i}2",
+                        "FibraComb{$i}",
+                        "CodColorComb{$i}",
+                        $ordenData->{"NombreCC{$i}"} !== null
+                            ? "NombreCC{$i}"
+                            : "NomColorC{$i}",
+                        "PasadasComb{$i}"
+                    );
                 }
             }
 
             return response()->json([
                 'success' => true,
-                'detalles' => $combinaciones
+                'detalles' => $detalles
             ]);
         } catch (Exception $e) {
             return response()->json([
@@ -107,6 +107,27 @@ class TelDesarrolladoresController extends Controller
                 'message' => 'Error al obtener los detalles: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function mapDetalleFila($ordenData, $calibreKey, $hiloKey, $fibraKey, $colorKey, $nombreColorKey, $pasadasKey)
+    {
+        $nombreColor = data_get($ordenData, $nombreColorKey);
+        $alternateNombreColor = null;
+
+        if (substr($nombreColorKey, 0, 8) === 'NombreCC' && $nombreColor === null) {
+            $indice = (int) filter_var($nombreColorKey, FILTER_SANITIZE_NUMBER_INT);
+            $alternateNombreColor = data_get($ordenData, "NomColorC{$indice}");
+        }
+
+        return [
+            'Calibre' => data_get($ordenData, $calibreKey) ?? '',
+            'Hilo' => data_get($ordenData, $hiloKey) ?? '',
+            'Fibra' => data_get($ordenData, $fibraKey) ?? '',
+            'CodColor' => data_get($ordenData, $colorKey) ?? '',
+            'NombreColor' => $nombreColor ?? $alternateNombreColor ?? '',
+            'Pasadas' => data_get($ordenData, $pasadasKey) ?? '',
+            'pasadasField' => $pasadasKey
+        ];
     }
 
     public function obtenerCodigoDibujo(Request $request, $salonTejidoId, $tamanoClave)

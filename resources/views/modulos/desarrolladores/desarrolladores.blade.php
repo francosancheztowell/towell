@@ -84,7 +84,9 @@
                             <select id="NumeroJulioRizo" name="NumeroJulioRizo" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                 <option value="" disabled selected>Selecciona un Julio</option>
                                 @foreach ($juliosRizo ?? [] as $julio)
-                                    <option value="{{ $julio->NoJulio }}">{{ $julio->NoJulio }}</option>
+                                    @if($julio)
+                                        <option value="{{ data_get($julio, 'NoJulio') ?? '' }}">{{ data_get($julio, 'NoJulio') ?? '' }}</option>
+                                    @endif
                                 @endforeach
                             </select>
                         </div>
@@ -94,7 +96,9 @@
                             <select id="NumeroJulioPie" name="NumeroJulioPie" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                 <option value="" disabled selected>Selecciona un Julio</option>
                                 @foreach ($juliosPie ?? [] as $julio)
-                                    <option value="{{ $julio->NoJulio }}">{{ $julio->NoJulio }}</option>
+                                    @if($julio)
+                                        <option value="{{ data_get($julio, 'NoJulio') ?? '' }}">{{ data_get($julio, 'NoJulio') ?? '' }}</option>
+                                    @endif
                                 @endforeach
                             </select>
                         </div>
@@ -147,7 +151,9 @@
                             <select id="Desarrollador" name="Desarrollador" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                 <option value="" disabled selected>Selecciona un Desarrollador</option>
                                 @foreach ($desarrolladores ?? [] as $desarrollador)
-                                    <option value="{{ $desarrollador->nombre }}">{{ $desarrollador->nombre }}</option>
+                                    @if($desarrollador)
+                                        <option value="{{ data_get($desarrollador, 'nombre') ?? '' }}">{{ data_get($desarrollador, 'nombre') ?? '' }}</option>
+                                    @endif
                                 @endforeach
                             </select>
                         </div>
@@ -197,6 +203,7 @@
                             </div>
                         </div>
                         <input type="hidden" id="CodificacionModelo" name="CodificacionModelo" required>
+                        <p id="codificacionNoData" class="mt-2 text-sm text-red-500 hidden">No se obtuvieron datos.</p>
                     </div>
 
                     <!-- Tabla de Detalles de la Orden -->
@@ -206,16 +213,17 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artículo</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calibre</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hilo</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fibra</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cod Color</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre Color</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pasadas <span class="text-red-500">*</span></th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pasadas<span class="text-red-500">*</span></th>
                                     </tr>
                                 </thead>
                                 <tbody id="bodyDetallesOrden" class="bg-white divide-y divide-gray-200">
                                     <tr>
-                                        <td colspan="5" class="px-6 py-4 text-center text-gray-500 text-sm">
+                                        <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm">
                                             Selecciona una producción para ver los detalles
                                         </td>
                                     </tr>
@@ -253,6 +261,8 @@
         const numberSelectors = [];
         const codificacionInputs = document.querySelectorAll('.codificacion-char');
         const codificacionHidden = document.getElementById('CodificacionModelo');
+        const codificacionNoData = document.getElementById('codificacionNoData');
+        let codificacionFetchAttempted = false;
 
         // Auto-focus de Total Pasadas del Dibujo a Eficiencia Inicio
         const totalPasadasDibujo = document.getElementById('TotalPasadasDibujo');
@@ -319,6 +329,13 @@
         function updateCodificacionModelo() {
             const fullCode = Array.from(codificacionInputs).map(input => input.value).join('');
             codificacionHidden.value = fullCode ? (fullCode + '.JCS') : '';
+            updateCodificacionNoDataMessage();
+        }
+
+        function updateCodificacionNoDataMessage() {
+            if (!codificacionNoData) return;
+            const shouldShow = codificacionFetchAttempted && !codificacionHidden.value;
+            codificacionNoData.classList.toggle('hidden', !shouldShow);
         }
 
         function setCodificacionFromCodigoDibujo(codigoDibujo) {
@@ -438,6 +455,9 @@
                 formNombreProducto.textContent = modelo || '-';
 
                 // Obtener CodigoDibujo por SalonTejidoId + TamanoClave y auto-llenar codificación
+                codificacionFetchAttempted = true;
+                updateCodificacionNoDataMessage();
+
                 if (salonTejidoId && tamanoClave) {
                     fetch(`/desarrolladores/modelo-codificado/${encodeURIComponent(salonTejidoId)}/${encodeURIComponent(tamanoClave)}`)
                         .then(response => response.json())
@@ -474,7 +494,7 @@
             // Mostrar loading
             bodyDetallesOrden.innerHTML = `
                 <tr>
-                    <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
                         <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -491,29 +511,45 @@
                     if (data.success && data.detalles.length > 0) {
                         bodyDetallesOrden.innerHTML = '';
                         data.detalles.forEach((detalle, index) => {
+                            const calibre = detalle.Calibre ?? detalle.calibre ?? '';
+                            const hilo = detalle.Hilo ?? detalle.hilo ?? '';
+                            const fibra = detalle.Fibra ?? detalle.fibra ?? '';
+                            const codColor = detalle.CodColor ?? detalle.codColor ?? '';
+                            const nombreColor = detalle.NombreColor ?? detalle.nombreColor ?? '';
+                            const pasadasValue = detalle.Pasadas ?? detalle.pasadas ?? '';
+                            const pasadasKey = detalle.pasadasField ?? detalle.pasadas_key ?? index;
+                            const inputName = `pasadas[${pasadasKey}]`;
+                            const valueAttribute = pasadasValue !== '' && pasadasValue !== null
+                                ? `value="${pasadasValue}"`
+                                : '';
+
                             const row = document.createElement('tr');
                             row.className = 'hover:bg-gray-50 transition-colors';
                             row.innerHTML = `
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    ${detalle.Articulo || '-'}
+                                    ${calibre || '-'}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    ${detalle.Fibra || '-'}
+                                    ${hilo || '-'}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    ${detalle.CodColor || '-'}
+                                    ${fibra || '-'}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-600">
-                                    ${detalle.NombreColor || '-'}
+                                    ${codColor || '-'}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600">
+                                    ${nombreColor || '-'}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <input type="number" 
-                                           name="pasadas[${index}]" 
+                                           name="${inputName}"
                                            min="1" 
                                            step="1" 
                                            required
                                            class="w-24 px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                           placeholder="0">
+                                           placeholder="0"
+                                           ${valueAttribute}>
                                 </td>
                             `;
                             bodyDetallesOrden.appendChild(row);
@@ -521,9 +557,9 @@
                     } else {
                         bodyDetallesOrden.innerHTML = `
                             <tr>
-                                <td colspan="5" class="px-6 py-4 text-center text-gray-500 text-sm">
-                                    No se encontraron detalles para esta orden
-                                </td>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm">
+                                No se encontraron detalles para esta orden
+                            </td>
                             </tr>
                         `;
                     }
@@ -532,7 +568,7 @@
                     console.error('Error:', error);
                     bodyDetallesOrden.innerHTML = `
                         <tr>
-                            <td colspan="5" class="px-6 py-4 text-center text-red-500">
+                            <td colspan="6" class="px-6 py-4 text-center text-red-500">
                                 Error al cargar los detalles
                             </td>
                         </tr>
@@ -546,12 +582,14 @@
             resetNumberSelectors();
             codificacionInputs.forEach(input => input.value = '');
             codificacionHidden.value = '';
+            codificacionFetchAttempted = false;
+            updateCodificacionNoDataMessage();
             formContainer.classList.add('hidden');
             document.querySelectorAll('.checkbox-produccion').forEach(cb => cb.checked = false);
             // Limpiar tabla de detalles
             document.getElementById('bodyDetallesOrden').innerHTML = `
                 <tr>
-                    <td colspan="5" class="px-6 py-4 text-center text-gray-500 text-sm">
+                    <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm">
                         Selecciona una producción para ver los detalles
                     </td>
                 </tr>
