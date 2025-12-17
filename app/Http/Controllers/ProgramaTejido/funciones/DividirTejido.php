@@ -9,9 +9,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 use App\Models\ReqModelosCodificados;
+use App\Models\ReqCalendarioLine;
+use App\Models\ReqVelocidadStd;
+use App\Models\ReqEficienciaStd;
 
 class DividirTejido
 {
+    /** Valores válidos en catálogo */
+    private const DENSIDAD_NORMAL = 'Normal';
+    private const DENSIDAD_ALTA   = 'Alta';
     /**
      * Dividir un registro de telar entre múltiples telares destino
      * El registro original se mantiene pero con cantidad reducida
@@ -150,13 +156,6 @@ class DividirTejido
             $idsParaObserver = [];
             $totalDivididos = 0;
 
-            // Guardar fechas originales ANTES de modificar el registro
-            $fechaInicioOriginal = $registroOriginal->FechaInicio ? Carbon::parse($registroOriginal->FechaInicio) : null;
-            $fechaFinalOriginal = $registroOriginal->FechaFinal ? Carbon::parse($registroOriginal->FechaFinal) : null;
-            $duracionOriginalSegundos = ($fechaInicioOriginal && $fechaFinalOriginal)
-                ? abs($fechaFinalOriginal->getTimestamp() - $fechaInicioOriginal->getTimestamp())
-                : 0;
-
             // === PASO 1: Actualizar el registro original ===
             $registroOriginal->OrdCompartida = $nuevoOrdCompartida;
             $registroOriginal->TotalPedido = $cantidadParaOriginal;
@@ -180,13 +179,39 @@ class DividirTejido
                 $salonOrigen,
                 $telarOrigen
             );
+
+            // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
+            self::aplicarStdDesdeCatalogos($registroOriginal);
+
             $registroOriginal->UpdatedAt = now();
 
-            // Recalcular fechas proporcionalmente usando la duración original guardada
-            if ($cantidadOriginalTotal > 0 && $cantidadParaOriginal > 0 && $duracionOriginalSegundos > 0 && $fechaInicioOriginal) {
-                $factor = $cantidadParaOriginal / $cantidadOriginalTotal;
-                $nuevaDuracion = $duracionOriginalSegundos * $factor;
-                $registroOriginal->FechaFinal = $fechaInicioOriginal->copy()->addSeconds((int) round($nuevaDuracion))->format('Y-m-d H:i:s');
+            // ===== RECALCULAR FECHA FINAL desde la fecha inicio existente (sin cambiar fecha inicio) =====
+            if (!empty($registroOriginal->FechaInicio)) {
+                $inicio = Carbon::parse($registroOriginal->FechaInicio);
+                $horasNecesarias = self::calcularHorasProd($registroOriginal);
+
+                if ($horasNecesarias <= 0) {
+                    $registroOriginal->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
+                } else {
+                    if (!empty($registroOriginal->CalendarioId)) {
+                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registroOriginal->CalendarioId, $inicio, $horasNecesarias);
+                        if (!$fin) {
+                            $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+                        }
+                        $registroOriginal->FechaFinal = $fin->format('Y-m-d H:i:s');
+                    } else {
+                        $registroOriginal->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                    }
+                }
+
+                LogFacade::info('DividirTejido: recalculo exacto registro original', [
+                    'id' => $registroOriginal->Id,
+                    'cantidad' => $cantidadParaOriginal,
+                    'horas' => $horasNecesarias,
+                    'inicio' => $registroOriginal->FechaInicio,
+                    'fin' => $registroOriginal->FechaFinal,
+                    'calendario_id' => $registroOriginal->CalendarioId ?? null,
+                ]);
             }
 
             // Recalcular fórmulas del registro original
@@ -265,6 +290,9 @@ class DividirTejido
                 if ($custname) $nuevo->CustName = $custname;
                 if ($aplicacion) $nuevo->AplicacionId = $aplicacion;
 
+                // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
+                self::aplicarStdDesdeCatalogos($nuevo);
+
                 // PedidoTempo, Observaciones y PorcentajeSegundos del destino
                 $pedidoTempoDestinoNuevo = $destino['pedido_tempo'] ?? null;
                 $observacionesDestino = $destino['observaciones'] ?? null;
@@ -279,18 +307,37 @@ class DividirTejido
                     $nuevo->PorcentajeSegundos = (float)$porcentajeSegundosDestino;
                 }
 
-                // Calcular fechas proporcionalmente
-                $nuevoInicio = $fechaInicioBase->copy();
-                $nuevo->FechaInicio = $nuevoInicio->format('Y-m-d H:i:s');
+                // ===== FECHA INICIO: SIEMPRE la FechaFinal del último registro del telar destino =====
+                // NO hacer snap al calendario, usar exactamente la fecha final del último registro
+                $nuevo->FechaInicio = $fechaInicioBase->format('Y-m-d H:i:s');
+                $inicio = $fechaInicioBase->copy();
 
-                // Calcular duración proporcional usando la duración original guardada al inicio
-                if ($duracionOriginalSegundos > 0 && $cantidadOriginalTotal > 0) {
-                    $factor = $pedidoDestino / $cantidadOriginalTotal;
-                    $duracionNueva = $duracionOriginalSegundos * $factor;
-                    $nuevo->FechaFinal = $nuevoInicio->copy()->addSeconds((int) round($duracionNueva))->format('Y-m-d H:i:s');
+                // ===== CALCULAR FECHA FINAL desde la fecha inicio exacta =====
+                $horasNecesarias = self::calcularHorasProd($nuevo);
+
+                if ($horasNecesarias <= 0) {
+                    $nuevo->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
                 } else {
-                    $nuevo->FechaFinal = $nuevoInicio->copy()->addDays(30)->format('Y-m-d H:i:s');
+                    // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
+                    if (!empty($nuevo->CalendarioId)) {
+                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
+                        if (!$fin) {
+                            $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+                        }
+                        $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
+                    } else {
+                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                    }
                 }
+
+                LogFacade::info('DividirTejido: recalculo exacto nuevo registro', [
+                    'id' => $nuevo->Id ?? 'nuevo',
+                    'cantidad' => $pedidoDestino,
+                    'horas' => $horasNecesarias,
+                    'inicio' => $nuevo->FechaInicio,
+                    'fin' => $nuevo->FechaFinal,
+                    'calendario_id' => $nuevo->CalendarioId ?? null,
+                ]);
 
                 // CambioHilo
                 if ($ultimoRegistroDestino) {
@@ -585,11 +632,27 @@ class DividirTejido
                             $telarDestino
                         );
 
-                        // Recalcular fecha final proporcionalmente
-                        if ($segundosPorUnidad > 0) {
-                            $nuevaDuracion = $segundosPorUnidad * $nuevaCantidad;
-                            $fechaInicioRegistro = $registro->FechaInicio ? Carbon::parse($registro->FechaInicio) : $fechaInicioBase;
-                            $registro->FechaFinal = $fechaInicioRegistro->copy()->addSeconds((int) round($nuevaDuracion))->format('Y-m-d H:i:s');
+                        // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
+                        self::aplicarStdDesdeCatalogos($registro);
+
+                        // ===== RECALCULAR FECHA FINAL desde la fecha inicio existente (sin cambiar fecha inicio) =====
+                        if (!empty($registro->FechaInicio)) {
+                            $inicio = Carbon::parse($registro->FechaInicio);
+                            $horasNecesarias = self::calcularHorasProd($registro);
+
+                            if ($horasNecesarias <= 0) {
+                                $registro->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
+                            } else {
+                                if (!empty($registro->CalendarioId)) {
+                                    $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registro->CalendarioId, $inicio, $horasNecesarias);
+                                    if (!$fin) {
+                                        $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+                                    }
+                                    $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
+                                } else {
+                                    $registro->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                                }
+                            }
                         }
 
                         // Recalcular fórmulas
@@ -668,6 +731,9 @@ class DividirTejido
                     $telarDestino
                 );
 
+                // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
+                self::aplicarStdDesdeCatalogos($nuevo);
+
                 // PedidoTempo, Observaciones y PorcentajeSegundos
                 if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
                     $nuevo->PedidoTempo = $pedidoTempoDestino;
@@ -679,15 +745,27 @@ class DividirTejido
                     $nuevo->PorcentajeSegundos = $porcentajeSegundosDestino;
                 }
 
-                // Fechas
+                // ===== FECHA INICIO: SIEMPRE la FechaFinal del último registro del telar destino =====
+                // NO hacer snap al calendario, usar exactamente la fecha final del último registro
                 $nuevo->FechaInicio = $fechaInicioNuevo->format('Y-m-d H:i:s');
+                $inicio = $fechaInicioNuevo->copy();
 
-                // Calcular duración proporcional
-                if ($segundosPorUnidad > 0) {
-                    $duracionNueva = $segundosPorUnidad * $pedidoDestino;
-                    $nuevo->FechaFinal = $fechaInicioNuevo->copy()->addSeconds((int) round($duracionNueva))->format('Y-m-d H:i:s');
+                // ===== CALCULAR FECHA FINAL desde la fecha inicio exacta =====
+                $horasNecesarias = self::calcularHorasProd($nuevo);
+
+                if ($horasNecesarias <= 0) {
+                    $nuevo->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
                 } else {
-                    $nuevo->FechaFinal = $fechaInicioNuevo->copy()->addDays(30)->format('Y-m-d H:i:s');
+                    // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
+                    if (!empty($nuevo->CalendarioId)) {
+                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
+                        if (!$fin) {
+                            $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+                        }
+                        $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
+                    } else {
+                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                    }
                 }
 
                 // CambioHilo
@@ -780,5 +858,288 @@ class DividirTejido
         }
 
         return trim($prefijo) . ' ' . trim((string) $telar);
+    }
+
+    // =========================================================
+    // Métodos para cálculo exacto de fechas con calendario
+    // (copiados de BalancearTejido para consistencia)
+    // =========================================================
+
+    /**
+     * Calcular inicio y fin exactos usando calendario (igual que BalancearTejido)
+     */
+    private static function calcularInicioFinExactos(ReqProgramaTejido $r): array
+    {
+        if (empty($r->FechaInicio)) {
+            return [null, null, 0.0];
+        }
+
+        $inicio = Carbon::parse($r->FechaInicio);
+
+        // Snap a calendario si hay
+        if (!empty($r->CalendarioId)) {
+            $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
+            if ($snap) $inicio = $snap;
+        }
+
+        $horasNecesarias = self::calcularHorasProd($r);
+
+        if ($horasNecesarias <= 0) {
+            // fallback mínimo, pero mejor que null
+            $fin = $inicio->copy()->addDays(30);
+            return [$inicio, $fin, 0.0];
+        }
+
+        if (!empty($r->CalendarioId)) {
+            $fin = BalancearTejido::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horasNecesarias);
+            if (!$fin) {
+                $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+            }
+            return [$inicio, $fin, $horasNecesarias];
+        }
+
+        // sin calendario, continuo
+        $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+        return [$inicio, $fin, $horasNecesarias];
+    }
+
+    /**
+     * Calcular horas de producción necesarias (igual que BalancearTejido)
+     */
+    private static function calcularHorasProd(ReqProgramaTejido $p): float
+    {
+        $vel   = (float) ($p->VelocidadSTD ?? 0);
+        $efic  = (float) ($p->EficienciaSTD ?? 0);
+        if ($efic > 1) $efic = $efic / 100;
+
+        $cantidad = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
+
+        $m = self::getModeloParams($p->TamanoClave ?? null, $p);
+
+        $stdToaHra = 0.0;
+        if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
+            $parte1 = $m['total'];
+            $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
+            $den = ($parte1 + $parte2) / $vel;
+            if ($den > 0) {
+                $stdToaHra = ($m['no_tiras'] * 60) / $den;
+            }
+        }
+
+        if ($stdToaHra > 0 && $efic > 0 && $cantidad > 0) {
+            return $cantidad / ($stdToaHra * $efic);
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Snap fecha inicio al calendario (igual que BalancearTejido)
+     */
+    private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
+    {
+        $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+            ->where('FechaFin', '>', $fechaInicio)
+            ->orderBy('FechaInicio')
+            ->first();
+
+        if (!$linea) return null;
+
+        $ini = Carbon::parse($linea->FechaInicio);
+        $fin = Carbon::parse($linea->FechaFin);
+
+        if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) {
+            return $fechaInicio->copy();
+        }
+
+        return $ini->copy();
+    }
+
+    /**
+     * Obtener parámetros del modelo (igual que BalancearTejido)
+     */
+    private static function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
+    {
+        $noTiras = (float)($p->NoTiras ?? 0);
+        $luchaje = (float)($p->Luchaje ?? 0);
+        $rep     = (float)($p->Repeticiones ?? 0);
+
+        $key = trim((string)$tamanoClave);
+        if ($key === '') {
+            return [
+                'total' => 0.0,
+                'no_tiras' => $noTiras,
+                'luchaje' => $luchaje,
+                'repeticiones' => $rep,
+            ];
+        }
+
+        $m = ReqModelosCodificados::where('TamanoClave', $key)->first();
+        if (!$m) {
+            return [
+                'total' => 0.0,
+                'no_tiras' => $noTiras,
+                'luchaje' => $luchaje,
+                'repeticiones' => $rep,
+            ];
+        }
+
+        return [
+            'total' => (float)($m->Total ?? 0),
+            'no_tiras' => $noTiras > 0 ? $noTiras : (float)($m->NoTiras ?? 0),
+            'luchaje' => $luchaje > 0 ? $luchaje : (float)($m->Luchaje ?? 0),
+            'repeticiones' => $rep > 0 ? $rep : (float)($m->Repeticiones ?? 0),
+        ];
+    }
+
+    /**
+     * Sanitizar número (igual que BalancearTejido)
+     */
+    private static function sanitizeNumber($value): float
+    {
+        if ($value === null) return 0.0;
+        if (is_numeric($value)) return (float)$value;
+        $clean = str_replace([',', ' '], '', (string)$value);
+        return is_numeric($clean) ? (float)$clean : 0.0;
+    }
+
+    // =========================
+    // STD DESDE CATÁLOGOS
+    // =========================
+
+    private static function aplicarStdDesdeCatalogos(ReqProgramaTejido $p): void
+    {
+        $tipoTelar = self::resolverTipoTelarStd($p->Maquina ?? null, $p->SalonTejidoId ?? null);
+        $telar     = trim((string)($p->NoTelarId ?? ''));
+        $fibraId   = trim((string)($p->FibraRizo ?? ''));
+
+        // Default: Normal
+        $densidad  = self::resolverDensidadStd($p); // "Normal" o "Alta"
+
+        if ($telar === '' || $fibraId === '') {
+            LogFacade::warning('STD: telar o fibra vacíos, no se puede aplicar', [
+                'tipoTelar' => $tipoTelar,
+                'telar' => $telar,
+                'fibra' => $fibraId,
+                'programa_id' => $p->Id ?? null,
+            ]);
+            return;
+        }
+
+        $velRow = self::buscarStdVelocidad($tipoTelar, $telar, $fibraId, $densidad);
+        $efiRow = self::buscarStdEficiencia($tipoTelar, $telar, $fibraId, $densidad);
+
+        $oldVel = $p->VelocidadSTD ?? null;
+        $oldEfi = $p->EficienciaSTD ?? null;
+
+        if ($velRow) {
+            $p->VelocidadSTD = (float)$velRow->Velocidad;
+        } else {
+            LogFacade::warning('STD: No se encontró velocidad', [
+                'tipoTelar' => $tipoTelar,
+                'telar' => $telar,
+                'fibra' => $fibraId,
+                'densidad' => $densidad,
+                'velocidad_actual' => $oldVel,
+            ]);
+        }
+
+        if ($efiRow) {
+            $efi = (float)$efiRow->Eficiencia;
+            if ($efi > 1) $efi = $efi / 100; // 78 -> 0.78
+            $p->EficienciaSTD = $efi;
+        } else {
+            LogFacade::warning('STD: No se encontró eficiencia', [
+                'tipoTelar' => $tipoTelar,
+                'telar' => $telar,
+                'fibra' => $fibraId,
+                'densidad' => $densidad,
+                'eficiencia_actual' => $oldEfi,
+            ]);
+        }
+
+        if ((string)$oldVel !== (string)($p->VelocidadSTD ?? null) || (string)$oldEfi !== (string)($p->EficienciaSTD ?? null)) {
+            LogFacade::info('STD aplicado', [
+                'tipoTelar' => $tipoTelar,
+                'telar' => $telar,
+                'fibra' => $fibraId,
+                'densidad' => $densidad,
+                'vel_old' => $oldVel,
+                'vel_new' => $p->VelocidadSTD ?? null,
+                'efi_old' => $oldEfi,
+                'efi_new' => $p->EficienciaSTD ?? null,
+            ]);
+        }
+    }
+
+    /**
+     * Tipo de telar para catálogo:
+     * - "SMI ..." -> SMITH
+     * - "JAC ..." -> JACQUARD
+     * - fallback por SalonTejidoId
+     */
+    private static function resolverTipoTelarStd(?string $maquina, ?string $salonTejidoId): string
+    {
+        $m = strtoupper(trim((string)$maquina));
+        $s = strtoupper(trim((string)$salonTejidoId));
+
+        if ($m !== '') {
+            if (str_contains($m, 'SMI')) return 'SMITH';
+            if (str_contains($m, 'JAC')) return 'JACQUARD';
+        }
+
+        if ($s === 'SMIT' || $s === 'SMITH') return 'SMITH';
+        if ($s === 'JAC' || $s === 'JACQ' || $s === 'JACQUARD') return 'JACQUARD';
+
+        return $s !== '' ? $s : 'SMITH';
+    }
+
+    /**
+     * Densidad del catálogo es texto: "Normal" o "Alta"
+     * Default: Normal (como me indicas que usan casi siempre)
+     */
+    private static function resolverDensidadStd(ReqProgramaTejido $p): string
+    {
+        if (isset($p->Densidad) && $p->Densidad !== null && $p->Densidad !== '') {
+            $d = trim((string)$p->Densidad);
+            if (strcasecmp($d, self::DENSIDAD_ALTA) === 0)   return self::DENSIDAD_ALTA;
+            if (strcasecmp($d, self::DENSIDAD_NORMAL) === 0) return self::DENSIDAD_NORMAL;
+        }
+        return self::DENSIDAD_NORMAL;
+    }
+
+    private static function buscarStdVelocidad(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqVelocidadStd
+    {
+        $q = ReqVelocidadStd::query()
+            ->where('SalonTejidoId', $tipoTelar) // SMITH/JACQUARD
+            ->where('NoTelarId', $telar)
+            ->where('FibraId', $fibraId);
+
+        // 1) match exacto densidad (Normal/Alta)
+        $row = (clone $q)->where('Densidad', $densidad)->orderBy('Id', 'desc')->first();
+        if ($row) return $row;
+
+        // 2) fallback densidad NULL
+        $rowNull = (clone $q)->whereNull('Densidad')->orderBy('Id', 'desc')->first();
+        if ($rowNull) return $rowNull;
+
+        // 3) fallback cualquiera
+        return (clone $q)->orderBy('Id', 'desc')->first();
+    }
+
+    private static function buscarStdEficiencia(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqEficienciaStd
+    {
+        $q = ReqEficienciaStd::query()
+            ->where('SalonTejidoId', $tipoTelar) // SMITH/JACQUARD
+            ->where('NoTelarId', $telar)
+            ->where('FibraId', $fibraId);
+
+        $row = (clone $q)->where('Densidad', $densidad)->orderBy('Id', 'desc')->first();
+        if ($row) return $row;
+
+        $rowNull = (clone $q)->whereNull('Densidad')->orderBy('Id', 'desc')->first();
+        if ($rowNull) return $rowNull;
+
+        return (clone $q)->orderBy('Id', 'desc')->first();
     }
 }

@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\ProgramaTejido\funciones;
 
 use App\Helpers\StringTruncator;
+use App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\ReqCalendarioLine;
+use App\Models\ReqEficienciaStd;
 use App\Models\ReqModelosCodificados;
 use App\Models\ReqProgramaTejido;
+use App\Models\ReqVelocidadStd;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -14,8 +17,12 @@ use Illuminate\Support\Facades\Log as LogFacade;
 
 class VincularTejido
 {
-    /** Cache simple para no pegarle a ReqModelosCodificados por cada cálculo */
-    private static array $totalModeloCache = [];
+    /** Cache de modelo para no pegar a ReqModelosCodificados por cada registro */
+    private static array $modeloCache = [];
+
+    /** Valores válidos en catálogo */
+    private const DENSIDAD_NORMAL = 'Normal';
+    private const DENSIDAD_ALTA   = 'Alta';
 
     /**
      * Vincular tejidos nuevos desde cero con un OrdCompartida
@@ -212,17 +219,18 @@ class VincularTejido
 
                 $nuevo->SaldoPedido = $nuevo->TotalPedido;
 
-                // ===== FechaInicio (snap al calendario si cae en gap) =====
-                $inicio = $fechaInicioBase->copy();
-                if (!empty($nuevo->CalendarioId)) {
-                    $inicio = self::snapInicioAlCalendario($nuevo->CalendarioId, $inicio) ?? $inicio;
-                }
-                $nuevo->FechaInicio = $inicio->format('Y-m-d H:i:s');
+                // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
+                self::aplicarStdDesdeCatalogos($nuevo);
 
-                // ===== HORAS a programar (FUENTE DE VERDAD) =====
+                // ===== FECHA INICIO: SIEMPRE la FechaFinal del último registro del telar destino =====
+                // NO hacer snap al calendario, usar exactamente la fecha final del último registro
+                $nuevo->FechaInicio = $fechaInicioBase->format('Y-m-d H:i:s');
+                $inicio = $fechaInicioBase->copy();
+
+                // ===== CALCULAR FECHA FINAL desde la fecha inicio exacta =====
                 $horasNecesarias = self::calcularHorasProd($nuevo);
 
-                // Fallbacks si faltan datos del modelo
+                // fallback proporcional si por alguna razón horas=0 pero existe HorasProd en original
                 if ($horasNecesarias <= 0 && !empty($original->HorasProd)) {
                     $cantOrig = self::sanitizeNumber($original->SaldoPedido ?? $original->TotalPedido ?? 0);
                     $cantNew  = self::sanitizeNumber($nuevo->SaldoPedido ?? $nuevo->TotalPedido ?? 0);
@@ -232,27 +240,38 @@ class VincularTejido
                 }
 
                 if ($horasNecesarias <= 0) {
-                    // último fallback: 30 días
                     $nuevo->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
                 } else {
-                    // ===== FechaFinal desde calendario por DURACIÓN REAL de líneas =====
+                    // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
                     if (!empty($nuevo->CalendarioId)) {
-                        $fin = self::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
-
+                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
                         if (!$fin) {
-                            // si no hay líneas suficientes, fallback continuo
-                            LogFacade::warning('VincularTejido: No se pudo calcular fecha final con calendario (sin líneas suficientes). Fallback continuo.', [
-                                'calendario_id' => $nuevo->CalendarioId,
-                                'fecha_inicio'  => $inicio->format('Y-m-d H:i:s'),
-                                'horas'         => $horasNecesarias,
-                            ]);
                             $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
                         }
-
                         $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
                     } else {
-                        // sin calendario, continuo
                         $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                    }
+                }
+
+                LogFacade::info('VincularTejido: recalculo exacto nuevo registro', [
+                    'id' => $nuevo->Id ?? 'nuevo',
+                    'telar_destino' => $telarDestino,
+                    'cantidad' => $nuevo->TotalPedido,
+                    'horas' => $horasNecesarias,
+                    'inicio' => $nuevo->FechaInicio,
+                    'fin' => $nuevo->FechaFinal,
+                    'calendario_id' => $nuevo->CalendarioId ?? null,
+                    'no_tiras' => $nuevo->NoTiras ?? null,
+                    'luchaje' => $nuevo->Luchaje ?? null,
+                    'rep' => $nuevo->Repeticiones ?? null,
+                    'vel_std' => $nuevo->VelocidadSTD ?? null,
+                    'efi_std' => $nuevo->EficienciaSTD ?? null,
+                ]);
+
+                if (!empty($nuevo->FechaFinal) && !empty($nuevo->FechaInicio)) {
+                    if (Carbon::parse($nuevo->FechaFinal)->lt(Carbon::parse($nuevo->FechaInicio))) {
+                        $nuevo->FechaFinal = $nuevo->FechaInicio;
                     }
                 }
 
@@ -261,23 +280,13 @@ class VincularTejido
                     $nuevo->CambioHilo = (trim((string)$nuevo->FibraRizo) !== trim((string)$ultimoDestino->FibraRizo)) ? '1' : '0';
                 }
 
-                // ===== Fórmulas (diffDias se queda como FechaFinal-FechaInicio) =====
-                $formulas = self::calcularFormulasEficiencia($nuevo);
-                foreach ($formulas as $campo => $valor) {
-                    $nuevo->{$campo} = $valor;
+                // ===== Fórmulas =====
+                if (!empty($nuevo->FechaInicio) && !empty($nuevo->FechaFinal)) {
+                    $formulas = self::calcularFormulasEficiencia($nuevo);
+                    foreach ($formulas as $campo => $valor) {
+                        $nuevo->{$campo} = $valor;
+                    }
                 }
-
-                // (opcional) log para verificar
-                LogFacade::info('VincularTejido: resumen fechas/horas', [
-                    'telar_destino' => $telarDestino,
-                    'calendario_id' => $nuevo->CalendarioId ?? null,
-                    'fecha_inicio'  => $nuevo->FechaInicio,
-                    'fecha_final'   => $nuevo->FechaFinal,
-                    'ord_compartida' => $nuevo->OrdCompartida,
-                    'dias_ef'       => $nuevo->DiasEficiencia ?? null,
-                    'horas_prod'    => $nuevo->HorasProd ?? null,
-                    'dias_jornada'  => $nuevo->DiasJornada ?? null,
-                ]);
 
                 // Truncar strings
                 foreach ([
@@ -413,158 +422,231 @@ class VincularTejido
                 ->first();
     }
 
-    /**
-     * Si la fecha cae en un "gap" (día no trabajado / sin líneas),
-     * brinca al inicio de la siguiente línea disponible.
-     */
+    // =========================================================
+    // FECHAS EXACTAS (IGUAL QUE DUPLICAR)
+    // =========================================================
+
+    private static function calcularInicioFinExactos(ReqProgramaTejido $r): array
+    {
+        if (empty($r->FechaInicio)) {
+            return [null, null, 0.0];
+        }
+
+        $inicio = Carbon::parse($r->FechaInicio);
+
+        if (!empty($r->CalendarioId)) {
+            $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
+            if ($snap) $inicio = $snap;
+        }
+
+        $horasNecesarias = self::calcularHorasProd($r);
+
+        if ($horasNecesarias <= 0) {
+            $fin = $inicio->copy()->addDays(30);
+            return [$inicio, $fin, 0.0];
+        }
+
+        if (!empty($r->CalendarioId)) {
+            $fin = BalancearTejido::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horasNecesarias);
+            if (!$fin) {
+                $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+            }
+            return [$inicio, $fin, $horasNecesarias];
+        }
+
+        $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+        return [$inicio, $fin, $horasNecesarias];
+    }
+
     private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
         $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
-            ->where('FechaFin', '>', $fechaInicio) // incluye línea que lo contiene o la siguiente
+            ->where('FechaFin', '>', $fechaInicio)
             ->orderBy('FechaInicio')
             ->first();
 
-        if (!$linea) {
-            return null;
-        }
+        if (!$linea) return null;
 
         $ini = Carbon::parse($linea->FechaInicio);
         $fin = Carbon::parse($linea->FechaFin);
 
-        // Si ya está dentro, no mover
         if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) {
             return $fechaInicio->copy();
         }
 
-        // Si estaba en gap, brincar al inicio de la línea
         return $ini->copy();
     }
 
-    /**
-     * FechaFinal recorriendo líneas reales (FechaInicio/FechaFin).
-     * No usa HorasTurno: usa la DURACIÓN REAL de cada línea.
-     */
-    public static function calcularFechaFinalDesdeInicio(string $calendarioId, Carbon $fechaInicio, float $horasNecesarias): ?Carbon
-    {
-        $segundosRestantes = (int) (max(0, $horasNecesarias) * 3600);
-        if ($segundosRestantes <= 0) {
-            return $fechaInicio->copy();
-        }
+    // =========================================================
+    // HORAS (CORREGIDO: toma NoTiras/Luchaje/Rep del modelo si faltan)
+    // =========================================================
 
-        $cursor = $fechaInicio->copy();
-
-        // Procesar en batches por si el calendario es grande
-        while ($segundosRestantes > 0) {
-            $lineas = ReqCalendarioLine::where('CalendarioId', $calendarioId)
-                ->where('FechaFin', '>', $cursor) // trae desde donde estamos
-                ->orderBy('FechaInicio')
-                ->limit(5000)
-                ->get();
-
-            if ($lineas->isEmpty()) {
-                return null;
-            }
-
-            foreach ($lineas as $linea) {
-                if ($segundosRestantes <= 0) break;
-
-                $ini = Carbon::parse($linea->FechaInicio);
-                $fin = Carbon::parse($linea->FechaFin);
-
-                // Gap: brincar (esto mete días no trabajados automáticamente)
-                if ($cursor->lt($ini)) {
-                    $cursor = $ini->copy();
-                }
-
-                // Si ya pasó esta línea
-                if ($cursor->gte($fin)) {
-                    continue;
-                }
-
-                // Segundos disponibles reales en esta línea
-                $disponibles = $cursor->diffInSeconds($fin, true);
-                if ($disponibles <= 0) {
-                    $cursor = $fin->copy();
-                    continue;
-                }
-
-                $usar = min($disponibles, $segundosRestantes);
-                $cursor->addSeconds($usar);
-                $segundosRestantes -= $usar;
-
-                if ($segundosRestantes <= 0) {
-                    return $cursor;
-                }
-
-                // si consumimos toda la línea, cursor queda en fin y seguirá a la siguiente
-                if ($cursor->gte($fin)) {
-                    $cursor = $fin->copy();
-                }
-            }
-
-            // evitar loop pegado si el batch ya no avanza
-            $ultimaFin = Carbon::parse($lineas->last()->FechaFin);
-            if ($cursor->lt($ultimaFin)) {
-                $cursor = $ultimaFin->copy();
-            }
-        }
-
-        return $cursor;
-    }
-
-    /**
-     * HorasProd (NO depende de fechas). Esto debe ser la base para FechaFinal.
-     */
     private static function calcularHorasProd(ReqProgramaTejido $p): float
     {
         $vel   = (float) ($p->VelocidadSTD ?? 0);
         $efic  = (float) ($p->EficienciaSTD ?? 0);
-        $cant  = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
-        $noTiras = (float) ($p->NoTiras ?? 0);
-        $luchaje = (float) ($p->Luchaje ?? 0);
-        $rep     = (float) ($p->Repeticiones ?? 0);
-
         if ($efic > 1) $efic = $efic / 100;
 
-        $total = self::obtenerTotalModelo($p->TamanoClave ?? null);
+        $cantidad = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
 
-        // StdToaHra igual a tu fórmula
+        $m = self::getModeloParams($p->TamanoClave ?? null, $p);
+
         $stdToaHra = 0.0;
-        if ($noTiras > 0 && $total > 0 && $luchaje > 0 && $rep > 0 && $vel > 0) {
-            $parte1 = $total;
-            $parte2 = (($luchaje * 0.5) / 0.0254) / $rep;
+        if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
+            $parte1 = $m['total'];
+            $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
             $den = ($parte1 + $parte2) / $vel;
             if ($den > 0) {
-                $stdToaHra = ($noTiras * 60) / $den;
+                $stdToaHra = ($m['no_tiras'] * 60) / $den;
             }
         }
 
-        if ($stdToaHra > 0 && $efic > 0 && $cant > 0) {
-            return $cant / ($stdToaHra * $efic);
+        if ($stdToaHra > 0 && $efic > 0 && $cantidad > 0) {
+            return $cantidad / ($stdToaHra * $efic);
         }
 
         return 0.0;
     }
 
-    private static function obtenerTotalModelo(?string $tamanoClave): float
+    private static function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
     {
-        $key = trim((string)$tamanoClave);
-        if ($key === '') return 0.0;
+        $noTiras = (float)($p->NoTiras ?? 0);
+        $luchaje = (float)($p->Luchaje ?? 0);
+        $rep     = (float)($p->Repeticiones ?? 0);
 
-        if (isset(self::$totalModeloCache[$key])) {
-            return self::$totalModeloCache[$key];
+        $key = trim((string)$tamanoClave);
+        if ($key === '') {
+            return [
+                'total' => 0.0,
+                'no_tiras' => $noTiras,
+                'luchaje' => $luchaje,
+                'repeticiones' => $rep,
+            ];
         }
 
-        $modelo = ReqModelosCodificados::where('TamanoClave', $key)->first();
-        $total = $modelo ? (float)($modelo->Total ?? 0) : 0.0;
+        if (!isset(self::$modeloCache[$key])) {
+            $m = ReqModelosCodificados::where('TamanoClave', $key)->first();
+            self::$modeloCache[$key] = $m ? [
+                'total' => (float)($m->Total ?? 0),
+                'no_tiras' => (float)($m->NoTiras ?? 0),
+                'luchaje' => (float)($m->Luchaje ?? 0),
+                'repeticiones' => (float)($m->Repeticiones ?? 0),
+            ] : [
+                'total' => 0.0,
+                'no_tiras' => 0.0,
+                'luchaje' => 0.0,
+                'repeticiones' => 0.0,
+            ];
+        }
 
-        self::$totalModeloCache[$key] = $total;
-        return $total;
+        $base = self::$modeloCache[$key];
+
+        return [
+            'total' => (float)($base['total'] ?? 0),
+            'no_tiras' => $noTiras > 0 ? $noTiras : (float)($base['no_tiras'] ?? 0),
+            'luchaje' => $luchaje > 0 ? $luchaje : (float)($base['luchaje'] ?? 0),
+            'repeticiones' => $rep > 0 ? $rep : (float)($base['repeticiones'] ?? 0),
+        ];
     }
 
-    /**
-     * Fórmulas: DEJAMOS diffDias = (FechaFinal - FechaInicio) como tú quieres.
-     */
+    // =========================
+    // STD DESDE CATÁLOGOS
+    // =========================
+
+    private static function aplicarStdDesdeCatalogos(ReqProgramaTejido $p): void
+    {
+        $tipoTelar = self::resolverTipoTelarStd($p->Maquina ?? null, $p->SalonTejidoId ?? null); // SMITH/JACQUARD
+        $telar     = trim((string)($p->NoTelarId ?? ''));
+        $fibraId   = trim((string)($p->FibraRizo ?? ''));
+
+        $densidad  = self::resolverDensidadStd($p); // Normal/Alta (default Normal)
+
+        if ($telar === '' || $fibraId === '') {
+            LogFacade::warning('STD: telar o fibra vacíos, no se puede aplicar', [
+                'tipoTelar' => $tipoTelar,
+                'telar' => $telar,
+                'fibra' => $fibraId,
+                'programa_id' => $p->Id ?? null,
+            ]);
+            return;
+        }
+
+        $velRow = self::buscarStdVelocidad($tipoTelar, $telar, $fibraId, $densidad);
+        $efiRow = self::buscarStdEficiencia($tipoTelar, $telar, $fibraId, $densidad);
+
+        if ($velRow) {
+            $p->VelocidadSTD = (float)$velRow->Velocidad;
+        }
+
+        if ($efiRow) {
+            $efi = (float)$efiRow->Eficiencia;
+            if ($efi > 1) $efi = $efi / 100;
+            $p->EficienciaSTD = $efi;
+        }
+    }
+
+    private static function resolverTipoTelarStd(?string $maquina, ?string $salonTejidoId): string
+    {
+        $m = strtoupper(trim((string)$maquina));
+        $s = strtoupper(trim((string)$salonTejidoId));
+
+        if ($m !== '') {
+            if (str_contains($m, 'SMI')) return 'SMITH';
+            if (str_contains($m, 'JAC')) return 'JACQUARD';
+        }
+
+        if ($s === 'SMIT' || $s === 'SMITH') return 'SMITH';
+        if ($s === 'JAC' || $s === 'JACQ' || $s === 'JACQUARD') return 'JACQUARD';
+
+        return $s !== '' ? $s : 'SMITH';
+    }
+
+    private static function resolverDensidadStd(ReqProgramaTejido $p): string
+    {
+        if (isset($p->Densidad) && $p->Densidad !== null && $p->Densidad !== '') {
+            $d = trim((string)$p->Densidad);
+            if (strcasecmp($d, self::DENSIDAD_ALTA) === 0)   return self::DENSIDAD_ALTA;
+            if (strcasecmp($d, self::DENSIDAD_NORMAL) === 0) return self::DENSIDAD_NORMAL;
+        }
+        return self::DENSIDAD_NORMAL;
+    }
+
+    private static function buscarStdVelocidad(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqVelocidadStd
+    {
+        $q = ReqVelocidadStd::query()
+            ->where('SalonTejidoId', $tipoTelar)
+            ->where('NoTelarId', $telar)
+            ->where('FibraId', $fibraId);
+
+        $row = (clone $q)->where('Densidad', $densidad)->orderBy('Id', 'desc')->first();
+        if ($row) return $row;
+
+        $rowNull = (clone $q)->whereNull('Densidad')->orderBy('Id', 'desc')->first();
+        if ($rowNull) return $rowNull;
+
+        return (clone $q)->orderBy('Id', 'desc')->first();
+    }
+
+    private static function buscarStdEficiencia(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqEficienciaStd
+    {
+        $q = ReqEficienciaStd::query()
+            ->where('SalonTejidoId', $tipoTelar)
+            ->where('NoTelarId', $telar)
+            ->where('FibraId', $fibraId);
+
+        $row = (clone $q)->where('Densidad', $densidad)->orderBy('Id', 'desc')->first();
+        if ($row) return $row;
+
+        $rowNull = (clone $q)->whereNull('Densidad')->orderBy('Id', 'desc')->first();
+        if ($rowNull) return $rowNull;
+
+        return (clone $q)->orderBy('Id', 'desc')->first();
+    }
+
+    // =========================
+    // FÓRMULAS (se quedan como tenías)
+    // =========================
+
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
         $formulas = [];
@@ -574,27 +656,23 @@ class VincularTejido
             $efic = (float) ($programa->EficienciaSTD ?? 0);
             $cantidad = self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
             $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
-            $noTiras = (float) ($programa->NoTiras ?? 0);
-            $luchaje = (float) ($programa->Luchaje ?? 0);
-            $repeticiones = (float) ($programa->Repeticiones ?? 0);
 
             if ($efic > 1) $efic = $efic / 100;
 
-            $total = self::obtenerTotalModelo($programa->TamanoClave ?? null);
+            $m = self::getModeloParams($programa->TamanoClave ?? null, $programa);
 
             $inicio = Carbon::parse($programa->FechaInicio);
             $fin    = Carbon::parse($programa->FechaFinal);
             $diffSeg = abs($fin->getTimestamp() - $inicio->getTimestamp());
             $diffDias = $diffSeg / 86400;
 
-            // StdToaHra
             $stdToaHra = 0;
-            if ($noTiras > 0 && $total > 0 && $luchaje > 0 && $repeticiones > 0 && $vel > 0) {
-                $parte1 = $total;
-                $parte2 = (($luchaje * 0.5) / 0.0254) / $repeticiones;
+            if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
+                $parte1 = $m['total'];
+                $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
                 $den = ($parte1 + $parte2) / $vel;
                 if ($den > 0) {
-                    $stdToaHra = ($noTiras * 60) / $den;
+                    $stdToaHra = ($m['no_tiras'] * 60) / $den;
                     $formulas['StdToaHra'] = (float) round($stdToaHra, 2);
                 }
             }

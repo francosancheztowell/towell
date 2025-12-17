@@ -116,10 +116,32 @@
         return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
       }
 
+      // Normalizar fecha a medianoche local (sin zona horaria)
+      function normalizeToLocalMidnight(date) {
+        if (!date) return null;
+        const d = date instanceof Date ? date : new Date(date);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      }
+
+      // Obtener clave de fecha en formato YYYY-MM-DD usando hora local
+      function getDateKeyLocal(date) {
+        if (!date) return null;
+        const d = date instanceof Date ? date : new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
       function buildDateRange(minDate, maxDate) {
         const res = [];
-        const cur = new Date(minDate.getTime());
-        while (cur <= maxDate) {
+        // Normalizar a medianoche local para evitar problemas de zona horaria
+        const min = normalizeToLocalMidnight(minDate);
+        const max = normalizeToLocalMidnight(maxDate);
+        if (!min || !max) return res;
+
+        const cur = new Date(min.getTime());
+        while (cur <= max) {
           res.push(new Date(cur.getTime()));
           cur.setDate(cur.getDate() + 1);
         }
@@ -160,8 +182,11 @@
           (reg.FechaFinal ? new Date(String(reg.FechaFinal).replace(' ', 'T')).getTime() : 0);
 
         if (!fechaInicioMs || !fechaFinDestinoMs || fechaFinDestinoMs <= fechaInicioMs) {
-          const key = fechaInicioMs ? new Date(fechaInicioMs).toISOString().slice(0, 10) : 'N/A';
-          return { map: { [key]: saldoNuevo }, min: fechaInicioMs, max: fechaFinDestinoMs };
+          const inicioDate = fechaInicioMs ? new Date(fechaInicioMs) : null;
+          const key = inicioDate ? getDateKeyLocal(inicioDate) : 'N/A';
+          const minNormalized = inicioDate ? normalizeToLocalMidnight(inicioDate).getTime() : null;
+          const maxNormalized = fechaFinDestinoMs ? normalizeToLocalMidnight(new Date(fechaFinDestinoMs)).getTime() : null;
+          return { map: { [key]: saldoNuevo }, min: minNormalized, max: maxNormalized };
         }
 
         const inicio = new Date(fechaInicioMs);
@@ -170,8 +195,10 @@
         const totalSegundos = Math.abs(fin.getTime() - inicio.getTime()) / 1000;
         const totalHoras = totalSegundos / 3600.0;
         if (totalHoras <= 0) {
-          const key = new Date(fechaInicioMs).toISOString().slice(0, 10);
-          return { map: { [key]: saldoNuevo }, min: fechaInicioMs, max: fechaFinDestinoMs };
+          const key = getDateKeyLocal(inicio);
+          const minNormalized = normalizeToLocalMidnight(inicio).getTime();
+          const maxNormalized = normalizeToLocalMidnight(fin).getTime();
+          return { map: { [key]: saldoNuevo }, min: minNormalized, max: maxNormalized };
         }
 
         const startDay = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
@@ -198,7 +225,8 @@
           }
 
           if (fraccion < 0) fraccion = Math.abs(fraccion);
-          horasPorDia[dia.toISOString().slice(0, 10)] = fraccion * 24.0;
+          const key = getDateKeyLocal(dia);
+          horasPorDia[key] = (horasPorDia[key] || 0) + (fraccion * 24.0);
         }
 
         const stdHrEfectivo = saldoNuevo / totalHoras;
@@ -208,7 +236,9 @@
           map[key] = (map[key] || 0) + Math.round((piezas + Number.EPSILON) * 1000) / 1000;
         });
 
-        return { map, min: fechaInicioMs, max: fechaFinDestinoMs };
+        const minNormalized = normalizeToLocalMidnight(inicio).getTime();
+        const maxNormalized = normalizeToLocalMidnight(fin).getTime();
+        return { map, min: minNormalized, max: maxNormalized };
       }
 
       function renderGanttGrid(dates, rows) {
@@ -239,7 +269,7 @@
         rows.forEach((row, idx) => {
           html += `<div class="gantt-cell gantt-label">${row.label}</div>`;
           dates.forEach(d => {
-            const key = d.toISOString().slice(0, 10);
+            const key = getDateKeyLocal(d);
             const qty = row.map[key] || 0;
             const hasQty = qty && qty !== 0;
             const cls = hasQty ? (idx % 2 === 0 ? 'gantt-bar' : 'gantt-bar-alt') : '';
@@ -280,7 +310,7 @@
               lineas.forEach(l => {
                 const d = parseDateISO(String(l.Fecha || '').replace(' ', 'T'));
                 if (!d) return;
-                const key = d.toISOString().slice(0, 10);
+                const key = getDateKeyLocal(d);
                 const qty = Number(l.Cantidad || 0);
                 map[key] = (map[key] || 0) + Math.round((qty + Number.EPSILON) * 1000) / 1000;
 
@@ -290,8 +320,13 @@
             }
 
             if (!localMin || !localMax) return;
-            if (!minD || localMin < minD) minD = localMin;
-            if (!maxD || localMax > maxD) maxD = localMax;
+
+            // Normalizar fechas a medianoche local para evitar problemas de zona horaria
+            const localMinNormalized = normalizeToLocalMidnight(localMin);
+            const localMaxNormalized = normalizeToLocalMidnight(localMax);
+
+            if (localMinNormalized && (!minD || localMinNormalized < minD)) minD = localMinNormalized;
+            if (localMaxNormalized && (!maxD || localMaxNormalized > maxD)) maxD = localMaxNormalized;
 
             const label = `Telar ${reg.NoTelarId || '-'} · ${reg.NombreProducto || ''}`.trim();
             rows.push({ label, map });
@@ -325,8 +360,15 @@
           const map = result.map || {};
           if (!Object.keys(map).length) return;
 
-          if (result.min && (!minD || result.min < minD)) minD = result.min;
-          if (result.max && (!maxD || result.max > maxD)) maxD = result.max;
+          // Normalizar fechas mínimas y máximas a medianoche local
+          if (result.min) {
+            const minNormalized = normalizeToLocalMidnight(new Date(result.min));
+            if (minNormalized && (!minD || minNormalized < minD)) minD = minNormalized;
+          }
+          if (result.max) {
+            const maxNormalized = normalizeToLocalMidnight(new Date(result.max));
+            if (maxNormalized && (!maxD || maxNormalized > maxD)) maxD = maxNormalized;
+          }
 
           rows.push({
             label: `Telar ${reg.NoTelarId || '-'} · ${reg.NombreProducto || ''}`.trim(),
@@ -336,7 +378,7 @@
 
         if (!rows.length || !minD || !maxD) return;
 
-        const days = buildDateRange(new Date(minD), new Date(maxD));
+        const days = buildDateRange(minD, maxD);
         renderGanttGrid(days, rows);
       }
 
