@@ -92,8 +92,8 @@
                         </div>
 
                         <div>
-                            <label for="NumeroJulioPie" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Pie <span class="text-red-500">*</span></label>
-                            <select id="NumeroJulioPie" name="NumeroJulioPie" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="NumeroJulioPie" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Pie</label>
+                            <select id="NumeroJulioPie" name="NumeroJulioPie" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                 <option value="" disabled selected>Selecciona un Julio</option>
                                 @foreach ($juliosPie ?? [] as $julio)
                                     @if($julio)
@@ -104,14 +104,14 @@
                         </div>
 
                         <div>
-                            <label for="TotalPasadasDibujo" class="block text-sm font-medium text-gray-700 mb-1">Total Pasadas del Dibujo <span class="text-red-500">*</span></label>
+                            <label for="TotalPasadasDibujo" class="block text-sm font-medium text-gray-700 mb-1">Total Pasadas del Dibujo</label>
                             <input type="number" id="TotalPasadasDibujo" name="TotalPasadasDibujo" min="1000" step="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Ingrese total de pasadas">
                         </div>
 
                         <div>
-                            <label for="EficienciaInicio" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia de Inicio <span class="text-red-500">*</span></label>
+                            <label for="EficienciaInicio" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia de Inicio</label>
                             <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1" data-suggested="80">
-                                <input type="number" id="EficienciaInicio" name="EficienciaInicio" min="0" step="1" required class="hidden">
+                                <input type="number" id="EficienciaInicio" name="EficienciaInicio" min="0" step="1" class="hidden">
                                 <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
                                     <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -123,19 +123,19 @@
                         </div>
 
                         <div>
-                            <label for="HoraInicio" class="block text-sm font-medium text-gray-700 mb-1">Hora Inicio <span class="text-red-500">*</span></label>
-                            <input type="time" id="HoraInicio" name="HoraInicio" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="HoraInicio" class="block text-sm font-medium text-gray-700 mb-1">Hora Inicio</label>
+                            <input type="time" id="HoraInicio" name="HoraInicio" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                         </div>
 
                         <div>
-                            <label for="HoraFinal" class="block text-sm font-medium text-gray-700 mb-1">Hora Final <span class="text-red-500">*</span></label>
-                            <input type="time" id="HoraFinal" name="HoraFinal" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="HoraFinal" class="block text-sm font-medium text-gray-700 mb-1">Hora Final</label>
+                            <input type="time" id="HoraFinal" name="HoraFinal" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                         </div>
 
                         <div>
-                            <label for="EficienciaFinal" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Final <span class="text-red-500">*</span></label>
+                            <label for="EficienciaFinal" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Final</label>
                             <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1" data-suggested="80">
-                                <input type="number" id="EficienciaFinal" name="EficienciaFinal" min="0" step="1" required class="hidden">
+                                <input type="number" id="EficienciaFinal" name="EficienciaFinal" min="0" step="1" class="hidden">
                                 <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
                                     <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -147,8 +147,8 @@
                         </div>
 
                         <div>
-                            <label for="Desarrollador" class="block text-sm font-medium text-gray-700 mb-1">Desarrollador <span class="text-red-500">*</span></label>
-                            <select id="Desarrollador" name="Desarrollador" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="Desarrollador" class="block text-sm font-medium text-gray-700 mb-1">Desarrollador</label>
+                            <select id="Desarrollador" name="Desarrollador" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                 <option value="" disabled selected>Selecciona un Desarrollador</option>
                                 @foreach ($desarrolladores ?? [] as $desarrollador)
                                     @if($desarrollador)
@@ -159,24 +159,24 @@
                         </div>
 
                         <div>
-                            <label for="TramaAnchoPeine" class="block text-sm font-medium text-gray-700 mb-1">Trama Ancho de Peine <span class="text-red-500">*</span></label>
-                            <input type="number" id="TramaAnchoPeine" name="TramaAnchoPeine" required step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                            <label for="TramaAnchoPeine" class="block text-sm font-medium text-gray-700 mb-1">Trama Ancho de Peine</label>
+                            <input type="number" id="TramaAnchoPeine" name="TramaAnchoPeine" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
                         </div>
 
                         <div>
-                            <label for="DesperdicioTrama" class="block text-sm font-medium text-gray-700 mb-1">Desperdicio Trama <span class="text-red-500">*</span></label>
-                            <input type="number" id="DesperdicioTrama" name="DesperdicioTrama" required step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                            <label for="DesperdicioTrama" class="block text-sm font-medium text-gray-700 mb-1">Desperdicio Trama</label>
+                            <input type="number" id="DesperdicioTrama" name="DesperdicioTrama" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
                         </div>
 
                         <div>
-                            <label for="LongitudLuchaTot" class="block text-sm font-medium text-gray-700 mb-1">Long. De Lucha Tot. <span class="text-red-500">*</span></label>
-                            <input type="number" id="LongitudLuchaTot" name="LongitudLuchaTot" required step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                            <label for="LongitudLuchaTot" class="block text-sm font-medium text-gray-700 mb-1">Long. De Lucha Tot.</label>
+                            <input type="number" id="LongitudLuchaTot" name="LongitudLuchaTot" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
                         </div>
                     </div>
 
                     <!-- Codificación Modelo - Sección separada con auto-avance -->
                     <div class="mt-6 pt-6 border-t">
-                        <label class="block text-sm font-medium text-gray-700 mb-3">Codificación Modelo <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Codificación Modelo</label>
                         <div class="overflow-x-auto pb-2">
                             <div class="flex justify-start items-center gap-2 min-w-max px-2">
                                 <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="0" required>
