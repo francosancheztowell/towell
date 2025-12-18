@@ -311,8 +311,6 @@ class TelDesarrolladoresController extends Controller
 	                'TelarId' => $validated['NoTelarId'],
 	                'NoTelarId' => $validated['NoTelarId'],
 	                'OrdenTejido' => $validated['NoProduccion'],
-	                'NumOrden' => $validated['NoProduccion'],
-                    'NoOrden' => $validated['NoProduccion'],
 	                'CodigoDibujo' => $codigoDibujo,
 	                'CodificacionModelo' => $codigoDibujo,
 	                'RespInicio' => $validated['Desarrollador'] ?? null,
