@@ -68,6 +68,7 @@ async function duplicarTelar(row) {
 	const flog = row.querySelector('[data-column="FlogsId"]')?.textContent?.trim() || '';
 	const saldo = row.querySelector('[data-column="SaldoPedido"]')?.textContent?.trim() || pedido;
 	const aplicacion = row.querySelector('[data-column="AplicacionId"]')?.textContent?.trim() || '';
+	const descripcion = row.querySelector('[data-column="NombreProyecto"]')?.textContent?.trim() || '';
 
 	// Verificar si el registro ya tiene OrdCompartida (ya fue dividido antes)
 	const ordCompartidaCell = row.querySelector('[data-column="OrdCompartida"]')?.textContent || '';
@@ -106,7 +107,7 @@ async function duplicarTelar(row) {
 
 	// Modal con formato de tabla
 	const resultado = await Swal.fire({
-		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, aplicacion: aplicacionFinal, registroId }),
+		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, aplicacion: aplicacionFinal, registroId, descripcion }),
 		width: '750px',
 		showCancelButton: true,
 		confirmButtonText: 'Aceptar',
@@ -283,7 +284,7 @@ async function duplicarTelar(row) {
 }
 
 // Genera el HTML del modal de duplicar
-function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, aplicacion, registroId }) {
+function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, aplicacion, registroId, descripcion = '' }) {
 	// Determinar si ya está dividido (tiene OrdCompartida)
 	const ordNum = Number(ordCompartida);
 	const yaDividido = Number.isFinite(ordNum) && ordNum !== 0;
@@ -355,18 +356,24 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 					</tr>
 					<tr class="border-b border-gray-200">
 						<td colspan="2" class="py-1">
-							<div class="grid grid-cols-2 gap-4">
-								<div>
+							<div class="flex gap-4">
+								<div class="w-1/5">
 									<label class="block mb-1 text-sm font-medium text-gray-700">Salón</label>
 									<select id="swal-salon" data-salon-actual="${salon}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
 										${salon ? `<option value="${salon}" selected>${salon}</option>` : '<option value="">Seleccionar...</option>'}
 									</select>
 								</div>
-								<div>
+								<div class="w-1/5">
 									<label class="block mb-1 text-sm font-medium text-gray-700">Aplicación</label>
 									<select id="swal-aplicacion" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
 										<option value="">Seleccionar...</option>
 									</select>
+								</div>
+								<div class="flex-1">
+									<label class="block mb-1 text-sm font-medium text-gray-700">Descripción</label>
+									<input type="text" id="swal-descripcion" value="${descripcion || ''}"
+										placeholder="Descripción del proyecto..."
+										class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
 								</div>
 							</div>
 						</td>
@@ -375,7 +382,6 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 			</table>
 
 			<!-- Campos ocultos para datos adicionales del codificado -->
-			<input type="hidden" id="swal-descripcion" value="">
 			<input type="hidden" id="swal-custname" value="">
 			<input type="hidden" id="swal-inventsizeid" value="">
 			<input type="hidden" id="swal-aplicacion-original" value="${aplicacion}">
@@ -509,7 +515,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	let debounceTimer = null;
 	let debounceTimerFlog = null;
 
-	// Referencias a campos ocultos para datos adicionales
+	// Referencias a campos para datos adicionales
 	const inputDescripcion = document.getElementById('swal-descripcion');
 	const inputCustname = document.getElementById('swal-custname');
 	const inputInventSizeId = document.getElementById('swal-inventsizeid');
@@ -758,7 +764,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 						inputFlog.value = data.datos.FlogsId;
 					}
 
-					// Almacenar descripcion, custname e InventSizeId en campos ocultos
+					// Actualizar descripcion, custname e InventSizeId
 					if (inputDescripcion) inputDescripcion.value = data.datos.NombreProyecto || '';
 					if (inputCustname) inputCustname.value = data.datos.CustName || '';
 					if (inputInventSizeId) inputInventSizeId.value = data.datos.InventSizeId || '';
@@ -895,6 +901,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			const data = await response.json();
 			if (inputDescripcion && data.nombreProyecto) {
 				inputDescripcion.value = data.nombreProyecto;
+				// Disparar evento para actualizar visualmente
+				inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
 			}
 		} catch (error) {
 			console.error('Error al cargar descripción por Flog:', error);
@@ -1800,7 +1808,7 @@ function validarYCapturarDatosDuplicar() {
 	const modo = getModoActual();
 	// Verificar si el checkbox de vincular está activo
 	const vincular = estaVincularActivado();
-	// Datos adicionales del codificado (no mostrados en el modal)
+	// Datos adicionales del codificado
 	const descripcion = document.getElementById('swal-descripcion')?.value || '';
 	const custname = document.getElementById('swal-custname')?.value || '';
 	const inventSizeId = document.getElementById('swal-inventsizeid')?.value || '';

@@ -627,6 +627,15 @@
         refreshAllRows();
         if (typeof window.deselectRow === 'function') window.deselectRow();
 
+        // Remover listeners de selección antes de activar drag and drop
+        window.allRows.forEach((row) => {
+          // Remover listener de selección si existe
+          if (row._selectionHandler) {
+            row.removeEventListener('click', row._selectionHandler);
+            row._selectionHandler = null;
+          }
+        });
+
         window.allRows.forEach(row => setRowDraggable(row, !rowMeta(row).enProceso));
 
         if (!tb.dataset.ddBound) {
@@ -650,19 +659,47 @@
 
         refreshAllRows();
 
+        // Remover todos los listeners anteriores y restaurar los de selección
         window.allRows.forEach((row, i) => {
           row.draggable = false;
           row.classList.remove('cursor-move', 'cursor-not-allowed');
           row.style.opacity = '';
-          // Asignar evento click para selección
-          row.addEventListener('click', function(e) {
+
+          // Remover listener anterior si existe
+          if (row._selectionHandler) {
+            row.removeEventListener('click', row._selectionHandler);
+            row._selectionHandler = null;
+          }
+
+          // Crear nuevo handler para selección (mismo patrón que assignClickEvents)
+          row._selectionHandler = function(e) {
+            // No seleccionar si estamos en modo inline edit y se hace click en una celda editable
+            if (typeof inlineEditMode !== 'undefined' && inlineEditMode) {
+              const cell = e.target.closest('td[data-column]');
+              if (cell) {
+                const col = cell.getAttribute('data-column');
+                if (col && typeof uiInlineEditableFields !== 'undefined' && uiInlineEditableFields[col]) {
+                  // El modo inline manejará este click
+                  return;
+                }
+              }
+            }
+
+            // No seleccionar si estamos en modo selección múltiple (ese modo maneja sus propios clicks)
+            if (window.multiSelectMode) {
+              return;
+            }
+
             e.stopPropagation();
             if (typeof window.selectRow === 'function') {
               window.selectRow(row, i);
             } else {
               console.warn('window.selectRow no está disponible.');
             }
-          });
+          };
+
+          // Asignar el nuevo listener
+          row.addEventListener('click', row._selectionHandler);
         });
 
         toast('Modo arrastrar desactivado', 'info');
