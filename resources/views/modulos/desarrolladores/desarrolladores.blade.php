@@ -195,10 +195,10 @@
                                 <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="13" required>
                                 <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="14" required>
                                 <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="15" required>
-                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="16" required>
-                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="17" required>
-                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="18" required>
-                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="19" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="16">
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="17">
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="18">
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="19">
                                 <span class="text-lg font-bold text-gray-600">.JCS</span>
                             </div>
                         </div>
