@@ -6,8 +6,10 @@ use Illuminate\Http\Request;
 use App\Models\ReqCalendarioTab;
 use App\Models\ReqCalendarioLine;
 use App\Models\ReqProgramaTejido;
+use App\Models\ReqModelosCodificados;
 use App\Observers\ReqProgramaTejidoObserver;
-use App\Imports\ReqCalendarioImport;
+use App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,49 +19,57 @@ use App\Imports\ReqCalendarioTabImport;
 
 class CalendarioController extends Controller
 {
+    private const RECALC_TIMEOUT_SECONDS = 900; // 15 min
+    private const RECALC_CHUNK_SIZE = 25;       // (ya no se usa en el recalc por telar, lo dejo por compat)
+    private const RECALC_LOG_EVERY = 25;
+
+    private function boostRuntimeLimits(): void
+    {
+        @ini_set('max_execution_time', (string) self::RECALC_TIMEOUT_SECONDS);
+        @set_time_limit(self::RECALC_TIMEOUT_SECONDS);
+        @ini_set('memory_limit', '1024M');
+
+        // Evita que el query log reviente memoria en loops grandes
+        try { DB::connection()->disableQueryLog(); } catch (\Throwable $e) {}
+    }
+
     public function index(Request $request)
     {
-        // Obtener datos reales de la base de datos
         $calendarios = ReqCalendarioTab::orderBy('CalendarioId')->get();
         $lineas = ReqCalendarioLine::orderBy('CalendarioId')->orderBy('FechaInicio')->get();
 
-        // Pasar con los nombres que espera la vista
         return view('catalagos.calendarios', [
-            'calendarioTab' => $calendarios,
+            'calendarioTab'  => $calendarios,
             'calendarioLine' => $lineas
         ]);
     }
 
-    /**
-     * Crear nuevo calendario
-     */
     public function store(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
                 'CalendarioId' => 'required|string|max:20|unique:ReqCalendarioTab,CalendarioId',
-                'Nombre' => 'required|string|max:255'
+                'Nombre'       => 'required|string|max:255'
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Datos inválidos',
-                    'errors' => $validator->errors()
+                    'errors'  => $validator->errors()
                 ], 422);
             }
 
             $calendario = ReqCalendarioTab::create([
                 'CalendarioId' => $request->CalendarioId,
-                'Nombre' => $request->Nombre
+                'Nombre'       => $request->Nombre
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Calendario creado exitosamente',
-                'data' => $calendario
+                'data'    => $calendario
             ]);
-
         } catch (\Exception $e) {
             Log::error("Error al crear calendario: " . $e->getMessage());
             return response()->json([
@@ -69,9 +79,6 @@ class CalendarioController extends Controller
         }
     }
 
-    /**
-     * Actualizar calendario
-     */
     public function update(Request $request, $id)
     {
         try {
@@ -91,20 +98,17 @@ class CalendarioController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Datos inválidos',
-                    'errors' => $validator->errors()
+                    'errors'  => $validator->errors()
                 ], 422);
             }
 
-            $calendario->update([
-                'Nombre' => $request->Nombre
-            ]);
+            $calendario->update(['Nombre' => $request->Nombre]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Calendario actualizado exitosamente',
-                'data' => $calendario
+                'data'    => $calendario
             ]);
-
         } catch (\Exception $e) {
             Log::error("Error al actualizar calendario: " . $e->getMessage());
             return response()->json([
@@ -114,13 +118,6 @@ class CalendarioController extends Controller
         }
     }
 
-    /**
-     * Eliminar calendario
-     * 
-     * Antes de eliminar un calendario, se verifica si está siendo utilizado
-     * por algún programa de tejido. Si está en uso, se previene la eliminación
-     * para mantener la integridad de los datos.
-     */
     public function destroy($id)
     {
         try {
@@ -132,18 +129,14 @@ class CalendarioController extends Controller
                 ], 404);
             }
 
-            // Verificar si hay programas de tejido usando este calendario
-            // Si está en uso, no se puede eliminar para mantener la integridad
             $programasUsando = ReqProgramaTejido::where('CalendarioId', $id)->count();
-            
             if ($programasUsando > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => "No se puede eliminar el calendario porque está siendo utilizado por {$programasUsando} programa(s) de tejido. Por favor, cambie el calendario de los programas antes de eliminarlo."
+                    'message' => "No se puede eliminar el calendario porque está siendo utilizado por {$programasUsando} programa(s) de tejido."
                 ], 422);
             }
 
-            // Si no está en uso, eliminar también las líneas asociadas
             ReqCalendarioLine::where('CalendarioId', $calendario->CalendarioId)->delete();
             $calendario->delete();
 
@@ -151,7 +144,6 @@ class CalendarioController extends Controller
                 'success' => true,
                 'message' => 'Calendario y sus líneas eliminados exitosamente'
             ]);
-
         } catch (\Exception $e) {
             Log::error("Error al eliminar calendario: " . $e->getMessage());
             return response()->json([
@@ -161,29 +153,27 @@ class CalendarioController extends Controller
         }
     }
 
-    /**
-     * Crear nueva línea de calendario
-     */
     public function storeLine(Request $request)
     {
         try {
+            $this->boostRuntimeLimits();
+
             $validator = Validator::make($request->all(), [
                 'CalendarioId' => 'required|string|max:20',
-                'FechaInicio' => 'required|date',
-                'FechaFin' => 'required|date',
-                'HorasTurno' => 'required|numeric|min:0',
-                'Turno' => 'required|integer|min:1'
+                'FechaInicio'  => 'required|date',
+                'FechaFin'     => 'required|date',
+                'HorasTurno'   => 'required|numeric|min:0',
+                'Turno'        => 'required|integer|min:1'
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Datos inválidos',
-                    'errors' => $validator->errors()
+                    'errors'  => $validator->errors()
                 ], 422);
             }
 
-            // Verificar que el calendario existe
             $calendario = ReqCalendarioTab::where('CalendarioId', $request->CalendarioId)->first();
             if (!$calendario) {
                 return response()->json([
@@ -194,22 +184,27 @@ class CalendarioController extends Controller
 
             $linea = ReqCalendarioLine::create([
                 'CalendarioId' => $request->CalendarioId,
-                'FechaInicio' => $request->FechaInicio,
-                'FechaFin' => $request->FechaFin,
-                'HorasTurno' => $request->HorasTurno,
-                'Turno' => $request->Turno
+                'FechaInicio'  => $request->FechaInicio,
+                'FechaFin'     => $request->FechaFin,
+                'HorasTurno'   => $request->HorasTurno,
+                'Turno'        => $request->Turno
             ]);
 
-            // Recalcular programas de tejido que usan este calendario
-            // Esto asegura que las nuevas horas del calendario se reflejen en los programas
-            $this->recalcularProgramasPorCalendario($request->CalendarioId);
+            // AUTO: solo fechas (no líneas) para evitar timeout
+            $stats = $this->recalcularProgramasPorCalendario(
+                $request->CalendarioId,
+                Carbon::parse($request->FechaInicio),
+                Carbon::parse($request->FechaFin),
+                'storeLine',
+                false
+            );
 
             return response()->json([
-                'success' => true,
-                'message' => 'Línea de calendario creada exitosamente',
-                'data' => $linea
+                'success'   => true,
+                'message'   => 'Línea de calendario creada exitosamente',
+                'data'      => $linea,
+                'recalculo' => $stats,
             ]);
-
         } catch (\Exception $e) {
             Log::error("Error al crear línea de calendario: " . $e->getMessage());
             return response()->json([
@@ -219,107 +214,69 @@ class CalendarioController extends Controller
         }
     }
 
-    /**
-     * Actualizar línea de calendario
-     * 
-     * Cuando se actualiza una línea de calendario (especialmente HorasTurno o fechas),
-     * se deben recalcular todos los programas de tejido que usan este calendario
-     * para que las nuevas horas se reflejen en sus distribuciones diarias.
-     */
     public function updateLine(Request $request, $id)
     {
         try {
-            Log::info("updateLine llamado con ID: {$id}");
-            Log::info("Datos recibidos: " . json_encode($request->all()));
+            $this->boostRuntimeLimits();
 
             $linea = ReqCalendarioLine::find($id);
             if (!$linea) {
-                Log::error("Línea no encontrada con ID: {$id}");
                 return response()->json([
                     'success' => false,
                     'message' => 'Línea de calendario no encontrada'
                 ], 404);
             }
 
-            Log::info("Línea encontrada: " . json_encode($linea->toArray()));
-
             $validator = Validator::make($request->all(), [
                 'FechaInicio' => 'required|date',
-                'FechaFin' => 'required|date',
-                'HorasTurno' => 'required|numeric|min:0',
-                'Turno' => 'required|integer|min:1'
+                'FechaFin'    => 'required|date',
+                'HorasTurno'  => 'required|numeric|min:0',
+                'Turno'       => 'required|integer|min:1'
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Datos inválidos',
-                    'errors' => $validator->errors()
+                    'errors'  => $validator->errors()
                 ], 422);
             }
 
-            // Guardar valores anteriores para detectar cambios importantes
-            // Estos cambios afectan los cálculos de producción en los programas
-            $horasTurnoAnterior = $linea->HorasTurno;
-            $fechaInicioAnterior = $linea->FechaInicio;
-            $fechaFinAnterior = $linea->FechaFin;
             $calendarioId = $linea->CalendarioId;
 
-            Log::info("Actualizando línea con datos:", [
+            $oldIni = Carbon::parse($linea->FechaInicio);
+            $oldFin = Carbon::parse($linea->FechaFin);
+            $newIni = Carbon::parse($request->FechaInicio);
+            $newFin = Carbon::parse($request->FechaFin);
+
+            $linea->update([
                 'FechaInicio' => $request->FechaInicio,
-                'FechaFin' => $request->FechaFin,
-                'HorasTurno' => $request->HorasTurno,
-                'Turno' => $request->Turno
+                'FechaFin'    => $request->FechaFin,
+                'HorasTurno'  => $request->HorasTurno,
+                'Turno'       => $request->Turno
             ]);
 
-            $resultado = $linea->update([
-                'FechaInicio' => $request->FechaInicio,
-                'FechaFin' => $request->FechaFin,
-                'HorasTurno' => $request->HorasTurno,
-                'Turno' => $request->Turno
-            ]);
+            $rangoIni = $oldIni->lt($newIni) ? $oldIni : $newIni;
+            $rangoFin = $oldFin->gt($newFin) ? $oldFin : $newFin;
 
-            Log::info("Resultado de la actualización: " . ($resultado ? 'true' : 'false'));
-
-            // Detectar si cambió algo que afecta los cálculos de producción
-            // Si cambió HorasTurno o las fechas, los programas deben recalcularse
-            $horasCambio = abs((float)$horasTurnoAnterior - (float)$request->HorasTurno) > 0.0001;
-            $fechasCambio = $fechaInicioAnterior != $request->FechaInicio || 
-                           $fechaFinAnterior != $request->FechaFin;
-
-            // Si cambió HorasTurno o fechas, recalcular programas afectados
-            if ($horasCambio || $fechasCambio) {
-                Log::info('Cambio detectado en línea de calendario que afecta cálculos', [
-                    'linea_id' => $id,
-                    'calendario_id' => $calendarioId,
-                    'horas_cambio' => $horasCambio,
-                    'fechas_cambio' => $fechasCambio,
-                    'horas_anterior' => $horasTurnoAnterior,
-                    'horas_nuevo' => $request->HorasTurno
-                ]);
-
-                // Recalcular todos los programas que usan este calendario
-                $this->recalcularProgramasPorCalendario($calendarioId);
-            }
-
-            Log::info("Línea actualizada exitosamente");
-
-            // Refrescar el modelo para obtener los datos actualizados
-            $lineaActualizada = $linea->fresh();
-            if ($lineaActualizada) {
-                Log::info("Datos después de actualizar: " . json_encode($lineaActualizada->toArray()));
-            } else {
-                Log::warning("No se pudo obtener los datos actualizados de la línea");
-            }
+            $stats = $this->recalcularProgramasPorCalendario(
+                $calendarioId,
+                $rangoIni,
+                $rangoFin,
+                'updateLine',
+                false
+            );
 
             return response()->json([
-                'success' => true,
-                'message' => 'Línea de calendario actualizada exitosamente',
-                'data' => $linea
+                'success'   => true,
+                'message'   => 'Línea de calendario actualizada exitosamente',
+                'data'      => $linea->fresh(),
+                'recalculo' => $stats,
             ]);
-
         } catch (\Exception $e) {
-            Log::error("Error al actualizar línea de calendario: " . $e->getMessage());
+            Log::error("Error al actualizar línea de calendario: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Error interno del servidor'
@@ -327,43 +284,38 @@ class CalendarioController extends Controller
         }
     }
 
-    /**
-     * Eliminar línea de calendario
-     * 
-     * Al eliminar una línea de calendario, se deben recalcular los programas
-     * que usan ese calendario para ajustar las horas de producción.
-     */
     public function destroyLine($id)
     {
         try {
-            Log::info("destroyLine llamado con ID: {$id}");
+            $this->boostRuntimeLimits();
 
             $linea = ReqCalendarioLine::find($id);
             if (!$linea) {
-                Log::error("Línea no encontrada con ID: {$id}");
                 return response()->json([
                     'success' => false,
                     'message' => 'Línea de calendario no encontrada'
                 ], 404);
             }
 
-            Log::info("Línea encontrada para eliminar: " . json_encode($linea->toArray()));
-
-            // Guardar el CalendarioId antes de eliminar para recalcular programas
             $calendarioId = $linea->CalendarioId;
+            $rangoIni = Carbon::parse($linea->FechaInicio);
+            $rangoFin = Carbon::parse($linea->FechaFin);
 
             $linea->delete();
-            Log::info("Línea eliminada exitosamente");
 
-            // Recalcular programas que usan este calendario
-            // Esto asegura que la eliminación de la línea se refleje en los programas
-            $this->recalcularProgramasPorCalendario($calendarioId);
+            $stats = $this->recalcularProgramasPorCalendario(
+                $calendarioId,
+                $rangoIni,
+                $rangoFin,
+                'destroyLine',
+                false
+            );
 
             return response()->json([
-                'success' => true,
-                'message' => 'Línea de calendario eliminada exitosamente'
+                'success'   => true,
+                'message'   => 'Línea de calendario eliminada exitosamente',
+                'recalculo' => $stats,
             ]);
-
         } catch (\Exception $e) {
             Log::error("Error al eliminar línea de calendario: " . $e->getMessage());
             return response()->json([
@@ -373,109 +325,86 @@ class CalendarioController extends Controller
         }
     }
 
-    /**
-     * Procesar archivo Excel de calendarios
-     */
     public function procesarExcel(Request $request)
     {
         try {
-            // ⚡ Aumentar timeout para procesamiento de Excel grande
-            set_time_limit(300); // 5 minutos
+            $this->boostRuntimeLimits();
 
-            Log::info("========== INICIO PROCESAMIENTO EXCEL ==========");
-            Log::info("Método HTTP: {$request->getMethod()}");
-            Log::info("Archivos subidos: " . json_encode($request->files->keys()));
-
-            // Obtener el tipo de importación
             $tipo = $request->input('tipo', 'calendarios');
-            Log::info("Tipo de importación: {$tipo}");
 
-            // Validar el archivo
             $validator = Validator::make($request->all(), [
                 'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240'
             ]);
 
             if ($validator->fails()) {
-                Log::error("Validación fallida: " . json_encode($validator->errors()->all()));
                 return response()->json([
                     'success' => false,
-                    'message' => 'Archivo inválido. Debe ser un archivo Excel (.xlsx o .xls) de máximo 10MB.',
-                    'errors' => $validator->errors()
+                    'message' => 'Archivo inválido. Debe ser Excel (.xlsx/.xls) máx 10MB.',
+                    'errors'  => $validator->errors()
                 ], 400);
             }
 
             $archivo = $request->file('archivo_excel');
-            $nombreArchivo = $archivo->getClientOriginalName();
-            $rutaTemporal = $archivo->getPathname();
 
-            Log::info("Archivo validado correctamente");
-            Log::info("Nombre: {$nombreArchivo}");
-            Log::info("Ruta temporal: {$rutaTemporal}");
-            Log::info("Tamaño: {$archivo->getSize()} bytes");
-
-            // Usar transacciones
             DB::beginTransaction();
-            Log::info("Transacción iniciada");
-
             try {
-                Log::info("Importando archivo con importador según tipo...");
-
-                // Usar importador según el tipo
-                if ($tipo === 'lineas') {
-                    Log::info("Usando ReqCalendarioLineImport para líneas");
-                    $importador = new ReqCalendarioLineImport();
-                } else {
-                    Log::info("Usando ReqCalendarioTabImport para calendarios");
-                    $importador = new ReqCalendarioTabImport();
+                try {
+                    if ($tipo === 'lineas') {
+                        $countBefore = ReqCalendarioLine::count();
+                        ReqCalendarioLine::query()->delete();
+                        Log::info("Datos de líneas de calendario eliminados antes del import ({$countBefore} registros)");
+                    } else {
+                        ReqCalendarioLine::query()->delete();
+                        $countBefore = ReqCalendarioTab::count();
+                        ReqCalendarioTab::query()->delete();
+                        Log::info("Datos de calendarios eliminados antes del import ({$countBefore} registros)");
+                    }
+                } catch (\Exception $deleteEx) {
+                    Log::warning("DELETE falló, intentando TRUNCATE: " . $deleteEx->getMessage());
+                    if ($tipo === 'lineas') {
+                        ReqCalendarioLine::truncate();
+                    } else {
+                        ReqCalendarioLine::truncate();
+                        ReqCalendarioTab::truncate();
+                    }
                 }
+
+                $importador = ($tipo === 'lineas')
+                    ? new ReqCalendarioLineImport()
+                    : new ReqCalendarioTabImport();
 
                 Excel::import($importador, $archivo);
 
-                Log::info("Importador completó procesamiento");
-
-                // Obtener estadísticas
                 $stats = $importador->getStats();
-
-                Log::info("Estadísticas obtenidas:", $stats);
-
                 DB::commit();
-                Log::info("Transacción confirmada (COMMIT)");
-
-                Log::info("Excel procesado exitosamente", $stats);
 
                 return response()->json([
                     'success' => true,
                     'message' => 'Archivo procesado exitosamente',
                     'data' => [
-                        'registros_procesados' => $stats['procesados'],
-                        'registros_creados' => $stats['creados'],
-                        'registros_actualizados' => 0,
-                        'total_errores' => count($stats['errores']),
-                        'errores' => array_slice($stats['errores'], 0, 10)
+                        'registros_procesados'   => $stats['procesados'] ?? 0,
+                        'registros_creados'      => $stats['creados'] ?? 0,
+                        'registros_actualizados' => $stats['actualizados'] ?? 0,
+                        'total_errores'          => isset($stats['errores']) ? count($stats['errores']) : 0,
+                        'errores'                => isset($stats['errores']) ? array_slice($stats['errores'], 0, 10) : []
                     ]
                 ]);
-
             } catch (\Exception $e) {
-                DB::rollBack();
-                Log::error("ERROR en transacción: {$e->getMessage()}", [
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
+                if (DB::transactionLevel() > 0) {
+                    try { DB::rollBack(); } catch (\Exception $rollbackEx) {}
+                }
+
+                Log::error("Error al procesar Excel: {$e->getMessage()}", [
                     'trace' => $e->getTraceAsString()
                 ]);
-                Log::error("Transacción revertida (ROLLBACK)");
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error interno del servidor al procesar el archivo Excel: ' . $e->getMessage()
+                    'message' => 'Error al procesar el Excel: ' . $e->getMessage()
                 ], 500);
             }
-
         } catch (\Exception $e) {
-            Log::error("EXCEPCIÓN GENERAL en procesarExcel: {$e->getMessage()}", [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error("EXCEPCIÓN GENERAL en procesarExcel: {$e->getMessage()}");
             return response()->json([
                 'success' => false,
                 'message' => 'Error inesperado: ' . $e->getMessage()
@@ -483,98 +412,406 @@ class CalendarioController extends Controller
         }
     }
 
-    /**
-     * Recalcular todos los programas de tejido que usan un calendario específico
-     * 
-     * Este método se ejecuta cuando se modifica o elimina una línea de calendario.
-     * Busca todos los programas que usan el calendario y dispara el Observer
-     * para regenerar sus líneas diarias con las nuevas horas del calendario.
-     * 
-     * Similar a actualizarLineasPorCambioFactor() en AplicacionesController.
-     * 
-     * @param string $calendarioId ID del calendario que fue modificado
-     * @return void
-     */
-    private function recalcularProgramasPorCalendario(string $calendarioId)
+    public function recalcularProgramas(Request $request, $calendarioId)
     {
         try {
-            // Buscar todos los programas que usan este calendario
-            // Solo considerar programas con fechas válidas
-            $programas = ReqProgramaTejido::where('CalendarioId', $calendarioId)
-                ->whereNotNull('FechaInicio')
-                ->whereNotNull('FechaFinal')
-                ->get();
+            $this->boostRuntimeLimits();
 
-            Log::info('Programas identificados por cambio de calendario', [
-                'calendario_id' => $calendarioId,
-                'programas_encontrados' => $programas->count()
-            ]);
-
-            // Si no hay programas usando este calendario, no hay nada que recalcular
-            if ($programas->isEmpty()) {
-                Log::info('No hay programas que usar este calendario, no se requiere recálculo');
-                return;
+            $calendario = ReqCalendarioTab::where('CalendarioId', $calendarioId)->first();
+            if (!$calendario) {
+                $todos = ReqCalendarioTab::select('CalendarioId')->get()->pluck('CalendarioId')->toArray();
+                return response()->json([
+                    'success' => false,
+                    'message' => "Calendario '{$calendarioId}' no encontrado. Disponibles: " . implode(', ', $todos)
+                ], 404);
             }
 
-            // Disparar el Observer para cada programa para regenerar las líneas diarias
-            // El Observer usará las nuevas HorasTurno del calendario en sus cálculos
-            $observer = new ReqProgramaTejidoObserver();
-            $programasActualizados = 0;
-            $programasConError = 0;
+            $stats = null;
+            if ($request->isMethod('post')) {
+                $regenerarLineas = $request->boolean('regenerar_lineas', false);
+                $stats = $this->recalcularProgramasPorCalendario($calendarioId, null, null, 'manual', $regenerarLineas);
+            }
 
-            foreach ($programas as $programa) {
-                try {
-                    // Refrescar el modelo para obtener datos actualizados de la BD
-                    $programa->refresh();
-                    
-                    // Disparar el Observer para recalcular líneas diarias
-                    // El Observer detectará el CalendarioId y validará que haya fechas disponibles
-                    // Si no hay fechas, el Observer registrará una alerta y no generará líneas
-                    $observer->saved($programa);
-                    
-                    $programasActualizados++;
-                } catch (\Exception $e) {
-                    $programasConError++;
-                    
-                    // Verificar si el error es por falta de fechas en el calendario
-                    $esErrorFechas = strpos($e->getMessage(), 'No hay fechas disponibles') !== false ||
-                                     strpos($e->getMessage(), 'no hay líneas de calendario') !== false;
-                    
-                    if ($esErrorFechas) {
-                        // Error específico: no hay fechas disponibles en el calendario
-                        Log::warning('Programa no recalculado: No hay fechas disponibles en calendario', [
-                            'programa_id' => $programa->Id,
-                            'calendario_id' => $calendarioId,
-                            'fecha_inicio' => $programa->FechaInicio,
-                            'fecha_fin' => $programa->FechaFinal,
-                            'mensaje' => $e->getMessage()
-                        ]);
-                    } else {
-                        // Otro tipo de error
-                        Log::error('Error al recalcular programa por cambio de calendario', [
-                            'programa_id' => $programa->Id,
-                            'calendario_id' => $calendarioId,
-                            'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString()
+            return response()->json([
+                'success' => true,
+                'message' => 'Recálculo completado exitosamente',
+                'data' => [
+                    'calendario_id'     => $calendarioId,
+                    'calendario_nombre' => $calendario->Nombre,
+                    'recalculo'         => $stats,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Error en recálculo manual {$calendarioId}: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor durante el recálculo'
+            ], 500);
+        }
+    }
+
+    /**
+     * Recalcular programas por calendario
+     * FIX: Anterior por TELAR debe ser por orden real (FechaInicio, Id), no por Id<.
+     * Velocidad: reduce N+1; recalc por telar.
+     */
+    private function recalcularProgramasPorCalendario(
+        string $calendarioId,
+        ?Carbon $rangoIni,
+        ?Carbon $rangoFin,
+        string $motivo = '',
+        bool $regenerarLineas = false
+    ): array {
+        $this->boostRuntimeLimits();
+        $t0 = microtime(true);
+
+        $dispatcher = ReqProgramaTejido::getEventDispatcher();
+        ReqProgramaTejido::unsetEventDispatcher();
+
+        $procesados = 0;
+        $actualizados = 0;
+        $errores = 0;
+
+        try {
+            // Base: detectar telares afectados (solo los que usan este calendario)
+            $base = ReqProgramaTejido::where('CalendarioId', $calendarioId)
+                ->whereNotNull('FechaInicio');
+
+            if ($rangoIni && $rangoFin) {
+                $iniStr = $rangoIni->format('Y-m-d H:i:s');
+                $finStr = $rangoFin->format('Y-m-d H:i:s');
+
+                $base->whereRaw(
+                    "FechaInicio < ? AND (
+                        (FechaFinal IS NOT NULL AND FechaFinal > ?)
+                        OR DATEADD(SECOND, CAST(ISNULL(HorasProd,0) * 3600 AS INT), FechaInicio) > ?
+                    )",
+                    [$finStr, $iniStr, $iniStr]
+                );
+            }
+
+            $total = (clone $base)->count();
+
+            $telares = (clone $base)
+                ->select(['SalonTejidoId', 'NoTelarId'])
+                ->distinct()
+                ->get();
+
+            Log::info('RECALC CALENDARIO: start', [
+                'calendario_id' => $calendarioId,
+                'motivo'        => $motivo,
+                'total'         => $total,
+                'telares'       => $telares->count(),
+                'rango_ini'     => $rangoIni?->format('Y-m-d H:i:s'),
+                'rango_fin'     => $rangoFin?->format('Y-m-d H:i:s'),
+                'regenerar'     => $regenerarLineas ? 1 : 0,
+            ]);
+
+            $observer = $regenerarLineas ? new ReqProgramaTejidoObserver() : null;
+
+            foreach ($telares as $t) {
+                $salon = $t->SalonTejidoId;
+                $telar = $t->NoTelarId;
+
+                // Traer el telar completo (mismo calendario) para cascada correcta dentro del calendario
+                $rows = ReqProgramaTejido::where('CalendarioId', $calendarioId)
+                    ->where('SalonTejidoId', $salon)
+                    ->where('NoTelarId', $telar)
+                    ->whereNotNull('FechaInicio')
+                    ->orderBy('FechaInicio', 'asc')
+                    ->orderBy('Id', 'asc')
+                    ->get([
+                        'Id',
+                        'CalendarioId',
+                        'SalonTejidoId',
+                        'NoTelarId',
+                        'FechaInicio',
+                        'FechaFinal',
+                        'HorasProd',
+                        'SaldoPedido',
+                        'Produccion',
+                        'TotalPedido',
+                        'PesoCrudo',
+                        'EntregaPT',
+                        'EntregaCte',
+                        'DiasEficiencia',
+                        'StdHrsEfect',
+                        'ProdKgDia2',
+                        'DiasJornada',
+                    ]);
+
+                if ($rows->isEmpty()) continue;
+
+                $prevFin = null;
+                $prevId  = null;
+
+                foreach ($rows as $p) {
+                    try {
+                        if (empty($p->FechaInicio)) { $errores++; continue; }
+
+                        $inicioOriginal = Carbon::parse($p->FechaInicio);
+                        $inicio = $inicioOriginal->copy();
+                        $inicioAjustado = false;
+
+                        // ✅ Anterior REAL por orden (loop)
+                        if ($prevFin) {
+                            if (!$prevFin->equalTo($inicioOriginal)) {
+                                $inicio = $prevFin->copy();
+                                $inicioAjustado = true;
+                            }
+                        }
+
+                        // ✅ Snap al calendario
+                        $snap = $this->snapInicioAlCalendario($calendarioId, $inicio);
+                        if ($snap && !$snap->equalTo($inicio)) {
+                            $inicio = $snap;
+                            $inicioAjustado = true;
+                        }
+
+                        // HorasProd: usar la del registro; solo calcular si viene 0
+                        $horas = (float) ($p->HorasProd ?? 0);
+                        if ($horas <= 0) {
+                            $horas = $this->calcularHorasProd($p);
+                            if ($horas > 0) $p->HorasProd = $horas;
+                        }
+                        if ($horas <= 0) { $errores++; continue; }
+
+                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $inicio, $horas);
+                        if (!$fin) {
+                            $fin = $inicio->copy()->addSeconds((int) round($horas * 3600));
+                        }
+                        if ($fin->lt($inicio)) $fin = $inicio->copy();
+
+                        $inicioStr = $inicio->format('Y-m-d H:i:s');
+                        $finStr    = $fin->format('Y-m-d H:i:s');
+
+                        $oldInicioStr = null;
+                        try { $oldInicioStr = Carbon::parse($p->FechaInicio)->format('Y-m-d H:i:s'); } catch (\Throwable $e) {}
+                        $oldFinStr = null;
+                        if (!empty($p->FechaFinal)) {
+                            try { $oldFinStr = Carbon::parse($p->FechaFinal)->format('Y-m-d H:i:s'); } catch (\Throwable $e) {}
+                        }
+
+                        $cambio = ($oldInicioStr !== $inicioStr) || ($oldFinStr !== $finStr);
+
+                        // 🔎 DEBUG especial para tu caso
+                        if ((int)$p->Id === 16) {
+                            Log::info('RECALC DEBUG ID=16', [
+                                'telar' => trim((string)$salon) . '|' . trim((string)$telar),
+                                'prev_id' => $prevId,
+                                'prev_fin' => $prevFin?->format('Y-m-d H:i:s'),
+                                'inicio_original' => $inicioOriginal->format('Y-m-d H:i:s'),
+                                'inicio_nuevo' => $inicioStr,
+                                'inicio_ajustado' => $inicioAjustado ? 1 : 0,
+                                'horas' => $horas,
+                                'fin_old' => $oldFinStr,
+                                'fin_new' => $finStr,
+                            ]);
+                        }
+
+                        $p->FechaInicio = $inicioStr;
+                        $p->FechaFinal  = $finStr;
+
+                        // Solo dependientes de fechas
+                        $deps = $this->calcularFormulasDependientesDeFechas($p, $inicio, $fin, $horas);
+                        foreach ($deps as $campo => $valor) {
+                            $p->{$campo} = $valor;
+                        }
+
+                        $p->saveQuietly();
+
+                        $procesados++;
+                        if ($cambio) $actualizados++;
+
+                        if ($regenerarLineas && $observer) {
+                            $observer->saved($p);
+                        }
+
+                        $prevFin = $fin->copy();
+                        $prevId  = (int)$p->Id;
+
+                        if ($procesados % self::RECALC_LOG_EVERY === 0) {
+                            Log::info('RECALC CALENDARIO: progress', [
+                                'calendario_id' => $calendarioId,
+                                'procesados'    => $procesados,
+                                'actualizados'  => $actualizados,
+                                'errores'       => $errores,
+                            ]);
+                        }
+
+                    } catch (\Throwable $e) {
+                        $errores++;
+                        Log::warning('RECALC CALENDARIO: programa con error', [
+                            'programa_id' => $p->Id ?? null,
+                            'error'       => $e->getMessage(),
                         ]);
                     }
                 }
             }
 
-            Log::info('Recálculo de programas por cambio de calendario completado', [
+            $secs = round(microtime(true) - $t0, 2);
+
+            Log::info('RECALC CALENDARIO: done', [
                 'calendario_id' => $calendarioId,
-                'programas_actualizados' => $programasActualizados,
-                'programas_con_error' => $programasConError,
-                'total_programas' => $programas->count()
+                'motivo'        => $motivo,
+                'procesados'    => $procesados,
+                'actualizados'  => $actualizados,
+                'errores'       => $errores,
+                'segundos'      => $secs,
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Error al recalcular programas por cambio de calendario: ' . $e->getMessage(), [
-                'calendario_id' => $calendarioId,
-                'trace' => $e->getTraceAsString()
-            ]);
-            // No lanzar la excepción para no interrumpir el flujo principal
-            // El error ya está registrado en el log
+            return [
+                'procesados'   => $procesados,
+                'actualizados' => $actualizados,
+                'errores'      => $errores,
+                'segundos'     => $secs,
+            ];
+        } finally {
+            if ($dispatcher) {
+                ReqProgramaTejido::setEventDispatcher($dispatcher);
+            }
         }
+    }
+
+    // ======================
+    // Helpers
+    // ======================
+
+    private function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
+    {
+        $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+            ->where('FechaFin', '>', $fechaInicio->format('Y-m-d H:i:s'))
+            ->orderBy('FechaInicio', 'asc')
+            ->first(['FechaInicio', 'FechaFin']);
+
+        if (!$linea) return null;
+
+        $ini = Carbon::parse($linea->FechaInicio);
+        $fin = Carbon::parse($linea->FechaFin);
+
+        if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) return $fechaInicio->copy();
+
+        return $ini->copy();
+    }
+
+    private function calcularHorasProd(ReqProgramaTejido $p): float
+    {
+        $vel  = (float) ($p->VelocidadSTD ?? 0);
+        $efic = (float) ($p->EficienciaSTD ?? 0);
+        if ($efic > 1) $efic = $efic / 100;
+
+        $cantidad = $this->sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
+        $m = $this->getModeloParams($p->TamanoClave ?? null, $p);
+
+        $stdToaHra = 0.0;
+        if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
+            $parte1 = $m['total'];
+            $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
+            $den = ($parte1 + $parte2) / $vel;
+            if ($den > 0) $stdToaHra = ($m['no_tiras'] * 60) / $den;
+        }
+
+        if ($stdToaHra > 0 && $efic > 0 && $cantidad > 0) {
+            return $cantidad / ($stdToaHra * $efic);
+        }
+
+        return 0.0;
+    }
+
+    private function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
+    {
+        static $modeloCache = [];
+
+        $noTiras = (float)($p->NoTiras ?? 0);
+        $luchaje = (float)($p->Luchaje ?? 0);
+        $rep     = (float)($p->Repeticiones ?? 0);
+
+        $key = trim((string)$tamanoClave);
+        if ($key === '') {
+            return [
+                'total' => 0.0,
+                'no_tiras' => $noTiras,
+                'luchaje' => $luchaje,
+                'repeticiones' => $rep,
+            ];
+        }
+
+        if (!isset($modeloCache[$key])) {
+            $m = ReqModelosCodificados::where('TamanoClave', $key)->first();
+            $modeloCache[$key] = $m ? [
+                'total' => (float)($m->Total ?? 0),
+                'no_tiras' => (float)($m->NoTiras ?? 0),
+                'luchaje' => (float)($m->Luchaje ?? 0),
+                'repeticiones' => (float)($m->Repeticiones ?? 0),
+            ] : [
+                'total' => 0.0,
+                'no_tiras' => 0.0,
+                'luchaje' => 0.0,
+                'repeticiones' => 0.0,
+            ];
+        }
+
+        $base = $modeloCache[$key];
+
+        return [
+            'total' => (float)($base['total'] ?? 0),
+            'no_tiras' => $noTiras > 0 ? $noTiras : (float)($base['no_tiras'] ?? 0),
+            'luchaje' => $luchaje > 0 ? $luchaje : (float)($base['luchaje'] ?? 0),
+            'repeticiones' => $rep > 0 ? $rep : (float)($base['repeticiones'] ?? 0),
+        ];
+    }
+
+    private function sanitizeNumber($value): float
+    {
+        if ($value === null) return 0.0;
+        if (is_numeric($value)) return (float)$value;
+        $clean = str_replace([',', ' '], '', (string)$value);
+        return is_numeric($clean) ? (float)$clean : 0.0;
+    }
+
+    /**
+     * Solo campos que sí dependen de FechaInicio/FechaFinal (por cambios de calendario)
+     * NO toca StdToaHra/StdDia/HorasProd (para que no "se pase por tiempo")
+     */
+    private function calcularFormulasDependientesDeFechas(ReqProgramaTejido $p, Carbon $inicio, Carbon $fin, float $horasProd): array
+    {
+        $out = [];
+
+        $diffSeg = abs($fin->getTimestamp() - $inicio->getTimestamp());
+        $diffDias = $diffSeg / 86400;
+
+        if ($diffDias > 0) {
+            $out['DiasEficiencia'] = (float) round($diffDias, 4);
+        }
+
+        $cantidad = $this->sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
+        if ($diffDias > 0 && $cantidad > 0) {
+            $stdHrsEfect = ($cantidad / $diffDias) / 24;
+            $out['StdHrsEfect'] = (float) round($stdHrsEfect, 4);
+
+            $pesoCrudo = (float) ($p->PesoCrudo ?? 0);
+            if ($pesoCrudo > 0) {
+                $out['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 4);
+            }
+        }
+
+        if ($horasProd > 0) {
+            $out['DiasJornada'] = (float) round($horasProd / 24, 4);
+        }
+
+        $entregaCte = $fin->copy()->addDays(12);
+        $out['EntregaCte'] = $entregaCte->format('Y-m-d H:i:s');
+
+        if (!empty($p->EntregaPT)) {
+            try {
+                $entregaPT = Carbon::parse($p->EntregaPT);
+                $out['PTvsCte'] = (float) round($entregaCte->diffInDays($entregaPT, false), 2);
+            } catch (\Throwable $e) {}
+        }
+
+        return $out;
     }
 }

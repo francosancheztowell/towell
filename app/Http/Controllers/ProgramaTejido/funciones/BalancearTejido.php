@@ -414,12 +414,6 @@ class BalancearTejido
         $segundosRestantes = (int) round(max(0, $horasNecesarias) * 3600);
         $cursor = $fechaInicio->copy();
 
-        Log::debug('CALC FIN: start', [
-            'calendario_id' => $calendarioId,
-            'inicio' => $cursor->format('Y-m-d H:i:s'),
-            'horas' => $horasNecesarias,
-            'segundos' => $segundosRestantes,
-        ]);
 
         $iter = 0;
         $maxIter = 200000;
@@ -432,15 +426,6 @@ class BalancearTejido
                 ->orderBy('FechaInicio')
                 ->first();
 
-            if (!$linea) {
-                Log::warning('CALC FIN: no hay más líneas', [
-                    'calendario_id' => $calendarioId,
-                    'cursor' => $cursor->format('Y-m-d H:i:s'),
-                    'segundos_restantes' => $segundosRestantes,
-                    'iter' => $iter,
-                ]);
-                return null;
-            }
 
             $ini = Carbon::parse($linea->FechaInicio);
             $fin = Carbon::parse($linea->FechaFin);
@@ -455,12 +440,7 @@ class BalancearTejido
                     continue;
                 }
 
-                Log::debug('CALC FIN: gap -> saltando al inicio de línea', [
-                    'cursor' => $cursor->format('Y-m-d H:i:s'),
-                    'ini_linea' => $ini->format('Y-m-d H:i:s'),
-                    'fin_linea' => $fin->format('Y-m-d H:i:s'),
-                    'gap_segundos' => $gapSec,
-                ]);
+
 
                 $cursor = $ini->copy();
                 continue;
@@ -483,40 +463,7 @@ class BalancearTejido
             $cursorAntes = $cursor->copy();
             $cursor->addSeconds((int)$usar);
             $segundosRestantes -= (int)$usar;
-
-            Log::debug('CALC FIN: consume', [
-                'cursor_antes' => $cursorAntes->format('Y-m-d H:i:s'),
-                'cursor_despues' => $cursor->format('Y-m-d H:i:s'),
-                'linea_ini' => $ini->format('Y-m-d H:i:s'),
-                'linea_fin' => $fin->format('Y-m-d H:i:s'),
-                'disponibles' => $disponibles,
-                'usar' => $usar,
-                'restantes' => $segundosRestantes,
-            ]);
-
-            if ($segundosRestantes <= 0) {
-                Log::debug('CALC FIN: done', [
-                    'fecha_final' => $cursor->format('Y-m-d H:i:s'),
-                    'iter' => $iter,
-                ]);
-                return $cursor;
-            }
         }
-
-        if ($iter >= $maxIter) {
-            Log::warning('CALC FIN: max iter alcanzado', [
-                'calendario_id' => $calendarioId,
-                'cursor' => $cursor->format('Y-m-d H:i:s'),
-                'segundos_restantes' => $segundosRestantes,
-                'iter' => $iter,
-            ]);
-        }
-
-        Log::debug('CALC FIN: done', [
-            'fecha_final' => $cursor->format('Y-m-d H:i:s'),
-            'iter' => $iter,
-            'restantes' => $segundosRestantes,
-        ]);
 
         return $cursor;
     }

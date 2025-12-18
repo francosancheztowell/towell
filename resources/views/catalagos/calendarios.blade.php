@@ -4,6 +4,9 @@
 
 @section('navbar-right')
     <x-buttons.catalog-actions route="calendarios" :showFilters="true" />
+    <button>
+
+    </button>
 @endsection
 
 @section('content')
@@ -209,6 +212,17 @@
         //   CRUD LÍNEAS DE CALENDARIO
         // =========================================================
         function agregarLineaCalendario() {
+            // Prellenar calendario si hay uno seleccionado en la tabla 1
+            let calendarioPrellenado = '';
+            if (selectedCalendarioTab) {
+                const selectedRow = document.querySelector(
+                    `${TAB_BODY_SELECTOR} tr[data-calendario-id="${selectedCalendarioTab}"]`
+                );
+                if (selectedRow) {
+                    calendarioPrellenado = selectedRow.cells[0].textContent.trim();
+                }
+            }
+
             Swal.fire({
                 title: 'Agregar Nueva Línea de Calendario',
                 html: `
@@ -217,7 +231,8 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">No Calendario</label>
                             <input type="text" id="agregar-linea-calendario-id"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="Ej: CAL011">
+                                placeholder="Ej: CAL011"
+                                value="${calendarioPrellenado}">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Inicio (Fecha Hora)</label>
@@ -264,7 +279,20 @@
                         return false;
                     }
 
-                    return { calendarioId, fechaInicio, fechaFin, horas, turno };
+                    // Validar que las horas sean un número válido y positivo
+                    const horasNum = parseFloat(horas);
+                    if (isNaN(horasNum) || horasNum < 0) {
+                        Swal.showValidationMessage('Las horas deben ser un número válido mayor o igual a 0');
+                        return false;
+                    }
+
+                    // Validar que la fecha fin sea posterior a la fecha inicio
+                    if (new Date(fechaFin) <= new Date(fechaInicio)) {
+                        Swal.showValidationMessage('La fecha de fin debe ser posterior a la fecha de inicio');
+                        return false;
+                    }
+
+                    return { calendarioId, fechaInicio, fechaFin, horas: horasNum, turno };
                 }
             }).then((result) => {
                 if (!result.isConfirmed) return;
@@ -518,10 +546,23 @@
                             return false;
                         }
 
+                        // Validar que las horas sean un número válido y positivo
+                        const horasNum = parseFloat(horasVal);
+                        if (isNaN(horasNum) || horasNum < 0) {
+                            Swal.showValidationMessage('Las horas deben ser un número válido mayor o igual a 0');
+                            return false;
+                        }
+
+                        // Validar que la fecha fin sea posterior a la fecha inicio
+                        if (new Date(fechaFinVal) <= new Date(fechaInicioVal)) {
+                            Swal.showValidationMessage('La fecha de fin debe ser posterior a la fecha de inicio');
+                            return false;
+                        }
+
                         return {
                             fechaInicio: fechaInicioVal,
                             fechaFin: fechaFinVal,
-                            horas: horasVal,
+                            horas: horasNum,
                             turno: turnoVal
                         };
                     }
@@ -559,30 +600,55 @@
 
         // Convierte "dd/mm/yyyy HH:mm" (o con a. m./p. m.) a valor para datetime-local
         function convertirFechaParaInput(fechaTexto) {
-            let fechaLimpia = (fechaTexto || '').trim();
-            if (!fechaLimpia) return '';
+            try {
+                let fechaLimpia = (fechaTexto || '').trim();
+                if (!fechaLimpia) return '';
 
-            if (fechaLimpia.includes('a. m.')) {
-                fechaLimpia = fechaLimpia.replace(' a. m.', '');
-            } else if (fechaLimpia.includes('p. m.')) {
-                fechaLimpia = fechaLimpia.replace(' p. m.', '');
-                const partes = fechaLimpia.split(' ');
-                if (partes.length === 2) {
-                    const [fecha, hora] = partes;
-                    const [horaStr, minuto] = hora.split(':');
-                    let h = parseInt(horaStr, 10);
-                    if (h !== 12) h += 12;
-                    fechaLimpia = `${fecha} ${String(h).padStart(2, '0')}:${minuto}`;
+                // Manejar formato con a. m./p. m.
+                if (fechaLimpia.includes('a. m.')) {
+                    fechaLimpia = fechaLimpia.replace(' a. m.', '');
+                } else if (fechaLimpia.includes('p. m.')) {
+                    fechaLimpia = fechaLimpia.replace(' p. m.', '');
+                    const partes = fechaLimpia.split(' ');
+                    if (partes.length === 2) {
+                        const [fecha, hora] = partes;
+                        const [horaStr, minuto] = hora.split(':');
+                        let h = parseInt(horaStr, 10);
+                        if (!isNaN(h) && h !== 12) h += 12;
+                        fechaLimpia = `${fecha} ${String(h).padStart(2, '0')}:${minuto || '00'}`;
+                    }
                 }
+
+                // Parsear formato dd/mm/yyyy HH:mm
+                const partesFecha = fechaLimpia.split('/');
+                if (partesFecha.length !== 3) return '';
+
+                const dia = partesFecha[0].trim();
+                const mes = partesFecha[1].trim();
+                const resto = partesFecha[2].trim();
+
+                if (!resto) return '';
+
+                const partesResto = resto.split(' ');
+                if (partesResto.length !== 2) return '';
+
+                const anio = partesResto[0].trim();
+                const horaMin = partesResto[1].trim();
+
+                // Validar que sean números válidos
+                if (isNaN(dia) || isNaN(mes) || isNaN(anio)) return '';
+
+                const fechaISO = `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}T${horaMin}`;
+
+                // Validar que la fecha sea válida
+                const fechaObj = new Date(fechaISO);
+                if (isNaN(fechaObj.getTime())) return '';
+
+                return fechaISO;
+            } catch (e) {
+                console.error('Error al convertir fecha:', e);
+                return '';
             }
-
-            const [dia, mes, resto] = fechaLimpia.split('/');
-            if (!resto) return '';
-
-            const [anio, horaMin] = resto.split(' ');
-            const fechaISO = `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}T${horaMin}`;
-
-            return fechaISO;
         }
 
         function eliminarCalendario() {
@@ -1167,6 +1233,151 @@
         };
 
         // =========================================================
+        //   RECALCULAR PROGRAMAS POR CALENDARIO
+        // =========================================================
+        function recalcularProgramasCalendarioNavbar() {
+            // Obtener el calendario seleccionado
+            const selectedCalendarioTab = document.querySelector('#calendario-tab-body tr.bg-blue-500');
+            if (!selectedCalendarioTab) {
+                Swal.fire({
+                    title: 'Selección requerida',
+                    text: 'Por favor selecciona un calendario de la tabla superior para recalcular sus programas',
+                    icon: 'info',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+
+            const calendarioId = selectedCalendarioTab.dataset.calendario; // CalendarioId (ej: "Calendario Tej2")
+            const calendarioNombre = selectedCalendarioTab.cells[1].textContent.trim();
+
+            console.log('Calendario seleccionado:', {
+                calendarioId: calendarioId,
+                calendarioNombre: calendarioNombre,
+                dataset: selectedCalendarioTab.dataset
+            });
+
+            recalcularProgramasCalendario(calendarioId, calendarioNombre);
+        }
+
+        function recalcularProgramasCalendario(calendarioId, calendarioNombre) {
+            Swal.fire({
+                title: 'Recalcular Programas de Tejido',
+                html: `
+                    <div class="text-center">
+                        <div class="mb-4">
+                            <p class="text-lg font-semibold text-gray-800">Calendario: ${calendarioNombre}</p>
+                            <p class="text-sm text-gray-600">ID: ${calendarioId}</p>
+                        </div>
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-yellow-700">
+                                        Esta acción recalculará las fechas de inicio y fin de todos los programas de tejido que usan este calendario, y actualizará sus líneas diarias.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-left text-sm text-gray-600">
+                            <p><strong>¿Qué se recalculará?</strong></p>
+                            <ul class="list-disc list-inside mt-2 space-y-1">
+                                <li>Fechas de inicio y fin de los programas</li>
+                                <li>Fórmulas de eficiencia (HorasProd, DiasJornada, etc.)</li>
+                                <li>Líneas diarias del calendario (ReqProgramaTejidoLine)</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Recalcular Programas',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#f59e0b',
+                cancelButtonColor: '#6b7280',
+                width: '600px',
+                preConfirm: () => {
+                    return new Promise((resolve) => {
+                        // Mostrar progreso mientras se procesa
+                        Swal.fire({
+                            title: 'Procesando...',
+                            html: `
+                                <div class="text-center">
+                                    <p class="text-gray-600 mb-4">Recalculando programas para el ${calendarioId}</p>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="bg-blue-600 h-2 rounded-full animate-pulse" style="width: 100%"></div>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-2">Esta operación puede tomar algunos segundos...</p>
+                                </div>
+                            `,
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            didOpen: () => Swal.showLoading()
+                        });
+
+                        // Hacer la llamada al backend
+                        const url = `/planeacion/calendarios/${encodeURIComponent(calendarioId)}/recalcular-programas`;
+                        console.log('URL de petición:', url);
+                        console.log('CalendarioId original:', calendarioId);
+                        console.log('CalendarioId encoded:', encodeURIComponent(calendarioId));
+
+                        fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': getCsrfToken()
+                            }
+                        })
+                        .then(r => {
+                            if (!r.ok) {
+                                return r.text().then(text => {
+                                    throw new Error(`HTTP ${r.status}: ${text || r.statusText}`);
+                                });
+                            }
+                            return r.json();
+                        })
+                        .then(data => {
+                            resolve(data);
+                        })
+                        .catch(error => {
+                            console.error('Error en fetch:', error);
+                            resolve({ success: false, message: 'Error de conexión: ' + error.message });
+                        });
+                    });
+                }
+            }).then(result => {
+                if (!result.isConfirmed) return;
+
+                const data = result.value;
+
+                if (data.success) {
+                    Swal.fire({
+                        title: '¡Recálculo Completado!',
+                        html: `
+                            <div class="text-center">
+                                <div class="mb-4">
+                                    <i class="fas fa-check-circle text-green-500 text-4xl"></i>
+                                </div>
+                            </div>
+                        `,
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#10b981',
+                        width: '500px'
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error en el Recálculo',
+                        text: data.message || 'Hubo un problema al recalcular los programas',
+                        icon: 'error',
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#ef4444'
+                    });
+                }
+            });
+        }
+
+        // =========================================================
         //   EXPONER FUNCIONES A BOTONES DEL NAVBAR
         // =========================================================
         window.agregarCalendarios = agregarCalendario;
@@ -1175,6 +1386,7 @@
         window.eliminarCalendarios = eliminarCalendario;
         window.filtrarCalendarios = filtrarPorColumna;
         window.limpiarFiltrosCalendarios = restablecerFiltros;
+        window.recalcularProgramasCalendarioNavbar = recalcularProgramasCalendarioNavbar;
 
         document.addEventListener('DOMContentLoaded', () => {
             if (typeof disableButtons === 'function') {
