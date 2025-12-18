@@ -119,6 +119,16 @@
     <i class="fas fa-pen text-yellow-500"></i>
     <span>Editar fila</span>
   </button>
+  {{-- redirigir a catalogo de codificacion --}}
+  <button id="contextMenuCodificacion" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+    <i class="fas fa-code text-green-500"></i>
+    <span>Codificación</span>
+  </button>
+  {{-- redirigir a catalogo de codificacion de modelos --}}
+  <button id="contextMenuModelos" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+    <i class="fas fa-code text-green-500"></i>
+    <span>Modelos</span>
+  </button>
 </div>
 
 {{-- OJO: EL JS de duplicar/dividir NO VA AQUÍ (si lo incluyes aquí se imprime) --}}
@@ -380,6 +390,18 @@
           hide();
           if (typeof window.editarFilaSeleccionada === 'function') window.editarFilaSeleccionada();
           else toast('Edición inline no disponible', 'info');
+        });
+
+        // Abrir catálogo de Codificación en nueva ventana
+        qs('#contextMenuCodificacion')?.addEventListener('click', () => {
+          hide();
+          window.open('{{ route("planeacion.codificacion.index") }}', '_blank');
+        });
+
+        // Abrir catálogo de Codificación de Modelos en nueva ventana
+        qs('#contextMenuModelos')?.addEventListener('click', () => {
+          hide();
+          window.open('{{ route("planeacion.catalogos.codificacion-modelos") }}', '_blank');
         });
       }
 

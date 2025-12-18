@@ -263,7 +263,14 @@ class ConfiguracionController extends Controller
                 return response()->json($response);
 
             } catch (\Throwable $e) {
-                DB::rollback();
+                // Verificar que haya una transacción activa antes de hacer rollback
+                if (DB::transactionLevel() > 0) {
+                    try {
+                        DB::rollback();
+                    } catch (\Exception $rollbackEx) {
+                        Log::error("Error al hacer rollback: " . $rollbackEx->getMessage());
+                    }
+                }
 
                 // Asegurar que el Observer se re-habilite incluso si hay error
                 ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
