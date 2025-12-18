@@ -41,6 +41,18 @@
 <div class="flex items-center gap-1">
     @if($tieneAcceso)
         {{-- Mostrar botones de Excel solo si tiene permiso de crear --}}
+            {{-- Botón especial de Recalcular para calendarios --}}
+    @if($route === 'calendarios')
+    <button id="btn-recalcular" onclick="recalcularProgramasCalendarioNavbar()"
+       class="p-2 text-white bg-blue-600 hover:bg-blue-800 rounded-md transition-colors"
+       title="Recalcular programas" aria-label="Recalcular programas">
+       <span class="mr-2">
+        Recalcular
+       </span>
+        <i class="fas fa-calculator text-lg" aria-hidden="true"></i>
+    </button>
+@endif
+
         @if($puedeCrear)
             {{-- Para calendarios, mostrar dos botones de Excel separados --}}
             @if($route === 'calendarios')
@@ -90,6 +102,7 @@
             </button>
         @endif
     @endif
+
 
     @if($showFilters)
     <button id="btn-filtrar" onclick="filtrar{{ $routeJs }}()"

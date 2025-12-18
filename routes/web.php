@@ -382,6 +382,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/calendarios/lineas', [CalendarioController::class, 'storeLine'])->name('calendarios.lineas.store');
         Route::put('/calendarios/lineas/{linea}', [CalendarioController::class, 'updateLine'])->name('calendarios.lineas.update');
         Route::delete('/calendarios/lineas/{linea}', [CalendarioController::class, 'destroyLine'])->name('calendarios.lineas.destroy');
+
+        // Ruta para recalcular programas por calendario
+        Route::post('/calendarios/{calendario}/recalcular-programas', [CalendarioController::class, 'recalcularProgramas'])->name('calendarios.recalcular.programas');
+
         Route::post('/aplicaciones/excel', [AplicacionesController::class, 'procesarExcel'])->name('aplicaciones.excel.upload');
 
         // Rutas CRUD para eficiencia
@@ -1088,7 +1092,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/desarrolladores/telar/{telarId}/produccion/{noProduccion}', [TelDesarrolladoresController::class, 'formularioDesarrollador'])->name('desarrolladores.formulario');
     Route::get('/desarrolladores/orden/{noProduccion}/detalles', [TelDesarrolladoresController::class, 'obtenerDetallesOrden'])->name('desarrolladores.obtener-detalles-orden');
     Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])->name('desarrolladores.store');
-    
+
     // ============================================
     // MÓDULO Catalogo De Desarrolladores
     // ============================================
@@ -1096,4 +1100,4 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::post('catalogo-desarrolladores', [catDesarrolladoresController::class, 'store'])->name('cat-desarrolladores.store');
     Route::put('catalogo-desarrolladores/{cat_desarrolladore}', [catDesarrolladoresController::class, 'update'])->name('cat-desarrolladores.update');
     Route::delete('catalogo-desarrolladores/{cat_desarrolladore}', [catDesarrolladoresController::class, 'destroy'])->name('cat-desarrolladores.destroy');
-}); 
+});
