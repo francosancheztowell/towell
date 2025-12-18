@@ -1201,6 +1201,140 @@ class ProgramaTejidoController extends Controller
     }
 
     /**
+     * Vincular registros existentes con un OrdCompartida
+     * Permite seleccionar múltiples registros y asignarles el mismo OrdCompartida
+     * sin importar el salón o la diferencia de clave modelo
+     */
+    public function vincularRegistrosExistentes(Request $request)
+    {
+        $request->validate([
+            'registros_ids' => 'required|array|min:2',
+            'registros_ids.*' => 'required|integer|exists:ReqProgramaTejido,Id',
+        ]);
+
+        $registrosIds = $request->input('registros_ids');
+
+        // Verificar que todos los registros existan
+        $registros = ReqProgramaTejido::whereIn('Id', $registrosIds)->get();
+
+        if ($registros->count() !== count($registrosIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Uno o más registros no fueron encontrados'
+            ], 404);
+        }
+
+        // Verificar que no haya registros que ya tengan OrdCompartida
+        $conOrdCompartida = $registros->filter(function ($registro) {
+            return !empty($registro->OrdCompartida) && trim((string)$registro->OrdCompartida) !== '';
+        });
+
+        if ($conOrdCompartida->count() > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pueden vincular registros que ya tienen OrdCompartida asignado. Los siguientes registros ya tienen OrdCompartida: ' . $conOrdCompartida->pluck('Id')->implode(', ')
+            ], 422);
+        }
+
+        // Obtener un nuevo OrdCompartida disponible
+        $nuevoOrdCompartida = $this->obtenerNuevoOrdCompartidaDisponible();
+
+        DBFacade::beginTransaction();
+        ReqProgramaTejido::unsetEventDispatcher();
+
+        try {
+            // Actualizar todos los registros con el nuevo OrdCompartida
+            $actualizados = ReqProgramaTejido::whereIn('Id', $registrosIds)
+                ->update([
+                    'OrdCompartida' => $nuevoOrdCompartida,
+                    'UpdatedAt' => now()
+                ]);
+
+            DBFacade::commit();
+
+            // Reactivar observer
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            $observer = new ReqProgramaTejidoObserver();
+
+            // Disparar observer para recalcular fórmulas si es necesario
+            foreach ($registrosIds as $id) {
+                if ($registro = ReqProgramaTejido::find($id)) {
+                    $observer->saved($registro);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Se vincularon {$actualizados} registro(s) con OrdCompartida: {$nuevoOrdCompartida}",
+                'ord_compartida' => $nuevoOrdCompartida,
+                'registros_vinculados' => $actualizados,
+                'registros_ids' => $registrosIds
+            ]);
+
+        } catch (\Throwable $e) {
+            DBFacade::rollBack();
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+
+            LogFacade::error('vincularRegistrosExistentes error', [
+                'registros_ids' => $registrosIds,
+                'msg' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al vincular los registros: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtiene un nuevo OrdCompartida disponible verificando que no esté en uso
+     *
+     * @return int
+     */
+    private function obtenerNuevoOrdCompartidaDisponible(): int
+    {
+        // Obtener el máximo OrdCompartida existente
+        $maxOrdCompartida = ReqProgramaTejido::max('OrdCompartida') ?? 0;
+
+        // Empezar desde el siguiente número
+        $candidato = $maxOrdCompartida + 1;
+
+        // Verificar que no esté en uso (buscar hasta encontrar uno disponible)
+        // Límite de seguridad para evitar loops infinitos
+        $intentos = 0;
+        $maxIntentos = 1000;
+
+        while ($intentos < $maxIntentos) {
+            // Verificar si el OrdCompartida candidato ya existe
+            $existe = ReqProgramaTejido::where('OrdCompartida', $candidato)->exists();
+
+            if (!$existe) {
+                // Este OrdCompartida está disponible
+                LogFacade::info('vincularRegistrosExistentes: Nuevo OrdCompartida asignado', [
+                    'ord_compartida' => $candidato,
+                    'max_existente' => $maxOrdCompartida,
+                ]);
+                return $candidato;
+            }
+
+            // Si existe, probar el siguiente
+            $candidato++;
+            $intentos++;
+        }
+
+        // Si llegamos aquí, algo está mal (muchos gaps en la secuencia)
+        // Usar el máximo + 1 de todas formas y loggear advertencia
+        LogFacade::warning('vincularRegistrosExistentes: No se encontró OrdCompartida disponible después de múltiples intentos', [
+            'max_ord_compartida' => $maxOrdCompartida,
+            'candidato_final' => $candidato,
+        ]);
+
+        return $candidato;
+    }
+
+    /**
      * Vista de balanceo - muestra registros que comparten OrdCompartida
      */
     public function balancear()

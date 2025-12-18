@@ -308,6 +308,10 @@
       if (!tb) return [];
       window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
       clearRowCache();
+      // Si estamos en modo selección múltiple, actualizar visualización de filas bloqueadas
+      if (window.multiSelectMode) {
+        updateSelectedRowsVisual();
+      }
       return window.allRows;
     }
 
@@ -1050,6 +1054,250 @@
     document.addEventListener('pt:selection-changed', updateBalanceBtnState);
 
     // =========================
+    // Selección múltiple para vincular registros existentes
+    // =========================
+    window.selectedRowsIds = window.selectedRowsIds || new Set();
+    window.multiSelectMode = false;
+
+    function toggleMultiSelectMode() {
+      window.multiSelectMode = !window.multiSelectMode;
+      const btn = qs('#btnVincularExistentes');
+      if (btn) {
+        if (window.multiSelectMode) {
+          btn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+          btn.classList.add('bg-blue-700', 'ring-2', 'ring-blue-300');
+          btn.disabled = false; // Mantener habilitado para permitir cancelar
+          btn.title = 'Modo selección múltiple activado. Haz click en las filas para seleccionarlas. Click aquí sin selecciones para cancelar.';
+          updateVincularButtonState(); // Actualizar estado según selección
+          updateSelectedRowsVisual(); // Actualizar visualización de filas bloqueadas
+        } else {
+          btn.classList.remove('bg-blue-700', 'ring-2', 'ring-blue-300', 'bg-blue-300', 'cursor-not-allowed');
+          btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+          btn.disabled = false; // Habilitar para activar modo de nuevo
+          btn.title = 'Vincular registros existentes - Click para activar modo selección múltiple';
+          window.selectedRowsIds.clear();
+          updateSelectedRowsVisual();
+        }
+      }
+      toast(window.multiSelectMode ? 'Modo selección múltiple activado. Selecciona al menos 2 registros (sin OrdCompartida) y haz click en "Vincular". Click sin selecciones para cancelar.' : 'Modo selección múltiple desactivado', 'info');
+    }
+
+    function toggleRowSelection(row) {
+      if (!window.multiSelectMode) return;
+
+      const id = row.getAttribute('data-id');
+      if (!id) return;
+
+      // Verificar si la fila ya tiene OrdCompartida
+      const ordCompartida = row.getAttribute('data-ord-compartida');
+      if (ordCompartida && ordCompartida.trim() !== '') {
+        toast('Este registro ya tiene OrdCompartida asignado y no se puede vincular', 'warning');
+        return;
+      }
+
+      const cells = row.querySelectorAll('td');
+
+      if (window.selectedRowsIds.has(id)) {
+        window.selectedRowsIds.delete(id);
+        row.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-500', 'text-white');
+        // Remover text-white de las celdas
+        cells.forEach(cell => {
+          cell.classList.remove('text-white');
+          cell.classList.add('text-gray-700');
+        });
+      } else {
+        window.selectedRowsIds.add(id);
+        row.classList.add('ring-2', 'ring-blue-500', 'bg-blue-500', 'text-white');
+        // Aplicar text-white a todas las celdas
+        cells.forEach(cell => {
+          cell.classList.remove('text-gray-700');
+          cell.classList.add('text-white');
+        });
+      }
+
+      updateVincularButtonState();
+    }
+
+    function updateSelectedRowsVisual() {
+      const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row');
+      rows.forEach(row => {
+        const id = row.getAttribute('data-id');
+        const cells = row.querySelectorAll('td');
+        const ordCompartida = row.getAttribute('data-ord-compartida');
+        const tieneOrdCompartida = ordCompartida && ordCompartida.trim() !== '';
+
+        // Si tiene OrdCompartida, marcarla como bloqueada visualmente
+        if (tieneOrdCompartida && window.multiSelectMode) {
+          row.classList.add('opacity-50', 'cursor-not-allowed');
+          row.classList.remove('hover:bg-blue-50');
+          row.title = 'Este registro ya tiene OrdCompartida y no se puede vincular';
+        } else {
+          row.classList.remove('opacity-50', 'cursor-not-allowed');
+          row.classList.add('hover:bg-blue-50');
+          row.removeAttribute('title');
+        }
+
+        if (window.selectedRowsIds.has(id)) {
+          row.classList.add('ring-2', 'ring-blue-500', 'bg-blue-500', 'text-white');
+          // Aplicar text-white a todas las celdas
+          cells.forEach(cell => {
+            cell.classList.remove('text-gray-700');
+            cell.classList.add('text-white');
+          });
+        } else {
+          row.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-500', 'text-white');
+          // Restaurar text-gray-700 en las celdas
+          cells.forEach(cell => {
+            cell.classList.remove('text-white');
+            cell.classList.add('text-gray-700');
+          });
+        }
+      });
+    }
+
+    function updateVincularButtonState() {
+      const btn = qs('#btnVincularExistentes');
+      if (!btn) return;
+
+      // Solo actualizar estado si estamos en modo selección múltiple
+      if (!window.multiSelectMode) {
+        return;
+      }
+
+      const count = window.selectedRowsIds.size;
+      if (count >= 2) {
+        btn.disabled = false;
+        btn.classList.remove('bg-blue-300', 'cursor-not-allowed');
+        btn.classList.remove('bg-blue-700', 'ring-2', 'ring-blue-300');
+        btn.classList.add('bg-blue-500', 'hover:bg-blue-600', 'ring-2', 'ring-blue-300');
+        btn.title = `Vincular ${count} registro(s) seleccionado(s) - Click para vincular`;
+      } else {
+        // NO deshabilitar el botón cuando no hay selecciones - permitir cancelar el modo
+        btn.disabled = false;
+        btn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+        btn.classList.add('bg-blue-700', 'ring-2', 'ring-blue-300');
+        btn.classList.remove('bg-blue-300', 'cursor-not-allowed');
+        btn.title = count === 0 ? 'Click para cancelar modo selección múltiple' : `Selecciona ${2 - count} registro(s) más para vincular o click para cancelar`;
+      }
+    }
+
+    // Vincular registros existentes
+    window.vincularRegistrosExistentes = function() {
+      if (!window.multiSelectMode) {
+        // Activar modo selección múltiple
+        toggleMultiSelectMode();
+        return;
+      }
+
+      const selectedIds = Array.from(window.selectedRowsIds);
+
+      // Si no hay registros seleccionados, cancelar el modo selección múltiple
+      if (selectedIds.length === 0) {
+        toggleMultiSelectMode();
+        return;
+      }
+
+      if (selectedIds.length < 2) {
+        toast('Debes seleccionar al menos 2 registros para vincular', 'warning');
+        return;
+      }
+
+      // Confirmar acción
+      if (typeof Swal === 'undefined') {
+        if (!confirm(`¿Vincular ${selectedIds.length} registro(s) con un nuevo OrdCompartida?`)) return;
+        doVincular(selectedIds);
+      } else {
+        Swal.fire({
+          title: '¿Vincular registros?',
+          html: `Se vincularán <strong>${selectedIds.length} registro(s)</strong> con un nuevo OrdCompartida.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`,
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: 'Sí, vincular',
+          cancelButtonText: 'Cancelar',
+          confirmButtonColor: '#6366f1',
+          cancelButtonColor: '#6b7280',
+        }).then((result) => {
+          if (result.isConfirmed) {
+            doVincular(selectedIds);
+          }
+        });
+      }
+    };
+
+    function doVincular(registrosIds) {
+      PT.loader.show();
+
+      fetch('{{ route("programa-tejido.vincular-registros-existentes") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ registros_ids: registrosIds })
+      })
+      .then(r => r.json())
+      .then(data => {
+        PT.loader.hide();
+
+        if (data.success) {
+          toast(data.message || 'Registros vinculados correctamente', 'success');
+          // Limpiar selección y desactivar modo
+          window.selectedRowsIds.clear();
+          window.multiSelectMode = false;
+          updateSelectedRowsVisual();
+          updateVincularButtonState();
+
+          const btn = qs('#btnVincularExistentes');
+          if (btn) {
+            btn.classList.remove('bg-blue-500','text-white','hover:bg-blue-600','ring-2', 'ring-blue-300', 'bg-blue-300', 'cursor-not-allowed');
+            btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+            btn.disabled = false;
+            btn.title = 'Vincular registros existentes - Click para activar modo selección múltiple';
+          }
+
+          // Recargar página después de un breve delay para ver los cambios
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          toast(data.message || 'Error al vincular los registros', 'error');
+        }
+      })
+      .catch(err => {
+        PT.loader.hide();
+        toast('Error al procesar la solicitud: ' + (err.message || 'Error desconocido'), 'error');
+      });
+    }
+
+    // Integrar selección múltiple en el handler existente
+    document.addEventListener('DOMContentLoaded', () => {
+      // Interceptar clicks en filas cuando está activo el modo selección múltiple
+      const tb = tbodyEl();
+      if (tb) {
+        tb.addEventListener('click', (e) => {
+          if (!window.multiSelectMode) return;
+
+          const row = e.target.closest('.selectable-row');
+          if (!row) return;
+
+          // Verificar si la fila tiene OrdCompartida (bloqueada)
+          const ordCompartida = row.getAttribute('data-ord-compartida');
+          if (ordCompartida && ordCompartida.trim() !== '') {
+            e.preventDefault();
+            e.stopPropagation();
+            toast('Este registro ya tiene OrdCompartida asignado y no se puede vincular', 'warning');
+            return;
+          }
+
+          // Si estamos en modo selección múltiple, manejar la selección
+          e.preventDefault();
+          e.stopPropagation();
+          toggleRowSelection(row);
+        }, true); // Usar capture phase para interceptar antes que otros handlers
+      }
+    });
+
+    // =========================
     // Reset (filtros + columnas)
     // =========================
     function resetAllView(e) {
@@ -1288,6 +1536,12 @@
       // Actualizar estado del botón balancear después de restaurar selección
       // (también se actualizará automáticamente por el evento pt:selection-changed)
       setTimeout(() => updateBalanceBtnState(), 100);
+      // Inicializar estado del botón vincular (solo si está en modo selección múltiple)
+      setTimeout(() => {
+        if (window.multiSelectMode) {
+          updateVincularButtonState();
+        }
+      }, 100);
       showSavedToastIfAny();
 
       const balanceBtn = document.querySelector('a[title="Balancear"]');

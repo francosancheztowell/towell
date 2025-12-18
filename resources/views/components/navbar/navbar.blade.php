@@ -78,7 +78,7 @@
                       <!-- Botón Edición Inline -->
                         <button type="button" id="btnInlineEdit"
                         onclick="toggleInlineEditMode()"
-                        class="relative w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+                        class="relative w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-blue-800 transition-colors"
                         title="Activar/Desactivar edición en línea" aria-label="Edición en línea">
                         <i class="fa-solid fa-pen text-sm"></i>
                         </button>
@@ -173,10 +173,13 @@
                       <i id="iconResetColumns" class="fa-solid fa-rotate text-sm"></i>
                     </button>
 
-                    <!-- Grupo 3: Balancear + Catálogos (iconos) -->
+                    <!-- Grupo 3: Balancear + Vincular Existentes + Catálogos (iconos) -->
                     <a href="{{ route('programa-tejido.balancear') }}" class="w-9 h-9 flex items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-colors" title="Balancear" aria-label="Balancear">
                       <i class="fa-solid fa-scale-balanced text-sm"></i>
                     </a>
+                    <button type="button" id="btnVincularExistentes" onclick="vincularRegistrosExistentes()" class="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed" title="Vincular registros existentes - Click para activar modo selección múltiple" aria-label="Vincular registros existentes">
+                      <i class="fa-solid fa-link text-sm"></i>
+                    </button>
                     <a href="{{ route('submodulos.nivel3', '104') }}" class="w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors" title="Catálogos" aria-label="Catálogos">
                       <i class="fa-solid fa-database text-sm"></i>
                     </a>
@@ -446,4 +449,4 @@ function mostrarModalDiasLiberar() {
     });
 }
 </script>
-  
+
