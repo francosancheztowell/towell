@@ -6,8 +6,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 // PDF facade (alias configurado en config/app.php)
 use PDF;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use App\Exports\CortesEficienciaExport;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Helpers\TurnoHelper;
 use App\Helpers\FolioHelper;
 use App\Models\InvSecuenciaCorteEf;
@@ -769,53 +774,281 @@ class CortesEficienciaController extends Controller
                     ->with('error', 'Folio no encontrado');
             }
 
-            $fecha = $corteBase->Date;
-
-            // Obtener todas las líneas de los tres turnos de esa fecha
-            $lineasFecha = TejEficienciaLine::where('Date', $fecha)
-                ->orderBy('NoTelarId')
-                ->get();
-
-            // Secuencia de telares para orden base
-            $secuencia = InvSecuenciaCorteEf::orderBy('Orden', 'asc')->get(['NoTelarId']);
-            $telaresSecuencia = $secuencia->pluck('NoTelarId')->toArray();
-
-            // Lista unificada de telares (secuencia + presentes en líneas)
-            $telaresLineas = $lineasFecha->pluck('NoTelarId')->unique()->toArray();
-            $telares = collect(array_unique(array_merge($telaresSecuencia, $telaresLineas)))->sort()->values();
-
-            // Agrupar por telar y turno
-            $porTelarTurno = [];
-            foreach ($lineasFecha as $l) {
-                $telar = $l->NoTelarId;
-                $turno = (string)$l->Turno; // "1","2","3"
-                if (!isset($porTelarTurno[$telar])) $porTelarTurno[$telar] = [];
-                $porTelarTurno[$telar][$turno] = $l;
-            }
-
-            // Preparar estructura para la vista
-            $datos = $telares->map(function($telar) use ($porTelarTurno) {
-                $t1 = $porTelarTurno[$telar]['1'] ?? null;
-                $t2 = $porTelarTurno[$telar]['2'] ?? null;
-                $t3 = $porTelarTurno[$telar]['3'] ?? null;
-                return [
-                    'telar' => $telar,
-                    't1' => $t1,
-                    't2' => $t2,
-                    't3' => $t3,
-                ];
-            });
+            $info = $this->obtenerDatosVisualizacionPorFecha($corteBase->Date);
 
             return view('modulos.cortes-eficiencia.visualizar-cortes-eficiencia', [
                 'folio' => $folio,
-                'fecha' => $fecha,
-                'datos' => $datos,
+                'fecha' => $info['fecha'],
+                'datos' => $info['datos'],
+                'foliosPorTurno' => $info['foliosPorTurno'],
             ]);
         } catch (\Exception $e) {
             Log::error('Error al visualizar cortes de eficiencia: ' . $e->getMessage());
             return redirect()->route('cortes.eficiencia.consultar')
                 ->with('error', 'Error al visualizar: ' . $e->getMessage());
         }
+    }
+
+    public function visualizarFolio($folio)
+    {
+        try {
+            $corte = TejEficiencia::where('Folio', $folio)->first();
+            if (!$corte) {
+                return redirect()->route('cortes.eficiencia.consultar')
+                    ->with('error', 'Folio no encontrado');
+            }
+
+            $telares = InvSecuenciaCorteEf::orderBy('Orden', 'asc')
+                ->pluck('NoTelarId')
+                ->toArray();
+
+            return view('modulos.cortes-eficiencia.cortes-eficiencia', [
+                'telares' => $telares,
+                'soloLectura' => true,
+                'folioInicial' => $corte->Folio,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al visualizar folio de cortes: ' . $e->getMessage());
+            return redirect()->route('cortes.eficiencia.consultar')
+                ->with('error', 'Error al visualizar folio');
+        }
+    }
+
+    public function exportarVisualizacionExcel(Request $request)
+    {
+        try {
+            $fecha = $request->input('fecha');
+            if (!$fecha) {
+                return response()->json(['error' => 'Fecha requerida'], 400);
+            }
+
+            $fechaNorm = $this->normalizarFecha($fecha);
+            $info = $this->obtenerDatosVisualizacionPorFecha($fechaNorm);
+
+            if ($info['datos']->isEmpty()) {
+                return response()->json(['error' => 'Sin datos para la fecha seleccionada'], 404);
+            }
+
+            $filename = 'cortes_eficiencia_' . $fechaNorm . '.xlsx';
+
+            return Excel::download(new CortesEficienciaExport($info, $fechaNorm), $filename);
+        } catch (\Throwable $th) {
+            Log::error('Error al exportar Excel de cortes de eficiencia', [
+                'mensaje' => $th->getMessage()
+            ]);
+            return response()->json(['error' => 'Error al exportar: ' . $th->getMessage()], 500);
+        }
+    }
+
+    public function descargarVisualizacionPDF(Request $request)
+    {
+        try {
+            $fecha = $request->input('fecha');
+            if (!$fecha) {
+                return response()->json(['error' => 'Fecha requerida'], 400);
+            }
+
+            $fechaNorm = $this->normalizarFecha($fecha);
+            $info = $this->obtenerDatosVisualizacionPorFecha($fechaNorm);
+            if ($info['datos']->isEmpty()) {
+                return response()->json(['error' => 'Sin datos para la fecha seleccionada'], 404);
+            }
+
+            $html = view('modulos.cortes-eficiencia.visualizar-cortes-eficiencia-pdf', [
+                'fecha' => $info['fecha'],
+                'datos' => $info['datos'],
+                'foliosPorTurno' => $info['foliosPorTurno'],
+            ])->render();
+
+            $options = new Options();
+            $options->set('isHtml5ParserEnabled', true);
+            $options->set('isRemoteEnabled', true);
+            $options->set('defaultFont', 'Arial');
+            $options->set('isPhpEnabled', false);
+            $options->set('chroot', public_path());
+            $options->set('tempDir', sys_get_temp_dir());
+
+            $dompdf = new Dompdf($options);
+            $dompdf->loadHtml($html, 'UTF-8');
+            $dompdf->setPaper('a4', 'landscape');
+            $dompdf->render();
+
+            $pdfContent = $dompdf->output();
+            $filename = 'cortes_eficiencia_' . $fechaNorm . '.pdf';
+
+            if (empty($pdfContent)) {
+                Log::error('PDF de cortes de eficiencia generado vacío', ['fecha' => $fechaNorm]);
+                return response()->json(['error' => 'Error: PDF generado está vacío'], 500);
+            }
+
+            Log::info('PDF de cortes de eficiencia generado correctamente', [
+                'fecha' => $fechaNorm,
+                'filename' => $filename,
+                'size_kb' => round(strlen($pdfContent) / 1024, 2),
+            ]);
+
+            try {
+                $this->enviarReporteCortesPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
+            } catch (\Throwable $e) {
+                Log::error('Error al enviar PDF de cortes a Telegram (continuando con descarga)', [
+                    'error' => $e->getMessage(),
+                    'fecha' => $fechaNorm,
+                ]);
+            }
+
+            return response($pdfContent, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        } catch (\Throwable $th) {
+            Log::error('Error al generar PDF de cortes de eficiencia', [
+                'mensaje' => $th->getMessage()
+            ]);
+            return response()->json(['error' => 'Error al generar PDF: ' . $th->getMessage()], 500);
+        }
+    }
+
+    private function obtenerDatosVisualizacionPorFecha($fecha)
+    {
+        $fechaNorm = $this->normalizarFecha($fecha);
+
+        $lineasFecha = TejEficienciaLine::whereDate('Date', $fechaNorm)
+            ->orderBy('Turno')
+            ->orderBy('NoTelarId')
+            ->get();
+
+        $secuencia = InvSecuenciaCorteEf::orderBy('Orden', 'asc')->get(['NoTelarId']);
+        $telaresSecuencia = $secuencia->pluck('NoTelarId')->toArray();
+        $telaresLineas = $lineasFecha->pluck('NoTelarId')->unique()->toArray();
+        $telares = collect(array_unique(array_merge($telaresSecuencia, $telaresLineas)))->sort()->values();
+
+        $porTelarTurno = [];
+        $foliosPorTurno = [];
+
+        foreach ($lineasFecha as $linea) {
+            $telar = $linea->NoTelarId;
+            $turno = (string)$linea->Turno;
+            if (!isset($porTelarTurno[$telar])) {
+                $porTelarTurno[$telar] = [];
+            }
+            $porTelarTurno[$telar][$turno] = $linea;
+            if (!isset($foliosPorTurno[$turno])) {
+                $foliosPorTurno[$turno] = $linea->Folio;
+            }
+        }
+
+        $datos = $telares->map(function ($telar) use ($porTelarTurno) {
+            $t1 = $porTelarTurno[$telar]['1'] ?? null;
+            $t2 = $porTelarTurno[$telar]['2'] ?? null;
+            $t3 = $porTelarTurno[$telar]['3'] ?? null;
+            return [
+                'telar' => $telar,
+                't1' => $t1,
+                't2' => $t2,
+                't3' => $t3,
+            ];
+        });
+
+        return [
+            'fecha' => $fechaNorm,
+            'datos' => $datos,
+            'foliosPorTurno' => $foliosPorTurno,
+        ];
+    }
+
+    private function enviarReporteCortesPdfTelegram(string $pdfContent, string $filename, string $fecha, $usuario = null): void
+    {
+        try {
+            $botToken = config('services.telegram.bot_token');
+            $chatId = config('services.telegram.chat_id');
+
+            if (empty($botToken) || empty($chatId)) {
+                Log::warning('No se pudo enviar PDF de cortes: credenciales Telegram no configuradas');
+                return;
+            }
+
+            if (empty($pdfContent)) {
+                Log::warning('PDF de cortes vacío, no se envía a Telegram', [
+                    'fecha' => $fecha,
+                    'filename' => $filename,
+                ]);
+                return;
+            }
+
+            $pdfSizeMB = strlen($pdfContent) / 1024 / 1024;
+            if ($pdfSizeMB > 50) {
+                Log::warning('PDF de cortes excede límite de Telegram', [
+                    'fecha' => $fecha,
+                    'filename' => $filename,
+                    'size_mb' => round($pdfSizeMB, 2),
+                ]);
+                return;
+            }
+
+            $nombreUsuario = $usuario->nombre ?? $usuario->name ?? null;
+            $numeroEmpleado = $usuario->numero_empleado ?? null;
+
+            $caption = "Reporte Cortes de Eficiencia\n";
+            $caption .= "Fecha: {$fecha}\n";
+            if (!empty($nombreUsuario)) {
+                $caption .= "Generado por: {$nombreUsuario}";
+                if (!empty($numeroEmpleado)) {
+                    $caption .= " ({$numeroEmpleado})";
+                }
+            }
+
+            $url = "https://api.telegram.org/bot{$botToken}/sendDocument";
+
+            Log::info('Enviando reporte de cortes a Telegram', [
+                'fecha' => $fecha,
+                'filename' => $filename,
+                'size_kb' => round(strlen($pdfContent) / 1024, 2),
+                'chat_id' => $chatId,
+            ]);
+
+            $response = Http::timeout(30)
+                ->attach('document', $pdfContent, $filename)
+                ->post($url, [
+                    'chat_id' => $chatId,
+                    'caption' => $caption,
+                ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                if ($data['ok'] ?? false) {
+                    Log::info('PDF de cortes enviado a Telegram', [
+                        'fecha' => $fecha,
+                        'filename' => $filename,
+                        'chat_id' => $chatId,
+                        'message_id' => $data['result']['message_id'] ?? null,
+                    ]);
+                } else {
+                    Log::error('Telegram respondió ok=false para cortes', [
+                        'response' => $data,
+                        'fecha' => $fecha,
+                        'filename' => $filename,
+                    ]);
+                }
+            } else {
+                Log::error('Error HTTP al enviar cortes a Telegram', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'fecha' => $fecha,
+                    'filename' => $filename,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Excepción al enviar PDF de cortes a Telegram', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'fecha' => $fecha,
+                'filename' => $filename,
+            ]);
+        }
+    }
+
+    private function normalizarFecha($fecha)
+    {
+        return date('Y-m-d', strtotime(str_replace('/', '-', $fecha)));
     }
 
     /**

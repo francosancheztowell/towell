@@ -1,9 +1,12 @@
 @extends('layouts.app')
 
 @php
-    // Determinar si es modo edición basado en el parámetro folio en la URL
-    $esModoEdicion = request()->has('folio');
-    $tituloPagina = $esModoEdicion ? 'Editar Marcas Finales' : 'Nuevas Marcas Finales';
+    $soloLectura = $soloLectura ?? false;
+    $folioInicial = $folioInicial ?? request()->query('folio');
+    $esModoEdicion = $soloLectura ? true : !empty($folioInicial);
+    $tituloPagina = $soloLectura
+        ? 'Visualizar Marcas Finales'
+        : ($esModoEdicion ? 'Editar Marcas Finales' : 'Nuevas Marcas Finales');
 @endphp
 
 @section('page-title', $tituloPagina)
@@ -16,7 +19,11 @@
     $puedeModificar = (bool)($permisosMarcas->modificar ?? false);
     $puedeEliminar  = (bool)($permisosMarcas->eliminar  ?? false);
     $tieneAcceso    = (bool)($permisosMarcas->acceso    ?? false);
-    $puedeEditar    = $puedeCrear || $puedeModificar;
+    $puedeEditar    = ($puedeCrear || $puedeModificar) && !$soloLectura;
+    $configVista    = [
+        'soloLectura' => $soloLectura,
+        'folioInicial' => $folioInicial,
+    ];
 
     // Columnas editables con su "type" para JS
     $colsEditables = [
@@ -105,34 +112,37 @@
                         @foreach($colsEditables as $col)
                             <td class="px-3 py-3 text-center {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
                                 <div class="relative">
-                                    @if($puedeEditar)
-                                        <button type="button"
-                                            class="valor-display-btn w-full min-w-[70px] px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700
-                                                   hover:bg-blue-50 hover:border-blue-400 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
-                                                   transition-all duration-200 flex items-center justify-between bg-white shadow-sm"
-                                            data-telar="{{ $telar->NoTelarId }}" data-type="{{ $col['key'] }}">
-                                            <span class="valor-display-text text-blue-600 font-semibold">
-                                                {{ $col['key'] === 'efi' ? '0%' : '0' }}
-                                            </span>
+                                    @php
+                                        $btnClasses = 'valor-display-btn w-full min-w-[70px] px-3 py-2 border rounded text-sm font-medium flex items-center justify-between transition-all duration-200';
+                                        $btnClasses .= $puedeEditar
+                                            ? ' border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm'
+                                            : ' border-gray-200 text-gray-500 cursor-not-allowed bg-gray-100 shadow-none opacity-90';
+                                        $textClasses = 'valor-display-text font-semibold ' . ($puedeEditar ? 'text-blue-600' : 'text-gray-500');
+                                    @endphp
+                                    <button type="button"
+                                        class="{{ $btnClasses }}"
+                                        data-telar="{{ $telar->NoTelarId }}"
+                                        data-type="{{ $col['key'] }}"
+                                        @if(!$puedeEditar) disabled @endif>
+                                        <span class="{{ $textClasses }}">
+                                            {{ $col['key'] === 'efi' ? '0%' : '0' }}
+                                        </span>
+                                        @if($puedeEditar)
                                             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                             </svg>
-                                        </button>
+                                        @else
+                                            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                            </svg>
+                                        @endif
+                                    </button>
 
+                                    @if($puedeEditar)
                                         <div class="valor-edit-container hidden absolute left-1/2 top-full mt-1 -translate-x-1/2 z-[9999]">
                                             <div class="number-scroll-container w-56 h-12 overflow-x-auto overflow-y-hidden bg-white border border-gray-300 rounded-md shadow-lg scrollbar-hide">
                                                 <div class="number-options-flex px-2 py-1 flex items-center space-x-1 min-w-max whitespace-nowrap"></div>
                                             </div>
-                                        </div>
-                                    @else
-                                        <div class="w-full min-w-[70px] px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-400 bg-gray-100
-                                                    cursor-not-allowed flex items-center justify-between">
-                                            <span class="valor-display-text text-gray-500 font-semibold">
-                                                {{ $col['key'] === 'efi' ? '-' : '0' }}
-                                            </span>
-                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
-                                            </svg>
                                         </div>
                                     @endif
                                 </div>
@@ -151,6 +161,7 @@
 /* =========================
    Estado global + helpers
    ========================= */
+const PAGE_MODE = @json($configVista);
 let currentFolio   = null;
 let isEditing      = false;
 let isNewRecord    = true;
@@ -206,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.turno) elements.turno.addEventListener('change', guardarAutomatico);
 
     // Edición por folio o nuevo
-    const folioUrl = new URLSearchParams(window.location.search).get('folio');
+    const folioUrl = PAGE_MODE.folioInicial || new URLSearchParams(window.location.search).get('folio');
 
     if (folioUrl) {
         // Modo edición: cargar marca existente primero, luego datos STD
@@ -219,15 +230,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Error al cargar marca existente:', err);
                 Swal.fire('Error', 'No se pudo cargar la marca', 'error');
             });
-    } else {
+    } else if (!PAGE_MODE.soloLectura) {
         // Modo nuevo: generar folio y cargar datos STD en paralelo
         cargarDatosSTD(false);
         generarNuevoFolio();
+    } else {
+        Swal.fire('Aviso', 'No se pudo determinar el folio a visualizar.', 'warning');
     }
 
     // Guardar al salir
-    window.addEventListener('beforeunload', () => currentFolio && guardarDatosTabla());
-    window.addEventListener('popstate',     () => currentFolio && guardarDatosTabla());
+    if (!PAGE_MODE.soloLectura) {
+        window.addEventListener('beforeunload', () => currentFolio && guardarDatosTabla());
+        window.addEventListener('popstate',     () => currentFolio && guardarDatosTabla());
+    }
 });
 
 /* =========================
@@ -287,6 +302,7 @@ function parseValorDisplay(text, tipo) {
 }
 
 function toggleValorSelector(btn) {
+    if (PAGE_MODE.soloLectura || btn?.disabled) return;
     closeAllValorSelectors();
     const selector = btn.parentElement.querySelector('.valor-edit-container');
     const tipo     = btn.dataset.type;
@@ -370,11 +386,13 @@ function scrollToCurrentValue(selector, value) {
    Guardado automático
    ========================= */
 function guardarAutomatico() {
+    if (PAGE_MODE.soloLectura) return;
     if (guardarTimeout) clearTimeout(guardarTimeout);
     guardarTimeout = setTimeout(guardarDatosTabla, 1000);
 }
 
 function guardarDatosTabla() {
+    if (PAGE_MODE.soloLectura) return;
     if (!currentFolio) return;
 
     const lineas = [];
@@ -424,6 +442,7 @@ function guardarDatosTabla() {
    Folio + datos STD
    ========================= */
 function generarNuevoFolio() {
+    if (PAGE_MODE.soloLectura) return Promise.resolve();
     return fetch('/modulo-marcas/generar-folio', {
         method: 'POST',
         headers: {

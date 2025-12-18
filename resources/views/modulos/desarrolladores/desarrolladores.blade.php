@@ -33,14 +33,16 @@
                         </div>
 
                         <!-- Contenedor con scroll: horizontal para columnas y vertical limitado -->
-                        <div class="overflow-x-auto overflow-y-auto max-h-96 rounded-lg border border-gray-200">
-                            <table class="min-w-full divide-y divide-red-200">
+                        <div class="overflow-y-auto max-h-96 rounded-lg border border-gray-200">
+                            <table class="w-full table-fixed divide-y divide-red-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Orden</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Cambio</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modelo</th>
-                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Seleccionar</th>
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salon de Tejido</th>
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Orden</th>
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Cambio</th>
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tamaño Clave</th>
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modelo</th>
+                                        <th scope="col" class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Seleccionar</th>
                                     </tr>
                                 </thead>
                                 <tbody id="bodyProducciones" class="bg-white divide-y divide-gray-200">
@@ -82,30 +84,34 @@
                             <select id="NumeroJulioRizo" name="NumeroJulioRizo" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                 <option value="" disabled selected>Selecciona un Julio</option>
                                 @foreach ($juliosRizo ?? [] as $julio)
-                                    <option value="{{ $julio->NoJulio }}">{{ $julio->NoJulio }}</option>
+                                    @if($julio)
+                                        <option value="{{ data_get($julio, 'NoJulio') ?? '' }}">{{ data_get($julio, 'NoJulio') ?? '' }}</option>
+                                    @endif
                                 @endforeach
                             </select>
                         </div>
 
                         <div>
-                            <label for="NumeroJulioPie" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Pie <span class="text-red-500">*</span></label>
-                            <select id="NumeroJulioPie" name="NumeroJulioPie" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="NumeroJulioPie" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Pie</label>
+                            <select id="NumeroJulioPie" name="NumeroJulioPie" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                 <option value="" disabled selected>Selecciona un Julio</option>
                                 @foreach ($juliosPie ?? [] as $julio)
-                                    <option value="{{ $julio->NoJulio }}">{{ $julio->NoJulio }}</option>
+                                    @if($julio)
+                                        <option value="{{ data_get($julio, 'NoJulio') ?? '' }}">{{ data_get($julio, 'NoJulio') ?? '' }}</option>
+                                    @endif
                                 @endforeach
                             </select>
                         </div>
 
                         <div>
-                            <label for="TotalPasadasDibujo" class="block text-sm font-medium text-gray-700 mb-1">Total Pasadas del Dibujo <span class="text-red-500">*</span></label>
+                            <label for="TotalPasadasDibujo" class="block text-sm font-medium text-gray-700 mb-1">Total Pasadas del Dibujo</label>
                             <input type="number" id="TotalPasadasDibujo" name="TotalPasadasDibujo" min="1000" step="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Ingrese total de pasadas">
                         </div>
 
                         <div>
-                            <label for="EficienciaInicio" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia de Inicio <span class="text-red-500">*</span></label>
+                            <label for="EficienciaInicio" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia de Inicio</label>
                             <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1" data-suggested="80">
-                                <input type="number" id="EficienciaInicio" name="EficienciaInicio" min="0" step="1" required class="hidden">
+                                <input type="number" id="EficienciaInicio" name="EficienciaInicio" min="0" step="1" class="hidden">
                                 <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
                                     <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -117,19 +123,19 @@
                         </div>
 
                         <div>
-                            <label for="HoraInicio" class="block text-sm font-medium text-gray-700 mb-1">Hora Inicio <span class="text-red-500">*</span></label>
-                            <input type="time" id="HoraInicio" name="HoraInicio" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="HoraInicio" class="block text-sm font-medium text-gray-700 mb-1">Hora Inicio</label>
+                            <input type="time" id="HoraInicio" name="HoraInicio" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                         </div>
 
                         <div>
-                            <label for="HoraFinal" class="block text-sm font-medium text-gray-700 mb-1">Hora Final <span class="text-red-500">*</span></label>
-                            <input type="time" id="HoraFinal" name="HoraFinal" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="HoraFinal" class="block text-sm font-medium text-gray-700 mb-1">Hora Final</label>
+                            <input type="time" id="HoraFinal" name="HoraFinal" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                         </div>
 
                         <div>
-                            <label for="EficienciaFinal" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Final <span class="text-red-500">*</span></label>
+                            <label for="EficienciaFinal" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Final</label>
                             <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1" data-suggested="80">
-                                <input type="number" id="EficienciaFinal" name="EficienciaFinal" min="0" step="1" required class="hidden">
+                                <input type="number" id="EficienciaFinal" name="EficienciaFinal" min="0" step="1" class="hidden">
                                 <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
                                     <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -141,34 +147,36 @@
                         </div>
 
                         <div>
-                            <label for="Desarrollador" class="block text-sm font-medium text-gray-700 mb-1">Desarrollador <span class="text-red-500">*</span></label>
-                            <select id="Desarrollador" name="Desarrollador" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="Desarrollador" class="block text-sm font-medium text-gray-700 mb-1">Desarrollador</label>
+                            <select id="Desarrollador" name="Desarrollador" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                 <option value="" disabled selected>Selecciona un Desarrollador</option>
                                 @foreach ($desarrolladores ?? [] as $desarrollador)
-                                    <option value="{{ $desarrollador->nombre }}">{{ $desarrollador->nombre }}</option>
+                                    @if($desarrollador)
+                                        <option value="{{ data_get($desarrollador, 'nombre') ?? '' }}">{{ data_get($desarrollador, 'nombre') ?? '' }}</option>
+                                    @endif
                                 @endforeach
                             </select>
                         </div>
 
                         <div>
-                            <label for="TramaAnchoPeine" class="block text-sm font-medium text-gray-700 mb-1">Trama Ancho de Peine <span class="text-red-500">*</span></label>
-                            <input type="number" id="TramaAnchoPeine" name="TramaAnchoPeine" required step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                            <label for="TramaAnchoPeine" class="block text-sm font-medium text-gray-700 mb-1">Trama Ancho de Peine</label>
+                            <input type="number" id="TramaAnchoPeine" name="TramaAnchoPeine" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
                         </div>
 
                         <div>
-                            <label for="DesperdicioTrama" class="block text-sm font-medium text-gray-700 mb-1">Desperdicio Trama <span class="text-red-500">*</span></label>
-                            <input type="number" id="DesperdicioTrama" name="DesperdicioTrama" required step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                            <label for="DesperdicioTrama" class="block text-sm font-medium text-gray-700 mb-1">Desperdicio Trama</label>
+                            <input type="number" id="DesperdicioTrama" name="DesperdicioTrama" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
                         </div>
 
                         <div>
-                            <label for="LongitudLuchaTot" class="block text-sm font-medium text-gray-700 mb-1">Long. De Lucha Tot. <span class="text-red-500">*</span></label>
-                            <input type="number" id="LongitudLuchaTot" name="LongitudLuchaTot" required step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                            <label for="LongitudLuchaTot" class="block text-sm font-medium text-gray-700 mb-1">Long. De Lucha Tot.</label>
+                            <input type="number" id="LongitudLuchaTot" name="LongitudLuchaTot" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
                         </div>
                     </div>
 
                     <!-- Codificación Modelo - Sección separada con auto-avance -->
                     <div class="mt-6 pt-6 border-t">
-                        <label class="block text-sm font-medium text-gray-700 mb-3">Codificación Modelo <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Codificación Modelo</label>
                         <div class="overflow-x-auto pb-2">
                             <div class="flex justify-start items-center gap-2 min-w-max px-2">
                                 <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="0" required>
@@ -187,14 +195,15 @@
                                 <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="13" required>
                                 <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="14" required>
                                 <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="15" required>
-                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="16" required>
-                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="17" required>
-                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="18" required>
-                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="19" required>
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="16">
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="17">
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="18">
+                                <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="19">
                                 <span class="text-lg font-bold text-gray-600">.JCS</span>
                             </div>
                         </div>
                         <input type="hidden" id="CodificacionModelo" name="CodificacionModelo" required>
+                        {{-- <p id="codificacionNoData" class="mt-2 text-sm text-red-500 hidden">No se obtuvieron datos.</p>  --}}
                     </div>
 
                     <!-- Tabla de Detalles de la Orden -->
@@ -204,16 +213,17 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artículo</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calibre</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hilo</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fibra</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cod Color</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre Color</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pasadas <span class="text-red-500">*</span></th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pasadas<span class="text-red-500">*</span></th>
                                     </tr>
                                 </thead>
                                 <tbody id="bodyDetallesOrden" class="bg-white divide-y divide-gray-200">
                                     <tr>
-                                        <td colspan="5" class="px-6 py-4 text-center text-gray-500 text-sm">
+                                        <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm">
                                             Selecciona una producción para ver los detalles
                                         </td>
                                     </tr>
@@ -251,6 +261,8 @@
         const numberSelectors = [];
         const codificacionInputs = document.querySelectorAll('.codificacion-char');
         const codificacionHidden = document.getElementById('CodificacionModelo');
+        const codificacionNoData = document.getElementById('codificacionNoData');
+        let codificacionFetchAttempted = false;
 
         // Auto-focus de Total Pasadas del Dibujo a Eficiencia Inicio
         const totalPasadasDibujo = document.getElementById('TotalPasadasDibujo');
@@ -316,7 +328,28 @@
 
         function updateCodificacionModelo() {
             const fullCode = Array.from(codificacionInputs).map(input => input.value).join('');
-            codificacionHidden.value = fullCode + '.JCS';
+            codificacionHidden.value = fullCode ? (fullCode + '.JCS') : '';
+            updateCodificacionNoDataMessage();
+        }
+
+        function updateCodificacionNoDataMessage() {
+            if (!codificacionNoData) return;
+            const shouldShow = codificacionFetchAttempted && !codificacionHidden.value;
+            codificacionNoData.classList.toggle('hidden', !shouldShow);
+        }
+
+        function setCodificacionFromCodigoDibujo(codigoDibujo) {
+            const normalized = String(codigoDibujo ?? '')
+                .toUpperCase()
+                .trim()
+                .replace(/\.JC5$/i, '')
+                .replace(/\.JCS$/i, '')
+                .replace(/\s+/g, '');
+
+            codificacionInputs.forEach((input, index) => {
+                input.value = normalized[index] ?? '';
+            });
+            updateCodificacionModelo();
         }
 
         // Evento al seleccionar un telar - Cargar producciones en tabla
@@ -331,7 +364,7 @@
             // Mostrar loading
             bodyProducciones.innerHTML = `
                 <tr>
-                    <td colspan="4" class="px-6 py-4 text-center text-gray-500">
+                    <td colspan="6" class="px-3 py-3 text-center text-gray-500">
                         <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -353,19 +386,27 @@
                             const row = document.createElement('tr');
                             row.className = 'hover:bg-gray-50 transition-colors';
                             row.innerHTML = `
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <td class="px-3 py-3 whitespace-nowrap text-xs font-medium text-gray-900">
+                                    ${produccion.SalonTejidoId ?? 'N/A'}
+                                </td>
+                                <td class="px-3 py-3 whitespace-nowrap text-xs font-medium text-gray-900">
                                     ${produccion.NoProduccion}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                <td class="px-3 py-3 whitespace-nowrap text-xs text-gray-600">
                                     ${produccion.FechaInicio ? new Date(produccion.FechaInicio).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'}) : 'N/A'}
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600">
+                                <td class="px-3 py-3 whitespace-nowrap text-xs text-gray-600">
+                                    ${produccion.TamanoClave ?? 'N/A'}
+                                </td>
+                                <td class="px-3 py-3 text-xs text-gray-600 break-words">
                                     ${produccion.NombreProducto || 'N/A'}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                <td class="px-3 py-3 whitespace-nowrap text-center">
                                     <input type="checkbox" 
                                            class="checkbox-produccion w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
                                            data-telar="${telarId}"
+                                           data-salon="${produccion.SalonTejidoId ?? ''}"
+                                           data-tamano="${produccion.TamanoClave ?? ''}"
                                            data-produccion="${produccion.NoProduccion}"
                                            data-modelo="${produccion.NombreProducto || ''}"
                                            onchange="seleccionarProduccion(this)">
@@ -382,7 +423,7 @@
                     console.error('Error:', error);
                     bodyProducciones.innerHTML = `
                         <tr>
-                            <td colspan="4" class="px-6 py-4 text-center text-red-500">
+                            <td colspan="6" class="px-3 py-3 text-center text-red-500">
                                 Error al cargar las producciones
                             </td>
                         </tr>
@@ -403,6 +444,8 @@
                 const telarId = checkbox.dataset.telar;
                 const noProduccion = checkbox.dataset.produccion;
                 const modelo = checkbox.dataset.modelo || '';
+                const salonTejidoId = checkbox.dataset.salon || '';
+                const tamanoClave = checkbox.dataset.tamano || '';
                 
                 // Mostrar formulario inline y setear datos
                 inputTelarId.value = telarId;
@@ -410,6 +453,28 @@
                 formTelarId.textContent = telarId;
                 formNoProduccion.textContent = noProduccion;
                 formNombreProducto.textContent = modelo || '-';
+
+                // Obtener CodigoDibujo por SalonTejidoId + TamanoClave y auto-llenar codificación
+                codificacionFetchAttempted = true;
+                updateCodificacionNoDataMessage();
+
+                if (salonTejidoId && tamanoClave) {
+                    fetch(`/desarrolladores/modelo-codificado/${encodeURIComponent(salonTejidoId)}/${encodeURIComponent(tamanoClave)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.codigoDibujo) {
+                                setCodificacionFromCodigoDibujo(data.codigoDibujo);
+                            } else {
+                                setCodificacionFromCodigoDibujo('');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error al obtener CodigoDibujo:', error);
+                            setCodificacionFromCodigoDibujo('');
+                        });
+                } else {
+                    setCodificacionFromCodigoDibujo('');
+                }
 
                 // Resetear y preparar selectores numéricos
                 resetNumberSelectors();
@@ -429,7 +494,7 @@
             // Mostrar loading
             bodyDetallesOrden.innerHTML = `
                 <tr>
-                    <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
                         <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -446,29 +511,45 @@
                     if (data.success && data.detalles.length > 0) {
                         bodyDetallesOrden.innerHTML = '';
                         data.detalles.forEach((detalle, index) => {
+                            const calibre = detalle.Calibre ?? detalle.calibre ?? '';
+                            const hilo = detalle.Hilo ?? detalle.hilo ?? '';
+                            const fibra = detalle.Fibra ?? detalle.fibra ?? '';
+                            const codColor = detalle.CodColor ?? detalle.codColor ?? '';
+                            const nombreColor = detalle.NombreColor ?? detalle.nombreColor ?? '';
+                            const pasadasValue = detalle.Pasadas ?? detalle.pasadas ?? '';
+                            const pasadasKey = detalle.pasadasField ?? detalle.pasadas_key ?? index;
+                            const inputName = `pasadas[${pasadasKey}]`;
+                            const valueAttribute = pasadasValue !== '' && pasadasValue !== null
+                                ? `value="${pasadasValue}"`
+                                : '';
+
                             const row = document.createElement('tr');
                             row.className = 'hover:bg-gray-50 transition-colors';
                             row.innerHTML = `
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    ${detalle.Articulo || '-'}
+                                    ${calibre || '-'}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    ${detalle.Fibra || '-'}
+                                    ${hilo || '-'}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    ${detalle.CodColor || '-'}
+                                    ${fibra || '-'}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-600">
-                                    ${detalle.NombreColor || '-'}
+                                    ${codColor || '-'}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600">
+                                    ${nombreColor || '-'}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <input type="number" 
-                                           name="pasadas[${index}]" 
+                                           name="${inputName}"
                                            min="1" 
                                            step="1" 
                                            required
                                            class="w-24 px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                           placeholder="0">
+                                           placeholder="0"
+                                           ${valueAttribute}>
                                 </td>
                             `;
                             bodyDetallesOrden.appendChild(row);
@@ -476,9 +557,9 @@
                     } else {
                         bodyDetallesOrden.innerHTML = `
                             <tr>
-                                <td colspan="5" class="px-6 py-4 text-center text-gray-500 text-sm">
-                                    No se encontraron detalles para esta orden
-                                </td>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm">
+                                No se encontraron detalles para esta orden
+                            </td>
                             </tr>
                         `;
                     }
@@ -487,7 +568,7 @@
                     console.error('Error:', error);
                     bodyDetallesOrden.innerHTML = `
                         <tr>
-                            <td colspan="5" class="px-6 py-4 text-center text-red-500">
+                            <td colspan="6" class="px-6 py-4 text-center text-red-500">
                                 Error al cargar los detalles
                             </td>
                         </tr>
@@ -501,12 +582,14 @@
             resetNumberSelectors();
             codificacionInputs.forEach(input => input.value = '');
             codificacionHidden.value = '';
+            codificacionFetchAttempted = false;
+            updateCodificacionNoDataMessage();
             formContainer.classList.add('hidden');
             document.querySelectorAll('.checkbox-produccion').forEach(cb => cb.checked = false);
             // Limpiar tabla de detalles
             document.getElementById('bodyDetallesOrden').innerHTML = `
                 <tr>
-                    <td colspan="5" class="px-6 py-4 text-center text-gray-500 text-sm">
+                    <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm">
                         Selecciona una producción para ver los detalles
                     </td>
                 </tr>
