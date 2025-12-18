@@ -1094,6 +1094,7 @@
     // Selección múltiple para vincular registros existentes
     // =========================
     window.selectedRowsIds = window.selectedRowsIds || new Set();
+    window.selectedRowsOrder = window.selectedRowsOrder || []; // Array para mantener el orden de selección
     window.multiSelectMode = false;
 
     function toggleMultiSelectMode() {
@@ -1113,10 +1114,11 @@
           btn.disabled = false; // Habilitar para activar modo de nuevo
           btn.title = 'Vincular registros existentes - Click para activar modo selección múltiple';
           window.selectedRowsIds.clear();
+          window.selectedRowsOrder = [];
           updateSelectedRowsVisual();
         }
       }
-      toast(window.multiSelectMode ? 'Modo selección múltiple activado. Selecciona al menos 2 registros (sin OrdCompartida) y haz click en "Vincular". Click sin selecciones para cancelar.' : 'Modo selección múltiple desactivado', 'info');
+      toast(window.multiSelectMode ? 'Modo selección múltiple activado. Selecciona al menos 2 registros. Si el primer registro tiene OrdCompartida, se usará ese para vincular los demás. Click sin selecciones para cancelar.' : 'Modo selección múltiple desactivado', 'info');
     }
 
     function toggleRowSelection(row) {
@@ -1125,17 +1127,50 @@
       const id = row.getAttribute('data-id');
       if (!id) return;
 
-      // Verificar si la fila ya tiene OrdCompartida
       const ordCompartida = row.getAttribute('data-ord-compartida');
-      if (ordCompartida && ordCompartida.trim() !== '') {
-        toast('Este registro ya tiene OrdCompartida asignado y no se puede vincular', 'warning');
-        return;
+      const tieneOrdCompartida = ordCompartida && ordCompartida.trim() !== '';
+
+      // Si NO hay ningún registro seleccionado todavía, permitir seleccionar cualquier registro
+      // (con o sin OrdCompartida) - el primero seleccionado determinará las reglas
+      if (window.selectedRowsIds.size === 0) {
+        // Permitir seleccionar cualquier registro como primer registro
+      } else {
+        // Ya hay al menos un registro seleccionado, aplicar validaciones
+        // Obtener el OrdCompartida del primer registro seleccionado (si existe)
+        // Usar el array de orden para asegurar que el primero es realmente el primero seleccionado
+        let primerOrdCompartida = null;
+        if (window.selectedRowsOrder.length > 0) {
+          const primerId = window.selectedRowsOrder[0];
+          const primerRow = window.allRows?.find(r => r.getAttribute('data-id') === primerId);
+          if (primerRow) {
+            const primerOrd = primerRow.getAttribute('data-ord-compartida');
+            if (primerOrd && primerOrd.trim() !== '') {
+              primerOrdCompartida = primerOrd.trim();
+            }
+          }
+        }
+
+        // Validación solo si ya hay registros seleccionados:
+        // - Si el primer registro NO tiene OrdCompartida y este registro SÍ tiene, no permitir
+        // - Si el primer registro SÍ tiene OrdCompartida y este NO tiene, permitir (usará el del primero)
+        // - Si ambos tienen OrdCompartida pero son diferentes, no permitir
+        if (!primerOrdCompartida && tieneOrdCompartida) {
+          toast('No se puede vincular: El primer registro seleccionado no tiene OrdCompartida, pero este registro sí lo tiene', 'warning');
+          return;
+        }
+
+        if (primerOrdCompartida && tieneOrdCompartida && ordCompartida.trim() !== primerOrdCompartida) {
+          toast(`No se puede vincular: Este registro tiene OrdCompartida ${ordCompartida.trim()}, pero el primer registro tiene ${primerOrdCompartida}`, 'warning');
+          return;
+        }
       }
 
       const cells = row.querySelectorAll('td');
 
       if (window.selectedRowsIds.has(id)) {
         window.selectedRowsIds.delete(id);
+        // Remover del array de orden
+        window.selectedRowsOrder = window.selectedRowsOrder.filter(selectedId => selectedId !== id);
         row.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-500', 'text-white');
         // Remover text-white de las celdas
         cells.forEach(cell => {
@@ -1144,6 +1179,10 @@
         });
       } else {
         window.selectedRowsIds.add(id);
+        // Agregar al array de orden (solo si no está ya)
+        if (!window.selectedRowsOrder.includes(id)) {
+          window.selectedRowsOrder.push(id);
+        }
         row.classList.add('ring-2', 'ring-blue-500', 'bg-blue-500', 'text-white');
         // Aplicar text-white a todas las celdas
         cells.forEach(cell => {
@@ -1152,22 +1191,58 @@
         });
       }
 
+      // Actualizar visualización de todos los registros para reflejar el nuevo estado de bloqueo
+      updateSelectedRowsVisual();
       updateVincularButtonState();
     }
 
     function updateSelectedRowsVisual() {
       const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row');
+
+      // Obtener el OrdCompartida del primer registro seleccionado (si existe)
+      // Usar el array de orden para asegurar que el primero es realmente el primero seleccionado
+      let primerOrdCompartida = null;
+      if (window.selectedRowsOrder.length > 0) {
+        const primerId = window.selectedRowsOrder[0];
+        const primerRow = rows.find(r => r.getAttribute('data-id') === primerId);
+        if (primerRow) {
+          const primerOrd = primerRow.getAttribute('data-ord-compartida');
+          if (primerOrd && primerOrd.trim() !== '') {
+            primerOrdCompartida = primerOrd.trim();
+          }
+        }
+      }
+
       rows.forEach(row => {
         const id = row.getAttribute('data-id');
         const cells = row.querySelectorAll('td');
         const ordCompartida = row.getAttribute('data-ord-compartida');
         const tieneOrdCompartida = ordCompartida && ordCompartida.trim() !== '';
 
-        // Si tiene OrdCompartida, marcarla como bloqueada visualmente
-        if (tieneOrdCompartida && window.multiSelectMode) {
+        // Lógica de bloqueo visual:
+        // - Si NO hay ningún registro seleccionado: NO bloquear nada (el usuario puede seleccionar primero uno con o sin OrdCompartida)
+        // - Si el primer registro NO tiene OrdCompartida y este registro SÍ tiene, bloquear
+        // - Si el primer registro SÍ tiene OrdCompartida y este NO tiene, permitir (usará el del primero)
+        // - Si ambos tienen OrdCompartida pero son diferentes, bloquear
+        // - Si ambos tienen el mismo OrdCompartida, permitir
+        let debeBloquear = false;
+        let mensajeBloqueo = '';
+
+        if (window.multiSelectMode && window.selectedRowsIds.size > 0) {
+          // Solo aplicar bloqueo si ya hay al menos un registro seleccionado
+          if (!primerOrdCompartida && tieneOrdCompartida) {
+            debeBloquear = true;
+            mensajeBloqueo = 'No se puede vincular: El primer registro seleccionado no tiene OrdCompartida';
+          } else if (primerOrdCompartida && tieneOrdCompartida && ordCompartida.trim() !== primerOrdCompartida) {
+            debeBloquear = true;
+            mensajeBloqueo = `No se puede vincular: Este registro tiene OrdCompartida ${ordCompartida.trim()}, pero el primer registro tiene ${primerOrdCompartida}`;
+          }
+        }
+
+        if (debeBloquear) {
           row.classList.add('opacity-50', 'cursor-not-allowed');
           row.classList.remove('hover:bg-blue-50');
-          row.title = 'Este registro ya tiene OrdCompartida y no se puede vincular';
+          row.title = mensajeBloqueo;
         } else {
           row.classList.remove('opacity-50', 'cursor-not-allowed');
           row.classList.add('hover:bg-blue-50');
@@ -1239,14 +1314,30 @@
         return;
       }
 
+      // Usar el array de orden para asegurar que el primero es realmente el primero seleccionado
+      const selectedIdsOrdenados = window.selectedRowsOrder.filter(id => selectedIds.includes(id));
+
+      // Obtener el OrdCompartida del primer registro para el mensaje
+      const primerId = selectedIdsOrdenados[0] || selectedIds[0];
+      const primerRow = window.allRows?.find(r => r.getAttribute('data-id') === primerId);
+      const primerOrdCompartida = primerRow?.getAttribute('data-ord-compartida');
+      const primerTieneOrdCompartida = primerOrdCompartida && primerOrdCompartida.trim() !== '';
+
       // Confirmar acción
       if (typeof Swal === 'undefined') {
-        if (!confirm(`¿Vincular ${selectedIds.length} registro(s) con un nuevo OrdCompartida?`)) return;
+        const mensaje = primerTieneOrdCompartida
+          ? `¿Vincular ${selectedIds.length} registro(s) usando el OrdCompartida existente (${primerOrdCompartida.trim()})?`
+          : `¿Vincular ${selectedIds.length} registro(s) con un nuevo OrdCompartida?`;
+        if (!confirm(mensaje)) return;
         doVincular(selectedIds);
       } else {
+        const mensajeHtml = primerTieneOrdCompartida
+          ? `Se vincularán <strong>${selectedIds.length} registro(s)</strong> usando el OrdCompartida existente: <strong>${primerOrdCompartida.trim()}</strong>.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`
+          : `Se vincularán <strong>${selectedIds.length} registro(s)</strong> con un nuevo OrdCompartida.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`;
+
         Swal.fire({
           title: '¿Vincular registros?',
-          html: `Se vincularán <strong>${selectedIds.length} registro(s)</strong> con un nuevo OrdCompartida.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`,
+          html: mensajeHtml,
           icon: 'question',
           showCancelButton: true,
           confirmButtonText: 'Sí, vincular',
@@ -1264,13 +1355,17 @@
     function doVincular(registrosIds) {
       PT.loader.show();
 
+      // Usar el array de orden para asegurar que el primero es realmente el primero seleccionado
+      const registrosIdsOrdenados = window.selectedRowsOrder.filter(id => registrosIds.includes(id));
+      const idsParaEnviar = registrosIdsOrdenados.length > 0 ? registrosIdsOrdenados : registrosIds;
+
       fetch('{{ route("programa-tejido.vincular-registros-existentes") }}', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
         },
-        body: JSON.stringify({ registros_ids: registrosIds })
+        body: JSON.stringify({ registros_ids: idsParaEnviar })
       })
       .then(r => r.json())
       .then(data => {
@@ -1280,6 +1375,7 @@
           toast(data.message || 'Registros vinculados correctamente', 'success');
           // Limpiar selección y desactivar modo
           window.selectedRowsIds.clear();
+          window.selectedRowsOrder = [];
           window.multiSelectMode = false;
           updateSelectedRowsVisual();
           updateVincularButtonState();
@@ -1308,30 +1404,22 @@
 
     // Integrar selección múltiple en el handler existente
     document.addEventListener('DOMContentLoaded', () => {
-      // Interceptar clicks en filas cuando está activo el modo selección múltiple
-      const tb = tbodyEl();
-      if (tb) {
-        tb.addEventListener('click', (e) => {
-          if (!window.multiSelectMode) return;
+        // Interceptar clicks en filas cuando está activo el modo selección múltiple
+        const tb = tbodyEl();
+        if (tb) {
+          tb.addEventListener('click', (e) => {
+            if (!window.multiSelectMode) return;
 
-          const row = e.target.closest('.selectable-row');
-          if (!row) return;
+            const row = e.target.closest('.selectable-row');
+            if (!row) return;
 
-          // Verificar si la fila tiene OrdCompartida (bloqueada)
-          const ordCompartida = row.getAttribute('data-ord-compartida');
-          if (ordCompartida && ordCompartida.trim() !== '') {
+            // La validación de OrdCompartida se hace en toggleRowSelection
+            // Si estamos en modo selección múltiple, manejar la selección
             e.preventDefault();
             e.stopPropagation();
-            toast('Este registro ya tiene OrdCompartida asignado y no se puede vincular', 'warning');
-            return;
-          }
-
-          // Si estamos en modo selección múltiple, manejar la selección
-          e.preventDefault();
-          e.stopPropagation();
-          toggleRowSelection(row);
-        }, true); // Usar capture phase para interceptar antes que otros handlers
-      }
+            toggleRowSelection(row);
+          }, true); // Usar capture phase para interceptar antes que otros handlers
+        }
     });
 
     // =========================

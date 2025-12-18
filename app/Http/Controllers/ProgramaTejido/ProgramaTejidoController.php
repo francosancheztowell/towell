@@ -1224,29 +1224,72 @@ class ProgramaTejidoController extends Controller
             ], 404);
         }
 
-        // Verificar que no haya registros que ya tengan OrdCompartida
-        $conOrdCompartida = $registros->filter(function ($registro) {
-            return !empty($registro->OrdCompartida) && trim((string)$registro->OrdCompartida) !== '';
-        });
+        // Obtener el primer registro (el primero en el array de IDs - orden de selección)
+        // El array viene ordenado según el orden de selección del usuario
+        $primerId = $registrosIds[0];
+        $primerRegistro = $registros->firstWhere('Id', $primerId);
 
-        if ($conOrdCompartida->count() > 0) {
+        if (!$primerRegistro) {
             return response()->json([
                 'success' => false,
-                'message' => 'No se pueden vincular registros que ya tienen OrdCompartida asignado. Los siguientes registros ya tienen OrdCompartida: ' . $conOrdCompartida->pluck('Id')->implode(', ')
-            ], 422);
+                'message' => 'No se encontró el primer registro seleccionado'
+            ], 404);
         }
 
-        // Obtener un nuevo OrdCompartida disponible
-        $nuevoOrdCompartida = $this->obtenerNuevoOrdCompartidaDisponible();
+        // Determinar el OrdCompartida a usar
+        $ordCompartidaAVincular = null;
+        $primerOrdCompartidaRaw = $primerRegistro->OrdCompartida;
+        $primerTieneOrdCompartida = !empty($primerOrdCompartidaRaw) && trim((string)$primerOrdCompartidaRaw) !== '';
+
+        if ($primerTieneOrdCompartida) {
+            // Si el primer registro ya tiene OrdCompartida, usar ese
+            $ordCompartidaAVincular = (int) trim((string)$primerOrdCompartidaRaw);
+
+            // Validar que los demás registros no tengan un OrdCompartida diferente
+            $otrosRegistros = $registros->reject(fn($r) => $r->Id === $primerId);
+            $conOrdCompartidaDiferente = $otrosRegistros->filter(function ($registro) use ($ordCompartidaAVincular) {
+                $ordRegistro = !empty($registro->OrdCompartida) ? (int) trim((string)$registro->OrdCompartida) : null;
+                return $ordRegistro !== null && $ordRegistro !== $ordCompartidaAVincular;
+            });
+
+            if ($conOrdCompartidaDiferente->count() > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden vincular: El primer registro seleccionado tiene OrdCompartida ' . $ordCompartidaAVincular . ', pero algunos registros tienen un OrdCompartida diferente. Registros con OrdCompartida diferente: ' . $conOrdCompartidaDiferente->pluck('Id')->implode(', ')
+                ], 422);
+            }
+        } else {
+            // Si el primer registro NO tiene OrdCompartida, validar que ninguno de los otros tenga
+            $otrosRegistros = $registros->reject(fn($r) => $r->Id === $primerId);
+            $conOrdCompartida = $otrosRegistros->filter(function ($registro) {
+                return !empty($registro->OrdCompartida) && trim((string)$registro->OrdCompartida) !== '';
+            });
+
+            if ($conOrdCompartida->count() > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden vincular: El primer registro seleccionado (ID: ' . $primerId . ') no tiene OrdCompartida, pero los siguientes registros sí lo tienen: ' . $conOrdCompartida->pluck('Id')->implode(', ') . '. Por favor, selecciona primero un registro que ya tenga OrdCompartida si deseas vincular con otros que también lo tengan.'
+                ], 422);
+            }
+
+            // Crear un nuevo OrdCompartida disponible
+            $ordCompartidaAVincular = $this->obtenerNuevoOrdCompartidaDisponible();
+        }
 
         DBFacade::beginTransaction();
         ReqProgramaTejido::unsetEventDispatcher();
 
         try {
-            // Actualizar todos los registros con el nuevo OrdCompartida
+            // Actualizar todos los registros con el OrdCompartida determinado
+            // Solo actualizar los que no tienen OrdCompartida o tienen uno diferente
             $actualizados = ReqProgramaTejido::whereIn('Id', $registrosIds)
+                ->where(function ($query) use ($ordCompartidaAVincular) {
+                    $query->whereNull('OrdCompartida')
+                        ->orWhere('OrdCompartida', '!=', $ordCompartidaAVincular)
+                        ->orWhereRaw("LTRIM(RTRIM(CAST(OrdCompartida AS NVARCHAR(50)))) = ''");
+                })
                 ->update([
-                    'OrdCompartida' => $nuevoOrdCompartida,
+                    'OrdCompartida' => $ordCompartidaAVincular,
                     'UpdatedAt' => now()
                 ]);
 
@@ -1263,10 +1306,14 @@ class ProgramaTejidoController extends Controller
                 }
             }
 
+            $mensaje = $primerTieneOrdCompartida
+                ? "Se vincularon {$actualizados} registro(s) usando el OrdCompartida existente: {$ordCompartidaAVincular}"
+                : "Se vincularon {$actualizados} registro(s) con nuevo OrdCompartida: {$ordCompartidaAVincular}";
+
             return response()->json([
                 'success' => true,
-                'message' => "Se vincularon {$actualizados} registro(s) con OrdCompartida: {$nuevoOrdCompartida}",
-                'ord_compartida' => $nuevoOrdCompartida,
+                'message' => $mensaje,
+                'ord_compartida' => $ordCompartidaAVincular,
                 'registros_vinculados' => $actualizados,
                 'registros_ids' => $registrosIds
             ]);
