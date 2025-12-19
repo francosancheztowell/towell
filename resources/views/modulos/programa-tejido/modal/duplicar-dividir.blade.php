@@ -535,11 +535,19 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 		if (!pedidoTempoInput || !totalInput) return;
 
+		const modoActual = getModoActual();
+		const esDividir = modoActual === 'dividir';
 		const pedidoTempo = parseFloat(pedidoTempoInput.value) || 0;
 		const porcentajeSegundos = parseFloat(porcentajeSegundosInput?.value) || 0;
 
-		// Calcular: Total = PedidoTempo * (1 + PorcentajeSegundos / 100)
-		const total = pedidoTempo * (1 + porcentajeSegundos / 100);
+		let total;
+		// En modo dividir, si el porcentaje de segundos es 0, el total es igual al pedido tempo
+		if (esDividir && porcentajeSegundos === 0) {
+			total = pedidoTempo;
+		} else {
+			// Calcular: Total = PedidoTempo * (1 + PorcentajeSegundos / 100)
+			total = pedidoTempo * (1 + porcentajeSegundos / 100);
+		}
 
 		// Actualizar el campo Total solo si hay un valor en PedidoTempo
 		if (pedidoTempo > 0) {
@@ -557,24 +565,138 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		totalInput.dispatchEvent(new Event('input', { bubbles: true }));
 	}
 
+	// Función para sincronizar PedidoTempo y Total bidireccionalmente en modo dividir
+	function sincronizarPedidoTempoYTotal(row, desdeTotal = false) {
+		if (!row) return;
+
+		const modoActual = getModoActual();
+		const esDividir = modoActual === 'dividir';
+
+		if (!esDividir) return;
+
+		const pedidoTempoInput = row.querySelector('input[name="pedido-tempo-destino[]"]');
+		const porcentajeSegundosInput = row.querySelector('input[name="porcentaje-segundos-destino[]"]');
+		const totalInput = row.querySelector('input[name="pedido-destino[]"]');
+
+		if (!pedidoTempoInput || !totalInput) return;
+
+		const porcentajeSegundos = parseFloat(porcentajeSegundosInput?.value) || 0;
+		const total = parseFloat(totalInput.value) || 0;
+		const pedidoTempoActual = pedidoTempoInput.value.trim();
+		const pedidoTempoNum = parseFloat(pedidoTempoActual) || 0;
+
+		// En modo dividir, sincronizar bidireccionalmente
+		if (desdeTotal) {
+			// Si cambió el total, actualizar pedido tempo
+			if (porcentajeSegundos === 0) {
+				// Si porcentaje es 0, total = pedido tempo
+				if (total > 0) {
+					if (total % 1 === 0) {
+						pedidoTempoInput.value = total.toString();
+					} else {
+						pedidoTempoInput.value = total.toFixed(2);
+					}
+				} else {
+					pedidoTempoInput.value = '';
+				}
+			} else {
+				// Si porcentaje > 0, calcular pedido tempo desde total
+				// Total = PedidoTempo * (1 + PorcentajeSegundos / 100)
+				// PedidoTempo = Total / (1 + PorcentajeSegundos / 100)
+				const pedidoTempoCalculado = total / (1 + porcentajeSegundos / 100);
+				if (pedidoTempoCalculado > 0) {
+					if (pedidoTempoCalculado % 1 === 0) {
+						pedidoTempoInput.value = pedidoTempoCalculado.toString();
+					} else {
+						pedidoTempoInput.value = pedidoTempoCalculado.toFixed(2);
+					}
+				} else {
+					pedidoTempoInput.value = '';
+				}
+			}
+		} else {
+			// Si cambió el pedido tempo, actualizar total
+			calcularTotalDesdePedidoTempo(row);
+		}
+	}
+
 	// Función para agregar event listeners de cálculo automático a una fila
 	function agregarListenersCalculoAutomatico(row) {
 		if (!row) return;
 
 		const pedidoTempoInput = row.querySelector('input[name="pedido-tempo-destino[]"]');
 		const porcentajeSegundosInput = row.querySelector('input[name="porcentaje-segundos-destino[]"]');
+		const totalInput = row.querySelector('input[name="pedido-destino[]"]');
 
 		if (pedidoTempoInput) {
 			pedidoTempoInput.addEventListener('input', () => {
-				calcularTotalDesdePedidoTempo(row);
+				sincronizarPedidoTempoYTotal(row, false); // Desde pedido tempo hacia total
 			});
 		}
 
 		if (porcentajeSegundosInput) {
 			porcentajeSegundosInput.addEventListener('input', () => {
+				// Recalcular total desde pedido tempo cuando cambia el porcentaje
 				calcularTotalDesdePedidoTempo(row);
 			});
 		}
+
+		// En modo dividir, cuando cambia el total, sincronizar pedido tempo
+		if (totalInput) {
+			totalInput.addEventListener('input', () => {
+				sincronizarPedidoTempoYTotal(row, true); // Desde total hacia pedido tempo
+			});
+		}
+	}
+
+	// Función para redistribuir el pedido total entre los telares en modo dividir
+	function redistribuirPedidoTotalEntreTelares() {
+		const modoActual = getModoActual();
+		if (modoActual !== 'dividir') return;
+
+		const inputPedidoTotal = document.getElementById('swal-pedido');
+		if (!inputPedidoTotal) return;
+
+		const pedidoTotal = parseFloat(inputPedidoTotal.value) || 0;
+		if (pedidoTotal <= 0) {
+			// Si el pedido total es 0 o vacío, limpiar todos los totales (incluyendo origen)
+			const filas = document.querySelectorAll('#telar-pedido-body tr');
+			filas.forEach((fila) => {
+				const totalInput = fila.querySelector('input[name="pedido-destino[]"]');
+				const pedidoTempoInput = fila.querySelector('input[name="pedido-tempo-destino[]"]');
+				if (totalInput) totalInput.value = '';
+				if (pedidoTempoInput) pedidoTempoInput.value = '';
+			});
+			recomputeState();
+			return;
+		}
+
+		// Obtener todas las filas de telares (incluyendo origen y destinos)
+		const filas = document.querySelectorAll('#telar-pedido-body tr');
+		if (filas.length === 0) return;
+
+		// Dividir equitativamente entre TODOS los telares (origen + destinos)
+		const cantidadPorTelar = pedidoTotal / filas.length;
+
+		filas.forEach((fila) => {
+			const totalInput = fila.querySelector('input[name="pedido-destino[]"]');
+			if (totalInput) {
+				// Actualizar el total (incluyendo el origen)
+				if (cantidadPorTelar % 1 === 0) {
+					totalInput.value = cantidadPorTelar.toString();
+				} else {
+					totalInput.value = cantidadPorTelar.toFixed(2);
+				}
+				// Disparar evento para sincronizar pedido tempo
+				totalInput.dispatchEvent(new Event('input', { bubbles: true }));
+			}
+		});
+
+		// Actualizar resumen de cantidades
+		if (typeof actualizarResumenCantidades === 'function') {
+			actualizarResumenCantidades();
+		}
+		recomputeState();
 	}
 
 	function recomputeState() {
@@ -1073,6 +1195,14 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		recomputeState();
 	});
 
+	// Agregar listener al campo "Pedido Total" para redistribuir en modo dividir
+	const inputPedidoTotal = document.getElementById('swal-pedido');
+	if (inputPedidoTotal) {
+		inputPedidoTotal.addEventListener('input', () => {
+			redistribuirPedidoTotalEntreTelares();
+		});
+	}
+
 	// Elementos para mostrar alerta de clave modelo
 	const alertaClaveModelo = document.getElementById('alerta-clave-modelo');
 	const alertaClaveModeloTexto = document.getElementById('alerta-clave-modelo-texto');
@@ -1334,6 +1464,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 				// Agregar listeners para cálculo automático en la fila principal
 				agregarListenersCalculoAutomatico(filaPrincipal);
+
+				// Sincronizar pedido tempo con total si el porcentaje es 0
+				setTimeout(() => {
+					sincronizarPedidoTempoYTotal(filaPrincipal, true);
+				}, 100);
 			}
 
 			// Re-registrar eventos
@@ -1435,7 +1570,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 							</div>
 						</td>
 						<td class="p-2 border-r border-gray-200">
-							<input type="text" name="pedido-tempo-destino[]" value="${reg.PedidoTempo || ''}"
+							<input type="text" name="pedido-tempo-destino[]" value="${reg.PedidoTempo || (reg.PorcentajeSegundos === 0 || !reg.PorcentajeSegundos ? (reg.TotalPedido || '') : '')}"
 								data-registro-id="${reg.Id}"
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 						</td>
@@ -1567,6 +1702,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 					// Agregar listeners para cálculo automático
 					agregarListenersCalculoAutomatico(newRow);
+
+					// Sincronizar pedido tempo con total si el porcentaje es 0
+					setTimeout(() => {
+						sincronizarPedidoTempoYTotal(newRow, true);
+					}, 50);
 				});
 
 				// Actualizar resumen

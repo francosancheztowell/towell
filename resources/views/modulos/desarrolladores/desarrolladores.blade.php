@@ -288,12 +288,12 @@
             input.addEventListener('input', function(e) {
                 const value = this.value.toUpperCase();
                 this.value = value;
-                
+
                 // Auto-avanzar al siguiente input si se ingresó un caracter
                 if (value.length === 1 && index < codificacionInputs.length - 1) {
                     codificacionInputs[index + 1].focus();
                 }
-                
+
                 // Actualizar el campo hidden con el valor completo
                 updateCodificacionModelo();
             });
@@ -310,18 +310,18 @@
                 e.preventDefault();
                 const pastedText = (e.clipboardData || window.clipboardData).getData('text').toUpperCase();
                 const chars = pastedText.split('');
-                
+
                 chars.forEach((char, i) => {
                     const targetIndex = index + i;
                     if (targetIndex < codificacionInputs.length) {
                         codificacionInputs[targetIndex].value = char;
                     }
                 });
-                
+
                 // Mover foco al último caracter pegado o al final
                 const lastIndex = Math.min(index + chars.length, codificacionInputs.length - 1);
                 codificacionInputs[lastIndex].focus();
-                
+
                 updateCodificacionModelo();
             });
         });
@@ -402,7 +402,7 @@
                                     ${produccion.NombreProducto || 'N/A'}
                                 </td>
                                 <td class="px-3 py-3 whitespace-nowrap text-center">
-                                    <input type="checkbox" 
+                                    <input type="checkbox"
                                            class="checkbox-produccion w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
                                            data-telar="${telarId}"
                                            data-salon="${produccion.SalonTejidoId ?? ''}"
@@ -446,7 +446,7 @@
                 const modelo = checkbox.dataset.modelo || '';
                 const salonTejidoId = checkbox.dataset.salon || '';
                 const tamanoClave = checkbox.dataset.tamano || '';
-                
+
                 // Mostrar formulario inline y setear datos
                 inputTelarId.value = telarId;
                 inputNoProduccion.value = noProduccion;
@@ -469,7 +469,6 @@
                             }
                         })
                         .catch(error => {
-                            console.error('Error al obtener CodigoDibujo:', error);
                             setCodificacionFromCodigoDibujo('');
                         });
                 } else {
@@ -490,7 +489,7 @@
         // Función para cargar detalles de la orden
         function cargarDetallesOrden(noProduccion) {
             const bodyDetallesOrden = document.getElementById('bodyDetallesOrden');
-            
+
             // Mostrar loading
             bodyDetallesOrden.innerHTML = `
                 <tr>
@@ -542,10 +541,10 @@
                                     ${nombreColor || '-'}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <input type="number" 
+                                    <input type="number"
                                            name="${inputName}"
-                                           min="1" 
-                                           step="1" 
+                                           min="1"
+                                           step="1"
                                            required
                                            class="w-24 px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                                            placeholder="0"
@@ -621,7 +620,7 @@
                     closeAllNumberSelectors();
                     if (shouldOpen) {
                         optionsWrapper.classList.remove('hidden');
-                        
+
                         // Si hay un valor sugerido, hacer scroll a ese elemento
                         const suggestedValue = selector.dataset.suggested;
                         if (suggestedValue && hiddenInput.value === '') {

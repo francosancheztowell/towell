@@ -558,15 +558,83 @@
       };
 
       // ==========================
-      // Balanceo automático (igual que traías, pero al final pide preview exacto)
+      // Balanceo automático con fecha fin objetivo
       // ==========================
-      window.aplicarBalanceoAutomatico = function (ordCompartida) {
+      window.aplicarBalanceoAutomatico = async function (ordCompartida) {
         const inputs = document.querySelectorAll('.pedido-input');
-        if (inputs.length < 2) return;
+        if (inputs.length < 2) {
+          return; // Silenciosamente, no hacer nada si hay menos de 2 registros
+        }
 
-        // tu balanceo (sin tocar aquí)...
-        // solo: al final recalcular totales y preview exacto
-        window.calcularTotalesYFechas(null, ordCompartida);
+        // Obtener el input de fecha objetivo del modal
+        const fechaInput = document.getElementById('fecha-fin-objetivo-balanceo');
+        if (!fechaInput) {
+          return; // Silenciosamente, no hacer nada si no existe el input
+        }
+
+        const fechaFinObjetivo = fechaInput.value;
+        if (!fechaFinObjetivo) {
+          fechaInput.focus();
+          return;
+        }
+
+        try {
+          // Llamar al endpoint de balanceo automático
+          const response = await fetch('/planeacion/programa-tejido/balancear-automatico', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              ord_compartida: ordCompartida,
+              fecha_fin_objetivo: fechaFinObjetivo
+            })
+          });
+
+          const data = await response.json();
+
+          if (!data.success) {
+            console.error('Error al balancear:', data.message);
+            return;
+          }
+
+          // Aplicar los cambios calculados a los inputs (silenciosamente, como si fuera cambio manual)
+          if (data.cambios && Array.isArray(data.cambios)) {
+            // Aplicar cambios a los inputs
+            data.cambios.forEach(cambio => {
+              const input = getInputById(cambio.id);
+              if (input) {
+                const nuevoValor = Math.round(cambio.total_pedido);
+                const valorAnterior = Number(input.value) || 0;
+
+                // Solo actualizar si hay cambio
+                if (Math.abs(nuevoValor - valorAnterior) > 0.01) {
+                  input.value = nuevoValor;
+
+                  // Actualizar el dataset original para que el cálculo funcione correctamente
+                  input.dataset.original = nuevoValor;
+
+                  // Disparar evento input para que se actualicen totales y fechas
+                  // Esto funciona igual que cuando el usuario cambia el input manualmente
+                  input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+              }
+            });
+
+            // Recalcular totales y fechas inmediatamente (esto actualizará el gantt automáticamente)
+            // El schedulePreview dentro de calcularTotalesYFechas actualizará las fechas finales
+            window.calcularTotalesYFechas(null, ordCompartida);
+
+            // Forzar actualización inmediata del preview (sin esperar el debounce)
+            setTimeout(() => {
+              previewFechasExactas(ordCompartida);
+            }, 100);
+          }
+        } catch (error) {
+          console.error('Error al balancear:', error);
+        }
       };
 
       // ==========================
@@ -717,20 +785,24 @@
               .gantt-bar-alt { background: #ecfdf3; color: #166534; font-weight: 600; }
             </style>
 
-            <div class="flex flex-col sm:flex-row sm:justify-end gap-2">
-              <button type="button"
-                onclick="aplicarBalanceoAutomatico(${ordCompartida})"
-                class="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-xs sm:text-sm font-medium text-white shadow-sm hover:bg-green-600">
-                <i class="fa-solid fa-scale-balanced"></i>
-                <span>Balancear Fechas</span>
-              </button>
+            <div class="flex flex-col sm:flex-row sm:justify-end gap-2 items-end">
+              <div class="flex flex-col sm:flex-row gap-2 items-center w-full sm:w-auto">
+                <label class="text-xs text-gray-700 whitespace-nowrap">Fecha Objetivo:</label>
+                <input
+                  type="date"
+                  id="fecha-fin-objetivo-balanceo"
+                  class="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
+                  min=""
+                >
+                <button type="button"
+                  onclick="aplicarBalanceoAutomatico(${ordCompartida})"
+                  class="inline-flex items-center justify-center gap-1 rounded-md bg-green-500 px-2 py-1 text-xs font-medium text-white shadow-sm hover:bg-green-600">
+                  <i class="fa-solid fa-scale-balanced text-xs"></i>
+                  <span>Balancear</span>
+                </button>
+              </div>
 
-              <button type="button"
-                onclick="recargarGanttOrdCompartida(${ordCompartida})"
-                class="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-gray-700 px-4 py-2 text-xs sm:text-sm font-medium text-white shadow-sm hover:bg-gray-800">
-                <i class="fa-solid fa-rotate-right"></i>
-                <span>Recargar Gantt</span>
-              </button>
+
             </div>
 
             <div class="flex flex-col lg:flex-row gap-4 items-stretch">
@@ -794,8 +866,35 @@
           preConfirm: () => guardarCambiosPedido(ordCompartida),
           didOpen: () => {
             renderGanttOrd(registros);
-            // 🔥 preview exacto inmediato (para asegurar dataset y preview correcto)
+            //  preview exacto inmediato (para asegurar dataset y preview correcto)
             previewFechasExactas(ordCompartida);
+
+            // Establecer fecha sugerida en el input de fecha objetivo
+            const fechaInput = document.getElementById('fecha-fin-objetivo-balanceo');
+            if (fechaInput && registros.length > 0) {
+              // Obtener la fecha final más lejana de los registros
+              let fechaMaxima = null;
+              registros.forEach(reg => {
+                if (reg.FechaFinal) {
+                  try {
+                    const fecha = new Date(String(reg.FechaFinal).replace(' ', 'T'));
+                    if (!isNaN(fecha.getTime()) && fecha.getFullYear() > 1970) {
+                      if (!fechaMaxima || fecha > fechaMaxima) {
+                        fechaMaxima = fecha;
+                      }
+                    }
+                  } catch (e) {
+                    console.warn('Error al parsear fecha:', e);
+                  }
+                }
+              });
+
+              if (fechaMaxima) {
+                const fechaFormateada = fechaMaxima.toISOString().split('T')[0];
+                fechaInput.value = fechaFormateada;
+                fechaInput.min = fechaFormateada;
+              }
+            }
           }
         });
       };

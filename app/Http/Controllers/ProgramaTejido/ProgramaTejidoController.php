@@ -1487,6 +1487,14 @@ class ProgramaTejidoController extends Controller
     }
 
     /**
+     * Balanceo automático con fecha fin objetivo
+     */
+    public function balancearAutomatico(Request $request)
+    {
+        return BalancearTejido::balancearAutomatico($request);
+    }
+
+    /**
      * Obtener todos los registros que comparten el mismo OrdCompartida
      * Se usa en el modal de dividir para mostrar telares ya divididos
      */
