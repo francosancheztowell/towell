@@ -27,6 +27,15 @@
       hoverBg="hover:bg-blue-100" />
 
     <x-navbar.button-report
+      id="btn-visualizar"
+      title="Visualizar"
+      module="Cortes de Eficiencia"
+      :disabled="true"
+      icon="fa-eye"
+      iconColor="text-gray-700"
+      hoverBg="hover:bg-gray-100" />
+
+    <x-navbar.button-report
       id="btn-finalizar"
       title="Finalizar"
       module="Cortes de Eficiencia"
@@ -35,16 +44,6 @@
       iconColor="text-orange-600"
       hoverBg="hover:bg-orange-100"
       />
-
-    {{-- <x-navbar.button-report
-      id="btn-pdf"
-      title="PDF"
-      module="Cortes de Eficiencia"
-      :disabled="true"
-      icon="fa-file-pdf"
-      iconColor="text-red-600"
-      hoverBg="hover:bg-red-100"
-      /> --}}
 
     <x-navbar.button-report
       id="btn-fechas"
@@ -95,6 +94,7 @@
                         <tr class="hover:bg-blue-600 hover:text-white cursor-pointer transition-colors corte-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $corte->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
                             id="row-{{ $corte->Folio }}"
                             data-folio="{{ $corte->Folio }}"
+                            data-fecha="{{ $corte->Date ? Carbon::parse($corte->Date)->format('Y-m-d') : '' }}"
                             onclick="CortesManager.seleccionar('{{ $corte->Folio }}', this)"
                             ondblclick="CortesManager.accionVisualizar()">
                             <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate">{{ $corte->Folio }}</td>
@@ -128,13 +128,13 @@
             <h3 class="text-2xl font-semibold text-gray-700 mb-3">No hay cortes de eficiencia registrados</h3>
             <p class="text-gray-500 text-lg mb-6">Toca "Nuevo" para crear el primer registro.</p>
         <x-navbar.button-create
-                  id="btn-nuevo-empty"
-          title="Nuevo"
-          module="Cortes de Eficiencia"
-          :disabled="false"
-          icon="fa-plus"
-          iconColor="text-green-600"
-          hoverBg="hover:bg-green-100" />
+                id="btn-nuevo-empty"
+                title="Nuevo"
+                module="Cortes de Eficiencia"
+                :disabled="false"
+                icon="fa-plus"
+                iconColor="text-green-600"
+                hoverBg="hover:bg-green-100" />
         </div>
     @endif
     </div>
@@ -193,7 +193,8 @@
         urls: {
             detalle: '/modulo-cortes-de-eficiencia/',
             editar: '{{ url("/modulo-cortes-de-eficiencia") }}?folio=',
-            finalizar: '/modulo-cortes-de-eficiencia/{folio}/finalizar'
+            finalizar: '/modulo-cortes-de-eficiencia/{folio}/finalizar',
+            visualizarFolio: '/modulo-cortes-de-eficiencia/visualizar-folio/'
         },
         timeout: 30000,
         ultimoFolio: @json(isset($ultimoFolio) ? $ultimoFolio->Folio : null)
@@ -204,7 +205,8 @@
             this.state = {
                 folio: null,
                 status: null,
-                abortController: null
+                abortController: null,
+                fechaSeleccionada: null
             };
 
             this.dom = {
@@ -239,12 +241,18 @@
             }
         }
 
+        function useState2(value:string){
+            return [value, (newValue:string) => console.log(newValue);];
+        }
+
         bindEvents() {
             this.dom.btns.nuevo?.addEventListener('click', () => this.accionNuevo());
             this.dom.btns.editar?.addEventListener('click', () => this.accionEditar());
             this.dom.btns.finalizar?.addEventListener('click', () => this.accionFinalizar());
             this.dom.btns.visualizar?.addEventListener('click', () => this.accionVisualizar());
             this.dom.btns.pdf?.addEventListener('click', () => this.accionPdf());
+            document.getElementById('btn-exportar-excel')?.addEventListener('click', () => this.exportar('excel'));
+            document.getElementById('btn-descargar-pdf')?.addEventListener('click', () => this.exportar('pdf'));
 
             // Abrir/cerrar modal de fechas
             this.dom.btns.fechas?.addEventListener('click', () => this.abrirModalFechas());
@@ -270,6 +278,7 @@
             });
             if (row) {
                 row.classList.add('bg-blue-500', 'text-white', 'selected-row');
+                this.state.fechaSeleccionada = row.dataset.fecha || null;
             }
         }
 
@@ -314,6 +323,23 @@
             if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = !hayFolioSeleccionado || isFinalizado;
             if (this.dom.btns.visualizar) this.dom.btns.visualizar.disabled = !hayFolioSeleccionado;
             if (this.dom.btns.pdf) this.dom.btns.pdf.disabled = !hayFolioSeleccionado;
+            const btnExcel = document.getElementById('btn-exportar-excel');
+            const btnPdf = document.getElementById('btn-descargar-pdf');
+            if (btnExcel) btnExcel.disabled = !hayFolioSeleccionado;
+            if (btnPdf) btnPdf.disabled = !hayFolioSeleccionado;
+        }
+
+        exportar(tipo) {
+            if (!this.state.fechaSeleccionada) {
+                Swal.fire('Sin fecha', 'Selecciona un folio para exportar.', 'warning');
+                return;
+            }
+
+            if (tipo === 'excel') {
+                exportarExcelVisualizacion(this.state.fechaSeleccionada);
+            } else {
+                descargarPDFVisualizacion(this.state.fechaSeleccionada);
+            }
         }
 
         async accionNuevo() {
@@ -384,7 +410,7 @@
                 });
                 return;
             }
-            window.location.href = '/modulo-cortes-de-eficiencia/visualizar/' + this.state.folio;
+            window.location.href = `${CONFIG.urls.visualizarFolio}${this.state.folio}`;
         }
 
         accionPdf() {
@@ -443,16 +469,25 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    const pdfUrl = data.data?.pdf_url;
                     await Swal.fire('¡Finalizado!', 'El registro se ha cerrado correctamente.', 'success');
-                    if (pdfUrl) window.open(pdfUrl, '_blank');
-                    window.location.reload();
+                    this.state.status = 'Finalizado';
+                    this.actualizarBotones();
+                    this.actualizarFilaFinalizada();
                 } else {
                     throw new Error(data.message || 'No se pudo finalizar');
                 }
 
             } catch (err) {
                 Swal.fire('Error', err.message, 'error');
+            }
+        }
+
+        actualizarFilaFinalizada() {
+            const row = document.querySelector(`tr[data-folio="${this.state.folio}"]`);
+            if (!row) return;
+            const statusCell = row.querySelector('td:last-child');
+            if (statusCell) {
+                statusCell.innerHTML = '<span class="status-badge-finalizado px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>';
             }
         }
 
@@ -510,8 +545,80 @@
                 window.location.href = '{{ route("cortes.eficiencia") }}';
             });
         }
+
+        document.getElementById('btn-exportar-excel')?.addEventListener('click', () => {
+            if (!window.CortesManager?.state?.fechaSeleccionada) {
+                Swal.fire('Sin selección', 'Selecciona un folio para exportar.', 'warning');
+                return;
+            }
+            exportarExcelVisualizacion(window.CortesManager.state.fechaSeleccionada);
+        });
+
+        document.getElementById('btn-descargar-pdf')?.addEventListener('click', () => {
+            if (!window.CortesManager?.state?.fechaSeleccionada) {
+                Swal.fire('Sin selección', 'Selecciona un folio para exportar.', 'warning');
+                return;
+            }
+            descargarPDFVisualizacion(window.CortesManager.state.fechaSeleccionada);
+        });
     });
 
 })();
+
+function exportarExcelVisualizacion(fecha) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ route("cortes.eficiencia.visualizar.excel") }}';
+
+    const token = document.createElement('input');
+    token.type = 'hidden';
+    token.name = '_token';
+    token.value = '{{ csrf_token() }}';
+
+    const fechaInput = document.createElement('input');
+    fechaInput.type = 'hidden';
+    fechaInput.name = 'fecha';
+    fechaInput.value = fecha;
+
+    form.appendChild(token);
+    form.appendChild(fechaInput);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+async function descargarPDFVisualizacion(fecha) {
+    try {
+        const response = await fetch('{{ route("cortes.eficiencia.visualizar.pdf") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/pdf'
+            },
+            body: new URLSearchParams({ fecha })
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('Error al generar PDF:', response.status, text);
+            Swal.fire('Error', 'No se pudo generar el PDF.', 'error');
+            return;
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `cortes_eficiencia_${fecha}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error al descargar PDF:', error);
+        Swal.fire('Error', 'Ocurrió un error al generar el PDF.', 'error');
+    }
+}
 </script>
 @endsection

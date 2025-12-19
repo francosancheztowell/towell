@@ -315,9 +315,9 @@ class MarcasController extends Controller
     {
         return $this->store($request);
     }
-public function finalizar($folio)
-{
-    try {
+    public function finalizar($folio)
+    {
+        try {
         if (!Auth::check()) {
             return response()->json([
                 'success' => false,
@@ -381,8 +381,32 @@ public function finalizar($folio)
             'success' => false,
             'message' => 'Error al finalizar marca'
         ], 500);
+        }
     }
-}
+
+    public function visualizarFolio($folio)
+    {
+        try {
+            $marca = TejMarcas::find($folio);
+
+            if (!$marca) {
+                return redirect()->route('marcas.consultar')
+                    ->with('error', 'Folio no encontrado');
+            }
+
+            $telares = $this->obtenerSecuenciaTelares();
+
+            return view('modulos.marcas-finales.nuevo-marcas', [
+                'telares' => $telares,
+                'soloLectura' => true,
+                'folioInicial' => $folio,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al visualizar folio de marcas: ' . $e->getMessage());
+            return redirect()->route('marcas.consultar')
+                ->with('error', 'Error al visualizar el folio');
+        }
+    }
 
     public function visualizar($folio)
     {

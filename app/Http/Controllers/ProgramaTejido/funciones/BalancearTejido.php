@@ -15,13 +15,14 @@ class BalancearTejido
 {
     /** Cache para modelo (TamanoClave) */
     private static array $modeloCache = [];
+    /** Cache de líneas por calendario (ya parseadas) */
+    private static array $calLinesCache = []; // [calId => [ ['ini'=>Carbon,'fin'=>Carbon,'ini_ts'=>int,'fin_ts'=>int], ... ] ]
 
     /** si el cambio de fin es menor a esto, NO cascada (evita “rebotes”) */
     private const CASCADE_THRESHOLD_SECONDS = 300; // 5 min
 
     /** gaps muy pequeños (ej. 2s entre :29:58 y :30:00) se ignoran */
     private const SMALL_GAP_SECONDS = 5;
-
     // =========================================================
     // PREVIEW EXACTO (NO GUARDA) - PARA EL MODAL (CALENDARIO)
     // =========================================================
@@ -40,6 +41,9 @@ class BalancearTejido
         $ids = array_values(array_unique(array_map(fn($c) => (int)$c['id'], $cambios)));
         $regs = ReqProgramaTejido::whereIn('Id', $ids)->get()->keyBy('Id');
 
+        // Warm caches (NO cambia resultados, solo evita N+1)
+        self::warmCachesFromProgramas($regs->values());
+
         $resp = [];
 
         foreach ($cambios as $cambio) {
@@ -51,7 +55,6 @@ class BalancearTejido
             $produccion = (float)($r->Produccion ?? 0);
             $input      = (float)$cambio['total_pedido'];
 
-            // Para el modal normalmente es modo=total
             [$total, $saldo] = self::resolverTotalSaldo($input, $produccion, $cambio['modo'] ?? 'total');
 
             // Mutar EN MEMORIA (no save)
@@ -98,6 +101,9 @@ class BalancearTejido
 
             $ids = array_values(array_unique(array_map(fn($c) => (int)$c['id'], $cambios)));
             $regs = ReqProgramaTejido::whereIn('Id', $ids)->get()->keyBy('Id');
+
+            // Warm caches (NO cambia resultados, solo evita N+1)
+            self::warmCachesFromProgramas($regs->values());
 
             ReqProgramaTejido::unsetEventDispatcher();
 
@@ -164,7 +170,7 @@ class BalancearTejido
                 }
             }
 
-            // Cascada por telar
+            // Cascada por telar (MISMA consulta que tu código)
             foreach ($porTelar as $key => $idsBase) {
                 $base = ReqProgramaTejido::whereIn('Id', $idsBase)
                     ->orderBy('FechaInicio', 'asc')
@@ -186,12 +192,14 @@ class BalancearTejido
                 ReqProgramaTejido::setEventDispatcher($dispatcher);
             }
 
-            // Regenerar líneas diarias (observer) manualmente
+            // Regenerar líneas diarias (observer) manualmente (mismo orden, pero 1 query)
             $idsAfectados = array_values(array_unique(array_filter($idsAfectados)));
             if (!empty($idsAfectados)) {
                 $observer = new ReqProgramaTejidoObserver();
+                $regsObs = ReqProgramaTejido::whereIn('Id', $idsAfectados)->get()->keyBy('Id');
+
                 foreach ($idsAfectados as $id) {
-                    $reg = ReqProgramaTejido::find($id);
+                    $reg = $regsObs->get($id);
                     if (!$reg) continue;
                     try {
                         $observer->saved($reg);
@@ -233,7 +241,7 @@ class BalancearTejido
 
         $inicio = Carbon::parse($r->FechaInicio);
 
-        // Snap a calendario
+        // Snap a calendario (misma lógica, solo sin query repetido)
         if (!empty($r->CalendarioId)) {
             $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
             if ($snap) $inicio = $snap;
@@ -242,7 +250,6 @@ class BalancearTejido
         $horasNecesarias = self::calcularHorasProd($r);
 
         if ($horasNecesarias <= 0) {
-            // fallback mínimo
             $fin = $inicio->copy()->addDays(30);
             return [$inicio, $fin, 0.0];
         }
@@ -261,7 +268,6 @@ class BalancearTejido
             return [$inicio, $fin, $horasNecesarias];
         }
 
-        // sin calendario, continuo
         $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
         return [$inicio, $fin, $horasNecesarias];
     }
@@ -313,6 +319,9 @@ class BalancearTejido
             ->get();
 
         if ($rows->isEmpty()) return [];
+
+        // Warm caches para lo que viene en cascada (solo performance)
+        self::warmCachesFromProgramas($rows);
 
         $idx = $rows->search(fn($r) => (int)$r->Id === (int)$base->Id);
         if ($idx === false) return [];
@@ -388,17 +397,24 @@ class BalancearTejido
         return 0.0;
     }
 
+    // =========================================================
+    // Calendario (misma lógica, pero con cache)
+    // =========================================================
     private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
-        $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
-            ->where('FechaFin', '>', $fechaInicio)
-            ->orderBy('FechaInicio')
-            ->first();
+        $lines = self::getCalendarioLines($calendarioId);
 
-        if (!$linea) return null;
+        // Simula: where FechaFin > $fechaInicio orderBy FechaInicio first()
+        $ts = $fechaInicio->getTimestamp();
+        $line = null;
+        foreach ($lines as $l) {
+            if ($l['fin_ts'] > $ts) { $line = $l; break; }
+        }
 
-        $ini = Carbon::parse($linea->FechaInicio);
-        $fin = Carbon::parse($linea->FechaFin);
+        if (!$line) return null;
+
+        $ini = $line['ini']; // Carbon ya parseado
+        $fin = $line['fin'];
 
         if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) return $fechaInicio->copy();
 
@@ -407,40 +423,47 @@ class BalancearTejido
 
     /**
      * FechaFinal recorriendo líneas reales (FechaInicio/FechaFin).
-     * Respeta gaps reales; ignora micro-gaps (ej. 2s) por datos con :29:58.
+     * MISMA lógica que tu while, solo sin query por iteración.
      */
     public static function calcularFechaFinalDesdeInicio(string $calendarioId, Carbon $fechaInicio, float $horasNecesarias): ?Carbon
     {
         $segundosRestantes = (int) round(max(0, $horasNecesarias) * 3600);
         $cursor = $fechaInicio->copy();
 
+        $lines = self::getCalendarioLines($calendarioId);
 
         $iter = 0;
         $maxIter = 200000;
 
+        $idx = 0;
+
         while ($segundosRestantes > 0 && $iter < $maxIter) {
             $iter++;
 
-            $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
-                ->where('FechaFin', '>', $cursor)
-                ->orderBy('FechaInicio')
-                ->first();
+            $cursorTs = $cursor->getTimestamp();
 
+            // Simula: where FechaFin > $cursor orderBy FechaInicio first()
+            while ($idx < count($lines) && $lines[$idx]['fin_ts'] <= $cursorTs) {
+                $idx++;
+            }
 
-            $ini = Carbon::parse($linea->FechaInicio);
-            $fin = Carbon::parse($linea->FechaFin);
+            // Para ser fiel a tu código: si no hay línea, en DB sería null y tronaría al parsear.
+            // Aquí devolvemos null para que tu caller pueda aplicar el fallback que ya tienes.
+            if ($idx >= count($lines)) {
+                return null;
+            }
 
-            // Gap (tiempo no laborable) antes de la línea
+            $ini = $lines[$idx]['ini'];
+            $fin = $lines[$idx]['fin'];
+
+            // Gap antes de la línea
             if ($cursor->lt($ini)) {
-                $gapSec = $ini->getTimestamp() - $cursor->getTimestamp();
+                $gapSec = $ini->getTimestamp() - $cursorTs;
 
-                // micro-gap (2s típico) => snap sin ruido
                 if ($gapSec <= self::SMALL_GAP_SECONDS) {
                     $cursor = $ini->copy();
                     continue;
                 }
-
-
 
                 $cursor = $ini->copy();
                 continue;
@@ -452,7 +475,7 @@ class BalancearTejido
                 continue;
             }
 
-            $disponibles = (int) ($fin->getTimestamp() - $cursor->getTimestamp());
+            $disponibles = (int) ($fin->getTimestamp() - $cursorTs);
             if ($disponibles <= 0) {
                 $cursor = $fin->copy();
                 continue;
@@ -460,7 +483,6 @@ class BalancearTejido
 
             $usar = min($disponibles, $segundosRestantes);
 
-            $cursorAntes = $cursor->copy();
             $cursor->addSeconds((int)$usar);
             $segundosRestantes -= (int)$usar;
         }
@@ -546,7 +568,7 @@ class BalancearTejido
     }
 
     // =========================================================
-    // Modelo params (cache)
+    // Modelo params (cache) + warm batch (solo performance)
     // =========================================================
     private static function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
     {
@@ -565,6 +587,7 @@ class BalancearTejido
         }
 
         if (!isset(self::$modeloCache[$key])) {
+            // si no fue warm, cae aquí (igual que tu lógica)
             $m = ReqModelosCodificados::where('TamanoClave', $key)->first();
             self::$modeloCache[$key] = [
                 'total' => (float)($m->Total ?? 0),
@@ -584,11 +607,526 @@ class BalancearTejido
         ];
     }
 
+    // =========================================================
+    // Helpers de cache (solo performance, no cambia resultados)
+    // =========================================================
+    private static function warmCachesFromProgramas($programas): void
+    {
+        $calIds = [];
+        $tamKeys = [];
+
+        foreach ($programas as $p) {
+            $calId = trim((string)($p->CalendarioId ?? ''));
+            if ($calId !== '') $calIds[] = $calId;
+
+            $tk = trim((string)($p->TamanoClave ?? ''));
+            if ($tk !== '') $tamKeys[] = $tk;
+        }
+
+        self::warmCalendarios($calIds);
+        self::warmModelos($tamKeys);
+    }
+
+    private static function warmCalendarios(array $calIds): void
+    {
+        $calIds = array_values(array_unique(array_filter(array_map(fn($x) => trim((string)$x), $calIds))));
+        if (empty($calIds)) return;
+
+        $missing = [];
+        foreach ($calIds as $id) {
+            if ($id !== '' && !isset(self::$calLinesCache[$id])) {
+                $missing[] = $id;
+                self::$calLinesCache[$id] = []; // inicializa para evitar doble carga
+            }
+        }
+        if (empty($missing)) return;
+
+        $rows = ReqCalendarioLine::query()
+            ->whereIn('CalendarioId', $missing)
+            ->orderBy('CalendarioId')
+            ->orderBy('FechaInicio')
+            ->get(['CalendarioId', 'FechaInicio', 'FechaFin']);
+
+        foreach ($rows as $row) {
+            $calId = trim((string)$row->CalendarioId);
+            if ($calId === '') continue;
+
+            $ini = Carbon::parse($row->FechaInicio);
+            $fin = Carbon::parse($row->FechaFin);
+
+            self::$calLinesCache[$calId][] = [
+                'ini' => $ini,
+                'fin' => $fin,
+                'ini_ts' => $ini->getTimestamp(),
+                'fin_ts' => $fin->getTimestamp(),
+            ];
+        }
+    }
+
+    private static function getCalendarioLines(string $calendarioId): array
+    {
+        $calendarioId = trim((string)$calendarioId);
+        if ($calendarioId === '') return [];
+
+        if (!isset(self::$calLinesCache[$calendarioId])) {
+            self::warmCalendarios([$calendarioId]);
+        }
+
+        return self::$calLinesCache[$calendarioId] ?? [];
+    }
+
+    private static function warmModelos(array $tamanoClaves): void
+    {
+        $keys = array_values(array_unique(array_filter(array_map(fn($x) => trim((string)$x), $tamanoClaves))));
+        if (empty($keys)) return;
+
+        $missing = [];
+        foreach ($keys as $k) {
+            if ($k !== '' && !isset(self::$modeloCache[$k])) {
+                $missing[] = $k;
+            }
+        }
+        if (empty($missing)) return;
+
+        $rows = ReqModelosCodificados::query()
+            ->whereIn('TamanoClave', $missing)
+            ->get(['TamanoClave', 'Total', 'NoTiras', 'Luchaje', 'Repeticiones']);
+
+        foreach ($rows as $m) {
+            $k = trim((string)$m->TamanoClave);
+            if ($k === '') continue;
+            self::$modeloCache[$k] = [
+                'total' => (float)($m->Total ?? 0),
+                'no_tiras' => (float)($m->NoTiras ?? 0),
+                'luchaje' => (float)($m->Luchaje ?? 0),
+                'repeticiones' => (float)($m->Repeticiones ?? 0),
+            ];
+        }
+    }
+
     private static function sanitizeNumber($value): float
     {
         if ($value === null) return 0.0;
         if (is_numeric($value)) return (float)$value;
         $clean = str_replace([',', ' '], '', (string)$value);
         return is_numeric($clean) ? (float)$clean : 0.0;
+    }
+
+
+// Funcion de balanceo automatico con fecha fin objetivo
+    public static function balancearAutomatico(Request $request)
+    {
+        // aqui valida las ordenes compartidas para que sea la misma
+        $request->validate([
+            'ord_compartida' => 'required|integer',
+            'fecha_fin_objetivo' => 'required|date',
+        ]);
+
+        $ordCompartida = (int)$request->input('ord_compartida');
+        $fechaFinObjetivo = Carbon::parse($request->input('fecha_fin_objetivo'));
+
+        $registros = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
+            ->orderBy('NoTelarId', 'asc')
+            ->get();
+
+        // Warm caches para optimizar
+        self::warmCachesFromProgramas($registros);
+
+        $nuevosPedidos = [];
+        $horasDisponiblesTotal = 0;
+        $horasNecesariasOriginales = 0;
+        $totalOriginal = (float)$registros->sum(fn($r) => (float)($r->TotalPedido ?? 0));
+
+        // Convertir a array indexado para poder acceder por índice
+        $registrosArray = $registros->values()->all();
+        $totalRegistros = count($registrosArray);
+        // entre menos tolerancia se comporta mejor
+        $toleranciaHoras = 0.001; // Muy pequeña para mayor precisión
+        $toleranciaSegundos = (int)($toleranciaHoras * 3600); // Convertir horas a segundos
+
+        // PASO 1: Identificar qué registros ya cumplen con la fecha objetivo
+        // Estos NO deben cambiar
+        $registrosQueCumplen = [];
+        $registrosQueNecesitanAjuste = [];
+
+        foreach ($registrosArray as $indice => $reg) {
+            $produccion = (float)($reg->Produccion ?? 0);
+            $pedidoActual = (float)($reg->TotalPedido ?? 0);
+
+            // Calculamos horas originales solo para referencia informativa
+            $saldoOriginal = max(0, $pedidoActual - $produccion);
+            $regTemp = clone $reg;
+            $regTemp->SaldoPedido = $saldoOriginal;
+            $horasNecesariasOriginales += self::calcularHorasProd($regTemp);
+
+            if (empty($reg->FechaInicio)) {
+                $registrosQueCumplen[] = ['indice' => $indice, 'reg' => $reg, 'pedido' => $pedidoActual];
+                continue;
+            }
+
+            $fechaInicioReg = Carbon::parse($reg->FechaInicio);
+            if (!empty($reg->CalendarioId)) {
+                $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioReg);
+                if ($snap) $fechaInicioReg = $snap;
+            }
+
+            // Verificar si el pedido actual ya es correcto
+            $horasActual = self::calcularHorasProd($reg);
+            $fechaFinalActual = null;
+            if ($horasActual > 0) {
+                $fechaInicioTemp = $fechaInicioReg->copy();
+                if (!empty($reg->CalendarioId)) {
+                    $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioTemp);
+                    if ($snap) $fechaInicioTemp = $snap;
+                }
+
+                $fechaFinalActual = !empty($reg->CalendarioId)
+                    ? (self::calcularFechaFinalDesdeInicio($reg->CalendarioId, $fechaInicioTemp, $horasActual) ?: $fechaInicioTemp->copy()->addSeconds((int)round($horasActual * 3600)))
+                    : $fechaInicioTemp->copy()->addSeconds((int)round($horasActual * 3600));
+            }
+
+            $cumpleObjetivo = false;
+            if ($fechaFinalActual) {
+                if ($fechaFinalActual->toDateString() === $fechaFinObjetivo->toDateString()) {
+                    $cumpleObjetivo = true;
+                }
+                $diferenciaSegundos = abs($fechaFinObjetivo->getTimestamp() - $fechaFinalActual->getTimestamp());
+                if ($diferenciaSegundos <= $toleranciaSegundos && $fechaFinalActual->getTimestamp() <= $fechaFinObjetivo->getTimestamp()) {
+                    $cumpleObjetivo = true;
+                }
+            }
+
+            if ($cumpleObjetivo) {
+                $registrosQueCumplen[] = ['indice' => $indice, 'reg' => $reg, 'pedido' => $pedidoActual];
+            } else {
+                $registrosQueNecesitanAjuste[] = ['indice' => $indice, 'reg' => $reg];
+            }
+        }
+
+        // PASO 2: Primero mantener los que ya cumplen
+        foreach ($registrosQueCumplen as $item) {
+            $nuevosPedidos[$item['reg']->Id] = [
+                'id' => (int)$item['reg']->Id,
+                'total_pedido' => $item['pedido'],
+                'modo' => 'total'
+            ];
+        }
+
+        // PASO 3: Procesar los que necesitan ajuste, desde el FINAL hacia atrás
+        // Esto asegura que los últimos (319, 320) se ajusten antes que los del medio (311, 312)
+        usort($registrosQueNecesitanAjuste, fn($a, $b) => $b['indice'] <=> $a['indice']);
+
+        foreach ($registrosQueNecesitanAjuste as $item) {
+            $reg = $item['reg'];
+            $produccion = (float)($reg->Produccion ?? 0);
+            $pedidoActual = (float)($reg->TotalPedido ?? 0);
+
+            $fechaInicioReg = Carbon::parse($reg->FechaInicio);
+            if (!empty($reg->CalendarioId)) {
+                $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioReg);
+                if ($snap) $fechaInicioReg = $snap;
+            }
+
+            // Calcular Horas Disponibles
+            $horasDispReg = self::calcularHorasDisponiblesHastaFecha(
+                $reg->CalendarioId ?? null,
+                $fechaInicioReg,
+                $fechaFinObjetivo
+            );
+            $horasDisponiblesTotal += $horasDispReg;
+
+            // Calcular Pedido Exacto
+            $pedidoCalculado = self::calcularPedidoParaFechaObjetivo(
+                $reg,
+                $fechaInicioReg,
+                $fechaFinObjetivo,
+                $produccion
+            );
+
+            $pedidoFinal = max(1, $produccion, round($pedidoCalculado));
+
+            $nuevosPedidos[$reg->Id] = [
+                'id' => (int)$reg->Id,
+                'total_pedido' => $pedidoFinal,
+                'modo' => 'total'
+            ];
+        }
+
+        // Ajuste final: mantener el total original sumando la diferencia al ultimo
+        $totalNuevo = 0.0;
+        foreach ($nuevosPedidos as $item) {
+            $totalNuevo += (float)$item['total_pedido'];
+        }
+        $diff = $totalOriginal - $totalNuevo;
+
+        if (abs($diff) >= 1 && !empty($registrosQueNecesitanAjuste)) {
+            $ultimoItem = $registrosQueNecesitanAjuste[0] ?? null;
+            $ultimoReg = $ultimoItem['reg'] ?? null;
+            if ($ultimoReg) {
+                $ultimoId = (int)$ultimoReg->Id;
+                $prodUltimo = (float)($ultimoReg->Produccion ?? 0);
+                $totalActualUltimo = isset($nuevosPedidos[$ultimoId])
+                    ? (float)$nuevosPedidos[$ultimoId]['total_pedido']
+                    : (float)($ultimoReg->TotalPedido ?? 0);
+
+                $nuevoTotalUltimo = $totalActualUltimo + $diff;
+                if ($nuevoTotalUltimo < $prodUltimo) {
+                    $nuevoTotalUltimo = $prodUltimo;
+                }
+                if ($nuevoTotalUltimo < 1) {
+                    $nuevoTotalUltimo = 1;
+                }
+
+                $nuevosPedidos[$ultimoId] = [
+                    'id' => $ultimoId,
+                    'total_pedido' => (int) round($nuevoTotalUltimo),
+                    'modo' => 'total'
+                ];
+
+                Log::debug('balancearAutomatico ajuste_ultimo', [
+                    'ord_compartida' => $ordCompartida,
+                    'ultimo_id' => $ultimoId,
+                    'total_original' => $totalOriginal,
+                    'total_nuevo' => $totalNuevo,
+                    'diff' => $diff,
+                    'nuevo_total_ultimo' => $nuevoTotalUltimo,
+                ]);
+            }
+        }
+
+        $totalNuevoFinal = 0.0;
+        foreach ($nuevosPedidos as $item) {
+            $totalNuevoFinal += (float)$item['total_pedido'];
+        }
+
+        $rest = $totalOriginal - $totalNuevoFinal;
+        if ($rest < 0 && !empty($registrosQueNecesitanAjuste)) {
+            $pendiente = abs($rest);
+            foreach ($registrosQueNecesitanAjuste as $item) {
+                if ($pendiente <= 0) break;
+                $reg = $item['reg'];
+                $id = (int)$reg->Id;
+                if (!isset($nuevosPedidos[$id])) continue;
+
+                $min = max(1, (float)($reg->Produccion ?? 0));
+                $actual = (float)$nuevosPedidos[$id]['total_pedido'];
+                $cap = $actual - $min;
+                if ($cap <= 0) continue;
+
+                $reducir = min($cap, $pendiente);
+                $nuevosPedidos[$id]['total_pedido'] = (int) round($actual - $reducir);
+                $pendiente -= $reducir;
+            }
+
+            $totalNuevoFinal = 0.0;
+            foreach ($nuevosPedidos as $item) {
+                $totalNuevoFinal += (float)$item['total_pedido'];
+            }
+        }
+
+        Log::debug('balancearAutomatico totales', [
+            'ord_compartida' => $ordCompartida,
+            'total_original' => $totalOriginal,
+            'total_nuevo' => $totalNuevoFinal,
+            'diff' => $totalOriginal - $totalNuevoFinal,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Balanceo calculado correctamente',
+            'cambios' => array_values($nuevosPedidos),
+            'horas_disponibles_sumadas' => $horasDisponiblesTotal, // Suma de horas de todas las máquinas
+            'horas_necesarias_originales' => $horasNecesariasOriginales,
+        ]);
+    }
+
+    /**
+     * Calcula el pedido exacto necesario para llegar a una fecha objetivo
+     * Usa búsqueda binaria para mayor precisión
+     */
+    private static function calcularPedidoParaFechaObjetivo(
+        ReqProgramaTejido $reg,
+        Carbon $fechaInicio,
+        Carbon $fechaObjetivo,
+        float $produccion
+    ): float {
+        // Calcular horas disponibles hasta fecha objetivo
+        $horasDisponibles = self::calcularHorasDisponiblesHastaFecha(
+            $reg->CalendarioId ?? null,
+            $fechaInicio,
+            $fechaObjetivo
+        );
+
+        if ($horasDisponibles <= 0) {
+            // No hay horas disponibles, devolver producción mínima
+            return $produccion;
+        }
+
+        // Calcular eficiencia del registro (horas por unidad de pedido)
+        $regTemp = clone $reg;
+        $regTemp->TotalPedido = 1000; // Valor de prueba
+        $regTemp->SaldoPedido = max(0, 1000 - $produccion);
+        $horasPrueba = self::calcularHorasProd($regTemp);
+
+        if ($horasPrueba <= 0) {
+            // No se puede calcular eficiencia, usar pedido actual
+            return (float)($reg->TotalPedido ?? $produccion);
+        }
+
+        $eficienciaHoras = $horasPrueba / 1000.0; // horas por unidad
+
+        // Estimación inicial basada en eficiencia
+        $pedidoEstimado = $produccion + ($horasDisponibles / max($eficienciaHoras, 0.0001));
+
+        // Búsqueda binaria para encontrar el pedido exacto
+        $minPedido = $produccion;
+        $maxPedido = $pedidoEstimado * 3; // Límite superior amplio
+        $mejorPedido = $pedidoEstimado;
+        $mejorDiferencia = PHP_FLOAT_MAX;
+
+        $maxIteraciones = 70; // Más iteraciones para mayor precisión
+        $toleranciaSegundos = 70; // 1 minuto de tolerancia
+
+        for ($iter = 0; $iter < $maxIteraciones; $iter++) {
+            $pedidoPrueba = ($minPedido + $maxPedido) / 2.1;
+
+            // Calcular fecha final con este pedido
+            $regTemp = clone $reg;
+            $regTemp->TotalPedido = $pedidoPrueba;
+            $regTemp->SaldoPedido = max(0, $pedidoPrueba - $produccion);
+            $horas = self::calcularHorasProd($regTemp);
+
+            if ($horas <= 0) {
+                $minPedido = $pedidoPrueba;
+                continue;
+            }
+
+            // Calcular fecha final
+            $fechaInicioTemp = $fechaInicio->copy();
+            if (!empty($reg->CalendarioId)) {
+                $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioTemp);
+                if ($snap) $fechaInicioTemp = $snap;
+            }
+
+            $fechaFinal = !empty($reg->CalendarioId)
+                ? (self::calcularFechaFinalDesdeInicio($reg->CalendarioId, $fechaInicioTemp, $horas) ?: $fechaInicioTemp->copy()->addSeconds((int)round($horas * 3600)))
+                : $fechaInicioTemp->copy()->addSeconds((int)round($horas * 3600));
+
+            $diferenciaSegundos = abs($fechaObjetivo->getTimestamp() - $fechaFinal->getTimestamp());
+
+            if ($diferenciaSegundos < $mejorDiferencia) {
+                $mejorDiferencia = $diferenciaSegundos;
+                $mejorPedido = $pedidoPrueba;
+            }
+
+            if ($diferenciaSegundos <= $toleranciaSegundos) {
+                // Llegamos a la tolerancia, salir
+                break;
+            }
+
+            // Ajustar búsqueda binaria
+            if ($fechaFinal->getTimestamp() < $fechaObjetivo->getTimestamp()) {
+                // Necesitamos más pedido
+                $minPedido = $pedidoPrueba;
+            } else {
+                // Tenemos demasiado pedido
+                $maxPedido = $pedidoPrueba;
+            }
+
+            // Si el rango es muy pequeño, salir
+            if (($maxPedido - $minPedido) < 0.1) {
+                break;
+            }
+        }
+
+        return $mejorPedido;
+    }
+
+    /**
+     * Calcula una fecha objetivo intermedia para registros que no son el penúltimo
+     * Distribuye el tiempo proporcionalmente
+     */
+    private static function calcularFechaObjetivoIntermedia(
+        Carbon $fechaInicio,
+        Carbon $fechaFinObjetivo,
+        int $indiceActual,
+        int $totalRegistros
+    ): Carbon {
+        // Calcular proporción del tiempo total
+        $totalSegundos = $fechaFinObjetivo->getTimestamp() - $fechaInicio->getTimestamp();
+        $proporcion = ($indiceActual + 1) / (float)$totalRegistros;
+
+        $segundosIntermedios = (int)round($totalSegundos * $proporcion);
+        return $fechaInicio->copy()->addSeconds($segundosIntermedios);
+    }
+
+    /**
+     * Calcula las horas disponibles desde fechaInicio hasta fechaFin usando el calendario
+     */
+    private static function calcularHorasDisponiblesHastaFecha(?string $calendarioId, Carbon $fechaInicio, Carbon $fechaFin): float
+    {
+        if (empty($calendarioId)) {
+            // Sin calendario: horas continuas
+            $segundos = max(0, $fechaFin->getTimestamp() - $fechaInicio->getTimestamp());
+            return $segundos / 3600.0;
+        }
+
+        // Con calendario: usar las líneas del calendario
+        $lines = self::getCalendarioLines($calendarioId);
+        if (empty($lines)) {
+            // Sin líneas de calendario: horas continuas
+            $segundos = max(0, $fechaFin->getTimestamp() - $fechaInicio->getTimestamp());
+            return $segundos / 3600.0;
+        }
+
+        $cursor = $fechaInicio->copy();
+        $segundosTotales = 0;
+        $fechaFinTs = $fechaFin->getTimestamp();
+        $idx = 0;
+        $iter = 0;
+        $maxIter = 200000;
+
+        while ($cursor->getTimestamp() < $fechaFinTs && $iter < $maxIter) {
+            $iter++;
+            $cursorTs = $cursor->getTimestamp();
+
+            // Buscar siguiente línea disponible
+            while ($idx < count($lines) && $lines[$idx]['fin_ts'] <= $cursorTs) {
+                $idx++;
+            }
+
+            if ($idx >= count($lines)) {
+                break; // No hay más líneas disponibles
+            }
+
+            $ini = $lines[$idx]['ini'];
+            $fin = $lines[$idx]['fin'];
+
+            // Si hay gap antes de la línea, saltarlo
+            if ($cursor->lt($ini)) {
+                $cursor = $ini->copy();
+                continue;
+            }
+
+            // Si la línea ya pasó, siguiente
+            if ($cursor->gte($fin)) {
+                $idx++;
+                continue;
+            }
+
+            // Calcular segundos disponibles en esta línea hasta fechaFin
+            $finLineaTs = min($fin->getTimestamp(), $fechaFinTs);
+            $disponibles = max(0, $finLineaTs - $cursorTs);
+            $segundosTotales += $disponibles;
+
+            // Mover cursor al final de esta línea o fechaFin
+            $cursor = Carbon::createFromTimestamp($finLineaTs);
+
+            if ($finLineaTs >= $fin->getTimestamp()) {
+                $idx++; // Pasar a siguiente línea
+            }
+        }
+
+        return $segundosTotales / 3600.0;
     }
 }
