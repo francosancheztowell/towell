@@ -209,25 +209,40 @@ class TelDesarrolladoresController extends Controller
 	            return [];
 	        }
 
+	        $colorTrama = data_get($ordenData, 'ColorTrama');
+	        $fibraTrama = data_get($ordenData, 'FibraTrama');
+	        
+	        // Si ColorTrama está vacío, usar FibraTrama
+	        if (empty($colorTrama)) {
+	            $colorTrama = $fibraTrama;
+	        }
+
 	        $payload = [
 	            'Tra' => data_get($ordenData, 'CalibreTrama'),
 	            'CalibreTrama2' => data_get($ordenData, 'CalibreTrama2'),
 	            'CodColorTrama' => data_get($ordenData, 'CodColorTrama'),
-	            'ColorTrama' => data_get($ordenData, 'ColorTrama'),
-	            'FibraId' => data_get($ordenData, 'FibraTrama'),
+	            'ColorTrama' => $colorTrama,
+	            'FibraId' => $fibraTrama,
 	            'CalTramaFondoC1' => data_get($ordenData, 'CalibreTrama'),
 	            'CalTramaFondoC12' => data_get($ordenData, 'CalibreTrama2'),
-	            'FibraTramaFondoC1' => data_get($ordenData, 'FibraTrama'),
+	            'FibraTramaFondoC1' => $fibraTrama,
 	        ];
 
 	        for ($i = 1; $i <= 5; $i++) {
 	            $nombreKey = $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}";
+	            $nombreColor = data_get($ordenData, $nombreKey);
+	            $fibraComb = data_get($ordenData, "FibraComb{$i}");
+	            
+	            // Si NomColorC está vacío, usar FibraComb
+	            if (empty($nombreColor)) {
+	                $nombreColor = $fibraComb;
+	            }
 
 	            $payload["CalibreComb{$i}"] = data_get($ordenData, "CalibreComb{$i}");
 	            $payload["CalibreComb{$i}2"] = data_get($ordenData, "CalibreComb{$i}2");
-	            $payload["FibraComb{$i}"] = data_get($ordenData, "FibraComb{$i}");
+	            $payload["FibraComb{$i}"] = $fibraComb;
 	            $payload["CodColorC{$i}"] = data_get($ordenData, "CodColorComb{$i}");
-	            $payload["NomColorC{$i}"] = data_get($ordenData, $nombreKey);
+	            $payload["NomColorC{$i}"] = $nombreColor;
 	        }
 
 	        return $payload;
@@ -331,6 +346,7 @@ class TelDesarrolladoresController extends Controller
                     'EfiInicial' => $validated['EficienciaInicio'] ?? null,
                     'EfiFinal' => $validated['EficienciaFinal'] ?? null,
 	                'DesperdicioTrama' => $validated['DesperdicioTrama'] ?? null,
+	                'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
                 ], $detallePayload, $pasadasPayload);
 
 	            foreach ($payload as $column => $value) {
@@ -341,6 +357,56 @@ class TelDesarrolladoresController extends Controller
 	            }
 
 	            $registro->save();
+
+	            // Buscar y actualizar registro en ReqModelosCodificados
+	            $claveModelo = $registro->getAttribute('ClaveModelo');
+	            $departamento = $registro->getAttribute('Departamento');
+	            
+	            if ($claveModelo || $departamento) {
+	                $queryModelos = ReqModelosCodificados::query();
+	                
+	                if ($claveModelo) {
+	                    $queryModelos->where('TamanoClave', $claveModelo);
+	                }
+	                
+	                if ($departamento) {
+	                    $queryModelos->where('SalonTejidoId', $departamento);
+	                }
+	                
+	                $registroModelo = $queryModelos->first();
+	                
+	                if ($registroModelo) {
+	                    // Preparar payload para actualizar ReqModelosCodificados
+	                    $payloadModelo = array_merge([
+	                        'NoTelarId' => $validated['NoTelarId'],
+	                        'OrdenTejido' => $validated['NoProduccion'],
+	                        'CodigoDibujo' => $codigoDibujo,
+	                        'AnchoPeineTrama' => $validated['TramaAnchoPeine'] ?? null,
+	                        'LogLuchaTotal' => $validated['LongitudLuchaTot'] ?? null,
+	                        'Total' => $validated['TotalPasadasDibujo'],
+	                        'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
+	                    ], $detallePayload, $pasadasPayload);
+	                    
+	                    // Obtener columnas disponibles en ReqModelosCodificados
+	                    $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
+	                    
+	                    // Actualizar solo las columnas que existen
+	                    foreach ($payloadModelo as $column => $value) {
+	                        if (!in_array($column, $columnasModelo, true)) {
+	                            continue;
+	                        }
+	                        $registroModelo->setAttribute($column, $value);
+	                    }
+	                    
+	                    $registroModelo->save();
+	                    
+	                    Log::info('Registro actualizado en ReqModelosCodificados', [
+	                        'Id' => $registroModelo->Id,
+	                        'TamanoClave' => $registroModelo->TamanoClave,
+	                        'SalonTejidoId' => $registroModelo->SalonTejidoId,
+	                    ]);
+	                }
+	            }
 
 	            Log::info('Datos de desarrollador guardados en CatCodificados', [
 	                'table' => $table,
