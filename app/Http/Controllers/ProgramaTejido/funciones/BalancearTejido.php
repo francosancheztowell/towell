@@ -726,7 +726,7 @@ class BalancearTejido
         $fechaFinObjetivo = Carbon::parse($request->input('fecha_fin_objetivo'));
 
         $registros = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
-            ->orderBy('NoTelarId', 'desc')
+            ->orderBy('NoTelarId', 'asc')
             ->get();
 
         // Warm caches para optimizar
@@ -735,6 +735,7 @@ class BalancearTejido
         $nuevosPedidos = [];
         $horasDisponiblesTotal = 0;
         $horasNecesariasOriginales = 0;
+        $totalOriginal = (float)$registros->sum(fn($r) => (float)($r->TotalPedido ?? 0));
 
         // Convertir a array indexado para poder acceder por índice
         $registrosArray = $registros->values()->all();
@@ -757,12 +758,6 @@ class BalancearTejido
             $regTemp = clone $reg;
             $regTemp->SaldoPedido = $saldoOriginal;
             $horasNecesariasOriginales += self::calcularHorasProd($regTemp);
-
-            // REGLA 1: El primer registro NUNCA cambia su total
-            if ($indice === 0) {
-                $registrosQueCumplen[] = ['indice' => $indice, 'reg' => $reg, 'pedido' => $pedidoActual];
-                continue;
-            }
 
             if (empty($reg->FechaInicio)) {
                 $registrosQueCumplen[] = ['indice' => $indice, 'reg' => $reg, 'pedido' => $pedidoActual];
@@ -792,6 +787,9 @@ class BalancearTejido
 
             $cumpleObjetivo = false;
             if ($fechaFinalActual) {
+                if ($fechaFinalActual->toDateString() === $fechaFinObjetivo->toDateString()) {
+                    $cumpleObjetivo = true;
+                }
                 $diferenciaSegundos = abs($fechaFinObjetivo->getTimestamp() - $fechaFinalActual->getTimestamp());
                 if ($diferenciaSegundos <= $toleranciaSegundos && $fechaFinalActual->getTimestamp() <= $fechaFinObjetivo->getTimestamp()) {
                     $cumpleObjetivo = true;
@@ -845,7 +843,7 @@ class BalancearTejido
                 $produccion
             );
 
-            $pedidoFinal = max($produccion, round($pedidoCalculado));
+            $pedidoFinal = max(1, $produccion, round($pedidoCalculado));
 
             $nuevosPedidos[$reg->Id] = [
                 'id' => (int)$reg->Id,
@@ -854,11 +852,88 @@ class BalancearTejido
             ];
         }
 
-        Log::debug('registrosQueNecesitanAjuste', $registrosQueNecesitanAjuste);
+        // Ajuste final: mantener el total original sumando la diferencia al ultimo
+        $totalNuevo = 0.0;
+        foreach ($nuevosPedidos as $item) {
+            $totalNuevo += (float)$item['total_pedido'];
+        }
+        $diff = $totalOriginal - $totalNuevo;
+
+        if (abs($diff) >= 1 && !empty($registrosQueNecesitanAjuste)) {
+            $ultimoItem = $registrosQueNecesitanAjuste[0] ?? null;
+            $ultimoReg = $ultimoItem['reg'] ?? null;
+            if ($ultimoReg) {
+                $ultimoId = (int)$ultimoReg->Id;
+                $prodUltimo = (float)($ultimoReg->Produccion ?? 0);
+                $totalActualUltimo = isset($nuevosPedidos[$ultimoId])
+                    ? (float)$nuevosPedidos[$ultimoId]['total_pedido']
+                    : (float)($ultimoReg->TotalPedido ?? 0);
+
+                $nuevoTotalUltimo = $totalActualUltimo + $diff;
+                if ($nuevoTotalUltimo < $prodUltimo) {
+                    $nuevoTotalUltimo = $prodUltimo;
+                }
+                if ($nuevoTotalUltimo < 1) {
+                    $nuevoTotalUltimo = 1;
+                }
+
+                $nuevosPedidos[$ultimoId] = [
+                    'id' => $ultimoId,
+                    'total_pedido' => (int) round($nuevoTotalUltimo),
+                    'modo' => 'total'
+                ];
+
+                Log::debug('balancearAutomatico ajuste_ultimo', [
+                    'ord_compartida' => $ordCompartida,
+                    'ultimo_id' => $ultimoId,
+                    'total_original' => $totalOriginal,
+                    'total_nuevo' => $totalNuevo,
+                    'diff' => $diff,
+                    'nuevo_total_ultimo' => $nuevoTotalUltimo,
+                ]);
+            }
+        }
+
+        $totalNuevoFinal = 0.0;
+        foreach ($nuevosPedidos as $item) {
+            $totalNuevoFinal += (float)$item['total_pedido'];
+        }
+
+        $rest = $totalOriginal - $totalNuevoFinal;
+        if ($rest < 0 && !empty($registrosQueNecesitanAjuste)) {
+            $pendiente = abs($rest);
+            foreach ($registrosQueNecesitanAjuste as $item) {
+                if ($pendiente <= 0) break;
+                $reg = $item['reg'];
+                $id = (int)$reg->Id;
+                if (!isset($nuevosPedidos[$id])) continue;
+
+                $min = max(1, (float)($reg->Produccion ?? 0));
+                $actual = (float)$nuevosPedidos[$id]['total_pedido'];
+                $cap = $actual - $min;
+                if ($cap <= 0) continue;
+
+                $reducir = min($cap, $pendiente);
+                $nuevosPedidos[$id]['total_pedido'] = (int) round($actual - $reducir);
+                $pendiente -= $reducir;
+            }
+
+            $totalNuevoFinal = 0.0;
+            foreach ($nuevosPedidos as $item) {
+                $totalNuevoFinal += (float)$item['total_pedido'];
+            }
+        }
+
+        Log::debug('balancearAutomatico totales', [
+            'ord_compartida' => $ordCompartida,
+            'total_original' => $totalOriginal,
+            'total_nuevo' => $totalNuevoFinal,
+            'diff' => $totalOriginal - $totalNuevoFinal,
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Balanceo calculado correctamente a fecha objetivo',
+            'message' => 'Balanceo calculado correctamente',
             'cambios' => array_values($nuevosPedidos),
             'horas_disponibles_sumadas' => $horasDisponiblesTotal, // Suma de horas de todas las máquinas
             'horas_necesarias_originales' => $horasNecesariasOriginales,
