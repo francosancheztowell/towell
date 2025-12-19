@@ -15,7 +15,6 @@ class BalancearTejido
 {
     /** Cache para modelo (TamanoClave) */
     private static array $modeloCache = [];
-
     /** Cache de líneas por calendario (ya parseadas) */
     private static array $calLinesCache = []; // [calId => [ ['ini'=>Carbon,'fin'=>Carbon,'ini_ts'=>int,'fin_ts'=>int], ... ] ]
 
@@ -24,7 +23,6 @@ class BalancearTejido
 
     /** gaps muy pequeños (ej. 2s entre :29:58 y :30:00) se ignoran */
     private const SMALL_GAP_SECONDS = 5;
-
     // =========================================================
     // PREVIEW EXACTO (NO GUARDA) - PARA EL MODAL (CALENDARIO)
     // =========================================================
@@ -714,11 +712,11 @@ class BalancearTejido
         return is_numeric($clean) ? (float)$clean : 0.0;
     }
 
-    // =========================================================
-    // BALANCEO AUTOMÁTICO CON FECHA OBJETIVO
-    // =========================================================
+
+// Funcion de balanceo automatico con fecha fin objetivo
     public static function balancearAutomatico(Request $request)
     {
+        // aqui valida las ordenes compartidas para que sea la misma
         $request->validate([
             'ord_compartida' => 'required|integer',
             'fecha_fin_objetivo' => 'required|date',
@@ -727,253 +725,143 @@ class BalancearTejido
         $ordCompartida = (int)$request->input('ord_compartida');
         $fechaFinObjetivo = Carbon::parse($request->input('fecha_fin_objetivo'));
 
-        // Obtener todos los registros del grupo ordenados por FechaInicio
         $registros = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
-            ->orderBy('FechaInicio', 'asc')
-            ->orderBy('Id', 'asc')
+            ->orderBy('NoTelarId', 'desc')
             ->get();
 
-        if ($registros->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No se encontraron registros para balancear',
-            ], 404);
-        }
-
-        // Warm caches
+        // Warm caches para optimizar
         self::warmCachesFromProgramas($registros);
 
-        // Obtener fecha de inicio del primer registro
-        $primerRegistro = $registros->first();
-        if (empty($primerRegistro->FechaInicio)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'El primer registro no tiene fecha de inicio',
-            ], 400);
-        }
+        $nuevosPedidos = [];
+        $horasDisponiblesTotal = 0;
+        $horasNecesariasOriginales = 0;
 
-        $fechaInicio = Carbon::parse($primerRegistro->FechaInicio);
+        // Convertir a array indexado para poder acceder por índice
+        $registrosArray = $registros->values()->all();
+        $totalRegistros = count($registrosArray);
+        // entre menos tolerancia se comporta mejor
+        $toleranciaHoras = 0.001; // Muy pequeña para mayor precisión
+        $toleranciaSegundos = (int)($toleranciaHoras * 3600); // Convertir horas a segundos
 
-        // Snap al calendario si tiene
-        if (!empty($primerRegistro->CalendarioId)) {
-            $snap = self::snapInicioAlCalendario($primerRegistro->CalendarioId, $fechaInicio);
-            if ($snap) $fechaInicio = $snap;
-        }
+        // PASO 1: Identificar qué registros ya cumplen con la fecha objetivo
+        // Estos NO deben cambiar
+        $registrosQueCumplen = [];
+        $registrosQueNecesitanAjuste = [];
 
-        // Calcular horas disponibles hasta la fecha objetivo (usando calendario si aplica)
-        $horasDisponibles = self::calcularHorasDisponiblesHastaFecha(
-            $primerRegistro->CalendarioId ?? null,
-            $fechaInicio,
-            $fechaFinObjetivo
-        );
-
-        // Calcular total de pedido actual
-        $totalPedidoActual = $registros->sum(fn($r) => (float)($r->TotalPedido ?? 0));
-
-        // Calcular horas necesarias con pedidos actuales y eficiencia de cada registro
-        $horasNecesariasActuales = 0;
-        $datosRegistros = [];
-
-        foreach ($registros as $reg) {
+        foreach ($registrosArray as $indice => $reg) {
             $produccion = (float)($reg->Produccion ?? 0);
             $pedidoActual = (float)($reg->TotalPedido ?? 0);
-            $saldo = max(0, $pedidoActual - $produccion);
 
-            // Calcular horas necesarias con el pedido actual
+            // Calculamos horas originales solo para referencia informativa
+            $saldoOriginal = max(0, $pedidoActual - $produccion);
             $regTemp = clone $reg;
-            $regTemp->SaldoPedido = $saldo;
-            $horas = self::calcularHorasProd($regTemp);
+            $regTemp->SaldoPedido = $saldoOriginal;
+            $horasNecesariasOriginales += self::calcularHorasProd($regTemp);
 
-            // Calcular eficiencia (horas por unidad de pedido)
-            $eficienciaHoras = $pedidoActual > 0 && $horas > 0 ? $horas / $pedidoActual : 0;
+            // REGLA 1: El primer registro NUNCA cambia su total
+            if ($indice === 0) {
+                $registrosQueCumplen[] = ['indice' => $indice, 'reg' => $reg, 'pedido' => $pedidoActual];
+                continue;
+            }
 
-            $datosRegistros[] = [
-                'registro' => $reg,
-                'pedido_actual' => $pedidoActual,
-                'produccion' => $produccion,
-                'saldo' => $saldo,
-                'horas' => $horas,
-                'eficiencia_horas' => $eficienciaHoras
-            ];
+            if (empty($reg->FechaInicio)) {
+                $registrosQueCumplen[] = ['indice' => $indice, 'reg' => $reg, 'pedido' => $pedidoActual];
+                continue;
+            }
 
-            $horasNecesariasActuales += $horas;
+            $fechaInicioReg = Carbon::parse($reg->FechaInicio);
+            if (!empty($reg->CalendarioId)) {
+                $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioReg);
+                if ($snap) $fechaInicioReg = $snap;
+            }
+
+            // Verificar si el pedido actual ya es correcto
+            $horasActual = self::calcularHorasProd($reg);
+            $fechaFinalActual = null;
+            if ($horasActual > 0) {
+                $fechaInicioTemp = $fechaInicioReg->copy();
+                if (!empty($reg->CalendarioId)) {
+                    $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioTemp);
+                    if ($snap) $fechaInicioTemp = $snap;
+                }
+
+                $fechaFinalActual = !empty($reg->CalendarioId)
+                    ? (self::calcularFechaFinalDesdeInicio($reg->CalendarioId, $fechaInicioTemp, $horasActual) ?: $fechaInicioTemp->copy()->addSeconds((int)round($horasActual * 3600)))
+                    : $fechaInicioTemp->copy()->addSeconds((int)round($horasActual * 3600));
+            }
+
+            $cumpleObjetivo = false;
+            if ($fechaFinalActual) {
+                $diferenciaSegundos = abs($fechaFinObjetivo->getTimestamp() - $fechaFinalActual->getTimestamp());
+                if ($diferenciaSegundos <= $toleranciaSegundos && $fechaFinalActual->getTimestamp() <= $fechaFinObjetivo->getTimestamp()) {
+                    $cumpleObjetivo = true;
+                }
+            }
+
+            if ($cumpleObjetivo) {
+                $registrosQueCumplen[] = ['indice' => $indice, 'reg' => $reg, 'pedido' => $pedidoActual];
+            } else {
+                $registrosQueNecesitanAjuste[] = ['indice' => $indice, 'reg' => $reg];
+            }
         }
 
-        // =========================================================
-        // ALGORITMO PRECISO: Calcular pedidos para llegar exactamente a fecha objetivo
-        // PRIORIDAD: Los primeros registros deben llegar a la fecha objetivo
-        // =========================================================
-        $nuevosPedidos = [];
-        $ultimoIdx = count($datosRegistros) - 1;
-        $totalRegistros = count($datosRegistros);
+        // PASO 2: Primero mantener los que ya cumplen
+        foreach ($registrosQueCumplen as $item) {
+            $nuevosPedidos[$item['reg']->Id] = [
+                'id' => (int)$item['reg']->Id,
+                'total_pedido' => $item['pedido'],
+                'modo' => 'total'
+            ];
+        }
 
-        // Si solo hay un registro, calcular exactamente para llegar a fecha objetivo
-        if ($totalRegistros === 1) {
-            $reg = $datosRegistros[0]['registro'];
-            $produccion = $datosRegistros[0]['produccion'];
+        // PASO 3: Procesar los que necesitan ajuste, desde el FINAL hacia atrás
+        // Esto asegura que los últimos (319, 320) se ajusten antes que los del medio (311, 312)
+        usort($registrosQueNecesitanAjuste, fn($a, $b) => $b['indice'] <=> $a['indice']);
 
-            // Calcular pedido exacto para llegar a fecha objetivo
-            $pedidoExacto = self::calcularPedidoParaFechaObjetivo(
+        foreach ($registrosQueNecesitanAjuste as $item) {
+            $reg = $item['reg'];
+            $produccion = (float)($reg->Produccion ?? 0);
+            $pedidoActual = (float)($reg->TotalPedido ?? 0);
+
+            $fechaInicioReg = Carbon::parse($reg->FechaInicio);
+            if (!empty($reg->CalendarioId)) {
+                $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioReg);
+                if ($snap) $fechaInicioReg = $snap;
+            }
+
+            // Calcular Horas Disponibles
+            $horasDispReg = self::calcularHorasDisponiblesHastaFecha(
+                $reg->CalendarioId ?? null,
+                $fechaInicioReg,
+                $fechaFinObjetivo
+            );
+            $horasDisponiblesTotal += $horasDispReg;
+
+            // Calcular Pedido Exacto
+            $pedidoCalculado = self::calcularPedidoParaFechaObjetivo(
                 $reg,
-                $fechaInicio,
+                $fechaInicioReg,
                 $fechaFinObjetivo,
                 $produccion
             );
 
+            $pedidoFinal = max($produccion, round($pedidoCalculado));
+
             $nuevosPedidos[$reg->Id] = [
                 'id' => (int)$reg->Id,
-                'total_pedido' => max($produccion, round($pedidoExacto)),
-                'modo' => 'total'
-            ];
-        } elseif ($totalRegistros === 2) {
-            // CASO ESPECIAL: 2 registros - el primero DEBE llegar exactamente a la fecha objetivo
-            $primerDatos = $datosRegistros[0];
-            $segundoDatos = $datosRegistros[1];
-            $primerReg = $primerDatos['registro'];
-            $segundoReg = $segundoDatos['registro'];
-            $produccionPrimero = $primerDatos['produccion'];
-            $produccionSegundo = $segundoDatos['produccion'];
-
-            $cursorFecha = $fechaInicio->copy();
-
-            // Snap inicial al calendario
-            if (!empty($primerReg->CalendarioId)) {
-                $snap = self::snapInicioAlCalendario($primerReg->CalendarioId, $cursorFecha);
-                if ($snap) $cursorFecha = $snap;
-            }
-
-            // PRIMER REGISTRO: Calcular exactamente para llegar a fecha objetivo
-            $pedidoPrimero = self::calcularPedidoParaFechaObjetivo(
-                $primerReg,
-                $cursorFecha,
-                $fechaFinObjetivo,
-                $produccionPrimero
-            );
-
-            $pedidoPrimeroFinal = max($produccionPrimero, round($pedidoPrimero));
-
-            $nuevosPedidos[$primerReg->Id] = [
-                'id' => (int)$primerReg->Id,
-                'total_pedido' => $pedidoPrimeroFinal,
-                'modo' => 'total'
-            ];
-
-            // Calcular fecha final del primero para usar como inicio del segundo
-            $regTemp = clone $primerReg;
-            $regTemp->TotalPedido = $pedidoPrimeroFinal;
-            $regTemp->SaldoPedido = max(0, $pedidoPrimeroFinal - $produccionPrimero);
-            $horasPrimero = self::calcularHorasProd($regTemp);
-
-            if ($horasPrimero > 0) {
-                if (!empty($primerReg->CalendarioId)) {
-                    $fin = self::calcularFechaFinalDesdeInicio($primerReg->CalendarioId, $cursorFecha, $horasPrimero);
-                    if ($fin) {
-                        $cursorFecha = $fin->copy();
-                    } else {
-                        $cursorFecha->addSeconds((int)round($horasPrimero * 3600));
-                    }
-                } else {
-                    $cursorFecha->addSeconds((int)round($horasPrimero * 3600));
-                }
-            }
-
-            // SEGUNDO REGISTRO: Calcular lo que quede (puede desbalancearse)
-            $sumaPedidos = $pedidoPrimeroFinal;
-            $diferencia = $totalPedidoActual - $sumaPedidos;
-            $pedidoSegundo = max($produccionSegundo, round($diferencia));
-
-            $nuevosPedidos[$segundoReg->Id] = [
-                'id' => (int)$segundoReg->Id,
-                'total_pedido' => $pedidoSegundo,
-                'modo' => 'total'
-            ];
-        } else {
-            // Para múltiples registros: calcular secuencialmente
-            $cursorFecha = $fechaInicio->copy();
-
-            // Snap inicial al calendario
-            if (!empty($primerRegistro->CalendarioId)) {
-                $snap = self::snapInicioAlCalendario($primerRegistro->CalendarioId, $cursorFecha);
-                if ($snap) $cursorFecha = $snap;
-            }
-
-            // Calcular pedidos para todos excepto el último
-            // PRIORIDAD: Cada registro debe llegar lo más cerca posible a la fecha objetivo
-            for ($idx = 0; $idx < $ultimoIdx; $idx++) {
-                $datos = $datosRegistros[$idx];
-                $reg = $datos['registro'];
-                $produccion = $datos['produccion'];
-
-                // Determinar fecha objetivo para este registro
-                // Si es el penúltimo, debe llegar exactamente a la fecha objetivo
-                // Si es anterior, debe llegar lo más cerca posible
-                $fechaObjetivoRegistro = ($idx === $ultimoIdx - 1)
-                    ? $fechaFinObjetivo
-                    : self::calcularFechaObjetivoIntermedia($fechaInicio, $fechaFinObjetivo, $idx, $ultimoIdx);
-
-                // Snap al calendario si tiene
-                if (!empty($reg->CalendarioId)) {
-                    $snap = self::snapInicioAlCalendario($reg->CalendarioId, $cursorFecha);
-                    if ($snap) $cursorFecha = $snap;
-                }
-
-                // Calcular pedido exacto para llegar a la fecha objetivo de este registro
-                $pedidoExacto = self::calcularPedidoParaFechaObjetivo(
-                    $reg,
-                    $cursorFecha,
-                    $fechaObjetivoRegistro,
-                    $produccion
-                );
-
-                $pedidoFinal = max($produccion, round($pedidoExacto));
-
-                $nuevosPedidos[$reg->Id] = [
-                    'id' => (int)$reg->Id,
-                    'total_pedido' => $pedidoFinal,
-                    'modo' => 'total'
-                ];
-
-                // Calcular fecha final real de este registro para usar como inicio del siguiente
-                $regTemp = clone $reg;
-                $regTemp->TotalPedido = $pedidoFinal;
-                $regTemp->SaldoPedido = max(0, $pedidoFinal - $produccion);
-                $horas = self::calcularHorasProd($regTemp);
-
-                if ($horas > 0) {
-                    if (!empty($reg->CalendarioId)) {
-                        $fin = self::calcularFechaFinalDesdeInicio($reg->CalendarioId, $cursorFecha, $horas);
-                        if ($fin) {
-                            $cursorFecha = $fin->copy();
-                        } else {
-                            $cursorFecha->addSeconds((int)round($horas * 3600));
-                        }
-                    } else {
-                        $cursorFecha->addSeconds((int)round($horas * 3600));
-                    }
-                }
-            }
-
-            // Último registro: calcular lo que quede (puede desbalancearse)
-            $ultimoReg = $datosRegistros[$ultimoIdx]['registro'];
-            $sumaPedidos = array_sum(array_column($nuevosPedidos, 'total_pedido'));
-            $diferencia = $totalPedidoActual - $sumaPedidos;
-            $produccionUltimo = (float)($ultimoReg->Produccion ?? 0);
-
-            $pedidoUltimo = max($produccionUltimo, round($diferencia));
-
-            $nuevosPedidos[$ultimoReg->Id] = [
-                'id' => (int)$ultimoReg->Id,
-                'total_pedido' => $pedidoUltimo,
+                'total_pedido' => $pedidoFinal,
                 'modo' => 'total'
             ];
         }
 
+        Log::debug('registrosQueNecesitanAjuste', $registrosQueNecesitanAjuste);
+
         return response()->json([
             'success' => true,
-            'message' => 'Balanceo calculado correctamente',
+            'message' => 'Balanceo calculado correctamente a fecha objetivo',
             'cambios' => array_values($nuevosPedidos),
-            'horas_disponibles' => $horasDisponibles,
-            'horas_necesarias_originales' => $horasNecesariasActuales,
+            'horas_disponibles_sumadas' => $horasDisponiblesTotal, // Suma de horas de todas las máquinas
+            'horas_necesarias_originales' => $horasNecesariasOriginales,
         ]);
     }
 
@@ -1021,11 +909,11 @@ class BalancearTejido
         $mejorPedido = $pedidoEstimado;
         $mejorDiferencia = PHP_FLOAT_MAX;
 
-        $maxIteraciones = 50; // Más iteraciones para mayor precisión
-        $toleranciaSegundos = 60; // 1 minuto de tolerancia
+        $maxIteraciones = 70; // Más iteraciones para mayor precisión
+        $toleranciaSegundos = 70; // 1 minuto de tolerancia
 
         for ($iter = 0; $iter < $maxIteraciones; $iter++) {
-            $pedidoPrueba = ($minPedido + $maxPedido) / 2.0;
+            $pedidoPrueba = ($minPedido + $maxPedido) / 2.1;
 
             // Calcular fecha final con este pedido
             $regTemp = clone $reg;
