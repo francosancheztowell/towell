@@ -38,10 +38,28 @@ class CalendarioController extends Controller
         $calendarios = ReqCalendarioTab::orderBy('CalendarioId')->get();
         $lineas = ReqCalendarioLine::orderBy('CalendarioId')->orderBy('FechaInicio')->get();
 
-        return view('catalagos.calendarios', [
+        return view('catalagos.calendarios.index', [
             'calendarioTab'  => $calendarios,
             'calendarioLine' => $lineas
         ]);
+    }
+
+    public function getCalendariosJson(Request $request)
+    {
+        try {
+            $calendarios = ReqCalendarioTab::orderBy('CalendarioId')->get(['CalendarioId', 'Nombre']);
+
+            return response()->json([
+                'success' => true,
+                'data' => $calendarios
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Error al obtener calendarios: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener calendarios'
+            ], 500);
+        }
     }
 
     public function store(Request $request)
@@ -55,22 +73,68 @@ class CalendarioController extends Controller
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Datos inválidos',
+                    'message' => 'Datos invalidos',
                     'errors'  => $validator->errors()
                 ], 422);
             }
+
+            $turnos = $request->input('Turnos');
+            $fechaInicial = $request->input('FechaInicial');
+            $fechaFinal = $request->input('FechaFinal');
+
+            if ($turnos !== null) {
+                $extraValidator = Validator::make($request->all(), [
+                    'FechaInicial' => 'required|date',
+                    'FechaFinal'   => 'required|date',
+                    'Turnos'       => 'required|array'
+                ]);
+
+                if ($extraValidator->fails()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Datos invalidos',
+                        'errors'  => $extraValidator->errors()
+                    ], 422);
+                }
+            }
+
+            DB::beginTransaction();
 
             $calendario = ReqCalendarioTab::create([
                 'CalendarioId' => $request->CalendarioId,
                 'Nombre'       => $request->Nombre
             ]);
 
+            $lineasCreadas = 0;
+            if ($turnos !== null) {
+                $lineasCreadas = $this->crearLineasDesdeTurnos(
+                    $calendario->CalendarioId,
+                    (string) $fechaInicial,
+                    (string) $fechaFinal,
+                    is_array($turnos) ? $turnos : []
+                );
+            }
+
+            DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Calendario creado exitosamente',
-                'data'    => $calendario
+                'data'    => $calendario,
+                'lineas_creadas' => $lineasCreadas
             ]);
+        } catch (\InvalidArgumentException $e) {
+            if (DB::transactionLevel() > 0) {
+                try { DB::rollBack(); } catch (\Exception $rollbackEx) {}
+            }
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
         } catch (\Exception $e) {
+            if (DB::transactionLevel() > 0) {
+                try { DB::rollBack(); } catch (\Exception $rollbackEx) {}
+            }
             Log::error("Error al crear calendario: " . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -118,6 +182,172 @@ class CalendarioController extends Controller
         }
     }
 
+    public function getCalendarioDetalle(string $calendarioId)
+    {
+        try {
+            $calendario = ReqCalendarioTab::where('CalendarioId', $calendarioId)->first();
+            if (!$calendario) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Calendario no encontrado'
+                ], 404);
+            }
+
+            $lineas = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+                ->orderBy('FechaInicio', 'desc')
+                ->get(['FechaInicio', 'FechaFin', 'HorasTurno', 'Turno']);
+
+            $diasMap = [
+                0 => 'domingo',
+                1 => 'lunes',
+                2 => 'martes',
+                3 => 'miercoles',
+                4 => 'jueves',
+                5 => 'viernes',
+                6 => 'sabado',
+            ];
+
+            $turnos = [1, 2, 3];
+            $turnosData = [];
+
+            foreach ($turnos as $turno) {
+                foreach ($diasMap as $diaKey) {
+                    $turnosData[$turno][$diaKey] = [
+                        'horas' => 0,
+                        'inicio' => '',
+                        'fin' => '',
+                        'activo' => false
+                    ];
+                }
+            }
+
+            $fechaInicial = null;
+            $fechaFinal = null;
+
+            $visitado = [];
+
+            foreach ($lineas as $linea) {
+                $inicio = Carbon::parse($linea->FechaInicio);
+                $fin = Carbon::parse($linea->FechaFin);
+                $diaKey = $diasMap[$inicio->dayOfWeek] ?? null;
+                $turno = (int) $linea->Turno;
+
+                if (!$diaKey || !in_array($turno, $turnos, true)) {
+                    continue;
+                }
+
+                $visitKey = $turno . '|' . $diaKey;
+                if (!isset($visitado[$visitKey])) {
+                    $turnosData[$turno][$diaKey] = [
+                        'horas' => (float) $linea->HorasTurno,
+                        'inicio' => $inicio->format('H:i:s'),
+                        'fin' => $fin->format('H:i:s'),
+                        'activo' => true
+                    ];
+                    $visitado[$visitKey] = true;
+                }
+
+                $diaInicio = $inicio->copy()->startOfDay();
+                if ($fechaInicial === null || $diaInicio->lt($fechaInicial)) {
+                    $fechaInicial = $diaInicio;
+                }
+
+                if ($fechaFinal === null || $diaInicio->gt($fechaFinal)) {
+                    $fechaFinal = $diaInicio;
+                }
+            }
+
+            if ($fechaInicial === null) {
+                $fechaInicial = Carbon::today();
+            }
+            if ($fechaFinal === null) {
+                $fechaFinal = $fechaInicial->copy();
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'calendarioId' => $calendario->CalendarioId,
+                    'nombre' => $calendario->Nombre,
+                    'fechaInicial' => $fechaInicial->format('Y-m-d'),
+                    'fechaFinal' => $fechaFinal->format('Y-m-d'),
+                    'turnos' => $turnosData
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Error al obtener detalle de calendario: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
+
+    public function updateMasivo(Request $request, string $calendarioId)
+    {
+        try {
+            $calendario = ReqCalendarioTab::where('CalendarioId', $calendarioId)->first();
+            if (!$calendario) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Calendario no encontrado'
+                ], 404);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'Nombre'       => 'required|string|max:255',
+                'FechaInicial' => 'required|date',
+                'FechaFinal'   => 'required|date',
+                'Turnos'       => 'required|array'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos invalidos',
+                    'errors'  => $validator->errors()
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            $calendario->update(['Nombre' => $request->Nombre]);
+            ReqCalendarioLine::where('CalendarioId', $calendarioId)->delete();
+
+            $lineasCreadas = $this->crearLineasDesdeTurnos(
+                $calendarioId,
+                (string) $request->FechaInicial,
+                (string) $request->FechaFinal,
+                is_array($request->Turnos) ? $request->Turnos : []
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Calendario actualizado exitosamente',
+                'lineas_creadas' => $lineasCreadas
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            if (DB::transactionLevel() > 0) {
+                try { DB::rollBack(); } catch (\Exception $rollbackEx) {}
+            }
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        } catch (\Exception $e) {
+            if (DB::transactionLevel() > 0) {
+                try { DB::rollBack(); } catch (\Exception $rollbackEx) {}
+            }
+            Log::error("Error al actualizar calendario (masivo): " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
+
     public function destroy($id)
     {
         try {
@@ -133,18 +363,23 @@ class CalendarioController extends Controller
             if ($programasUsando > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => "No se puede eliminar el calendario porque está siendo utilizado por {$programasUsando} programa(s) de tejido."
+                    'message' => "No se puede eliminar el calendario porque esta siendo utilizado por {$programasUsando} programa(s) de tejido."
                 ], 422);
             }
 
+            DB::beginTransaction();
             ReqCalendarioLine::where('CalendarioId', $calendario->CalendarioId)->delete();
             $calendario->delete();
+            DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Calendario y sus líneas eliminados exitosamente'
+                'message' => 'Calendario y sus lineas eliminados exitosamente'
             ]);
         } catch (\Exception $e) {
+            if (DB::transactionLevel() > 0) {
+                try { DB::rollBack(); } catch (\Exception $rollbackEx) {}
+            }
             Log::error("Error al eliminar calendario: " . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -770,6 +1005,102 @@ class CalendarioController extends Controller
         if (is_numeric($value)) return (float)$value;
         $clean = str_replace([',', ' '], '', (string)$value);
         return is_numeric($clean) ? (float)$clean : 0.0;
+    }
+
+    private function normalizarHoraHms(string $hora): string
+    {
+        $hora = trim($hora);
+        if ($hora === '') return '';
+        if (preg_match('/^\d{1,2}:\d{2}$/', $hora)) return "{$hora}:00";
+        if (preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $hora)) return $hora;
+        return $hora;
+    }
+
+    private function crearLineasDesdeTurnos(
+        string $calendarioId,
+        string $fechaInicial,
+        string $fechaFinal,
+        array $turnos
+    ): int {
+        $inicio = Carbon::parse($fechaInicial)->startOfDay();
+        $fin = Carbon::parse($fechaFinal)->startOfDay();
+        if ($fin->lt($inicio)) {
+            throw new \InvalidArgumentException('Fecha final menor a fecha inicial');
+        }
+
+        $diasMap = [
+            0 => 'domingo',
+            1 => 'lunes',
+            2 => 'martes',
+            3 => 'miercoles',
+            4 => 'jueves',
+            5 => 'viernes',
+            6 => 'sabado',
+        ];
+
+        $horasPorDia = [];
+        foreach ($diasMap as $key) {
+            $horasPorDia[$key] = 0.0;
+        }
+
+        foreach ($turnos as $turno => $dias) {
+            if (!is_array($dias)) continue;
+            foreach ($dias as $diaKey => $info) {
+                if (!is_array($info)) continue;
+                if (isset($info['activo']) && $info['activo'] === false) continue;
+                $horas = (float) ($info['horas'] ?? 0);
+                $horasPorDia[$diaKey] = ($horasPorDia[$diaKey] ?? 0) + $horas;
+            }
+        }
+
+        foreach ($horasPorDia as $diaKey => $total) {
+            if ($total > 24.01) {
+                throw new \InvalidArgumentException("La suma de horas para {$diaKey} no puede ser mayor a 24");
+            }
+        }
+
+        $lineas = [];
+        $fecha = $inicio->copy();
+
+        while ($fecha->lte($fin)) {
+            $diaKey = $diasMap[$fecha->dayOfWeek] ?? null;
+            if ($diaKey && isset($horasPorDia[$diaKey]) && $horasPorDia[$diaKey] > 0) {
+                foreach ($turnos as $turno => $dias) {
+                    if (!is_array($dias) || !isset($dias[$diaKey])) continue;
+                    $info = $dias[$diaKey];
+                    if (!is_array($info)) continue;
+                    if (isset($info['activo']) && $info['activo'] === false) continue;
+
+                    $horas = (float) ($info['horas'] ?? 0);
+                    if ($horas <= 0) continue;
+
+                    $horaInicio = $this->normalizarHoraHms((string) ($info['inicio'] ?? ''));
+                    if ($horaInicio === '') continue;
+
+                    $inicioDt = Carbon::parse($fecha->format('Y-m-d') . ' ' . $horaInicio);
+                    $finDt = $inicioDt->copy()->addSeconds((int) round($horas * 3600))->subSeconds(2);
+
+                    $lineas[] = [
+                        'CalendarioId' => $calendarioId,
+                        'FechaInicio'  => $inicioDt->format('Y-m-d H:i:s'),
+                        'FechaFin'     => $finDt->format('Y-m-d H:i:s'),
+                        'HorasTurno'   => $horas,
+                        'Turno'        => (int) $turno
+                    ];
+                }
+            }
+
+            $fecha->addDay();
+        }
+
+        if ($lineas) {
+            $chunkSize = 400;
+            foreach (array_chunk($lineas, $chunkSize) as $chunk) {
+                ReqCalendarioLine::insert($chunk);
+            }
+        }
+
+        return count($lineas);
     }
 
     /**

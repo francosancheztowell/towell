@@ -374,8 +374,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/calendarios/excel', [CalendarioController::class, 'procesarExcel'])->name('calendarios.excel.upload');
 
         // Rutas CRUD para calendarios
+        Route::get('/calendarios/json', [CalendarioController::class, 'getCalendariosJson'])->name('calendarios.json');
+        Route::get('/calendarios/{calendario}/detalle', [CalendarioController::class, 'getCalendarioDetalle'])->name('calendarios.detalle');
         Route::post('/calendarios', [CalendarioController::class, 'store'])->name('calendarios.store');
         Route::put('/calendarios/{calendario}', [CalendarioController::class, 'update'])->name('calendarios.update');
+        Route::put('/calendarios/{calendario}/masivo', [CalendarioController::class, 'updateMasivo'])->name('calendarios.update.masivo');
         Route::delete('/calendarios/{calendario}', [CalendarioController::class, 'destroy'])->name('calendarios.destroy');
 
         // Rutas CRUD para líneas de calendario
