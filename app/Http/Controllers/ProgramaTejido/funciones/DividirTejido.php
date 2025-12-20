@@ -12,6 +12,7 @@ use App\Models\ReqModelosCodificados;
 use App\Models\ReqCalendarioLine;
 use App\Models\ReqVelocidadStd;
 use App\Models\ReqEficienciaStd;
+use App\Helpers\StringTruncator;
 
 class DividirTejido
 {
@@ -34,6 +35,7 @@ class DividirTejido
             'no_telar_id' => 'required|string',
             'destinos' => 'required|array|min:1',
             'destinos.*.telar' => 'required|string',
+            'destinos.*.salon_destino' => 'nullable|string',
             'destinos.*.pedido' => 'nullable|string',
             'destinos.*.pedido_tempo' => 'nullable|string',
             'destinos.*.observaciones' => 'nullable|string|max:500',
@@ -65,7 +67,7 @@ class DividirTejido
         try {
             // Si es redistribución, usar lógica diferente
             if ($esRedistribucion) {
-                return self::redistribuirGrupoExistente($request, $ordCompartidaExistente, $destinos, $salonDestino);
+                return self::redistribuirGrupoExistente($request, $ordCompartidaExistente, $destinos, $salonDestino, $hilo);
             }
 
             // Obtener el registro específico a dividir:
@@ -132,8 +134,10 @@ class DividirTejido
                     $observacionesOriginal = $observacionesDestino;
                     $porcentajeSegundosOriginal = $porcentajeSegundosDestino;
                 } else {
+                    $salonDestinoItem = $destino['salon_destino'] ?? $salonDestino;
                     // Nuevos registros a crear
                     $destinosNuevos[] = [
+                        'salon_destino' => $salonDestinoItem,
                         'telar' => $destino['telar'],
                         'pedido' => $pedidoDestino,
                         'observaciones' => $observacionesDestino,
@@ -230,10 +234,11 @@ class DividirTejido
             foreach ($destinosNuevos as $destino) {
                 $telarDestino = $destino['telar'];
                 $pedidoDestino = $destino['pedido'];
+                $salonDestinoItem = $destino['salon_destino'] ?? $salonDestino;
 
                 // Obtener el último registro del telar destino para determinar fecha de inicio
                 $ultimoRegistroDestino = ReqProgramaTejido::query()
-                    ->salon($salonDestino)
+                    ->salon($salonDestinoItem)
                     ->telar($telarDestino)
                     ->orderBy('FechaInicio', 'desc')
                     ->first();
@@ -255,7 +260,7 @@ class DividirTejido
                 $nuevo = $registroOriginal->replicate();
 
                 // Campos básicos
-                $nuevo->SalonTejidoId = $salonDestino;
+                $nuevo->SalonTejidoId = $salonDestinoItem;
                 $nuevo->NoTelarId = $telarDestino;
                 $nuevo->EnProceso = 0;
                 $nuevo->Ultimo = 1;
@@ -276,7 +281,7 @@ class DividirTejido
                 // Ajustar Maquina al telar destino (prefijo del salón + número de telar)
                 $nuevo->Maquina = self::construirMaquina(
                     $registroOriginal->Maquina ?? null,
-                    $salonDestino,
+                    $salonDestinoItem,
                     $telarDestino
                 );
 
@@ -289,6 +294,10 @@ class DividirTejido
                 if ($descripcion) $nuevo->NombreProyecto = $descripcion;
                 if ($custname) $nuevo->CustName = $custname;
                 if ($aplicacion) $nuevo->AplicacionId = $aplicacion;
+
+                if ($salonDestinoItem !== $salonOrigen) {
+                    self::aplicarModeloCodificadoPorSalon($nuevo, $salonDestinoItem);
+                }
 
                 // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
                 self::aplicarStdDesdeCatalogos($nuevo);
@@ -353,6 +362,9 @@ class DividirTejido
                         $nuevo->{$campo} = $valor;
                     }
                 }
+
+                // Eliminar Repeticiones si existe (no es una columna de la tabla)
+                unset($nuevo->Repeticiones);
 
                 $nuevo->CreatedAt = now();
                 $nuevo->UpdatedAt = now();
@@ -440,7 +452,7 @@ class DividirTejido
 
             $total = 0;
             if ($programa->TamanoClave) {
-                $modelo = ReqModelosCodificados::where('TamanoClave', $programa->TamanoClave)->first();
+                $modelo = self::obtenerModeloCodificadoPorSalon($programa->TamanoClave, $programa->SalonTejidoId);
                 if ($modelo) {
                     $total = (float) ($modelo->Total ?? 0);
                 }
@@ -539,11 +551,138 @@ class DividirTejido
         return $formulas;
     }
 
+    private static function obtenerModeloCodificadoPorSalon(?string $tamanoClave, ?string $salonTejidoId): ?ReqModelosCodificados
+    {
+        $clave = trim((string) $tamanoClave);
+        if ($clave === '') {
+            return null;
+        }
+
+        $salon = trim((string) $salonTejidoId);
+
+        $q = ReqModelosCodificados::query()
+            ->where(function ($builder) use ($clave) {
+                $builder->where('TamanoClave', $clave)
+                    ->orWhere('ClaveModelo', $clave);
+            });
+        if ($salon !== '') {
+            $q->where('SalonTejidoId', $salon);
+        }
+
+        $modelo = $q->orderByDesc('FechaTejido')->first();
+        if ($modelo || $salon === '') {
+            return $modelo;
+        }
+
+        return ReqModelosCodificados::query()
+            ->where(function ($builder) use ($clave) {
+                $builder->where('TamanoClave', $clave)
+                    ->orWhere('ClaveModelo', $clave);
+            })
+            ->orderByDesc('FechaTejido')
+            ->first();
+    }
+
+    private static function aplicarModeloCodificadoPorSalon(ReqProgramaTejido $registro, string $salonDestino): void
+    {
+        $modelo = self::obtenerModeloCodificadoPorSalon($registro->TamanoClave, $salonDestino);
+        if (!$modelo) {
+            return;
+        }
+
+        if (!empty($modelo->ItemId)) {
+            $registro->ItemId = (string) $modelo->ItemId;
+        }
+        if (!empty($modelo->InventSizeId)) {
+            $registro->InventSizeId = (string) $modelo->InventSizeId;
+        }
+        if (!empty($modelo->Nombre)) {
+            $registro->NombreProducto = StringTruncator::truncate('NombreProducto', (string) $modelo->Nombre);
+        }
+        if (!empty($modelo->NombreProyecto)) {
+            $registro->NombreProyecto = StringTruncator::truncate('NombreProyecto', (string) $modelo->NombreProyecto);
+        }
+        if (!empty($modelo->FlogsId)) {
+            $registro->FlogsId = StringTruncator::truncate('FlogsId', (string) $modelo->FlogsId);
+        }
+
+        // Solo asignar FibraRizo del modelo si no hay un valor ya asignado (respetar el hilo del usuario)
+        if (empty($registro->FibraRizo)) {
+            $fibraRizo = $modelo->FibraRizo ?? $modelo->FibraId ?? null;
+            if (!empty($fibraRizo)) {
+                $registro->FibraRizo = (string) $fibraRizo;
+            }
+        }
+
+        if ($modelo->CalibreRizo !== null) {
+            $registro->CalibreRizo = (float) $modelo->CalibreRizo;
+        }
+        if ($modelo->CalibreRizo2 !== null) {
+            $registro->CalibreRizo2 = (float) $modelo->CalibreRizo2;
+        }
+        if ($modelo->CalibrePie !== null) {
+            $registro->CalibrePie = (float) $modelo->CalibrePie;
+        }
+        if ($modelo->CalibrePie2 !== null) {
+            $registro->CalibrePie2 = (float) $modelo->CalibrePie2;
+        }
+        // Usar CalibreTrama del modelo codificado (no CalibreTrama2)
+        if ($modelo->CalibreTrama !== null) {
+            $registro->CalibreTrama = (float) $modelo->CalibreTrama2;
+        }
+        if ($modelo->CalibreTrama2 !== null) {
+            $registro->CalibreTrama2 = (float) $modelo->CalibreTrama;
+        }
+
+        if ($modelo->NoTiras !== null) {
+            $registro->NoTiras = (float) $modelo->NoTiras;
+        }
+        if ($modelo->Luchaje !== null) {
+            $registro->Luchaje = (float) $modelo->Luchaje;
+        }
+        // Repeticiones no existe en la tabla ReqProgramaTejido, se elimina la asignación
+        // if ($modelo->Repeticiones !== null) {
+        //     $registro->Repeticiones = (float) $modelo->Repeticiones;
+        // }
+        if ($modelo->PesoCrudo !== null) {
+            $registro->PesoCrudo = (float) $modelo->PesoCrudo;
+        }
+        if ($modelo->MedidaPlano !== null) {
+            $registro->MedidaPlano = (int) $modelo->MedidaPlano;
+        }
+        if ($modelo->Peine !== null) {
+            $registro->Peine = (int) $modelo->Peine;
+        }
+        if ($modelo->AnchoToalla !== null) {
+            $registro->AnchoToalla = (float) $modelo->AnchoToalla;
+            $registro->Ancho = (float) $modelo->AnchoToalla;
+        }
+
+        if ($modelo->FibraTrama !== null) {
+            $registro->FibraTrama = (string) $modelo->FibraTrama;
+        }
+        if ($modelo->FibraPie !== null) {
+            $registro->FibraPie = (string) $modelo->FibraPie;
+        }
+        if ($modelo->CuentaRizo !== null) {
+            $registro->CuentaRizo = (string) $modelo->CuentaRizo;
+        }
+        if ($modelo->CuentaPie !== null) {
+            $registro->CuentaPie = (string) $modelo->CuentaPie;
+        }
+        if ($modelo->CodColorTrama !== null) {
+            $registro->CodColorTrama = (string) $modelo->CodColorTrama;
+        }
+        if ($modelo->ColorTrama !== null) {
+            $registro->ColorTrama = (string) $modelo->ColorTrama;
+        }
+    }
+
     /**
      * Redistribuir cantidades en un grupo existente de OrdCompartida
      * Actualiza registros existentes y crea nuevos si es necesario
      */
-    private static function redistribuirGrupoExistente(Request $request, $ordCompartida, $destinos, $salonDestino)
+    private static function redistribuirGrupoExistente(Request $request, $ordCompartida, $destinos, $salonDestino, $hilo = null)
     {
         try {
             // Obtener todos los registros del grupo
@@ -626,9 +765,10 @@ class DividirTejido
 
                         // Ajustar Maquina al telar (si se recibe telar en destino existente)
                         $telarDestino = $destino['telar'] ?? $registro->NoTelarId;
+                        $salonDestinoItem = $registro->SalonTejidoId ?? $salonDestino;
                         $registro->Maquina = self::construirMaquina(
                             $registro->Maquina ?? null,
-                            $salonDestino,
+                            $salonDestinoItem,
                             $telarDestino
                         );
 
@@ -680,6 +820,7 @@ class DividirTejido
                 $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
                     ? (float)$destino['porcentaje_segundos']
                     : null;
+                $salonDestinoItem = $destino['salon_destino'] ?? $salonDestino;
 
                 if (empty($telarDestino) || $pedidoDestino <= 0) {
                     continue;
@@ -687,7 +828,7 @@ class DividirTejido
 
                 // Obtener el último registro del telar destino
                 $ultimoRegistroDestino = ReqProgramaTejido::query()
-                    ->salon($salonDestino)
+                    ->salon($salonDestinoItem)
                     ->telar($telarDestino)
                     ->orderBy('FechaInicio', 'desc')
                     ->first();
@@ -707,7 +848,7 @@ class DividirTejido
                 $nuevo = $primerRegistro->replicate();
 
                 // Campos básicos
-                $nuevo->SalonTejidoId = $salonDestino;
+                $nuevo->SalonTejidoId = $salonDestinoItem;
                 $nuevo->NoTelarId = $telarDestino;
                 $nuevo->EnProceso = 0;
                 $nuevo->Ultimo = 1;
@@ -727,9 +868,16 @@ class DividirTejido
                 // Ajustar Maquina al telar destino
                 $nuevo->Maquina = self::construirMaquina(
                     $primerRegistro->Maquina ?? null,
-                    $salonDestino,
+                    $salonDestinoItem,
                     $telarDestino
                 );
+
+                // Asignar hilo del request si se proporciona (antes de aplicar modelo codificado)
+                if ($hilo) {
+                    $nuevo->FibraRizo = $hilo;
+                }
+
+                self::aplicarModeloCodificadoPorSalon($nuevo, $salonDestinoItem);
 
                 // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
                 self::aplicarStdDesdeCatalogos($nuevo);
@@ -782,6 +930,9 @@ class DividirTejido
                         $nuevo->{$campo} = $valor;
                     }
                 }
+
+                // Eliminar Repeticiones si existe (no es una columna de la tabla)
+                unset($nuevo->Repeticiones);
 
                 $nuevo->CreatedAt = now();
                 $nuevo->UpdatedAt = now();
@@ -842,14 +993,23 @@ class DividirTejido
      */
     private static function construirMaquina(?string $maquinaBase, ?string $salon, $telar): string
     {
+        $salonNorm = strtoupper(trim((string) $salon));
         $prefijo = null;
 
-        if ($maquinaBase && preg_match('/^([A-Za-z]+)\s*\d*/', trim($maquinaBase), $matches)) {
+        if ($salonNorm !== '') {
+            if (preg_match('/SMI(T)?/i', $salonNorm)) {
+                $prefijo = 'SMI';
+            } elseif (preg_match('/JAC/i', $salonNorm)) {
+                $prefijo = 'JAC';
+            }
+        }
+
+        if (!$prefijo && $maquinaBase && preg_match('/^([A-Za-z]+)/', trim($maquinaBase), $matches)) {
             $prefijo = $matches[1];
         }
 
-        if (!$prefijo && $salon) {
-            $prefijo = substr($salon, 0, 4);
+        if (!$prefijo && $salonNorm !== '') {
+            $prefijo = substr($salonNorm, 0, 4);
             $prefijo = rtrim($prefijo, '0123456789');
         }
 
@@ -974,7 +1134,7 @@ class DividirTejido
             ];
         }
 
-        $m = ReqModelosCodificados::where('TamanoClave', $key)->first();
+        $m = self::obtenerModeloCodificadoPorSalon($key, $p->SalonTejidoId);
         if (!$m) {
             return [
                 'total' => 0.0,
