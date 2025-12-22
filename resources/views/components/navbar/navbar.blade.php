@@ -183,6 +183,27 @@
                     <a href="{{ route('submodulos.nivel3', '104') }}" class="w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors" title="Catálogos" aria-label="Catálogos">
                       <i class="fa-solid fa-database text-sm"></i>
                     </a>
+                    <!-- Botón Actualizar con Dropdown -->
+                    <div class="relative">
+                      <button type="button" id="btnActualizarDropdown"
+                              onclick="document.getElementById('actualizarDropdownMenu').classList.toggle('hidden')"
+                              class="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+                              title="Actualizar" aria-label="Actualizar">
+                        <i class="fa-solid fa-tower-observation text-sm"></i>
+                      </button>
+                      <div id="actualizarDropdownMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                        <div class="py-1">
+                          <button type="button" id="menuActCalendarios" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                            <i class="fa-solid fa-calendar text-blue-600"></i>
+                            <span>Act. Calendarios</span>
+                          </button>
+                          <button type="button" id="menuActFechas" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-days text-green-600"></i>
+                            <span>Act. Fechas</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
 
 
                   </div>

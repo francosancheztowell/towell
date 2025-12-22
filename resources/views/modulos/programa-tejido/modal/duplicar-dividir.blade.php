@@ -437,6 +437,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 				<table class="w-full border-collapse">
 					<thead class="bg-gray-100">
 						<tr>
+							<th id="th-salon" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden" style="width: 15%;">Salón</th>
 							<th id="th-telar" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">Telar</th>
 							<th id="th-pedido-tempo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">Pedido</th>
 							<th class="py-2 px-3 text-xs font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">% Segundas</th>
@@ -451,6 +452,9 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 					</thead>
 					<tbody id="telar-pedido-body">
 						<tr class="telar-row" id="fila-principal">
+							<td class="p-2 border-r border-gray-200 hidden">
+								<input type="hidden" name="salon-destino[]" value="${salon}">
+							</td>
 							<td class="p-2 border-r border-gray-200">
 								<select name="telar-destino[]" data-telar-actual="${telar}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
 									${telar ? `<option value="${telar}" selected>${telar}</option>` : '<option value="">Seleccionar...</option>'}
@@ -514,6 +518,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	let todasOpcionesFlog = [];
 	let debounceTimer = null;
 	let debounceTimerFlog = null;
+	const telaresPorSalonCache = new Map();
+	let salonActualLocal = salonActual;
 
 	// Referencias a campos para datos adicionales
 	const inputDescripcion = document.getElementById('swal-descripcion');
@@ -703,6 +709,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		const modoActual = getModoActual();
 		const esDuplicar = modoActual === 'duplicar';
 		const telarInputs = document.querySelectorAll('[name="telar-destino[]"]'); // select o input
+		const salonInputs = document.querySelectorAll('[name="salon-destino[]"]');
 		const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
 
 		let firstComplete = false;
@@ -732,8 +739,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					}
 					hasAnyFilled = telarVal !== '';
 				} else {
+					const salonVal = (salonInputs[idx]?.value || '').trim();
 					// Destinos: deben tener telar seleccionado Y cantidad
-					if (telarVal === '' || pedidoVal === '') {
+					if (telarVal === '' || pedidoVal === '' || salonVal === '') {
 						allDestinationsValid = false;
 					}
 					if (telarVal !== '' || pedidoVal !== '') {
@@ -760,6 +768,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 	// Función para actualizar todos los selects de telar en la tabla de destinos
 	function actualizarSelectsTelares(preseleccionarPrimero = false) {
+		if (getModoActual() !== 'duplicar') {
+			return;
+		}
 		const telarSelects = document.querySelectorAll('select[name="telar-destino[]"]');
 		telarSelects.forEach((select, idx) => {
 			const valorActual = select.value;
@@ -785,6 +796,42 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		});
 	}
 
+	// Cache y carga de telares por salon (para filas en modo dividir)
+	function obtenerTelaresPorSalonCache(salon) {
+		const key = String(salon || '');
+		if (telaresPorSalonCache.has(key)) {
+			return Promise.resolve(telaresPorSalonCache.get(key));
+		}
+		return fetch('/programa-tejido/telares-by-salon?salon_tejido_id=' + encodeURIComponent(key), {
+			headers: { 'Accept': 'application/json' }
+		})
+			.then(r => r.json())
+			.then(data => {
+				const lista = Array.isArray(data) ? data : [];
+				telaresPorSalonCache.set(key, lista);
+				return lista;
+			})
+			.catch(() => {
+				telaresPorSalonCache.set(key, []);
+				return [];
+			});
+	}
+
+	function actualizarSelectTelaresParaFila(selectTelar, telares, preseleccionar = '') {
+		if (!selectTelar) return;
+		const valorActual = preseleccionar || selectTelar.value;
+		selectTelar.innerHTML = '<option value="">Seleccionar...</option>';
+		telares.forEach(t => {
+			const option = document.createElement('option');
+			option.value = t;
+			option.textContent = t;
+			if (t == valorActual) {
+				option.selected = true;
+			}
+			selectTelar.appendChild(option);
+		});
+	}
+
 	// Función para cargar telares por salón
 	function cargarTelaresPorSalon(salon, preseleccionarTelar = false) {
 		if (!salon) {
@@ -798,7 +845,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			.then(response => response.json())
 			.then(data => {
 				telaresDisponibles = Array.isArray(data) ? data : [];
-				// Actualizar los selects de la tabla de destinos, preseleccionando si se indica
+				// Actualizar los selects de la tabla de destinos solo en modo duplicar
 				actualizarSelectsTelares(preseleccionarTelar);
 				recomputeState();
 			})
@@ -807,6 +854,37 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				actualizarSelectsTelares(false);
 				recomputeState();
 			});
+	}
+
+	function actualizarSelectSalonesParaFila(selectSalonDestino, valorPreseleccionar = '') {
+		if (!selectSalonDestino) return;
+		const valorActual = valorPreseleccionar || selectSalonDestino.value;
+		selectSalonDestino.innerHTML = '<option value="">Seleccionar...</option>';
+		salonesDisponibles.forEach(item => {
+			const option = document.createElement('option');
+			option.value = item;
+			option.textContent = item;
+			if (item === valorActual) {
+				option.selected = true;
+			}
+			selectSalonDestino.appendChild(option);
+		});
+	}
+
+	async function actualizarTelaresPorSalonEnFila(selectSalonDestino, selectTelarDestino, preseleccionarTelar = '') {
+		const salonSeleccionado = selectSalonDestino?.value || '';
+		if (!salonSeleccionado) {
+			if (selectTelarDestino) {
+				selectTelarDestino.innerHTML = '<option value="">Seleccionar...</option>';
+				selectTelarDestino.disabled = true;
+			}
+			return;
+		}
+		if (selectTelarDestino) {
+			selectTelarDestino.disabled = false;
+		}
+		const telares = await obtenerTelaresPorSalonCache(salonSeleccionado);
+		actualizarSelectTelaresParaFila(selectTelarDestino, telares, preseleccionarTelar);
 	}
 
 	// ===== Autocompletado de Clave Modelo =====
@@ -1127,6 +1205,12 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				if (item === valorActualSalon || item === salonActual) option.selected = true;
 				selectSalon.appendChild(option);
 			});
+			salonActualLocal = selectSalon.value || salonActualLocal;
+			document.querySelectorAll('select[name="salon-destino[]"]').forEach(select => {
+				actualizarSelectSalonesParaFila(select, select.value || salonActualLocal);
+				const telarSelect = select.closest('tr')?.querySelector('select[name="telar-destino[]"]');
+				actualizarTelaresPorSalonEnFila(select, telarSelect, telarSelect?.value || '');
+			});
 		}
 
 		// Procesar hilos - mantener valor actual y agregar opciones
@@ -1244,6 +1328,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					inputProducto.value = '';
 				} else {
 					ocultarAlertaClaveModelo();
+					cargarDatosRelacionados(claveModelo);
 				}
 			})
 			.catch(() => {
@@ -1252,8 +1337,26 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			});
 	}
 
+	// Validación para destinos: solo valida existencia y no modifica campos globales
+	async function validarClaveModeloEnSalonDestino(salon, claveModelo) {
+		if (!salon || !claveModelo) return true;
+
+		const params = new URLSearchParams();
+		params.append('salon_tejido_id', salon);
+		params.append('search', claveModelo);
+
+		try {
+			const opciones = await fetch('/programa-tejido/tamano-clave-by-salon?' + params).then(r => r.json());
+			return Array.isArray(opciones) && opciones.some(op => op === claveModelo);
+		} catch (e) {
+			console.warn('No se pudo validar la clave modelo en el salon destino');
+			return true;
+		}
+	}
+
 	// Evento cuando cambia el salón - cargar telares y validar clave modelo
 	selectSalon.addEventListener('change', () => {
+		salonActualLocal = selectSalon.value;
 		cargarTelaresPorSalon(selectSalon.value, false);
 		// Validar si la clave modelo actual existe en el nuevo salón
 		const claveModeloActual = inputClaveModelo?.value?.trim();
@@ -1288,6 +1391,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		});
 
 		newRow.innerHTML =
+			'<td class="p-2 border-r border-gray-200 hidden">' +
+				'<input type="hidden" name="salon-destino[]" value="' + (selectSalon?.value || salonActualLocal || '') + '">' +
+			'</td>' +
 			'<td class="p-2 border-r border-gray-200">' +
 				'<select name="telar-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">' +
 					telarOptionsHTML +
@@ -1338,6 +1444,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const descDividir = document.getElementById('desc-dividir');
 	const checkboxVincular = document.getElementById('checkbox-vincular');
 	const checkboxVincularContainer = document.getElementById('checkbox-vincular-container');
+	const thSalon = document.getElementById('th-salon');
 	const thTelar = document.getElementById('th-telar');
 	const thPedidoTempo = document.getElementById('th-pedido-tempo');
 	const telarOriginal = document.getElementById('telar-original')?.value || telarActual;
@@ -1357,6 +1464,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		if (resumenCantidades) {
 			resumenCantidades.classList.toggle('hidden', esDuplicar);
 		}
+		if (thSalon) {
+			thSalon.classList.toggle('hidden', esDuplicar);
+		}
 
 		if (esDuplicar) {
 			// === MODO DUPLICAR ===
@@ -1366,6 +1476,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 			// Primera fila: select editable para telar destino
 			filaPrincipal.innerHTML = `
+				<td class="p-2 border-r border-gray-200 hidden">
+					<input type="hidden" name="salon-destino[]" value="${selectSalon?.value || salonActualLocal || ''}">
+				</td>
 				<td class="p-2 border-r border-gray-200">
 					<select name="telar-destino[]" data-telar-actual="${telarOriginal}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
 						${telarOriginal ? `<option value="${telarOriginal}" selected>${telarOriginal}</option>` : '<option value="">Seleccionar...</option>'}
@@ -1428,6 +1541,10 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				// Primera división - comportamiento original
 				// Primera fila: telar ORIGINAL bloqueado (readonly)
 				filaPrincipal.innerHTML = `
+					<td class="p-2 border-r border-gray-200">
+						<input type="text" name="salon-destino[]" value="${selectSalon?.value || salonActualLocal || ''}" readonly
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+					</td>
 					<td class="p-2 border-r border-gray-200">
 						<div class="flex items-center gap-2">
 							<input type="text" name="telar-destino[]" value="${telarOriginal}" readonly
@@ -1561,6 +1678,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					newRow.dataset.esExistente = 'true';
 
 					newRow.innerHTML = `
+						<td class="p-2 border-r border-gray-200">
+							<input type="text" name="salon-destino[]" value="${reg.SalonTejidoId || selectSalon?.value || salonActualLocal || ''}" readonly
+								data-registro-id="${reg.Id}"
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+						</td>
 						<td class="p-2 border-r border-gray-200">
 							<div class="flex items-center gap-2">
 								<input type="text" name="telar-destino[]" value="${reg.NoTelarId}" readonly
@@ -1768,21 +1890,14 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		newRow.dataset.esExistente = 'false';
 		newRow.dataset.esNuevo = 'true';
 
-		// Obtener telares ya usados en la tabla
-		const telaresUsados = new Set();
-		document.querySelectorAll('[name="telar-destino[]"]').forEach(input => {
-			if (input.value) telaresUsados.add(input.value);
-		});
-
 		let telarOptionsHTML = '<option value="">Seleccionar destino...</option>';
-		telaresDisponibles.forEach(t => {
-			// Excluir telares ya usados
-			if (!telaresUsados.has(t)) {
-				telarOptionsHTML += '<option value="' + t + '">' + t + '</option>';
-			}
-		});
 
 		newRow.innerHTML = `
+			<td class="p-2 border-r border-gray-200">
+				<select name="salon-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+					<option value="">Seleccionar...</option>
+				</select>
+			</td>
 			<td class="p-2 border-r border-gray-200">
 				<div class="flex items-center gap-2">
 					<select name="telar-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 telar-destino-select">
@@ -1823,8 +1938,28 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			recomputeState();
 		});
 
+		const salonSelect = newRow.querySelector('select[name="salon-destino[]"]');
 		const telarSelect = newRow.querySelector('select[name="telar-destino[]"]');
 		const pedidoInput = newRow.querySelector('input[name="pedido-destino[]"]');
+		if (salonSelect) {
+			actualizarSelectSalonesParaFila(salonSelect, salonActualLocal);
+			actualizarTelaresPorSalonEnFila(salonSelect, telarSelect);
+			salonSelect.addEventListener('change', async () => {
+				actualizarTelaresPorSalonEnFila(salonSelect, telarSelect);
+				const claveModeloActual = inputClaveModelo?.value?.trim();
+				if (claveModeloActual) {
+					const existe = await validarClaveModeloEnSalonDestino(salonSelect.value, claveModeloActual);
+					if (!existe) {
+						if (typeof showToast === 'function') {
+							showToast('La clave modelo no existe en el salon seleccionado', 'error');
+						}
+						salonSelect.value = '';
+						actualizarTelaresPorSalonEnFila(salonSelect, telarSelect);
+					}
+				}
+				recomputeState();
+			});
+		}
 		if (telarSelect) telarSelect.addEventListener('change', recomputeState);
 		if (pedidoInput) {
 			pedidoInput.addEventListener('input', () => {
@@ -1962,6 +2097,7 @@ function validarYCapturarDatosDuplicar() {
 	// Capturar múltiples filas de telar/pedido-tempo/observaciones/pedido/porcentaje_segundos
 	// Nota: en modo dividir, el primer telar es un input readonly, no un select
 	const telarInputs = document.querySelectorAll('[name="telar-destino[]"]'); // Captura tanto select como input
+	const salonInputs = document.querySelectorAll('[name="salon-destino[]"]');
 	const pedidoTempoInputs = document.querySelectorAll('input[name="pedido-tempo-destino[]"]');
 	const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
 	const observacionesInputs = document.querySelectorAll('input[name="observaciones-destino[]"]');
@@ -1971,6 +2107,7 @@ function validarYCapturarDatosDuplicar() {
 
 	telarInputs.forEach((input, idx) => {
 		const telarVal = input.value.trim();
+		const salonVal = (salonInputs[idx]?.value || salon || '').trim();
 		const pedidoTempoVal = pedidoTempoInputs[idx]?.value.trim() || null;
 		const pedidoVal = pedidoInputs[idx]?.value.trim() || '';
 		const observacionesVal = observacionesInputs[idx]?.value.trim() || null;
@@ -1982,6 +2119,7 @@ function validarYCapturarDatosDuplicar() {
 
 		if (telarVal || pedidoVal) {
 			destinos.push({
+				salon_destino: salonVal,
 				telar: telarVal,
 				pedido_tempo: pedidoTempoVal,
 				pedido: pedidoVal,
@@ -2001,4 +2139,3 @@ function validarYCapturarDatosDuplicar() {
 		registro_id_original: registroIdOriginal
 	};
 }
-

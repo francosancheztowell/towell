@@ -75,6 +75,8 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('js/catalog-core.js') }}"></script>
 
+    @include('catalagos.calendarios.modal-calendario')
+
     <script>
         // ------------------ Estado global simple ------------------
         let selectedCalendarioTab = null;   // PK ReqCalendarioTab
@@ -266,7 +268,7 @@
                 cancelButtonText: 'Cancelar',
                 confirmButtonColor: '#10b981',
                 cancelButtonColor: '#6b7280',
-                width: '500px',
+                width: '100%',
                 preConfirm: () => {
                     const calendarioId = document.getElementById('agregar-linea-calendario-id').value.trim();
                     const fechaInicio = document.getElementById('agregar-fecha-inicio').value;
@@ -334,67 +336,15 @@
                 return;
             }
 
-            Swal.fire({
-                title: 'Agregar Nuevo Calendario',
-                html: `
-                    <div class="text-left space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">No Calendario</label>
-                            <input type="text" id="agregar-calendario-id"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="Ej: CAL011">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                            <input type="text" id="agregar-nombre"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="Ej: Calendario Noviembre">
-                        </div>
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonText: 'Agregar',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#10b981',
-                cancelButtonColor: '#6b7280',
-                width: '500px',
-                preConfirm: () => {
-                    const calendarioId = document.getElementById('agregar-calendario-id').value.trim();
-                    const nombre = document.getElementById('agregar-nombre').value.trim();
-
-                    if (!calendarioId || !nombre) {
-                        Swal.showValidationMessage('Por favor completa todos los campos');
-                        return false;
-                    }
-
-                    return { calendarioId, nombre };
-                }
-            }).then((result) => {
-                if (!result.isConfirmed) return;
-
-                fetch('/planeacion/calendarios', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken()
-                    },
-                    body: JSON.stringify({
-                        CalendarioId: result.value.calendarioId,
-                        Nombre: result.value.nombre
-                    })
-                })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            showToast(data.message, 'success');
-                            location.reload();
-                        } else {
-                            showToast(data.message || 'Error al crear calendario', 'error');
-                        }
-                    })
-                    .catch(() => showToast('Error al crear calendario', 'error'));
-            });
+            if (typeof window.abrirModalCalendario === 'function') {
+                window.abrirModalCalendario('agregar');
+            } else {
+                console.error('abrirModalCalendario no está disponible');
+            }
         }
+
+        // Hacer disponible globalmente inmediatamente
+        window.agregarCalendarios = agregarCalendario;
 
         function editarCalendario() {
             if (!selectedCalendarioTab && !selectedCalendarioLine) {
@@ -405,7 +355,6 @@
                 });
                 return;
             }
-
             // Editar maestro (tabla 1)
             if (selectedCalendarioTab) {
                 const selectedRow = document.querySelector(
@@ -414,67 +363,39 @@
                 if (!selectedRow) return;
 
                 const calendarioId = selectedRow.cells[0].textContent.trim();
-                const nombre = selectedRow.cells[1].textContent.trim();
-
                 Swal.fire({
-                    title: 'Editar Calendario',
-                    html: `
-                        <div class="text-left space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">No Calendario</label>
-                                <input type="text" id="editar-calendario-id"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value="${calendarioId}" readonly>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                                <input type="text" id="editar-nombre"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value="${nombre}">
-                            </div>
-                        </div>
-                    `,
-                    showCancelButton: true,
-                    confirmButtonText: 'Guardar',
-                    cancelButtonText: 'Cancelar',
-                    confirmButtonColor: '#3b82f6',
-                    cancelButtonColor: '#6b7280',
-                    width: '500px',
-                    preConfirm: () => {
-                        const nuevoNombre = document.getElementById('editar-nombre').value.trim();
-                        if (!nuevoNombre) {
-                            Swal.showValidationMessage('Por favor completa todos los campos');
-                            return false;
-                        }
-                        return { nombre: nuevoNombre };
-                    }
-                }).then(result => {
-                    if (!result.isConfirmed) return;
-
-                    fetch(`/planeacion/calendarios/${calendarioId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': getCsrfToken()
-                        },
-                        body: JSON.stringify({ Nombre: result.value.nombre })
-                    })
-                        .then(r => r.json())
-                        .then(data => {
-                            if (data.success) {
-                                showToast(data.message, 'success');
-                                location.reload();
-                            } else {
-                                showToast(data.message || 'Error al actualizar calendario', 'error');
-                            }
-                        })
-                        .catch(() => showToast('Error al actualizar calendario', 'error'));
+                    title: 'Cargando...',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: () => Swal.showLoading()
                 });
+
+                fetch(`/planeacion/calendarios/${encodeURIComponent(calendarioId)}/detalle`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
+                    }
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        Swal.close();
+                        if (data.success) {
+                            abrirModalCalendario('editar', data.data);
+                        } else {
+                            showToast(data.message || 'Error al cargar calendario', 'error');
+                        }
+                    })
+                    .catch(() => {
+                        Swal.close();
+                        showToast('Error al cargar calendario', 'error');
+                    });
 
                 return;
             }
 
-            // Editar línea (tabla 2)
+
+            // Editar línea (tabla 2) - Mantener el modal original para líneas
             if (selectedCalendarioLine) {
                 const selectedRow = document.querySelector(
                     `${LINE_BODY_SELECTOR} tr[data-linea-id="${selectedCalendarioLine}"]`
@@ -1378,9 +1299,50 @@
         }
 
         // =========================================================
+        //   FUNCIONES PARA HABILITAR/DESHABILITAR BOTONES
+        // =========================================================
+        function enableButtons() {
+            const btnEditar = document.getElementById('btn-editar');
+            const btnEliminar = document.getElementById('btn-eliminar');
+
+            if (btnEditar) {
+                btnEditar.disabled = false;
+                btnEditar.classList.remove('text-gray-400', 'cursor-not-allowed');
+                btnEditar.classList.add('text-blue-600', 'hover:text-blue-800');
+                btnEditar.onclick = () => editarCalendario();
+            }
+
+            if (btnEliminar) {
+                btnEliminar.disabled = false;
+                btnEliminar.classList.remove('text-red-400', 'cursor-not-allowed');
+                btnEliminar.classList.add('text-red-600', 'hover:text-red-800');
+                btnEliminar.onclick = () => eliminarCalendario();
+            }
+        }
+
+        function disableButtons() {
+            const btnEditar = document.getElementById('btn-editar');
+            const btnEliminar = document.getElementById('btn-eliminar');
+
+            if (btnEditar) {
+                btnEditar.disabled = true;
+                btnEditar.classList.add('text-gray-400', 'cursor-not-allowed');
+                btnEditar.classList.remove('text-blue-600', 'hover:text-blue-800');
+                btnEditar.onclick = null;
+            }
+
+            if (btnEliminar) {
+                btnEliminar.disabled = true;
+                btnEliminar.classList.add('text-red-400', 'cursor-not-allowed');
+                btnEliminar.classList.remove('text-red-600', 'hover:text-red-800');
+                btnEliminar.onclick = null;
+            }
+        }
+
+        // =========================================================
         //   EXPONER FUNCIONES A BOTONES DEL NAVBAR
         // =========================================================
-        window.agregarCalendarios = agregarCalendario;
+        // agregarCalendarios ya está asignado arriba
         window.agregarLineaCalendarios = agregarLineaCalendario;
         window.editarCalendarios = editarCalendario;
         window.eliminarCalendarios = eliminarCalendario;
@@ -1389,11 +1351,10 @@
         window.recalcularProgramasCalendarioNavbar = recalcularProgramasCalendarioNavbar;
 
         document.addEventListener('DOMContentLoaded', () => {
-            if (typeof disableButtons === 'function') {
-                disableButtons();
-            }
+            disableButtons();
         });
     </script>
 
     @include('components.ui.toast-notification')
 @endsection
+

@@ -374,8 +374,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/calendarios/excel', [CalendarioController::class, 'procesarExcel'])->name('calendarios.excel.upload');
 
         // Rutas CRUD para calendarios
+        Route::get('/calendarios/json', [CalendarioController::class, 'getCalendariosJson'])->name('calendarios.json');
+        Route::get('/calendarios/{calendario}/detalle', [CalendarioController::class, 'getCalendarioDetalle'])->name('calendarios.detalle');
         Route::post('/calendarios', [CalendarioController::class, 'store'])->name('calendarios.store');
         Route::put('/calendarios/{calendario}', [CalendarioController::class, 'update'])->name('calendarios.update');
+        Route::put('/calendarios/{calendario}/masivo', [CalendarioController::class, 'updateMasivo'])->name('calendarios.update.masivo');
         Route::delete('/calendarios/{calendario}', [CalendarioController::class, 'destroy'])->name('calendarios.destroy');
 
         // Rutas CRUD para líneas de calendario
@@ -697,6 +700,8 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Control
     Route::post('/planeacion/programa-tejido/balancear-automatico', [ProgramaTejidoController::class, 'balancearAutomatico'])->name('programa-tejido.balancear-automatico');
     Route::get('/planeacion/programa-tejido/ver-detalles-grupo-balanceo/{ordCompartida}', [\App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido::class, 'verDetallesGrupoBalanceo'])->name('verdetallesgrupobalanceo');
     Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'destroy'])->name('programa-tejido.destroy');
+    Route::get('/planeacion/programa-tejido/all-registros-json', [ProgramaTejidoController::class, 'getAllRegistrosJson'])->name('programa-tejido.all-registros-json');
+    Route::post('/planeacion/programa-tejido/actualizar-calendarios-masivo', [ProgramaTejidoController::class, 'actualizarCalendariosMasivo'])->name('programa-tejido.actualizar-calendarios-masivo');
         // JSON: ReqProgramaTejidoLine dentro de planeación
         Route::get('/planeacion/req-programa-tejido-line', [\App\Http\Controllers\ReqProgramaTejidoLineController::class, 'index']);
 
