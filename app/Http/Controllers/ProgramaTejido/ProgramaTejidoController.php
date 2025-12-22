@@ -1558,6 +1558,340 @@ class ProgramaTejidoController extends Controller
     }
 
     /**
+     * Obtener todos los registros de ProgramaTejido para el modal de actualizar calendarios
+     * Retorna solo los campos necesarios: Id, NoTelarId, NombreProducto
+     */
+    public function getAllRegistrosJson()
+    {
+        try {
+            $registros = ReqProgramaTejido::select([
+                'Id',
+                'NoTelarId',
+                'NombreProducto'
+            ])
+            ->orderBy('NoTelarId')
+            ->orderBy('Id')
+            ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $registros
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los registros: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar calendario de múltiples registros de ProgramaTejido
+     * Actualiza la jornada (calendario) y recalcula fechas y fórmulas
+     * Optimizado para procesar múltiples registros sin timeout
+     */
+    public function actualizarCalendariosMasivo(Request $request)
+    {
+        set_time_limit(300); // Aumentar tiempo de ejecución a 5 minutos
+
+        try {
+            $request->validate([
+                'calendario_id' => 'required|string',
+                'registros_ids' => 'required|array|min:1',
+                'registros_ids.*' => 'required|integer|exists:ReqProgramaTejido,Id'
+            ]);
+
+            $calendarioId = $request->input('calendario_id');
+            $registrosIds = array_unique($request->input('registros_ids', []));
+
+            // Desactivar eventos para mejor rendimiento
+            $dispatcher = ReqProgramaTejido::getEventDispatcher();
+            ReqProgramaTejido::unsetEventDispatcher();
+
+            $idsActualizados = [];
+            $errores = [];
+            $t0 = microtime(true);
+
+            DBFacade::beginTransaction();
+
+            try {
+                // Cargar todos los registros de una vez
+                $registros = ReqProgramaTejido::whereIn('Id', $registrosIds)->get()->keyBy('Id');
+
+                foreach ($registrosIds as $registroId) {
+                    try {
+                        $registro = $registros->get($registroId);
+                        if (!$registro) {
+                            $errores[] = "Registro ID {$registroId} no encontrado";
+                            continue;
+                        }
+
+                        // Guardar valores anteriores
+                        $fechaFinalAntes = (string)($registro->FechaFinal ?? '');
+                        $horasProdAntes = (float)($registro->HorasProd ?? 0);
+                        $calendarioAntes = $registro->CalendarioId;
+
+                        // Actualizar calendario
+                        $registro->CalendarioId = $calendarioId;
+                        $afectaCalendario = ($calendarioAntes !== $calendarioId);
+
+                        // Recalcular FechaFinal si tiene FechaInicio
+                        if (!empty($registro->FechaInicio) && $afectaCalendario) {
+                            $inicio = Carbon::parse($registro->FechaInicio);
+
+                            // Snap al calendario si cae en gap
+                            if (!empty($calendarioId)) {
+                                $snap = $this->snapInicioAlCalendario($calendarioId, $inicio);
+                                if ($snap && !$snap->equalTo($inicio)) {
+                                    $registro->FechaInicio = $snap->format('Y-m-d H:i:s');
+                                    $inicio = $snap;
+                                }
+                            }
+
+                            // Usar HorasProd existente (solo cambió calendario, no duración)
+                            $horasNecesarias = $horasProdAntes > 0 ? $horasProdAntes : $this->calcularHorasProd($registro);
+
+                            // Calcular nueva FechaFinal con el nuevo calendario
+                            if ($horasNecesarias > 0) {
+                                if (!empty($calendarioId)) {
+                                    $fin = BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $inicio, $horasNecesarias);
+                                    if (!$fin) {
+                                        $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
+                                    }
+                                    $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
+                                } else {
+                                    $registro->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                                }
+                            } else {
+                                $registro->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
+                            }
+                        }
+
+                        // Recalcular fórmulas (solo diffDias si solo cambió calendario)
+                        $fechaFinalCambiada = ((string)($registro->FechaFinal ?? '') !== $fechaFinalAntes);
+                        $soloCalendario = $afectaCalendario && !$fechaFinalCambiada;
+
+                        if ($soloCalendario && !empty($registro->FechaInicio) && !empty($registro->FechaFinal)) {
+                            $this->recalcularSoloDiffDias($registro);
+                        } elseif ($afectaCalendario || $fechaFinalCambiada) {
+                            // Usar DuplicarTejido que tiene el método público
+                            $formulas = DuplicarTejido::calcularFormulasEficiencia($registro);
+                            foreach ($formulas as $campo => $valor) {
+                                $registro->{$campo} = $valor;
+                            }
+                        }
+
+                        // Guardar sin eventos
+                        $registro->saveQuietly();
+                        $idsActualizados[] = (int)$registro->Id;
+
+                    } catch (\Exception $e) {
+                        $errores[] = "Error en registro ID {$registroId}: " . $e->getMessage();
+                        LogFacade::error('Error actualizando calendario registro', [
+                            'registro_id' => $registroId,
+                            'calendario_id' => $calendarioId,
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+
+                DBFacade::commit();
+
+                // Regenerar líneas diarias usando el observer SOLO AL FINAL (una vez para todos)
+                if (!empty($idsActualizados)) {
+                    $observer = new ReqProgramaTejidoObserver();
+                    $registrosParaObserver = ReqProgramaTejido::whereIn('Id', $idsActualizados)->get();
+
+                    foreach ($registrosParaObserver as $reg) {
+                        try {
+                            $observer->saved($reg);
+                        } catch (\Throwable $e) {
+                            LogFacade::warning('Error regenerando líneas para registro', [
+                                'id' => $reg->Id,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    }
+                }
+
+                // Restaurar dispatcher
+                if ($dispatcher) {
+                    ReqProgramaTejido::setEventDispatcher($dispatcher);
+                }
+
+                $tiempo = round(microtime(true) - $t0, 2);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => "Se actualizaron " . count($idsActualizados) . " registro(s) con el calendario {$calendarioId} en {$tiempo}s",
+                    'data' => [
+                        'actualizados' => count($idsActualizados),
+                        'errores' => count($errores),
+                        'ids_actualizados' => $idsActualizados,
+                        'mensajes_error' => $errores,
+                        'tiempo_segundos' => $tiempo
+                    ]
+                ]);
+
+            } catch (\Exception $e) {
+                DBFacade::rollBack();
+                if ($dispatcher) {
+                    ReqProgramaTejido::setEventDispatcher($dispatcher);
+                }
+                throw $e;
+            }
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            LogFacade::error('Error en actualizarCalendariosMasivo', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar calendarios: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Snap inicio al calendario (helper privado)
+     */
+    private function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
+    {
+        $linea = \App\Models\ReqCalendarioLine::where('CalendarioId', $calendarioId)
+            ->where('FechaFin', '>', $fechaInicio)
+            ->orderBy('FechaInicio')
+            ->first();
+
+        if (!$linea) return null;
+
+        $ini = Carbon::parse($linea->FechaInicio);
+        $fin = Carbon::parse($linea->FechaFin);
+
+        if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) return $fechaInicio->copy();
+        return $ini->copy();
+    }
+
+    /**
+     * Recalcular solo diffDias (helper privado)
+     */
+    private function recalcularSoloDiffDias(ReqProgramaTejido $p): void
+    {
+        if (empty($p->FechaInicio) || empty($p->FechaFinal)) return;
+
+        $inicio = Carbon::parse($p->FechaInicio);
+        $fin = Carbon::parse($p->FechaFinal);
+        $diffSeg = abs($fin->getTimestamp() - $inicio->getTimestamp());
+        $diffDias = $diffSeg / 86400;
+
+        if ($diffDias <= 0) return;
+
+        $cantidad = $this->sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
+        $pesoCrudo = (float)($p->PesoCrudo ?? 0);
+
+        $p->DiasEficiencia = (float) round($diffDias, 2);
+
+        $stdHrsEfect = ($cantidad / $diffDias) / 24;
+        $p->StdHrsEfect = (float) round($stdHrsEfect, 2);
+
+        if ($pesoCrudo > 0) {
+            $p->ProdKgDia2 = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
+        }
+    }
+
+    /**
+     * Sanitize number (helper privado)
+     */
+    private function sanitizeNumber($value): float
+    {
+        if ($value === null) return 0.0;
+        if (is_numeric($value)) return (float)$value;
+
+        $clean = str_replace([',', ' '], '', (string)$value);
+        return is_numeric($clean) ? (float)$clean : 0.0;
+    }
+
+    /**
+     * Calcular HorasProd (helper privado)
+     */
+    private function calcularHorasProd(ReqProgramaTejido $p): float
+    {
+        $vel = (float)($p->VelocidadSTD ?? 0);
+        $efic = (float)($p->EficienciaSTD ?? 0);
+        if ($efic > 1) $efic = $efic / 100;
+
+        $cantidad = $this->sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
+        $m = $this->getModeloParams($p->TamanoClave ?? null, $p);
+
+        $stdToaHra = 0.0;
+        if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
+            $parte1 = $m['total'];
+            $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
+            $den = ($parte1 + $parte2) / $vel;
+            if ($den > 0) {
+                $stdToaHra = ($m['no_tiras'] * 60) / $den;
+            }
+        }
+
+        if ($stdToaHra > 0 && $efic > 0 && $cantidad > 0) {
+            return $cantidad / ($stdToaHra * $efic);
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Obtener parámetros del modelo (helper privado)
+     */
+    private function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
+    {
+        static $modeloCache = [];
+
+        $noTiras = (float)($p->NoTiras ?? 0);
+        $luchaje = (float)($p->Luchaje ?? 0);
+        $repeticiones = (float)($p->Repeticiones ?? 0);
+
+        $total = 0.0;
+        if ($tamanoClave) {
+            $key = trim($tamanoClave);
+            if (!isset($modeloCache[$key])) {
+                $modelo = ReqModelosCodificados::where('TamanoClave', $key)
+                    ->select(['Total', 'NoTiras', 'Luchaje', 'Repeticiones'])
+                    ->first();
+                if ($modelo) {
+                    $modeloCache[$key] = [
+                        'total' => (float)($modelo->Total ?? 0),
+                        'no_tiras' => (float)($modelo->NoTiras ?? 0),
+                        'luchaje' => (float)($modelo->Luchaje ?? 0),
+                        'repeticiones' => (float)($modelo->Repeticiones ?? 0),
+                    ];
+                } else {
+                    $modeloCache[$key] = ['total' => 0.0, 'no_tiras' => 0.0, 'luchaje' => 0.0, 'repeticiones' => 0.0];
+                }
+            }
+            $cached = $modeloCache[$key];
+            if ($noTiras <= 0) $noTiras = $cached['no_tiras'];
+            if ($luchaje <= 0) $luchaje = $cached['luchaje'];
+            if ($repeticiones <= 0) $repeticiones = $cached['repeticiones'];
+            $total = $cached['total'];
+        }
+
+        return [
+            'total' => $total,
+            'no_tiras' => $noTiras,
+            'luchaje' => $luchaje,
+            'repeticiones' => $repeticiones,
+        ];
+    }
+
+    /**
      * Normaliza OrdCompartida: trim y castea a entero; null si vacío o no numérico.
      */
     private function normalizeOrdCompartida($value): ?int

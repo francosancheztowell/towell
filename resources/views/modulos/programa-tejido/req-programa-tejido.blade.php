@@ -109,6 +109,9 @@
 {{-- Modal líneas --}}
 @include('components.programa-tejido.req-programa-tejido-line-table')
 
+{{-- Modal Actualizar Calendarios --}}
+@include('modulos.programa-tejido.modal.act-calendarios')
+
 {{-- Menú contextual --}}
 <div id="contextMenu" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg z-50 py-1 min-w-[180px]">
   <button id="contextMenuCrear" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
@@ -1597,6 +1600,50 @@
         refreshAllRows();
       } catch (e) {}
     };
+
+    // =========================
+    // Dropdown Actualizar
+    // =========================
+    (function() {
+      // Cerrar dropdown al hacer click fuera
+      document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('actualizarDropdownMenu');
+        const btn = document.getElementById('btnActualizarDropdown');
+        if (dropdown && btn && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+          dropdown.classList.add('hidden');
+        }
+      });
+
+      // Manejar click en "Act. Calendarios"
+      document.addEventListener('DOMContentLoaded', () => {
+        const menuActCalendarios = document.getElementById('menuActCalendarios');
+        if (menuActCalendarios) {
+          menuActCalendarios.addEventListener('click', () => {
+            const dropdown = document.getElementById('actualizarDropdownMenu');
+            if (dropdown) {
+              dropdown.classList.add('hidden');
+            }
+            if (typeof window.abrirModalActCalendarios === 'function') {
+              window.abrirModalActCalendarios();
+            } else {
+              toast('Función abrirModalActCalendarios no disponible', 'error');
+            }
+          });
+        }
+
+        // Manejar click en "Act. Fechas" (por ahora no hace nada)
+        const menuActFechas = document.getElementById('menuActFechas');
+        if (menuActFechas) {
+          menuActFechas.addEventListener('click', () => {
+            const dropdown = document.getElementById('actualizarDropdownMenu');
+            if (dropdown) {
+              dropdown.classList.add('hidden');
+            }
+            toast('Funcionalidad de Actualizar Fechas próximamente', 'info');
+          });
+        }
+      });
+    })();
 
     // =========================
     // Init

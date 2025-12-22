@@ -312,7 +312,38 @@ class CalendarioController extends Controller
             DB::beginTransaction();
 
             $calendario->update(['Nombre' => $request->Nombre]);
-            ReqCalendarioLine::where('CalendarioId', $calendarioId)->delete();
+
+            // Solo eliminar líneas que se solapen con el rango de fechas especificado
+            $fechaInicialRango = Carbon::parse($request->FechaInicial)->startOfDay();
+            $fechaFinalRango = Carbon::parse($request->FechaFinal)->endOfDay();
+
+            // Eliminar líneas que se solapen con el rango:
+            // - Líneas que empiecen dentro del rango
+            // - Líneas que terminen dentro del rango
+            // - Líneas que contengan el rango completo
+            ReqCalendarioLine::where('CalendarioId', $calendarioId)
+                ->where(function($query) use ($fechaInicialRango, $fechaFinalRango) {
+                    $query->where(function($q) use ($fechaInicialRango, $fechaFinalRango) {
+                        // Líneas que empiecen dentro del rango
+                        $q->whereBetween('FechaInicio', [
+                            $fechaInicialRango->format('Y-m-d H:i:s'),
+                            $fechaFinalRango->format('Y-m-d H:i:s')
+                        ]);
+                    })
+                    ->orWhere(function($q) use ($fechaInicialRango, $fechaFinalRango) {
+                        // Líneas que terminen dentro del rango
+                        $q->whereBetween('FechaFin', [
+                            $fechaInicialRango->format('Y-m-d H:i:s'),
+                            $fechaFinalRango->format('Y-m-d H:i:s')
+                        ]);
+                    })
+                    ->orWhere(function($q) use ($fechaInicialRango, $fechaFinalRango) {
+                        // Líneas que contengan el rango completo (empiecen antes y terminen después)
+                        $q->where('FechaInicio', '<=', $fechaInicialRango->format('Y-m-d H:i:s'))
+                          ->where('FechaFin', '>=', $fechaFinalRango->format('Y-m-d H:i:s'));
+                    });
+                })
+                ->delete();
 
             $lineasCreadas = $this->crearLineasDesdeTurnos(
                 $calendarioId,
@@ -325,8 +356,12 @@ class CalendarioController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Calendario actualizado exitosamente',
-                'lineas_creadas' => $lineasCreadas
+                'message' => "Calendario actualizado exitosamente. Se actualizaron las líneas del rango {$request->FechaInicial} al {$request->FechaFinal}",
+                'lineas_creadas' => $lineasCreadas,
+                'rango_actualizado' => [
+                    'fecha_inicial' => $request->FechaInicial,
+                    'fecha_final' => $request->FechaFinal
+                ]
             ]);
         } catch (\InvalidArgumentException $e) {
             if (DB::transactionLevel() > 0) {
@@ -734,17 +769,6 @@ class CalendarioController extends Controller
                 ->select(['SalonTejidoId', 'NoTelarId'])
                 ->distinct()
                 ->get();
-
-            Log::info('RECALC CALENDARIO: start', [
-                'calendario_id' => $calendarioId,
-                'motivo'        => $motivo,
-                'total'         => $total,
-                'telares'       => $telares->count(),
-                'rango_ini'     => $rangoIni?->format('Y-m-d H:i:s'),
-                'rango_fin'     => $rangoFin?->format('Y-m-d H:i:s'),
-                'regenerar'     => $regenerarLineas ? 1 : 0,
-            ]);
-
             $observer = $regenerarLineas ? new ReqProgramaTejidoObserver() : null;
 
             foreach ($telares as $t) {
@@ -791,7 +815,7 @@ class CalendarioController extends Controller
                         $inicio = $inicioOriginal->copy();
                         $inicioAjustado = false;
 
-                        // ✅ Anterior REAL por orden (loop)
+                        //  Anterior REAL por orden (loop)
                         if ($prevFin) {
                             if (!$prevFin->equalTo($inicioOriginal)) {
                                 $inicio = $prevFin->copy();
@@ -799,7 +823,7 @@ class CalendarioController extends Controller
                             }
                         }
 
-                        // ✅ Snap al calendario
+                        //  Snap al calendario
                         $snap = $this->snapInicioAlCalendario($calendarioId, $inicio);
                         if ($snap && !$snap->equalTo($inicio)) {
                             $inicio = $snap;
@@ -829,27 +853,9 @@ class CalendarioController extends Controller
                         if (!empty($p->FechaFinal)) {
                             try { $oldFinStr = Carbon::parse($p->FechaFinal)->format('Y-m-d H:i:s'); } catch (\Throwable $e) {}
                         }
-
                         $cambio = ($oldInicioStr !== $inicioStr) || ($oldFinStr !== $finStr);
-
-                        // 🔎 DEBUG especial para tu caso
-                        if ((int)$p->Id === 16) {
-                            Log::info('RECALC DEBUG ID=16', [
-                                'telar' => trim((string)$salon) . '|' . trim((string)$telar),
-                                'prev_id' => $prevId,
-                                'prev_fin' => $prevFin?->format('Y-m-d H:i:s'),
-                                'inicio_original' => $inicioOriginal->format('Y-m-d H:i:s'),
-                                'inicio_nuevo' => $inicioStr,
-                                'inicio_ajustado' => $inicioAjustado ? 1 : 0,
-                                'horas' => $horas,
-                                'fin_old' => $oldFinStr,
-                                'fin_new' => $finStr,
-                            ]);
-                        }
-
                         $p->FechaInicio = $inicioStr;
                         $p->FechaFinal  = $finStr;
-
                         // Solo dependientes de fechas
                         $deps = $this->calcularFormulasDependientesDeFechas($p, $inicio, $fin, $horas);
                         foreach ($deps as $campo => $valor) {
@@ -869,35 +875,15 @@ class CalendarioController extends Controller
                         $prevId  = (int)$p->Id;
 
                         if ($procesados % self::RECALC_LOG_EVERY === 0) {
-                            Log::info('RECALC CALENDARIO: progress', [
-                                'calendario_id' => $calendarioId,
-                                'procesados'    => $procesados,
-                                'actualizados'  => $actualizados,
-                                'errores'       => $errores,
-                            ]);
                         }
 
                     } catch (\Throwable $e) {
                         $errores++;
-                        Log::warning('RECALC CALENDARIO: programa con error', [
-                            'programa_id' => $p->Id ?? null,
-                            'error'       => $e->getMessage(),
-                        ]);
                     }
                 }
             }
 
             $secs = round(microtime(true) - $t0, 2);
-
-            Log::info('RECALC CALENDARIO: done', [
-                'calendario_id' => $calendarioId,
-                'motivo'        => $motivo,
-                'procesados'    => $procesados,
-                'actualizados'  => $actualizados,
-                'errores'       => $errores,
-                'segundos'      => $secs,
-            ]);
-
             return [
                 'procesados'   => $procesados,
                 'actualizados' => $actualizados,
