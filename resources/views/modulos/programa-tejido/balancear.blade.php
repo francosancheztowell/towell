@@ -47,6 +47,32 @@
         return isNaN(d.getTime()) ? 0 : d.getTime();
       }
 
+      function sortRegistrosPorFechaTelar(registros) {
+        return [...registros].sort((a, b) => {
+          const aMs = parseSQLDateToMs(a?.FechaInicio);
+          const bMs = parseSQLDateToMs(b?.FechaInicio);
+          if (aMs !== bMs) return aMs - bMs;
+
+          const aTelarNum = Number(a?.NoTelarId);
+          const bTelarNum = Number(b?.NoTelarId);
+          const aTelarNumOk = Number.isFinite(aTelarNum);
+          const bTelarNumOk = Number.isFinite(bTelarNum);
+
+          if (aTelarNumOk && bTelarNumOk && aTelarNum !== bTelarNum) {
+            return aTelarNum - bTelarNum;
+          }
+
+          const aTelarStr = String(a?.NoTelarId ?? '');
+          const bTelarStr = String(b?.NoTelarId ?? '');
+          const telarCmp = aTelarStr.localeCompare(bTelarStr, 'es-MX', { numeric: true, sensitivity: 'base' });
+          if (telarCmp !== 0) return telarCmp;
+
+          const aId = Number(a?.Id) || 0;
+          const bId = Number(b?.Id) || 0;
+          return aId - bId;
+        });
+      }
+
       function getRowById(id) {
         return document.querySelector(`tr[data-registro-id="${id}"]`);
       }
@@ -77,8 +103,9 @@
 
         const data = await resp.json();
         if (data?.success && Array.isArray(data.registros)) {
-          gruposDataCache[ordCompartida] = data.registros;
-          return data.registros;
+          const ordenados = sortRegistrosPorFechaTelar(data.registros);
+          gruposDataCache[ordCompartida] = ordenados;
+          return ordenados;
         }
         throw new Error(data?.message || 'No se pudieron obtener los registros');
       }
@@ -496,19 +523,19 @@
               return window.calcularTotalesYFechas(target, ordCompartida);
             }
 
-            // Cuando hay 3 o más registros: ajustar el último registro si se modificó otro
+            // Cuando hay 3 o más registros: ajustar el primero (por orden actual).
+            // Si se modifica el primero, entonces ajustar el último.
             if (inputs.length >= 3 && Math.abs(diff) > 0.0001 && lastEditedInput) {
+              const primeroInput = inputs[0];
               const ultimoInput = inputs[inputs.length - 1];
-              // Solo ajustar si el input modificado NO es el último
-              if (lastEditedInput !== ultimoInput) {
-                const valActualUltimo = Number(ultimoInput.value) || 0;
+              const target = (lastEditedInput === primeroInput) ? ultimoInput : primeroInput;
+              const valActualTarget = Number(target.value) || 0;
 
-                adjustingPedidos = true;
-                ultimoInput.value = Math.round(Math.max(0, valActualUltimo + diff));
-                adjustingPedidos = false;
+              adjustingPedidos = true;
+              target.value = Math.round(Math.max(0, valActualTarget + diff));
+              adjustingPedidos = false;
 
-                return window.calcularTotalesYFechas(ultimoInput, ordCompartida);
-              }
+              return window.calcularTotalesYFechas(target, ordCompartida);
             }
           }
         }

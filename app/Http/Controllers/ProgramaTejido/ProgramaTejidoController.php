@@ -1413,8 +1413,8 @@ class ProgramaTejidoController extends Controller
             ->whereNotNull('OrdCompartida')
             ->whereRaw("LTRIM(RTRIM(CAST(OrdCompartida AS NVARCHAR(50)))) <> ''")
             ->orderBy('OrdCompartida')
-            ->orderBy('SalonTejidoId')
-            ->orderBy('NoTelarId')
+            ->orderBy('FechaInicio', 'asc')
+            ->orderBy('NoTelarId', 'asc')
             ->get();
 
         // Agrupar por OrdCompartida (normalizada) para evitar fallas por espacios o tipos
@@ -1501,61 +1501,15 @@ class ProgramaTejidoController extends Controller
      */
     public function getRegistrosPorOrdCompartida($ordCompartida)
     {
-        try {
-            $ordCompartida = $this->normalizeOrdCompartida($ordCompartida);
-            if ($ordCompartida === null) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'OrdCompartida inválida'
-                ], 400);
-            }
-
-            $registros = ReqProgramaTejido::select([
-                'Id',
-                'SalonTejidoId',
-                'NoTelarId',
-                'ItemId',
-                'NombreProducto',
-                'TamanoClave',
-                'TotalPedido',
-                'PorcentajeSegundos',
-                'SaldoPedido',
-                'Produccion',
-                'FechaInicio',
-                'FechaFinal',
-                'OrdCompartida',
-                'FibraRizo',
-                'VelocidadSTD',
-                'EficienciaSTD',
-                'NoTiras',
-                'Luchaje',
-                'PesoCrudo',
-                'EnProceso',
-                'Ultimo',
-                'StdDia'
-            ])
-                ->whereRaw("CAST(OrdCompartida AS BIGINT) = ?", [$ordCompartida])
-                ->orderBy('SalonTejidoId')
-                ->orderBy('NoTelarId')
-                ->get();
-
-            // Calcular el total original (suma de todos los TotalPedido)
-            $totalOriginal = $registros->sum('TotalPedido');
-            $totalSaldo = $registros->sum('SaldoPedido');
-
-            return response()->json([
-                'success' => true,
-                'registros' => $registros,
-                'total_original' => $totalOriginal,
-                'total_saldo' => $totalSaldo,
-                'cantidad_registros' => $registros->count()
-            ]);
-        } catch (\Exception $e) {
+        $ordCompartida = $this->normalizeOrdCompartida($ordCompartida);
+        if ($ordCompartida === null) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener los registros: ' . $e->getMessage()
-            ], 500);
+                'message' => 'OrdCompartida invalida'
+            ], 400);
         }
+
+        return BalancearTejido::getRegistrosPorOrdCompartida($ordCompartida);
     }
 
     /**
