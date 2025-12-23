@@ -1,6 +1,6 @@
 {{-- Modal Actualizar Calendarios - Estructura tipo Excel --}}
 <div id="modalActCalendarios" class="hidden fixed inset-0 overflow-hidden h-full w-full z-50 backdrop-blur-sm" style="display: none; background-color: rgba(0, 0, 0, 0.3);">
-  <div class="relative top-4 mx-auto p-4 border w-11/12 max-w-7xl shadow-2xl rounded-lg bg-white overflow-hidden" style="height: 90vh; max-height: 90vh; display: flex; flex-direction: column;">
+  <div class="relative top-4 mx-auto p-4 border w-11/12 max-w-2xl shadow-2xl rounded-lg bg-white overflow-hidden" style="height: 90vh; max-height: 90vh; display: flex; flex-direction: column;">
     {{-- Header del Modal --}}
     <div class="flex items-center justify-between mb-2 flex-shrink-0">
       <div class="text-sm font-semibold text-gray-700">
@@ -298,18 +298,18 @@
         throw new Error(result.message || 'Error al actualizar los calendarios');
       }
 
-      // Mostrar mensaje de éxito
+      // Mostrar mensaje de éxito con información del tiempo
+      const tiempoMsg = result.data?.tiempo_segundos ? ` en ${result.data.tiempo_segundos}s` : '';
       if (typeof window.showToast === 'function') {
-        window.showToast(result.message || `Se actualizaron ${registrosSeleccionados.length} registro(s) con el calendario ${calendarioId}`, 'success');
+        window.showToast(result.message || `Se actualizaron ${registrosSeleccionados.length} registro(s) con el calendario ${calendarioId}${tiempoMsg}`, 'success');
       } else {
-        alert(result.message || `Se actualizaron ${registrosSeleccionados.length} registro(s) con el calendario ${calendarioId}`);
+        alert(result.message || `Se actualizaron ${registrosSeleccionados.length} registro(s) con el calendario ${calendarioId}${tiempoMsg}`);
       }
 
       // Cerrar el modal
       cerrarModalActCalendarios();
 
       // Recargar la página para reflejar los cambios
-      // El recálculo ya se hizo en el backend a través de UpdateTejido
       setTimeout(() => {
         window.location.reload();
       }, 500);

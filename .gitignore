@@ -21,6 +21,7 @@ yarn-error.log
 /.idea
 /.nova
 /.vscode
+/.github
 /.zed
 
 /app/Mcp

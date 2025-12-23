@@ -180,11 +180,30 @@ function applyProgramaTejidoFilters() {
     });
 
     allRows = rows;
-    clearRowCache();
+    // clearRowCache puede no estar disponible en este scope, verificar antes de llamar
+    if (typeof clearRowCache === 'function') {
+        clearRowCache();
+    } else if (typeof window.clearRowCache === 'function') {
+        window.clearRowCache();
+    } else if (window.PT && typeof window.PT.clearRowCache === 'function') {
+        window.PT.clearRowCache();
+    }
     if (inlineEditMode) applyInlineModeToRows();
 
     lastFilterState = currentState;
     updateFilterUI();
+    
+    // Actualizar totales después de aplicar filtros (con delay para asegurar que los estilos se aplicaron)
+    // Usar requestAnimationFrame para asegurar que el DOM se actualizó
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            if (typeof window.updateTotales === 'function') {
+                window.updateTotales();
+            } else {
+                console.warn('updateTotales no está disponible');
+            }
+        }, 50);
+    });
 
     const totalFilters = filters.length + Object.values(quickFilters).filter(Boolean).length +
                         (hasDateFilters ? 1 : 0);

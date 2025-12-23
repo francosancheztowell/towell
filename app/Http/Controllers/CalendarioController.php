@@ -728,7 +728,7 @@ class CalendarioController extends Controller
      * FIX: Anterior por TELAR debe ser por orden real (FechaInicio, Id), no por Id<.
      * Velocidad: reduce N+1; recalc por telar.
      */
-    private function recalcularProgramasPorCalendario(
+    public function recalcularProgramasPorCalendario(
         string $calendarioId,
         ?Carbon $rangoIni,
         ?Carbon $rangoFin,
@@ -762,8 +762,18 @@ class CalendarioController extends Controller
                     [$finStr, $iniStr, $iniStr]
                 );
             }
+            // Obtener la fecha inicio del primer registro (EnProceso=1) como punto de partida
+            $primerRegistro = ReqProgramaTejido::where('CalendarioId', $calendarioId)
+                ->where('EnProceso', 1)
+                ->whereNotNull('FechaInicio')
+                ->orderBy('FechaInicio', 'asc')
+                ->orderBy('Id', 'asc')
+                ->first(['FechaInicio']);
 
-            $total = (clone $base)->count();
+            $fechaInicioBase = null;
+            if ($primerRegistro && $primerRegistro->FechaInicio) {
+                $fechaInicioBase = Carbon::parse($primerRegistro->FechaInicio);
+            }
 
             $telares = (clone $base)
                 ->select(['SalonTejidoId', 'NoTelarId'])
@@ -800,12 +810,14 @@ class CalendarioController extends Controller
                         'StdHrsEfect',
                         'ProdKgDia2',
                         'DiasJornada',
+                        'EnProceso',
                     ]);
 
                 if ($rows->isEmpty()) continue;
 
                 $prevFin = null;
                 $prevId  = null;
+                $esPrimerRegistroTelar = true;
 
                 foreach ($rows as $p) {
                     try {
@@ -815,11 +827,18 @@ class CalendarioController extends Controller
                         $inicio = $inicioOriginal->copy();
                         $inicioAjustado = false;
 
-                        //  Anterior REAL por orden (loop)
-                        if ($prevFin) {
-                            if (!$prevFin->equalTo($inicioOriginal)) {
-                                $inicio = $prevFin->copy();
-                                $inicioAjustado = true;
+                        // Si es el primer registro del telar Y hay fecha base, usar la fecha base
+                        if ($esPrimerRegistroTelar && $fechaInicioBase) {
+                            $inicio = $fechaInicioBase->copy();
+                            $inicioAjustado = true;
+                            $esPrimerRegistroTelar = false;
+                        } else {
+                            //  Anterior REAL por orden (loop)
+                            if ($prevFin) {
+                                if (!$prevFin->equalTo($inicioOriginal)) {
+                                    $inicio = $prevFin->copy();
+                                    $inicioAjustado = true;
+                                }
                             }
                         }
 
@@ -868,7 +887,10 @@ class CalendarioController extends Controller
                         if ($cambio) $actualizados++;
 
                         if ($regenerarLineas && $observer) {
-                            $observer->saved($p);
+                            $programaFull = ReqProgramaTejido::find($p->Id);
+                            if ($programaFull) {
+                                $observer->saved($programaFull);
+                            }
                         }
 
                         $prevFin = $fin->copy();
@@ -901,7 +923,7 @@ class CalendarioController extends Controller
     // Helpers
     // ======================
 
-    private function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
+    public function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
         $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
             ->where('FechaFin', '>', $fechaInicio->format('Y-m-d H:i:s'))
@@ -918,7 +940,7 @@ class CalendarioController extends Controller
         return $ini->copy();
     }
 
-    private function calcularHorasProd(ReqProgramaTejido $p): float
+    public function calcularHorasProd(ReqProgramaTejido $p): float
     {
         $vel  = (float) ($p->VelocidadSTD ?? 0);
         $efic = (float) ($p->EficienciaSTD ?? 0);
@@ -1093,7 +1115,7 @@ class CalendarioController extends Controller
      * Solo campos que sí dependen de FechaInicio/FechaFinal (por cambios de calendario)
      * NO toca StdToaHra/StdDia/HorasProd (para que no "se pase por tiempo")
      */
-    private function calcularFormulasDependientesDeFechas(ReqProgramaTejido $p, Carbon $inicio, Carbon $fin, float $horasProd): array
+    public function calcularFormulasDependientesDeFechas(ReqProgramaTejido $p, Carbon $inicio, Carbon $fin, float $horasProd): array
     {
         $out = [];
 

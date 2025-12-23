@@ -1587,12 +1587,11 @@ class ProgramaTejidoController extends Controller
 
     /**
      * Actualizar calendario de múltiples registros de ProgramaTejido
-     * Actualiza la jornada (calendario) y recalcula fechas y fórmulas
-     * Optimizado para procesar múltiples registros sin timeout
+     * Actualiza la jornada (calendario) y recalcula SOLO los registros actualizados (optimizado)
      */
     public function actualizarCalendariosMasivo(Request $request)
     {
-        set_time_limit(300); // Aumentar tiempo de ejecución a 5 minutos
+        set_time_limit(300); // 5 minutos
 
         try {
             $request->validate([
@@ -1608,111 +1607,161 @@ class ProgramaTejidoController extends Controller
             $dispatcher = ReqProgramaTejido::getEventDispatcher();
             ReqProgramaTejido::unsetEventDispatcher();
 
-            $idsActualizados = [];
-            $errores = [];
             $t0 = microtime(true);
+            $procesados = 0;
+            $actualizados = 0;
+            $errores = 0;
 
             DBFacade::beginTransaction();
 
             try {
-                // Cargar todos los registros de una vez
-                $registros = ReqProgramaTejido::whereIn('Id', $registrosIds)->get()->keyBy('Id');
+                // 1. Actualizar solo el calendario de los registros seleccionados
+                $actualizados = ReqProgramaTejido::whereIn('Id', $registrosIds)
+                    ->update(['CalendarioId' => $calendarioId]);
 
-                foreach ($registrosIds as $registroId) {
+                // 2. Obtener la fecha inicio del primer registro (EnProceso=1) como punto de partida
+                $primerRegistro = ReqProgramaTejido::where('CalendarioId', $calendarioId)
+                    ->where('EnProceso', 1)
+                    ->whereNotNull('FechaInicio')
+                    ->orderBy('FechaInicio', 'asc')
+                    ->orderBy('Id', 'asc')
+                    ->first(['FechaInicio']);
+
+                $fechaInicioBase = null;
+                if ($primerRegistro && $primerRegistro->FechaInicio) {
+                    $fechaInicioBase = Carbon::parse($primerRegistro->FechaInicio);
+                }
+
+                // 3. Recalcular SOLO los registros actualizados (optimizado)
+                // Agrupar por telar para mantener la lógica de cascada
+                $registros = ReqProgramaTejido::whereIn('Id', $registrosIds)
+                    ->whereNotNull('FechaInicio')
+                    ->orderBy('SalonTejidoId')
+                    ->orderBy('NoTelarId')
+                    ->orderBy('FechaInicio', 'asc')
+                    ->orderBy('Id', 'asc')
+                    ->get([
+                        'Id',
+                        'CalendarioId',
+                        'SalonTejidoId',
+                        'NoTelarId',
+                        'FechaInicio',
+                        'FechaFinal',
+                        'HorasProd',
+                        'SaldoPedido',
+                        'Produccion',
+                        'TotalPedido',
+                        'PesoCrudo',
+                        'DiasEficiencia',
+                        'StdHrsEfect',
+                        'ProdKgDia2',
+                        'DiasJornada',
+                        'Ultimo',
+                        'EnProceso'
+                    ]);
+
+                $calendarioController = new \App\Http\Controllers\CalendarioController();
+                $prevFin = null;
+                $prevTelar = null;
+                $observer = new ReqProgramaTejidoObserver();
+
+                foreach ($registros as $p) {
                     try {
-                        $registro = $registros->get($registroId);
-                        if (!$registro) {
-                            $errores[] = "Registro ID {$registroId} no encontrado";
+                        if (empty($p->FechaInicio)) {
+                            $errores++;
                             continue;
                         }
 
-                        // Guardar valores anteriores
-                        $fechaFinalAntes = (string)($registro->FechaFinal ?? '');
-                        $horasProdAntes = (float)($registro->HorasProd ?? 0);
-                        $calendarioAntes = $registro->CalendarioId;
+                        $inicioOriginal = Carbon::parse($p->FechaInicio);
+                        $inicio = $inicioOriginal->copy();
 
-                        // Actualizar calendario
-                        $registro->CalendarioId = $calendarioId;
-                        $afectaCalendario = ($calendarioAntes !== $calendarioId);
+                        // Si cambió de telar y es el primer registro del telar, usar fecha base
+                        $esPrimerRegistroTelar = ($prevTelar === null ||
+                            ($prevTelar->SalonTejidoId !== $p->SalonTejidoId ||
+                             $prevTelar->NoTelarId !== $p->NoTelarId));
 
-                        // Recalcular FechaFinal si tiene FechaInicio
-                        if (!empty($registro->FechaInicio) && $afectaCalendario) {
-                            $inicio = Carbon::parse($registro->FechaInicio);
-
-                            // Snap al calendario si cae en gap
-                            if (!empty($calendarioId)) {
-                                $snap = $this->snapInicioAlCalendario($calendarioId, $inicio);
-                                if ($snap && !$snap->equalTo($inicio)) {
-                                    $registro->FechaInicio = $snap->format('Y-m-d H:i:s');
-                                    $inicio = $snap;
-                                }
-                            }
-
-                            // Usar HorasProd existente (solo cambió calendario, no duración)
-                            $horasNecesarias = $horasProdAntes > 0 ? $horasProdAntes : $this->calcularHorasProd($registro);
-
-                            // Calcular nueva FechaFinal con el nuevo calendario
-                            if ($horasNecesarias > 0) {
-                                if (!empty($calendarioId)) {
-                                    $fin = BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $inicio, $horasNecesarias);
-                                    if (!$fin) {
-                                        $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
-                                    }
-                                    $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
-                                } else {
-                                    $registro->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
-                                }
-                            } else {
-                                $registro->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
+                        if ($esPrimerRegistroTelar && $fechaInicioBase) {
+                            // Es el primer registro del telar, usar la fecha base del primer registro
+                            $inicio = $fechaInicioBase->copy();
+                        } elseif ($prevFin) {
+                            // Ajustar inicio basado en el registro anterior (cascada)
+                            if (!$prevFin->equalTo($inicioOriginal)) {
+                                $inicio = $prevFin->copy();
                             }
                         }
 
-                        // Recalcular fórmulas (solo diffDias si solo cambió calendario)
-                        $fechaFinalCambiada = ((string)($registro->FechaFinal ?? '') !== $fechaFinalAntes);
-                        $soloCalendario = $afectaCalendario && !$fechaFinalCambiada;
-
-                        if ($soloCalendario && !empty($registro->FechaInicio) && !empty($registro->FechaFinal)) {
-                            $this->recalcularSoloDiffDias($registro);
-                        } elseif ($afectaCalendario || $fechaFinalCambiada) {
-                            // Usar DuplicarTejido que tiene el método público
-                            $formulas = DuplicarTejido::calcularFormulasEficiencia($registro);
-                            foreach ($formulas as $campo => $valor) {
-                                $registro->{$campo} = $valor;
-                            }
+                        // Snap al calendario
+                        $snap = $calendarioController->snapInicioAlCalendario($calendarioId, $inicio);
+                        if ($snap && !$snap->equalTo($inicio)) {
+                            $inicio = $snap;
                         }
 
-                        // Guardar sin eventos
-                        $registro->saveQuietly();
-                        $idsActualizados[] = (int)$registro->Id;
+                        // HorasProd: usar la del registro
+                        $horas = (float)($p->HorasProd ?? 0);
+                        if ($horas <= 0) {
+                            $horas = $calendarioController->calcularHorasProd($p);
+                            if ($horas > 0) $p->HorasProd = $horas;
+                        }
+                        if ($horas <= 0) {
+                            $errores++;
+                            continue;
+                        }
 
-                    } catch (\Exception $e) {
-                        $errores[] = "Error en registro ID {$registroId}: " . $e->getMessage();
-                        LogFacade::error('Error actualizando calendario registro', [
-                            'registro_id' => $registroId,
-                            'calendario_id' => $calendarioId,
+                        // Calcular FechaFinal
+                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $inicio, $horas);
+                        if (!$fin) {
+                            $fin = $inicio->copy()->addSeconds((int)round($horas * 3600));
+                        }
+                        if ($fin->lt($inicio)) $fin = $inicio->copy();
+
+                        $inicioStr = $inicio->format('Y-m-d H:i:s');
+                        $finStr = $fin->format('Y-m-d H:i:s');
+
+                        $oldInicioStr = null;
+                        try {
+                            $oldInicioStr = Carbon::parse($p->FechaInicio)->format('Y-m-d H:i:s');
+                        } catch (\Throwable $e) {}
+                        $oldFinStr = null;
+                        if (!empty($p->FechaFinal)) {
+                            try {
+                                $oldFinStr = Carbon::parse($p->FechaFinal)->format('Y-m-d H:i:s');
+                            } catch (\Throwable $e) {}
+                        }
+
+                        $cambio = ($oldInicioStr !== $inicioStr) || ($oldFinStr !== $finStr);
+                        $p->FechaInicio = $inicioStr;
+                        $p->FechaFinal = $finStr;
+
+                        // Recalcular fórmulas dependientes de fechas
+                        $deps = $calendarioController->calcularFormulasDependientesDeFechas($p, $inicio, $fin, $horas);
+                        foreach ($deps as $campo => $valor) {
+                            $p->{$campo} = $valor;
+                        }
+
+                        $p->saveQuietly();
+                        $procesados++;
+
+                        if ($cambio) $actualizados++;
+
+                        // Regenerar líneas solo para los registros actualizados
+                        $programaFull = ReqProgramaTejido::find($p->Id);
+                        if ($programaFull) {
+                            $observer->saved($programaFull);
+                        }
+
+                        $prevFin = $fin->copy();
+                        $prevTelar = $p;
+
+                    } catch (\Throwable $e) {
+                        $errores++;
+                        LogFacade::error('Error recalculando registro', [
+                            'registro_id' => $p->Id ?? null,
                             'error' => $e->getMessage()
                         ]);
                     }
                 }
 
                 DBFacade::commit();
-
-                // Regenerar líneas diarias usando el observer SOLO AL FINAL (una vez para todos)
-                if (!empty($idsActualizados)) {
-                    $observer = new ReqProgramaTejidoObserver();
-                    $registrosParaObserver = ReqProgramaTejido::whereIn('Id', $idsActualizados)->get();
-
-                    foreach ($registrosParaObserver as $reg) {
-                        try {
-                            $observer->saved($reg);
-                        } catch (\Throwable $e) {
-                            LogFacade::warning('Error regenerando líneas para registro', [
-                                'id' => $reg->Id,
-                                'error' => $e->getMessage()
-                            ]);
-                        }
-                    }
-                }
 
                 // Restaurar dispatcher
                 if ($dispatcher) {
@@ -1723,12 +1772,11 @@ class ProgramaTejidoController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => "Se actualizaron " . count($idsActualizados) . " registro(s) con el calendario {$calendarioId} en {$tiempo}s",
+                    'message' => "Se actualizaron {$actualizados} registro(s) con el calendario {$calendarioId} en {$tiempo}s",
                     'data' => [
-                        'actualizados' => count($idsActualizados),
-                        'errores' => count($errores),
-                        'ids_actualizados' => $idsActualizados,
-                        'mensajes_error' => $errores,
+                        'actualizados' => $actualizados,
+                        'procesados' => $procesados,
+                        'errores' => $errores,
                         'tiempo_segundos' => $tiempo
                     ]
                 ]);

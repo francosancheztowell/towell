@@ -209,25 +209,40 @@ class TelDesarrolladoresController extends Controller
 	            return [];
 	        }
 
+	        $colorTrama = data_get($ordenData, 'ColorTrama');
+	        $fibraTrama = data_get($ordenData, 'FibraTrama');
+	        
+	        // Si ColorTrama está vacío, usar FibraTrama
+	        if (empty($colorTrama)) {
+	            $colorTrama = $fibraTrama;
+	        }
+
 	        $payload = [
 	            'Tra' => data_get($ordenData, 'CalibreTrama'),
 	            'CalibreTrama2' => data_get($ordenData, 'CalibreTrama2'),
 	            'CodColorTrama' => data_get($ordenData, 'CodColorTrama'),
-	            'ColorTrama' => data_get($ordenData, 'ColorTrama'),
-	            'FibraId' => data_get($ordenData, 'FibraTrama'),
+	            'ColorTrama' => $colorTrama,
+	            'FibraId' => $fibraTrama,
 	            'CalTramaFondoC1' => data_get($ordenData, 'CalibreTrama'),
 	            'CalTramaFondoC12' => data_get($ordenData, 'CalibreTrama2'),
-	            'FibraTramaFondoC1' => data_get($ordenData, 'FibraTrama'),
+	            'FibraTramaFondoC1' => $fibraTrama,
 	        ];
 
 	        for ($i = 1; $i <= 5; $i++) {
 	            $nombreKey = $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}";
+	            $nombreColor = data_get($ordenData, $nombreKey);
+	            $fibraComb = data_get($ordenData, "FibraComb{$i}");
+	            
+	            // Si NomColorC está vacío, usar FibraComb
+	            if (empty($nombreColor)) {
+	                $nombreColor = $fibraComb;
+	            }
 
 	            $payload["CalibreComb{$i}"] = data_get($ordenData, "CalibreComb{$i}");
 	            $payload["CalibreComb{$i}2"] = data_get($ordenData, "CalibreComb{$i}2");
-	            $payload["FibraComb{$i}"] = data_get($ordenData, "FibraComb{$i}");
+	            $payload["FibraComb{$i}"] = $fibraComb;
 	            $payload["CodColorC{$i}"] = data_get($ordenData, "CodColorComb{$i}");
-	            $payload["NomColorC{$i}"] = data_get($ordenData, $nombreKey);
+	            $payload["NomColorC{$i}"] = $nombreColor;
 	        }
 
 	        return $payload;
@@ -311,8 +326,6 @@ class TelDesarrolladoresController extends Controller
 	                'TelarId' => $validated['NoTelarId'],
 	                'NoTelarId' => $validated['NoTelarId'],
 	                'OrdenTejido' => $validated['NoProduccion'],
-	                'NumOrden' => $validated['NoProduccion'],
-                    'NoOrden' => $validated['NoProduccion'],
 	                'CodigoDibujo' => $codigoDibujo,
 	                'CodificacionModelo' => $codigoDibujo,
 	                'RespInicio' => $validated['Desarrollador'] ?? null,
@@ -333,6 +346,7 @@ class TelDesarrolladoresController extends Controller
                     'EfiInicial' => $validated['EficienciaInicio'] ?? null,
                     'EfiFinal' => $validated['EficienciaFinal'] ?? null,
 	                'DesperdicioTrama' => $validated['DesperdicioTrama'] ?? null,
+	                'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
                 ], $detallePayload, $pasadasPayload);
 
 	            foreach ($payload as $column => $value) {
@@ -343,6 +357,124 @@ class TelDesarrolladoresController extends Controller
 	            }
 
 	            $registro->save();
+
+                // Buscar y actualizar registro en ReqModelosCodificados
+                $claveModelo = $registro->getAttribute('ClaveModelo') ?: data_get($ordenData, 'TamanoClave');
+                $departamento = $registro->getAttribute('Departamento') ?: data_get($ordenData, 'SalonTejidoId');
+	            
+                if ($claveModelo || $departamento) {
+                    $queryModelos = ReqModelosCodificados::query();
+	                
+                    if ($claveModelo) {
+                        $queryModelos->where('TamanoClave', $claveModelo);
+                    }
+	                
+                    if ($departamento) {
+                        $queryModelos->where('SalonTejidoId', $departamento);
+                    }
+	                
+                    $registroModelo = $queryModelos->first();
+	                
+                    if ($registroModelo) {
+                        // Preparar payload para actualizar ReqModelosCodificados
+                        $payloadModelo = array_merge([
+                            'TamanoClave' => $claveModelo,
+                            'SalonTejidoId' => $departamento,
+                            'NoTelarId' => $validated['NoTelarId'],
+                            'OrdenTejido' => $validated['NoProduccion'],
+                            'CodigoDibujo' => $codigoDibujo,
+                            'AnchoPeineTrama' => $validated['TramaAnchoPeine'] ?? null,
+                            'LogLuchaTotal' => $validated['LongitudLuchaTot'] ?? null,
+                            'Total' => $validated['TotalPasadasDibujo'],
+                            'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
+                        ], $detallePayload, $pasadasPayload);
+	                    
+                        // Obtener columnas disponibles en ReqModelosCodificados
+                        $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
+	                    
+                        // Actualizar solo las columnas que existen
+                        foreach ($payloadModelo as $column => $value) {
+                            if (!in_array($column, $columnasModelo, true)) {
+                                continue;
+                            }
+                            $registroModelo->setAttribute($column, $value);
+                        }
+	                    
+                        $registroModelo->save();
+	                    
+                        Log::info('Registro actualizado en ReqModelosCodificados', [
+                            'Id' => $registroModelo->Id,
+                            'TamanoClave' => $registroModelo->TamanoClave,
+                            'SalonTejidoId' => $registroModelo->SalonTejidoId,
+                        ]);
+
+                        $ordenTejido = $registroModelo->OrdenTejido ?: $validated['NoProduccion'];
+                        $salonTejido = $registroModelo->SalonTejidoId;
+                        if ($ordenTejido && $salonTejido) {
+                            $programas = \App\Models\ReqProgramaTejido::where('NoProduccion', $ordenTejido)
+                                ->where('SalonTejidoId', $salonTejido)
+                                ->get();
+
+                            if ($programas->isNotEmpty()) {
+                                $columnasPrograma = Schema::getColumnListing($programas->first()->getTable());
+                                $payloadPrograma = [
+                                    'CalibreTrama' => $registroModelo->CalibreTrama,
+                                    'CalibreTrama2' => $registroModelo->CalibreTrama2,
+                                    'FibraTrama' => $registroModelo->FibraId,
+                                    'PasadasTrama' => $registroModelo->PasadasTramaFondoC1,
+                                    'PasadasComb1' => $registroModelo->PasadasComb1,
+                                    'PasadasComb2' => $registroModelo->PasadasComb2,
+                                    'PasadasComb3' => $registroModelo->PasadasComb3,
+                                    'PasadasComb4' => $registroModelo->PasadasComb4,
+                                    'PasadasComb5' => $registroModelo->PasadasComb5,
+                                    'CodColorTrama' => $registroModelo->CodColorTrama,
+                                    'ColorTrama' => $registroModelo->ColorTrama,
+                                    'CalibreComb1' => $registroModelo->CalibreComb1,
+                                    'CalibreComb12' => $registroModelo->CalibreComb12,
+                                    'FibraComb1' => $registroModelo->FibraComb1,
+                                    'CodColorComb1' => $registroModelo->CodColorC1,
+                                    'NombreCC1' => $registroModelo->NomColorC1,
+                                    'CalibreComb2' => $registroModelo->CalibreComb2,
+                                    'CalibreComb22' => $registroModelo->CalibreComb22,
+                                    'FibraComb2' => $registroModelo->FibraComb2,
+                                    'CodColorComb2' => $registroModelo->CodColorC2,
+                                    'NombreCC2' => $registroModelo->NomColorC2,
+                                    'CalibreComb3' => $registroModelo->CalibreComb3,
+                                    'CalibreComb32' => $registroModelo->CalibreComb32,
+                                    'FibraComb3' => $registroModelo->FibraComb3,
+                                    'CodColorComb3' => $registroModelo->CodColorC3,
+                                    'NombreCC3' => $registroModelo->NomColorC3,
+                                    'CalibreComb4' => $registroModelo->CalibreComb4,
+                                    'CalibreComb42' => $registroModelo->CalibreComb42,
+                                    'FibraComb4' => $registroModelo->FibraComb4,
+                                    'CodColorComb4' => $registroModelo->CodColorC4,
+                                    'NombreCC4' => $registroModelo->NomColorC4,
+                                    'CalibreComb5' => $registroModelo->CalibreComb5,
+                                    'CalibreComb52' => $registroModelo->CalibreComb52,
+                                    'FibraComb5' => $registroModelo->FibraComb5,
+                                    'CodColorComb5' => $registroModelo->CodColorC5,
+                                    'NombreCC5' => $registroModelo->NomColorC5,
+                                ];
+
+                                foreach ($programas as $programa) {
+                                    foreach ($payloadPrograma as $column => $value) {
+                                        if (!in_array($column, $columnasPrograma, true)) {
+                                            continue;
+                                        }
+                                        $programa->setAttribute($column, $value);
+                                    }
+                                    $programa->save();
+                                }
+
+                                Log::info('Registro actualizado en ReqProgramaTejido', [
+                                    'NoProduccion' => $ordenTejido,
+                                    'SalonTejidoId' => $salonTejido,
+                                    'total' => $programas->count(),
+                                ]);
+                            }
+                        }
+                    }
+                }
 
 	            Log::info('Datos de desarrollador guardados en CatCodificados', [
 	                'table' => $table,
