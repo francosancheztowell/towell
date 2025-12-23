@@ -473,16 +473,18 @@
             (saldo > 0 ? 'text-green-600 font-medium' : 'text-gray-500');
         });
 
-        // Ajuste automático para mantener suma de pedidos (solo cuando hay exactamente 2 registros)
+        // Ajuste automático para mantener suma de pedidos
         if (!adjustingFromTotal) {
           const totalDisponibleEl = document.getElementById('total-disponible');
           const totalDisponible = totalDisponibleEl
             ? parseNumber(totalDisponibleEl.textContent)
             : (totalDisponibleBalanceo ?? inputs.reduce((s, i) => s + (Number(i.dataset.original) || 0), 0));
 
-          if (totalDisponible > 0 && inputs.length === 2) {
+          if (totalDisponible > 0) {
             const diff = totalDisponible - totalPedido;
-            if (Math.abs(diff) > 0.0001) {
+
+            // Cuando hay exactamente 2 registros: ajustar el otro registro
+            if (inputs.length === 2 && Math.abs(diff) > 0.0001) {
               const targets = inputs.filter(inp => inp !== lastEditedInput);
               const target = targets[0] || inputs[0];
               const valActual = Number(target.value) || 0;
@@ -492,6 +494,21 @@
               adjustingPedidos = false;
 
               return window.calcularTotalesYFechas(target, ordCompartida);
+            }
+
+            // Cuando hay 3 o más registros: ajustar el último registro si se modificó otro
+            if (inputs.length >= 3 && Math.abs(diff) > 0.0001 && lastEditedInput) {
+              const ultimoInput = inputs[inputs.length - 1];
+              // Solo ajustar si el input modificado NO es el último
+              if (lastEditedInput !== ultimoInput) {
+                const valActualUltimo = Number(ultimoInput.value) || 0;
+
+                adjustingPedidos = true;
+                ultimoInput.value = Math.round(Math.max(0, valActualUltimo + diff));
+                adjustingPedidos = false;
+
+                return window.calcularTotalesYFechas(ultimoInput, ordCompartida);
+              }
             }
           }
         }
@@ -855,7 +872,7 @@
         Swal.fire({
           title: 'Balanceo de orden',
           html: htmlContent,
-          width: '95%',
+          width: '100%',
           showCloseButton: true,
           showConfirmButton: true,
           confirmButtonText: '<i class="fa-solid fa-save mr-2"></i> Guardar',

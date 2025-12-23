@@ -259,6 +259,7 @@
         const btnCancelarFormulario = document.getElementById('btnCancelarFormulario');
         const form = document.getElementById('formDesarrollador');
         const numberSelectors = [];
+        let numberSelectorDocumentListenerAttached = false;
         const codificacionInputs = document.querySelectorAll('.codificacion-char');
         const codificacionHidden = document.getElementById('CodificacionModelo');
         const codificacionNoData = document.getElementById('codificacionNoData');
@@ -475,9 +476,8 @@
                     setCodificacionFromCodigoDibujo('');
                 }
 
-                // Resetear y preparar selectores numéricos
+                // Resetear selectores numéricos para nuevo registro
                 resetNumberSelectors();
-                initNumberSelectors();
 
                 // Cargar detalles de la orden
                 cargarDetallesOrden(noProduccion);
@@ -598,6 +598,10 @@
         // Lógica de selectores numéricos (tomada del formulario original)
         function initNumberSelectors() {
             document.querySelectorAll('[data-number-selector]').forEach(selector => {
+                if (selector.dataset.selectorInitialized === 'true') {
+                    return;
+                }
+
                 const hiddenInput = selector.querySelector('input[type="number"]');
                 const triggerBtn = selector.querySelector('.number-selector-btn');
                 const valueSpan = selector.querySelector('.number-selector-value');
@@ -677,14 +681,18 @@
                     resetSelector();
                 }
 
+                selector.dataset.selectorInitialized = 'true';
                 numberSelectors.push({ optionsWrapper, reset: resetSelector });
             });
 
-            document.addEventListener('click', (event) => {
-                if (!event.target.closest('[data-number-selector]')) {
-                    closeAllNumberSelectors();
-                }
-            });
+            if (!numberSelectorDocumentListenerAttached) {
+                document.addEventListener('click', (event) => {
+                    if (!event.target.closest('[data-number-selector]')) {
+                        closeAllNumberSelectors();
+                    }
+                });
+                numberSelectorDocumentListenerAttached = true;
+            }
         }
 
         function buildSelectorOptions(track, min, max, step) {
@@ -708,6 +716,8 @@
         function resetNumberSelectors() {
             numberSelectors.forEach(selector => selector.reset());
         }
+
+        initNumberSelectors();
     });
 </script>
 @endpush
