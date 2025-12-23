@@ -6,6 +6,7 @@ use App\Models\TelTelaresOperador;
 use App\Models\catDesarrolladoresModel;
 use App\Models\catcodificados\CatCodificados;
 use App\Models\ReqModelosCodificados;
+use App\Models\UrdCatJulios;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Models\ReqProgramaTejido;
 
 class TelDesarrolladoresController extends Controller
 {
@@ -38,7 +40,7 @@ class TelDesarrolladoresController extends Controller
 
     protected function obtenerJuliosEngomado()
     {
-        return \App\Models\UrdCatJulios::where('Departamento', 'engomado')
+        return UrdCatJulios::where('Departamento', 'engomado')
             ->whereNotNull('NoJulio')
             ->select('NoJulio')
             ->distinct()
@@ -49,7 +51,7 @@ class TelDesarrolladoresController extends Controller
     public function obtenerProducciones(Request $request, $telarId)
     {
         try {
-            $producciones = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
+            $producciones = ReqProgramaTejido::where('NoTelarId', $telarId)
                 ->whereNotNull('NoProduccion')
                 ->where('NoProduccion', '!=', '')
                 ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
@@ -72,7 +74,7 @@ class TelDesarrolladoresController extends Controller
     public function obtenerDetallesOrden($noProduccion)
     {
         try {
-            $ordenData = \App\Models\ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
+            $ordenData = ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
 
             $detalles = [];
 
@@ -147,7 +149,7 @@ class TelDesarrolladoresController extends Controller
         }
     }
 
-    
+
 
     public function obtenerCodigoDibujo(Request $request, $salonTejidoId, $tamanoClave)
     {
@@ -245,10 +247,10 @@ class TelDesarrolladoresController extends Controller
 
 	    public function formularioDesarrollador(Request $request, $telarId, $noProduccion)
 	    {
-	        $datosProduccion = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
+	        $datosProduccion = ReqProgramaTejido::where('NoTelarId', $telarId)
 	            ->where('NoProduccion', $noProduccion)
 	            ->first();
-	        
+
 	        return view('modulos.desarrolladores.formulario', compact('datosProduccion', 'telarId', 'noProduccion'));
 	    }
 
@@ -272,7 +274,7 @@ class TelDesarrolladoresController extends Controller
 
 	        $colorTrama = data_get($ordenData, 'ColorTrama');
 	        $fibraTrama = data_get($ordenData, 'FibraTrama');
-	        
+
 	        // Si ColorTrama está vacío, usar FibraTrama
 	        if (empty($colorTrama)) {
 	            $colorTrama = $fibraTrama;
@@ -293,7 +295,7 @@ class TelDesarrolladoresController extends Controller
 	            $nombreKey = $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}";
 	            $nombreColor = data_get($ordenData, $nombreKey);
 	            $fibraComb = data_get($ordenData, "FibraComb{$i}");
-	            
+
 	            // Si NomColorC está vacío, usar FibraComb
 	            if (empty($nombreColor)) {
 	                $nombreColor = $fibraComb;
@@ -357,7 +359,7 @@ class TelDesarrolladoresController extends Controller
 	            ]);
 
                 $codigoDibujo = $this->normalizeCodigoDibujo($validated['CodificacionModelo'] ?? '');
-                $ordenData = \App\Models\ReqProgramaTejido::where('NoProduccion', $validated['NoProduccion'])->first();
+                $ordenData = ReqProgramaTejido::where('NoProduccion', $validated['NoProduccion'])->first();
                 $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
                 $minutosCambio = $this->calcularMinutosCambio(
                     $validated['HoraInicio'] ?? null,
@@ -393,7 +395,7 @@ class TelDesarrolladoresController extends Controller
                     if ($tramaValue !== null && $tramaValue !== '') {
                         $pasadasPayload['PasadasTramaFondoC1'] = (int) $tramaValue;
                     }
-	
+
                     for ($i = 1; $i <= 5; $i++) {
                         $field = "PasadasComb{$i}";
                         $combValue = data_get($ordenData, $field);
@@ -468,20 +470,20 @@ class TelDesarrolladoresController extends Controller
                 // Buscar y actualizar registro en ReqModelosCodificados
                 $claveModelo = $registro->getAttribute('ClaveModelo') ?: data_get($ordenData, 'TamanoClave');
                 $departamento = $registro->getAttribute('Departamento') ?: data_get($ordenData, 'SalonTejidoId');
-	            
+
                 if ($claveModelo || $departamento) {
                     $queryModelos = ReqModelosCodificados::query();
-	                
+
                     if ($claveModelo) {
                         $queryModelos->where('TamanoClave', $claveModelo);
                     }
-	                
+
                     if ($departamento) {
                         $queryModelos->where('SalonTejidoId', $departamento);
                     }
-	                
+
                     $registroModelo = $queryModelos->first();
-	                
+
                     if ($registroModelo) {
                         // Preparar payload para actualizar ReqModelosCodificados
                         $payloadModelo = array_merge([
@@ -495,10 +497,10 @@ class TelDesarrolladoresController extends Controller
                             'Total' => $validated['TotalPasadasDibujo'],
                             'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
                         ], $detallePayload, $pasadasPayload);
-	                    
+
                         // Obtener columnas disponibles en ReqModelosCodificados
                         $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
-	                    
+
                         // Actualizar solo las columnas que existen
                         foreach ($payloadModelo as $column => $value) {
                             if (!in_array($column, $columnasModelo, true)) {
@@ -506,19 +508,12 @@ class TelDesarrolladoresController extends Controller
                             }
                             $registroModelo->setAttribute($column, $value);
                         }
-	                    
-                        $registroModelo->save();
-	                    
-                        Log::info('Registro actualizado en ReqModelosCodificados', [
-                            'Id' => $registroModelo->Id,
-                            'TamanoClave' => $registroModelo->TamanoClave,
-                            'SalonTejidoId' => $registroModelo->SalonTejidoId,
-                        ]);
 
+                        $registroModelo->save();
                         $ordenTejido = $registroModelo->OrdenTejido ?: $validated['NoProduccion'];
                         $salonTejido = $registroModelo->SalonTejidoId;
                         if ($ordenTejido && $salonTejido) {
-                            $programas = \App\Models\ReqProgramaTejido::where('NoProduccion', $ordenTejido)
+                            $programas = ReqProgramaTejido::where('NoProduccion', $ordenTejido)
                                 ->where('SalonTejidoId', $salonTejido)
                                 ->get();
 
@@ -576,25 +571,10 @@ class TelDesarrolladoresController extends Controller
                                     }
                                     $programa->save();
                                 }
-
-                                Log::info('Registro actualizado en ReqProgramaTejido', [
-                                    'NoProduccion' => $ordenTejido,
-                                    'SalonTejidoId' => $salonTejido,
-                                    'total' => $programas->count(),
-                                ]);
                             }
                         }
                     }
                 }
-
-	            Log::info('Datos de desarrollador guardados en CatCodificados', [
-	                'table' => $table,
-	                'id' => $registro->getAttribute($registro->getKeyName()),
-                    'accion' => $wasUpdate ? 'update' : 'insert',
-	                'NoProduccion' => $validated['NoProduccion'],
-	                'NoTelarId' => $validated['NoTelarId'],
-	            ]);
-
 	            if ($request->ajax()) {
 	                return response()->json([
 	                    'success' => true,
@@ -615,14 +595,14 @@ class TelDesarrolladoresController extends Controller
             return back()->withErrors($e->errors())->withInput();
         } catch (Exception $e) {
             Log::error('Error al guardar datos de desarrollador: ' . $e->getMessage());
-            
+
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Ocurrió un error al guardar los datos'
                 ], 500);
             }
-            
+
 	            return back()->with('error', 'Ocurrió un error al guardar los datos')->withInput();
 	        }
 	    }
