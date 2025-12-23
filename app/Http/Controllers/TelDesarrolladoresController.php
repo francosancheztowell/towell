@@ -364,6 +364,21 @@ class TelDesarrolladoresController extends Controller
                     $validated['HoraFinal'] ?? null
                 );
 
+                $fechaInicioProgramada = null;
+                if (!empty($validated['HoraFinal'])) {
+                    try {
+                        $horaFinalCarbon = Carbon::createFromFormat('H:i', $validated['HoraFinal']);
+                        $fechaInicioProgramada = Carbon::today()
+                            ->setTimeFromTimeString($horaFinalCarbon->format('H:i'))
+                            ->format('Y-m-d H:i:s');
+                    } catch (Exception $e) {
+                        Log::warning('No se pudo construir FechaInicio para ReqProgramaTejido', [
+                            'horaFinal' => $validated['HoraFinal'],
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
                 $pasadasPayload = [];
                 $pasadasFromRequest = $validated['pasadas'] ?? [];
                 if (is_array($pasadasFromRequest) && count($pasadasFromRequest) > 0) {
@@ -547,6 +562,10 @@ class TelDesarrolladoresController extends Controller
                                     'CodColorComb5' => $registroModelo->CodColorC5,
                                     'NombreCC5' => $registroModelo->NomColorC5,
                                 ];
+
+                                if ($fechaInicioProgramada) {
+                                    $payloadPrograma['FechaInicio'] = $fechaInicioProgramada;
+                                }
 
                                 foreach ($programas as $programa) {
                                     foreach ($payloadPrograma as $column => $value) {

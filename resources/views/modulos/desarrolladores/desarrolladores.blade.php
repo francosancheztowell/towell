@@ -72,30 +72,6 @@
                         <span>Modelo: <strong id="formNombreProducto">-</strong></span>
                     </div>
                 </div>
-
-                <div id="resumenCatCodificados" class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">No Julio Rizo</p>
-                        <p id="resumenJulioRizo" class="text-sm font-bold text-gray-900">-</p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">No Julio Pie</p>
-                        <p id="resumenJulioPie" class="text-sm font-bold text-gray-900">-</p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Eficiencia de Inicio</p>
-                        <p id="resumenEfiInicial" class="text-sm font-bold text-gray-900">-</p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Eficiencia Final</p>
-                        <p id="resumenEfiFinal" class="text-sm font-bold text-gray-900">-</p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Desperdicio Trama</p>
-                        <p id="resumenDesperdicioTrama" class="text-sm font-bold text-gray-900">-</p>
-                    </div>
-                </div>
-
                 <form id="formDesarrollador" method="POST" action="{{ route('desarrolladores.store') }}">
                     @csrf
                     <input type="hidden" name="NoTelarId" id="inputTelarId" value="">
