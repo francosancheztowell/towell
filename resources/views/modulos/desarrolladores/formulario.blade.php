@@ -83,8 +83,7 @@
                            placeholder="0.00 %">
                 </div>
                 
-                <!-- Hora Inicio -->
-                <div>
+                <!-- Hora Inicio -->                <div>
                     <label for="HoraInicio" class="block text-sm font-medium text-gray-700 mb-1">
                         Hora Inicio <span class="text-red-500">*</span>
                     </label>
