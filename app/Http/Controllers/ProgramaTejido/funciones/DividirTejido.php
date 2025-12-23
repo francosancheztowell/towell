@@ -172,7 +172,7 @@ class DividirTejido
                 $registroOriginal->PedidoTempo = $pedidoTempoDestino;
             }
             if ($observacionesOriginal !== null && $observacionesOriginal !== '') {
-                $registroOriginal->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesOriginal);
+                $registroOriginal->Observaciones = StringTruncator::truncate('Observaciones', $observacionesOriginal);
             }
             if ($porcentajeSegundosOriginal !== null) {
                 $registroOriginal->PorcentajeSegundos = $porcentajeSegundosOriginal;
@@ -310,7 +310,7 @@ class DividirTejido
                     $nuevo->PedidoTempo = $pedidoTempoDestinoNuevo;
                 }
                 if ($observacionesDestino !== null && $observacionesDestino !== '') {
-                    $nuevo->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesDestino);
+                    $nuevo->Observaciones = StringTruncator::truncate('Observaciones', $observacionesDestino);
                 }
                 if ($porcentajeSegundosDestino !== null && $porcentajeSegundosDestino !== '') {
                     $nuevo->PorcentajeSegundos = (float)$porcentajeSegundosDestino;
@@ -757,7 +757,7 @@ class DividirTejido
                             $registro->PedidoTempo = $pedidoTempoDestino;
                         }
                         if ($observacionesDestino !== null && $observacionesDestino !== '') {
-                            $registro->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesDestino);
+                            $registro->Observaciones = StringTruncator::truncate('Observaciones', $observacionesDestino);
                         }
                         if ($porcentajeSegundosDestino !== null) {
                             $registro->PorcentajeSegundos = $porcentajeSegundosDestino;
@@ -887,7 +887,7 @@ class DividirTejido
                     $nuevo->PedidoTempo = $pedidoTempoDestino;
                 }
                 if ($observacionesDestino !== null && $observacionesDestino !== '') {
-                    $nuevo->Observaciones = \App\Helpers\StringTruncator::truncate('Observaciones', $observacionesDestino);
+                    $nuevo->Observaciones = StringTruncator::truncate('Observaciones', $observacionesDestino);
                 }
                 if ($porcentajeSegundosDestino !== null) {
                     $nuevo->PorcentajeSegundos = $porcentajeSegundosDestino;

@@ -926,15 +926,6 @@ class BalancearTejido
                 'total_pedido' => (int) round($nuevoTotalPrimero),
                 'modo' => 'total'
             ];
-
-            Log::debug('balancearAutomatico ajuste_primero', [
-                'ord_compartida' => $ordCompartida,
-                'primero_id' => $primeroId,
-                'total_original' => $totalOriginal,
-                'total_nuevo' => $totalNuevo,
-                'diff' => $diff,
-                'nuevo_total_primero' => $nuevoTotalPrimero,
-            ]);
         }
 
         $totalNuevoFinal = 0.0;
@@ -967,13 +958,6 @@ class BalancearTejido
                 $totalNuevoFinal += (float)$item['total_pedido'];
             }
         }
-
-        Log::debug('balancearAutomatico totales', [
-            'ord_compartida' => $ordCompartida,
-            'total_original' => $totalOriginal,
-            'total_nuevo' => $totalNuevoFinal,
-            'diff' => $totalOriginal - $totalNuevoFinal,
-        ]);
 
         return response()->json([
             'success' => true,
