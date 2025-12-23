@@ -46,6 +46,8 @@ class CatCodificados extends Model
 
         'Total',
 
+        'JulioRizo', 'JulioPie', 'EfiInicial', 'EfiFinal', 'DesperdicioTrama',
+
         'RespInicio', 'HrInicio', 'HrTermino', 'MinutosCambio', 'PesoMuestra', 'RegAlinacion',
         'Supervisor', 'OBSParaPro', 'CantidadProducir_2', 'Tejidas', 'pzaXrollo',
     ];
