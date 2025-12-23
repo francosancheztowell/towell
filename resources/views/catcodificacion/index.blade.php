@@ -33,6 +33,13 @@
             >
                 @php
                     $columnas = $columnas ?? [];
+                    $columnLabels = [
+                        'JulioRizo' => 'No Julio Rizo',
+                        'JulioPie' => 'No Julio Pie',
+                        'EfiInicial' => 'Eficiencia de Inicio',
+                        'EfiFinal' => 'Eficiencia Final',
+                        'DesperdicioTrama' => 'Desperdicio Trama',
+                    ];
                 @endphp
 
                 <table id="mainTable" class="min-w-full text-[11px] leading-tight">
@@ -40,7 +47,7 @@
                         <tr>
                             @foreach($columnas as $columna)
                                 <th class="px-3 py-2 text-left font-semibold whitespace-nowrap border-b border-blue-600/70">
-                                    <span class="block truncate">{{ $columna }}</span>
+                                    <span class="block truncate">{{ $columnLabels[$columna] ?? $columna }}</span>
                                 </th>
                             @endforeach
                         </tr>

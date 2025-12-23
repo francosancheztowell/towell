@@ -73,6 +73,29 @@
                     </div>
                 </div>
 
+                <div id="resumenCatCodificados" class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">No Julio Rizo</p>
+                        <p id="resumenJulioRizo" class="text-sm font-bold text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">No Julio Pie</p>
+                        <p id="resumenJulioPie" class="text-sm font-bold text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Eficiencia de Inicio</p>
+                        <p id="resumenEfiInicial" class="text-sm font-bold text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Eficiencia Final</p>
+                        <p id="resumenEfiFinal" class="text-sm font-bold text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Desperdicio Trama</p>
+                        <p id="resumenDesperdicioTrama" class="text-sm font-bold text-gray-900">-</p>
+                    </div>
+                </div>
+
                 <form id="formDesarrollador" method="POST" action="{{ route('desarrolladores.store') }}">
                     @csrf
                     <input type="hidden" name="NoTelarId" id="inputTelarId" value="">
@@ -241,6 +264,17 @@
         </div>
     </div>
 
+    <div id="modalPasadas" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-30 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6">
+            <h4 class="text-lg font-semibold text-gray-800 mb-2">Validación de Pasadas</h4>
+            <p class="text-sm text-gray-600 mb-6">Total de pasadas no cuadra con el detalle de la orden.</p>
+            <div class="flex justify-end gap-3">
+                <button type="button" id="modalPasadasCancelar" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
+                <button type="button" id="modalPasadasAceptar" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
 @endsection
 
 @push('scripts')
@@ -249,6 +283,7 @@
         const selectTelar = document.getElementById('telarOperador');
         const tablaProducciones = document.getElementById('tablaProducciones');
         const bodyProducciones = document.getElementById('bodyProducciones');
+        const bodyDetallesOrden = document.getElementById('bodyDetallesOrden');
         const noDataMessage = document.getElementById('noDataMessage');
         const formContainer = document.getElementById('formContainer');
         const inputTelarId = document.getElementById('inputTelarId');
@@ -258,12 +293,51 @@
         const formNombreProducto = document.getElementById('formNombreProducto');
         const btnCancelarFormulario = document.getElementById('btnCancelarFormulario');
         const form = document.getElementById('formDesarrollador');
+        const resumenFields = {
+            JulioRizo: document.getElementById('resumenJulioRizo'),
+            JulioPie: document.getElementById('resumenJulioPie'),
+            EfiInicial: document.getElementById('resumenEfiInicial'),
+            EfiFinal: document.getElementById('resumenEfiFinal'),
+            DesperdicioTrama: document.getElementById('resumenDesperdicioTrama'),
+        };
+        const selectNumeroJulioRizo = document.getElementById('NumeroJulioRizo');
+        const selectNumeroJulioPie = document.getElementById('NumeroJulioPie');
+        const inputDesperdicioTrama = document.getElementById('DesperdicioTrama');
+        const modalPasadas = document.getElementById('modalPasadas');
+        const modalPasadasAceptar = document.getElementById('modalPasadasAceptar');
+        const modalPasadasCancelar = document.getElementById('modalPasadasCancelar');
         const numberSelectors = [];
         let numberSelectorDocumentListenerAttached = false;
         const codificacionInputs = document.querySelectorAll('.codificacion-char');
         const codificacionHidden = document.getElementById('CodificacionModelo');
         const codificacionNoData = document.getElementById('codificacionNoData');
         let codificacionFetchAttempted = false;
+        let sumaPasadasDetalle = 0;
+        let omitirConfirmacionPasadas = false;
+
+        function formatResumenValue(value) {
+            if (value === null || value === undefined || value === '') {
+                return '-';
+            }
+            return String(value);
+        }
+
+        function actualizarResumenCatCodificados(data) {
+            Object.entries(resumenFields).forEach(([key, element]) => {
+                if (!element) {
+                    return;
+                }
+                element.textContent = formatResumenValue(data ? data[key] : null);
+            });
+        }
+
+        function mostrarModalPasadas() {
+            modalPasadas?.classList.remove('hidden');
+        }
+
+        function ocultarModalPasadas() {
+            modalPasadas?.classList.add('hidden');
+        }
 
         // Auto-focus de Total Pasadas del Dibujo a Eficiencia Inicio
         const totalPasadasDibujo = document.getElementById('TotalPasadasDibujo');
@@ -478,9 +552,13 @@
 
                 // Resetear selectores numéricos para nuevo registro
                 resetNumberSelectors();
+                actualizarResumenCatCodificados(null);
+                prefillFormularioDesdeCatCodificados(null);
+                resetDetallePasadas();
 
                 // Cargar detalles de la orden
                 cargarDetallesOrden(noProduccion);
+                cargarResumenCatCodificados(telarId, noProduccion);
 
                 formContainer.classList.remove('hidden');
             }
@@ -488,7 +566,6 @@
 
         // Función para cargar detalles de la orden
         function cargarDetallesOrden(noProduccion) {
-            const bodyDetallesOrden = document.getElementById('bodyDetallesOrden');
 
             // Mostrar loading
             bodyDetallesOrden.innerHTML = `
@@ -553,6 +630,7 @@
                             `;
                             bodyDetallesOrden.appendChild(row);
                         });
+                        adjuntarListenersDetallePasadas();
                     } else {
                         bodyDetallesOrden.innerHTML = `
                             <tr>
@@ -561,6 +639,7 @@
                             </td>
                             </tr>
                         `;
+                        resetDetallePasadas();
                     }
                 })
                 .catch(error => {
@@ -572,6 +651,7 @@
                             </td>
                         </tr>
                     `;
+                    resetDetallePasadas();
                 });
         }
 
@@ -593,6 +673,161 @@
                     </td>
                 </tr>
             `;
+            resetDetallePasadas();
+            ocultarModalPasadas();
+            actualizarResumenCatCodificados(null);
+            prefillFormularioDesdeCatCodificados(null);
+        });
+
+        function setSelectValue(select, value) {
+            if (!select) {
+                return;
+            }
+
+            if (value === null || value === undefined || value === '') {
+                const placeholder = select.querySelector('option[disabled]');
+                if (placeholder) {
+                    placeholder.selected = true;
+                } else {
+                    select.value = '';
+                }
+                return;
+            }
+
+            const optionValue = String(value);
+            let option = Array.from(select.options).find(opt => opt.value === optionValue);
+            if (!option) {
+                option = new Option(optionValue, optionValue);
+                select.add(option);
+            }
+
+            option.selected = true;
+        }
+
+        function setNumberSelectorValueById(inputId, value) {
+            const selector = numberSelectors.find(item => item.input && item.input.id === inputId);
+            const normalizedValue = value === null || value === undefined || value === ''
+                ? ''
+                : String(value);
+
+            if (!selector) {
+                const input = document.getElementById(inputId);
+                if (input) {
+                    input.value = normalizedValue;
+                }
+                return;
+            }
+
+            if (normalizedValue === '') {
+                selector.reset();
+            } else {
+                selector.setValue(normalizedValue);
+            }
+        }
+
+        function prefillFormularioDesdeCatCodificados(data) {
+            setSelectValue(selectNumeroJulioRizo, data ? data.JulioRizo : '');
+            setSelectValue(selectNumeroJulioPie, data ? data.JulioPie : '');
+            setNumberSelectorValueById('EficienciaInicio', data ? data.EfiInicial : '');
+            setNumberSelectorValueById('EficienciaFinal', data ? data.EfiFinal : '');
+            if (inputDesperdicioTrama) {
+                inputDesperdicioTrama.value = data && data.DesperdicioTrama !== null ? data.DesperdicioTrama : '';
+            }
+        }
+
+        function cargarResumenCatCodificados(telarId, noProduccion) {
+            actualizarResumenCatCodificados(null);
+            prefillFormularioDesdeCatCodificados(null);
+
+            if (!telarId || !noProduccion) {
+                return;
+            }
+
+            fetch(`/desarrolladores/catcodificados/${encodeURIComponent(telarId)}/${encodeURIComponent(noProduccion)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.registro) {
+                        actualizarResumenCatCodificados(data.registro);
+                        prefillFormularioDesdeCatCodificados(data.registro);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al obtener datos registrados:', error);
+                });
+        }
+
+        function obtenerInputsPasadasDetalle() {
+            if (!bodyDetallesOrden) {
+                return [];
+            }
+            return Array.from(bodyDetallesOrden.querySelectorAll('input[name^="pasadas"]'));
+        }
+
+        function calcularSumaPasadasDetalle() {
+            return obtenerInputsPasadasDetalle().reduce((total, input) => {
+                const valor = parseInt(input.value, 10);
+                return total + (Number.isFinite(valor) ? valor : 0);
+            }, 0);
+        }
+
+        function sincronizarTotalPasadasConDetalle() {
+            sumaPasadasDetalle = calcularSumaPasadasDetalle();
+            if (!totalPasadasDibujo) {
+                return;
+            }
+            const inputs = obtenerInputsPasadasDetalle();
+            if (inputs.length === 0) {
+                totalPasadasDibujo.value = '';
+                return;
+            }
+            totalPasadasDibujo.value = String(sumaPasadasDetalle);
+        }
+
+        function adjuntarListenersDetallePasadas() {
+            const inputs = obtenerInputsPasadasDetalle();
+            inputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    sincronizarTotalPasadasConDetalle();
+                });
+            });
+            sincronizarTotalPasadasConDetalle();
+        }
+
+        function resetDetallePasadas() {
+            sumaPasadasDetalle = 0;
+            if (totalPasadasDibujo) {
+                totalPasadasDibujo.value = '';
+            }
+        }
+
+        form.addEventListener('submit', function(event) {
+            if (omitirConfirmacionPasadas) {
+                omitirConfirmacionPasadas = false;
+                return;
+            }
+
+            const sumaDetalle = calcularSumaPasadasDetalle();
+            const totalInput = parseInt(totalPasadasDibujo?.value ?? '0', 10);
+            const coincideTotal = Number.isFinite(totalInput) && totalInput === sumaDetalle;
+
+            if (sumaDetalle > 0 && !coincideTotal) {
+                event.preventDefault();
+                mostrarModalPasadas();
+            }
+        });
+
+        modalPasadasCancelar?.addEventListener('click', () => {
+            ocultarModalPasadas();
+        });
+
+        modalPasadasAceptar?.addEventListener('click', () => {
+            ocultarModalPasadas();
+            omitirConfirmacionPasadas = true;
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.submit();
+            }
         });
 
         // Lógica de selectores numéricos (tomada del formulario original)
@@ -682,7 +917,7 @@
                 }
 
                 selector.dataset.selectorInitialized = 'true';
-                numberSelectors.push({ optionsWrapper, reset: resetSelector });
+                numberSelectors.push({ optionsWrapper, reset: resetSelector, setValue: setNumberSelectorValue, input: hiddenInput });
             });
 
             if (!numberSelectorDocumentListenerAttached) {

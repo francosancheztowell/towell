@@ -6,6 +6,7 @@ use App\Models\TelTelaresOperador;
 use App\Models\catDesarrolladoresModel;
 use App\Models\catcodificados\CatCodificados;
 use App\Models\ReqModelosCodificados;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
@@ -182,6 +183,66 @@ class TelDesarrolladoresController extends Controller
         }
     }
 
+    public function obtenerRegistroCatCodificado($telarId, $noProduccion)
+    {
+        try {
+            $modelo = new CatCodificados();
+            $table = $modelo->getTable();
+            $columns = Schema::getColumnListing($table);
+
+            $query = CatCodificados::query();
+            $hasOrderFilter = false;
+
+            if (in_array('OrdenTejido', $columns, true)) {
+                $query->where('OrdenTejido', $noProduccion);
+                $hasOrderFilter = true;
+            } elseif (in_array('NumOrden', $columns, true)) {
+                $query->where('NumOrden', $noProduccion);
+                $hasOrderFilter = true;
+            }
+
+            if (in_array('TelarId', $columns, true)) {
+                $query->where('TelarId', $telarId);
+            } elseif (in_array('NoTelarId', $columns, true)) {
+                $query->where('NoTelarId', $telarId);
+            }
+
+            if (!$hasOrderFilter) {
+                $query->where('NoProduccion', $noProduccion);
+            }
+
+            $registro = $query->select([
+                'JulioRizo',
+                'JulioPie',
+                'EfiInicial',
+                'EfiFinal',
+                'DesperdicioTrama',
+            ])->first();
+
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró información registrada'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'registro' => $registro,
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error al obtener datos de CatCodificados: ' . $e->getMessage(), [
+                'telarId' => $telarId,
+                'noProduccion' => $noProduccion,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener la información'
+            ], 500);
+        }
+    }
+
 	    public function formularioDesarrollador(Request $request, $telarId, $noProduccion)
 	    {
 	        $datosProduccion = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
@@ -248,6 +309,32 @@ class TelDesarrolladoresController extends Controller
 	        return $payload;
 	    }
 
+        private function calcularMinutosCambio(?string $horaInicio, ?string $horaFinal): ?int
+        {
+            if (!$horaInicio || !$horaFinal) {
+                return null;
+            }
+
+            try {
+                $inicio = Carbon::createFromFormat('H:i', $horaInicio);
+                $final = Carbon::createFromFormat('H:i', $horaFinal);
+
+                if ($final->lt($inicio)) {
+                    $final->addDay();
+                }
+
+                return max(0, $inicio->diffInMinutes($final));
+            } catch (Exception $e) {
+                Log::warning('No se pudo calcular MinutosCambio', [
+                    'horaInicio' => $horaInicio,
+                    'horaFinal' => $horaFinal,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return null;
+            }
+        }
+
 	    public function store(Request $request){
 	        try {
 	            $validated = $request->validate([
@@ -269,9 +356,13 @@ class TelDesarrolladoresController extends Controller
                     'pasadas.*' => 'nullable|integer|min:1',
 	            ]);
 
-	            $codigoDibujo = $this->normalizeCodigoDibujo($validated['CodificacionModelo'] ?? '');
-	            $ordenData = \App\Models\ReqProgramaTejido::where('NoProduccion', $validated['NoProduccion'])->first();
-	            $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
+                $codigoDibujo = $this->normalizeCodigoDibujo($validated['CodificacionModelo'] ?? '');
+                $ordenData = \App\Models\ReqProgramaTejido::where('NoProduccion', $validated['NoProduccion'])->first();
+                $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
+                $minutosCambio = $this->calcularMinutosCambio(
+                    $validated['HoraInicio'] ?? null,
+                    $validated['HoraFinal'] ?? null
+                );
 
                 $pasadasPayload = [];
                 $pasadasFromRequest = $validated['pasadas'] ?? [];
@@ -331,6 +422,7 @@ class TelDesarrolladoresController extends Controller
 	                'RespInicio' => $validated['Desarrollador'] ?? null,
 	                'HrInicio' => $validated['HoraInicio'] ?? null,
 	                'HrTermino' => $validated['HoraFinal'] ?? null,
+                    'MinutosCambio' => $minutosCambio,
 	                'TramaAnchoPeine' => $validated['TramaAnchoPeine'] ?? null,
 	                'AnchoPeineTrama' => $validated['TramaAnchoPeine'] ?? null,
 	                'LogLuchaTotal' => $validated['LongitudLuchaTot'] ?? null,
