@@ -192,7 +192,7 @@ function applyProgramaTejidoFilters() {
 
     lastFilterState = currentState;
     updateFilterUI();
-    
+
     // Actualizar totales después de aplicar filtros (con delay para asegurar que los estilos se aplicaron)
     // Usar requestAnimationFrame para asegurar que el DOM se actualizó
     requestAnimationFrame(() => {

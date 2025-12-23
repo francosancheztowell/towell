@@ -24,7 +24,8 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
-
+use App\Http\Controllers\CalendarioController;
+use Illuminate\Validation\ValidationException;
 /**
  * Controlador para gestionar el programa de tejido
  */
@@ -1619,20 +1620,7 @@ class ProgramaTejidoController extends Controller
                 $actualizados = ReqProgramaTejido::whereIn('Id', $registrosIds)
                     ->update(['CalendarioId' => $calendarioId]);
 
-                // 2. Obtener la fecha inicio del primer registro (EnProceso=1) como punto de partida
-                $primerRegistro = ReqProgramaTejido::where('CalendarioId', $calendarioId)
-                    ->where('EnProceso', 1)
-                    ->whereNotNull('FechaInicio')
-                    ->orderBy('FechaInicio', 'asc')
-                    ->orderBy('Id', 'asc')
-                    ->first(['FechaInicio']);
-
-                $fechaInicioBase = null;
-                if ($primerRegistro && $primerRegistro->FechaInicio) {
-                    $fechaInicioBase = Carbon::parse($primerRegistro->FechaInicio);
-                }
-
-                // 3. Recalcular SOLO los registros actualizados (optimizado)
+                // 2. Recalcular SOLO los registros actualizados (optimizado)
                 // Agrupar por telar para mantener la lógica de cascada
                 $registros = ReqProgramaTejido::whereIn('Id', $registrosIds)
                     ->whereNotNull('FechaInicio')
@@ -1660,7 +1648,7 @@ class ProgramaTejidoController extends Controller
                         'EnProceso'
                     ]);
 
-                $calendarioController = new \App\Http\Controllers\CalendarioController();
+                $calendarioController = new CalendarioController();
                 $prevFin = null;
                 $prevTelar = null;
                 $observer = new ReqProgramaTejidoObserver();
@@ -1675,25 +1663,29 @@ class ProgramaTejidoController extends Controller
                         $inicioOriginal = Carbon::parse($p->FechaInicio);
                         $inicio = $inicioOriginal->copy();
 
-                        // Si cambió de telar y es el primer registro del telar, usar fecha base
+                        // Si cambió de telar y es el primer registro del telar
                         $esPrimerRegistroTelar = ($prevTelar === null ||
                             ($prevTelar->SalonTejidoId !== $p->SalonTejidoId ||
                              $prevTelar->NoTelarId !== $p->NoTelarId));
 
-                        if ($esPrimerRegistroTelar && $fechaInicioBase) {
-                            // Es el primer registro del telar, usar la fecha base del primer registro
-                            $inicio = $fechaInicioBase->copy();
-                        } elseif ($prevFin) {
-                            // Ajustar inicio basado en el registro anterior (cascada)
-                            if (!$prevFin->equalTo($inicioOriginal)) {
-                                $inicio = $prevFin->copy();
+                        // RESPETAR: El primer registro de cada telar mantiene su fecha original sin modificaciones
+                        if ($esPrimerRegistroTelar) {
+                            // Mantener la fecha original del primer registro sin cambios
+                            $inicio = $inicioOriginal->copy();
+                        } else {
+                            // Para registros siguientes: ajustar según el registro anterior
+                            if ($prevFin) {
+                                // Ajustar inicio basado en el registro anterior (cascada)
+                                if (!$prevFin->equalTo($inicioOriginal)) {
+                                    $inicio = $prevFin->copy();
+                                }
                             }
-                        }
 
-                        // Snap al calendario
-                        $snap = $calendarioController->snapInicioAlCalendario($calendarioId, $inicio);
-                        if ($snap && !$snap->equalTo($inicio)) {
-                            $inicio = $snap;
+                            // Snap al calendario solo para registros que no son el primero
+                            $snap = $calendarioController->snapInicioAlCalendario($calendarioId, $inicio);
+                            if ($snap && !$snap->equalTo($inicio)) {
+                                $inicio = $snap;
+                            }
                         }
 
                         // HorasProd: usar la del registro
@@ -1789,7 +1781,7 @@ class ProgramaTejidoController extends Controller
                 throw $e;
             }
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
@@ -1808,136 +1800,7 @@ class ProgramaTejidoController extends Controller
         }
     }
 
-    /**
-     * Snap inicio al calendario (helper privado)
-     */
-    private function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
-    {
-        $linea = \App\Models\ReqCalendarioLine::where('CalendarioId', $calendarioId)
-            ->where('FechaFin', '>', $fechaInicio)
-            ->orderBy('FechaInicio')
-            ->first();
 
-        if (!$linea) return null;
-
-        $ini = Carbon::parse($linea->FechaInicio);
-        $fin = Carbon::parse($linea->FechaFin);
-
-        if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) return $fechaInicio->copy();
-        return $ini->copy();
-    }
-
-    /**
-     * Recalcular solo diffDias (helper privado)
-     */
-    private function recalcularSoloDiffDias(ReqProgramaTejido $p): void
-    {
-        if (empty($p->FechaInicio) || empty($p->FechaFinal)) return;
-
-        $inicio = Carbon::parse($p->FechaInicio);
-        $fin = Carbon::parse($p->FechaFinal);
-        $diffSeg = abs($fin->getTimestamp() - $inicio->getTimestamp());
-        $diffDias = $diffSeg / 86400;
-
-        if ($diffDias <= 0) return;
-
-        $cantidad = $this->sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
-        $pesoCrudo = (float)($p->PesoCrudo ?? 0);
-
-        $p->DiasEficiencia = (float) round($diffDias, 2);
-
-        $stdHrsEfect = ($cantidad / $diffDias) / 24;
-        $p->StdHrsEfect = (float) round($stdHrsEfect, 2);
-
-        if ($pesoCrudo > 0) {
-            $p->ProdKgDia2 = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
-        }
-    }
-
-    /**
-     * Sanitize number (helper privado)
-     */
-    private function sanitizeNumber($value): float
-    {
-        if ($value === null) return 0.0;
-        if (is_numeric($value)) return (float)$value;
-
-        $clean = str_replace([',', ' '], '', (string)$value);
-        return is_numeric($clean) ? (float)$clean : 0.0;
-    }
-
-    /**
-     * Calcular HorasProd (helper privado)
-     */
-    private function calcularHorasProd(ReqProgramaTejido $p): float
-    {
-        $vel = (float)($p->VelocidadSTD ?? 0);
-        $efic = (float)($p->EficienciaSTD ?? 0);
-        if ($efic > 1) $efic = $efic / 100;
-
-        $cantidad = $this->sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
-        $m = $this->getModeloParams($p->TamanoClave ?? null, $p);
-
-        $stdToaHra = 0.0;
-        if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
-            $parte1 = $m['total'];
-            $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
-            $den = ($parte1 + $parte2) / $vel;
-            if ($den > 0) {
-                $stdToaHra = ($m['no_tiras'] * 60) / $den;
-            }
-        }
-
-        if ($stdToaHra > 0 && $efic > 0 && $cantidad > 0) {
-            return $cantidad / ($stdToaHra * $efic);
-        }
-
-        return 0.0;
-    }
-
-    /**
-     * Obtener parámetros del modelo (helper privado)
-     */
-    private function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
-    {
-        static $modeloCache = [];
-
-        $noTiras = (float)($p->NoTiras ?? 0);
-        $luchaje = (float)($p->Luchaje ?? 0);
-        $repeticiones = (float)($p->Repeticiones ?? 0);
-
-        $total = 0.0;
-        if ($tamanoClave) {
-            $key = trim($tamanoClave);
-            if (!isset($modeloCache[$key])) {
-                $modelo = ReqModelosCodificados::where('TamanoClave', $key)
-                    ->select(['Total', 'NoTiras', 'Luchaje', 'Repeticiones'])
-                    ->first();
-                if ($modelo) {
-                    $modeloCache[$key] = [
-                        'total' => (float)($modelo->Total ?? 0),
-                        'no_tiras' => (float)($modelo->NoTiras ?? 0),
-                        'luchaje' => (float)($modelo->Luchaje ?? 0),
-                        'repeticiones' => (float)($modelo->Repeticiones ?? 0),
-                    ];
-                } else {
-                    $modeloCache[$key] = ['total' => 0.0, 'no_tiras' => 0.0, 'luchaje' => 0.0, 'repeticiones' => 0.0];
-                }
-            }
-            $cached = $modeloCache[$key];
-            if ($noTiras <= 0) $noTiras = $cached['no_tiras'];
-            if ($luchaje <= 0) $luchaje = $cached['luchaje'];
-            if ($repeticiones <= 0) $repeticiones = $cached['repeticiones'];
-            $total = $cached['total'];
-        }
-
-        return [
-            'total' => $total,
-            'no_tiras' => $noTiras,
-            'luchaje' => $luchaje,
-            'repeticiones' => $repeticiones,
-        ];
-    }
 
     /**
      * Normaliza OrdCompartida: trim y castea a entero; null si vacío o no numérico.

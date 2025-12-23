@@ -100,6 +100,16 @@
                title="Eliminar" aria-label="Eliminar">
                 <i class="fas fa-trash text-lg" aria-hidden="true"></i>
             </button>
+
+            {{-- Botón Eliminar por Rango solo para calendarios --}}
+            @if($route === 'calendarios')
+                <button id="btn-eliminar-rango" onclick="eliminarCalendariosPorRango()"
+                   class="p-2 bg-red-600 text-white hover:bg-red-800 rounded-md transition-colors"
+                   title="Eliminar por Rango" aria-label="Eliminar por Rango">
+                    <i class="fas fa-calendar-times text-lg" aria-hidden="true"></i>
+                    <span class="ml-1 text-xs">Rango</span>
+                </button>
+            @endif
         @endif
     @endif
 

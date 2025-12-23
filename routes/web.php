@@ -385,6 +385,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/calendarios/lineas', [CalendarioController::class, 'storeLine'])->name('calendarios.lineas.store');
         Route::put('/calendarios/lineas/{linea}', [CalendarioController::class, 'updateLine'])->name('calendarios.lineas.update');
         Route::delete('/calendarios/lineas/{linea}', [CalendarioController::class, 'destroyLine'])->name('calendarios.lineas.destroy');
+        Route::delete('/calendarios/{calendario}/lineas/rango', [CalendarioController::class, 'destroyLineasPorRango'])->name('calendarios.lineas.destroy.rango');
 
         // Ruta para recalcular programas por calendario
         Route::post('/calendarios/{calendario}/recalcular-programas', [CalendarioController::class, 'recalcularProgramas'])->name('calendarios.recalcular.programas');
