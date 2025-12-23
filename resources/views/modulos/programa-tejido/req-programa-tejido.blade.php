@@ -97,6 +97,20 @@
               @endforeach
             </tbody>
 
+            {{-- Fila informativa de totales --}}
+            <tfoot id="tfootTotales">
+              <tr id="rowTotales" class="bg-blue-100 border-t-2 border-blue-500">
+                <td colspan="{{ count($columns) }}" class="px-4 py-3 text-sm font-semibold text-blue-900">
+                  <div class="flex items-center justify-start gap-4">
+                    <span>Total Registros: <strong id="totalRegistros" class="text-blue-700">0</strong></span>
+                    <span>Total Pedido: <strong id="totalPedido" class="text-blue-700">0.00</strong></span>
+                    <span>Total Producción: <strong id="totalProduccion" class="text-blue-700">0.00</strong></span>
+                    <span>Total Saldos: <strong id="totalSaldos" class="text-blue-700">0.00</strong></span>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
+
           </table>
         </div>
       </div>
@@ -185,6 +199,14 @@
   @keyframes contextMenuFadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
   #contextMenu button:active { background-color: #dbeafe; }
   #contextMenu button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Asegurar que la barra informativa NO sea sticky */
+  #tfootTotales {
+    position: static !important;
+  }
+  #tfootTotales td {
+    position: static !important;
+  }
 </style>
 
 {{-- balanceo --}}
@@ -1221,13 +1243,6 @@
         const cells = row.querySelectorAll('td');
         const ordCompartida = row.getAttribute('data-ord-compartida');
         const tieneOrdCompartida = ordCompartida && ordCompartida.trim() !== '';
-
-        // Lógica de bloqueo visual:
-        // - Si NO hay ningún registro seleccionado: NO bloquear nada (el usuario puede seleccionar primero uno con o sin OrdCompartida)
-        // - Si el primer registro NO tiene OrdCompartida y este registro SÍ tiene, bloquear
-        // - Si el primer registro SÍ tiene OrdCompartida y este NO tiene, permitir (usará el del primero)
-        // - Si ambos tienen OrdCompartida pero son diferentes, bloquear
-        // - Si ambos tienen el mismo OrdCompartida, permitir
         let debeBloquear = false;
         let mensajeBloqueo = '';
 
@@ -1426,6 +1441,123 @@
     });
 
     // =========================
+    // Actualizar totales basados en filas visibles
+    // =========================
+    window.updateTotales = function updateTotales() {
+      const tb = tbodyEl();
+      if (!tb) return;
+
+      // Obtener todas las filas y filtrar solo las visibles
+      const allRows = Array.from(tb.querySelectorAll('.selectable-row'));
+      // Filtrar filas visibles - verificar múltiples condiciones
+      // IMPORTANTE: Verificar primero la clase filter-hidden ya que es lo que usa el sistema de filtros
+      const visibleRows = allRows.filter(row => {
+        // 1. PRIMERO: Verificar clase filter-hidden (esto es lo más importante - usado por el sistema de filtros)
+        if (row.classList.contains('filter-hidden')) {
+          return false;
+        }
+
+        // 2. Verificar estilo inline (puede estar oculta por display: none)
+        const inlineDisplay = row.style.display;
+        if (inlineDisplay === 'none') {
+          return false;
+        }
+
+        // 3. Verificar estilo computado (más confiable, pero más lento)
+        const computedStyle = window.getComputedStyle(row);
+        const computedDisplay = computedStyle.display;
+        const computedVisibility = computedStyle.visibility;
+
+        if (computedDisplay === 'none' || computedVisibility === 'hidden') {
+          return false;
+        }
+
+        // 4. Verificar que el offsetHeight sea mayor a 0 (otra forma de verificar visibilidad)
+        // Esto puede ser útil si la fila está fuera del viewport pero aún es visible
+        // Comentado porque puede dar falsos negativos si la fila está fuera del viewport
+        // if (row.offsetHeight === 0 && row.offsetWidth === 0) {
+        //   return false;
+        // }
+
+        return true;
+      });
+
+      // Debug: verificar que los elementos existan
+      const totalRegistrosEl = qs('#totalRegistros');
+
+
+      let totalRegistros = visibleRows.length;
+      let totalPedido = 0;
+      let totalProduccion = 0;
+      let totalSaldos = 0;
+
+      visibleRows.forEach(row => {
+        // Obtener TotalPedido - usar data-value primero, luego textContent
+        const pedidoCell = row.querySelector('[data-column="TotalPedido"]');
+        if (pedidoCell) {
+          let pedidoValue = pedidoCell.getAttribute('data-value') || '';
+          // Si data-value está vacío o no existe, usar textContent
+          if (!pedidoValue || pedidoValue === '' || pedidoValue === 'null') {
+            pedidoValue = (pedidoCell.textContent || pedidoCell.innerText || '0').trim();
+          }
+          // Limpiar el valor: quitar comas, espacios, caracteres no numéricos excepto punto y signo negativo
+          const cleanedValue = pedidoValue.toString().replace(/[^\d.-]/g, '');
+          const pedido = parseFloat(cleanedValue) || 0;
+          if (!isNaN(pedido)) {
+            totalPedido += pedido;
+          }
+        }
+
+        // Obtener Produccion - usar data-value primero, luego textContent
+        const produccionCell = row.querySelector('[data-column="Produccion"]');
+        if (produccionCell) {
+          let produccionValue = produccionCell.getAttribute('data-value') || '';
+          // Si data-value está vacío o no existe, usar textContent
+          if (!produccionValue || produccionValue === '' || produccionValue === 'null') {
+            produccionValue = (produccionCell.textContent || produccionCell.innerText || '0').trim();
+          }
+          // Limpiar el valor: quitar comas, espacios, caracteres no numéricos excepto punto y signo negativo
+          const cleanedValue = produccionValue.toString().replace(/[^\d.-]/g, '');
+          const produccion = parseFloat(cleanedValue) || 0;
+          if (!isNaN(produccion)) {
+            totalProduccion += produccion;
+          }
+        }
+
+        // Obtener SaldoPedido - usar data-value primero, luego textContent
+        const saldosCell = row.querySelector('[data-column="SaldoPedido"]');
+        if (saldosCell) {
+          let saldosValue = saldosCell.getAttribute('data-value') || '';
+          // Si data-value está vacío o no existe, usar textContent
+          if (!saldosValue || saldosValue === '' || saldosValue === 'null') {
+            saldosValue = (saldosCell.textContent || saldosCell.innerText || '0').trim();
+          }
+          // Limpiar el valor: quitar comas, espacios, caracteres no numéricos excepto punto y signo negativo
+          const cleanedValue = saldosValue.toString().replace(/[^\d.-]/g, '');
+          const saldos = parseFloat(cleanedValue) || 0;
+          if (!isNaN(saldos)) {
+            totalSaldos += saldos;
+          }
+        }
+      });
+
+      // Verificar que los elementos existan
+      const totalPedidoEl = qs('#totalPedido');
+      const totalProduccionEl = qs('#totalProduccion');
+      const totalSaldosEl = qs('#totalSaldos');
+
+      if (!totalRegistrosEl || !totalPedidoEl || !totalProduccionEl || !totalSaldosEl) {
+        return;
+      }
+
+      // Actualizar los elementos
+      totalRegistrosEl.textContent = totalRegistros.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      totalPedidoEl.textContent = totalPedido.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      totalProduccionEl.textContent = totalProduccion.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      totalSaldosEl.textContent = totalSaldos.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    // =========================
     // Reset (filtros + columnas)
     // =========================
     function resetAllView(e) {
@@ -1460,6 +1592,7 @@
         if (typeof window.updatePinnedColumnsPositions === 'function') window.updatePinnedColumnsPositions();
       }
 
+      updateTotales();
       toast('Vista restablecida (filtros y columnas)', 'success');
     }
 
@@ -1598,6 +1731,7 @@
         tb.appendChild(frag);
 
         refreshAllRows();
+        updateTotales();
       } catch (e) {}
     };
 
@@ -1714,6 +1848,8 @@
           updateVincularButtonState();
         }
       }, 100);
+      // Inicializar totales
+      setTimeout(() => updateTotales(), 200);
       showSavedToastIfAny();
 
       const balanceBtn = document.querySelector('a[title="Balancear"]');
