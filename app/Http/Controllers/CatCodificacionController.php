@@ -155,37 +155,72 @@ class CatCodificacionController extends Controller
 
     /**
      * API: datos compactos para carga rápida en tabla (getAllFast).
-     * Máxima velocidad: sin ordenamiento, consulta directa, sin query log.
+     * Optimizado para máxima velocidad: cache, cursor, sin query log.
      */
     public function getAllFast(Request $request): JsonResponse
     {
         try {
             $columnas = self::COLUMNS;
-            $table    = (new CatCodificados())->getTable();
+            $table    = 'CatCodificados'; // Evitar instanciar modelo
+            $idFilter = $request->filled('id') ? (int) $request->input('id') : null;
+            $skipCache = $request->boolean('nocache', false);
+
+            // Clave de cache única por filtro
+            $cacheKey = $idFilter
+                ? "catcodificacion_fast_id_{$idFilter}"
+                : 'catcodificacion_fast_all';
+
+            // Intentar obtener desde cache (60 segundos TTL)
+            if (!$skipCache) {
+                $cached = Cache::get($cacheKey);
+                if ($cached !== null) {
+                    return response()->json($cached)
+                        ->header('Cache-Control', 'private, max-age=60')
+                        ->header('X-Cache', 'HIT');
+                }
+            }
 
             // Deshabilitar query log para mejor rendimiento
             DB::connection()->disableQueryLog();
 
+            // Construir SELECT con campos específicos (más eficiente que array)
+            $columnsStr = implode(', ', array_map(fn($col) => "[{$col}]", $columnas));
+
             // Consulta directa SIN ordenamiento para máxima velocidad
-            // El ordenamiento es costoso y no es necesario para la carga inicial
-            $query = DB::table($table)->select($columnas);
+            $query = DB::table($table)->selectRaw($columnsStr);
 
             // Búsqueda directa por Id (index) si se envía ?id=123
-            if ($request->filled('id')) {
-                $query->where('Id', (int) $request->input('id'));
+            if ($idFilter !== null) {
+                $query->where('Id', $idFilter);
             }
 
-            $data = $query->get();
+            // Usar cursor() para grandes volúmenes (reduce memoria)
+            // Si hay menos de 1000 registros, usar get() es más rápido
+            $estimatedCount = $idFilter ? 1 : Cache::remember(
+                'catcodificacion_estimated_count',
+                300,
+                fn() => DB::table($table)->count()
+            );
 
+            $data = $estimatedCount > 1000
+                ? $this->fetchWithCursor($query, $columnas)
+                : $this->fetchWithGet($query, $columnas);
 
-            $mapped = $data->map(fn($row) => array_values((array) $row));
-
-            return response()->json([
+            $response = [
                 's' => true,             // success
-                'd' => $mapped,          // data (array de arrays)
-                't' => $mapped->count(), // total registros
+                'd' => $data,            // data (array de arrays)
+                't' => count($data),     // total registros
                 'c' => $columnas,        // columnas
-            ])->header('Cache-Control', 'private, max-age=60');
+            ];
+
+            // Cachear respuesta (60 segundos)
+            if (!$skipCache) {
+                Cache::put($cacheKey, $response, 60);
+            }
+
+            return response()->json($response)
+                ->header('Cache-Control', 'private, max-age=60')
+                ->header('X-Cache', 'MISS');
         } catch (\Throwable $e) {
             Log::error('CatCodificacionController::getAllFast - ERROR', [
                 'error' => $e->getMessage(),
@@ -197,6 +232,50 @@ class CatCodificacionController extends Controller
                 'e' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Fetch usando get() - más rápido para datasets pequeños (<1000 registros)
+     */
+    private function fetchWithGet($query, array $columnas): array
+    {
+        $data = $query->get();
+
+        // Optimización: convertir directamente sin map intermedio
+        $result = [];
+        foreach ($data as $row) {
+            $result[] = array_values((array) $row);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Fetch usando cursor() - más eficiente en memoria para datasets grandes
+     */
+    private function fetchWithCursor($query, array $columnas): array
+    {
+        $result = [];
+
+        // Cursor procesa fila por fila sin cargar todo en memoria
+        foreach ($query->cursor() as $row) {
+            $result[] = array_values((array) $row);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Invalidar cache de getAllFast
+     */
+    public static function clearCache(?int $id = null): void
+    {
+        if ($id !== null) {
+            Cache::forget("catcodificacion_fast_id_{$id}");
+        }
+        Cache::forget('catcodificacion_fast_all');
+        Cache::forget('catcodificacion_estimated_count');
+        Cache::forget('catcodificacion_total');
     }
 
     /**

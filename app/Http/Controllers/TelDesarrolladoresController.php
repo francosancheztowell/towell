@@ -7,10 +7,13 @@ use App\Models\catDesarrolladoresModel;
 use App\Models\catcodificados\CatCodificados;
 use App\Models\ReqModelosCodificados;
 use App\Models\UrdCatJulios;
+use App\Http\Controllers\ProgramaTejido\helper\DateHelpers;
+use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -337,6 +340,155 @@ class TelDesarrolladoresController extends Controller
             }
         }
 
+        private function actualizarReqModelosDesdePrograma(ReqProgramaTejido $programa): void
+        {
+            $tamanoClave = trim((string) ($programa->TamanoClave ?? ''));
+            $salonTejido = trim((string) ($programa->SalonTejidoId ?? ''));
+
+            if ($tamanoClave === '' || $salonTejido === '') {
+                return;
+            }
+
+            $registroModelo = ReqModelosCodificados::query()
+                ->where('TamanoClave', $tamanoClave)
+                ->where('SalonTejidoId', $salonTejido)
+                ->first();
+
+            if (!$registroModelo) {
+                return;
+            }
+
+            $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
+
+            $payload = [
+                'Pedido' => $programa->TotalPedido,
+                'Produccion' => $programa->Produccion,
+                'SaldoPedido' => $programa->SaldoPedido,
+                'Saldos' => $programa->SaldoPedido,
+            ];
+
+            foreach ($payload as $column => $value) {
+                if (!in_array($column, $columnasModelo, true)) {
+                    continue;
+                }
+                $registroModelo->setAttribute($column, $value);
+            }
+
+            if ($registroModelo->isDirty()) {
+                $registroModelo->save();
+            }
+        }
+
+        private function moverRegistroEnProceso(ReqProgramaTejido $registroActualizado): void
+        {
+            $salonTejido = $registroActualizado->SalonTejidoId;
+            $noTelarId = $registroActualizado->NoTelarId;
+
+            if (!$salonTejido || !$noTelarId) {
+                return;
+            }
+
+            $dispatcher = ReqProgramaTejido::getEventDispatcher();
+            $idsAfectados = [];
+
+            try {
+                DB::transaction(function () use ($registroActualizado, $salonTejido, $noTelarId, &$idsAfectados) {
+                    $registrosEnProceso = ReqProgramaTejido::query()
+                        ->where('SalonTejidoId', $salonTejido)
+                        ->where('NoTelarId', $noTelarId)
+                        ->where('EnProceso', 1)
+                        ->where('Id', '!=', $registroActualizado->Id)
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($registrosEnProceso as $registroEnProceso) {
+                        $this->actualizarReqModelosDesdePrograma($registroEnProceso);
+                        $registroEnProceso->delete();
+                    }
+
+                    ReqProgramaTejido::query()
+                        ->where('SalonTejidoId', $salonTejido)
+                        ->where('NoTelarId', $noTelarId)
+                        ->update(['EnProceso' => 0]);
+
+                    ReqProgramaTejido::query()
+                        ->where('Id', $registroActualizado->Id)
+                        ->update(['EnProceso' => 1]);
+
+                    $registros = ReqProgramaTejido::query()
+                        ->where('SalonTejidoId', $salonTejido)
+                        ->where('NoTelarId', $noTelarId)
+                        ->orderBy('FechaInicio', 'asc')
+                        ->lockForUpdate()
+                        ->get();
+
+                    if ($registros->isEmpty()) {
+                        return;
+                    }
+
+                    $registroEnLista = $registros->firstWhere('Id', $registroActualizado->Id) ?: $registroActualizado;
+                    $ordenados = collect([$registroEnLista])
+                        ->merge($registros->filter(function ($registro) use ($registroEnLista) {
+                            return $registro->Id !== $registroEnLista->Id;
+                        }))
+                        ->values();
+
+                    $inicioOriginal = null;
+                    if (!empty($registroEnLista->FechaInicio)) {
+                        $inicioOriginal = Carbon::parse($registroEnLista->FechaInicio);
+                    } else {
+                        $primeroConFecha = $ordenados->first(function ($registro) {
+                            return !empty($registro->FechaInicio);
+                        });
+                        if ($primeroConFecha) {
+                            $inicioOriginal = Carbon::parse($primeroConFecha->FechaInicio);
+                        }
+                    }
+
+                    if (!$inicioOriginal) {
+                        return;
+                    }
+
+                    ReqProgramaTejido::unsetEventDispatcher();
+
+                    [$updates] = DateHelpers::recalcularFechasSecuencia($ordenados, $inicioOriginal, true);
+
+                    foreach ($updates as $idU => $dataU) {
+                        DB::table('ReqProgramaTejido')->where('Id', $idU)->update($dataU);
+                        $idsAfectados[] = (int) $idU;
+                    }
+                });
+            } catch (Exception $e) {
+                Log::error('Error al mover registro en proceso: ' . $e->getMessage(), [
+                    'salonTejidoId' => $salonTejido,
+                    'noTelarId' => $noTelarId,
+                    'registroId' => $registroActualizado->Id,
+                ]);
+            } finally {
+                if ($dispatcher) {
+                    ReqProgramaTejido::setEventDispatcher($dispatcher);
+                }
+            }
+
+            if (!empty($idsAfectados)) {
+                $observer = new ReqProgramaTejidoObserver();
+                $modelos = ReqProgramaTejido::query()
+                    ->whereIn('Id', $idsAfectados)
+                    ->get();
+
+                foreach ($modelos as $modelo) {
+                    $observer->saved($modelo);
+                }
+            }
+
+            $registroParaModelo = ReqProgramaTejido::query()
+                ->where('Id', $registroActualizado->Id)
+                ->first();
+            if ($registroParaModelo) {
+                $this->actualizarReqModelosDesdePrograma($registroParaModelo);
+            }
+        }
+
 	    public function store(Request $request){
 	        try {
 	            $validated = $request->validate([
@@ -557,11 +709,9 @@ class TelDesarrolladoresController extends Controller
                                     'CodColorComb5' => $registroModelo->CodColorC5,
                                     'NombreCC5' => $registroModelo->NomColorC5,
                                 ];
-
                                 if ($fechaInicioProgramada) {
                                     $payloadPrograma['FechaInicio'] = $fechaInicioProgramada;
                                 }
-
                                 foreach ($programas as $programa) {
                                     foreach ($payloadPrograma as $column => $value) {
                                         if (!in_array($column, $columnasPrograma, true)) {
@@ -571,17 +721,20 @@ class TelDesarrolladoresController extends Controller
                                     }
                                     $programa->save();
                                 }
+                                $programaEnTelar = $programas->firstWhere('NoTelarId', $validated['NoTelarId']);
+                                if ($programaEnTelar) {
+                                    $this->moverRegistroEnProceso($programaEnTelar);
+                                }
                             }
                         }
                     }
                 }
-	            if ($request->ajax()) {
-	                return response()->json([
-	                    'success' => true,
-	                    'message' => 'Datos guardados correctamente'
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Datos guardados correctamente'
                 ]);
             }
-
             return redirect()->route('desarrolladores')
                 ->with('success', 'Datos guardados correctamente');
         } catch (ValidationException $e) {
@@ -595,17 +748,13 @@ class TelDesarrolladoresController extends Controller
             return back()->withErrors($e->errors())->withInput();
         } catch (Exception $e) {
             Log::error('Error al guardar datos de desarrollador: ' . $e->getMessage());
-
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Ocurrió un error al guardar los datos'
                 ], 500);
             }
-
-	            return back()->with('error', 'Ocurrió un error al guardar los datos')->withInput();
-	        }
-	    }
-
-
+            return back()->with('error', 'Ocurrió un error al guardar los datos')->withInput();
+        }
+    }
 }
