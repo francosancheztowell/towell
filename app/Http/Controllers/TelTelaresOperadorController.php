@@ -6,7 +6,6 @@ use App\Models\TelTelaresOperador;
 use App\Models\ReqTelares;
 use App\Models\SYSUsuario;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 
 class TelTelaresOperadorController extends Controller

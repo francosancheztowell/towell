@@ -6,9 +6,11 @@ use App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\ProgramaTejido\helper\UpdateHelpers;
 use App\Http\Controllers\ProgramaTejido\helper\UtilityHelpers;
+use App\Models\ReqAplicaciones;
 use App\Models\ReqCalendarioLine;
 use App\Models\ReqModelosCodificados;
 use App\Models\ReqProgramaTejido;
+use App\Models\ReqProgramaTejidoLine;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -63,6 +65,7 @@ class UpdateTejido
         $afectaCalendario = false;   // solo acomodación en líneas
         $afectaDuracion   = false;   // cambia HorasProd necesaria (pedido/modelo/no_tiras/luchaje)
         $afectaFormulas   = false;   // cálculos (peso, etc.)
+        $afectaAplicacion = false;  // cambia aplicación (requiere actualizar líneas)
         $fechaFinalManual = false;
 
         // ===== Aplicar cambios =====
@@ -122,7 +125,14 @@ class UpdateTejido
         }
 
         if (array_key_exists('aplicacion_id', $data)) {
-            $registro->AplicacionId = ($data['aplicacion_id'] === 'NA' || $data['aplicacion_id'] === '') ? null : $data['aplicacion_id'];
+            $nuevaAplicacion = ($data['aplicacion_id'] === 'NA' || $data['aplicacion_id'] === '') ? null : $data['aplicacion_id'];
+            $aplicacionAnterior = $registro->AplicacionId;
+            $registro->AplicacionId = $nuevaAplicacion;
+
+            // Detectar si realmente cambió la aplicación
+            if ((string)$aplicacionAnterior !== (string)$nuevaAplicacion) {
+                $afectaAplicacion = true;
+            }
         }
 
         if (array_key_exists('no_tiras', $data)) {
@@ -258,6 +268,15 @@ class UpdateTejido
             }
         }
 
+        // ===== 7) Actualizar Aplicacion en líneas existentes (solo si cambió aplicación y NO se regeneraron líneas) =====
+        if ($afectaAplicacion && !$necesitaLineas) {
+            try {
+                self::actualizarAplicacionEnLineas($registro);
+            } catch (\Throwable $e) {
+                LogFacade::warning('UpdateTejido: actualizarAplicacionEnLineas error', ['id'=>$registro->Id,'error'=>$e->getMessage()]);
+            }
+        }
+
         $registro = $registro->fresh(); // para devolver lo definitivo
 
         return response()->json([
@@ -390,5 +409,42 @@ class UpdateTejido
 
         $clean = str_replace([',', ' '], '', (string)$value);
         return is_numeric($clean) ? (float)$clean : 0.0;
+    }
+
+    /**
+     * Actualiza el campo Aplicacion en las líneas existentes cuando cambia AplicacionId
+     * sin necesidad de regenerar todas las líneas
+     */
+    private static function actualizarAplicacionEnLineas(ReqProgramaTejido $programa): void
+    {
+        if (!$programa->Id || $programa->Id <= 0) {
+            return;
+        }
+
+        // Obtener el factor de aplicación
+        $factorAplicacion = null;
+        if ($programa->AplicacionId) {
+            $aplicacionData = ReqAplicaciones::where('AplicacionId', $programa->AplicacionId)->first();
+            if ($aplicacionData) {
+                $factorAplicacion = (float) $aplicacionData->Factor;
+            }
+        }
+
+        // Obtener todas las líneas del programa
+        $lineas = ReqProgramaTejidoLine::where('ProgramaId', $programa->Id)
+            ->whereNotNull('Kilos')
+            ->where('Kilos', '>', 0)
+            ->get();
+
+        // Actualizar cada línea: Aplicacion = Factor * Kilos
+        foreach ($lineas as $linea) {
+            $kilos = (float) ($linea->Kilos ?? 0);
+            $nuevoAplicacion = ($factorAplicacion !== null && $kilos > 0)
+                ? round($factorAplicacion * $kilos, 6)
+                : null;
+
+            $linea->Aplicacion = $nuevoAplicacion;
+            $linea->saveQuietly();
+        }
     }
 }

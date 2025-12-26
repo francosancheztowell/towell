@@ -14,6 +14,7 @@ use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -580,7 +581,6 @@ class TelDesarrolladoresController extends Controller
 	            }
 
                 $registro = $hasKeyFilter ? ($query->first() ?? $modelo) : $modelo;
-                $wasUpdate = (bool) $registro->exists;
 
                 $payload = array_merge([
 	                'TelarId' => $validated['NoTelarId'],
@@ -724,6 +724,9 @@ class TelDesarrolladoresController extends Controller
                                 $programaEnTelar = $programas->firstWhere('NoTelarId', $validated['NoTelarId']);
                                 if ($programaEnTelar) {
                                     $this->moverRegistroEnProceso($programaEnTelar);
+
+                                    // Enviar notificación a Telegram después de completar todo el proceso
+                                    $this->enviarNotificacionTelegram($validated, $programaEnTelar, $codigoDibujo);
                                 }
                             }
                         }
@@ -756,5 +759,88 @@ class TelDesarrolladoresController extends Controller
             }
             return back()->with('error', 'Ocurrió un error al guardar los datos')->withInput();
         }
+    }
+
+    /**
+     * Enviar notificación a Telegram cuando se complete el proceso de desarrollador
+     */
+    private function enviarNotificacionTelegram(array $validated, ReqProgramaTejido $programa, string $codigoDibujo): void
+    {
+        try {
+            $botToken = config('services.telegram.bot_token');
+            $chatId = config('services.telegram.chat_id');
+
+            if (empty($botToken) || empty($chatId)) {
+                Log::warning('No se pudo enviar notificación a Telegram: credenciales no configuradas');
+                return;
+            }
+
+            // Construir el mensaje con formato
+            $mensaje = " *PROCESO DE DESARROLLADOR COMPLETADO* \n\n";
+            $mensaje .= " *Telar:* {$validated['NoTelarId']}\n";
+            $mensaje .= " *Producción:* {$validated['NoProduccion']}\n";
+
+            if (!empty($validated['Desarrollador'])) {
+                $mensaje .= " *Desarrollador:* {$validated['Desarrollador']}\n";
+            }
+
+            $mensaje .= " *Código Dibujo:* {$codigoDibujo}\n";
+            $mensaje .= " *Total Pasadas:* {$validated['TotalPasadasDibujo']}\n";
+
+            if (!empty($validated['NumeroJulioRizo'])) {
+                $mensaje .= " *Julio Rizo:* {$validated['NumeroJulioRizo']}\n";
+            }
+
+            if (!empty($validated['NumeroJulioPie'])) {
+                $mensaje .= " *Julio Pie:* {$validated['NumeroJulioPie']}\n";
+            }
+
+            if (!empty($validated['HoraInicio'])) {
+                $mensaje .= " *Hora Inicio:* {$validated['HoraInicio']}\n";
+            }
+
+            if (!empty($validated['HoraFinal'])) {
+                $mensaje .= " *Hora Final:* {$validated['HoraFinal']}\n";
+            }
+
+            if (isset($validated['EficienciaInicio']) && $validated['EficienciaInicio'] !== null) {
+                $mensaje .= " *Eficiencia Inicio:* {$validated['EficienciaInicio']}%\n";
+            }
+
+            if (isset($validated['EficienciaFinal']) && $validated['EficienciaFinal'] !== null) {
+                $mensaje .= " *Eficiencia Final:* {$validated['EficienciaFinal']}%\n";
+            }
+
+            if (!empty($programa->FechaInicio)) {
+                $fechaInicio = Carbon::parse($programa->FechaInicio)->format('d/m/Y H:i');
+                $mensaje .= "📅 *Fecha Inicio Programada:* {$fechaInicio}\n";
+            }
+
+            if (!empty($programa->FechaFinal)) {
+                $fechaFinal = Carbon::parse($programa->FechaFinal)->format('d/m/Y H:i');
+                $mensaje .= "📅 *Fecha Final Programada:* {$fechaFinal}\n";
+            }
+
+            $mensaje .= "\n *Estado:* Registro actualizado y puesto en proceso";
+            $mensaje .= "\n *Fechas:* Actualizadas para el telar {$validated['NoTelarId']}";
+
+            // Enviar mensaje a Telegram
+            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+            $response = Http::post($url, [
+                'chat_id' => $chatId,
+                'text' => $mensaje,
+                'parse_mode' => 'Markdown'
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+            }
+            } catch (Exception $e) {
+                Log::error('Error al enviar notificación de desarrollador a Telegram', [
+                    'status' => $response->status(),
+                    'response' => $response->json(),
+                    'telar' => $validated['NoTelarId'],
+                ]);
+            }
     }
 }
