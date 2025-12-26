@@ -61,11 +61,15 @@ class BalancearTejido
             $r->TotalPedido = $total;
             $r->SaldoPedido = $saldo;
 
+            $fechaInicioOriginal = !empty($r->FechaInicio)
+                ? Carbon::parse($r->FechaInicio)
+                : null;
+
             [$inicio, $fin, $horas] = self::calcularInicioFinExactos($r);
 
             $resp[] = [
                 'id'            => (int)$r->Id,
-                'fecha_inicio'  => $inicio ? $inicio->format('Y-m-d H:i:s') : null,
+                'fecha_inicio'  => $fechaInicioOriginal ? $fechaInicioOriginal->format('Y-m-d H:i:s') : null,
                 'fecha_final'   => $fin ? $fin->format('Y-m-d H:i:s') : null,
                 'horas_prod'    => $horas,
                 'saldo'         => $saldo,
@@ -134,17 +138,6 @@ class BalancearTejido
 
                     if ($inicio) $registro->FechaInicio = $inicio->format('Y-m-d H:i:s');
                     if ($fin)    $registro->FechaFinal  = $fin->format('Y-m-d H:i:s');
-
-                    Log::debug('BalancearTejido: recalculo exacto (save)', [
-                        'id' => $registro->Id,
-                        'input_total' => $input,
-                        'total' => $total,
-                        'saldo' => $saldo,
-                        'horas' => $horas,
-                        'inicio' => $registro->FechaInicio,
-                        'fin' => $registro->FechaFinal,
-                        'calendario_id' => $registro->CalendarioId ?? null,
-                    ]);
                 }
 
                 // Fórmulas exactas
@@ -204,10 +197,6 @@ class BalancearTejido
                     try {
                         $observer->saved($reg);
                     } catch (\Throwable $e) {
-                        Log::warning('BalancearTejido: Error regenerando líneas', [
-                            'id' => $id,
-                            'error' => $e->getMessage(),
-                        ]);
                     }
                 }
             }
@@ -308,21 +297,13 @@ class BalancearTejido
         if (!empty($r->CalendarioId)) {
             $fin = self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horasNecesarias);
             if (!$fin) {
-                Log::warning('BalancearTejido: calcularFechaFinalDesdeInicio retornó null, usando fallback continuo', [
-                    'id' => $r->Id ?? null,
-                    'calendario_id' => $r->CalendarioId,
-                    'fecha_inicio' => $inicio->format('Y-m-d H:i:s'),
-                    'horas_necesarias' => $horasNecesarias,
-                ]);
                 $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
             }
             return [$inicio, $fin, $horasNecesarias];
         }
-
         $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
         return [$inicio, $fin, $horasNecesarias];
     }
-
     // =========================================================
     // Resolver total/saldo
     // =========================================================
