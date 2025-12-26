@@ -38,7 +38,11 @@ class DateHelpers
      *
      * @return array{0: array<int,array<string,mixed>>, 1: array<int,array<string,mixed>>}
      */
-    public static function recalcularFechasSecuencia(Collection $registrosOrdenados, Carbon $inicioOriginal): array
+    public static function recalcularFechasSecuencia(
+        Collection $registrosOrdenados,
+        Carbon $inicioOriginal,
+        bool $respetarInicioPrimerRegistro = false
+    ): array
     {
         $updates  = [];
         $detalles = [];
@@ -56,7 +60,7 @@ class DateHelpers
             $nuevoInicio = $cursor->copy();
 
             // snap al calendario si cae en gap
-            if (!empty($r->CalendarioId)) {
+            if (!empty($r->CalendarioId) && !($respetarInicioPrimerRegistro && $i === 0)) {
                 $nuevoInicio = self::snapInicioAlCalendario($r->CalendarioId, $nuevoInicio) ?? $nuevoInicio;
             }
 

@@ -595,6 +595,90 @@ class CalendarioController extends Controller
         }
     }
 
+    public function destroyLineasPorRango(Request $request, string $calendarioId)
+    {
+        try {
+            $this->boostRuntimeLimits();
+
+            $validator = Validator::make($request->all(), [
+                'fechaInicio' => 'required|date',
+                'fechaFin'    => 'required|date|after_or_equal:fechaInicio',
+                'turnos'      => 'sometimes|array|min:1',
+                'turnos.*'    => 'integer|in:1,2,3'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos invalidos',
+                    'errors'  => $validator->errors()
+                ], 422);
+            }
+
+            $calendario = ReqCalendarioTab::where('CalendarioId', $calendarioId)->first();
+            if (!$calendario) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Calendario no encontrado'
+                ], 404);
+            }
+
+            $fechaInicio = Carbon::parse($request->fechaInicio)->startOfDay();
+            $fechaFin = Carbon::parse($request->fechaFin)->endOfDay();
+            $turnos = $request->input('turnos', [1, 2, 3]);
+
+            $resultado = DB::transaction(function () use ($calendarioId, $fechaInicio, $fechaFin, $turnos) {
+                $cantidadEliminada = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+                    ->whereIn('Turno', $turnos)
+                    ->whereBetween('FechaInicio', [
+                        $fechaInicio->format('Y-m-d H:i:s'),
+                        $fechaFin->format('Y-m-d H:i:s')
+                    ])
+                    ->delete();
+
+                if ($cantidadEliminada === 0) {
+                    return ['eliminadas' => 0];
+                }
+
+                $stats = $this->recalcularProgramasPorCalendario(
+                    $calendarioId,
+                    $fechaInicio,
+                    $fechaFin,
+                    'destroyLineasPorRango',
+                    false
+                );
+
+                return [
+                    'eliminadas' => $cantidadEliminada,
+                    'recalculo' => $stats,
+                ];
+            });
+
+            if (($resultado['eliminadas'] ?? 0) === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron lineas que coincidan con los criterios especificados'
+                ], 404);
+            }
+
+            return response()->json([
+                'success'   => true,
+                'message'   => "Se eliminaron {$resultado['eliminadas']} linea(s) de calendario exitosamente",
+                'eliminadas' => $resultado['eliminadas'],
+                'recalculo' => $resultado['recalculo'] ?? null,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Error al eliminar lineas de calendario por rango: " . $e->getMessage(), [
+                'calendario_id' => $calendarioId ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
+
     public function procesarExcel(Request $request)
     {
         try {
@@ -827,26 +911,26 @@ class CalendarioController extends Controller
                         $inicio = $inicioOriginal->copy();
                         $inicioAjustado = false;
 
-                        // Si es el primer registro del telar Y hay fecha base, usar la fecha base
-                        if ($esPrimerRegistroTelar && $fechaInicioBase) {
-                            $inicio = $fechaInicioBase->copy();
-                            $inicioAjustado = true;
+                        // RESPETAR: El primer registro de cada telar mantiene su fecha original sin modificaciones
+                        if ($esPrimerRegistroTelar) {
+                            // Mantener la fecha original del primer registro sin cambios
+                            $inicio = $inicioOriginal->copy();
                             $esPrimerRegistroTelar = false;
                         } else {
-                            //  Anterior REAL por orden (loop)
+                            // Para registros siguientes: ajustar según el registro anterior
                             if ($prevFin) {
                                 if (!$prevFin->equalTo($inicioOriginal)) {
                                     $inicio = $prevFin->copy();
                                     $inicioAjustado = true;
                                 }
                             }
-                        }
 
-                        //  Snap al calendario
-                        $snap = $this->snapInicioAlCalendario($calendarioId, $inicio);
-                        if ($snap && !$snap->equalTo($inicio)) {
-                            $inicio = $snap;
-                            $inicioAjustado = true;
+                            // Snap al calendario solo para registros que no son el primero
+                            $snap = $this->snapInicioAlCalendario($calendarioId, $inicio);
+                            if ($snap && !$snap->equalTo($inicio)) {
+                                $inicio = $snap;
+                                $inicioAjustado = true;
+                            }
                         }
 
                         // HorasProd: usar la del registro; solo calcular si viene 0

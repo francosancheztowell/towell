@@ -6,12 +6,18 @@ use App\Models\TelTelaresOperador;
 use App\Models\catDesarrolladoresModel;
 use App\Models\catcodificados\CatCodificados;
 use App\Models\ReqModelosCodificados;
+use App\Models\UrdCatJulios;
+use App\Http\Controllers\ProgramaTejido\helper\DateHelpers;
+use App\Observers\ReqProgramaTejidoObserver;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Models\ReqProgramaTejido;
 
 class TelDesarrolladoresController extends Controller
 {
@@ -37,7 +43,7 @@ class TelDesarrolladoresController extends Controller
 
     protected function obtenerJuliosEngomado()
     {
-        return \App\Models\UrdCatJulios::where('Departamento', 'engomado')
+        return UrdCatJulios::where('Departamento', 'engomado')
             ->whereNotNull('NoJulio')
             ->select('NoJulio')
             ->distinct()
@@ -48,7 +54,7 @@ class TelDesarrolladoresController extends Controller
     public function obtenerProducciones(Request $request, $telarId)
     {
         try {
-            $producciones = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
+            $producciones = ReqProgramaTejido::where('NoTelarId', $telarId)
                 ->whereNotNull('NoProduccion')
                 ->where('NoProduccion', '!=', '')
                 ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
@@ -71,7 +77,7 @@ class TelDesarrolladoresController extends Controller
     public function obtenerDetallesOrden($noProduccion)
     {
         try {
-            $ordenData = \App\Models\ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
+            $ordenData = ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
 
             $detalles = [];
 
@@ -146,7 +152,7 @@ class TelDesarrolladoresController extends Controller
         }
     }
 
-    
+
 
     public function obtenerCodigoDibujo(Request $request, $salonTejidoId, $tamanoClave)
     {
@@ -182,12 +188,72 @@ class TelDesarrolladoresController extends Controller
         }
     }
 
+    public function obtenerRegistroCatCodificado($telarId, $noProduccion)
+    {
+        try {
+            $modelo = new CatCodificados();
+            $table = $modelo->getTable();
+            $columns = Schema::getColumnListing($table);
+
+            $query = CatCodificados::query();
+            $hasOrderFilter = false;
+
+            if (in_array('OrdenTejido', $columns, true)) {
+                $query->where('OrdenTejido', $noProduccion);
+                $hasOrderFilter = true;
+            } elseif (in_array('NumOrden', $columns, true)) {
+                $query->where('NumOrden', $noProduccion);
+                $hasOrderFilter = true;
+            }
+
+            if (in_array('TelarId', $columns, true)) {
+                $query->where('TelarId', $telarId);
+            } elseif (in_array('NoTelarId', $columns, true)) {
+                $query->where('NoTelarId', $telarId);
+            }
+
+            if (!$hasOrderFilter) {
+                $query->where('NoProduccion', $noProduccion);
+            }
+
+            $registro = $query->select([
+                'JulioRizo',
+                'JulioPie',
+                'EfiInicial',
+                'EfiFinal',
+                'DesperdicioTrama',
+            ])->first();
+
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró información registrada'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'registro' => $registro,
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error al obtener datos de CatCodificados: ' . $e->getMessage(), [
+                'telarId' => $telarId,
+                'noProduccion' => $noProduccion,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener la información'
+            ], 500);
+        }
+    }
+
 	    public function formularioDesarrollador(Request $request, $telarId, $noProduccion)
 	    {
-	        $datosProduccion = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
+	        $datosProduccion = ReqProgramaTejido::where('NoTelarId', $telarId)
 	            ->where('NoProduccion', $noProduccion)
 	            ->first();
-	        
+
 	        return view('modulos.desarrolladores.formulario', compact('datosProduccion', 'telarId', 'noProduccion'));
 	    }
 
@@ -211,7 +277,7 @@ class TelDesarrolladoresController extends Controller
 
 	        $colorTrama = data_get($ordenData, 'ColorTrama');
 	        $fibraTrama = data_get($ordenData, 'FibraTrama');
-	        
+
 	        // Si ColorTrama está vacío, usar FibraTrama
 	        if (empty($colorTrama)) {
 	            $colorTrama = $fibraTrama;
@@ -232,7 +298,7 @@ class TelDesarrolladoresController extends Controller
 	            $nombreKey = $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}";
 	            $nombreColor = data_get($ordenData, $nombreKey);
 	            $fibraComb = data_get($ordenData, "FibraComb{$i}");
-	            
+
 	            // Si NomColorC está vacío, usar FibraComb
 	            if (empty($nombreColor)) {
 	                $nombreColor = $fibraComb;
@@ -247,6 +313,181 @@ class TelDesarrolladoresController extends Controller
 
 	        return $payload;
 	    }
+
+        private function calcularMinutosCambio(?string $horaInicio, ?string $horaFinal): ?int
+        {
+            if (!$horaInicio || !$horaFinal) {
+                return null;
+            }
+
+            try {
+                $inicio = Carbon::createFromFormat('H:i', $horaInicio);
+                $final = Carbon::createFromFormat('H:i', $horaFinal);
+
+                if ($final->lt($inicio)) {
+                    $final->addDay();
+                }
+
+                return max(0, $inicio->diffInMinutes($final));
+            } catch (Exception $e) {
+                Log::warning('No se pudo calcular MinutosCambio', [
+                    'horaInicio' => $horaInicio,
+                    'horaFinal' => $horaFinal,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return null;
+            }
+        }
+
+        private function actualizarReqModelosDesdePrograma(ReqProgramaTejido $programa): void
+        {
+            $tamanoClave = trim((string) ($programa->TamanoClave ?? ''));
+            $salonTejido = trim((string) ($programa->SalonTejidoId ?? ''));
+
+            if ($tamanoClave === '' || $salonTejido === '') {
+                return;
+            }
+
+            $registroModelo = ReqModelosCodificados::query()
+                ->where('TamanoClave', $tamanoClave)
+                ->where('SalonTejidoId', $salonTejido)
+                ->first();
+
+            if (!$registroModelo) {
+                return;
+            }
+
+            $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
+
+            $payload = [
+                'Pedido' => $programa->TotalPedido,
+                'Produccion' => $programa->Produccion,
+                'SaldoPedido' => $programa->SaldoPedido,
+                'Saldos' => $programa->SaldoPedido,
+            ];
+
+            foreach ($payload as $column => $value) {
+                if (!in_array($column, $columnasModelo, true)) {
+                    continue;
+                }
+                $registroModelo->setAttribute($column, $value);
+            }
+
+            if ($registroModelo->isDirty()) {
+                $registroModelo->save();
+            }
+        }
+
+        private function moverRegistroEnProceso(ReqProgramaTejido $registroActualizado): void
+        {
+            $salonTejido = $registroActualizado->SalonTejidoId;
+            $noTelarId = $registroActualizado->NoTelarId;
+
+            if (!$salonTejido || !$noTelarId) {
+                return;
+            }
+
+            $dispatcher = ReqProgramaTejido::getEventDispatcher();
+            $idsAfectados = [];
+
+            try {
+                DB::transaction(function () use ($registroActualizado, $salonTejido, $noTelarId, &$idsAfectados) {
+                    $registrosEnProceso = ReqProgramaTejido::query()
+                        ->where('SalonTejidoId', $salonTejido)
+                        ->where('NoTelarId', $noTelarId)
+                        ->where('EnProceso', 1)
+                        ->where('Id', '!=', $registroActualizado->Id)
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($registrosEnProceso as $registroEnProceso) {
+                        $this->actualizarReqModelosDesdePrograma($registroEnProceso);
+                        $registroEnProceso->delete();
+                    }
+
+                    ReqProgramaTejido::query()
+                        ->where('SalonTejidoId', $salonTejido)
+                        ->where('NoTelarId', $noTelarId)
+                        ->update(['EnProceso' => 0]);
+
+                    ReqProgramaTejido::query()
+                        ->where('Id', $registroActualizado->Id)
+                        ->update(['EnProceso' => 1]);
+
+                    $registros = ReqProgramaTejido::query()
+                        ->where('SalonTejidoId', $salonTejido)
+                        ->where('NoTelarId', $noTelarId)
+                        ->orderBy('FechaInicio', 'asc')
+                        ->lockForUpdate()
+                        ->get();
+
+                    if ($registros->isEmpty()) {
+                        return;
+                    }
+
+                    $registroEnLista = $registros->firstWhere('Id', $registroActualizado->Id) ?: $registroActualizado;
+                    $ordenados = collect([$registroEnLista])
+                        ->merge($registros->filter(function ($registro) use ($registroEnLista) {
+                            return $registro->Id !== $registroEnLista->Id;
+                        }))
+                        ->values();
+
+                    $inicioOriginal = null;
+                    if (!empty($registroEnLista->FechaInicio)) {
+                        $inicioOriginal = Carbon::parse($registroEnLista->FechaInicio);
+                    } else {
+                        $primeroConFecha = $ordenados->first(function ($registro) {
+                            return !empty($registro->FechaInicio);
+                        });
+                        if ($primeroConFecha) {
+                            $inicioOriginal = Carbon::parse($primeroConFecha->FechaInicio);
+                        }
+                    }
+
+                    if (!$inicioOriginal) {
+                        return;
+                    }
+
+                    ReqProgramaTejido::unsetEventDispatcher();
+
+                    [$updates] = DateHelpers::recalcularFechasSecuencia($ordenados, $inicioOriginal, true);
+
+                    foreach ($updates as $idU => $dataU) {
+                        DB::table('ReqProgramaTejido')->where('Id', $idU)->update($dataU);
+                        $idsAfectados[] = (int) $idU;
+                    }
+                });
+            } catch (Exception $e) {
+                Log::error('Error al mover registro en proceso: ' . $e->getMessage(), [
+                    'salonTejidoId' => $salonTejido,
+                    'noTelarId' => $noTelarId,
+                    'registroId' => $registroActualizado->Id,
+                ]);
+            } finally {
+                if ($dispatcher) {
+                    ReqProgramaTejido::setEventDispatcher($dispatcher);
+                }
+            }
+
+            if (!empty($idsAfectados)) {
+                $observer = new ReqProgramaTejidoObserver();
+                $modelos = ReqProgramaTejido::query()
+                    ->whereIn('Id', $idsAfectados)
+                    ->get();
+
+                foreach ($modelos as $modelo) {
+                    $observer->saved($modelo);
+                }
+            }
+
+            $registroParaModelo = ReqProgramaTejido::query()
+                ->where('Id', $registroActualizado->Id)
+                ->first();
+            if ($registroParaModelo) {
+                $this->actualizarReqModelosDesdePrograma($registroParaModelo);
+            }
+        }
 
 	    public function store(Request $request){
 	        try {
@@ -269,9 +510,28 @@ class TelDesarrolladoresController extends Controller
                     'pasadas.*' => 'nullable|integer|min:1',
 	            ]);
 
-	            $codigoDibujo = $this->normalizeCodigoDibujo($validated['CodificacionModelo'] ?? '');
-	            $ordenData = \App\Models\ReqProgramaTejido::where('NoProduccion', $validated['NoProduccion'])->first();
-	            $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
+                $codigoDibujo = $this->normalizeCodigoDibujo($validated['CodificacionModelo'] ?? '');
+                $ordenData = ReqProgramaTejido::where('NoProduccion', $validated['NoProduccion'])->first();
+                $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
+                $minutosCambio = $this->calcularMinutosCambio(
+                    $validated['HoraInicio'] ?? null,
+                    $validated['HoraFinal'] ?? null
+                );
+
+                $fechaInicioProgramada = null;
+                if (!empty($validated['HoraFinal'])) {
+                    try {
+                        $horaFinalCarbon = Carbon::createFromFormat('H:i', $validated['HoraFinal']);
+                        $fechaInicioProgramada = Carbon::today()
+                            ->setTimeFromTimeString($horaFinalCarbon->format('H:i'))
+                            ->format('Y-m-d H:i:s');
+                    } catch (Exception $e) {
+                        Log::warning('No se pudo construir FechaInicio para ReqProgramaTejido', [
+                            'horaFinal' => $validated['HoraFinal'],
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
 
                 $pasadasPayload = [];
                 $pasadasFromRequest = $validated['pasadas'] ?? [];
@@ -287,7 +547,7 @@ class TelDesarrolladoresController extends Controller
                     if ($tramaValue !== null && $tramaValue !== '') {
                         $pasadasPayload['PasadasTramaFondoC1'] = (int) $tramaValue;
                     }
-	
+
                     for ($i = 1; $i <= 5; $i++) {
                         $field = "PasadasComb{$i}";
                         $combValue = data_get($ordenData, $field);
@@ -331,6 +591,7 @@ class TelDesarrolladoresController extends Controller
 	                'RespInicio' => $validated['Desarrollador'] ?? null,
 	                'HrInicio' => $validated['HoraInicio'] ?? null,
 	                'HrTermino' => $validated['HoraFinal'] ?? null,
+                    'MinutosCambio' => $minutosCambio,
 	                'TramaAnchoPeine' => $validated['TramaAnchoPeine'] ?? null,
 	                'AnchoPeineTrama' => $validated['TramaAnchoPeine'] ?? null,
 	                'LogLuchaTotal' => $validated['LongitudLuchaTot'] ?? null,
@@ -361,20 +622,20 @@ class TelDesarrolladoresController extends Controller
                 // Buscar y actualizar registro en ReqModelosCodificados
                 $claveModelo = $registro->getAttribute('ClaveModelo') ?: data_get($ordenData, 'TamanoClave');
                 $departamento = $registro->getAttribute('Departamento') ?: data_get($ordenData, 'SalonTejidoId');
-	            
+
                 if ($claveModelo || $departamento) {
                     $queryModelos = ReqModelosCodificados::query();
-	                
+
                     if ($claveModelo) {
                         $queryModelos->where('TamanoClave', $claveModelo);
                     }
-	                
+
                     if ($departamento) {
                         $queryModelos->where('SalonTejidoId', $departamento);
                     }
-	                
+
                     $registroModelo = $queryModelos->first();
-	                
+
                     if ($registroModelo) {
                         // Preparar payload para actualizar ReqModelosCodificados
                         $payloadModelo = array_merge([
@@ -388,10 +649,10 @@ class TelDesarrolladoresController extends Controller
                             'Total' => $validated['TotalPasadasDibujo'],
                             'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
                         ], $detallePayload, $pasadasPayload);
-	                    
+
                         // Obtener columnas disponibles en ReqModelosCodificados
                         $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
-	                    
+
                         // Actualizar solo las columnas que existen
                         foreach ($payloadModelo as $column => $value) {
                             if (!in_array($column, $columnasModelo, true)) {
@@ -399,19 +660,12 @@ class TelDesarrolladoresController extends Controller
                             }
                             $registroModelo->setAttribute($column, $value);
                         }
-	                    
-                        $registroModelo->save();
-	                    
-                        Log::info('Registro actualizado en ReqModelosCodificados', [
-                            'Id' => $registroModelo->Id,
-                            'TamanoClave' => $registroModelo->TamanoClave,
-                            'SalonTejidoId' => $registroModelo->SalonTejidoId,
-                        ]);
 
+                        $registroModelo->save();
                         $ordenTejido = $registroModelo->OrdenTejido ?: $validated['NoProduccion'];
                         $salonTejido = $registroModelo->SalonTejidoId;
                         if ($ordenTejido && $salonTejido) {
-                            $programas = \App\Models\ReqProgramaTejido::where('NoProduccion', $ordenTejido)
+                            $programas = ReqProgramaTejido::where('NoProduccion', $ordenTejido)
                                 ->where('SalonTejidoId', $salonTejido)
                                 ->get();
 
@@ -455,7 +709,9 @@ class TelDesarrolladoresController extends Controller
                                     'CodColorComb5' => $registroModelo->CodColorC5,
                                     'NombreCC5' => $registroModelo->NomColorC5,
                                 ];
-
+                                if ($fechaInicioProgramada) {
+                                    $payloadPrograma['FechaInicio'] = $fechaInicioProgramada;
+                                }
                                 foreach ($programas as $programa) {
                                     foreach ($payloadPrograma as $column => $value) {
                                         if (!in_array($column, $columnasPrograma, true)) {
@@ -465,32 +721,20 @@ class TelDesarrolladoresController extends Controller
                                     }
                                     $programa->save();
                                 }
-
-                                Log::info('Registro actualizado en ReqProgramaTejido', [
-                                    'NoProduccion' => $ordenTejido,
-                                    'SalonTejidoId' => $salonTejido,
-                                    'total' => $programas->count(),
-                                ]);
+                                $programaEnTelar = $programas->firstWhere('NoTelarId', $validated['NoTelarId']);
+                                if ($programaEnTelar) {
+                                    $this->moverRegistroEnProceso($programaEnTelar);
+                                }
                             }
                         }
                     }
                 }
-
-	            Log::info('Datos de desarrollador guardados en CatCodificados', [
-	                'table' => $table,
-	                'id' => $registro->getAttribute($registro->getKeyName()),
-                    'accion' => $wasUpdate ? 'update' : 'insert',
-	                'NoProduccion' => $validated['NoProduccion'],
-	                'NoTelarId' => $validated['NoTelarId'],
-	            ]);
-
-	            if ($request->ajax()) {
-	                return response()->json([
-	                    'success' => true,
-	                    'message' => 'Datos guardados correctamente'
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Datos guardados correctamente'
                 ]);
             }
-
             return redirect()->route('desarrolladores')
                 ->with('success', 'Datos guardados correctamente');
         } catch (ValidationException $e) {
@@ -504,17 +748,13 @@ class TelDesarrolladoresController extends Controller
             return back()->withErrors($e->errors())->withInput();
         } catch (Exception $e) {
             Log::error('Error al guardar datos de desarrollador: ' . $e->getMessage());
-            
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Ocurrió un error al guardar los datos'
                 ], 500);
             }
-            
-	            return back()->with('error', 'Ocurrió un error al guardar los datos')->withInput();
-	        }
-	    }
-
-
+            return back()->with('error', 'Ocurrió un error al guardar los datos')->withInput();
+        }
+    }
 }
