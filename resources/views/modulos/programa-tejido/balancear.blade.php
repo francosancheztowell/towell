@@ -605,25 +605,25 @@
       // Balanceo automático con fecha fin objetivo
       // ==========================
       window.aplicarBalanceoAutomatico = async function (ordCompartida) {
-        const inputs = document.querySelectorAll('.pedido-input');
+                const inputs = document.querySelectorAll('.pedido-input');
         if (inputs.length < 2) {
-          return; // Silenciosamente, no hacer nada si hay menos de 2 registros
+                    return; // Silenciosamente, no hacer nada si hay menos de 2 registros
         }
 
         // Obtener el input de fecha objetivo del modal
         const fechaInput = document.getElementById('fecha-fin-objetivo-balanceo');
         if (!fechaInput) {
-          return; // Silenciosamente, no hacer nada si no existe el input
+                    return; // Silenciosamente, no hacer nada si no existe el input
         }
 
         const fechaFinObjetivo = fechaInput.value;
         if (!fechaFinObjetivo) {
-          fechaInput.focus();
+                    fechaInput.focus();
           return;
         }
 
         try {
-          // Llamar al endpoint de balanceo automático
+                    // Llamar al endpoint de balanceo automático
           const response = await fetch('/planeacion/programa-tejido/balancear-automatico', {
             method: 'POST',
             headers: {
@@ -640,11 +640,10 @@
           const data = await response.json();
 
           if (!data.success) {
-            console.error('Error al balancear:', data.message);
-            return;
+                        return;
           }
 
-          // Aplicar los cambios calculados a los inputs (silenciosamente, como si fuera cambio manual)
+                    // Aplicar los cambios calculados a los inputs (silenciosamente, como si fuera cambio manual)
           if (data.cambios && Array.isArray(data.cambios)) {
             // Aplicar cambios a los inputs
             data.cambios.forEach(cambio => {
@@ -655,7 +654,7 @@
 
                 // Solo actualizar si hay cambio
                 if (Math.abs(nuevoValor - valorAnterior) > 0.01) {
-                  input.value = nuevoValor;
+                                    input.value = nuevoValor;
 
                   // Actualizar el dataset original para que el cálculo funcione correctamente
                   input.dataset.original = nuevoValor;
@@ -673,7 +672,7 @@
 
             // Forzar actualización inmediata del preview (sin esperar el debounce)
             setTimeout(() => {
-              previewFechasExactas(ordCompartida);
+                            previewFechasExactas(ordCompartida);
             }, 100);
           }
         } catch (error) {
