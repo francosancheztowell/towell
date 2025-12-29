@@ -12,6 +12,23 @@
 
       $formatValue = function($registro, $field, $dateType = null) {
         $value = $registro->{$field} ?? null;
+
+        if ($field === 'Reprogramar') {
+          $registroId = $registro->Id ?? $registro->id ?? '';
+          $valorActual = $value ?? '';
+          $checked = ($valorActual == '1' || $valorActual == '2') ? 'checked' : '';
+          $textoMostrar = '';
+          if ($valorActual == '1') {
+            $textoMostrar = 'P. Siguiente';
+          } elseif ($valorActual == '2') {
+            $textoMostrar = 'P. Ultima';
+          }
+          return '<div class="relative inline-flex items-center reprogramar-container" data-registro-id="'.e($registroId).'">
+              <input type="checkbox" '.$checked.' class="reprogramar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer" data-registro-id="'.e($registroId).'" data-valor-actual="'.e($valorActual).'">
+              <span class="reprogramar-texto ml-2 text-xs text-gray-600 font-medium">'.e($textoMostrar).'</span>
+            </div>';
+        }
+
         if ($value === null || $value === '') return '';
 
         if ($field === 'EnProceso') {
@@ -206,6 +223,17 @@
   }
   #tfootTotales td {
     position: static !important;
+  }
+
+  /* Estilos para Reprogramar */
+  .reprogramar-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+  .reprogramar-texto {
+    min-width: 90px;
+    display: inline-block;
   }
 </style>
 
@@ -1852,6 +1880,11 @@
       setTimeout(() => updateTotales(), 200);
       showSavedToastIfAny();
 
+      // Inicializar listeners de Reprogramar
+      if (typeof window.initReprogramarListeners === 'function') {
+        setTimeout(() => window.initReprogramarListeners(), 300);
+      }
+
       const balanceBtn = document.querySelector('a[title="Balancear"]');
       if (balanceBtn) {
         balanceBtn.addEventListener('click', (e) => {
@@ -1881,6 +1914,201 @@
         });
       }
     });
+
+    // =========================
+    // Reprogramar checkbox con modal
+    // =========================
+    (function() {
+      // Función para procesar la selección
+      async function procesarSeleccionReprogramar(registroId, valor, checkbox, texto) {
+        // Actualizar UI
+        checkbox.checked = true;
+        checkbox.setAttribute('data-valor-actual', valor);
+
+        if (valor == '1') {
+          texto.textContent = 'P. Siguiente';
+        } else if (valor == '2') {
+          texto.textContent = 'P. Ultima';
+        }
+
+        // Enviar al backend
+        try {
+          PT.loader.show();
+          const response = await fetch(`/planeacion/programa-tejido/${registroId}/reprogramar`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ reprogramar: valor })
+          });
+
+          const data = await response.json();
+          PT.loader.hide();
+
+          if (data.success) {
+            toast('Reprogramar actualizado correctamente', 'success');
+          } else {
+            toast(data.message || 'Error al actualizar reprogramar', 'error');
+            // Revertir cambios
+            checkbox.checked = false;
+            checkbox.setAttribute('data-valor-actual', '');
+            texto.textContent = '';
+          }
+        } catch (error) {
+          PT.loader.hide();
+          toast('Error al procesar la solicitud', 'error');
+          // Revertir cambios
+          checkbox.checked = false;
+          checkbox.setAttribute('data-valor-actual', '');
+          texto.textContent = '';
+        }
+      }
+
+      // Manejar click en checkbox usando delegación de eventos
+      function initReprogramarListeners() {
+        const tb = tbodyEl();
+        if (!tb) return;
+
+        // Evitar agregar listener múltiples veces
+        if (tb.dataset.reprogramarListenerAdded === 'true') return;
+        tb.dataset.reprogramarListenerAdded = 'true';
+
+        // Usar delegación de eventos en el tbody
+        tb.addEventListener('click', async (e) => {
+          // Verificar si el click fue en el checkbox directamente
+          if (!e.target || e.target.type !== 'checkbox') return;
+          if (!e.target.classList || !e.target.classList.contains('reprogramar-checkbox')) return;
+
+          const checkbox = e.target;
+
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+
+          const container = checkbox.closest('.reprogramar-container');
+          if (!container) return;
+
+          const texto = container.querySelector('.reprogramar-texto');
+          const registroId = checkbox.getAttribute('data-registro-id');
+          const valorActual = checkbox.getAttribute('data-valor-actual') || '';
+
+          // Si ya está marcado y tiene valor, desmarcar
+          if (checkbox.checked && valorActual) {
+            checkbox.checked = false;
+            checkbox.setAttribute('data-valor-actual', '');
+            if (texto) texto.textContent = '';
+
+            // Enviar al backend para limpiar
+            try {
+              PT.loader.show();
+              const response = await fetch(`/planeacion/programa-tejido/${registroId}/reprogramar`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ reprogramar: null })
+              });
+
+              const data = await response.json();
+              PT.loader.hide();
+
+              if (data.success) {
+                toast('Reprogramar limpiado correctamente', 'success');
+              } else {
+                toast(data.message || 'Error al limpiar reprogramar', 'error');
+                // Revertir cambios
+                checkbox.checked = true;
+                checkbox.setAttribute('data-valor-actual', valorActual);
+                if (texto) {
+                  if (valorActual == '1') {
+                    texto.textContent = 'P. Siguiente';
+                  } else if (valorActual == '2') {
+                    texto.textContent = 'P. Ultima';
+                  }
+                }
+              }
+            } catch (error) {
+              PT.loader.hide();
+              toast('Error al procesar la solicitud', 'error');
+              // Revertir cambios
+              checkbox.checked = true;
+              checkbox.setAttribute('data-valor-actual', valorActual);
+              if (texto) {
+                if (valorActual == '1') {
+                  texto.textContent = 'P. Siguiente';
+                } else if (valorActual == '2') {
+                  texto.textContent = 'P. Ultima';
+                }
+              }
+            }
+            return;
+          }
+
+          // Si no está marcado, mostrar modal
+          if (typeof Swal === 'undefined') {
+            toast('SweetAlert no está disponible', 'error');
+            checkbox.checked = false;
+            return;
+          }
+
+          // Asegurar que el checkbox no esté marcado antes de mostrar el modal
+          checkbox.checked = false;
+
+          const resultado = await Swal.fire({
+            title: 'Seleccionar Reprogramar',
+            html: `
+              <div class="text-left">
+                <p class="mb-4 text-sm text-gray-600">Selecciona una opción:</p>
+                <div class="space-y-2">
+                  <button type="button" id="swal-opcion-1" class="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 font-medium transition-colors">
+                    P. Siguiente
+                  </button>
+                  <button type="button" id="swal-opcion-2" class="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 font-medium transition-colors">
+                    P. Ultima
+                  </button>
+                </div>
+              </div>
+            `,
+            showCancelButton: true,
+            showConfirmButton: false,
+            cancelButtonText: 'Cancelar',
+            cancelButtonColor: '#6b7280',
+            width: '400px',
+            allowOutsideClick: true,
+            allowEscapeKey: true,
+            didOpen: () => {
+              // Manejar click en opciones
+              const opcion1 = document.getElementById('swal-opcion-1');
+              const opcion2 = document.getElementById('swal-opcion-2');
+
+              if (opcion1) {
+                opcion1.addEventListener('click', () => {
+                  Swal.close();
+                  procesarSeleccionReprogramar(registroId, '1', checkbox, texto);
+                });
+              }
+
+              if (opcion2) {
+                opcion2.addEventListener('click', () => {
+                  Swal.close();
+                  procesarSeleccionReprogramar(registroId, '2', checkbox, texto);
+                });
+              }
+            }
+          });
+
+          // Si se canceló el modal, no hacer nada (el checkbox ya no estará marcado)
+          if (resultado.dismiss === Swal.DismissReason.cancel || resultado.dismiss === Swal.DismissReason.backdrop) {
+            checkbox.checked = false;
+          }
+        }, true); // Usar capture phase para capturar antes que otros listeners
+      }
+
+      // Inicializar listeners - se ejecutará desde el init principal
+      window.initReprogramarListeners = initReprogramarListeners;
+    })();
 
   })();
 </script>

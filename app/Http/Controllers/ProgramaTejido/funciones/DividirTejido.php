@@ -1302,4 +1302,35 @@ class DividirTejido
 
         return (clone $q)->orderBy('Id', 'desc')->first();
     }
+
+    /**
+     * Calcular totales y saldos en tiempo real para el modal de dividir
+     */
+    public static function calcularTotalesDividir(Request $request)
+    {
+        $request->validate([
+            'pedido' => 'required|numeric|min:0',
+            'porcentaje_segundos' => 'nullable|numeric|min:0',
+            'produccion' => 'nullable|numeric|min:0'
+        ]);
+
+        $pedido = (float) $request->input('pedido', 0);
+        $porcentajeSegundos = (float) $request->input('porcentaje_segundos', 0);
+        $produccion = (float) $request->input('produccion', 0);
+
+        // Calcular TotalPedido: Pedido * (1 + PorcentajeSegundos / 100)
+        $totalPedido = $pedido * (1 + $porcentajeSegundos / 100);
+
+        // Calcular SaldoTotal = max(0, TotalPedido - Produccion)
+        $saldoTotal = max(0, $totalPedido - $produccion);
+
+        return response()->json([
+            'success' => true,
+            'total_pedido' => round($totalPedido, 2),
+            'saldo_total' => round($saldoTotal, 2),
+            'pedido' => round($pedido, 2),
+            'porcentaje_segundos' => round($porcentajeSegundos, 2),
+            'produccion' => round($produccion, 2)
+        ]);
+    }
 }

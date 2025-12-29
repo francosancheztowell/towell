@@ -194,25 +194,33 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 'NoTiras'         => $this->parseFloat($this->getValue($row, ['Tiras','No Tiras','no_tiras'])),
 
                 // Pedido / Producción
-                // TotalPedido ya no se lee del Excel; se igualará a SaldoPedido
-                'TotalPedido'     => null,
+                // TotalPedido se lee del Excel (lo que antes era SaldoPedido)
+                'TotalPedido'     => $this->parseFloat($this->getValue($row, ['Saldos','Saldo Pedido','saldo_pedido','saldos','Total Pedido','total_pedido'])),
                 'Produccion'      => $this->parseFloat($this->getValue($row, ['Producción','Produccion','produccion','Producción'])),
-                'SaldoPedido'     => $this->parseFloat($this->getValue($row, ['Saldos','Saldo Pedido','saldo_pedido','saldos'])),
+                'SaldoPedido'     => null,
                 'SaldoMarbete'    => $this->parseInteger($this->getValue($row, ['Saldo Marbete','saldo_marbete','Marbete','marbete'])),
                 'ProgramarProd'   => $this->parseDateOnly($this->getValue($row, ['Day Sheduling','Day Scheduling','Día Scheduling','Dia Scheduling','programar_prod'])),
                 'NoProduccion'    => $this->parseString($this->getValue($row, ['Orden Prod.','Orden Prod','no_produccion']), 30),
                 // Campo OrdCompartida: se toma del Excel usando la columna "Dividir"
                 'OrdCompartida'   => $this->parseString($this->getValue($row, ['Dividir','dividir','OrdCompartida','ord_compartida']), 30),
                 'Programado'      => $this->parseDateOnly($this->getValue($row, ['INN','Inn','programado'])),
-
+                'OrdCompartidaLider' => $this->parseBoolean($this->getValue($row, ['Lider'])),
                 // Calc4..6 en BD son FLOAT
                 'Calc4'           => $this->parseFloat($this->getValue($row, ['Calc4','calc4','Calc 4'])),
                 'Calc5'           => $this->parseFloat($this->getValue($row, ['Calc5','calc5','Calc 5'])),
                 'Calc6'           => $this->parseFloat($this->getValue($row, ['Calc6','calc6','Calc 6'])),
             ];
 
-            // TotalPedido se rellena con el valor de SaldoPedido (no se importa aparte)
-            $data['TotalPedido'] = $data['SaldoPedido'];
+            // SaldoPedido se calcula como TotalPedido - Produccion
+            $totalPedido = $data['TotalPedido'] ?? null;
+            $produccion = $data['Produccion'] ?? null;
+            if ($totalPedido !== null && $produccion !== null) {
+                $data['SaldoPedido'] = $totalPedido - $produccion;
+            } elseif ($totalPedido !== null) {
+                $data['SaldoPedido'] = $totalPedido;
+            } else {
+                $data['SaldoPedido'] = null;
+            }
 
             // Si viene FlogsId/IdFlog, obtener CustName y CategoriaCalidad desde TwFlogsCustomer (otra conexión)
             if (!empty($data['FlogsId'])) {

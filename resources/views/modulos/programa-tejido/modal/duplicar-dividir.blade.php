@@ -1,54 +1,12 @@
 {{-- Modal Duplicar Registro - Componente separado --}}
 {{-- NOTA: Este archivo se incluye dentro de un bloque <script>, NO agregar etiquetas <script> aquí --}}
 
-// Variable global para almacenar registros existentes de OrdCompartida
-let registrosOrdCompartidaExistentes = [];
-let ordCompartidaActual = null;
+{{-- Incluir módulos compartidos y específicos --}}
+@include('modulos.programa-tejido.modal._shared-helpers')
+@include('modulos.programa-tejido.modal._duplicar-vincular')
+@include('modulos.programa-tejido.modal._dividir')
 
-// Función global para obtener el modo actual (para compatibilidad con radio buttons)
-function getModoActual() {
-	if (document.getElementById('modo-duplicar')?.checked) return 'duplicar';
-	if (document.getElementById('modo-dividir')?.checked) return 'dividir';
-	return 'duplicar'; // por defecto
-}
-
-// Función para verificar si el checkbox de vincular está activo
-function estaVincularActivado() {
-	const checkbox = document.getElementById('checkbox-vincular');
-	return checkbox && checkbox.checked;
-}
-
-// Funciones helper para obtener datos de la fila
-function getRowTelar(row) {
-	if (!row) return null;
-	const telarCell = row.querySelector('[data-column="NoTelarId"]');
-	return telarCell ? telarCell.textContent.trim() : null;
-}
-
-function getRowSalon(row) {
-	if (!row) return null;
-	const salonCell = row.querySelector('[data-column="SalonTejidoId"]');
-	return salonCell ? salonCell.textContent.trim() : null;
-}
-
-// Funciones helper para mostrar/ocultar loading
-function showLoading() {
-	if (window.PT && window.PT.loader) {
-		window.PT.loader.show();
-	} else if (typeof Swal !== 'undefined') {
-		Swal.showLoading();
-	}
-}
-
-function hideLoading() {
-	if (window.PT && window.PT.loader) {
-		window.PT.loader.hide();
-	} else if (typeof Swal !== 'undefined') {
-		Swal.hideLoading();
-	}
-}
-
-// ===== Función para duplicar y dividir telar =====
+// ===== Función principal para duplicar y dividir telar =====
 async function duplicarTelar(row) {
 	const telar = getRowTelar(row);
 	const salon = getRowSalon(row);
@@ -59,26 +17,29 @@ async function duplicarTelar(row) {
 	}
 
 	// Obtener datos del registro seleccionado para prellenar
-	const codArticulo = row.querySelector('[data-column="ItemId"]')?.textContent?.trim() || '';
+	const codArticulo = getRowCellText(row, 'ItemId');
 	// Clave Modelo se toma de la columna TamanoClave (si existe) o cae a Cod. Artículo
-	const claveModelo = row.querySelector('[data-column="TamanoClave"]')?.textContent?.trim() || codArticulo;
-	const producto = row.querySelector('[data-column="NombreProducto"]')?.textContent?.trim() || '';
-	const hilo = row.querySelector('[data-column="FibraRizo"]')?.textContent?.trim() || '';
-	const pedido = row.querySelector('[data-column="TotalPedido"]')?.textContent?.trim() || '';
-	const flog = row.querySelector('[data-column="FlogsId"]')?.textContent?.trim() || '';
-	const saldo = row.querySelector('[data-column="SaldoPedido"]')?.textContent?.trim() || pedido;
-	const aplicacion = row.querySelector('[data-column="AplicacionId"]')?.textContent?.trim() || '';
-	const descripcion = row.querySelector('[data-column="NombreProyecto"]')?.textContent?.trim() || '';
+	const claveModelo = getRowCellText(row, 'TamanoClave', codArticulo);
+	const producto = getRowCellText(row, 'NombreProducto');
+	const hilo = getRowCellText(row, 'FibraRizo');
+	const pedido = getRowCellText(row, 'TotalPedido');
+	const flog = getRowCellText(row, 'FlogsId');
+	const saldo = getRowCellText(row, 'SaldoPedido', pedido);
+	const aplicacion = getRowCellText(row, 'AplicacionId');
+	const descripcion = getRowCellText(row, 'NombreProyecto');
 
 	// Verificar si el registro ya tiene OrdCompartida (ya fue dividido antes)
-	const ordCompartidaCell = row.querySelector('[data-column="OrdCompartida"]')?.textContent || '';
+	const ordCompartidaCell = getRowCellText(row, 'OrdCompartida');
 	const ordCompartidaAttr = row.getAttribute('data-ord-compartida') || row.dataset?.ordCompartida || '';
 	let ordCompartida = (ordCompartidaCell || ordCompartidaAttr || '').toString().trim();
 	const registroId = row.getAttribute('data-id');
 
 	// Fallback: si no se obtuvo del DOM, intentar obtener del backend
 	let aplicacionBackend = '';
-	if ((!ordCompartida || !aplicacion) && registroId) {
+	let pedidoBackend = '';
+	let saldoBackend = '';
+	let produccionBackend = '';
+	if (registroId) {
 		try {
 			const resp = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo`, {
 				headers: { 'Accept': 'application/json' }
@@ -91,14 +52,25 @@ async function duplicarTelar(row) {
 				if (data?.registro?.AplicacionId !== undefined && data.registro.AplicacionId !== null) {
 					aplicacionBackend = String(data.registro.AplicacionId).trim();
 				}
+				if (data?.registro?.TotalPedido !== undefined && data.registro.TotalPedido !== null) {
+					pedidoBackend = String(data.registro.TotalPedido).trim();
+				}
+				if (data?.registro?.SaldoPedido !== undefined && data.registro.SaldoPedido !== null) {
+					saldoBackend = String(data.registro.SaldoPedido).trim();
+				}
+				if (data?.registro?.Produccion !== undefined && data.registro.Produccion !== null) {
+					produccionBackend = String(data.registro.Produccion).trim();
+				}
 			}
 		} catch (err) {
-			console.warn('No se pudo obtener datos adicionales del backend', err);
 		}
 	}
 
 	// Usar aplicación del backend si no se obtuvo del DOM
 	const aplicacionFinal = aplicacion || aplicacionBackend;
+	const pedidoFinal = pedidoBackend || pedido;
+	const saldoFinal = saldoBackend || saldo;
+	const produccionFinal = produccionBackend || '';
 
 	// Resetear variables globales
 	registrosOrdCompartidaExistentes = [];
@@ -107,8 +79,8 @@ async function duplicarTelar(row) {
 
 	// Modal con formato de tabla
 	const resultado = await Swal.fire({
-		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, aplicacion: aplicacionFinal, registroId, descripcion }),
-		width: '750px',
+		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido: pedidoFinal, saldo: saldoFinal, produccion: produccionFinal, flog, ordCompartida, aplicacion: aplicacionFinal, registroId, descripcion }),
+		width: '980px',
 		showCancelButton: true,
 		confirmButtonText: 'Aceptar',
 		cancelButtonText: 'Cancelar',
@@ -149,11 +121,12 @@ async function duplicarTelar(row) {
 	// Enviar al backend
 	showLoading();
 	try {
+		const csrfToken = getCsrfToken();
 		const response = await fetch(endpoint, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
-				'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+				'X-CSRF-TOKEN': csrfToken
 			},
 			body: JSON.stringify({
 				salon_tejido_id: salon,
@@ -181,21 +154,7 @@ async function duplicarTelar(row) {
 
 		// Verificar si hay error de validación de calendario (422)
 		if (response.status === 422 && data.tipo_error === 'calendario_sin_fechas') {
-			// Mostrar alerta detallada sobre el problema de calendario
-			let mensajeError = `<div class="text-left">`;
-			mensajeError += `<div class="bg-red-50 border-l-4 border-red-400 p-4 mb-3">`;
-			mensajeError += `<p class="font-semibold text-red-800 mb-2">No se puede duplicar</p>`;
-			mensajeError += `<p class="text-sm text-red-700 mb-2">${data.message}</p>`;
-
-			if (data.calendario_id && data.fecha_inicio && data.fecha_fin) {
-				mensajeError += `<div class="mt-3 text-xs text-red-600">`;
-				mensajeError += `<p><strong>Calendario:</strong> ${data.calendario_id}</p>`;
-				mensajeError += `</div>`;
-			}
-
-			mensajeError += `</div>`;
-			mensajeError += `<p class="text-xs text-gray-600 mt-3">Por favor, agregue fechas al calendario en el catálogo de calendarios antes de intentar duplicar nuevamente.</p>`;
-			mensajeError += `</div>`;
+			const mensajeError = buildCalendarErrorHtml(data);
 
 			Swal.fire({
 				title: 'Error: Calendario sin fechas',
@@ -211,68 +170,24 @@ async function duplicarTelar(row) {
 		if (data.success) {
 			// Verificar si hay advertencias de calendario
 			if (data.advertencias && data.advertencias.tipo === 'calendario_sin_fechas') {
-				// Mostrar alerta detallada sobre los problemas de calendario
-				const detalles = data.advertencias.detalles || [];
-				let mensajeAdvertencia = `<div class="text-left">`;
-				mensajeAdvertencia += `<p class="mb-3 text-sm text-gray-700">${data.message}</p>`;
-				mensajeAdvertencia += `<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-3">`;
-				mensajeAdvertencia += `<p class="font-semibold text-yellow-800 mb-2">Advertencia: Problemas con calendarios</p>`;
-				mensajeAdvertencia += `<p class="text-sm text-yellow-700 mb-2">${data.advertencias.total_errores} programa(s) no pudieron generar líneas diarias porque no hay fechas disponibles en el calendario.</p>`;
-
-				if (detalles.length > 0) {
-					mensajeAdvertencia += `<ul class="list-disc list-inside text-xs text-yellow-700 space-y-1">`;
-					detalles.forEach((detalle, index) => {
-						if (index < 5) { // Mostrar máximo 5 detalles
-							mensajeAdvertencia += `<li>Calendario '<strong>${detalle.calendario_id}</strong>': ${detalle.mensaje}</li>`;
-						}
-					});
-					if (detalles.length > 5) {
-						mensajeAdvertencia += `<li>... y ${detalles.length - 5} más</li>`;
-					}
-					mensajeAdvertencia += `</ul>`;
-				}
-				mensajeAdvertencia += `</div>`;
-				mensajeAdvertencia += `<p class="text-xs text-gray-600">Los programas se crearon correctamente, pero necesitas agregar fechas al calendario para generar las líneas diarias.</p>`;
-				mensajeAdvertencia += `</div>`;
+				const mensajeAdvertencia = buildCalendarWarningHtml(data.message, data.advertencias);
 
 				Swal.fire({
-					title: 'Duplicación completada con advertencias',
+					title: 'Duplicacion completada con advertencias',
 					html: mensajeAdvertencia,
 					icon: 'warning',
 					confirmButtonText: 'Entendido',
 					confirmButtonColor: '#f59e0b',
 					width: '600px'
 				}).then(() => {
-					// Redirigir después de cerrar la alerta
-					if (data.salon_destino && data.telar_destino) {
-						const url = new URL(window.location.href);
-						url.searchParams.set('salon', data.salon_destino);
-						url.searchParams.set('telar', data.telar_destino);
-						if (data.registro_id) {
-							url.searchParams.set('registro_id', data.registro_id);
-						}
-						window.location.href = url.toString();
-					} else {
-						window.location.reload();
-					}
+					redirectToRegistro(data);
 				});
 			} else {
 				// Sin advertencias, mostrar mensaje de éxito normal
 				showToast(data.message || mensajeExito, 'success');
 
 				// Redirigir inmediatamente al registro creado
-				if (data.salon_destino && data.telar_destino) {
-					// Construir URL con parámetros para seleccionar el registro
-					const url = new URL(window.location.href);
-					url.searchParams.set('salon', data.salon_destino);
-					url.searchParams.set('telar', data.telar_destino);
-					if (data.registro_id) {
-						url.searchParams.set('registro_id', data.registro_id);
-					}
-					window.location.href = url.toString();
-				} else {
-					window.location.reload();
-				}
+				redirectToRegistro(data);
 			}
 		} else {
 			showToast(data.message || 'Error al procesar la solicitud', 'error');
@@ -284,13 +199,10 @@ async function duplicarTelar(row) {
 }
 
 // Genera el HTML del modal de duplicar
-function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, flog, ordCompartida, aplicacion, registroId, descripcion = '' }) {
+function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, produccion, flog, ordCompartida, aplicacion, registroId, descripcion = '' }) {
 	// Determinar si ya está dividido (tiene OrdCompartida)
 	const ordNum = Number(ordCompartida);
 	const yaDividido = Number.isFinite(ordNum) && ordNum !== 0;
-	const badgeOrdCompartida = yaDividido
-		? ''
-		: '';
 
 	return `
 		<div class="text-left">
@@ -341,7 +253,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 									</select>
 								</div>
 								<div>
-									<label class="block mb-1 text-sm font-medium text-gray-700">Pedido Total ${badgeOrdCompartida}</label>
+									<label class="block mb-1 text-sm font-medium text-gray-700">Pedido Total</label>
 									<input type="text" id="swal-pedido" value="${pedido}"
 										class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
 								</div>
@@ -356,20 +268,20 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 					</tr>
 					<tr class="border-b border-gray-200">
 						<td colspan="2" class="py-1">
-							<div class="flex gap-4">
-								<div class="w-1/5">
+							<div class="grid grid-cols-3 gap-4">
+								<div>
 									<label class="block mb-1 text-sm font-medium text-gray-700">Salón</label>
 									<select id="swal-salon" data-salon-actual="${salon}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
 										${salon ? `<option value="${salon}" selected>${salon}</option>` : '<option value="">Seleccionar...</option>'}
 									</select>
 								</div>
-								<div class="w-1/5">
+								<div>
 									<label class="block mb-1 text-sm font-medium text-gray-700">Aplicación</label>
 									<select id="swal-aplicacion" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
 										<option value="">Seleccionar...</option>
 									</select>
 								</div>
-								<div class="flex-1">
+								<div>
 									<label class="block mb-1 text-sm font-medium text-gray-700">Descripción</label>
 									<input type="text" id="swal-descripcion" value="${descripcion || ''}"
 										placeholder="Descripción del proyecto..."
@@ -427,22 +339,22 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 			<input type="hidden" id="telar-original" value="${telar}">
 			<input type="hidden" id="pedido-original" value="${pedido}">
 			<input type="hidden" id="saldo-original" value="${saldo}">
+			<input type="hidden" id="produccion-original" value="${produccion || ''}">
 			<input type="hidden" id="ord-compartida-original" value="${ordCompartida}">
 			<input type="hidden" id="registro-id-original" value="${registroId}">
 
-
-
-			<!-- Tabla de Telar, Pedido, Observaciones y PorcentajeSegundos -->
+			<!-- Tabla de salones, telares y cantidades -->
 			<div class="border border-gray-300 rounded-lg overflow-hidden">
 				<table class="w-full border-collapse">
 					<thead class="bg-gray-100">
 						<tr>
-							<th id="th-salon" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden" style="width: 15%;">Salón</th>
-							<th id="th-telar" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">Telar</th>
-							<th id="th-pedido-tempo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">Pedido</th>
-							<th class="py-2 px-3 text-xs font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">% Segundas</th>
-							<th class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 15%;">Total</th>
-							<th class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 40%;">Observaciones</th>
+							<th id="th-salon" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">Salón</th>
+							<th id="th-telar" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Telar</th>
+							<th id="th-pedido-tempo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Pedido</th>
+							<th id="th-porcentaje-segundos" class="py-2 px-3 text-xs font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">% Segundas</th>
+							<th id="th-produccion" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Produccion</th>
+							<th id="th-saldo-total" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">Saldo Total</th>
+							<th id="th-obs" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Obs</th>
 							<th class="py-2 px-2 text-center border-b border-gray-300 w-10">
 								<button type="button" id="btn-add-telar-row" class="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Añadir fila">
 									<i class="fas fa-plus-circle text-lg"></i>
@@ -452,7 +364,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 					</thead>
 					<tbody id="telar-pedido-body">
 						<tr class="telar-row" id="fila-principal">
-							<td class="p-2 border-r border-gray-200 hidden">
+							<td class="p-2 border-r border-gray-200 salon-cell hidden">
 								<input type="hidden" name="salon-destino[]" value="${salon}">
 							</td>
 							<td class="p-2 border-r border-gray-200">
@@ -460,19 +372,24 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 									${telar ? `<option value="${telar}" selected>${telar}</option>` : '<option value="">Seleccionar...</option>'}
 								</select>
 							</td>
-							<td class="p-2 border-r border-gray-200">
-								<input type="text" name="pedido-tempo-destino[]" value="${pedido}"
+							<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
+								<input type="number" name="pedido-tempo-destino[]" value="${pedido}" step="0.01" min="0"
 									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 							</td>
-						<td class="p-2 border-r border-gray-200">
+						<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
 							<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0"
 								placeholder="0.00"
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 						</td>
-						<td class="p-2 border-r border-gray-200">
-							<input type="text" name="pedido-destino[]" value="${pedido}"
-								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+						<td class="p-2 border-r border-gray-200 produccion-cell">
+								<input type="text" value="${produccion || ''}" readonly
+									class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+								<input type="hidden" name="pedido-destino[]" value="${pedido}">
 						</td>
+							<td class="p-2 border-r border-gray-200 saldo-total-cell hidden">
+								<input type="text" value="${saldo || ''}" readonly
+									class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							</td>
 						<td class="p-2 border-r border-gray-200">
 							<input type="text" name="observaciones-destino[]" value=""
 								placeholder="Observaciones..."
@@ -489,6 +406,11 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 
 // Inicializa los eventos y carga de datos del modal
 function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroIdParam) {
+	// Limpiar valores originales guardados al inicializar el modal
+	if (window.valoresOriginalesFilas) {
+		window.valoresOriginalesFilas.clear();
+	}
+
 	const btnAdd = document.getElementById('btn-add-telar-row');
 	const tbody = document.getElementById('telar-pedido-body');
 	const selectHilo = document.getElementById('swal-hilo');
@@ -518,8 +440,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	let todasOpcionesFlog = [];
 	let debounceTimer = null;
 	let debounceTimerFlog = null;
-	const telaresPorSalonCache = new Map();
 	let salonActualLocal = salonActual;
+
+	// Hacer telaresDisponibles y salonesDisponibles globales para que estén disponibles en otras funciones
+	window.telaresDisponibles = telaresDisponibles;
+	window.salonesDisponibles = salonesDisponibles;
 
 	// Referencias a campos para datos adicionales
 	const inputDescripcion = document.getElementById('swal-descripcion');
@@ -531,184 +456,94 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const firstTelarSelect = tbody.querySelector('select[name="telar-destino[]"]');
 	const firstPedidoInput = tbody.querySelector('input[name="pedido-destino[]"]');
 
-	// Función para calcular el Total basado en PedidoTempo y PorcentajeSegundos
-	function calcularTotalDesdePedidoTempo(row) {
-		if (!row) return;
-
-		const pedidoTempoInput = row.querySelector('input[name="pedido-tempo-destino[]"]');
-		const porcentajeSegundosInput = row.querySelector('input[name="porcentaje-segundos-destino[]"]');
-		const totalInput = row.querySelector('input[name="pedido-destino[]"]');
-
-		if (!pedidoTempoInput || !totalInput) return;
-
-		const modoActual = getModoActual();
-		const esDividir = modoActual === 'dividir';
-		const pedidoTempo = parseFloat(pedidoTempoInput.value) || 0;
-		const porcentajeSegundos = parseFloat(porcentajeSegundosInput?.value) || 0;
-
-		let total;
-		// En modo dividir, si el porcentaje de segundos es 0, el total es igual al pedido tempo
-		if (esDividir && porcentajeSegundos === 0) {
-			total = pedidoTempo;
-		} else {
-			// Calcular: Total = PedidoTempo * (1 + PorcentajeSegundos / 100)
-			total = pedidoTempo * (1 + porcentajeSegundos / 100);
-		}
-
-		// Actualizar el campo Total solo si hay un valor en PedidoTempo
-		if (pedidoTempo > 0) {
-			// Si el total es un número entero (sin decimales), omitir .00
-			if (total % 1 === 0) {
-				totalInput.value = total.toString();
-			} else {
-				totalInput.value = total.toFixed(2);
-			}
-		} else {
-			totalInput.value = '';
-		}
-
-		// Disparar evento input para actualizar el estado
-		totalInput.dispatchEvent(new Event('input', { bubbles: true }));
-	}
-
-	// Función para sincronizar PedidoTempo y Total bidireccionalmente en modo dividir
-	function sincronizarPedidoTempoYTotal(row, desdeTotal = false) {
-		if (!row) return;
-
-		const modoActual = getModoActual();
-		const esDividir = modoActual === 'dividir';
-
-		if (!esDividir) return;
-
-		const pedidoTempoInput = row.querySelector('input[name="pedido-tempo-destino[]"]');
-		const porcentajeSegundosInput = row.querySelector('input[name="porcentaje-segundos-destino[]"]');
-		const totalInput = row.querySelector('input[name="pedido-destino[]"]');
-
-		if (!pedidoTempoInput || !totalInput) return;
-
-		const porcentajeSegundos = parseFloat(porcentajeSegundosInput?.value) || 0;
-		const total = parseFloat(totalInput.value) || 0;
-		const pedidoTempoActual = pedidoTempoInput.value.trim();
-		const pedidoTempoNum = parseFloat(pedidoTempoActual) || 0;
-
-		// En modo dividir, sincronizar bidireccionalmente
-		if (desdeTotal) {
-			// Si cambió el total, actualizar pedido tempo
-			if (porcentajeSegundos === 0) {
-				// Si porcentaje es 0, total = pedido tempo
-				if (total > 0) {
-					if (total % 1 === 0) {
-						pedidoTempoInput.value = total.toString();
-					} else {
-						pedidoTempoInput.value = total.toFixed(2);
-					}
-				} else {
-					pedidoTempoInput.value = '';
-				}
-			} else {
-				// Si porcentaje > 0, calcular pedido tempo desde total
-				// Total = PedidoTempo * (1 + PorcentajeSegundos / 100)
-				// PedidoTempo = Total / (1 + PorcentajeSegundos / 100)
-				const pedidoTempoCalculado = total / (1 + porcentajeSegundos / 100);
-				if (pedidoTempoCalculado > 0) {
-					if (pedidoTempoCalculado % 1 === 0) {
-						pedidoTempoInput.value = pedidoTempoCalculado.toString();
-					} else {
-						pedidoTempoInput.value = pedidoTempoCalculado.toFixed(2);
-					}
-				} else {
-					pedidoTempoInput.value = '';
-				}
-			}
-		} else {
-			// Si cambió el pedido tempo, actualizar total
-			calcularTotalDesdePedidoTempo(row);
-		}
-	}
-
+	// Función helper para obtener inputs de una fila
 	// Función para agregar event listeners de cálculo automático a una fila
 	function agregarListenersCalculoAutomatico(row) {
-		if (!row) return;
-
-		const pedidoTempoInput = row.querySelector('input[name="pedido-tempo-destino[]"]');
-		const porcentajeSegundosInput = row.querySelector('input[name="porcentaje-segundos-destino[]"]');
-		const totalInput = row.querySelector('input[name="pedido-destino[]"]');
-
-		if (pedidoTempoInput) {
-			pedidoTempoInput.addEventListener('input', () => {
-				sincronizarPedidoTempoYTotal(row, false); // Desde pedido tempo hacia total
-			});
-		}
-
-		if (porcentajeSegundosInput) {
-			porcentajeSegundosInput.addEventListener('input', () => {
-				// Recalcular total desde pedido tempo cuando cambia el porcentaje
-				calcularTotalDesdePedidoTempo(row);
-			});
-		}
-
-		// En modo dividir, cuando cambia el total, sincronizar pedido tempo
-		if (totalInput) {
-			totalInput.addEventListener('input', () => {
-				sincronizarPedidoTempoYTotal(row, true); // Desde total hacia pedido tempo
-			});
-		}
-	}
-
-	// Función para redistribuir el pedido total entre los telares en modo dividir
-	function redistribuirPedidoTotalEntreTelares() {
-		const modoActual = getModoActual();
-		if (modoActual !== 'dividir') return;
-
-		const inputPedidoTotal = document.getElementById('swal-pedido');
-		if (!inputPedidoTotal) return;
-
-		const pedidoTotal = parseFloat(inputPedidoTotal.value) || 0;
-		if (pedidoTotal <= 0) {
-			// Si el pedido total es 0 o vacío, limpiar todos los totales (incluyendo origen)
-			const filas = document.querySelectorAll('#telar-pedido-body tr');
-			filas.forEach((fila) => {
-				const totalInput = fila.querySelector('input[name="pedido-destino[]"]');
-				const pedidoTempoInput = fila.querySelector('input[name="pedido-tempo-destino[]"]');
-				if (totalInput) totalInput.value = '';
-				if (pedidoTempoInput) pedidoTempoInput.value = '';
-			});
-			recomputeState();
+		if (!row) {
 			return;
 		}
 
-		// Obtener todas las filas de telares (incluyendo origen y destinos)
-		const filas = document.querySelectorAll('#telar-pedido-body tr');
-		if (filas.length === 0) return;
-
-		// Dividir equitativamente entre TODOS los telares (origen + destinos)
-		const cantidadPorTelar = pedidoTotal / filas.length;
-
-		filas.forEach((fila) => {
-			const totalInput = fila.querySelector('input[name="pedido-destino[]"]');
-			if (totalInput) {
-				// Actualizar el total (incluyendo el origen)
-				if (cantidadPorTelar % 1 === 0) {
-					totalInput.value = cantidadPorTelar.toString();
-				} else {
-					totalInput.value = cantidadPorTelar.toFixed(2);
-				}
-				// Disparar evento para sincronizar pedido tempo
-				totalInput.dispatchEvent(new Event('input', { bubbles: true }));
-			}
-		});
-
-		// Actualizar resumen de cantidades
-		if (typeof actualizarResumenCantidades === 'function') {
-			actualizarResumenCantidades();
+		// Remover listeners anteriores si existen (usando un atributo de datos para almacenar referencias)
+		if (row.dataset.listenersConfigured === 'true') {
+			// Limpiar listeners anteriores removiendo los event listeners si es posible
+			// Nota: No podemos remover listeners anónimos fácilmente, pero podemos marcarlos para evitar duplicados
 		}
-		recomputeState();
+		row.dataset.listenersConfigured = 'true';
+
+		const { pedidoTempoInput, porcentajeSegundosInput, totalInput } = getRowInputs(row);
+
+		if (pedidoTempoInput) {
+			pedidoTempoInput.addEventListener('input', (event) => {
+				// No ejecutar si se est? redistribuyendo
+				if (window.redistribuyendo) {
+					return;
+				}
+
+				const modoActual = getModoActual();
+				if (modoActual === 'duplicar') {
+					if (totalInput) {
+						totalInput.value = pedidoTempoInput.value;
+						totalInput.dispatchEvent(new Event('input', { bubbles: true }));
+					}
+					return;
+				}
+				// En modo dividir, el listener global se encarga del c?lculo
+				if (!window.modalDuplicarListenersGlobalesAgregados) {
+					const calcularFn = window.calcularSaldoTotal || (typeof calcularSaldoTotal !== 'undefined' ? calcularSaldoTotal : null);
+					if (calcularFn && typeof calcularFn === 'function') {
+						try {
+							calcularFn(row);
+						} catch (error) {
+						}
+					}
+				}
+			}, { capture: true }); // Usar capture para ejecutar antes que otros listeners
+		}
+
+		if (porcentajeSegundosInput) {
+			porcentajeSegundosInput.addEventListener('input', (event) => {
+				// No ejecutar si se est? redistribuyendo
+				if (window.redistribuyendo) {
+					return;
+				}
+
+				const modoActual = getModoActual();
+				// Calcular autom?ticamente cuando cambia el porcentaje de segundas
+				// Intentar desde window primero, luego desde scope global
+				if (modoActual === 'dividir' && !window.modalDuplicarListenersGlobalesAgregados) {
+					const calcularFn = window.calcularSaldoTotal || (typeof calcularSaldoTotal !== 'undefined' ? calcularSaldoTotal : null);
+					if (calcularFn && typeof calcularFn === 'function') {
+						try {
+							calcularFn(row);
+						} catch (error) {
+						}
+					}
+				}
+			}, { capture: true }); // Usar capture para ejecutar antes que otros listeners
+		}
+
+		if (totalInput) {
+			totalInput.addEventListener('input', (event) => {
+				if (window.redistribuyendo || (event && event.isTrusted === false)) {
+					return;
+				}
+				const modoActual = getModoActual();
+				if (modoActual === 'dividir') {
+					// En modo dividir, sincronizar pedido tempo cuando cambia el total
+					if (typeof sincronizarPedidoTempoYTotal === 'function') {
+						sincronizarPedidoTempoYTotal(row, true);
+					}
+				}
+				// En modo duplicar, no hacer nada especial
+			});
+		}
 	}
 
+	// Función para calcular el estado y habilitar/deshabilitar botones
 	function recomputeState() {
 		const modoActual = getModoActual();
 		const esDuplicar = modoActual === 'duplicar';
-		const telarInputs = document.querySelectorAll('[name="telar-destino[]"]'); // select o input
+		const telarInputs = document.querySelectorAll('[name="telar-destino[]"]');
 		const salonInputs = document.querySelectorAll('[name="salon-destino[]"]');
 		const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
 
@@ -721,7 +556,6 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			const pedidoVal = (pedidoInputs[idx]?.value || '').trim();
 
 			if (esDuplicar) {
-				// Modo Duplicar: primera fila debe estar completa
 				if (idx === 0 && telarVal !== '' && pedidoVal !== '') {
 					firstComplete = true;
 				}
@@ -729,18 +563,13 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					hasAnyFilled = true;
 				}
 			} else {
-				// Modo Dividir:
-				// - Primera fila (origen) siempre tiene telar (readonly), solo necesita pedido
-				// - Las siguientes filas (destino) necesitan telar Y pedido
 				if (idx === 0) {
-					// El origen siempre tiene telar, verificar si tiene cantidad
 					if (telarVal !== '' && pedidoVal !== '') {
 						firstComplete = true;
 					}
 					hasAnyFilled = telarVal !== '';
 				} else {
 					const salonVal = (salonInputs[idx]?.value || '').trim();
-					// Destinos: deben tener telar seleccionado Y cantidad
 					if (telarVal === '' || pedidoVal === '' || salonVal === '') {
 						allDestinationsValid = false;
 					}
@@ -751,12 +580,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			}
 		});
 
-		// En modo duplicar: primera fila completa habilita agregar más
-		// En modo dividir: siempre puede agregar más destinos
 		btnAdd.disabled = esDuplicar ? !firstComplete : false;
 
-		// En modo duplicar: al menos un registro lleno
-		// En modo dividir: origen con cantidad Y al menos un destino válido
 		if (esDuplicar) {
 			confirmButton.disabled = !hasAnyFilled;
 		} else {
@@ -766,128 +591,285 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		}
 	}
 
-	// Función para actualizar todos los selects de telar en la tabla de destinos
-	function actualizarSelectsTelares(preseleccionarPrimero = false) {
-		if (getModoActual() !== 'duplicar') {
-			return;
-		}
-		const telarSelects = document.querySelectorAll('select[name="telar-destino[]"]');
-		telarSelects.forEach((select, idx) => {
-			const valorActual = select.value;
-			const telarOriginal = select.dataset?.telarActual || '';
-			// Para el primer select, preseleccionar el telar actual si se indica
-			const valorPreseleccionar = (idx === 0 && preseleccionarPrimero)
-				? (valorActual || telarOriginal || telarActual)
-				: valorActual;
+	// Función para aplicar visibilidad de columnas según el modo
+	function aplicarVisibilidadColumnas(esDuplicar) {
+		const thSalon = document.getElementById('th-salon');
+		const thPedidoTempo = document.getElementById('th-pedido-tempo');
+		const thPorcentajeSegundos = document.getElementById('th-porcentaje-segundos');
+		const thProduccion = document.getElementById('th-produccion');
+		const thSaldoTotal = document.getElementById('th-saldo-total');
 
-			// Solo reconstruir si hay telares disponibles
-			if (telaresDisponibles.length > 0) {
-				select.innerHTML = '<option value="">Seleccionar...</option>';
-				telaresDisponibles.forEach(t => {
-					const option = document.createElement('option');
-					option.value = t;
-					option.textContent = t;
-					if (t == valorPreseleccionar) {
-						option.selected = true;
-					}
-					select.appendChild(option);
-				});
+		if (esDuplicar) {
+			// Modo duplicar: telar, pedido, %segundas
+			if (thSalon) thSalon.classList.add('hidden');
+			if (thPedidoTempo) {
+				thPedidoTempo.classList.remove('hidden');
+				thPedidoTempo.textContent = 'Pedido';
 			}
-		});
-	}
+			if (thPorcentajeSegundos) thPorcentajeSegundos.classList.remove('hidden');
+			if (thProduccion) thProduccion.classList.add('hidden');
+			if (thSaldoTotal) thSaldoTotal.classList.add('hidden');
 
-	// Cache y carga de telares por salon (para filas en modo dividir)
-	function obtenerTelaresPorSalonCache(salon) {
-		const key = String(salon || '');
-		if (telaresPorSalonCache.has(key)) {
-			return Promise.resolve(telaresPorSalonCache.get(key));
-		}
-		return fetch('/programa-tejido/telares-by-salon?salon_tejido_id=' + encodeURIComponent(key), {
-			headers: { 'Accept': 'application/json' }
-		})
-			.then(r => r.json())
-			.then(data => {
-				const lista = Array.isArray(data) ? data : [];
-				telaresPorSalonCache.set(key, lista);
-				return lista;
-			})
-			.catch(() => {
-				telaresPorSalonCache.set(key, []);
-				return [];
+			document.querySelectorAll('.salon-cell').forEach((cell) => cell.classList.add('hidden'));
+			document.querySelectorAll('.pedido-tempo-cell').forEach((cell) => cell.classList.remove('hidden'));
+			document.querySelectorAll('.porcentaje-segundos-cell').forEach((cell) => cell.classList.remove('hidden'));
+			document.querySelectorAll('.produccion-cell').forEach((cell) => cell.classList.add('hidden'));
+			document.querySelectorAll('.saldo-total-cell').forEach((cell) => cell.classList.add('hidden'));
+		} else {
+			// Modo dividir: salon, telar, pedido, produccion, saldo total (sin %segundas)
+			if (thSalon) thSalon.classList.remove('hidden');
+			if (thPedidoTempo) {
+				thPedidoTempo.classList.remove('hidden');
+				thPedidoTempo.textContent = 'Pedido';
+			}
+			if (thPorcentajeSegundos) thPorcentajeSegundos.classList.add('hidden');
+			if (thProduccion) {
+				thProduccion.classList.remove('hidden');
+				thProduccion.textContent = 'Produccion';
+			}
+			if (thSaldoTotal) {
+				thSaldoTotal.classList.remove('hidden');
+				thSaldoTotal.textContent = 'Saldo Total';
+			}
+
+			document.querySelectorAll('.salon-cell').forEach((cell) => cell.classList.remove('hidden'));
+			document.querySelectorAll('.pedido-tempo-cell').forEach((cell) => cell.classList.remove('hidden'));
+			document.querySelectorAll('.porcentaje-segundos-cell').forEach((cell) => cell.classList.add('hidden'));
+			document.querySelectorAll('.produccion-cell').forEach((cell) => cell.classList.remove('hidden'));
+			document.querySelectorAll('.saldo-total-cell').forEach((cell) => cell.classList.remove('hidden'));
+
+			// Deshabilitar inputs de pedido SOLO en filas existentes (no en las nuevas)
+			document.querySelectorAll('tr.telar-row[data-es-existente="true"] input[name="pedido-tempo-destino[]"]').forEach((input) => {
+				if (!input.readOnly) {
+					input.readOnly = true;
+					input.classList.add('bg-gray-100', 'text-gray-700', 'cursor-not-allowed');
+					input.classList.remove('focus:outline-none', 'focus:ring-1', 'focus:ring-green-500', 'focus:ring-blue-500');
+				}
 			});
+		}
 	}
 
-	function actualizarSelectTelaresParaFila(selectTelar, telares, preseleccionar = '') {
-		if (!selectTelar) return;
-		const valorActual = preseleccionar || selectTelar.value;
+	window.recomputeState = recomputeState;
+	window.agregarListenersCalculoAutomatico = agregarListenersCalculoAutomatico;
+	window.aplicarVisibilidadColumnas = aplicarVisibilidadColumnas;
+
+	// Función para reconstruir la tabla según el modo
+	async function reconstruirTablaSegunModo(esDuplicar) {
+		const filasAdicionales = tbody.querySelectorAll('tr:not(#fila-principal)');
+		filasAdicionales.forEach(fila => fila.remove());
+
+		const filaPrincipal = document.getElementById('fila-principal');
+		if (!filaPrincipal) return;
+
+		const resumenCantidades = document.getElementById('resumen-cantidades');
+		if (resumenCantidades) {
+			resumenCantidades.classList.toggle('hidden', esDuplicar);
+		}
+		const thSalon = document.getElementById('th-salon');
+		if (thSalon) {
+			thSalon.classList.toggle('hidden', esDuplicar);
+		}
+		const thSaldoTotal = document.getElementById('th-saldo-total');
+		if (thSaldoTotal) {
+			thSaldoTotal.classList.remove('hidden');
+		}
+
+		const telarOriginal = document.getElementById('telar-original')?.value || telarActual;
+		const pedidoOriginal = document.getElementById('pedido-original')?.value || '';
+		const saldoOriginal = document.getElementById('saldo-original')?.value || '';
+		const produccionOriginal = document.getElementById('produccion-original')?.value || '';
+
+		const thTelar = document.getElementById('th-telar');
+		const thPedidoTempo = document.getElementById('th-pedido-tempo');
+
+		if (esDuplicar) {
+			if (thTelar) thTelar.textContent = 'Telar';
+			if (thPedidoTempo) thPedidoTempo.textContent = 'Pedido';
+
+			filaPrincipal.innerHTML = `
+				<td class="p-2 border-r border-gray-200 salon-cell hidden">
+					<input type="hidden" name="salon-destino[]" value="${selectSalon?.value || salonActualLocal || ''}">
+				</td>
+				<td class="p-2 border-r border-gray-200">
+					<select name="telar-destino[]" data-telar-actual="${telarOriginal}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
+						${telarOriginal ? `<option value="${telarOriginal}" selected>${telarOriginal}</option>` : '<option value="">Seleccionar...</option>'}
+					</select>
+				</td>
+				<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
+					<input type="number" name="pedido-tempo-destino[]" value="${pedidoOriginal}" step="0.01" min="0"
+						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+				</td>
+				<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
+					<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0"
+						placeholder="0.00"
+						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+				</td>
+				<td class="p-2 border-r border-gray-200 produccion-cell">
+					<input type="text" name="pedido-destino[]" value="${pedidoOriginal}"
+						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+				</td>
+				<td class="p-2 border-r border-gray-200 saldo-total-cell hidden">
+					<input type="text" value="${saldoOriginal}" readonly
+						class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+				</td>
+				<td class="p-2 border-r border-gray-200">
+					<input type="text" name="observaciones-destino[]" value=""
+						placeholder="Observaciones..."
+						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+				</td>
+				<td class="p-2 text-center w-10"></td>
+			`;
+
+			const selectTelar = filaPrincipal.querySelector('select[name="telar-destino[]"]');
+			if (selectTelar && telaresDisponibles.length > 0) {
 		selectTelar.innerHTML = '<option value="">Seleccionar...</option>';
-		telares.forEach(t => {
+				telaresDisponibles.forEach(t => {
 			const option = document.createElement('option');
 			option.value = t;
 			option.textContent = t;
-			if (t == valorActual) {
-				option.selected = true;
-			}
+					if (t == telarOriginal) option.selected = true;
 			selectTelar.appendChild(option);
 		});
 	}
 
-	// Función para cargar telares por salón
-	function cargarTelaresPorSalon(salon, preseleccionarTelar = false) {
-		if (!salon) {
-			telaresDisponibles = [];
-			actualizarSelectsTelares(false);
-			recomputeState();
-			return;
+			const telarSelect = filaPrincipal.querySelector('select[name="telar-destino[]"]');
+			const pedidoInput = filaPrincipal.querySelector('input[name="pedido-destino[]"]');
+			if (telarSelect) telarSelect.addEventListener('change', recomputeState);
+			if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
+
+			agregarListenersCalculoAutomatico(filaPrincipal);
+
+		} else {
+			if (thTelar) thTelar.textContent = 'Telar';
+			if (thPedidoTempo) thPedidoTempo.textContent = 'Pedido';
+
+			if (tieneOrdCompartida) {
+				if (typeof cargarRegistrosOrdCompartida === 'function') {
+					await cargarRegistrosOrdCompartida(ordCompartidaActualLocal);
+				}
+			} else {
+				filaPrincipal.innerHTML = `
+					<td class="p-2 border-r border-gray-200 salon-cell">
+						<input type="text" name="salon-destino[]" value="${selectSalon?.value || salonActualLocal || ''}" readonly
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+					</td>
+					<td class="p-2 border-r border-gray-200">
+						<div class="flex items-center gap-2">
+							<input type="text" name="telar-destino[]" value="${telarOriginal}" readonly
+								data-registro-id=""
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+						</div>
+					</td>
+					<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
+						<input type="number" name="pedido-tempo-destino[]" value="${pedidoOriginal}" data-pedido-total="true" step="0.01" min="0" readonly
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+					</td>
+					<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell hidden">
+						<input type="hidden" name="porcentaje-segundos-destino[]" value="0">
+					</td>
+					<td class="p-2 border-r border-gray-200 produccion-cell">
+						<input type="text" value="${produccionOriginal || ''}" readonly
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+						<input type="hidden" name="pedido-destino[]" value="${pedidoOriginal}">
+					</td>
+					<td class="p-2 border-r border-gray-200 saldo-total-cell">
+						<input type="text" value="${saldoOriginal}" readonly
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+					</td>
+					<td class="p-2 border-r border-gray-200">
+						<input type="text" name="observaciones-destino[]" value=""
+							placeholder="Observaciones..."
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+					</td>
+					<td class="p-2 text-center w-10">
+						<i class="fas fa-lock text-gray-400" title="Telar origen"></i>
+					</td>
+				`;
+
+				if (typeof agregarFilaDividir === 'function') {
+					agregarFilaDividir();
+				}
+
+				agregarListenersCalculoAutomatico(filaPrincipal);
+
+				// Calcular automáticamente los totales
+				setTimeout(() => {
+					if (typeof calcularSaldoTotal === 'function') {
+						calcularSaldoTotal(filaPrincipal);
+					}
+				}, 100);
+			}
+
+			const pedidoInput = filaPrincipal.querySelector('input[name="pedido-destino[]"]:not([readonly])');
+			if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
 		}
 
-		fetch('/programa-tejido/telares-by-salon?salon_tejido_id=' + encodeURIComponent(salon))
-			.then(response => response.json())
-			.then(data => {
-				telaresDisponibles = Array.isArray(data) ? data : [];
-				// Actualizar los selects de la tabla de destinos solo en modo duplicar
-				actualizarSelectsTelares(preseleccionarTelar);
+		aplicarVisibilidadColumnas(esDuplicar);
 				recomputeState();
-			})
-			.catch(() => {
-				telaresDisponibles = [];
-				actualizarSelectsTelares(false);
-				recomputeState();
-			});
 	}
 
-	function actualizarSelectSalonesParaFila(selectSalonDestino, valorPreseleccionar = '') {
-		if (!selectSalonDestino) return;
-		const valorActual = valorPreseleccionar || selectSalonDestino.value;
-		selectSalonDestino.innerHTML = '<option value="">Seleccionar...</option>';
-		salonesDisponibles.forEach(item => {
-			const option = document.createElement('option');
-			option.value = item;
-			option.textContent = item;
-			if (item === valorActual) {
-				option.selected = true;
+	// Función para actualizar el estilo del switch y reconstruir la tabla
+	function actualizarEstiloSwitch() {
+		const modoActual = getModoActual();
+		const checkboxVincular = document.getElementById('checkbox-vincular');
+		const vincularActivado = checkboxVincular && checkboxVincular.checked;
+		const pillDuplicar = document.getElementById('pill-duplicar');
+		const pillDividir = document.getElementById('pill-dividir');
+		const descDuplicar = document.getElementById('desc-duplicar');
+		const descDividir = document.getElementById('desc-dividir');
+		const checkboxVincularContainer = document.getElementById('checkbox-vincular-container');
+
+		[pillDuplicar, pillDividir].forEach(pill => {
+			if (pill) {
+				pill.classList.add('bg-white', 'text-gray-700', 'opacity-80', 'shadow-sm');
+				pill.classList.remove('bg-blue-500', 'bg-green-500', 'text-white', 'opacity-100', 'shadow-md');
 			}
-			selectSalonDestino.appendChild(option);
 		});
-	}
 
-	async function actualizarTelaresPorSalonEnFila(selectSalonDestino, selectTelarDestino, preseleccionarTelar = '') {
-		const salonSeleccionado = selectSalonDestino?.value || '';
-		if (!salonSeleccionado) {
-			if (selectTelarDestino) {
-				selectTelarDestino.innerHTML = '<option value="">Seleccionar...</option>';
-				selectTelarDestino.disabled = true;
+		[descDuplicar, descDividir].forEach(desc => {
+			if (desc) desc.classList.add('hidden');
+		});
+
+		if (checkboxVincularContainer) {
+			checkboxVincularContainer.style.display = modoActual === 'duplicar' ? 'flex' : 'none';
+		}
+
+		if (modoActual === 'duplicar') {
+			if (pillDuplicar) {
+				pillDuplicar.classList.add('bg-blue-500', 'text-white', 'opacity-100', 'shadow-md');
+				pillDuplicar.classList.remove('bg-white', 'text-gray-700', 'opacity-80', 'shadow-sm');
 			}
-			return;
+			if (descDuplicar) descDuplicar.classList.remove('hidden');
+
+			if (confirmButton) {
+				if (vincularActivado) {
+					confirmButton.textContent = 'Vincular';
+					confirmButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-green-500', 'hover:bg-green-600');
+					confirmButton.classList.add('bg-purple-500', 'hover:bg-purple-600');
+				} else {
+					confirmButton.textContent = 'Duplicar';
+					confirmButton.classList.remove('bg-green-500', 'hover:bg-green-600', 'bg-purple-500', 'hover:bg-purple-600');
+					confirmButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+				}
+			}
+		} else if (modoActual === 'dividir') {
+			if (pillDividir) {
+				pillDividir.classList.add('bg-green-500', 'text-white', 'opacity-100', 'shadow-md');
+				pillDividir.classList.remove('bg-white', 'text-gray-700', 'opacity-80', 'shadow-sm');
+			}
+			if (descDividir) descDividir.classList.remove('hidden');
+
+			if (confirmButton) {
+				confirmButton.textContent = 'Dividir';
+				confirmButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-purple-500', 'hover:bg-purple-600');
+				confirmButton.classList.add('bg-green-500', 'hover:bg-green-600');
+			}
 		}
-		if (selectTelarDestino) {
-			selectTelarDestino.disabled = false;
-		}
-		const telares = await obtenerTelaresPorSalonCache(salonSeleccionado);
-		actualizarSelectTelaresParaFila(selectTelarDestino, telares, preseleccionarTelar);
+
+		reconstruirTablaSegunModo(modoActual === 'duplicar');
 	}
 
-	// ===== Autocompletado de Clave Modelo =====
+	// Autocompletado de Clave Modelo
 	function buscarClaveModelo(busqueda) {
 		const salonParaBuscar = selectSalon?.value || salonActual;
 		if (!salonParaBuscar || busqueda.length < 1) {
@@ -948,28 +930,22 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 		fetch('/programa-tejido/datos-relacionados?' + params.toString(), {
 			method: 'GET',
-			headers: {
-				'Accept': 'application/json'
-			}
+			headers: { 'Accept': 'application/json' }
 		})
 			.then(r => r.json())
 			.then(data => {
 				if (data.datos) {
-					// Llenar Cod. Artículo y Producto
 					inputCodArticulo.value = data.datos.ItemId || '';
 					inputProducto.value = data.datos.Nombre || data.datos.NombreProducto || '';
 
-					// Llenar Flog con el FlogsId del codificado
 					if (inputFlog && data.datos.FlogsId) {
 						inputFlog.value = data.datos.FlogsId;
 					}
 
-					// Actualizar descripcion, custname e InventSizeId
 					if (inputDescripcion) inputDescripcion.value = data.datos.NombreProyecto || '';
 					if (inputCustname) inputCustname.value = data.datos.CustName || '';
 					if (inputInventSizeId) inputInventSizeId.value = data.datos.InventSizeId || '';
 
-					// Disparar cambio visual/interno si hay listeners
 					inputCodArticulo.dispatchEvent(new Event('input', { bubbles: true }));
 					inputProducto.dispatchEvent(new Event('input', { bubbles: true }));
 				}
@@ -977,42 +953,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			.catch(() => {});
 	}
 
-	// Eventos para el autocompletado de Clave Modelo
-	if (inputClaveModelo) {
-		inputClaveModelo.addEventListener('input', (e) => {
-			clearTimeout(debounceTimer);
-			debounceTimer = setTimeout(() => buscarClaveModelo(e.target.value), 150);
-		});
-
-		inputClaveModelo.addEventListener('focus', () => {
-			if (inputClaveModelo.value.length >= 1) {
-				buscarClaveModelo(inputClaveModelo.value);
-			}
-		});
-
-		inputClaveModelo.addEventListener('blur', (e) => {
-			// Delay para permitir click en sugerencia
-			setTimeout(() => containerSugerencias.classList.add('hidden'), 200);
-		// Si hay valor escrito, cargar datos relacionados
-		const val = inputClaveModelo.value?.trim();
-		if (val) cargarDatosRelacionados(val);
-		});
-
-		inputClaveModelo.addEventListener('keydown', (e) => {
-			if (e.key === 'Enter') {
-				e.preventDefault();
-				containerSugerencias.classList.add('hidden');
-				if (inputClaveModelo.value) {
-					cargarDatosRelacionados(inputClaveModelo.value);
-				}
-			}
-		});
-	}
-
-	// ===== Autocompletado de Flog =====
+	// Autocompletado de Flog
 	async function cargarOpcionesFlog(search = '') {
 		try {
-			// Si no hay búsqueda y ya tenemos opciones cargadas, usar esas
 			if (!search && sugerenciasFlog && sugerenciasFlog.length > 0) {
 				mostrarSugerenciasFlog(sugerenciasFlog);
 				return;
@@ -1021,19 +964,17 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			const response = await fetch('/programa-tejido/flogs-id-from-twflogs', {
 				headers: {
 					'Accept': 'application/json',
-					'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+					'X-CSRF-TOKEN': getCsrfToken()
 				}
 			});
 
 			const opciones = await response.json();
 			const opcionesArray = Array.isArray(opciones) ? opciones : [];
 
-			// Si no hay búsqueda, guardar todas las opciones para uso futuro
 			if (!search) {
 				todasOpcionesFlog = opcionesArray;
 			}
 
-			// Filtrar opciones localmente si hay búsqueda
 			let opcionesFiltradas = opcionesArray;
 			if (search && search.length >= 2) {
 				const searchLower = search.toLowerCase();
@@ -1046,7 +987,6 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			sugerenciasFlog = opcionesFiltradas;
 			mostrarSugerenciasFlog(opcionesFiltradas);
 		} catch (error) {
-			console.error('Error al cargar Flog:', error);
 			if (containerSugerenciasFlog) {
 				containerSugerenciasFlog.classList.add('hidden');
 			}
@@ -1055,7 +995,6 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 	function mostrarSugerenciasFlog(sugerencias) {
 		if (!containerSugerenciasFlog) return;
-
 		containerSugerenciasFlog.innerHTML = '';
 
 		if (sugerencias.length === 0) {
@@ -1075,7 +1014,6 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				if (inputFlog) {
 					inputFlog.value = sugerencia;
 					containerSugerenciasFlog.classList.add('hidden');
-					// Cargar descripción cuando se selecciona un Flog
 					cargarDescripcionPorFlog(sugerencia);
 				}
 			});
@@ -1086,66 +1024,71 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	}
 
 	async function cargarDescripcionPorFlog(flog) {
-		if (!flog || flog.trim() === '') {
-			return;
-		}
+		if (!flog || flog.trim() === '') return;
 
 		try {
 			const response = await fetch(`/programa-tejido/descripcion-by-idflog/${encodeURIComponent(flog)}`, {
 				headers: {
 					'Accept': 'application/json',
-					'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+					'X-CSRF-TOKEN': getCsrfToken()
 				}
 			});
 
 			const data = await response.json();
 			if (inputDescripcion && data.nombreProyecto) {
 				inputDescripcion.value = data.nombreProyecto;
-				// Disparar evento para actualizar visualmente
 				inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
 			}
 		} catch (error) {
-			console.error('Error al cargar descripción por Flog:', error);
 		}
 	}
 
-	// Eventos para el autocompletado de Flog
-	if (inputFlog && containerSugerenciasFlog) {
-		inputFlog.addEventListener('input', (e) => {
-			clearTimeout(debounceTimerFlog);
-			const valor = e.target.value;
-			if (valor.length >= 2) {
-				debounceTimerFlog = setTimeout(() => cargarOpcionesFlog(valor), 300);
-			} else {
-				containerSugerenciasFlog.classList.add('hidden');
-			}
-		});
+	// Validación de clave modelo
+	const alertaClaveModelo = document.getElementById('alerta-clave-modelo');
+	const alertaClaveModeloTexto = document.getElementById('alerta-clave-modelo-texto');
 
-		inputFlog.addEventListener('focus', async () => {
-			if (sugerenciasFlog && sugerenciasFlog.length > 0) {
-				mostrarSugerenciasFlog(sugerenciasFlog);
-			} else {
-				await cargarOpcionesFlog('');
-			}
-		});
-
-		inputFlog.addEventListener('blur', (e) => {
-			// Delay para permitir click en sugerencia
-			setTimeout(() => containerSugerenciasFlog.classList.add('hidden'), 200);
-		});
-
-		inputFlog.addEventListener('keydown', (e) => {
-			if (e.key === 'Enter') {
-				e.preventDefault();
-				containerSugerenciasFlog.classList.add('hidden');
-				if (inputFlog.value) {
-					cargarDescripcionPorFlog(inputFlog.value);
-				}
-			}
-		});
+	function mostrarAlertaClaveModelo(mensaje) {
+		if (alertaClaveModelo && alertaClaveModeloTexto) {
+			alertaClaveModeloTexto.textContent = mensaje;
+			alertaClaveModelo.classList.remove('hidden');
+		}
 	}
 
-	// Estado inicial: bloqueado
+	function ocultarAlertaClaveModelo() {
+		if (alertaClaveModelo) {
+			alertaClaveModelo.classList.add('hidden');
+		}
+	}
+
+	function validarClaveModeloEnSalon(salon, claveModelo) {
+		if (!salon || !claveModelo) {
+			ocultarAlertaClaveModelo();
+			return;
+		}
+
+		const params = new URLSearchParams();
+		params.append('salon_tejido_id', salon);
+		params.append('search', claveModelo);
+
+		fetch('/programa-tejido/tamano-clave-by-salon?' + params)
+			.then(r => r.json())
+			.then(opciones => {
+				const existe = Array.isArray(opciones) && opciones.some(op => op === claveModelo);
+				if (!existe) {
+					mostrarAlertaClaveModelo(`La clave modelo "${claveModelo}" no se encuentra en los codificados del salón "${salon}".`);
+					inputClaveModelo.value = '';
+					inputCodArticulo.value = '';
+					inputProducto.value = '';
+				} else {
+					ocultarAlertaClaveModelo();
+					cargarDatosRelacionados(claveModelo);
+				}
+			})
+			.catch(() => {
+			});
+	}
+
+	// Event listeners
 	btnAdd.disabled = true;
 	confirmButton.disabled = true;
 
@@ -1156,13 +1099,12 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		firstPedidoInput.addEventListener('input', recomputeState);
 	}
 
-	// Agregar listeners para cálculo automático en la fila principal inicial
 	const filaPrincipalInicial = document.getElementById('fila-principal');
 	if (filaPrincipalInicial) {
 		agregarListenersCalculoAutomatico(filaPrincipalInicial);
 	}
 
-	// Cargar datos en paralelo para mayor velocidad
+	// Cargar datos en paralelo
 	const fetchSalones = fetch('/programa-tejido/salon-tejido-options', {
 		headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
 	}).then(r => r.json()).catch(() => null);
@@ -1181,9 +1123,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
 	}).then(r => r.json()).catch(() => []);
 
-	// Procesar resultados en paralelo (preservando valores preseleccionados)
 	Promise.all([fetchSalones, fetchHilos, fetchTelares, fetchAplicaciones]).then(([dataSalones, dataHilos, dataTelares, dataAplicaciones]) => {
-		// Procesar salones - mantener valor actual y agregar opciones
+		// Procesar salones
 		let opciones = [];
 		if (Array.isArray(dataSalones)) {
 			opciones = dataSalones;
@@ -1193,9 +1134,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			opciones = Object.values(dataSalones).filter(v => typeof v === 'string');
 		}
 
-		// Solo reconstruir si hay opciones nuevas
 		if (opciones.length > 0) {
 			salonesDisponibles = opciones;
+			window.salonesDisponibles = opciones; // Hacer global
 			const valorActualSalon = selectSalon.value;
 			selectSalon.innerHTML = '<option value="">Seleccionar...</option>';
 			opciones.forEach(item => {
@@ -1206,14 +1147,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				selectSalon.appendChild(option);
 			});
 			salonActualLocal = selectSalon.value || salonActualLocal;
-			document.querySelectorAll('select[name="salon-destino[]"]').forEach(select => {
-				actualizarSelectSalonesParaFila(select, select.value || salonActualLocal);
-				const telarSelect = select.closest('tr')?.querySelector('select[name="telar-destino[]"]');
-				actualizarTelaresPorSalonEnFila(select, telarSelect, telarSelect?.value || '');
-			});
 		}
 
-		// Procesar hilos - mantener valor actual y agregar opciones
+		// Procesar hilos
 		if (dataHilos?.success && dataHilos.data && dataHilos.data.length > 0) {
 			const valorActualHilo = selectHilo.value;
 			selectHilo.innerHTML = '<option value="">Seleccionar...</option>';
@@ -1226,9 +1162,12 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			});
 		}
 
-		// Procesar telares y preseleccionar el telar actual en la primera fila
+		// Procesar telares
 		telaresDisponibles = Array.isArray(dataTelares) ? dataTelares : [];
-		actualizarSelectsTelares(true); // true = preseleccionar telar actual en primera fila
+		window.telaresDisponibles = telaresDisponibles; // Actualizar global
+		if (typeof actualizarSelectsTelares === 'function') {
+			actualizarSelectsTelares(true);
+		}
 
 		// Procesar aplicaciones
 		if (dataAplicaciones && (Array.isArray(dataAplicaciones) ? dataAplicaciones.length > 0 : true)) {
@@ -1238,808 +1177,170 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				const option = document.createElement('option');
 				option.value = item;
 				option.textContent = item;
-				// Preseleccionar la aplicación del registro original si existe
 				if (item === aplicacionOriginal) {
 					option.selected = true;
 				}
 				selectAplicacion.appendChild(option);
 			});
-			// Agregar opción NA si no existe
 			if (!aplicacionesArray.includes('NA')) {
 				const optionNA = document.createElement('option');
 				optionNA.value = 'NA';
 				optionNA.textContent = 'NA';
-				// Preseleccionar NA si no hay aplicación original y es la opción por defecto
 				if (!aplicacionOriginal && !selectAplicacion.value) {
 					optionNA.selected = true;
 				}
 				selectAplicacion.appendChild(optionNA);
 			}
-			// Si hay aplicación original pero no se preseleccionó (no existe en opciones), intentar preseleccionar
 			if (aplicacionOriginal && !selectAplicacion.value) {
 				const optOriginal = Array.from(selectAplicacion.options).find(o => o.value === aplicacionOriginal);
 				if (optOriginal) {
 					optOriginal.selected = true;
 				}
 			}
-			// Si no hay selección previa y no hay aplicación original, forzar NA como valor por defecto
 			if (!selectAplicacion.value) {
 				const optNa = Array.from(selectAplicacion.options).find(o => o.value === 'NA');
 				if (optNa) optNa.selected = true;
 			}
 		}
 
-		// Siempre empezar en modo Duplicar (el usuario puede cambiar manualmente a Dividir si lo desea)
+		// Estado inicial - Determinar modo basado en si tiene registros divididos
 		const modoDuplicar = document.getElementById('modo-duplicar');
-		if (modoDuplicar) modoDuplicar.checked = true;
-		if (switchModo) switchModo.checked = true;
+		const modoDividir = document.getElementById('modo-dividir');
+		const switchModo = document.getElementById('switch-modo');
 
-		// Aplicar estilo inicial del switch (después de que los telares estén cargados)
+		// Si tiene registros divididos, abrir en modo dividir automáticamente
+		if (tieneOrdCompartida) {
+			if (modoDividir) modoDividir.checked = true;
+			if (modoDuplicar) modoDuplicar.checked = false;
+			if (switchModo) switchModo.checked = false;
+		} else {
+		if (modoDuplicar) modoDuplicar.checked = true;
+			if (modoDividir) modoDividir.checked = false;
+		if (switchModo) switchModo.checked = true;
+		}
+
 		actualizarEstiloSwitch();
 		recomputeState();
 	});
 
-	// Agregar listener al campo "Pedido Total" para redistribuir en modo dividir
-	const inputPedidoTotal = document.getElementById('swal-pedido');
-	if (inputPedidoTotal) {
-		inputPedidoTotal.addEventListener('input', () => {
-			redistribuirPedidoTotalEntreTelares();
+	// Event listeners para autocompletado de Clave Modelo
+	if (inputClaveModelo) {
+		inputClaveModelo.addEventListener('input', (e) => {
+			clearTimeout(debounceTimer);
+			debounceTimer = setTimeout(() => buscarClaveModelo(e.target.value), 150);
+		});
+
+		inputClaveModelo.addEventListener('focus', () => {
+			if (inputClaveModelo.value.length >= 1) {
+				buscarClaveModelo(inputClaveModelo.value);
+			}
+		});
+
+		inputClaveModelo.addEventListener('blur', () => {
+			setTimeout(() => containerSugerencias.classList.add('hidden'), 200);
+			const val = inputClaveModelo.value?.trim();
+			if (val) cargarDatosRelacionados(val);
+		});
+
+		inputClaveModelo.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				containerSugerencias.classList.add('hidden');
+				if (inputClaveModelo.value) {
+					cargarDatosRelacionados(inputClaveModelo.value);
+				}
+			}
 		});
 	}
 
-	// Elementos para mostrar alerta de clave modelo
-	const alertaClaveModelo = document.getElementById('alerta-clave-modelo');
-	const alertaClaveModeloTexto = document.getElementById('alerta-clave-modelo-texto');
+	// Event listeners para autocompletado de Flog
+	if (inputFlog && containerSugerenciasFlog) {
+		inputFlog.addEventListener('input', (e) => {
+			clearTimeout(debounceTimerFlog);
+			const valor = e.target.value;
+			if (valor.length >= 2) {
+				debounceTimerFlog = setTimeout(() => cargarOpcionesFlog(valor), 300);
+			} else {
+				containerSugerenciasFlog.classList.add('hidden');
+			}
+		});
 
-	// Función para mostrar/ocultar alerta de clave modelo
-	function mostrarAlertaClaveModelo(mensaje) {
-		if (alertaClaveModelo && alertaClaveModeloTexto) {
-			alertaClaveModeloTexto.textContent = mensaje;
-			alertaClaveModelo.classList.remove('hidden');
-		}
-	}
-
-	function ocultarAlertaClaveModelo() {
-		if (alertaClaveModelo) {
-			alertaClaveModelo.classList.add('hidden');
-		}
-	}
-
-	// Función para validar si la clave modelo existe en el salón seleccionado
-	function validarClaveModeloEnSalon(salon, claveModelo) {
-		if (!salon || !claveModelo) {
-			ocultarAlertaClaveModelo();
-			return;
-		}
-
-		const params = new URLSearchParams();
-		params.append('salon_tejido_id', salon);
-		params.append('search', claveModelo);
-
-		fetch('/programa-tejido/tamano-clave-by-salon?' + params)
-			.then(r => r.json())
-			.then(opciones => {
-				const existe = Array.isArray(opciones) && opciones.some(op => op === claveModelo);
-				if (!existe) {
-					mostrarAlertaClaveModelo(`La clave modelo "${claveModelo}" no se encuentra en los codificados del salón "${salon}".`);
-					// Limpiar campos relacionados ya que la clave no es válida para este salón
-					inputClaveModelo.value = '';
-					inputCodArticulo.value = '';
-					inputProducto.value = '';
+		inputFlog.addEventListener('focus', async () => {
+			if (sugerenciasFlog && sugerenciasFlog.length > 0) {
+				mostrarSugerenciasFlog(sugerenciasFlog);
 				} else {
-					ocultarAlertaClaveModelo();
-					cargarDatosRelacionados(claveModelo);
+				await cargarOpcionesFlog('');
+			}
+		});
+
+		inputFlog.addEventListener('blur', () => {
+			setTimeout(() => containerSugerenciasFlog.classList.add('hidden'), 200);
+		});
+
+		inputFlog.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				containerSugerenciasFlog.classList.add('hidden');
+				if (inputFlog.value) {
+					cargarDescripcionPorFlog(inputFlog.value);
 				}
-			})
-			.catch(() => {
-				// En caso de error, no bloquear pero avisar
-				console.warn('No se pudo validar la clave modelo en el salón seleccionado');
-			});
+			}
+		});
 	}
 
-	// Validación para destinos: solo valida existencia y no modifica campos globales
-	async function validarClaveModeloEnSalonDestino(salon, claveModelo) {
-		if (!salon || !claveModelo) return true;
-
-		const params = new URLSearchParams();
-		params.append('salon_tejido_id', salon);
-		params.append('search', claveModelo);
-
-		try {
-			const opciones = await fetch('/programa-tejido/tamano-clave-by-salon?' + params).then(r => r.json());
-			return Array.isArray(opciones) && opciones.some(op => op === claveModelo);
-		} catch (e) {
-			console.warn('No se pudo validar la clave modelo en el salon destino');
-			return true;
-		}
-	}
-
-	// Evento cuando cambia el salón - cargar telares y validar clave modelo
+	// Event listener para cambio de salón
 	selectSalon.addEventListener('change', () => {
 		salonActualLocal = selectSalon.value;
+		if (typeof cargarTelaresPorSalon === 'function') {
 		cargarTelaresPorSalon(selectSalon.value, false);
-		// Validar si la clave modelo actual existe en el nuevo salón
+		}
 		const claveModeloActual = inputClaveModelo?.value?.trim();
 		if (claveModeloActual) {
 			validarClaveModeloEnSalon(selectSalon.value, claveModeloActual);
 		} else {
-			// Si no hay clave modelo, ocultar la alerta automáticamente
 			ocultarAlertaClaveModelo();
 		}
 	});
 
-	// Evento para añadir nuevas filas de telar/pedido
+	// Event listener para añadir filas
 	btnAdd.addEventListener('click', () => {
 		const modoActual = getModoActual();
 		const esDuplicar = modoActual === 'duplicar';
 
 		if (!esDuplicar) {
-			// Modo dividir: usar la función especializada
+			if (typeof agregarFilaDividir === 'function') {
 			agregarFilaDividir();
+			}
 			recomputeState();
 			return;
 		}
 
-		// Modo duplicar: comportamiento original
-		const newRow = document.createElement('tr');
-		newRow.className = 'telar-row border-t border-gray-200';
-
-		// Crear el select con las opciones de telares disponibles del salón seleccionado
-		let telarOptionsHTML = '<option value="">Seleccionar...</option>';
-		telaresDisponibles.forEach(t => {
-			telarOptionsHTML += '<option value="' + t + '">' + t + '</option>';
-		});
-
-		newRow.innerHTML =
-			'<td class="p-2 border-r border-gray-200 hidden">' +
-				'<input type="hidden" name="salon-destino[]" value="' + (selectSalon?.value || salonActualLocal || '') + '">' +
-			'</td>' +
-			'<td class="p-2 border-r border-gray-200">' +
-				'<select name="telar-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">' +
-					telarOptionsHTML +
-				'</select>' +
-			'</td>' +
-			'<td class="p-2 border-r border-gray-200">' +
-				'<input type="number" name="pedido-tempo-destino[]" value="${pedidoOriginal}" placeholder=""' +
-					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
-			'</td>' +
-			'<td class="p-2 border-r border-gray-200">' +
-				'<input type="number" name="porcentaje-segundos-destino[]" value="0" placeholder="0.00" step="0.01" min="0"' +
-					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
-			'</td>' +
-			'<td class="p-2 border-r border-gray-200">' +
-				'<input type="number" name="pedido-destino[]" placeholder=""' +
-					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
-			'</td>' +
-			'<td class="p-2 border-r border-gray-200">' +
-				'<input type="text" name="observaciones-destino[]" placeholder="Observaciones..."' +
-					' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
-			'</td>' +
-			'<td class="p-2 text-center w-10">' +
-				'<button type="button" class="btn-remove-row text-red-500 hover:text-red-700 transition-colors" title="Eliminar fila">' +
-					'<i class="fas fa-times"></i>' +
-				'</button>' +
-			'</td>';
-		tbody.appendChild(newRow);
-
-		newRow.querySelector('.btn-remove-row').addEventListener('click', () => {
-			newRow.remove();
-			recomputeState();
-		});
-
-		const telarSelect = newRow.querySelector('select[name="telar-destino[]"]');
-		const pedidoInput = newRow.querySelector('input[name="pedido-destino[]"]');
-		if (telarSelect) telarSelect.addEventListener('change', recomputeState);
-		if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
-
-		// Agregar listeners para cálculo automático
-		agregarListenersCalculoAutomatico(newRow);
+		if (typeof agregarFilaDuplicar === 'function') {
+			agregarFilaDuplicar();
+		}
+		recomputeState();
 	});
 
-	// ===== Switch Dividir/Duplicar =====
+	// Event listener para Pedido Total (redistribuir en modo dividir)
+				const inputPedidoTotal = document.getElementById('swal-pedido');
+				if (inputPedidoTotal) {
+		inputPedidoTotal.addEventListener('input', () => {
+			if (typeof redistribuirPedidoTotalEntreTelares === 'function') {
+				redistribuirPedidoTotalEntreTelares();
+			}
+		});
+	}
+
+	// Event listeners para el switch de modo
 	const switchModo = document.getElementById('switch-modo');
 	const pillDuplicar = document.getElementById('pill-duplicar');
 	const pillDividir = document.getElementById('pill-dividir');
-	const descDuplicar = document.getElementById('desc-duplicar');
-	const descDividir = document.getElementById('desc-dividir');
-	const checkboxVincular = document.getElementById('checkbox-vincular');
-	const checkboxVincularContainer = document.getElementById('checkbox-vincular-container');
-	const thSalon = document.getElementById('th-salon');
-	const thTelar = document.getElementById('th-telar');
-	const thPedidoTempo = document.getElementById('th-pedido-tempo');
-	const telarOriginal = document.getElementById('telar-original')?.value || telarActual;
-	const pedidoOriginal = document.getElementById('pedido-original')?.value || '';
 
-	// Función para reconstruir la tabla según el modo
-	async function reconstruirTablaSegunModo(esDuplicar) {
-		// Limpiar filas adicionales
-		const filasAdicionales = tbody.querySelectorAll('tr:not(#fila-principal)');
-		filasAdicionales.forEach(fila => fila.remove());
-
-		const filaPrincipal = document.getElementById('fila-principal');
-		if (!filaPrincipal) return;
-
-		// Mostrar/ocultar resumen de cantidades
-		const resumenCantidades = document.getElementById('resumen-cantidades');
-		if (resumenCantidades) {
-			resumenCantidades.classList.toggle('hidden', esDuplicar);
-		}
-		if (thSalon) {
-			thSalon.classList.toggle('hidden', esDuplicar);
-		}
-
-		if (esDuplicar) {
-			// === MODO DUPLICAR ===
-			// Header normal
-			if (thTelar) thTelar.textContent = 'Telar';
-			if (thPedidoTempo) thPedidoTempo.textContent = 'Pedido';
-
-			// Primera fila: select editable para telar destino
-			filaPrincipal.innerHTML = `
-				<td class="p-2 border-r border-gray-200 hidden">
-					<input type="hidden" name="salon-destino[]" value="${selectSalon?.value || salonActualLocal || ''}">
-				</td>
-				<td class="p-2 border-r border-gray-200">
-					<select name="telar-destino[]" data-telar-actual="${telarOriginal}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
-						${telarOriginal ? `<option value="${telarOriginal}" selected>${telarOriginal}</option>` : '<option value="">Seleccionar...</option>'}
-					</select>
-				</td>
-				<td class="p-2 border-r border-gray-200">
-					<input type="text" name="pedido-tempo-destino[]" value="${pedidoOriginal}"
-						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-				</td>
-				<td class="p-2 border-r border-gray-200">
-					<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0"
-						placeholder="0.00"
-						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-				</td>
-				<td class="p-2 border-r border-gray-200">
-					<input type="text" name="pedido-destino[]" value="${pedidoOriginal}"
-						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-				</td>
-				<td class="p-2 border-r border-gray-200">
-					<input type="text" name="observaciones-destino[]" value=""
-						placeholder="Observaciones..."
-						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-				</td>
-				<td class="p-2 text-center w-10"></td>
-			`;
-
-			// Actualizar opciones del select de telar
-			const selectTelar = filaPrincipal.querySelector('select[name="telar-destino[]"]');
-			if (selectTelar && telaresDisponibles.length > 0) {
-				selectTelar.innerHTML = '<option value="">Seleccionar...</option>';
-				telaresDisponibles.forEach(t => {
-					const option = document.createElement('option');
-					option.value = t;
-					option.textContent = t;
-					if (t == telarOriginal) option.selected = true;
-					selectTelar.appendChild(option);
-				});
-			}
-
-			// Re-registrar eventos
-			const telarSelect = filaPrincipal.querySelector('select[name="telar-destino[]"]');
-			const pedidoInput = filaPrincipal.querySelector('input[name="pedido-destino[]"]');
-			if (telarSelect) telarSelect.addEventListener('change', recomputeState);
-			if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
-
-			// Agregar listeners para cálculo automático
-			agregarListenersCalculoAutomatico(filaPrincipal);
-
-		} else {
-			// === MODO DIVIDIR ===
-			// Header indica origen y destino
-			if (thTelar) thTelar.textContent = 'Telar';
-			if (thPedidoTempo) thPedidoTempo.textContent = 'Pedido';
-
-			// Verificar si ya tiene OrdCompartida (ya fue dividido antes)
-			if (tieneOrdCompartida) {
-				// Cargar registros existentes del grupo
-				await cargarRegistrosOrdCompartida(ordCompartidaActualLocal);
-			} else {
-				// Primera división - comportamiento original
-				// Primera fila: telar ORIGINAL bloqueado (readonly)
-				filaPrincipal.innerHTML = `
-					<td class="p-2 border-r border-gray-200">
-						<input type="text" name="salon-destino[]" value="${selectSalon?.value || salonActualLocal || ''}" readonly
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
-					</td>
-					<td class="p-2 border-r border-gray-200">
-						<div class="flex items-center gap-2">
-							<input type="text" name="telar-destino[]" value="${telarOriginal}" readonly
-								data-registro-id=""
-								class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
-						</div>
-					</td>
-					<td class="p-2 border-r border-gray-200">
-						<input type="text" name="pedido-tempo-destino[]" value="${pedidoOriginal}"
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-					</td>
-					<td class="p-2 border-r border-gray-200">
-						<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0"
-							placeholder="0.00"
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-					</td>
-					<td class="p-2 border-r border-gray-200">
-						<input type="text" name="pedido-destino[]" value="${pedidoOriginal}" placeholder="Cantidad para este telar..."
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-							oninput="actualizarResumenCantidades()">
-					</td>
-					<td class="p-2 border-r border-gray-200">
-						<input type="text" name="observaciones-destino[]" value=""
-							placeholder="Observaciones..."
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-					</td>
-					<td class="p-2 text-center w-10">
-						<i class="fas fa-lock text-gray-400" title="Telar origen"></i>
-					</td>
-				`;
-
-				// Agregar automáticamente una fila para el telar destino
-				agregarFilaDividir();
-
-				// Agregar listeners para cálculo automático en la fila principal
-				agregarListenersCalculoAutomatico(filaPrincipal);
-
-				// Sincronizar pedido tempo con total si el porcentaje es 0
-				setTimeout(() => {
-					sincronizarPedidoTempoYTotal(filaPrincipal, true);
-				}, 100);
-			}
-
-			// Re-registrar eventos
-			const pedidoInput = filaPrincipal.querySelector('input[name="pedido-destino[]"]:not([readonly])');
-			if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
-		}
-
-		recomputeState();
-	}
-
-	// Función para cargar registros existentes de OrdCompartida
-	async function cargarRegistrosOrdCompartida(ordCompartida) {
-		// Validar que ordCompartida sea válido
-		if (!ordCompartida) {
-			console.warn('cargarRegistrosOrdCompartida: ordCompartida no proporcionado');
-			return;
-		}
-
-		// Convertir a número y validar
-		const ordCompartidaNum = parseInt(ordCompartida, 10);
-		if (isNaN(ordCompartidaNum) || ordCompartidaNum <= 0) {
-			console.warn('cargarRegistrosOrdCompartida: ordCompartida inválido:', ordCompartida);
-			return;
-		}
-
-		try {
-			// Construir la URL de forma más robusta
-			const baseUrl = window.location.origin;
-			const url = `${baseUrl}/planeacion/programa-tejido/registros-ord-compartida/${ordCompartidaNum}`;
-
-			const csrfToken = document.querySelector('meta[name="csrf-token"]');
-			if (!csrfToken) {
-				console.error('No se encontró el token CSRF');
-				return;
-			}
-
-			const response = await fetch(url, {
-				method: 'GET',
-				headers: {
-					'Accept': 'application/json',
-					'Content-Type': 'application/json',
-					'X-CSRF-TOKEN': csrfToken.content,
-					'X-Requested-With': 'XMLHttpRequest'
-				},
-				credentials: 'same-origin'
-			});
-
-			// Validar que la respuesta sea exitosa
-			if (!response.ok) {
-				throw new Error(`Error HTTP: ${response.status} ${response.statusText}`);
-			}
-
-			// Validar que la respuesta sea JSON
-			const contentType = response.headers.get('content-type');
-			if (!contentType || !contentType.includes('application/json')) {
-				throw new Error('La respuesta no es JSON válido');
-			}
-
-			const data = await response.json();
-
-			if (data.success && data.registros && data.registros.length > 0) {
-				registrosOrdCompartidaExistentes = data.registros;
-				const totalOriginal = data.total_original || 0;
-
-				// Actualizar el total disponible (para el resumen)
-				const totalDisponible = document.getElementById('total-disponible');
-				if (totalDisponible) {
-					totalDisponible.textContent = totalOriginal;
-				}
-
-				// Actualizar el campo "Pedido Total" con la suma de las cantidades de los telares divididos
-				const inputPedidoTotal = document.getElementById('swal-pedido');
-				if (inputPedidoTotal) {
-					inputPedidoTotal.value = totalOriginal;
-				}
-
-				// Limpiar tabla
-				tbody.innerHTML = '';
-
-				// Crear filas para cada registro existente
-				data.registros.forEach((reg, index) => {
-					const esRegistroActual = reg.Id == registroIdActual;
-					const esPrimero = index === 0;
-					const puedeEliminar = !esPrimero && !reg.EnProceso;
-
-					const newRow = document.createElement('tr');
-					newRow.className = 'telar-row border-t border-gray-200';
-					newRow.id = esPrimero ? 'fila-principal' : '';
-					newRow.dataset.registroId = reg.Id;
-					newRow.dataset.esExistente = 'true';
-
-					newRow.innerHTML = `
-						<td class="p-2 border-r border-gray-200">
-							<input type="text" name="salon-destino[]" value="${reg.SalonTejidoId || selectSalon?.value || salonActualLocal || ''}" readonly
-								data-registro-id="${reg.Id}"
-								class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
-						</td>
-						<td class="p-2 border-r border-gray-200">
-							<div class="flex items-center gap-2">
-								<input type="text" name="telar-destino[]" value="${reg.NoTelarId}" readonly
-									data-registro-id="${reg.Id}"
-									class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
-								${reg.EnProceso ? '<span class="text-xs text-blue-600"><i class="fas fa-play-circle"></i></span>' : ''}
-							</div>
-						</td>
-						<td class="p-2 border-r border-gray-200">
-							<input type="text" name="pedido-tempo-destino[]" value="${reg.PedidoTempo || (reg.PorcentajeSegundos === 0 || !reg.PorcentajeSegundos ? (reg.TotalPedido || '') : '')}"
-								data-registro-id="${reg.Id}"
-								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-						</td>
-						<td class="p-2 border-r border-gray-200">
-							<input type="number" name="porcentaje-segundos-destino[]" value="${reg.PorcentajeSegundos !== null && reg.PorcentajeSegundos !== undefined ? reg.PorcentajeSegundos : '0'}" step="0.01" min="0"
-								placeholder="0.00"
-								data-registro-id="${reg.Id}"
-								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-						</td>
-						<td class="p-2 border-r border-gray-200">
-							<input type="text" name="pedido-destino[]" value="${reg.TotalPedido || 0}"
-								placeholder="Cantidad..."
-								data-registro-id="${reg.Id}"
-								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-								oninput="actualizarResumenCantidades()">
-						</td>
-						<td class="p-2 border-r border-gray-200">
-							<input type="text" name="observaciones-destino[]" value="${reg.Observaciones || ''}"
-								placeholder="Observaciones..."
-								data-registro-id="${reg.Id}"
-								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-						</td>
-						<td class="p-2 text-center w-10">
-							${esPrimero
-								? '<i class="fas fa-lock text-gray-400" title="Telar origen"></i>'
-								: (puedeEliminar
-									? '<button type="button" class="btn-remove-row text-red-500 hover:text-red-700 transition-colors" title="Eliminar"><i class="fas fa-times"></i></button>'
-									: '<i class="fas fa-lock text-gray-400" title="En proceso"></i>')}
-						</td>
-					`;
-
-				tbody.appendChild(newRow);
-
-					// Evento para eliminar fila (solo si puede eliminar)
-					if (puedeEliminar) {
-						const btnRemove = newRow.querySelector('.btn-remove-row');
-						if (btnRemove) {
-							btnRemove.addEventListener('click', function(e) {
-								e.preventDefault();
-								e.stopPropagation();
-
-								const registroIdEliminar = reg.Id;
-								const telarEliminar = reg.NoTelarId;
-								const cantidadRegistro = parseFloat(reg.TotalPedido) || 0;
-								const filaAEliminar = newRow;
-
-								// Confirmar con SweetAlert2
-								Swal.fire({
-									title: '¿Eliminar registro?',
-									html: `<p>Se eliminará el registro del telar <strong>${telarEliminar}</strong> de la base de datos.</p>
-										   <p class="text-sm text-gray-500 mt-2">Esta acción no se puede deshacer.</p>`,
-									icon: 'warning',
-									showCancelButton: true,
-									confirmButtonText: 'Sí, eliminar',
-									cancelButtonText: 'Cancelar',
-									confirmButtonColor: '#dc2626',
-									cancelButtonColor: '#6b7280',
-									reverseButtons: true,
-									focusCancel: true
-								}).then((result) => {
-									if (result.isConfirmed) {
-										// Mostrar loading
-										Swal.fire({
-											title: 'Eliminando...',
-											text: 'Por favor espere',
-											allowOutsideClick: false,
-											allowEscapeKey: false,
-											showConfirmButton: false,
-											didOpen: () => {
-												Swal.showLoading();
-											}
-										});
-
-										// Eliminar de la base de datos
-										fetch(`/planeacion/programa-tejido/${registroIdEliminar}`, {
-											method: 'DELETE',
-											headers: {
-												'Content-Type': 'application/json',
-												'Accept': 'application/json',
-												'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-											}
-										})
-										.then(response => response.json())
-										.then(dataDelete => {
-											Swal.close();
-
-										if (dataDelete.success) {
-												// Mostrar mensaje de éxito y recargar la página
-												Swal.fire({
-													icon: 'success',
-													title: '¡Eliminado!',
-													text: 'El registro ha sido eliminado correctamente',
-													timer: 1500,
-													showConfirmButton: false
-												}).then(() => {
-													// Recargar la página
-													window.location.reload();
-												});
-											} else {
-												Swal.fire({
-													icon: 'error',
-													title: 'Error',
-													text: dataDelete.message || 'Error al eliminar el registro'
-												});
-											}
-										})
-										.catch(error => {
-											console.error('Error al eliminar registro:', error);
-											Swal.fire({
-												icon: 'error',
-												title: 'Error',
-												text: 'Error al eliminar el registro'
-											});
-										});
-									}
-								});
-							});
-						}
-					}
-
-					// Evento para actualizar al cambiar cantidad
-					const pedidoInput = newRow.querySelector('input[name="pedido-destino[]"]');
-					if (pedidoInput) {
-						pedidoInput.addEventListener('input', () => {
-							actualizarResumenCantidades();
-							recomputeState();
-						});
-					}
-
-					// Agregar listeners para cálculo automático
-					agregarListenersCalculoAutomatico(newRow);
-
-					// Sincronizar pedido tempo con total si el porcentaje es 0
-					setTimeout(() => {
-						sincronizarPedidoTempoYTotal(newRow, true);
-					}, 50);
-				});
-
-				// Actualizar resumen
-				actualizarResumenCantidades();
-			}
-		} catch (error) {
-			console.error('Error al cargar registros de OrdCompartida:', error);
-
-			// Mostrar mensaje de error al usuario si existe la función showToast
-			if (typeof showToast === 'function') {
-				let mensaje = 'Error al cargar los registros vinculados';
-				if (error.message) {
-					mensaje += `: ${error.message}`;
-				}
-				showToast(mensaje, 'error');
-			}
-
-			// Limpiar registros existentes en caso de error
-			registrosOrdCompartidaExistentes = [];
-
-			// Limpiar la tabla si existe
-			const tbody = document.querySelector('#tabla-telares-destino tbody');
-			if (tbody) {
-				tbody.innerHTML = '';
-			}
-		}
-	}
-
-	// Función para actualizar el resumen de cantidades
-	function actualizarResumenCantidades() {
-		const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
-		const sumaCantidades = document.getElementById('suma-cantidades');
-		const totalDisponible = document.getElementById('total-disponible');
-		const diferenciaCantidades = document.getElementById('diferencia-cantidades');
-
-		if (!sumaCantidades || !totalDisponible) return;
-
-		let suma = 0;
-		pedidoInputs.forEach(input => {
-			const val = parseFloat(input.value) || 0;
-			suma += val;
-		});
-
-		const total = parseFloat(totalDisponible.textContent) || 0;
-		const diferencia = total - suma;
-
-		sumaCantidades.textContent = suma.toLocaleString('es-MX');
-
-
-	}
-
-	// Hacer la función global para que se pueda llamar desde oninput
-	window.actualizarResumenCantidades = actualizarResumenCantidades;
-
-	// Función para agregar fila en modo dividir
-	function agregarFilaDividir() {
-		const newRow = document.createElement('tr');
-		newRow.className = 'telar-row border-t border-gray-200';
-		newRow.dataset.esExistente = 'false';
-		newRow.dataset.esNuevo = 'true';
-
-		let telarOptionsHTML = '<option value="">Seleccionar destino...</option>';
-
-		newRow.innerHTML = `
-			<td class="p-2 border-r border-gray-200">
-				<select name="salon-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-					<option value="">Seleccionar...</option>
-				</select>
-			</td>
-			<td class="p-2 border-r border-gray-200">
-				<div class="flex items-center gap-2">
-					<select name="telar-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 telar-destino-select">
-						${telarOptionsHTML}
-					</select>
-				</div>
-			</td>
-			<td class="p-2 border-r border-gray-200">
-				<input type="text" name="pedido-tempo-destino[]" value=""
-					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-			</td>
-			<td class="p-2 border-r border-gray-200">
-				<input type="number" name="porcentaje-segundos-destino[]" value="0" placeholder="0.00" step="0.01" min="0"
-					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-			</td>
-			<td class="p-2 border-r border-gray-200">
-				<input type="text" name="pedido-destino[]" placeholder="Cantidad para este telar..."
-					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-					oninput="actualizarResumenCantidades()">
-			</td>
-			<td class="p-2 border-r border-gray-200">
-				<input type="text" name="observaciones-destino[]" placeholder="Observaciones..."
-					class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-			</td>
-			<td class="p-2 text-center w-10">
-				<button type="button" class="btn-remove-row text-red-500 hover:text-red-700 transition-colors" title="Eliminar fila">
-					<i class="fas fa-times"></i>
-				</button>
-			</td>
-		`;
-
-		tbody.appendChild(newRow);
-
-		// Eventos
-		newRow.querySelector('.btn-remove-row')?.addEventListener('click', () => {
-			newRow.remove();
-			actualizarResumenCantidades();
-			recomputeState();
-		});
-
-		const salonSelect = newRow.querySelector('select[name="salon-destino[]"]');
-		const telarSelect = newRow.querySelector('select[name="telar-destino[]"]');
-		const pedidoInput = newRow.querySelector('input[name="pedido-destino[]"]');
-		if (salonSelect) {
-			actualizarSelectSalonesParaFila(salonSelect, salonActualLocal);
-			actualizarTelaresPorSalonEnFila(salonSelect, telarSelect);
-			salonSelect.addEventListener('change', async () => {
-				actualizarTelaresPorSalonEnFila(salonSelect, telarSelect);
-				const claveModeloActual = inputClaveModelo?.value?.trim();
-				if (claveModeloActual) {
-					const existe = await validarClaveModeloEnSalonDestino(salonSelect.value, claveModeloActual);
-					if (!existe) {
-						if (typeof showToast === 'function') {
-							showToast('La clave modelo no existe en el salon seleccionado', 'error');
-						}
-						salonSelect.value = '';
-						actualizarTelaresPorSalonEnFila(salonSelect, telarSelect);
-					}
-				}
-				recomputeState();
-			});
-		}
-		if (telarSelect) telarSelect.addEventListener('change', recomputeState);
-		if (pedidoInput) {
-			pedidoInput.addEventListener('input', () => {
-				actualizarResumenCantidades();
-				recomputeState();
-			});
-		}
-
-		// Agregar listeners para cálculo automático
-		agregarListenersCalculoAutomatico(newRow);
-	}
-
-	function actualizarEstiloSwitch() {
-		const modoActual = getModoActual();
-		const vincularActivado = checkboxVincular && checkboxVincular.checked;
-
-		// Resetear todos los botones a estado inactivo
-		[pillDuplicar, pillDividir].forEach(pill => {
-			if (pill) {
-				pill.classList.add('bg-white', 'text-gray-700', 'opacity-80', 'shadow-sm');
-				pill.classList.remove('bg-blue-500', 'bg-green-500', 'text-white', 'opacity-100', 'shadow-md');
-			}
-		});
-
-		// Ocultar todas las descripciones
-		[descDuplicar, descDividir].forEach(desc => {
-			if (desc) desc.classList.add('hidden');
-		});
-
-		// Mostrar/ocultar checkbox de vincular según el modo
-		if (checkboxVincularContainer) {
-			checkboxVincularContainer.style.display = modoActual === 'duplicar' ? 'flex' : 'none';
-		}
-
-		if (modoActual === 'duplicar') {
-			// Activo: Duplicar (azul)
-			if (pillDuplicar) {
-				pillDuplicar.classList.add('bg-blue-500', 'text-white', 'opacity-100', 'shadow-md');
-				pillDuplicar.classList.remove('bg-white', 'text-gray-700', 'opacity-80', 'shadow-sm');
-			}
-			if (descDuplicar) descDuplicar.classList.remove('hidden');
-
-			// Botón confirmar: azul si no está vinculando, morado si está vinculando
-			if (confirmButton) {
-				if (vincularActivado) {
-					confirmButton.textContent = 'Vincular';
-					confirmButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-green-500', 'hover:bg-green-600');
-					confirmButton.classList.add('bg-purple-500', 'hover:bg-purple-600');
-				} else {
-					confirmButton.textContent = 'Duplicar';
-					confirmButton.classList.remove('bg-green-500', 'hover:bg-green-600', 'bg-purple-500', 'hover:bg-purple-600');
-					confirmButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
-				}
-			}
-		} else if (modoActual === 'dividir') {
-			// Activo: Dividir (verde)
-			if (pillDividir) {
-				pillDividir.classList.add('bg-green-500', 'text-white', 'opacity-100', 'shadow-md');
-				pillDividir.classList.remove('bg-white', 'text-gray-700', 'opacity-80', 'shadow-sm');
-			}
-			if (descDividir) descDividir.classList.remove('hidden');
-
-			// Botón confirmar verde
-			if (confirmButton) {
-				confirmButton.textContent = 'Dividir';
-				confirmButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-purple-500', 'hover:bg-purple-600');
-				confirmButton.classList.add('bg-green-500', 'hover:bg-green-600');
-			}
-		}
-
-		// Reconstruir la tabla según el modo
-		reconstruirTablaSegunModo(modoActual === 'duplicar');
-	}
-
-	// Event listeners para los botones del switch
 	if (pillDuplicar) {
 		pillDuplicar.addEventListener('click', () => {
 			const modoDuplicar = document.getElementById('modo-duplicar');
 			if (modoDuplicar) modoDuplicar.checked = true;
-			if (switchModo) switchModo.checked = true; // mantener compatibilidad
+			if (switchModo) switchModo.checked = true;
 			actualizarEstiloSwitch();
 		});
 	}
@@ -2048,25 +1349,59 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		pillDividir.addEventListener('click', () => {
 			const modoDividir = document.getElementById('modo-dividir');
 			if (modoDividir) modoDividir.checked = true;
-			if (switchModo) switchModo.checked = false; // mantener compatibilidad
+			if (switchModo) switchModo.checked = false;
 			actualizarEstiloSwitch();
 		});
 	}
 
 	// Event listener para el checkbox de vincular
+	const checkboxVincular = document.getElementById('checkbox-vincular');
 	if (checkboxVincular) {
-		// Asegurar que el checkbox esté desactivado por defecto
 		checkboxVincular.checked = false;
 		checkboxVincular.addEventListener('change', () => {
 			actualizarEstiloSwitch();
 		});
 	}
 
-	// Estado inicial: actualizar estilos y mostrar/ocultar checkbox según el modo
+	// Estado inicial
 	actualizarEstiloSwitch();
-
-	// Evaluar estado inicial (por si ya vienen valores prellenados)
 	recomputeState();
+
+	// Listener global para capturar cambios en inputs de pedido y porcentaje (DELEGACIÓN DE EVENTOS)
+	// Solo agregar una vez usando una bandera global
+	if (!window.modalDuplicarListenersGlobalesAgregados) {
+		window.modalDuplicarListenersGlobalesAgregados = true;
+
+		document.addEventListener('input', (event) => {
+			// No ejecutar si se está redistribuyendo
+			if (window.redistribuyendo) {
+				return;
+			}
+
+			const target = event.target;
+			const modoActual = getModoActual();
+
+			// Si es modo dividir y el input es pedido-tempo-destino
+			if (target.matches('input[name="pedido-tempo-destino[]"]') && modoActual === 'dividir') {
+				// Encontrar la fila padre
+				const row = target.closest('tr.telar-row') || target.closest('tr');
+				if (row && typeof window.calcularSaldoTotal === 'function') {
+					window.calcularSaldoTotal(row);
+				}
+				return;
+			}
+
+			// Si es modo dividir y el input es porcentaje-segundos-destino
+			if (target.matches('input[name="porcentaje-segundos-destino[]"]') && modoActual === 'dividir') {
+				// Encontrar la fila padre
+				const row = target.closest('tr.telar-row') || target.closest('tr');
+				if (row && typeof window.calcularSaldoTotal === 'function') {
+					window.calcularSaldoTotal(row);
+				}
+				return;
+			}
+		}, true); // Usar capture para capturar antes que otros listeners
+	}
 }
 
 // Valida y captura los datos del modal para enviar al backend
