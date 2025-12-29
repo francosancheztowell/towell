@@ -239,6 +239,7 @@ class BalancearTejido
                     'FechaInicio',
                     'FechaFinal',
                     'OrdCompartida',
+                    'OrdCompartidaLider',
                     'FibraRizo',
                     'VelocidadSTD',
                     'EficienciaSTD',

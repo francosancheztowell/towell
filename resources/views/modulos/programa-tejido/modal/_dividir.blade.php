@@ -777,12 +777,13 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 
 			// Crear filas para cada registro existente
 			data.registros.forEach((reg, index) => {
-				const esPrimero = index === 0;
-				const puedeEliminar = !esPrimero && !reg.EnProceso;
+				// El candado se muestra en el registro que tiene OrdCompartidaLider = 1
+				const esLider = reg.OrdCompartidaLider === 1 || reg.OrdCompartidaLider === true || reg.OrdCompartidaLider === '1';
+				const puedeEliminar = !esLider && !reg.EnProceso;
 
 				const newRow = document.createElement('tr');
 				newRow.className = 'telar-row border-t border-gray-200';
-				newRow.id = esPrimero ? 'fila-principal' : '';
+				newRow.id = esLider ? 'fila-principal' : '';
 				newRow.dataset.registroId = reg.Id;
 				newRow.dataset.esExistente = 'true';
 
@@ -824,8 +825,8 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 					</td>
 					<td class="p-2 text-center w-10">
-						${esPrimero
-							? '<i class="fas fa-lock text-gray-400" title="Telar origen"></i>'
+						${esLider
+							? '<i class="fas fa-lock text-gray-400" title="Telar líder"></i>'
 							: (puedeEliminar
 								? '<button type="button" class="btn-remove-row text-red-500 hover:text-red-700 transition-colors" title="Eliminar"><i class="fas fa-times"></i></button>'
 								: '<i class="fas fa-lock text-gray-400" title="En proceso"></i>')}

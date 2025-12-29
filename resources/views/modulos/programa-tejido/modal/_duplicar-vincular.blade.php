@@ -101,13 +101,16 @@ function agregarFilaDuplicar() {
 			'<input type="number" name="porcentaje-segundos-destino[]" value="0" placeholder="0.00" step="0.01" min="0"' +
 				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 		'</td>' +
-		'<td class="p-2 border-r border-gray-200 produccion-cell">' +
-			'<input type="number" name="pedido-destino[]" placeholder=""' +
-				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
+		'<td class="p-2 border-r border-gray-200 produccion-cell hidden">' +
+			'<input type="hidden" name="pedido-destino[]" value="">' +
 		'</td>' +
 		'<td class="p-2 border-r border-gray-200 saldo-total-cell hidden">' +
 			'<input type="text" value="" readonly' +
 				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">' +
+		'</td>' +
+		'<td class="p-2 border-r border-gray-200 saldo-cell">' +
+			'<input type="number" name="saldo-destino[]" value="' + pedidoOriginal + '" step="0.01" min="0"' +
+				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 		'</td>' +
 		'<td class="p-2 border-r border-gray-200">' +
 			'<input type="text" name="observaciones-destino[]" placeholder="Observaciones..."' +
@@ -142,5 +145,10 @@ function agregarFilaDuplicar() {
 	}
 	if (typeof aplicarVisibilidadColumnas === 'function') {
 		aplicarVisibilidadColumnas(true);
+	}
+
+	// Calcular saldo inicial para la nueva fila
+	if (typeof calcularSaldoDuplicar === 'function') {
+		calcularSaldoDuplicar(newRow);
 	}
 }

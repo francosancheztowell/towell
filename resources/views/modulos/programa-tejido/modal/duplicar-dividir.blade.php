@@ -354,6 +354,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 							<th id="th-porcentaje-segundos" class="py-2 px-3 text-xs font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">% Segundas</th>
 							<th id="th-produccion" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Produccion</th>
 							<th id="th-saldo-total" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">Saldo Total</th>
+							<th id="th-saldo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">Saldos</th>
 							<th id="th-obs" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Obs</th>
 							<th class="py-2 px-2 text-center border-b border-gray-300 w-10">
 								<button type="button" id="btn-add-telar-row" class="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Añadir fila">
@@ -381,14 +382,16 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 								placeholder="0.00"
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 						</td>
-						<td class="p-2 border-r border-gray-200 produccion-cell">
-								<input type="text" value="${produccion || ''}" readonly
-									class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+						<td class="p-2 border-r border-gray-200 produccion-cell hidden">
 								<input type="hidden" name="pedido-destino[]" value="${pedido}">
 						</td>
 							<td class="p-2 border-r border-gray-200 saldo-total-cell hidden">
 								<input type="text" value="${saldo || ''}" readonly
 									class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							</td>
+							<td class="p-2 border-r border-gray-200 saldo-cell">
+								<input type="number" name="saldo-destino[]" value="${pedido || ''}" step="0.01" min="0"
+									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 							</td>
 						<td class="p-2 border-r border-gray-200">
 							<input type="text" name="observaciones-destino[]" value=""
@@ -471,6 +474,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		row.dataset.listenersConfigured = 'true';
 
 		const { pedidoTempoInput, porcentajeSegundosInput, totalInput } = getRowInputs(row);
+		const saldoInput = row.querySelector('input[name="saldo-destino[]"]');
 
 		if (pedidoTempoInput) {
 			pedidoTempoInput.addEventListener('input', (event) => {
@@ -481,10 +485,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 				const modoActual = getModoActual();
 				if (modoActual === 'duplicar') {
-					if (totalInput) {
-						totalInput.value = pedidoTempoInput.value;
-						totalInput.dispatchEvent(new Event('input', { bubbles: true }));
-					}
+					// En modo duplicar, calcular saldo basado en pedido y %segundas
+					calcularSaldoDuplicar(row);
 					return;
 				}
 				// En modo dividir, el listener global se encarga del c?lculo
@@ -508,6 +510,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				}
 
 				const modoActual = getModoActual();
+				if (modoActual === 'duplicar') {
+					// En modo duplicar, calcular saldo basado en pedido y %segundas
+					calcularSaldoDuplicar(row);
+					return;
+				}
 				// Calcular autom?ticamente cuando cambia el porcentaje de segundas
 				// Intentar desde window primero, luego desde scope global
 				if (modoActual === 'dividir' && !window.modalDuplicarListenersGlobalesAgregados) {
@@ -598,9 +605,10 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		const thPorcentajeSegundos = document.getElementById('th-porcentaje-segundos');
 		const thProduccion = document.getElementById('th-produccion');
 		const thSaldoTotal = document.getElementById('th-saldo-total');
+		const thSaldo = document.getElementById('th-saldo');
 
 		if (esDuplicar) {
-			// Modo duplicar: telar, pedido, %segundas
+			// Modo duplicar: telar, pedido, %segundas, saldos
 			if (thSalon) thSalon.classList.add('hidden');
 			if (thPedidoTempo) {
 				thPedidoTempo.classList.remove('hidden');
@@ -609,14 +617,19 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			if (thPorcentajeSegundos) thPorcentajeSegundos.classList.remove('hidden');
 			if (thProduccion) thProduccion.classList.add('hidden');
 			if (thSaldoTotal) thSaldoTotal.classList.add('hidden');
+			if (thSaldo) {
+				thSaldo.classList.remove('hidden');
+				thSaldo.textContent = 'Saldos';
+			}
 
 			document.querySelectorAll('.salon-cell').forEach((cell) => cell.classList.add('hidden'));
 			document.querySelectorAll('.pedido-tempo-cell').forEach((cell) => cell.classList.remove('hidden'));
 			document.querySelectorAll('.porcentaje-segundos-cell').forEach((cell) => cell.classList.remove('hidden'));
 			document.querySelectorAll('.produccion-cell').forEach((cell) => cell.classList.add('hidden'));
 			document.querySelectorAll('.saldo-total-cell').forEach((cell) => cell.classList.add('hidden'));
+			document.querySelectorAll('.saldo-cell').forEach((cell) => cell.classList.remove('hidden'));
 		} else {
-			// Modo dividir: salon, telar, pedido, produccion, saldo total (sin %segundas)
+			// Modo dividir: salon, telar, pedido, produccion, saldo total (sin %segundas, sin saldos)
 			if (thSalon) thSalon.classList.remove('hidden');
 			if (thPedidoTempo) {
 				thPedidoTempo.classList.remove('hidden');
@@ -631,12 +644,16 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				thSaldoTotal.classList.remove('hidden');
 				thSaldoTotal.textContent = 'Saldo Total';
 			}
+			if (thSaldo) {
+				thSaldo.classList.add('hidden');
+			}
 
 			document.querySelectorAll('.salon-cell').forEach((cell) => cell.classList.remove('hidden'));
 			document.querySelectorAll('.pedido-tempo-cell').forEach((cell) => cell.classList.remove('hidden'));
 			document.querySelectorAll('.porcentaje-segundos-cell').forEach((cell) => cell.classList.add('hidden'));
 			document.querySelectorAll('.produccion-cell').forEach((cell) => cell.classList.remove('hidden'));
 			document.querySelectorAll('.saldo-total-cell').forEach((cell) => cell.classList.remove('hidden'));
+			document.querySelectorAll('.saldo-cell').forEach((cell) => cell.classList.add('hidden'));
 
 			// Deshabilitar inputs de pedido SOLO en filas existentes (no en las nuevas)
 			document.querySelectorAll('tr.telar-row[data-es-existente="true"] input[name="pedido-tempo-destino[]"]').forEach((input) => {
@@ -649,9 +666,40 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		}
 	}
 
+	// Función para calcular saldo en modo duplicar/vincular
+	function calcularSaldoDuplicar(row) {
+		if (!row) return;
+
+		const modoActual = getModoActual();
+		if (modoActual !== 'duplicar') return;
+
+		const { pedidoTempoInput, porcentajeSegundosInput } = getRowInputs(row);
+		const saldoInput = row.querySelector('input[name="saldo-destino[]"]');
+		const pedidoHiddenInput = row.querySelector('input[name="pedido-destino[]"]');
+
+		if (!pedidoTempoInput || !saldoInput) return;
+
+		const pedido = parseFloat(pedidoTempoInput.value) || 0;
+		const porcentajeSegundos = parseFloat(porcentajeSegundosInput?.value || 0) || 0;
+
+		// El pedido NO se modifica, solo se usa como base para calcular el saldo
+		// Actualizar el campo hidden con el valor del pedido (sin % de segundas)
+		if (pedidoHiddenInput) {
+			pedidoHiddenInput.value = pedido.toFixed(2);
+		}
+
+		// Calcular saldo: Pedido * (1 + PorcentajeSegundos / 100)
+		// Solo el saldo se ve afectado por el % de segundas
+		const saldo = pedido * (1 + porcentajeSegundos / 100);
+
+		saldoInput.value = saldo.toFixed(2);
+		saldoInput.dispatchEvent(new Event('input', { bubbles: true }));
+	}
+
 	window.recomputeState = recomputeState;
 	window.agregarListenersCalculoAutomatico = agregarListenersCalculoAutomatico;
 	window.aplicarVisibilidadColumnas = aplicarVisibilidadColumnas;
+	window.calcularSaldoDuplicar = calcularSaldoDuplicar;
 
 	// Función para reconstruir la tabla según el modo
 	async function reconstruirTablaSegunModo(esDuplicar) {
@@ -704,13 +752,16 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 						placeholder="0.00"
 						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
-				<td class="p-2 border-r border-gray-200 produccion-cell">
-					<input type="text" name="pedido-destino[]" value="${pedidoOriginal}"
-						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+				<td class="p-2 border-r border-gray-200 produccion-cell hidden">
+					<input type="hidden" name="pedido-destino[]" value="${pedidoOriginal}">
 				</td>
 				<td class="p-2 border-r border-gray-200 saldo-total-cell hidden">
 					<input type="text" value="${saldoOriginal}" readonly
 						class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+				</td>
+				<td class="p-2 border-r border-gray-200 saldo-cell">
+					<input type="number" name="saldo-destino[]" value="${pedidoOriginal || ''}" step="0.01" min="0"
+						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
 				<td class="p-2 border-r border-gray-200">
 					<input type="text" name="observaciones-destino[]" value=""
@@ -738,6 +789,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
 
 			agregarListenersCalculoAutomatico(filaPrincipal);
+
+			// Calcular saldo inicial en modo duplicar
+			if (typeof calcularSaldoDuplicar === 'function') {
+				calcularSaldoDuplicar(filaPrincipal);
+			}
 
 		} else {
 			if (thTelar) thTelar.textContent = 'Telar';
@@ -1102,6 +1158,12 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const filaPrincipalInicial = document.getElementById('fila-principal');
 	if (filaPrincipalInicial) {
 		agregarListenersCalculoAutomatico(filaPrincipalInicial);
+		// Calcular saldo inicial si está en modo duplicar
+		setTimeout(() => {
+			if (typeof calcularSaldoDuplicar === 'function' && getModoActual() === 'duplicar') {
+				calcularSaldoDuplicar(filaPrincipalInicial);
+			}
+		}, 100);
 	}
 
 	// Cargar datos en paralelo
@@ -1381,6 +1443,16 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			const target = event.target;
 			const modoActual = getModoActual();
 
+			// Si es modo duplicar y el input es pedido-tempo-destino o porcentaje-segundos-destino
+			if (modoActual === 'duplicar' && (target.matches('input[name="pedido-tempo-destino[]"]') || target.matches('input[name="porcentaje-segundos-destino[]"]'))) {
+				// Encontrar la fila padre
+				const row = target.closest('tr.telar-row') || target.closest('tr');
+				if (row && typeof window.calcularSaldoDuplicar === 'function') {
+					window.calcularSaldoDuplicar(row);
+				}
+				return;
+			}
+
 			// Si es modo dividir y el input es pedido-tempo-destino
 			if (target.matches('input[name="pedido-tempo-destino[]"]') && modoActual === 'dividir') {
 				// Encontrar la fila padre
@@ -1437,8 +1509,10 @@ function validarYCapturarDatosDuplicar() {
 	const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
 	const observacionesInputs = document.querySelectorAll('input[name="observaciones-destino[]"]');
 	const porcentajeSegundosInputs = document.querySelectorAll('input[name="porcentaje-segundos-destino[]"]');
+	const saldoInputs = document.querySelectorAll('input[name="saldo-destino[]"]');
 	const filas = document.querySelectorAll('#telar-pedido-body tr');
 	const destinos = [];
+	const esDuplicar = modo === 'duplicar';
 
 	telarInputs.forEach((input, idx) => {
 		const telarVal = input.value.trim();
@@ -1447,17 +1521,25 @@ function validarYCapturarDatosDuplicar() {
 		const pedidoVal = pedidoInputs[idx]?.value.trim() || '';
 		const observacionesVal = observacionesInputs[idx]?.value.trim() || null;
 		const porcentajeSegundosVal = porcentajeSegundosInputs[idx]?.value.trim() || null;
+		const saldoVal = saldoInputs[idx]?.value.trim() || '';
 		const registroId = input.dataset?.registroId || pedidoInputs[idx]?.dataset?.registroId || '';
 		const fila = filas[idx];
 		const esExistente = fila?.dataset?.esExistente === 'true';
 		const esNuevo = fila?.dataset?.esNuevo === 'true';
 
-		if (telarVal || pedidoVal) {
+		if (telarVal || pedidoVal || saldoVal) {
+			// En modo duplicar/vincular:
+			// - pedido (TotalPedido) = valor del pedido tempo (sin % de segundas)
+			// - saldo (SaldoPedido) = valor calculado con % de segundas
+			const pedidoFinal = esDuplicar ? (pedidoTempoVal || pedidoVal) : pedidoVal;
+			const saldoFinal = esDuplicar ? (saldoVal || pedidoTempoVal || pedidoVal) : pedidoVal;
+
 			destinos.push({
 				salon_destino: salonVal,
 				telar: telarVal,
 				pedido_tempo: pedidoTempoVal,
-				pedido: pedidoVal,
+				pedido: pedidoFinal, // TotalPedido (sin % de segundas)
+				saldo: saldoFinal, // SaldoPedido (con % de segundas)
 				observaciones: observacionesVal,
 				porcentaje_segundos: porcentajeSegundosVal ? parseFloat(porcentajeSegundosVal) : null,
 				registro_id: registroId,
