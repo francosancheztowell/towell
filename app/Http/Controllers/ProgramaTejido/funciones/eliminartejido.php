@@ -1,8 +1,6 @@
 <?php
 
 namespace App\Http\Controllers\ProgramaTejido\funciones;
-
-use App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\ProgramaTejido\helper\DateHelpers;
 use App\Models\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
@@ -171,15 +169,7 @@ class EliminarTejido
                 ? 'Registro movido al siguiente correctamente (Reprogramar = 1)'
                 : 'Registro movido al último correctamente (Reprogramar = 2)';
 
-            Log::info('mover en lugar de eliminar OK', [
-                'id' => $registro->Id,
-                'salon' => $registro->SalonTejidoId,
-                'telar' => $registro->NoTelarId,
-                'reprogramar' => $reprogramar,
-                'posicion_original' => $idx,
-                'posicion_final' => $posicionAjustada,
-                'n' => count($detalles)
-            ]);
+
 
             return response()->json([
                 'success' => true,
@@ -261,7 +251,6 @@ class EliminarTejido
                     if ($r = ReqProgramaTejido::find($idAct)) $observer->saved($r);
                 }
 
-                Log::info('destroy OK (último OrdCompartida)', ['id'=>$registro->Id,'salon'=>$salon,'telar'=>$telar,'n'=>count($detalles)]);
                 return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente','cascaded_records'=>count($detalles),'detalles'=>$detalles]);
             }
 
@@ -307,18 +296,7 @@ class EliminarTejido
 
                 // Recalcular fechas del receptor
                 self::recalcularFechasYFormulas($receptorActualizado);
-
-                Log::info('eliminar con OrdCompartida: líder transferido', [
-                    'id_eliminado' => $registro->Id,
-                    'id_receptor' => $receptor->Id,
-                    'total_transferido' => $totalPedidoAEliminar,
-                    'total_anterior_receptor' => $totalPedidoReceptor,
-                    'total_nuevo_receptor' => $nuevoTotalPedido,
-                    'saldo_nuevo_receptor' => $nuevoSaldoPedido,
-                    'produccion_receptor' => $produccionReceptor
-                ]);
-
-            } else {
+                } else {
                 // Si NO es el líder, transferir al líder
                 $totalPedidoLider = (float)($lider->TotalPedido ?? 0);
                 $nuevoTotalPedido = $totalPedidoLider + $totalPedidoAEliminar;
@@ -335,16 +313,6 @@ class EliminarTejido
 
                 // Recalcular fechas del líder
                 self::recalcularFechasYFormulas($liderActualizado);
-
-                Log::info('eliminar con OrdCompartida: no líder transferido al líder', [
-                    'id_eliminado' => $registro->Id,
-                    'id_lider' => $lider->Id,
-                    'total_transferido' => $totalPedidoAEliminar,
-                    'total_anterior_lider' => $totalPedidoLider,
-                    'total_nuevo_lider' => $nuevoTotalPedido,
-                    'saldo_nuevo_lider' => $nuevoSaldoPedido,
-                    'produccion_lider' => $produccionLider
-                ]);
             }
 
             // Obtener telares afectados (receptor/líder y el telar del registro eliminado)

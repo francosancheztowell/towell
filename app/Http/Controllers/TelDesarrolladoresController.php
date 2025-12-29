@@ -343,41 +343,129 @@ class TelDesarrolladoresController extends Controller
 
         private function actualizarReqModelosDesdePrograma(ReqProgramaTejido $programa): void
         {
-            $tamanoClave = trim((string) ($programa->TamanoClave ?? ''));
-            $salonTejido = trim((string) ($programa->SalonTejidoId ?? ''));
+            $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
+            $noTelarId = trim((string) ($programa->NoTelarId ?? ''));
 
-            if ($tamanoClave === '' || $salonTejido === '') {
+            if ($noProduccion === '' || $noTelarId === '') {
                 return;
             }
 
-            $registroModelo = ReqModelosCodificados::query()
-                ->where('TamanoClave', $tamanoClave)
-                ->where('SalonTejidoId', $salonTejido)
-                ->first();
+            $modelo = new CatCodificados();
+            $table = $modelo->getTable();
+            $columns = Schema::getColumnListing($table);
 
-            if (!$registroModelo) {
-                return;
+            $query = CatCodificados::query();
+            $hasKeyFilter = false;
+
+            if (in_array('OrdenTejido', $columns, true)) {
+                $query->where('OrdenTejido', $noProduccion);
+                $hasKeyFilter = true;
+            } elseif (in_array('NumOrden', $columns, true)) {
+                $query->where('NumOrden', $noProduccion);
+                $hasKeyFilter = true;
             }
 
-            $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
+            if (in_array('TelarId', $columns, true)) {
+                $query->where('TelarId', $noTelarId);
+            } elseif (in_array('NoTelarId', $columns, true)) {
+                $query->where('NoTelarId', $noTelarId);
+            }
+
+            if (!$hasKeyFilter) {
+                $query->where('NoProduccion', $noProduccion);
+            }
+
+            $registroCodificado = $query->first();
+
+            if (!$registroCodificado) {
+                return;
+            }
 
             $payload = [
                 'Pedido' => $programa->TotalPedido,
                 'Produccion' => $programa->Produccion,
-                'SaldoPedido' => $programa->SaldoPedido,
                 'Saldos' => $programa->SaldoPedido,
             ];
 
             foreach ($payload as $column => $value) {
-                if (!in_array($column, $columnasModelo, true)) {
+                if (!in_array($column, $columns, true)) {
                     continue;
                 }
-                $registroModelo->setAttribute($column, $value);
+                $registroCodificado->setAttribute($column, $value);
             }
 
-            if ($registroModelo->isDirty()) {
-                $registroModelo->save();
+            if ($registroCodificado->isDirty()) {
+                $registroCodificado->save();
             }
+        }
+
+        private function moverRegistroConReprogramar(ReqProgramaTejido $registro, $todosLosRegistros, string $reprogramar, string $salonTejido, string $noTelarId): array
+        {
+            $idsAfectados = [];
+
+            try {
+                // Validar que hay al menos 2 registros
+                if ($todosLosRegistros->count() < 2) {
+                    return $idsAfectados;
+                }
+
+                $primero = $todosLosRegistros->first();
+                $inicioOriginal = $primero->FechaInicio ? Carbon::parse($primero->FechaInicio) : null;
+                if (!$inicioOriginal) {
+                    return $idsAfectados;
+                }
+
+                // Encontrar el índice del registro a mover
+                $idx = $todosLosRegistros->search(function ($r) use ($registro) {
+                    return $r->Id === $registro->Id;
+                });
+
+                if ($idx === false) {
+                    return $idsAfectados;
+                }
+
+                // Actualizar CatCodificados antes de mover
+                $this->actualizarReqModelosDesdePrograma($registro);
+
+                // Reordenar colección en memoria
+                $registroMovido = $todosLosRegistros->splice($idx, 1)->first();
+
+                // Calcular la posición de inserción después de remover el elemento
+                if ($reprogramar == '1') {
+                    // Mover al siguiente registro
+                    $posicionAjustada = $idx + 1;
+                    // Si ya era el último o penúltimo, insertar al final
+                    if ($posicionAjustada > $todosLosRegistros->count()) {
+                        $posicionAjustada = $todosLosRegistros->count();
+                    }
+                } elseif ($reprogramar == '2') {
+                    // Mover al último registro
+                    $posicionAjustada = $todosLosRegistros->count();
+                }
+
+                $todosLosRegistros->splice($posicionAjustada, 0, [$registroMovido]);
+                $registrosReordenados = $todosLosRegistros->values();
+
+                // Recalcular fechas para toda la secuencia
+                [$updates] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal, true);
+
+                // Actualizar solo los registros de este telar
+                foreach ($updates as $idU => $data) {
+                    DB::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+                    $idsAfectados[] = (int) $idU;
+                }
+
+                $registro->EnProceso = 0;
+                $registro->save();
+
+            } catch (Exception $e) {
+                Log::error('Error al mover registro con Reprogramar: ' . $e->getMessage(), [
+                    'id' => $registro->Id ?? null,
+                    'reprogramar' => $reprogramar,
+                ]);
+            }
+
+            return $idsAfectados;
         }
 
         private function moverRegistroEnProceso(ReqProgramaTejido $registroActualizado): void
@@ -402,9 +490,34 @@ class TelDesarrolladoresController extends Controller
                         ->lockForUpdate()
                         ->get();
 
+                    // Obtener todos los registros del telar para poder mover si es necesario
+                    $todosLosRegistros = ReqProgramaTejido::query()
+                        ->where('SalonTejidoId', $salonTejido)
+                        ->where('NoTelarId', $noTelarId)
+                        ->orderBy('FechaInicio', 'asc')
+                        ->lockForUpdate()
+                        ->get();
+
                     foreach ($registrosEnProceso as $registroEnProceso) {
-                        $this->actualizarReqModelosDesdePrograma($registroEnProceso);
-                        $registroEnProceso->delete();
+                        $reprogramar = $registroEnProceso->Reprogramar;
+
+                        // Si tiene Reprogramar activo, aplicar lógica de mover
+                        if (!empty($reprogramar) && ($reprogramar == '1' || $reprogramar == '2')) {
+                            // Recargar todos los registros antes de mover para tener el estado actual
+                            $todosLosRegistros = ReqProgramaTejido::query()
+                                ->where('SalonTejidoId', $salonTejido)
+                                ->where('NoTelarId', $noTelarId)
+                                ->orderBy('FechaInicio', 'asc')
+                                ->lockForUpdate()
+                                ->get();
+
+                            $idsMovidos = $this->moverRegistroConReprogramar($registroEnProceso, $todosLosRegistros, $reprogramar, $salonTejido, $noTelarId);
+                            $idsAfectados = array_merge($idsAfectados, $idsMovidos);
+                        } else {
+                            // Si no tiene Reprogramar, aplicar lógica actual (actualizar CatCodificados y eliminar)
+                            $this->actualizarReqModelosDesdePrograma($registroEnProceso);
+                            $registroEnProceso->delete();
+                        }
                     }
 
                     ReqProgramaTejido::query()

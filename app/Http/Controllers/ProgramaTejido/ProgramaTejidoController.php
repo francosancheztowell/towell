@@ -1815,13 +1815,22 @@ class ProgramaTejidoController extends Controller
                 'reprogramar' => 'nullable|string|in:1,2'
             ]);
 
+            $registro = ReqProgramaTejido::findOrFail($id);
+
+            // Validar que el registro esté en proceso
+            if ($registro->EnProceso != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo se puede actualizar Reprogramar en registros que están en proceso'
+                ], 422);
+            }
+
             // Si reprogramar es null o string vacío, limpiar el campo
             $reprogramar = $request->input('reprogramar');
             if ($reprogramar === null || $reprogramar === '') {
                 $reprogramar = null;
             }
 
-            $registro = ReqProgramaTejido::findOrFail($id);
             $registro->Reprogramar = $reprogramar;
             $registro->save();
 

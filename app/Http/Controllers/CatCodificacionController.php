@@ -189,14 +189,31 @@ class CatCodificacionController extends Controller
             // Consulta directa SIN ordenamiento para máxima velocidad
             $query = DB::table($table)->selectRaw($columnsStr);
 
-            // Búsqueda directa por Id (index) si se envía ?id=123
+            // Busqueda directa por Id (index) si se envia ?id=123 (atajo rapido)
             if ($idFilter !== null) {
-                $query->where('Id', $idFilter);
+                $row = $query->where('Id', $idFilter)->limit(1)->first();
+                $data = $row ? [array_values((array) $row)] : [];
+
+                $response = [
+                    's' => true,
+                    'd' => $data,
+                    't' => $data ? 1 : 0,
+                    'c' => $columnas,
+                ];
+
+                // Cachear respuesta (60 segundos)
+                if (!$skipCache) {
+                    Cache::put($cacheKey, $response, 60);
+                }
+
+                return response()->json($response)
+                    ->header('Cache-Control', 'private, max-age=60')
+                    ->header('X-Cache', 'MISS');
             }
 
             // Usar cursor() para grandes volúmenes (reduce memoria)
             // Si hay menos de 1000 registros, usar get() es más rápido
-            $estimatedCount = $idFilter ? 1 : Cache::remember(
+            $estimatedCount = Cache::remember(
                 'catcodificacion_estimated_count',
                 300,
                 fn() => DB::table($table)->count()

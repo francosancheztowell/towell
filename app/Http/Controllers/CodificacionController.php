@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ReqModelosCodificadosImport;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
@@ -272,28 +271,104 @@ class CodificacionController extends Controller
     }
 
     /** API: datos compactos para carga rápida - Solo campos esenciales */
-    public function getAllFast(): JsonResponse
+    public function getAllFast(Request $request): JsonResponse
     {
         try {
             // Solo campos esenciales para la tabla, ordenados por Id (usa índice clustered)
             $campos = array_merge(['Id'], array_keys(self::CAMPOS_MODELO));
+            $table = 'ReqModelosCodificados';
+            $idFilter = $request->filled('id') ? (int) $request->input('id') : null;
+            $skipCache = $request->boolean('nocache', false);
 
-            $data = DB::table('ReqModelosCodificados')
-                ->select($campos)
-                ->orderByDesc('Id')
-                ->get()
-                ->map(fn($row) => array_values((array) $row));
+            $cacheKey = $idFilter
+                ? "codificacion_fast_id_{$idFilter}"
+                : 'codificacion_fast_all';
 
-            return response()->json([
+            if (!$skipCache) {
+                $cached = Cache::get($cacheKey);
+                if ($cached !== null) {
+                    return response()->json($cached)
+                        ->header('Cache-Control', 'private, max-age=60')
+                        ->header('X-Cache', 'HIT');
+                }
+            }
+
+            DB::connection()->disableQueryLog();
+
+            $columnsStr = implode(', ', array_map(fn($col) => "[{$col}]", $campos));
+            $query = DB::table($table)->selectRaw($columnsStr)->orderByDesc('Id');
+
+            if ($idFilter !== null) {
+                $row = $query->where('Id', $idFilter)->limit(1)->first();
+                $data = $row ? [array_values((array) $row)] : [];
+
+                $response = [
+                    's' => true,
+                    'd' => $data,
+                    't' => $data ? 1 : 0,
+                    'c' => $campos,
+                ];
+
+                if (!$skipCache) {
+                    Cache::put($cacheKey, $response, 60);
+                }
+
+                return response()->json($response)
+                    ->header('Cache-Control', 'private, max-age=60')
+                    ->header('X-Cache', 'MISS');
+            }
+
+            $estimatedCount = Cache::remember(
+                'codificacion_estimated_count',
+                300,
+                fn() => DB::table($table)->count()
+            );
+
+            $data = $estimatedCount > 1000
+                ? $this->fetchWithCursor($query)
+                : $this->fetchWithGet($query);
+
+            $response = [
                 's' => true,
                 'd' => $data,
-                't' => $data->count(),
-                'c' => $campos
-            ])->header('Cache-Control', 'private, max-age=60');
+                't' => count($data),
+                'c' => $campos,
+            ];
+
+            if (!$skipCache) {
+                Cache::put($cacheKey, $response, 60);
+            }
+
+            return response()->json($response)
+                ->header('Cache-Control', 'private, max-age=60')
+                ->header('X-Cache', 'MISS');
         } catch (\Exception $e) {
             Log::error('CodificacionController::getAllFast', ['error' => $e->getMessage()]);
             return response()->json(['s' => false, 'e' => $e->getMessage()], 500);
         }
+    }
+
+    private function fetchWithGet($query): array
+    {
+        $data = $query->get();
+
+        $result = [];
+        foreach ($data as $row) {
+            $result[] = array_values((array) $row);
+        }
+
+        return $result;
+    }
+
+    private function fetchWithCursor($query): array
+    {
+        $result = [];
+
+        foreach ($query->cursor() as $row) {
+            $result[] = array_values((array) $row);
+        }
+
+        return $result;
     }
 
     /** API: un registro */

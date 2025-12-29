@@ -23,8 +23,14 @@
           } elseif ($valorActual == '2') {
             $textoMostrar = 'P. Ultima';
           }
-          return '<div class="relative inline-flex items-center reprogramar-container" data-registro-id="'.e($registroId).'">
-              <input type="checkbox" '.$checked.' class="reprogramar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer" data-registro-id="'.e($registroId).'" data-valor-actual="'.e($valorActual).'">
+          // Verificar si está en proceso
+          $enProceso = $registro->EnProceso ?? 0;
+          $estaEnProceso = ($enProceso == 1 || $enProceso === true);
+          $disabled = $estaEnProceso ? '' : 'disabled';
+          $cursorClass = $estaEnProceso ? 'cursor-pointer' : 'cursor-not-allowed opacity-50';
+          $dataEnProceso = $estaEnProceso ? 'data-en-proceso="1"' : 'data-en-proceso="0"';
+          return '<div class="relative inline-flex items-center reprogramar-container" data-registro-id="'.e($registroId).'" '.$dataEnProceso.'>
+              <input type="checkbox" '.$checked.' '.$disabled.' class="reprogramar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 '.$cursorClass.'" data-registro-id="'.e($registroId).'" data-valor-actual="'.e($valorActual).'">
               <span class="reprogramar-texto ml-2 text-xs text-gray-600 font-medium">'.e($textoMostrar).'</span>
             </div>';
         }
@@ -1981,21 +1987,38 @@
           if (!e.target.classList || !e.target.classList.contains('reprogramar-checkbox')) return;
 
           const checkbox = e.target;
+          const container = checkbox.closest('.reprogramar-container');
+
+          if (!container) return;
+
+          // Verificar si está deshabilitado (no está en proceso)
+          if (checkbox.disabled) {
+            toast('Solo los registros en proceso pueden tener Reprogramar activo', 'warning');
+            return;
+          }
+
+          // Verificar el atributo data-en-proceso del contenedor
+          const enProceso = container.getAttribute('data-en-proceso');
+          if (enProceso !== '1') {
+            toast('Solo los registros en proceso pueden tener Reprogramar activo', 'warning');
+            return;
+          }
+
+          // Capturar el estado ANTES de prevenir el comportamiento por defecto
+          const texto = container.querySelector('.reprogramar-texto');
+          const registroId = checkbox.getAttribute('data-registro-id');
+          const valorActual = checkbox.getAttribute('data-valor-actual') || '';
+          const estabaMarcado = checkbox.checked || (valorActual && (valorActual == '1' || valorActual == '2'));
 
           e.preventDefault();
           e.stopPropagation();
           e.stopImmediatePropagation();
 
-          const container = checkbox.closest('.reprogramar-container');
-          if (!container) return;
-
-          const texto = container.querySelector('.reprogramar-texto');
-          const registroId = checkbox.getAttribute('data-registro-id');
-          const valorActual = checkbox.getAttribute('data-valor-actual') || '';
-
-          // Si ya está marcado y tiene valor, desmarcar
-          if (checkbox.checked && valorActual) {
+          // Si ya tiene un valor activo (estaba marcado), limpiarlo
+          if (estabaMarcado && valorActual && (valorActual == '1' || valorActual == '2')) {
+            // Limpiar visualmente - forzar que se vea desmarcado
             checkbox.checked = false;
+            checkbox.removeAttribute('checked');
             checkbox.setAttribute('data-valor-actual', '');
             if (texto) texto.textContent = '';
 
@@ -2015,11 +2038,17 @@
               PT.loader.hide();
 
               if (data.success) {
+                // Asegurar que el checkbox esté visualmente desmarcado
+                checkbox.checked = false;
+                checkbox.removeAttribute('checked');
+                checkbox.setAttribute('data-valor-actual', '');
+                if (texto) texto.textContent = '';
                 toast('Reprogramar limpiado correctamente', 'success');
               } else {
                 toast(data.message || 'Error al limpiar reprogramar', 'error');
-                // Revertir cambios
+                // Revertir cambios - restaurar estado marcado
                 checkbox.checked = true;
+                checkbox.setAttribute('checked', 'checked');
                 checkbox.setAttribute('data-valor-actual', valorActual);
                 if (texto) {
                   if (valorActual == '1') {
@@ -2032,8 +2061,9 @@
             } catch (error) {
               PT.loader.hide();
               toast('Error al procesar la solicitud', 'error');
-              // Revertir cambios
+              // Revertir cambios - restaurar estado marcado
               checkbox.checked = true;
+              checkbox.setAttribute('checked', 'checked');
               checkbox.setAttribute('data-valor-actual', valorActual);
               if (texto) {
                 if (valorActual == '1') {

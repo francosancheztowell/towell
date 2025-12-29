@@ -9,8 +9,8 @@
 @endsection
 
 @section('content')
-    <div class="w-full">
-        <div class="relative bg-white rounded-lg shadow-sm flex flex-col h-[calc(100vh-7rem)]">
+    <div class="container-fluid">
+        <div class="relative bg-white rounded-lg shadow-sm flex flex-col" style="height: calc(100vh);">
 
             {{-- Loading overlay único --}}
             <div
@@ -29,7 +29,8 @@
             {{-- Contenedor tabla + scroffffll --}}
             <div
                 id="table-container"
-                class="flex-1 overflow-auto border-b border-gray-200"
+                class="relative flex-1 overflow-y-auto overflow-x-auto"
+                style="max-height: calc(100vh - 110px);"
             >
                 @php
                     $columnas = $columnas ?? [];
@@ -42,7 +43,7 @@
                     ];
                 @endphp
 
-                <table id="mainTable" class="min-w-full text-[11px] leading-tight">
+                <table id="mainTable" class="w-full min-w-full text-[11px] leading-tight">
                     <thead class="bg-blue-500 text-white sticky top-0 z-10">
                         <tr>
                             @foreach($columnas as $columna)
@@ -62,7 +63,7 @@
             {{-- Paginación fija abajo --}}
             <div
                 id="pagination-container"
-                class="px-3 py-2 bg-white flex items-center justify-end gap-2 text-sm"
+                class="px-4 border-t border-gray-200 bg-white flex-shrink-0 z-20"
             >
                 <div class="flex items-center gap-2">
                     <button
@@ -101,6 +102,123 @@
             </div>
         </div>
     </div>
+
+    <style>
+        #table-container {
+            position: relative;
+            overflow-y: auto;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            flex: 1;
+            min-height: 0;
+        }
+
+        #table-container::-webkit-scrollbar {
+            width: 14px;
+            height: 14px;
+        }
+
+        #table-container::-webkit-scrollbar-track {
+            background: #e5e7eb;
+            border-radius: 7px;
+        }
+
+        #table-container::-webkit-scrollbar-thumb {
+            background: #6b7280;
+            border-radius: 7px;
+            border: 2px solid #e5e7eb;
+        }
+
+        #table-container::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+
+        #table-container::-webkit-scrollbar:horizontal {
+            height: 14px;
+        }
+
+        #table-container {
+            scrollbar-width: auto;
+            scrollbar-color: #6b7280 #e5e7eb;
+        }
+
+        #mainTable {
+            position: relative;
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            min-width: max-content;
+            table-layout: auto;
+        }
+
+        #mainTable thead {
+            position: -webkit-sticky !important;
+            position: sticky !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 1000 !important;
+            background-color: #3b82f6 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        #mainTable thead th {
+            position: -webkit-sticky !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 1001 !important;
+            background-color: #3b82f6 !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            border-bottom: 2px solid #2563eb !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            white-space: nowrap;
+        }
+
+        #mainTable thead th:last-child {
+            border-right: none;
+        }
+
+        #mainTable tbody td {
+            border-right: 1px solid rgba(0, 0, 0, 0.05);
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .container-fluid {
+            position: relative;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bg-white.rounded-lg.shadow-sm {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+        }
+
+        #pagination-container {
+            padding-top: 0.375rem !important;
+            padding-bottom: 0.375rem !important;
+            min-height: auto !important;
+            max-height: 44px !important;
+        }
+
+        #pagination-container button {
+            padding-top: 0.25rem !important;
+            padding-bottom: 0.25rem !important;
+            font-size: 0.875rem !important;
+            line-height: 1.3 !important;
+        }
+
+        #pagination-container span {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            line-height: 1.2 !important;
+        }
+    </style>
 
     {{-- Script principal --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
