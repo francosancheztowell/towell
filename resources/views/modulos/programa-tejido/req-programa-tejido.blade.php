@@ -233,6 +233,72 @@
     color: #dc2626 !important; /* Texto rojo para valores negativos */
   }
 
+  /* Estilo para columnas ef std, vel, hilo, calibre pie, pedido, % segundas, producción, saldos, saldo marbetes, day scheduling, orden prod, descrip, aplic, obs, tipo ped, fecha compromiso - amarillo pastel solo en celdas */
+  td[data-column="EficienciaSTD"],
+  td[data-column="VelocidadSTD"],
+  td[data-column="FibraRizo"],
+  td[data-column="CalibrePie2"],
+  td[data-column="TotalPedido"],
+  td[data-column="PorcentajeSegundos"],
+  td[data-column="Produccion"],
+  td[data-column="SaldoPedido"],
+  td[data-column="SaldoMarbete"],
+  td[data-column="ProgramarProd"],
+  td[data-column="NoProduccion"],
+  td[data-column="NombreProyecto"],
+  td[data-column="AplicacionId"],
+  td[data-column="Observaciones"],
+  td[data-column="TipoPedido"],
+  td[data-column="EntregaProduc"],
+  td[data-column="EntregaPT"] {
+    background-color: #fffcf3 !important;
+    color: #000 !important;
+  }
+
+  /* Asegurar que el amarillo pastel se aplique incluso cuando las columnas están fijadas */
+  td[data-column="EficienciaSTD"].pinned-column,
+  td[data-column="VelocidadSTD"].pinned-column,
+  td[data-column="FibraRizo"].pinned-column,
+  td[data-column="CalibrePie2"].pinned-column,
+  td[data-column="TotalPedido"].pinned-column,
+  td[data-column="PorcentajeSegundos"].pinned-column,
+  td[data-column="Produccion"].pinned-column,
+  td[data-column="SaldoPedido"].pinned-column,
+  td[data-column="SaldoMarbete"].pinned-column,
+  td[data-column="ProgramarProd"].pinned-column,
+  td[data-column="NoProduccion"].pinned-column,
+  td[data-column="NombreProyecto"].pinned-column,
+  td[data-column="AplicacionId"].pinned-column,
+  td[data-column="Observaciones"].pinned-column,
+  td[data-column="TipoPedido"].pinned-column,
+  td[data-column="EntregaProduc"].pinned-column,
+  td[data-column="EntregaPT"].pinned-column {
+    background-color: #fffcf3 !important;
+    color: #000 !important;
+  }
+
+  /* Los encabezados (th) mantienen el azul por defecto */
+  th[data-column="EficienciaSTD"],
+  th[data-column="VelocidadSTD"],
+  th[data-column="FibraRizo"],
+  th[data-column="CalibrePie2"],
+  th[data-column="TotalPedido"],
+  th[data-column="PorcentajeSegundos"],
+  th[data-column="Produccion"],
+  th[data-column="SaldoPedido"],
+  th[data-column="SaldoMarbete"],
+  th[data-column="ProgramarProd"],
+  th[data-column="NoProduccion"],
+  th[data-column="NombreProyecto"],
+  th[data-column="AplicacionId"],
+  th[data-column="Observaciones"],
+  th[data-column="TipoPedido"],
+  th[data-column="EntregaProduc"],
+  th[data-column="EntregaPT"] {
+    background-color: #3b82f6 !important;
+    color: #fff !important;
+  }
+
   .cursor-move { cursor: move !important; }
   .cursor-not-allowed { cursor: not-allowed !important; opacity: 0.6; }
 
