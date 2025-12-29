@@ -748,8 +748,15 @@ class TelDesarrolladoresController extends Controller
                     }
 
                     $registroModelo = $queryModelos->first();
-
+                    $permitirActualizarRelacionados = true;
                     if ($registroModelo) {
+                        $codigoPrevioModelo = trim((string) ($registroModelo->CodigoDibujo ?? $registroModelo->CodificacionModelo ?? ''));
+                        if ($codigoPrevioModelo !== '') {
+                            $permitirActualizarRelacionados = false;
+                        }
+                    }
+	                
+                    if ($registroModelo && $permitirActualizarRelacionados && $codigoDibujo !== '') {
                         // Preparar payload para actualizar ReqModelosCodificados
                         $payloadModelo = array_merge([
                             'TamanoClave' => $claveModelo,
