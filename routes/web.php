@@ -51,6 +51,7 @@ use App\Http\Controllers\NotificarMontRollosController;
 use App\Http\Controllers\TelDesarrolladoresController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
+use App\Http\Controllers\ProgramaTejido\funciones\DividirTejido;
 
 
 //Rutas de login, con logout, no protegidas por middleware
@@ -703,6 +704,7 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Control
     Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'destroy'])->name('programa-tejido.destroy');
     Route::get('/planeacion/programa-tejido/all-registros-json', [ProgramaTejidoController::class, 'getAllRegistrosJson'])->name('programa-tejido.all-registros-json');
     Route::post('/planeacion/programa-tejido/actualizar-calendarios-masivo', [ProgramaTejidoController::class, 'actualizarCalendariosMasivo'])->name('programa-tejido.actualizar-calendarios-masivo');
+    Route::post('/planeacion/programa-tejido/{id}/reprogramar', [ProgramaTejidoController::class, 'actualizarReprogramar'])->name('programa-tejido.reprogramar');
         // JSON: ReqProgramaTejidoLine dentro de planeación
         Route::get('/planeacion/req-programa-tejido-line', [\App\Http\Controllers\ReqProgramaTejidoLineController::class, 'index']);
 
@@ -722,6 +724,9 @@ Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoControlle
 Route::get('/programa-tejido/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
 Route::get('/programa-tejido/eficiencia-std', [ProgramaTejidoController::class, 'getEficienciaStd']);
 Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, 'getVelocidadStd']);
+Route::post('/programa-tejido/calcular-totales-dividir', function (\Illuminate\Http\Request $request) {
+    return DividirTejido::calcularTotalesDividir($request);
+});
 // Estado de columnas (ocultar/mostrar) por usuario
 Route::get('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'index']);
 Route::post('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'store']);

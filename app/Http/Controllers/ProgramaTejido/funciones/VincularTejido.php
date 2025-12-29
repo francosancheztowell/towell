@@ -40,6 +40,7 @@ class VincularTejido
             'destinos.*.telar'  => 'required|string',
             'destinos.*.pedido' => 'nullable|string',
             'destinos.*.pedido_tempo' => 'nullable|string',
+            'destinos.*.saldo' => 'nullable|string',
             'destinos.*.observaciones' => 'nullable|string|max:500',
             'destinos.*.porcentaje_segundos' => 'nullable|numeric|min:0',
 
@@ -139,6 +140,7 @@ class VincularTejido
                 $telarDestino = $destino['telar'];
                 $pedidoDestinoRaw = $destino['pedido'] ?? null;
                 $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
+                $saldoDestinoRaw = $destino['saldo'] ?? null;
                 $observacionesDestino = $destino['observaciones'] ?? null;
                 $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
                     ? (float)$destino['porcentaje_segundos']
@@ -178,6 +180,13 @@ class VincularTejido
                 // ===== ORDCOMPARTIDA: Asignar el OrdCompartida (existente o nuevo) =====
                 $nuevo->OrdCompartida = $ordCompartidaAVincular;
 
+                // ===== ORDCOMPARTIDALIDER: Solo el primer registro vinculado tiene OrdCompartidaLider = 1 =====
+                if ($totalVinculados === 0) {
+                    $nuevo->OrdCompartidaLider = 1;
+                } else {
+                    $nuevo->OrdCompartidaLider = null;
+                }
+
                 $nuevo->ProgramarProd = Carbon::now()->format('Y-m-d');
 
                 // ===== Overrides =====
@@ -203,6 +212,7 @@ class VincularTejido
                 }
 
                 // ===== TotalPedido / SaldoPedido =====
+                // TotalPedido = pedido (sin % de segundas)
                 $pedidoDestino = ($pedidoDestinoRaw !== null && $pedidoDestinoRaw !== '') ? self::sanitizeNumber($pedidoDestinoRaw) : null;
 
                 if ($pedidoDestino !== null) {
@@ -217,7 +227,16 @@ class VincularTejido
                     $nuevo->TotalPedido = 0;
                 }
 
-                $nuevo->SaldoPedido = $nuevo->TotalPedido;
+                // SaldoPedido = saldo (con % de segundas aplicado)
+                $saldoDestino = ($saldoDestinoRaw !== null && $saldoDestinoRaw !== '') ? self::sanitizeNumber($saldoDestinoRaw) : null;
+
+                if ($saldoDestino !== null) {
+                    $nuevo->SaldoPedido = $saldoDestino;
+                } else {
+                    // Si no viene saldo, calcularlo basado en TotalPedido y % de segundas
+                    $porcentajeSegundos = $porcentajeSegundosDestino ?? 0;
+                    $nuevo->SaldoPedido = $nuevo->TotalPedido * (1 + $porcentajeSegundos / 100);
+                }
 
                 // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
                 self::aplicarStdDesdeCatalogos($nuevo);

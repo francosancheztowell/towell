@@ -50,6 +50,8 @@ class CatCodificados extends Model
 
         'RespInicio', 'HrInicio', 'HrTermino', 'MinutosCambio', 'PesoMuestra', 'RegAlinacion',
         'Supervisor', 'OBSParaPro', 'CantidadProducir_2', 'Tejidas', 'pzaXrollo',
+
+        'Pedido', 'Produccion', 'Saldos',
     ];
 
     protected $casts = [
@@ -59,6 +61,9 @@ class CatCodificados extends Model
         'FechaCompromiso' => 'date',
         'TelarId' => 'integer',
         'NoMarbete' => 'float',
+        'Pedido' => 'float',
+        'Produccion' => 'float',
+        'Saldos' => 'float',
     ];
 }
 

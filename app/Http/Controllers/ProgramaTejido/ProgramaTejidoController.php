@@ -40,6 +40,7 @@ class ProgramaTejidoController extends Controller
             $registros = ReqProgramaTejido::select([
                 'Id',
                 'EnProceso',
+                'Reprogramar',
                 'CuentaRizo',
                 'CalibreRizo2',
                 'SalonTejidoId',
@@ -1802,5 +1803,58 @@ class ProgramaTejidoController extends Controller
         }
 
         return trim($prefijo) . ' ' . $nuevoTelar;
+    }
+
+    /**
+     * Actualizar campo Reprogramar
+     */
+    public function actualizarReprogramar(Request $request, int $id)
+    {
+        try {
+            $request->validate([
+                'reprogramar' => 'nullable|string|in:1,2'
+            ]);
+
+            $registro = ReqProgramaTejido::findOrFail($id);
+
+            // Validar que el registro esté en proceso
+            if ($registro->EnProceso != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo se puede actualizar Reprogramar en registros que están en proceso'
+                ], 422);
+            }
+
+            // Si reprogramar es null o string vacío, limpiar el campo
+            $reprogramar = $request->input('reprogramar');
+            if ($reprogramar === null || $reprogramar === '') {
+                $reprogramar = null;
+            }
+
+            $registro->Reprogramar = $reprogramar;
+            $registro->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Reprogramar actualizado correctamente',
+                'reprogramar' => $registro->Reprogramar
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Registro no encontrado'
+            ], 404);
+        } catch (\Exception $e) {
+            LogFacade::error('Error al actualizar Reprogramar', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar Reprogramar: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

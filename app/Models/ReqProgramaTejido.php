@@ -52,10 +52,14 @@ class ReqProgramaTejido extends Model
         'LargoCrudo',
         // Campo para dividir registros (relaciona registros que comparten el mismo origen)
         'OrdCompartida',
+        // Indica si el registro es el líder del grupo de registros compartidos
+        'OrdCompartidaLider',
         // Porcentaje de segundos
         'PorcentajeSegundos',
         // Pedido temporal
-        'PedidoTempo'
+        'PedidoTempo',
+        // Reprogramar
+        'Reprogramar'
     ];
 
     /**
@@ -134,6 +138,7 @@ class ReqProgramaTejido extends Model
         'RowNum' => 'integer',
         'LargoCrudo' => 'integer',
         'OrdCompartida' => 'integer', // INT para relacionar registros divididos
+        'OrdCompartidaLider' => 'boolean', // BIT para indicar si es el líder del grupo
         'CategoriaCalidad' => 'string',
         'PorcentajeSegundos' => 'float',
     ];

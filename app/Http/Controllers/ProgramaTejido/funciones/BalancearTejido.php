@@ -239,6 +239,7 @@ class BalancearTejido
                     'FechaInicio',
                     'FechaFinal',
                     'OrdCompartida',
+                    'OrdCompartidaLider',
                     'FibraRizo',
                     'VelocidadSTD',
                     'EficienciaSTD',
@@ -756,7 +757,6 @@ class BalancearTejido
 
         $ordCompartida = (int)$request->input('ord_compartida');
         $fechaFinObjetivo = Carbon::parse($request->input('fecha_fin_objetivo'));
-
         $registros = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
             ->orderBy('FechaInicio', 'asc')
             ->orderBy('NoTelarId', 'asc')
@@ -770,6 +770,8 @@ class BalancearTejido
         $horasNecesariasOriginales = 0;
         $totalOriginal = (float)$registros->sum(fn($r) => (float)($r->TotalPedido ?? 0));
 
+        $ajustarTotal = false; // En balanceo por fecha objetivo, priorizamos la fecha final
+
         // Convertir a array indexado para poder acceder por índice
         $registrosArray = $registros->values()->all();
         // entre menos tolerancia se comporta mejor
@@ -781,6 +783,7 @@ class BalancearTejido
         $registrosQueCumplen = [];
         $registrosQueNecesitanAjuste = [];
 
+        $totalRegistros = count($registrosArray);
         foreach ($registrosArray as $indice => $reg) {
             $produccion = (float)($reg->Produccion ?? 0);
             $pedidoActual = (float)($reg->TotalPedido ?? 0);
@@ -788,6 +791,7 @@ class BalancearTejido
             // Calculamos horas originales solo para referencia informativa
             $saldoOriginal = max(0, $pedidoActual - $produccion);
             $regTemp = clone $reg;
+            $regTemp->TotalPedido = $pedidoActual;
             $regTemp->SaldoPedido = $saldoOriginal;
             $horasNecesariasOriginales += self::calcularHorasProd($regTemp);
 
@@ -803,7 +807,10 @@ class BalancearTejido
             }
 
             // Verificar si el pedido actual ya es correcto
-            $horasActual = self::calcularHorasProd($reg);
+            $regTemp = clone $reg;
+            $regTemp->TotalPedido = $pedidoActual;
+            $regTemp->SaldoPedido = $saldoOriginal;
+            $horasActual = self::calcularHorasProd($regTemp);
             $fechaFinalActual = null;
             if ($horasActual > 0) {
                 $fechaInicioTemp = $fechaInicioReg->copy();
@@ -828,7 +835,10 @@ class BalancearTejido
                 }
             }
 
-            if ($cumpleObjetivo) {
+            // Caso especial: si solo hay 2 registros, balancear siempre el primero
+            if ($totalRegistros === 2 && $indice === 1) {
+                $registrosQueCumplen[] = ['indice' => $indice, 'reg' => $reg, 'pedido' => $pedidoActual];
+            } elseif ($cumpleObjetivo) {
                 $registrosQueCumplen[] = ['indice' => $indice, 'reg' => $reg, 'pedido' => $pedidoActual];
             } else {
                 $registrosQueNecesitanAjuste[] = ['indice' => $indice, 'reg' => $reg];
@@ -849,14 +859,12 @@ class BalancearTejido
             $reg = $item['reg'];
             $produccion = (float)($reg->Produccion ?? 0);
             $pedidoActual = (float)($reg->TotalPedido ?? 0);
-
+            $saldoActual = max(0, $pedidoActual - $produccion);
             $fechaInicioReg = Carbon::parse($reg->FechaInicio);
             if (!empty($reg->CalendarioId)) {
                 $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioReg);
                 if ($snap) $fechaInicioReg = $snap;
             }
-
-            // Calcular Horas Disponibles
             $horasDispReg = self::calcularHorasDisponiblesHastaFecha(
                 $reg->CalendarioId ?? null,
                 $fechaInicioReg,
@@ -865,15 +873,33 @@ class BalancearTejido
             $horasDisponiblesTotal += $horasDispReg;
 
             // Calcular Pedido Exacto
-            $pedidoCalculado = self::calcularPedidoParaFechaObjetivo(
+            $saldoCalculado = self::calcularPedidoParaFechaObjetivo(
                 $reg,
                 $fechaInicioReg,
                 $fechaFinObjetivo,
-                $produccion
+                $produccion,
+                $saldoActual
             );
 
-            $pedidoFinal = max(1, $produccion, round($pedidoCalculado));
-
+            $saldoFinal = max(0, round($saldoCalculado));
+            $pedidoFinal = max(1, $produccion + $saldoFinal);
+            $fechaFinalCalc = null;
+            if (!empty($reg->FechaInicio)) {
+                $regTemp = clone $reg;
+                $regTemp->TotalPedido = $pedidoFinal;
+                $regTemp->SaldoPedido = $saldoFinal;
+                $horasCalc = self::calcularHorasProd($regTemp);
+                $fechaInicioTemp = Carbon::parse($reg->FechaInicio);
+                if (!empty($reg->CalendarioId)) {
+                    $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioTemp);
+                    if ($snap) $fechaInicioTemp = $snap;
+                }
+                if ($horasCalc > 0) {
+                    $fechaFinalCalc = !empty($reg->CalendarioId)
+                        ? (self::calcularFechaFinalDesdeInicio($reg->CalendarioId, $fechaInicioTemp, $horasCalc) ?: $fechaInicioTemp->copy()->addSeconds((int)round($horasCalc * 3600)))
+                        : $fechaInicioTemp->copy()->addSeconds((int)round($horasCalc * 3600));
+                }
+            }
             $nuevosPedidos[$reg->Id] = [
                 'id' => (int)$reg->Id,
                 'total_pedido' => $pedidoFinal,
@@ -882,61 +908,63 @@ class BalancearTejido
         }
 
         // Ajuste final: mantener el total original sumando la diferencia al primero (orden FechaInicio/NoTelar)
-        $totalNuevo = 0.0;
-        foreach ($nuevosPedidos as $item) {
-            $totalNuevo += (float)$item['total_pedido'];
-        }
-        $diff = $totalOriginal - $totalNuevo;
-
-        $primeroReg = $registrosArray[0] ?? null;
-        if (abs($diff) >= 1 && $primeroReg) {
-            $primeroId = (int)$primeroReg->Id;
-            $prodPrimero = (float)($primeroReg->Produccion ?? 0);
-            $totalActualPrimero = isset($nuevosPedidos[$primeroId])
-                ? (float)$nuevosPedidos[$primeroId]['total_pedido']
-                : (float)($primeroReg->TotalPedido ?? 0);
-
-            $nuevoTotalPrimero = $totalActualPrimero + $diff;
-            $minPrimero = max(1, $prodPrimero);
-            if ($nuevoTotalPrimero < $minPrimero) {
-                $nuevoTotalPrimero = $minPrimero;
+        if ($ajustarTotal) {
+            $totalNuevo = 0.0;
+            foreach ($nuevosPedidos as $item) {
+                $totalNuevo += (float)$item['total_pedido'];
             }
+            $diff = $totalOriginal - $totalNuevo;
 
-            $nuevosPedidos[$primeroId] = [
-                'id' => $primeroId,
-                'total_pedido' => (int) round($nuevoTotalPrimero),
-                'modo' => 'total'
-            ];
-        }
+            $primeroReg = $registrosArray[0] ?? null;
+            if (abs($diff) >= 1 && $primeroReg) {
+                $primeroId = (int)$primeroReg->Id;
+                $prodPrimero = (float)($primeroReg->Produccion ?? 0);
+                $totalActualPrimero = isset($nuevosPedidos[$primeroId])
+                    ? (float)$nuevosPedidos[$primeroId]['total_pedido']
+                    : (float)($primeroReg->TotalPedido ?? 0);
 
-        $totalNuevoFinal = 0.0;
-        foreach ($nuevosPedidos as $item) {
-            $totalNuevoFinal += (float)$item['total_pedido'];
-        }
+                $nuevoTotalPrimero = $totalActualPrimero + $diff;
+                $minPrimero = max(1, $prodPrimero);
+                if ($nuevoTotalPrimero < $minPrimero) {
+                    $nuevoTotalPrimero = $minPrimero;
+                }
 
-        $rest = $totalOriginal - $totalNuevoFinal;
-        if (abs($rest) >= 1 && $primeroReg) {
-            $primeroId = (int)$primeroReg->Id;
-            $prodPrimero = (float)($primeroReg->Produccion ?? 0);
-            $totalActualPrimero = isset($nuevosPedidos[$primeroId])
-                ? (float)$nuevosPedidos[$primeroId]['total_pedido']
-                : (float)($primeroReg->TotalPedido ?? 0);
-
-            $nuevoTotalPrimero = $totalActualPrimero + $rest;
-            $minPrimero = max(1, $prodPrimero);
-            if ($nuevoTotalPrimero < $minPrimero) {
-                $nuevoTotalPrimero = $minPrimero;
+                $nuevosPedidos[$primeroId] = [
+                    'id' => $primeroId,
+                    'total_pedido' => (int) round($nuevoTotalPrimero),
+                    'modo' => 'total'
+                ];
             }
-
-            $nuevosPedidos[$primeroId] = [
-                'id' => $primeroId,
-                'total_pedido' => (int) round($nuevoTotalPrimero),
-                'modo' => 'total'
-            ];
 
             $totalNuevoFinal = 0.0;
             foreach ($nuevosPedidos as $item) {
                 $totalNuevoFinal += (float)$item['total_pedido'];
+            }
+
+            $rest = $totalOriginal - $totalNuevoFinal;
+            if (abs($rest) >= 1 && $primeroReg) {
+                $primeroId = (int)$primeroReg->Id;
+                $prodPrimero = (float)($primeroReg->Produccion ?? 0);
+                $totalActualPrimero = isset($nuevosPedidos[$primeroId])
+                    ? (float)$nuevosPedidos[$primeroId]['total_pedido']
+                    : (float)($primeroReg->TotalPedido ?? 0);
+
+                $nuevoTotalPrimero = $totalActualPrimero + $rest;
+                $minPrimero = max(1, $prodPrimero);
+                if ($nuevoTotalPrimero < $minPrimero) {
+                    $nuevoTotalPrimero = $minPrimero;
+                }
+
+                $nuevosPedidos[$primeroId] = [
+                    'id' => $primeroId,
+                    'total_pedido' => (int) round($nuevoTotalPrimero),
+                    'modo' => 'total'
+                ];
+
+                $totalNuevoFinal = 0.0;
+                foreach ($nuevosPedidos as $item) {
+                    $totalNuevoFinal += (float)$item['total_pedido'];
+                }
             }
         }
 
@@ -957,7 +985,8 @@ class BalancearTejido
         ReqProgramaTejido $reg,
         Carbon $fechaInicio,
         Carbon $fechaObjetivo,
-        float $produccion
+        float $produccion,
+        float $saldoActual = 0.0
     ): float {
         // Calcular horas disponibles hasta fecha objetivo
         $horasDisponibles = self::calcularHorasDisponiblesHastaFecha(
@@ -967,46 +996,46 @@ class BalancearTejido
         );
 
         if ($horasDisponibles <= 0) {
-            // No hay horas disponibles, devolver producción mínima
-            return $produccion;
+            // No hay horas disponibles, devolver saldo actual
+            return $saldoActual;
         }
 
-        // Calcular eficiencia del registro (horas por unidad de pedido)
+        // Calcular eficiencia del registro (horas por unidad de saldo)
         $regTemp = clone $reg;
-        $regTemp->TotalPedido = 1000; // Valor de prueba
-        $regTemp->SaldoPedido = max(0, 1000 - $produccion);
+        $regTemp->TotalPedido = $produccion + 1000; // Valor de prueba en saldo
+        $regTemp->SaldoPedido = 1000;
         $horasPrueba = self::calcularHorasProd($regTemp);
 
         if ($horasPrueba <= 0) {
-            // No se puede calcular eficiencia, usar pedido actual
-            return (float)($reg->TotalPedido ?? $produccion);
+            // No se puede calcular eficiencia, usar saldo actual
+            return $saldoActual;
         }
 
-        $eficienciaHoras = $horasPrueba / 1000.0; // horas por unidad
+        $eficienciaHoras = $horasPrueba / 1000.0; // horas por unidad de saldo
 
         // Estimación inicial basada en eficiencia
-        $pedidoEstimado = $produccion + ($horasDisponibles / max($eficienciaHoras, 0.0001));
+        $saldoEstimado = ($horasDisponibles / max($eficienciaHoras, 0.0001));
 
         // Búsqueda binaria para encontrar el pedido exacto
-        $minPedido = $produccion;
-        $maxPedido = $pedidoEstimado * 3; // Límite superior amplio
-        $mejorPedido = $pedidoEstimado;
+        $minSaldo = 0.0;
+        $maxSaldo = max($saldoActual + 1, $saldoEstimado * 3); // Límite superior amplio
+        $mejorSaldo = $saldoEstimado;
         $mejorDiferencia = PHP_FLOAT_MAX;
 
         $maxIteraciones = 70; // Más iteraciones para mayor precisión
         $toleranciaSegundos = 70; // 1 minuto de tolerancia
 
         for ($iter = 0; $iter < $maxIteraciones; $iter++) {
-            $pedidoPrueba = ($minPedido + $maxPedido) / 2.1;
+            $saldoPrueba = ($minSaldo + $maxSaldo) / 2.1;
 
             // Calcular fecha final con este pedido
             $regTemp = clone $reg;
-            $regTemp->TotalPedido = $pedidoPrueba;
-            $regTemp->SaldoPedido = max(0, $pedidoPrueba - $produccion);
+            $regTemp->TotalPedido = $produccion + $saldoPrueba;
+            $regTemp->SaldoPedido = max(0, $saldoPrueba);
             $horas = self::calcularHorasProd($regTemp);
 
             if ($horas <= 0) {
-                $minPedido = $pedidoPrueba;
+                $minSaldo = $saldoPrueba;
                 continue;
             }
 
@@ -1025,7 +1054,7 @@ class BalancearTejido
 
             if ($diferenciaSegundos < $mejorDiferencia) {
                 $mejorDiferencia = $diferenciaSegundos;
-                $mejorPedido = $pedidoPrueba;
+                $mejorSaldo = $saldoPrueba;
             }
 
             if ($diferenciaSegundos <= $toleranciaSegundos) {
@@ -1036,37 +1065,19 @@ class BalancearTejido
             // Ajustar búsqueda binaria
             if ($fechaFinal->getTimestamp() < $fechaObjetivo->getTimestamp()) {
                 // Necesitamos más pedido
-                $minPedido = $pedidoPrueba;
+                $minSaldo = $saldoPrueba;
             } else {
                 // Tenemos demasiado pedido
-                $maxPedido = $pedidoPrueba;
+                $maxSaldo = $saldoPrueba;
             }
 
             // Si el rango es muy pequeño, salir
-            if (($maxPedido - $minPedido) < 0.1) {
+            if (($maxSaldo - $minSaldo) < 0.1) {
                 break;
             }
         }
 
-        return $mejorPedido;
-    }
-
-    /**
-     * Calcula una fecha objetivo intermedia para registros que no son el penúltimo
-     * Distribuye el tiempo proporcionalmente
-     */
-    private static function calcularFechaObjetivoIntermedia(
-        Carbon $fechaInicio,
-        Carbon $fechaFinObjetivo,
-        int $indiceActual,
-        int $totalRegistros
-    ): Carbon {
-        // Calcular proporción del tiempo total
-        $totalSegundos = $fechaFinObjetivo->getTimestamp() - $fechaInicio->getTimestamp();
-        $proporcion = ($indiceActual + 1) / (float)$totalRegistros;
-
-        $segundosIntermedios = (int)round($totalSegundos * $proporcion);
-        return $fechaInicio->copy()->addSeconds($segundosIntermedios);
+        return max(0, $mejorSaldo);
     }
 
     /**

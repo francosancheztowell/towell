@@ -13,6 +13,7 @@ class UtilityHelpers
         return [
             // Orden solicitado: todas visibles por ahora
             ['field' => 'EnProceso', 'label' => 'Estado', 'dateType' => null],
+            ['field' => 'Reprogramar', 'label' => 'Reprogramar', 'dateType' => null],
             ['field' => 'CuentaRizo', 'label' => 'Cuenta', 'dateType' => null],
             ['field' => 'CalibreRizo2', 'label' => 'Calibre Rizo', 'dateType' => null],
             ['field' => 'SalonTejidoId', 'label' => 'Salón', 'dateType' => null],
@@ -103,6 +104,7 @@ class UtilityHelpers
             ['field' => 'EntregaPT', 'label' => 'Fecha Compromiso', 'dateType' => 'date'],
             ['field' => 'EntregaCte', 'label' => 'Entrega', 'dateType' => 'datetime'],
             ['field' => 'PTvsCte', 'label' => 'Dif vs Compromiso', 'dateType' => null],
+
         ];
     }
 
