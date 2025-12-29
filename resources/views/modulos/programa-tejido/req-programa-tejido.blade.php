@@ -95,11 +95,16 @@
 
             <tbody class="bg-white divide-y divide-gray-100">
               @foreach($registros as $index => $registro)
+                @php
+                  $producto = $registro->NombreProducto ?? '';
+                  $esRepaso = !empty($producto) && strtoupper(substr(trim($producto), 0, 6)) === 'REPASO';
+                @endphp
                 <tr
                   class="hover:bg-blue-50 cursor-pointer selectable-row"
                   data-row-index="{{ $index }}"
                   data-id="{{ $registro->Id ?? $registro->id ?? '' }}"
                   @if(!empty($registro->OrdCompartida)) data-ord-compartida="{{ $registro->OrdCompartida }}" @endif
+                  @if($esRepaso) data-es-repaso="1" @endif
                 >
                   @foreach($columns as $colIndex => $col)
                     @php
@@ -175,6 +180,21 @@
 
 <style>
   .pinned-column { position: sticky !important; background-color: #f3f8ff !important; color: #000 !important; }
+
+  /* Asegurar que los encabezados de columnas fijadas se mantengan visibles */
+  thead th.pinned-column {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background-color: #3b82f6 !important;
+    color: #fff !important;
+  }
+
+  /* Estilo para columnas fijadas en filas REPASO - rojo pastel */
+  tr[data-es-repaso="1"] .pinned-column {
+    background-color: #ffe5e5 !important;
+    color: #000 !important;
+  }
 
   .cursor-move { cursor: move !important; }
   .cursor-not-allowed { cursor: not-allowed !important; opacity: 0.6; }
