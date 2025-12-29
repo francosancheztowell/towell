@@ -44,7 +44,8 @@
 
         if ($field === 'Ultimo') {
           $sv = strtoupper(trim((string)$value));
-          if ($sv === 'UL') return '1';
+          if ($sv === 'UL') return '<strong>ULTIMO</strong>';
+          if ($sv === '1' || $value === 1 || $value === '1') return '<strong>ULTIMO</strong>';
           if ($sv === '0' || $value === 0) return '';
         }
 
@@ -98,7 +99,7 @@
 
     @if($registros && $registros->count() > 0)
       <div class="overflow-x-auto">
-        <div class="overflow-y-auto" style="max-height: calc(100vh - 70px); position: relative;">
+        <div class="overflow-y-auto" style="max-height: calc(100vh - 65px); position: relative;">
           <table id="mainTable" class="min-w-full divide-y divide-gray-200">
             <thead class="bg-blue-500 text-white" style="position: sticky; top: 0; z-index: 10;">
               <tr>
