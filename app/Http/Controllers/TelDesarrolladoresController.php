@@ -386,6 +386,8 @@ class TelDesarrolladoresController extends Controller
                 'Pedido' => $programa->TotalPedido,
                 'Produccion' => $programa->Produccion,
                 'Saldos' => $programa->SaldoPedido,
+                'OrdCompartida' => $programa->OrdCompartida,
+                'OrdCompartidaLider' => $programa->OrdCompartidaLider,
             ];
 
             foreach ($payload as $column => $value) {
@@ -756,7 +758,7 @@ class TelDesarrolladoresController extends Controller
                             $permitirActualizarRelacionados = false;
                         }
                     }
-	                
+
                     if ($registroModelo && $permitirActualizarRelacionados && $codigoDibujo !== '') {
                         // Preparar payload para actualizar ReqModelosCodificados
                         $payloadModelo = array_merge([

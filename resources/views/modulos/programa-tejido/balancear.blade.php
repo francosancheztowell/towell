@@ -484,11 +484,18 @@
         inputs.forEach(input => {
           if (input.value && input.value.includes('.')) input.value = Math.round(Number(input.value) || 0);
 
-          const pedido = Math.round(Number(input.value) || 0);
+          const produccion = Number(input.dataset.produccion || 0) || 0;
+          let pedido = Math.round(Number(input.value) || 0);
+
+          // Validar que el pedido nunca sea menor que la producción
+          if (produccion > 0 && pedido < produccion) {
+            pedido = produccion;
+            input.value = pedido;
+          }
+
           const row = input.closest('tr');
           const saldoCell = row.querySelector('.saldo-display');
 
-          const produccion = Number(saldoCell?.dataset.produccion || 0) || 0;
           const saldo = Math.max(0, pedido - produccion);
 
           totalPedido += pedido;
@@ -515,9 +522,10 @@
               const targets = inputs.filter(inp => inp !== lastEditedInput);
               const target = targets[0] || inputs[0];
               const valActual = Number(target.value) || 0;
+              const produccion = Number(target.dataset.produccion || 0) || 0;
 
               adjustingPedidos = true;
-              target.value = Math.round(Math.max(0, valActual + diff));
+              target.value = Math.round(Math.max(produccion, valActual + diff));
               adjustingPedidos = false;
 
               return window.calcularTotalesYFechas(target, ordCompartida);
@@ -530,9 +538,10 @@
               const ultimoInput = inputs[inputs.length - 1];
               const target = (lastEditedInput === primeroInput) ? ultimoInput : primeroInput;
               const valActualTarget = Number(target.value) || 0;
+              const produccion = Number(target.dataset.produccion || 0) || 0;
 
               adjustingPedidos = true;
-              target.value = Math.round(Math.max(0, valActualTarget + diff));
+              target.value = Math.round(Math.max(produccion, valActualTarget + diff));
               adjustingPedidos = false;
 
               return window.calcularTotalesYFechas(target, ordCompartida);
@@ -576,20 +585,24 @@
 
         if (inputs.length === 1) {
           const input = inputs[0];
-          input.value = Math.round(Math.max(0, (Number(input.value) || 0) + diferencia));
+          const produccion = Number(input.dataset.produccion || 0) || 0;
+          const nuevoValor = Math.round(Math.max(produccion, (Number(input.value) || 0) + diferencia));
+          input.value = nuevoValor;
           window.calcularTotalesYFechas(input, ordCompartida);
         } else {
           let diferenciaRestante = diferencia;
 
           inputs.forEach((input, index) => {
             const valorActual = Number(input.value) || 0;
+            const produccion = Number(input.dataset.produccion || 0) || 0;
             const proporcion = totalActual > 0 ? (valorActual / totalActual) : (1 / inputs.length);
             const delta = diferencia * proporcion;
 
             if (index === inputs.length - 1) {
-              input.value = Math.round(Math.max(0, valorActual + diferenciaRestante));
+              const nuevoValor = Math.round(Math.max(produccion, valorActual + diferenciaRestante));
+              input.value = nuevoValor;
             } else {
-              const nuevoValor = Math.round(Math.max(0, valorActual + delta));
+              const nuevoValor = Math.round(Math.max(produccion, valorActual + delta));
               input.value = nuevoValor;
               diferenciaRestante -= delta;
             }
@@ -649,7 +662,8 @@
             data.cambios.forEach(cambio => {
               const input = getInputById(cambio.id);
               if (input) {
-                const nuevoValor = Math.round(cambio.total_pedido);
+                const produccion = Number(input.dataset.produccion || 0) || 0;
+                const nuevoValor = Math.round(Math.max(produccion, cambio.total_pedido));
                 const valorAnterior = Number(input.value) || 0;
 
                 // Solo actualizar si hay cambio
@@ -779,6 +793,7 @@
           const produccion = Number(reg.Produccion || 0);
           const saldoOriginal = (reg.SaldoPedido != null) ? Math.max(0, Number(reg.SaldoPedido || 0)) : Math.max(0, pedidoOriginal - produccion);
           const stdDia = Number(reg.StdDia || 0);
+          const minPedido = produccion > 0 ? produccion : 0;
 
           return `
             <tr class="hover:bg-gray-50 border-b border-gray-200" data-registro-id="${reg.Id}">
@@ -794,8 +809,9 @@
                   data-fecha-inicio="${fechaInicio}"
                   data-duracion-original="${duracionOriginalMs}"
                   data-std-dia="${stdDia}"
+                  data-produccion="${produccion}"
                   value="${pedidoOriginal}"
-                  min="0"
+                  min="${minPedido}"
                   step="1"
                   oninput="calcularTotalesYFechas(this, ${ordCompartida})"
                 >
