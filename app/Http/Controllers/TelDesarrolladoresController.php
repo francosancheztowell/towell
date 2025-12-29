@@ -56,6 +56,7 @@ class TelDesarrolladoresController extends Controller
     {
         try {
             $producciones = ReqProgramaTejido::where('NoTelarId', $telarId)
+                ->where('EnProceso', 0)
                 ->whereNotNull('NoProduccion')
                 ->where('NoProduccion', '!=', '')
                 ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
