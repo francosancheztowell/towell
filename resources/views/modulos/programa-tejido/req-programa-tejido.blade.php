@@ -56,6 +56,28 @@
           return round(((float)$value) * 100) . '%';
         }
 
+        // Formatear PTvsCte (Dif vs Compromiso) como entero con redondeo
+        if ($field === 'PTvsCte' && is_numeric($value)) {
+          $valorFloat = (float)$value;
+          // Obtener la parte entera (truncar hacia cero)
+          $parteEntera = (int)$valorFloat;
+          // Calcular la parte decimal absoluta de forma más precisa
+          $parteDecimal = abs($valorFloat - $parteEntera);
+
+          // Si la parte decimal es mayor a 0.50, redondear hacia arriba
+          if ($parteDecimal > 0.50) {
+            // Redondear hacia arriba: para positivos usar ceil, para negativos usar floor
+            if ($valorFloat >= 0) {
+              return (string)(int)ceil($valorFloat);
+            } else {
+              return (string)(int)floor($valorFloat);
+            }
+          } else {
+            // Si es <= 0.50, truncar (hacia cero)
+            return (string)$parteEntera;
+          }
+        }
+
         if ($dateType === 'date' || $dateType === 'datetime') {
           try {
             $dt = $value instanceof \Carbon\Carbon ? $value : \Carbon\Carbon::parse($value);
@@ -112,11 +134,18 @@
                       if ($rawValue instanceof \Carbon\Carbon) {
                         $rawValue = $rawValue->format('Y-m-d H:i:s');
                       }
+                      // Detectar valores negativos en PTvsCte (Dif vs Compromiso)
+                      $esNegativo = false;
+                      if ($col['field'] === 'PTvsCte' && $rawValue !== null && $rawValue !== '') {
+                        $valorNumerico = is_numeric($rawValue) ? (float)$rawValue : 0;
+                        $esNegativo = $valorNumerico < 0;
+                      }
                     @endphp
                     <td
-                      class="px-3 py-2 text-sm text-gray-700 {{ ($col['dateType'] ?? null) ? 'whitespace-normal' : 'whitespace-nowrap' }} column-{{ $colIndex }}"
+                      class="px-3 py-2 text-sm text-gray-700 {{ ($col['dateType'] ?? null) ? 'whitespace-normal' : 'whitespace-nowrap' }} column-{{ $colIndex }} {{ $esNegativo ? 'valor-negativo' : '' }}"
                       data-column="{{ $col['field'] }}"
                       data-value="{{ e(is_scalar($rawValue) ? $rawValue : json_encode($rawValue)) }}"
+                      @if($esNegativo) data-es-negativo="1" @endif
                     >
                       {!! $formatValue($registro, $col['field'], $col['dateType'] ?? null) !!}
                     </td>
@@ -194,6 +223,13 @@
   tr[data-es-repaso="1"] .pinned-column {
     background-color: #ffe5e5 !important;
     color: #000 !important;
+  }
+
+  /* Estilo para valores negativos en columna Dif vs Compromiso (PTvsCte) - rojo pastel */
+  td[data-column="PTvsCte"][data-es-negativo="1"],
+  td.valor-negativo[data-column="PTvsCte"] {
+    background-color: #ffe5e5 !important;
+    color: #dc2626 !important; /* Texto rojo para valores negativos */
   }
 
   .cursor-move { cursor: move !important; }
