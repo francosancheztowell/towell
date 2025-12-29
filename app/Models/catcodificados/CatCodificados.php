@@ -52,6 +52,7 @@ class CatCodificados extends Model
         'Supervisor', 'OBSParaPro', 'CantidadProducir_2', 'Tejidas', 'pzaXrollo',
 
         'Pedido', 'Produccion', 'Saldos',
+        'OrdCompartida', 'OrdCompartidaLider',
     ];
 
     protected $casts = [
