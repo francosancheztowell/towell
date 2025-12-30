@@ -44,7 +44,8 @@
 
         if ($field === 'Ultimo') {
           $sv = strtoupper(trim((string)$value));
-          if ($sv === 'UL') return '1';
+          if ($sv === 'UL') return '<strong>ULTIMO</strong>';
+          if ($sv === '1' || $value === 1 || $value === '1') return '<strong>ULTIMO</strong>';
           if ($sv === '0' || $value === 0) return '';
         }
 
@@ -54,6 +55,28 @@
 
         if ($field === 'EficienciaSTD' && is_numeric($value)) {
           return round(((float)$value) * 100) . '%';
+        }
+
+        // Formatear PTvsCte (Dif vs Compromiso) como entero con redondeo
+        if ($field === 'PTvsCte' && is_numeric($value)) {
+          $valorFloat = (float)$value;
+          // Obtener la parte entera (truncar hacia cero)
+          $parteEntera = (int)$valorFloat;
+          // Calcular la parte decimal absoluta de forma más precisa
+          $parteDecimal = abs($valorFloat - $parteEntera);
+
+          // Si la parte decimal es mayor a 0.50, redondear hacia arriba
+          if ($parteDecimal > 0.50) {
+            // Redondear hacia arriba: para positivos usar ceil, para negativos usar floor
+            if ($valorFloat >= 0) {
+              return (string)(int)ceil($valorFloat);
+            } else {
+              return (string)(int)floor($valorFloat);
+            }
+          } else {
+            // Si es <= 0.50, truncar (hacia cero)
+            return (string)$parteEntera;
+          }
         }
 
         if ($dateType === 'date' || $dateType === 'datetime') {
@@ -76,7 +99,7 @@
 
     @if($registros && $registros->count() > 0)
       <div class="overflow-x-auto">
-        <div class="overflow-y-auto" style="max-height: calc(100vh - 70px); position: relative;">
+        <div class="overflow-y-auto" style="max-height: calc(100vh - 65px); position: relative;">
           <table id="mainTable" class="min-w-full divide-y divide-gray-200">
             <thead class="bg-blue-500 text-white" style="position: sticky; top: 0; z-index: 10;">
               <tr>
@@ -95,11 +118,16 @@
 
             <tbody class="bg-white divide-y divide-gray-100">
               @foreach($registros as $index => $registro)
+                @php
+                  $producto = $registro->NombreProducto ?? '';
+                  $esRepaso = !empty($producto) && strtoupper(substr(trim($producto), 0, 6)) === 'REPASO';
+                @endphp
                 <tr
                   class="hover:bg-blue-50 cursor-pointer selectable-row"
                   data-row-index="{{ $index }}"
                   data-id="{{ $registro->Id ?? $registro->id ?? '' }}"
                   @if(!empty($registro->OrdCompartida)) data-ord-compartida="{{ $registro->OrdCompartida }}" @endif
+                  @if($esRepaso) data-es-repaso="1" @endif
                 >
                   @foreach($columns as $colIndex => $col)
                     @php
@@ -107,11 +135,18 @@
                       if ($rawValue instanceof \Carbon\Carbon) {
                         $rawValue = $rawValue->format('Y-m-d H:i:s');
                       }
+                      // Detectar valores negativos en PTvsCte (Dif vs Compromiso)
+                      $esNegativo = false;
+                      if ($col['field'] === 'PTvsCte' && $rawValue !== null && $rawValue !== '') {
+                        $valorNumerico = is_numeric($rawValue) ? (float)$rawValue : 0;
+                        $esNegativo = $valorNumerico < 0;
+                      }
                     @endphp
                     <td
-                      class="px-3 py-2 text-sm text-gray-700 {{ ($col['dateType'] ?? null) ? 'whitespace-normal' : 'whitespace-nowrap' }} column-{{ $colIndex }}"
+                      class="px-3 py-2 text-sm text-gray-700 {{ ($col['dateType'] ?? null) ? 'whitespace-normal' : 'whitespace-nowrap' }} column-{{ $colIndex }} {{ $esNegativo ? 'valor-negativo' : '' }}"
                       data-column="{{ $col['field'] }}"
                       data-value="{{ e(is_scalar($rawValue) ? $rawValue : json_encode($rawValue)) }}"
+                      @if($esNegativo) data-es-negativo="1" @endif
                     >
                       {!! $formatValue($registro, $col['field'], $col['dateType'] ?? null) !!}
                     </td>
@@ -175,6 +210,94 @@
 
 <style>
   .pinned-column { position: sticky !important; background-color: #f3f8ff !important; color: #000 !important; }
+
+  /* Asegurar que los encabezados de columnas fijadas se mantengan visibles */
+  thead th.pinned-column {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background-color: #3b82f6 !important;
+    color: #fff !important;
+  }
+
+  /* Estilo para columnas fijadas en filas REPASO - rojo pastel */
+  tr[data-es-repaso="1"] .pinned-column {
+    background-color: #ffe5e5 !important;
+    color: #000 !important;
+  }
+
+  /* Estilo para valores negativos en columna Dif vs Compromiso (PTvsCte) - rojo pastel */
+  td[data-column="PTvsCte"][data-es-negativo="1"],
+  td.valor-negativo[data-column="PTvsCte"] {
+    background-color: #ffe5e5 !important;
+    color: #dc2626 !important; /* Texto rojo para valores negativos */
+  }
+
+  /* Estilo para columnas ef std, vel, hilo, calibre pie, pedido, % segundas, producción, saldos, saldo marbetes, day scheduling, orden prod, descrip, aplic, obs, tipo ped, fecha compromiso - amarillo pastel solo en celdas */
+  td[data-column="EficienciaSTD"],
+  td[data-column="VelocidadSTD"],
+  td[data-column="FibraRizo"],
+  td[data-column="CalibrePie2"],
+  td[data-column="TotalPedido"],
+  td[data-column="PorcentajeSegundos"],
+  td[data-column="Produccion"],
+  td[data-column="SaldoPedido"],
+  td[data-column="SaldoMarbete"],
+  td[data-column="ProgramarProd"],
+  td[data-column="NoProduccion"],
+  td[data-column="NombreProyecto"],
+  td[data-column="AplicacionId"],
+  td[data-column="Observaciones"],
+  td[data-column="TipoPedido"],
+  td[data-column="EntregaProduc"],
+  td[data-column="EntregaPT"] {
+    background-color: #fffcf3 !important;
+    color: #000 !important;
+  }
+
+  /* Asegurar que el amarillo pastel se aplique incluso cuando las columnas están fijadas */
+  td[data-column="EficienciaSTD"].pinned-column,
+  td[data-column="VelocidadSTD"].pinned-column,
+  td[data-column="FibraRizo"].pinned-column,
+  td[data-column="CalibrePie2"].pinned-column,
+  td[data-column="TotalPedido"].pinned-column,
+  td[data-column="PorcentajeSegundos"].pinned-column,
+  td[data-column="Produccion"].pinned-column,
+  td[data-column="SaldoPedido"].pinned-column,
+  td[data-column="SaldoMarbete"].pinned-column,
+  td[data-column="ProgramarProd"].pinned-column,
+  td[data-column="NoProduccion"].pinned-column,
+  td[data-column="NombreProyecto"].pinned-column,
+  td[data-column="AplicacionId"].pinned-column,
+  td[data-column="Observaciones"].pinned-column,
+  td[data-column="TipoPedido"].pinned-column,
+  td[data-column="EntregaProduc"].pinned-column,
+  td[data-column="EntregaPT"].pinned-column {
+    background-color: #fffcf3 !important;
+    color: #000 !important;
+  }
+
+  /* Los encabezados (th) mantienen el azul por defecto */
+  th[data-column="EficienciaSTD"],
+  th[data-column="VelocidadSTD"],
+  th[data-column="FibraRizo"],
+  th[data-column="CalibrePie2"],
+  th[data-column="TotalPedido"],
+  th[data-column="PorcentajeSegundos"],
+  th[data-column="Produccion"],
+  th[data-column="SaldoPedido"],
+  th[data-column="SaldoMarbete"],
+  th[data-column="ProgramarProd"],
+  th[data-column="NoProduccion"],
+  th[data-column="NombreProyecto"],
+  th[data-column="AplicacionId"],
+  th[data-column="Observaciones"],
+  th[data-column="TipoPedido"],
+  th[data-column="EntregaProduc"],
+  th[data-column="EntregaPT"] {
+    background-color: #3b82f6 !important;
+    color: #fff !important;
+  }
 
   .cursor-move { cursor: move !important; }
   .cursor-not-allowed { cursor: not-allowed !important; opacity: 0.6; }

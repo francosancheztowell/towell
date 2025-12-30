@@ -90,6 +90,15 @@
         }));
       }
 
+      function hasPedidoChanges() {
+        const inputs = Array.from(document.querySelectorAll('.pedido-input'));
+        return inputs.some(inp => {
+          const original = Number(inp.dataset.original) || 0;
+          const actual = Math.round(Number(inp.value) || 0);
+          return actual !== original;
+        });
+      }
+
       // ==========================
       // API / datos
       // ==========================
@@ -413,6 +422,9 @@
       // PREVIEW EXACTO (backend)
       // ==========================
       async function previewFechasExactas(ordCompartida) {
+        if (!hasPedidoChanges()) {
+          return; // No hay cambios: no recalcular ni tocar fechas
+        }
         const myVersion = ++previewVersion;
 
         if (previewAbort) previewAbort.abort();

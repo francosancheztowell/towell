@@ -8,7 +8,9 @@ use App\Models\ReqModelosCodificados;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Drawing as SharedDrawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -496,18 +498,8 @@ class OrdenDeCambioFelpaController extends Controller
             $hojaDestino->mergeCells($mergeCell);
         }
 
-        // Dibujos / imágenes
-        try {
-            $drawingCollection = $hojaOrigen->getDrawingCollection();
-            foreach ($drawingCollection as $drawing) {
-                $newDrawing = clone $drawing;
-                $newDrawing->setWorksheet($hojaDestino);
-            }
-        } catch (\Exception $e) {
-            Log::warning('Error al copiar dibujos/imágenes en la hoja', [
-                'error' => $e->getMessage(),
-            ]);
-        }
+        // Imagen: reinsertar desde archivo para evitar degradacion al guardar.
+        $this->insertarImagenEnHoja($hojaDestino, __DIR__ . '/image.png', 'B52', 'I52');
 
         // Protección
         try {
@@ -518,6 +510,102 @@ class OrdenDeCambioFelpaController extends Controller
         } catch (\Exception $e) {
             // Ignorar
         }
+    }
+
+    /**
+     * Insertar imagen PNG en un rango de celdas.
+     */
+    protected function insertarImagenEnHoja(Worksheet $sheet, string $path, string $celdaInicio, string $celdaFin): void
+    {
+        if (!file_exists($path)) {
+            Log::warning('No se encontró la imagen para insertar', [
+                'path' => $path,
+            ]);
+            return;
+        }
+
+        [$colInicio, $filaInicio] = $this->separarCelda($celdaInicio);
+        [$colFin, $filaFin]       = $this->separarCelda($celdaFin);
+
+        $anchoPx = $this->calcularAnchoRangoColumnas($sheet, $colInicio, $colFin);
+        $altoPx  = $this->calcularAltoRangoFilas($sheet, $filaInicio, $filaFin);
+
+        $drawing = new Drawing();
+        $drawing->setPath($path);
+        $drawing->setCoordinates($celdaInicio);
+        $drawing->setResizeProportional(false);
+        if ($anchoPx > 0) {
+            $drawing->setWidth($anchoPx);
+        }
+        if ($altoPx > 0) {
+            $drawing->setHeight($altoPx);
+        }
+        $drawing->setWorksheet($sheet);
+    }
+
+    /**
+     * Separar celda (ej. B52) en [col, fila].
+     *
+     * @return array{0: string, 1: int}
+     */
+    protected function separarCelda(string $celda): array
+    {
+        if (!preg_match('/^([A-Z]+)(\d+)$/', strtoupper($celda), $match)) {
+            return ['A', 1];
+        }
+
+        return [$match[1], (int) $match[2]];
+    }
+
+    /**
+     * Calcular el ancho total de un rango de columnas en pixeles.
+     */
+    protected function calcularAnchoRangoColumnas(Worksheet $sheet, string $colInicio, string $colFin): int
+    {
+        $anchoPx = 0;
+        $defaultFont = $sheet->getParent()->getDefaultStyle()->getFont();
+        for ($col = $colInicio; $col !== $this->siguienteColumna($colFin); $col++) {
+            $width = $sheet->getColumnDimension($col)->getWidth();
+            if ($width <= 0) {
+                $width = $sheet->getDefaultColumnDimension()->getWidth();
+            }
+            if ($width <= 0) {
+                $width = 8.43;
+            }
+            $anchoPx += SharedDrawing::cellDimensionToPixels($width, $defaultFont);
+        }
+
+        return (int) round($anchoPx);
+    }
+
+    /**
+     * Calcular el alto total de un rango de filas en pixeles.
+     */
+    protected function calcularAltoRangoFilas(Worksheet $sheet, int $filaInicio, int $filaFin): int
+    {
+        $altoPx = 0;
+        for ($row = $filaInicio; $row <= $filaFin; $row++) {
+            $height = $sheet->getRowDimension($row)->getRowHeight();
+            if ($height <= 0) {
+                $height = $sheet->getDefaultRowDimension()->getRowHeight();
+            }
+            if ($height <= 0) {
+                $height = 15.0;
+            }
+            $altoPx += SharedDrawing::pointsToPixels($height);
+        }
+
+        return (int) round($altoPx);
+    }
+
+    /**
+     * Obtener la siguiente columna (ej. A -> B, Z -> AA).
+     */
+    protected function siguienteColumna(string $columna): string
+    {
+        $col = strtoupper($columna);
+        $col++;
+        return $col;
     }
 
     /**
