@@ -572,10 +572,6 @@ class DuplicarTejido
         return (clone $q)->orderBy('Id', 'desc')->first();
     }
 
-    // =========================
-    // FÓRMULAS (se quedan como tenías)
-    // =========================
-
     public static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
         $formulas = [];

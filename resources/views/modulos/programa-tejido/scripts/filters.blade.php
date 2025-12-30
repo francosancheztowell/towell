@@ -40,10 +40,11 @@ const quickFilterConfig = {
         icon: 'fa-code-branch',
         description: 'Telares con orden compartida',
         check: (row) => {
-            const cell = row.querySelector('[data-column="OrdCompartida"]');
-            if (!cell) return false;
-            const val = (cell.dataset.value || cell.textContent || '').toString().trim();
-            return val !== '' && val !== '0' && val.toLowerCase() !== 'null';
+            // Usar el atributo data-ord-compartida del <tr> en lugar de buscar una celda
+            const ordCompartida = row.dataset.ordCompartida;
+            if (!ordCompartida) return false;
+            const val = ordCompartida.toString().trim();
+            return val !== '' && val !== '0' && val.toLowerCase() !== 'null' && val.toLowerCase() !== 'undefined';
         },
     },
     enProceso: {
