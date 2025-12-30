@@ -1207,7 +1207,7 @@ class DividirTejido
         if ($efiRow) {
             $efi = (float)$efiRow->Eficiencia;
             if ($efi > 1) $efi = $efi / 100; // 78 -> 0.78
-            $p->EficienciaSTD = $efi;
+            $p->EficienciaSTD = round($efi, 2);
         } else {
             LogFacade::warning('STD: No se encontró eficiencia', [
                 'tipoTelar' => $tipoTelar,

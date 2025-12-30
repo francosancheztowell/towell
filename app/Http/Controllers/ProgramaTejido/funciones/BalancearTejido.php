@@ -103,8 +103,19 @@ class BalancearTejido
 
             $cambios = $request->input('cambios', []);
 
+            Log::info('BalancearTejido: Iniciando actualizarPedidos', [
+                'total_cambios' => count($cambios),
+                'cambios' => array_map(fn($c) => ['id' => $c['id'], 'total_pedido' => $c['total_pedido']], $cambios)
+            ]);
+
             $ids = array_values(array_unique(array_map(fn($c) => (int)$c['id'], $cambios)));
             $regs = ReqProgramaTejido::whereIn('Id', $ids)->get()->keyBy('Id');
+
+            Log::info('BalancearTejido: Registros encontrados en BD', [
+                'ids_buscados' => $ids,
+                'ids_encontrados' => $regs->keys()->toArray(),
+                'total_encontrados' => $regs->count()
+            ]);
 
             // Warm caches (NO cambia resultados, solo evita N+1)
             self::warmCachesFromProgramas($regs->values());
@@ -113,19 +124,42 @@ class BalancearTejido
 
             $idsAfectados = [];
             $porTelar = [];
+            $idsActualizados = []; // IDs que ya fueron actualizados manualmente
 
             DB::beginTransaction();
 
+            // PASO 1: Actualizar TODOS los registros en $cambios primero
+            Log::info('BalancearTejido: Iniciando PASO 1 - Actualizar registros');
+
             foreach ($cambios as $cambio) {
                 $id = (int)$cambio['id'];
+
+                Log::info('BalancearTejido: Procesando cambio', [
+                    'id' => $id,
+                    'total_pedido_nuevo' => $cambio['total_pedido']
+                ]);
+
                 /** @var ReqProgramaTejido|null $registro */
                 $registro = $regs->get($id);
-                if (!$registro) continue;
+                if (!$registro) {
+                    Log::warning('BalancearTejido: Registro no encontrado', ['id' => $id]);
+                    continue;
+                }
 
                 $produccion = (float)($registro->Produccion ?? 0);
                 $input      = (float)$cambio['total_pedido'];
 
                 [$total, $saldo] = self::resolverTotalSaldo($input, $produccion, $cambio['modo'] ?? 'total');
+
+                Log::info('BalancearTejido: Valores calculados', [
+                    'id' => $id,
+                    'produccion' => $produccion,
+                    'input' => $input,
+                    'total_calculado' => $total,
+                    'saldo_calculado' => $saldo,
+                    'total_pedido_antes' => $registro->TotalPedido,
+                    'saldo_pedido_antes' => $registro->SaldoPedido
+                ]);
 
                 $registro->TotalPedido = $total;
                 $registro->SaldoPedido = $saldo;
@@ -138,6 +172,14 @@ class BalancearTejido
 
                     if ($inicio) $registro->FechaInicio = $inicio->format('Y-m-d H:i:s');
                     if ($fin)    $registro->FechaFinal  = $fin->format('Y-m-d H:i:s');
+
+                    Log::info('BalancearTejido: Fechas recalculadas', [
+                        'id' => $id,
+                        'fecha_inicio' => $inicio ? $inicio->format('Y-m-d H:i:s') : null,
+                        'fecha_final_antes' => $fechaFinalAntes,
+                        'fecha_final_nueva' => $fin ? $fin->format('Y-m-d H:i:s') : null,
+                        'horas_prod' => $horas
+                    ]);
                 }
 
                 // Fórmulas exactas
@@ -150,35 +192,168 @@ class BalancearTejido
 
                 $registro->save();
                 $idsAfectados[] = (int)$registro->Id;
+                $idsActualizados[(int)$registro->Id] = true; // Marcar como ya actualizado
 
-                // Cascada solo si FechaFinal cambió "de verdad"
-                $delta = self::diffSecondsNullable($fechaFinalAntes, $registro->FechaFinal);
-                $fechaFinalCambiada = ($delta === null)
-                    ? !empty($registro->FechaFinal)
-                    : ($delta >= self::CASCADE_THRESHOLD_SECONDS);
+                Log::info('BalancearTejido: Registro guardado exitosamente', [
+                    'id' => $id,
+                    'total_pedido' => $registro->TotalPedido,
+                    'saldo_pedido' => $registro->SaldoPedido,
+                    'fecha_final' => $registro->FechaFinal
+                ]);
 
-                if ($fechaFinalCambiada) {
-                    $key = trim((string)$registro->SalonTejidoId) . '|' . trim((string)$registro->NoTelarId);
-                    $porTelar[$key][] = (int)$registro->Id;
+                // Para cascada: guardar información del telar
+                $key = trim((string)$registro->SalonTejidoId) . '|' . trim((string)$registro->NoTelarId);
+                if (!isset($porTelar[$key])) {
+                    $porTelar[$key] = [];
                 }
+                $porTelar[$key][] = (int)$registro->Id;
             }
 
-            // Cascada por telar (MISMA consulta que tu código)
-            foreach ($porTelar as $key => $idsBase) {
-                $base = ReqProgramaTejido::whereIn('Id', $idsBase)
+            Log::info('BalancearTejido: PASO 1 completado', [
+                'ids_afectados' => $idsAfectados,
+                'total_actualizados' => count($idsAfectados),
+                'telares' => array_keys($porTelar)
+            ]);
+
+            // PASO 2: Cascada por telar - usar el registro más temprano de cada telar como base
+            Log::info('BalancearTejido: Iniciando PASO 2 - Cascada por telar', [
+                'total_telares' => count($porTelar)
+            ]);
+
+            foreach ($porTelar as $key => $idsDelTelar) {
+                Log::info('BalancearTejido: Procesando telar', [
+                    'telar_key' => $key,
+                    'ids_actualizados_en_telar' => $idsDelTelar
+                ]);
+
+                // Obtener todos los registros del telar ordenados por FechaInicio
+                $salonTelar = explode('|', $key);
+                $salon = $salonTelar[0];
+                $telar = $salonTelar[1];
+
+                $todosRegistrosTelar = ReqProgramaTejido::query()
+                    ->where('SalonTejidoId', $salon)
+                    ->where('NoTelarId', $telar)
                     ->orderBy('FechaInicio', 'asc')
                     ->orderBy('Id', 'asc')
-                    ->first();
+                    ->get();
 
-                if (!$base) continue;
+                Log::info('BalancearTejido: Registros del telar', [
+                    'telar_key' => $key,
+                    'total_registros' => $todosRegistrosTelar->count(),
+                    'ids' => $todosRegistrosTelar->pluck('Id')->toArray()
+                ]);
 
-                $idsCascada = self::cascadeFechasTelarDesde($base);
-                if (!empty($idsCascada)) {
-                    $idsAfectados = array_merge($idsAfectados, $idsCascada);
+                if ($todosRegistrosTelar->isEmpty()) continue;
+
+                // Warm caches
+                self::warmCachesFromProgramas($todosRegistrosTelar);
+
+                // Encontrar el índice del registro más temprano que fue actualizado
+                $idxBase = null;
+                foreach ($todosRegistrosTelar as $idx => $r) {
+                    if (isset($idsActualizados[(int)$r->Id])) {
+                        $idxBase = $idx;
+                        Log::info('BalancearTejido: Registro base encontrado', [
+                            'telar_key' => $key,
+                            'idx' => $idx,
+                            'id' => $r->Id
+                        ]);
+                        break;
+                    }
                 }
+
+                if ($idxBase === null) {
+                    Log::warning('BalancearTejido: No se encontró registro base', ['telar_key' => $key]);
+                    continue;
+                }
+
+                $base = $todosRegistrosTelar[$idxBase];
+                $cursor = !empty($base->FechaFinal)
+                    ? Carbon::parse($base->FechaFinal)
+                    : Carbon::parse($base->FechaInicio);
+
+                Log::info('BalancearTejido: Iniciando cascada desde base', [
+                    'telar_key' => $key,
+                    'base_id' => $base->Id,
+                    'cursor_inicial' => $cursor->format('Y-m-d H:i:s'),
+                    'total_registros_despues' => $todosRegistrosTelar->count() - $idxBase - 1
+                ]);
+
+                // Continuar desde el siguiente registro después del base
+                $cascadaCount = 0;
+                for ($i = $idxBase + 1; $i < $todosRegistrosTelar->count(); $i++) {
+                    $r = $todosRegistrosTelar[$i];
+
+                    Log::info('BalancearTejido: Evaluando registro en cascada', [
+                        'telar_key' => $key,
+                        'id' => $r->Id,
+                        'ya_actualizado' => isset($idsActualizados[(int)$r->Id])
+                    ]);
+
+                    // Si ya fue actualizado manualmente, usar su FechaFinal como cursor y continuar
+                    if (isset($idsActualizados[(int)$r->Id])) {
+                        if (!empty($r->FechaFinal)) {
+                            $cursor = Carbon::parse($r->FechaFinal);
+                        }
+                        Log::info('BalancearTejido: Registro saltado (ya actualizado)', [
+                            'id' => $r->Id,
+                            'nuevo_cursor' => $cursor->format('Y-m-d H:i:s')
+                        ]);
+                        continue;
+                    }
+
+                    // Actualizar este registro en cascada
+                    $inicio = $cursor->copy();
+                    if (!empty($r->CalendarioId)) {
+                        $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
+                        if ($snap) $inicio = $snap;
+                    }
+
+                    $r->FechaInicio = $inicio->format('Y-m-d H:i:s');
+
+                    $horas = self::calcularHorasProd($r);
+
+                    if ($horas > 0) {
+                        $fin = !empty($r->CalendarioId)
+                            ? (self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horas) ?: $inicio->copy()->addSeconds((int) round($horas * 3600)))
+                            : $inicio->copy()->addSeconds((int) round($horas * 3600));
+                    } else {
+                        $fin = $inicio->copy()->addDays(30);
+                    }
+
+                    $r->FechaFinal = $fin->format('Y-m-d H:i:s');
+
+                    $formulas = self::calcularFormulasEficiencia($r);
+                    foreach ($formulas as $campo => $valor) $r->{$campo} = $valor;
+
+                    $r->save();
+                    $idsAfectados[] = (int)$r->Id;
+                    $cascadaCount++;
+
+                    Log::info('BalancearTejido: Registro en cascada actualizado', [
+                        'id' => $r->Id,
+                        'fecha_inicio' => $r->FechaInicio,
+                        'fecha_final' => $r->FechaFinal,
+                        'horas_prod' => $horas
+                    ]);
+
+                    $cursor = $fin->copy();
+                }
+
+                Log::info('BalancearTejido: Cascada completada para telar', [
+                    'telar_key' => $key,
+                    'registros_en_cascada' => $cascadaCount
+                ]);
             }
 
+            Log::info('BalancearTejido: PASO 2 completado', [
+                'total_ids_afectados' => count($idsAfectados)
+            ]);
+
             DB::commit();
+
+            Log::info('BalancearTejido: Transacción confirmada');
 
             // Restaurar dispatcher
             if ($dispatcher) {
@@ -187,6 +362,12 @@ class BalancearTejido
 
             // Regenerar líneas diarias (observer) manualmente (mismo orden, pero 1 query)
             $idsAfectados = array_values(array_unique(array_filter($idsAfectados)));
+
+            Log::info('BalancearTejido: Regenerando líneas diarias (observer)', [
+                'total_ids' => count($idsAfectados),
+                'ids' => $idsAfectados
+            ]);
+
             if (!empty($idsAfectados)) {
                 $observer = new ReqProgramaTejidoObserver();
                 $regsObs = ReqProgramaTejido::whereIn('Id', $idsAfectados)->get()->keyBy('Id');
@@ -197,9 +378,18 @@ class BalancearTejido
                     try {
                         $observer->saved($reg);
                     } catch (\Throwable $e) {
+                        Log::error('BalancearTejido: Error en observer', [
+                            'id' => $id,
+                            'error' => $e->getMessage()
+                        ]);
                     }
                 }
             }
+
+            Log::info('BalancearTejido: Proceso completado exitosamente', [
+                'total_actualizados' => count($idsAfectados),
+                'ids_finales' => $idsAfectados
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -209,6 +399,13 @@ class BalancearTejido
 
         } catch (\Throwable $e) {
             DB::rollBack();
+
+            Log::error('BalancearTejido: Error en actualizarPedidos', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
 
             if ($dispatcher) {
                 ReqProgramaTejido::setEventDispatcher($dispatcher);
@@ -339,7 +536,7 @@ class BalancearTejido
     // =========================================================
     // Cascada por telar
     // =========================================================
-    private static function cascadeFechasTelarDesde(ReqProgramaTejido $base): array
+    private static function cascadeFechasTelarDesde(ReqProgramaTejido $base, array $idsExcluidos = []): array
     {
         $salon = trim((string)$base->SalonTejidoId);
         $telar = trim((string)$base->NoTelarId);
@@ -367,6 +564,15 @@ class BalancearTejido
 
         for ($i = $idx + 1; $i < $rows->count(); $i++) {
             $r = $rows[$i];
+
+            // Saltar registros que ya fueron actualizados manualmente
+            if (isset($idsExcluidos[(int)$r->Id])) {
+                // Si este registro ya fue actualizado, usar su FechaFinal como cursor
+                if (!empty($r->FechaFinal)) {
+                    $cursor = Carbon::parse($r->FechaFinal);
+                }
+                continue;
+            }
 
             $inicio = $cursor->copy();
             if (!empty($r->CalendarioId)) {
@@ -588,6 +794,23 @@ class BalancearTejido
                 $horasProd = $cantidad / ($stdToaHra * $efic);
                 $formulas['HorasProd'] = (float) round($horasProd, 2);
                 $formulas['DiasJornada'] = (float) round($horasProd / 24, 2);
+            }
+
+            // PTvsCte = EntregaCte - EntregaPT (diferencia en días)
+            // EntregaCte = FechaFinal + 12 días
+            if (!empty($programa->FechaFinal)) {
+                try {
+                    $fechaFinal = Carbon::parse($programa->FechaFinal);
+                    $entregaCte = $fechaFinal->copy()->addDays(12);
+
+                    if (!empty($programa->EntregaPT)) {
+                        $entregaPT = Carbon::parse($programa->EntregaPT);
+                        $diferenciaDias = $entregaCte->diffInDays($entregaPT, false);
+                        $formulas['PTvsCte'] = (float) round($diferenciaDias, 2);
+                    }
+                } catch (\Throwable $e) {
+                    // Si hay error al parsear, no establecer PTvsCte
+                }
             }
 
         } catch (\Throwable $e) {

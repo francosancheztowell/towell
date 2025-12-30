@@ -510,7 +510,7 @@ class DuplicarTejido
         if ($efiRow) {
             $efi = (float)$efiRow->Eficiencia;
             if ($efi > 1) $efi = $efi / 100;
-            $p->EficienciaSTD = $efi;
+            $p->EficienciaSTD = round($efi, 2);
         }
     }
 

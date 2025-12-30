@@ -682,8 +682,9 @@
                 if (Math.abs(nuevoValor - valorAnterior) > 0.01) {
                                     input.value = nuevoValor;
 
-                  // Actualizar el dataset original para que el cálculo funcione correctamente
-                  input.dataset.original = nuevoValor;
+                  // NO actualizar dataset.original aquí - debe mantenerse el valor original
+                  // para que al guardar se detecten los cambios del balanceo
+                  // input.dataset.original solo se actualiza al cargar o después de guardar
 
                   // Disparar evento input para que se actualicen totales y fechas
                   // Esto funciona igual que cuando el usuario cambia el input manualmente
@@ -713,10 +714,21 @@
         const inputs = document.querySelectorAll('.pedido-input');
         const cambios = [];
 
+        console.log('=== GUARDAR CAMBIOS PEDIDO ===');
+        console.log('Total inputs encontrados:', inputs.length);
+
         inputs.forEach(input => {
           const id = input.dataset.id;
           const original = Number(input.dataset.original) || 0;
           const nuevo = Math.round(Number(input.value) || 0);
+
+          console.log(`ID ${id}:`, {
+            original,
+            nuevo,
+            cambiado: original !== nuevo,
+            dataset_original: input.dataset.original,
+            input_value: input.value
+          });
 
           if (original !== nuevo) {
             cambios.push({
@@ -725,8 +737,14 @@
               modo: 'total'
               // NO mandamos fecha_final: la calcula el backend con calendario exacto
             });
+            console.log(`   Agregado a cambios`);
+          } else {
+            console.log(`   NO agregado (sin cambios)`);
           }
         });
+
+        console.log('Total cambios a enviar:', cambios.length);
+        console.log('Cambios:', cambios);
 
         if (cambios.length === 0) {
           Swal.showValidationMessage('No hay cambios para guardar');
