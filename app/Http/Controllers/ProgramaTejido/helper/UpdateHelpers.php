@@ -140,7 +140,7 @@ class UpdateHelpers
         $ve = $d['velocidad_std']  ?? $req->input('VelocidadSTD')  ?? $req->input('velocidadSTD');
 
         if ($ef !== null && is_numeric($ef)) {
-            $r->EficienciaSTD = (float) $ef;
+            $r->EficienciaSTD = round((float) $ef, 2);
         }
         if ($ve !== null && is_numeric($ve)) {
             $r->VelocidadSTD  = (float) $ve;

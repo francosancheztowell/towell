@@ -922,7 +922,7 @@ class ProgramaTejidoController extends Controller
             // Actualizar Eficiencia y Velocidad según el nuevo telar
             [$nuevaEficiencia, $nuevaVelocidad] = QueryHelpers::resolverStdSegunTelar($registro, $modeloDestino, $nuevoTelar, $nuevoSalon);
             if (!is_null($nuevaEficiencia)) {
-                $registro->EficienciaSTD = $nuevaEficiencia;
+                $registro->EficienciaSTD = round($nuevaEficiencia, 2);
             }
             if (!is_null($nuevaVelocidad)) {
                 $registro->VelocidadSTD = $nuevaVelocidad;
@@ -1282,7 +1282,27 @@ class ProgramaTejidoController extends Controller
         ReqProgramaTejido::unsetEventDispatcher();
 
         try {
-            // Actualizar todos los registros con el OrdCompartida determinado
+            // PASO 1: Primero, quitar OrdCompartidaLider de todos los registros que se van a vincular
+            // (excepto el primero, que se actualizará después)
+            $otrosIds = array_filter($registrosIds, fn($id) => $id != $primerId);
+            if (count($otrosIds) > 0) {
+                ReqProgramaTejido::whereIn('Id', $otrosIds)
+                    ->update([
+                        'OrdCompartidaLider' => null,
+                        'UpdatedAt' => now()
+                    ]);
+            }
+
+            // PASO 2: Quitar OrdCompartidaLider de todos los registros que ya tienen el mismo OrdCompartida
+            // (para asegurar que solo haya un líder)
+            ReqProgramaTejido::where('OrdCompartida', $ordCompartidaAVincular)
+                ->where('Id', '!=', $primerId)
+                ->update([
+                    'OrdCompartidaLider' => null,
+                    'UpdatedAt' => now()
+                ]);
+
+            // PASO 3: Actualizar todos los registros con el OrdCompartida determinado
             // Solo actualizar los que no tienen OrdCompartida o tienen uno diferente
             $actualizados = ReqProgramaTejido::whereIn('Id', $registrosIds)
                 ->where(function ($query) use ($ordCompartidaAVincular) {
@@ -1292,6 +1312,13 @@ class ProgramaTejidoController extends Controller
                 })
                 ->update([
                     'OrdCompartida' => $ordCompartidaAVincular,
+                    'UpdatedAt' => now()
+                ]);
+
+            // PASO 4: Asignar OrdCompartidaLider = 1 solo al primer registro seleccionado
+            ReqProgramaTejido::where('Id', $primerId)
+                ->update([
+                    'OrdCompartidaLider' => 1,
                     'UpdatedAt' => now()
                 ]);
 
