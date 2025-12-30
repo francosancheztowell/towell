@@ -116,7 +116,7 @@ class TelDesarrolladoresController extends Controller
                     'FibraTrama',
                     'CodColorTrama',
                     'ColorTrama',
-                    'PasadasTramaFondoC1'
+                    'PasadasTrama'
                 );
 
                 if ($shouldIncludeDetalle($filaTrama)) {
@@ -657,10 +657,15 @@ class TelDesarrolladoresController extends Controller
                         if ($value === null || $value === '') {
                             continue;
                         }
-                        $pasadasPayload[$key] = (int) $value;
+                        // Mapear 'PasadasTrama' a 'PasadasTramaFondoC1' para CatCodificados
+                        if ($key === 'PasadasTrama') {
+                            $pasadasPayload['PasadasTramaFondoC1'] = (int) $value;
+                        } else {
+                            $pasadasPayload[$key] = (int) $value;
+                        }
                     }
                 } elseif ($ordenData) {
-                    $tramaValue = data_get($ordenData, 'PasadasTramaFondoC1');
+                    $tramaValue = data_get($ordenData, 'PasadasTrama');
                     if ($tramaValue !== null && $tramaValue !== '') {
                         $pasadasPayload['PasadasTramaFondoC1'] = (int) $tramaValue;
                     }
