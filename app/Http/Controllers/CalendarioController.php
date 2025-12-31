@@ -9,6 +9,7 @@ use App\Models\ReqProgramaTejido;
 use App\Models\ReqModelosCodificados;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido;
+use App\Http\Controllers\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -1009,43 +1010,24 @@ class CalendarioController extends Controller
 
     public function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
-        $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
-            ->where('FechaFin', '>', $fechaInicio->format('Y-m-d H:i:s'))
-            ->orderBy('FechaInicio', 'asc')
-            ->first(['FechaInicio', 'FechaFin']);
-
-        if (!$linea) return null;
-
-        $ini = Carbon::parse($linea->FechaInicio);
-        $fin = Carbon::parse($linea->FechaFin);
-
-        if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) return $fechaInicio->copy();
-
-        return $ini->copy();
+        return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio);
     }
 
     public function calcularHorasProd(ReqProgramaTejido $p): float
     {
         $vel  = (float) ($p->VelocidadSTD ?? 0);
         $efic = (float) ($p->EficienciaSTD ?? 0);
-        if ($efic > 1) $efic = $efic / 100;
-
         $cantidad = $this->sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
         $m = $this->getModeloParams($p->TamanoClave ?? null, $p);
-
-        $stdToaHra = 0.0;
-        if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
-            $parte1 = $m['total'];
-            $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
-            $den = ($parte1 + $parte2) / $vel;
-            if ($den > 0) $stdToaHra = ($m['no_tiras'] * 60) / $den;
-        }
-
-        if ($stdToaHra > 0 && $efic > 0 && $cantidad > 0) {
-            return $cantidad / ($stdToaHra * $efic);
-        }
-
-        return 0.0;
+        return TejidoHelpers::calcularHorasProd(
+            $vel,
+            $efic,
+            $cantidad,
+            (float)($m['no_tiras'] ?? 0),
+            (float)($m['total'] ?? 0),
+            (float)($m['luchaje'] ?? 0),
+            (float)($m['repeticiones'] ?? 0)
+        );
     }
 
     private function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
@@ -1093,10 +1075,7 @@ class CalendarioController extends Controller
 
     private function sanitizeNumber($value): float
     {
-        if ($value === null) return 0.0;
-        if (is_numeric($value)) return (float)$value;
-        $clean = str_replace([',', ' '], '', (string)$value);
-        return is_numeric($clean) ? (float)$clean : 0.0;
+        return TejidoHelpers::sanitizeNumber($value);
     }
 
     private function normalizarHoraHms(string $hora): string
@@ -1205,7 +1184,6 @@ class CalendarioController extends Controller
 
         $diffSeg = abs($fin->getTimestamp() - $inicio->getTimestamp());
         $diffDias = $diffSeg / 86400;
-
         if ($diffDias > 0) {
             $out['DiasEficiencia'] = (float) round($diffDias, 4);
         }

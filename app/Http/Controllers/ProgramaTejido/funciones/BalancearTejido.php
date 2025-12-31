@@ -6,6 +6,7 @@ use App\Models\ReqCalendarioLine;
 use App\Models\ReqModelosCodificados;
 use App\Models\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Http\Controllers\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -511,27 +512,19 @@ class BalancearTejido
     {
         $vel   = (float) ($p->VelocidadSTD ?? 0);
         $efic  = (float) ($p->EficienciaSTD ?? 0);
-        if ($efic > 1) $efic = $efic / 100;
-
         $cantidad = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
 
         $m = self::getModeloParams($p->TamanoClave ?? null, $p);
 
-        $stdToaHra = 0.0;
-        if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
-            $parte1 = $m['total'];
-            $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
-            $den = ($parte1 + $parte2) / $vel;
-            if ($den > 0) {
-                $stdToaHra = ($m['no_tiras'] * 60) / $den;
-            }
-        }
-
-        if ($stdToaHra > 0 && $efic > 0 && $cantidad > 0) {
-            return $cantidad / ($stdToaHra * $efic);
-        }
-
-        return 0.0;
+        return TejidoHelpers::calcularHorasProd(
+            $vel,
+            $efic,
+            $cantidad,
+            (float)($m['no_tiras'] ?? 0),
+            (float)($m['total'] ?? 0),
+            (float)($m['luchaje'] ?? 0),
+            (float)($m['repeticiones'] ?? 0)
+        );
     }
 
     // =========================================================
@@ -540,22 +533,7 @@ class BalancearTejido
     private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
         $lines = self::getCalendarioLines($calendarioId);
-
-        // Simula: where FechaFin > $fechaInicio orderBy FechaInicio first()
-        $ts = $fechaInicio->getTimestamp();
-        $line = null;
-        foreach ($lines as $l) {
-            if ($l['fin_ts'] > $ts) { $line = $l; break; }
-        }
-
-        if (!$line) return null;
-
-        $ini = $line['ini']; // Carbon ya parseado
-        $fin = $line['fin'];
-
-        if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) return $fechaInicio->copy();
-
-        return $ini->copy();
+        return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio, $lines);
     }
 
     /**
@@ -860,10 +838,7 @@ class BalancearTejido
 
     private static function sanitizeNumber($value): float
     {
-        if ($value === null) return 0.0;
-        if (is_numeric($value)) return (float)$value;
-        $clean = str_replace([',', ' '], '', (string)$value);
-        return is_numeric($clean) ? (float)$clean : 0.0;
+        return TejidoHelpers::sanitizeNumber($value);
     }
 
 

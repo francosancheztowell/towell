@@ -4,12 +4,12 @@ namespace App\Http\Controllers\ProgramaTejido\funciones;
 
 use App\Models\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Http\Controllers\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 use App\Models\ReqModelosCodificados;
-use App\Models\ReqCalendarioLine;
 use App\Models\ReqVelocidadStd;
 use App\Models\ReqEficienciaStd;
 use App\Helpers\StringTruncator;
@@ -993,31 +993,7 @@ class DividirTejido
      */
     private static function construirMaquina(?string $maquinaBase, ?string $salon, $telar): string
     {
-        $salonNorm = strtoupper(trim((string) $salon));
-        $prefijo = null;
-
-        if ($salonNorm !== '') {
-            if (preg_match('/SMI(T)?/i', $salonNorm)) {
-                $prefijo = 'SMI';
-            } elseif (preg_match('/JAC/i', $salonNorm)) {
-                $prefijo = 'JAC';
-            }
-        }
-
-        if (!$prefijo && $maquinaBase && preg_match('/^([A-Za-z]+)/', trim($maquinaBase), $matches)) {
-            $prefijo = $matches[1];
-        }
-
-        if (!$prefijo && $salonNorm !== '') {
-            $prefijo = substr($salonNorm, 0, 4);
-            $prefijo = rtrim($prefijo, '0123456789');
-        }
-
-        if (!$prefijo) {
-            $prefijo = 'TEL';
-        }
-
-        return trim($prefijo) . ' ' . trim((string) $telar);
+        return TejidoHelpers::construirMaquinaConSalon($maquinaBase, $salon, $telar);
     }
 
     // =========================================================
@@ -1070,27 +1046,19 @@ class DividirTejido
     {
         $vel   = (float) ($p->VelocidadSTD ?? 0);
         $efic  = (float) ($p->EficienciaSTD ?? 0);
-        if ($efic > 1) $efic = $efic / 100;
-
         $cantidad = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
 
         $m = self::getModeloParams($p->TamanoClave ?? null, $p);
 
-        $stdToaHra = 0.0;
-        if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
-            $parte1 = $m['total'];
-            $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
-            $den = ($parte1 + $parte2) / $vel;
-            if ($den > 0) {
-                $stdToaHra = ($m['no_tiras'] * 60) / $den;
-            }
-        }
-
-        if ($stdToaHra > 0 && $efic > 0 && $cantidad > 0) {
-            return $cantidad / ($stdToaHra * $efic);
-        }
-
-        return 0.0;
+        return TejidoHelpers::calcularHorasProd(
+            $vel,
+            $efic,
+            $cantidad,
+            (float)($m['no_tiras'] ?? 0),
+            (float)($m['total'] ?? 0),
+            (float)($m['luchaje'] ?? 0),
+            (float)($m['repeticiones'] ?? 0)
+        );
     }
 
     /**
@@ -1098,21 +1066,7 @@ class DividirTejido
      */
     private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
-        $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
-            ->where('FechaFin', '>', $fechaInicio)
-            ->orderBy('FechaInicio')
-            ->first();
-
-        if (!$linea) return null;
-
-        $ini = Carbon::parse($linea->FechaInicio);
-        $fin = Carbon::parse($linea->FechaFin);
-
-        if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) {
-            return $fechaInicio->copy();
-        }
-
-        return $ini->copy();
+        return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio);
     }
 
     /**
@@ -1157,10 +1111,7 @@ class DividirTejido
      */
     private static function sanitizeNumber($value): float
     {
-        if ($value === null) return 0.0;
-        if (is_numeric($value)) return (float)$value;
-        $clean = str_replace([',', ' '], '', (string)$value);
-        return is_numeric($clean) ? (float)$clean : 0.0;
+        return TejidoHelpers::sanitizeNumber($value);
     }
 
     // =========================
@@ -1169,67 +1120,7 @@ class DividirTejido
 
     private static function aplicarStdDesdeCatalogos(ReqProgramaTejido $p): void
     {
-        $tipoTelar = self::resolverTipoTelarStd($p->Maquina ?? null, $p->SalonTejidoId ?? null);
-        $telar     = trim((string)($p->NoTelarId ?? ''));
-        $fibraId   = trim((string)($p->FibraRizo ?? ''));
-
-        // Default: Normal
-        $densidad  = self::resolverDensidadStd($p); // "Normal" o "Alta"
-
-        if ($telar === '' || $fibraId === '') {
-            LogFacade::warning('STD: telar o fibra vacíos, no se puede aplicar', [
-                'tipoTelar' => $tipoTelar,
-                'telar' => $telar,
-                'fibra' => $fibraId,
-                'programa_id' => $p->Id ?? null,
-            ]);
-            return;
-        }
-
-        $velRow = self::buscarStdVelocidad($tipoTelar, $telar, $fibraId, $densidad);
-        $efiRow = self::buscarStdEficiencia($tipoTelar, $telar, $fibraId, $densidad);
-
-        $oldVel = $p->VelocidadSTD ?? null;
-        $oldEfi = $p->EficienciaSTD ?? null;
-
-        if ($velRow) {
-            $p->VelocidadSTD = (float)$velRow->Velocidad;
-        } else {
-            LogFacade::warning('STD: No se encontró velocidad', [
-                'tipoTelar' => $tipoTelar,
-                'telar' => $telar,
-                'fibra' => $fibraId,
-                'densidad' => $densidad,
-                'velocidad_actual' => $oldVel,
-            ]);
-        }
-
-        if ($efiRow) {
-            $efi = (float)$efiRow->Eficiencia;
-            if ($efi > 1) $efi = $efi / 100; // 78 -> 0.78
-            $p->EficienciaSTD = round($efi, 2);
-        } else {
-            LogFacade::warning('STD: No se encontró eficiencia', [
-                'tipoTelar' => $tipoTelar,
-                'telar' => $telar,
-                'fibra' => $fibraId,
-                'densidad' => $densidad,
-                'eficiencia_actual' => $oldEfi,
-            ]);
-        }
-
-        if ((string)$oldVel !== (string)($p->VelocidadSTD ?? null) || (string)$oldEfi !== (string)($p->EficienciaSTD ?? null)) {
-            LogFacade::info('STD aplicado', [
-                'tipoTelar' => $tipoTelar,
-                'telar' => $telar,
-                'fibra' => $fibraId,
-                'densidad' => $densidad,
-                'vel_old' => $oldVel,
-                'vel_new' => $p->VelocidadSTD ?? null,
-                'efi_old' => $oldEfi,
-                'efi_new' => $p->EficienciaSTD ?? null,
-            ]);
-        }
+        TejidoHelpers::aplicarStdDesdeCatalogos($p, true, true);
     }
 
     /**
@@ -1240,18 +1131,7 @@ class DividirTejido
      */
     private static function resolverTipoTelarStd(?string $maquina, ?string $salonTejidoId): string
     {
-        $m = strtoupper(trim((string)$maquina));
-        $s = strtoupper(trim((string)$salonTejidoId));
-
-        if ($m !== '') {
-            if (str_contains($m, 'SMI')) return 'SMITH';
-            if (str_contains($m, 'JAC')) return 'JACQUARD';
-        }
-
-        if ($s === 'SMIT' || $s === 'SMITH') return 'SMITH';
-        if ($s === 'JAC' || $s === 'JACQ' || $s === 'JACQUARD') return 'JACQUARD';
-
-        return $s !== '' ? $s : 'SMITH';
+        return TejidoHelpers::resolverTipoTelarStd($maquina, $salonTejidoId);
     }
 
     /**
@@ -1260,47 +1140,17 @@ class DividirTejido
      */
     private static function resolverDensidadStd(ReqProgramaTejido $p): string
     {
-        if (isset($p->Densidad) && $p->Densidad !== null && $p->Densidad !== '') {
-            $d = trim((string)$p->Densidad);
-            if (strcasecmp($d, self::DENSIDAD_ALTA) === 0)   return self::DENSIDAD_ALTA;
-            if (strcasecmp($d, self::DENSIDAD_NORMAL) === 0) return self::DENSIDAD_NORMAL;
-        }
-        return self::DENSIDAD_NORMAL;
+        return TejidoHelpers::resolverDensidadStd($p->Densidad ?? null);
     }
 
     private static function buscarStdVelocidad(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqVelocidadStd
     {
-        $q = ReqVelocidadStd::query()
-            ->where('SalonTejidoId', $tipoTelar) // SMITH/JACQUARD
-            ->where('NoTelarId', $telar)
-            ->where('FibraId', $fibraId);
-
-        // 1) match exacto densidad (Normal/Alta)
-        $row = (clone $q)->where('Densidad', $densidad)->orderBy('Id', 'desc')->first();
-        if ($row) return $row;
-
-        // 2) fallback densidad NULL
-        $rowNull = (clone $q)->whereNull('Densidad')->orderBy('Id', 'desc')->first();
-        if ($rowNull) return $rowNull;
-
-        // 3) fallback cualquiera
-        return (clone $q)->orderBy('Id', 'desc')->first();
+        return TejidoHelpers::buscarStdVelocidad($tipoTelar, $telar, $fibraId, $densidad);
     }
 
     private static function buscarStdEficiencia(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqEficienciaStd
     {
-        $q = ReqEficienciaStd::query()
-            ->where('SalonTejidoId', $tipoTelar) // SMITH/JACQUARD
-            ->where('NoTelarId', $telar)
-            ->where('FibraId', $fibraId);
-
-        $row = (clone $q)->where('Densidad', $densidad)->orderBy('Id', 'desc')->first();
-        if ($row) return $row;
-
-        $rowNull = (clone $q)->whereNull('Densidad')->orderBy('Id', 'desc')->first();
-        if ($rowNull) return $rowNull;
-
-        return (clone $q)->orderBy('Id', 'desc')->first();
+        return TejidoHelpers::buscarStdEficiencia($tipoTelar, $telar, $fibraId, $densidad);
     }
 
     /**
