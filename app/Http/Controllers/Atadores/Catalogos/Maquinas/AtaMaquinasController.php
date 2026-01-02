@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Atadores\Catalogos\Maquinas;
 
+use App\Http\Controllers\Controller;
 use App\Models\AtaMaquinasModel;
 use Illuminate\Http\Request;
 
@@ -49,7 +50,7 @@ class AtaMaquinasController extends Controller
     {
         try {
             $maquina = AtaMaquinasModel::where('MaquinaId', $maquinaId)->firstOrFail();
-            
+
             $request->validate([
                 'MaquinaId' => 'required|string|max:255|unique:AtaMaquinas,MaquinaId,' . $maquinaId . ',MaquinaId'
             ]);
