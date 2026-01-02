@@ -183,7 +183,9 @@ class NuevoRequerimientoController extends Controller
             }
 
             // (No bloqueante) Actualiza fechas en Programa
-            $this->actualizarFechasReqProgramaTejido($consumos, $fecha);
+            // $this->actualizarFechasReqProgramaTejido($consumos, $fecha);
+
+            
 
             // Regresar consumos para actualizar data-consumo-id en el DOM
             $consumosGuardados = TejTramaConsumos::where('Folio', substr($folio, 0, 10))
@@ -631,42 +633,4 @@ class NuevoRequerimientoController extends Controller
     // =========================================================
     // Actualización de fechas en Programa de Tejido (no bloqueante)
     // =========================================================
-
-    private function actualizarFechasReqProgramaTejido(array $consumos, string $fecha): void
-    {
-        try {
-            $telares = [];
-            foreach ($consumos as $c) {
-                $telar = $c['telar'] ?? '';
-                $salon = $c['salon'] ?? '';
-                if (!$telar || !$salon) continue;
-
-                $telares[$telar] = [
-                    'telar'        => $telar,
-                    'salon'        => $salon,
-                    'fecha_inicio' => $c['fecha_inicio'] ?? $fecha,
-                    'fecha_final'  => $c['fecha_final']  ?? date('Y-m-d', strtotime($fecha . ' +7 days')),
-                ];
-            }
-
-            foreach ($telares as $t) {
-                $registro = DB::table('ReqProgramaTejido')
-                    ->where('NoTelarId', $t['telar'])
-                    ->where('SalonTejidoId', $t['salon'])
-                    ->where('EnProceso', 1)
-                    ->first();
-
-                if ($registro) {
-                    DB::table('ReqProgramaTejido')->where('Id', $registro->Id)->update([
-                        'FechaInicio' => $t['fecha_inicio'],
-                        'FechaFinal'  => $t['fecha_final'],
-                        'UpdatedAt'   => Carbon::now('America/Mexico_City'),
-                    ]);
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::error('actualizarFechasReqProgramaTejido fallo', ['error' => $e->getMessage()]);
-            // no interrumpe flujo principal
-        }
-    }
 }

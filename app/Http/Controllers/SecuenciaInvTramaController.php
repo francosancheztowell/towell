@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\InvSecuenciaTrama;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use League\Config\Exception\ValidationException;
 
 class SecuenciaInvTramaController extends Controller
 {
@@ -41,7 +42,7 @@ class SecuenciaInvTramaController extends Controller
                 'message' => 'Registro creado exitosamente',
                 'data' => $registro
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
@@ -78,7 +79,7 @@ class SecuenciaInvTramaController extends Controller
                 'message' => 'Registro actualizado exitosamente',
                 'data' => $registro
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
