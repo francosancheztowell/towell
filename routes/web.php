@@ -1,59 +1,73 @@
 <?php
-use App\Http\Controllers\CatCodificacionController;
-use App\Http\Controllers\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
+use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
+use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\CalendarioController;
-use App\Http\Controllers\CatalagoEficienciaController;
-use App\Http\Controllers\CatalagoTelarController;
-use App\Http\Controllers\CatalagoVelocidadController;
-use App\Http\Controllers\CortesEficienciaController;
-use App\Http\Controllers\ProgramaTejido\ProgramaTejidoController;
-use App\Http\Controllers\ProgramaTejido\ColumnasProgramaTejidoController;
-use App\Http\Controllers\RequerimientoController;
-use App\Http\Controllers\SecuenciaInvTelasController;
-use App\Http\Controllers\SecuenciaInvTramaController;
+use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
+use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatEficiencias\CatalagoEficienciaController;
+use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatTelares\CatalagoTelarController;
+use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatVelocidades\CatalagoVelocidadController;
+use App\Http\Controllers\Tejido\CortesEficiencia\CortesEficienciaController;
+use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoController;
+use App\Http\Controllers\Planeacion\ProgramaTejido\ColumnasProgramaTejidoController;
+use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\RequerimientoController;
+use App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTelas\SecuenciaInvTelasController;
+use App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTrama\SecuenciaInvTramaController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\TelaresController;
+use App\Http\Controllers\Tejido\InventarioTelas\TelaresController;
 use App\Http\Controllers\ModulosController;
-use App\Http\Controllers\AplicacionesController;
-use App\Http\Controllers\AtadoresController;
-use App\Http\Controllers\AtaActividadesController;
-use App\Http\Controllers\AtaComentariosController;
-use App\Http\Controllers\AtaMaquinasController;
-use App\Http\Controllers\NuevoRequerimientoController;
-use App\Http\Controllers\ProduccionReenconadoCabezuelaController;
-use App\Http\Controllers\ConsultarRequerimientoController;
-use App\Http\Controllers\CodificacionController;
-use App\Http\Controllers\InventarioTelaresController;
-use App\Http\Controllers\InvTelasReservadasController;
-use App\Http\Controllers\ReservarProgramarController;
-use App\Http\Controllers\ProgramarUrdEngController;
-use App\Http\Controllers\ProgramarUrdidoController;
-use App\Http\Controllers\ProgramarEngomadoController;
+use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatAplicaciones\AplicacionesController;
+use App\Http\Controllers\Atadores\ProgramaAtadores\AtadoresController;
+use App\Http\Controllers\Atadores\Catalogos\Actividades\AtaActividadesController;
+use App\Http\Controllers\Atadores\Catalogos\Comentarios\AtaComentariosController;
+use App\Http\Controllers\Atadores\Catalogos\Maquinas\AtaMaquinasController;
+use App\Http\Controllers\Tejido\InventarioTrama\NuevoRequerimientoController;
+use App\Http\Controllers\Tejido\ProduccionReenconado\ProduccionReenconadoCabezuelaController;
+use App\Http\Controllers\Tejido\InventarioTrama\ConsultarRequerimientoController;
+use App\Http\Controllers\Planeacion\CatalogoPlaneacion\ModelosCodificados\CodificacionController;
+use App\Http\Controllers\Tejedores\InventarioTelaresController;
+use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\InvTelasReservadasController;
+use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ReservarProgramarController;
+use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ProgramarUrdEngController;
+use App\Http\Controllers\Urdido\ProgramaUrdido\ProgramarUrdidoController;
+use App\Http\Controllers\Engomado\ProgramaEngomado\ProgramarEngomadoController;
 use App\Http\Controllers\ModuloProduccionEngomadoController;
-use App\Http\Controllers\ModuloProduccionUrdidoController;
-use App\Http\Controllers\CatalogosUrdidoController;
-use App\Http\Controllers\catDesarrolladoresController;
+use App\Http\Controllers\Urdido\Configuracion\ModuloProduccionUrdidoController;
+use App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController;
+use App\Http\Controllers\Tejedores\Configuracion\CatDesarrolladores\catDesarrolladoresController;
 use App\Http\Controllers\PDFController;
-use App\Http\Controllers\TelActividadesBPMController;
-use App\Http\Controllers\TelBpmController;
-use App\Http\Controllers\TelBpmLineController;
-use App\Http\Controllers\TelTelaresOperadorController;
-use App\Http\Controllers\UrdActividadesBpmController;
-use App\Http\Controllers\UrdBpmController;
-use App\Http\Controllers\UrdBpmLineController;
+use App\Http\Controllers\Tejedores\TelActividadesBPMController;
+use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmController;
+use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmLineController;
+use App\Http\Controllers\Tejedores\Configuracion\TelaresOperador\TelTelaresOperadorController;
+use App\Http\Controllers\Urdido\Configuracion\ActividadesBPMUrdido\UrdActividadesBpmController;
+use App\Http\Controllers\Urdido\BPMUrdido\UrdBpmController;
+use App\Http\Controllers\Urdido\BPMUrdido\UrdBpmLineController;
 use App\Http\Controllers\MantenimientoParosController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoController;
-use App\Http\Controllers\MarcasController;
-use App\Http\Controllers\NotificarMontadoJulioController;
-use App\Http\Controllers\NotificarMontRollosController;
-use App\Http\Controllers\TelDesarrolladoresController;
+use App\Http\Controllers\Tejido\MarcasFinales\MarcasController;
+use App\Http\Controllers\Tejedores\NotificarMontadoJulios\NotificarMontadoJulioController;
+use App\Http\Controllers\Tejedores\NotificarMontadoRollo\NotificarMontRollosController;
+use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresController;
 use App\Models\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
-use App\Http\Controllers\ProgramaTejido\funciones\DividirTejido;
-
-
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
+use App\Http\Controllers\Planeacion\ProgramaTejido\ReqProgramaTejidoLineController;
+use App\Http\Controllers\Configuracion\ConfiguracionController;
+use App\Http\Controllers\Telegram\TelegramController;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Engomado\BPMEngomado\EngBpmController;
+use App\Http\Controllers\Engomado\CapturaFormulas\EngProduccionFormulacionController;
+use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatMatrizHilos\MatrizHilosController;
+use App\Http\Controllers\Engomado\Configuracion\ActividadesBPMEngomado\EngActividadesBpmController;
+use App\Http\Controllers\Engomado\BPMEngomado\EngBpmLineController;
+use App\Http\Controllers\ComprasEspecialesController;
+use App\Http\Controllers\PronosticosController;
+use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
+use App\Http\Controllers\Planeacion\ProgramaTejido\DescargarProgramaController;
+use App\Http\Controllers\Simulaciones\SimulacionComprasEspecialesController;
+use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoLineController;
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 //Rutas de login, con logout, no protegidas por middleware
 
 // Rutas de autenticación
@@ -104,7 +118,7 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
     })->name('create');
 
     // Guardar módulo - Usa el controlador ModulosController
-    Route::post('/', [App\Http\Controllers\ModulosController::class, 'store'])->name('store');
+    Route::post('/', [ModulosController::class, 'store'])->name('store');
 
     // Editar módulo
     Route::get('/{id}/edit', function($id) {
@@ -122,7 +136,7 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
     })->name('edit');
 
     // Actualizar módulo
-    Route::put('/{id}', function($id, \Illuminate\Http\Request $request) {
+    Route::put('/{id}', function($id, Request $request) {
         try {
             $modulo = SYSRoles::findOrFail($id);
 
@@ -283,10 +297,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/urdido/bpm', [UrdBpmController::class, 'index'])->name('urdido.bpm');
 
     // BPM Engomado - Redirigir al controlador
-    Route::get('/engomado/bpm', [App\Http\Controllers\EngBpmController::class, 'index'])->name('engomado.bpm');
+    Route::get('/engomado/bpm', [EngBpmController::class, 'index'])->name('engomado.bpm');
 
     // Captura de Fórmulas - Redirigir al controlador
-    Route::get('/engomado/captura-formula', [App\Http\Controllers\EngProduccionFormulacionController::class, 'index'])->name('engomado.captura-formula');
+    Route::get('/engomado/captura-formula', [EngProduccionFormulacionController::class, 'index'])->name('engomado.captura-formula');
 
     // Redirección alternativa para captura de fórmulas
     Route::get('/modulo-captura-de-formula', function() {
@@ -328,7 +342,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad');
             Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios');
             Route::get('/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones');
-            Route::get('/matriz-hilos', [App\Http\Controllers\MatrizHilosController::class, 'index'])->name('matriz-hilos');
+            Route::get('/matriz-hilos', [MatrizHilosController::class, 'index'])->name('matriz-hilos');
             // Rutas para Codificación de Modelos (orden específico primero)
             Route::get('/codificacion-modelos', [CodificacionController::class, 'index'])->name('codificacion-modelos');
             Route::get('/codificacion-modelos/create', [CodificacionController::class, 'create'])->name('codificacion.create');
@@ -409,11 +423,11 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/aplicaciones/{aplicacion}', [AplicacionesController::class, 'destroy'])->name('aplicaciones.destroy');
 
         // Rutas CRUD para matriz de hilos
-        Route::get('/catalogos/matriz-hilos/list', [App\Http\Controllers\MatrizHilosController::class, 'list'])->name('matriz-hilos.list');
-        Route::post('/catalogos/matriz-hilos', [App\Http\Controllers\MatrizHilosController::class, 'store'])->name('matriz-hilos.store');
-        Route::get('/catalogos/matriz-hilos/{id}', [App\Http\Controllers\MatrizHilosController::class, 'show'])->name('matriz-hilos.show');
-        Route::put('/catalogos/matriz-hilos/{id}', [App\Http\Controllers\MatrizHilosController::class, 'update'])->name('matriz-hilos.update');
-        Route::delete('/catalogos/matriz-hilos/{id}', [App\Http\Controllers\MatrizHilosController::class, 'destroy'])->name('matriz-hilos.destroy');
+        Route::get('/catalogos/matriz-hilos/list', [MatrizHilosController::class, 'list'])->name('matriz-hilos.list');
+        Route::post('/catalogos/matriz-hilos', [MatrizHilosController::class, 'store'])->name('matriz-hilos.store');
+        Route::get('/catalogos/matriz-hilos/{id}', [MatrizHilosController::class, 'show'])->name('matriz-hilos.show');
+        Route::put('/catalogos/matriz-hilos/{id}', [MatrizHilosController::class, 'update'])->name('matriz-hilos.update');
+        Route::delete('/catalogos/matriz-hilos/{id}', [MatrizHilosController::class, 'destroy'])->name('matriz-hilos.destroy');
     });
 
     // ============================================
@@ -481,7 +495,7 @@ Route::middleware(['auth'])->group(function () {
         ->names('urd-actividades-bpm');
 
     // Actividades BPM Engomado
-    Route::resource('eng-actividades-bpm', App\Http\Controllers\EngActividadesBpmController::class)
+    Route::resource('eng-actividades-bpm', EngActividadesBpmController::class)
         ->parameters(['eng-actividades-bpm' => 'engActividadesBpm'])
         ->names('eng-actividades-bpm');
 
@@ -498,23 +512,23 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('urd-bpm-line/{folio}/rechazar', [UrdBpmLineController::class, 'rechazar'])->name('urd-bpm-line.rechazar');
 
     // BPM Engomado
-    Route::resource('eng-bpm', App\Http\Controllers\EngBpmController::class)
+    Route::resource('eng-bpm', EngBpmController::class)
         ->parameters(['eng-bpm' => 'id'])
         ->names('eng-bpm');
 
     // BPM Engomado - Líneas (checklist)
-    Route::get('eng-bpm-line/{folio}', [App\Http\Controllers\EngBpmLineController::class, 'index'])->name('eng-bpm-line.index');
-    Route::post('eng-bpm-line/{folio}/toggle', [App\Http\Controllers\EngBpmLineController::class, 'toggleActividad'])->name('eng-bpm-line.toggle');
-    Route::patch('eng-bpm-line/{folio}/terminar', [App\Http\Controllers\EngBpmLineController::class, 'terminar'])->name('eng-bpm-line.terminar');
-    Route::patch('eng-bpm-line/{folio}/autorizar', [App\Http\Controllers\EngBpmLineController::class, 'autorizar'])->name('eng-bpm-line.autorizar');
-    Route::patch('eng-bpm-line/{folio}/rechazar', [App\Http\Controllers\EngBpmLineController::class, 'rechazar'])->name('eng-bpm-line.rechazar');
+    Route::get('eng-bpm-line/{folio}', [EngBpmLineController::class, 'index'])->name('eng-bpm-line.index');
+    Route::post('eng-bpm-line/{folio}/toggle', [EngBpmLineController::class, 'toggleActividad'])->name('eng-bpm-line.toggle');
+    Route::patch('eng-bpm-line/{folio}/terminar', [EngBpmLineController::class, 'terminar'])->name('eng-bpm-line.terminar');
+    Route::patch('eng-bpm-line/{folio}/autorizar', [EngBpmLineController::class, 'autorizar'])->name('eng-bpm-line.autorizar');
+    Route::patch('eng-bpm-line/{folio}/rechazar', [EngBpmLineController::class, 'rechazar'])->name('eng-bpm-line.rechazar');
 
     // Captura de Fórmulas Engomado
-    Route::resource('eng-formulacion', App\Http\Controllers\EngProduccionFormulacionController::class)
+    Route::resource('eng-formulacion', EngProduccionFormulacionController::class)
         ->parameters(['eng-formulacion' => 'folio'])
         ->names('eng-formulacion');
-    Route::get('eng-formulacion/validar-folio', [App\Http\Controllers\EngProduccionFormulacionController::class, 'validarFolio'])->name('eng-formulacion.validar-folio');
-    Route::get('eng-formulacion/componentes/formula', [App\Http\Controllers\EngProduccionFormulacionController::class, 'getComponentesFormula'])->name('eng-formulacion.componentes');
+    Route::get('eng-formulacion/validar-folio', [EngProduccionFormulacionController::class, 'validarFolio'])->name('eng-formulacion.validar-folio');
+    Route::get('eng-formulacion/componentes/formula', [EngProduccionFormulacionController::class, 'getComponentesFormula'])->name('eng-formulacion.componentes');
 
         Route::resource('tel-bpm', TelBpmController::class)
     ->parameters(['tel-bpm' => 'folio'])   // PK string
@@ -567,7 +581,7 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
     });
 
     // ============================================
-    // MÓDULO CONFIGURACIÓN (900)
+    // MÓDULO CONFIGURACIÓN
     // ============================================
     Route::prefix('configuracion')->name('configuracion.')->group(function () {
         // Usuarios
@@ -607,8 +621,8 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
                 ->whereNumber('dependencia')->name('api.modulos.submodulos');
         });
 
-        Route::get('/cargar-planeacion', [App\Http\Controllers\ConfiguracionController::class, 'cargarPlaneacion'])->name('cargar.planeacion');
-        Route::post('/cargar-planeacion/upload', [App\Http\Controllers\ConfiguracionController::class, 'procesarExcel'])->name('cargar.planeacion.upload');
+        Route::get('/cargar-planeacion', [ConfiguracionController::class, 'cargarPlaneacion'])->name('cargar.planeacion');
+        Route::post('/cargar-planeacion/upload', [ConfiguracionController::class, 'procesarExcel'])->name('cargar.planeacion.upload');
     });
 
     // ============================================
@@ -660,29 +674,29 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
     // Rutas directas de catálogos
     Route::get('/planeacion/programa-tejido', [ProgramaTejidoController::class, 'index'])->name('catalogos.req-programa-tejido');
 
-    Route::get('/planeacion/programa-tejido/altas-especiales', [\App\Http\Controllers\ComprasEspecialesController::class, 'index'])->name('programa-tejido.altas-especiales');
+    Route::get('/planeacion/programa-tejido/altas-especiales', [ComprasEspecialesController::class, 'index'])->name('programa-tejido.altas-especiales');
     // Altas especiales
 
     // Alta de pronósticos
-    Route::get('/planeacion/programa-tejido/alta-pronosticos', [\App\Http\Controllers\PronosticosController::class, 'index'])->name('programa-tejido.alta-pronosticos');
-    Route::post('/pronosticos/sincronizar', [\App\Http\Controllers\PronosticosController::class, 'sincronizar'])->name('pronosticos.sincronizar');
-    Route::get('/pronosticos', [\App\Http\Controllers\PronosticosController::class, 'get'])->name('pronosticos.get');
+    Route::get('/planeacion/programa-tejido/alta-pronosticos', [PronosticosController::class, 'index'])->name('programa-tejido.alta-pronosticos');
+    Route::post('/pronosticos/sincronizar', [PronosticosController::class, 'sincronizar'])->name('pronosticos.sincronizar');
+    Route::get('/pronosticos', [PronosticosController::class, 'get'])->name('pronosticos.get');
 
 // Liberar órdenes
-Route::get('/planeacion/programa-tejido/liberar-ordenes', [\App\Http\Controllers\ProgramaTejido\LiberarOrdenesController::class, 'index'])->name('programa-tejido.liberar-ordenes');
-Route::post('/planeacion/programa-tejido/liberar-ordenes/procesar', [\App\Http\Controllers\ProgramaTejido\LiberarOrdenesController::class, 'liberar'])->name('programa-tejido.liberar-ordenes.procesar');
+Route::get('/planeacion/programa-tejido/liberar-ordenes', [LiberarOrdenesController::class, 'index'])->name('programa-tejido.liberar-ordenes');
+Route::post('/planeacion/programa-tejido/liberar-ordenes/procesar', [LiberarOrdenesController::class, 'liberar'])->name('programa-tejido.liberar-ordenes.procesar');
 
 // Descargar programa
-Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Controllers\ProgramaTejido\DescargarProgramaController::class, 'descargar'])->name('programa-tejido.descargar-programa');
+Route::post('/planeacion/programa-tejido/descargar-programa', [DescargarProgramaController::class, 'descargar'])->name('programa-tejido.descargar-programa');
 
         // Nueva ruta para crear/editar programa de tejido
         Route::get('/planeacion/programa-tejido/nuevo', function() {
         return view('modulos.programa-tejido.programatejidoform.create');
     })->name('programa-tejido.nuevo');
-        Route::get('/planeacion/programa-tejido/altas-especiales/nuevo', [\App\Http\Controllers\ComprasEspecialesController::class, 'nuevo'])->name('programa-tejido.altas-especiales.nuevo');
-        Route::get('/planeacion/programa-tejido/pronosticos/nuevo', [\App\Http\Controllers\PronosticosController::class, 'nuevo'])->name('programa-tejido.pronosticos.nuevo');
-        Route::get('/planeacion/buscar-detalle-modelo', [\App\Http\Controllers\ComprasEspecialesController::class, 'buscarDetalleModelo'])->name('planeacion.buscar-detalle-modelo');
-        Route::get('/planeacion/buscar-modelos-sugerencias', [\App\Http\Controllers\ComprasEspecialesController::class, 'buscarModelosSugerencias'])->name('planeacion.buscar-modelos-sugerencias');
+        Route::get('/planeacion/programa-tejido/altas-especiales/nuevo', [ComprasEspecialesController::class, 'nuevo'])->name('programa-tejido.altas-especiales.nuevo');
+        Route::get('/planeacion/programa-tejido/pronosticos/nuevo', [PronosticosController::class, 'nuevo'])->name('programa-tejido.pronosticos.nuevo');
+        Route::get('/planeacion/buscar-detalle-modelo', [ComprasEspecialesController::class, 'buscarDetalleModelo'])->name('planeacion.buscar-detalle-modelo');
+        Route::get('/planeacion/buscar-modelos-sugerencias', [ComprasEspecialesController::class, 'buscarModelosSugerencias'])->name('planeacion.buscar-modelos-sugerencias');
         Route::post('/planeacion/programa-tejido', [ProgramaTejidoController::class, 'store'])->name('programa-tejido.store');
         Route::get('/planeacion/programa-tejido/{id}/editar', [ProgramaTejidoController::class, 'edit'])->name('programa-tejido.edit');
     Route::put('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'update'])->name('programa-tejido.update');
@@ -700,13 +714,13 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [\App\Http\Control
     Route::post('/planeacion/programa-tejido/preview-fechas-balanceo', [ProgramaTejidoController::class, 'previewFechasBalanceo'])->name('programa-tejido.preview-fechas-balanceo');
     Route::post('/planeacion/programa-tejido/actualizar-pedidos-balanceo', [ProgramaTejidoController::class, 'actualizarPedidosBalanceo'])->name('programa-tejido.actualizar-pedidos-balanceo');
     Route::post('/planeacion/programa-tejido/balancear-automatico', [ProgramaTejidoController::class, 'balancearAutomatico'])->name('programa-tejido.balancear-automatico');
-    Route::get('/planeacion/programa-tejido/ver-detalles-grupo-balanceo/{ordCompartida}', [\App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido::class, 'verDetallesGrupoBalanceo'])->name('verdetallesgrupobalanceo');
+    Route::get('/planeacion/programa-tejido/ver-detalles-grupo-balanceo/{ordCompartida}', [BalancearTejido::class, 'verDetallesGrupoBalanceo'])->name('verdetallesgrupobalanceo');
     Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'destroy'])->name('programa-tejido.destroy');
     Route::get('/planeacion/programa-tejido/all-registros-json', [ProgramaTejidoController::class, 'getAllRegistrosJson'])->name('programa-tejido.all-registros-json');
     Route::post('/planeacion/programa-tejido/actualizar-calendarios-masivo', [ProgramaTejidoController::class, 'actualizarCalendariosMasivo'])->name('programa-tejido.actualizar-calendarios-masivo');
     Route::post('/planeacion/programa-tejido/{id}/reprogramar', [ProgramaTejidoController::class, 'actualizarReprogramar'])->name('programa-tejido.reprogramar');
         // JSON: ReqProgramaTejidoLine dentro de planeación
-        Route::get('/planeacion/req-programa-tejido-line', [\App\Http\Controllers\ReqProgramaTejidoLineController::class, 'index']);
+        Route::get('/planeacion/req-programa-tejido-line', [ReqProgramaTejidoLineController::class, 'index']);
 
     // Rutas API para los selects del programa de tejido
     Route::get('/programa-tejido/salon-options', [ProgramaTejidoController::class, 'getSalonTejidoOptions']);
@@ -724,7 +738,7 @@ Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoControlle
 Route::get('/programa-tejido/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
 Route::get('/programa-tejido/eficiencia-std', [ProgramaTejidoController::class, 'getEficienciaStd']);
 Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, 'getVelocidadStd']);
-Route::post('/programa-tejido/calcular-totales-dividir', function (\Illuminate\Http\Request $request) {
+Route::post('/programa-tejido/calcular-totales-dividir', function (Request $request) {
     return DividirTejido::calcularTotalesDividir($request);
 });
 // Estado de columnas (ocultar/mostrar) por usuario
@@ -746,7 +760,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     })->name('alta-pronosticos');
 
     // Altas especiales de simulación
-    Route::get('/altas-especiales', [App\Http\Controllers\Simulaciones\SimulacionComprasEspecialesController::class, 'index'])->name('altas-especiales');
+    Route::get('/altas-especiales', [SimulacionComprasEspecialesController::class, 'index'])->name('altas-especiales');
 
     // Rutas para crear nuevo
     Route::get('/nuevo', function() {
@@ -757,7 +771,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
         return view('modulos.simulacion.simulacionform.pronosticos');
     })->name('pronosticos.nuevo');
 
-    Route::get('/altas-especiales/nuevo', [App\Http\Controllers\Simulaciones\SimulacionComprasEspecialesController::class, 'nuevo'])->name('altas-especiales.nuevo');
+    Route::get('/altas-especiales/nuevo', [SimulacionComprasEspecialesController::class, 'nuevo'])->name('altas-especiales.nuevo');
 
     // Rutas para catálogos y helpers (deben ir ANTES de las rutas con {id})
     Route::get('/salon-tejido-options', [SimulacionProgramaTejidoController::class, 'getSalonTejidoOptions'])->name('salon-tejido-options');
@@ -778,7 +792,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::get('/velocidad-std', [SimulacionProgramaTejidoController::class, 'getVelocidadStd'])->name('velocidad-std');
 
     // JSON: SimulacionProgramaTejidoLine dentro de simulación
-    Route::get('/req-programa-tejido-line', [App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoLineController::class, 'index'])->name('req-programa-tejido-line');
+    Route::get('/req-programa-tejido-line', [SimulacionProgramaTejidoLineController::class, 'index'])->name('req-programa-tejido-line');
 
     // Duplicar datos de Programa de Tejido a Simulación
     Route::post('/duplicar-datos', [SimulacionProgramaTejidoController::class, 'duplicarDatos'])->name('duplicar-datos');
@@ -1046,9 +1060,9 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     // MÓDULO TELEGRAM
     // ============================================
     Route::prefix('telegram')->name('telegram.')->group(function () {
-        Route::post('/send', [App\Http\Controllers\Telegram\TelegramController::class, 'sendMessage'])->name('send');
-        Route::get('/bot-info', [App\Http\Controllers\Telegram\TelegramController::class, 'getBotInfo'])->name('bot-info');
-        Route::get('/get-chat-id', [App\Http\Controllers\Telegram\TelegramController::class, 'getChatId'])->name('get-chat-id');
+        Route::post('/send', [TelegramController::class, 'sendMessage'])->name('send');
+        Route::get('/bot-info', [TelegramController::class, 'getBotInfo'])->name('bot-info');
+        Route::get('/get-chat-id', [TelegramController::class, 'getChatId'])->name('get-chat-id');
     });
 
     // ============================================

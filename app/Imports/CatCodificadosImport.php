@@ -162,7 +162,7 @@ class CatCodificadosImport implements
                 Cache::put($this->cacheKey(), $state, 3600);
 
                 // Invalidar cache de getAllFast después de importar
-                \App\Http\Controllers\CatCodificacionController::clearCache();
+                \App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController::clearCache();
             },
         ];
     }

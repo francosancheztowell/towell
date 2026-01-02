@@ -8,7 +8,7 @@ use App\Models\ReqAplicaciones;
 use App\Models\ReqMatrizHilos;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
-use App\Http\Controllers\ProgramaTejido\helper\TejidoHelpers;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Illuminate\Support\Facades\DB;
 use DateTimeInterface;
 use Throwable;

@@ -36,16 +36,6 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
             $horas = trim((string)($row['horas'] ?? ''));
             $turno = trim((string)($row['turno'] ?? ''));
 
-            Log::info("Fila {$filaNum}: Valores extraídos", [
-                'calendarioId' => $calendarioId,
-                'fechaInicio' => $fechaInicio,
-                'fechaFin' => $fechaFin,
-                'horas' => $horas,
-                'turno' => $turno,
-                'claves_disponibles' => array_keys($row),
-                'valores_completos' => $row
-            ]);
-
             // ⚠️ DETECCIÓN: Si solo tiene no_calendario y nombre, es formato de calendarios, no líneas
             $tieneSoloCalendario = !empty($calendarioId) && empty($fechaInicio) && empty($fechaFin) && isset($row['nombre']);
             if ($tieneSoloCalendario) {
@@ -76,13 +66,6 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
             $fechaInicioFormato = $this->parseDatetime($fechaInicio);
             $fechaFinFormato = $this->parseDatetime($fechaFin);
 
-            Log::info("Fila {$filaNum}: Fechas parseadas", [
-                'fechaInicio_original' => $fechaInicio,
-                'fechaInicio_parseada' => $fechaInicioFormato,
-                'fechaFin_original' => $fechaFin,
-                'fechaFin_parseada' => $fechaFinFormato
-            ]);
-
             if ($fechaInicioFormato === null || $fechaFinFormato === null) {
                 Log::warning("Fila {$filaNum}: No se pudieron parsear las fechas - Saltando", [
                     'fechaInicio_parseada' => $fechaInicioFormato,
@@ -95,15 +78,7 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
             $horasNum = !empty($horas) ? (float)$horas : 0;
             $turnoNum = !empty($turno) ? (int)$turno : 0;
 
-            Log::info("Fila {$filaNum}: Intentando crear registro", [
-                'CalendarioId' => $calendarioId,
-                'FechaInicio' => $fechaInicioFormato,
-                'FechaFin' => $fechaFinFormato,
-                'HorasTurno' => $horasNum,
-                'Turno' => $turnoNum
-            ]);
-
-            $registro = ReqCalendarioLine::create([
+            ReqCalendarioLine::create([
                 'CalendarioId' => $calendarioId,
                 'FechaInicio' => $fechaInicioFormato,
                 'FechaFin' => $fechaFinFormato,
@@ -114,10 +89,6 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
             $this->procesados++;
             $this->creados++;
 
-            Log::info("✓✓✓ Fila {$filaNum}: Registro CREADO exitosamente", [
-                'Id' => $registro->Id,
-                'CalendarioId' => $calendarioId
-            ]);
 
             return null;
 
@@ -140,20 +111,9 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
         return [
             BeforeImport::class => function(BeforeImport $event) {
                 try {
-                    Log::info("🧹 EVENTO BeforeImport ejecutado - Limpiando todas las líneas de calendario ANTES de importar...");
-                    $countBefore = ReqCalendarioLine::count();
-                    Log::info("📊 Registros existentes antes de truncate: {$countBefore}");
-
                     // Limpiar todas las líneas de calendario para evitar duplicados
                     ReqCalendarioLine::truncate();
-
-                    $countAfter = ReqCalendarioLine::count();
-                    Log::info("🗑️ Registros después de truncate: {$countAfter}");
-                    Log::info("✅ Limpieza completada - Iniciando importación de nuevas líneas");
                 } catch (\Exception $e) {
-                    Log::error("✗✗✗ Error al limpiar datos en BeforeImport: " . $e->getMessage(), [
-                        'exception' => $e->getTraceAsString()
-                    ]);
                 }
             }
         ];
