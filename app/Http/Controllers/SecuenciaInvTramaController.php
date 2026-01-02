@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\InvSecuenciaTrama;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use League\Config\Exception\ValidationException;
+use Illuminate\Validation\ValidationException;
 
 class SecuenciaInvTramaController extends Controller
 {
