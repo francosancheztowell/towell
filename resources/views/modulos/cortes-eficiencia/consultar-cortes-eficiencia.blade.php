@@ -241,10 +241,6 @@
             }
         }
 
-        function useState2(value:string){
-            return [value, (newValue:string) => console.log(newValue);];
-        }
-
         bindEvents() {
             this.dom.btns.nuevo?.addEventListener('click', () => this.accionNuevo());
             this.dom.btns.editar?.addEventListener('click', () => this.accionEditar());
