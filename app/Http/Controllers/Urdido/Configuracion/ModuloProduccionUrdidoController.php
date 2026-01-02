@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Urdido\Configuracion;
 
+use App\Http\Controllers\Controller;
 use App\Models\UrdProgramaUrdido;
 use App\Models\UrdJuliosOrden;
 use App\Models\EngProgramaEngomado;

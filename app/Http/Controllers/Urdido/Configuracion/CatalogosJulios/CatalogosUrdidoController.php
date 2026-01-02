@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Urdido\Configuracion\CatalogosJulios;
 
+use App\Http\Controllers\Controller;
 use App\Models\UrdCatJulios;
 use App\Models\URDCatalogoMaquina;
 use Illuminate\Http\Request;

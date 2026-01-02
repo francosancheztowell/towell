@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
+use App\Http\Controllers\Controller;
 use App\Models\UrdProgramaUrdido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

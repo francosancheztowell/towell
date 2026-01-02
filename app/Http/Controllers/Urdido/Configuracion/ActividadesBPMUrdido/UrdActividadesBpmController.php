@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Urdido\Configuracion\ActividadesBPMUrdido;
 
+use App\Http\Controllers\Controller;
 use App\Models\UrdActividadesBpmModel;
 use Illuminate\Http\Request;
 

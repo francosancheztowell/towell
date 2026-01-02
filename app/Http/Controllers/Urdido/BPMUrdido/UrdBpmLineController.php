@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Urdido\BPMUrdido;
 
+use App\Http\Controllers\Controller;
 use App\Models\UrdBpmModel;
 use App\Models\UrdActividadesBpmModel;
 use App\Models\UrdBpmLineModel;
@@ -15,15 +16,15 @@ class UrdBpmLineController extends Controller
     {
         $header = UrdBpmModel::where('Folio', $folio)->firstOrFail();
         $actividades = UrdActividadesBpmModel::orderBy('Orden')->get();
-        
+
         // Verificar si ya existen registros para este folio
         $existingLines = UrdBpmLineModel::where('Folio', $folio)->count();
-        
+
         // Obtener MaquinaId y Departamento de la sesión o de las líneas existentes
         $primeraLinea = UrdBpmLineModel::where('Folio', $folio)->first();
         $maquinaId = $primeraLinea->MaquinaId ?? session('bpm_maquina_id');
         $departamento = $primeraLinea->Departamento ?? session('bpm_departamento', 'Urdido');
-        
+
         // Si no existen registros, crear todos con Valor=0
         if ($existingLines === 0) {
             foreach ($actividades as $actividad) {
@@ -40,14 +41,14 @@ class UrdBpmLineController extends Controller
             // Limpiar sesión después de usar
             session()->forget(['bpm_maquina_id', 'bpm_departamento']);
         }
-        
+
         // Obtener nombre de máquina desde URDCatalogoMaquina
         $nombreMaquina = 'Máquina';
         if ($maquinaId) {
             $maquina = \App\Models\URDCatalogoMaquina::where('MaquinaId', $maquinaId)->first();
             $nombreMaquina = $maquina->Nombre ?? $maquinaId;
         }
-        
+
         // Obtener las líneas con sus valores actuales
         $lineas = UrdBpmLineModel::where('Folio', $folio)
             ->pluck('Valor', 'Actividad');
@@ -97,20 +98,20 @@ class UrdBpmLineController extends Controller
     public function terminar($folio)
     {
         $header = UrdBpmModel::where('Folio', $folio)->firstOrFail();
-        
+
         if ($header->Status !== 'Creado') {
             return redirect()->back()->with('error', 'Solo se puede terminar un registro en estado Creado');
         }
 
         $header->update(['Status' => 'Terminado']);
-        
+
         return redirect()->back()->with('success', 'Registro marcado como Terminado');
     }
 
     public function autorizar($folio)
     {
         $header = UrdBpmModel::where('Folio', $folio)->firstOrFail();
-        
+
         if ($header->Status !== 'Terminado') {
             return redirect()->back()->with('error', 'Solo se puede autorizar un registro Terminado');
         }
@@ -124,20 +125,20 @@ class UrdBpmLineController extends Controller
             'CveEmplAutoriza' => $usuarioDb->numero_empleado ?? null,
             'NombreEmplAutoriza' => $usuarioDb->nombre ?? null
         ]);
-        
+
         return redirect()->back()->with('success', 'Registro Autorizado exitosamente');
     }
 
     public function rechazar($folio)
     {
         $header = UrdBpmModel::where('Folio', $folio)->firstOrFail();
-        
+
         if ($header->Status !== 'Terminado') {
             return redirect()->back()->with('error', 'Solo se puede rechazar un registro Terminado');
         }
 
         $header->update(['Status' => 'Creado']);
-        
+
         return redirect()->back()->with('success', 'Registro rechazado, regresado a estado Creado');
     }
 }

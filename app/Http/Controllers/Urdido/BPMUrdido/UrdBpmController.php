@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Urdido\BPMUrdido;
 
+use App\Http\Controllers\Controller;
 use App\Models\UrdBpmModel;
 use App\Models\SYSUsuario;
 use App\Models\URDCatalogoMaquina;
@@ -28,7 +29,7 @@ class UrdBpmController extends Controller
             $folioSugerido = '';
             Log::error('Error al cargar BPM Urdido: ' . $e->getMessage());
         }
-        
+
         return view("modulos.urdido.BPM-Urdido.index", compact("items", "usuarios", "maquinas", "folioSugerido"));
     }
 
@@ -57,16 +58,16 @@ class UrdBpmController extends Controller
             $maquinaId = $validated['MaquinaId'];
             $departamento = $validated['Departamento'] ?? 'Urdido';
             unset($validated['MaquinaId'], $validated['Departamento']);
-            
+
             // Generar folio automáticamente con el módulo "Urdido BPM"
             $folio = FolioHelper::obtenerSiguienteFolio('Urdido BPM', 3);
             $validated['Folio'] = $folio;
-            
+
             $header = UrdBpmModel::create($validated);
-            
+
             // Guardar MaquinaId y Departamento en sesión para usarlos en las líneas
             session(['bpm_maquina_id' => $maquinaId, 'bpm_departamento' => $departamento]);
-            
+
             // Redirigir a la vista de líneas del folio creado
             return redirect()->route('urd-bpm-line.index', $folio)
                 ->with('success', 'Registro creado exitosamente con folio: ' . $folio);
