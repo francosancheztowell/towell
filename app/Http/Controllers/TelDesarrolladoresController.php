@@ -7,7 +7,7 @@ use App\Models\catDesarrolladoresModel;
 use App\Models\catcodificados\CatCodificados;
 use App\Models\ReqModelosCodificados;
 use App\Models\UrdCatJulios;
-use App\Http\Controllers\ProgramaTejido\helper\DateHelpers;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Exception;

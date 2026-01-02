@@ -194,12 +194,6 @@ class CortesEficienciaController extends Controller
                 'numero_empleado' => $user->numero_empleado ?? 'N/A'
             ];
 
-            Log::info('Folio generado para cortes de eficiencia', [
-                'folio' => $folio,
-                'usuario' => $usuario,
-                'user_id' => $user->idusuario
-            ]);
-
             return response()->json([
                 'success' => true,
                 'folio' => $folio,
@@ -297,19 +291,6 @@ class CortesEficienciaController extends Controller
                     $rpmStd = $telar['RpmStd'] ?? null;
                     $eficienciaStd = $telar['EficienciaStd'] ?? null;
 
-                    Log::info('Guardando datos STD en TejEficienciaLine (store)', [
-                        'NoTelarId' => $telar['NoTelar'],
-                        'RpmStd' => $rpmStd,
-                        'EficienciaSTD' => $eficienciaStd
-                    ]);
-
-                    Log::info('Guardando datos STD para telar', [
-                        'NoTelar' => $telar['NoTelar'],
-                        'RpmStd' => $rpmStd,
-                        'EficienciaStd' => $eficienciaStd,
-                        'Folio' => $folioFinal
-                    ]);
-
                     // Buscar si ya existe un registro con estos criterios
                     $registroExistente = TejEficienciaLine::where('Folio', $folioFinal)
                         ->where('NoTelarId', $telar['NoTelar'])
@@ -354,14 +335,6 @@ class CortesEficienciaController extends Controller
 
                 DB::commit();
 
-                Log::info('Corte de eficiencia guardado exitosamente', [
-                    'folio' => $folioFinal,
-                    'fecha' => $validated['fecha'],
-                    'turno' => $validated['turno'],
-                    'usuario' => $validated['usuario'],
-                    'total_telares' => count($validated['datos_telares'])
-                ]);
-
                 return response()->json([
                     'success' => true,
                     'message' => 'Corte de eficiencia guardado exitosamente',
@@ -402,17 +375,6 @@ class CortesEficienciaController extends Controller
             ]);
 
             // Aquí iría la lógica para actualizar en la base de datos
-            Log::info('Actualizando corte de eficiencia', [
-                'id' => $id,
-                'folio' => $request->folio,
-                'fecha' => $request->fecha,
-                'turno' => $request->turno,
-                'status' => $request->status,
-                'usuario' => $request->usuario,
-                'noEmpleado' => $request->noEmpleado,
-                'datos_telares' => $request->datos_telares
-            ]);
-
             return response()->json([
                 'success' => true,
                 'message' => 'Corte de eficiencia actualizado exitosamente'
@@ -456,12 +418,6 @@ class CortesEficienciaController extends Controller
             $corte->Status = 'Finalizado';
             $corte->updated_at = now();
             $corte->save();
-
-            Log::info('Corte de eficiencia finalizado', [
-                'folio' => $id,
-                'status_anterior' => $corte->getOriginal('Status'),
-                'status_nuevo' => 'Finalizado'
-            ]);
 
             $pdfUrl = route('cortes.eficiencia.pdf', $corte->Folio);
 
@@ -545,8 +501,6 @@ class CortesEficienciaController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al obtener corte de eficiencia: ' . $e->getMessage());
-
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener el corte de eficiencia: ' . $e->getMessage()
@@ -625,12 +579,6 @@ class CortesEficienciaController extends Controller
                 ->select('NoTelarId', 'VelocidadSTD', 'EficienciaSTD')
                 ->get()
                 ->map(function ($telar) use ($telaresOrden) {
-                    Log::info('Datos de telar desde ReqProgramaTejido', [
-                        'NoTelarId' => $telar->NoTelarId,
-                        'VelocidadSTD' => $telar->VelocidadSTD,
-                        'EficienciaSTD' => $telar->EficienciaSTD
-                    ]);
-
                     return [
                         'NoTelar' => $telar->NoTelarId,
                         'VelocidadSTD' => $telar->VelocidadSTD ?? 0,
@@ -651,12 +599,6 @@ class CortesEficienciaController extends Controller
                         ->first();
 
                     if ($ultimoRegistro) {
-                        Log::info('Último registro encontrado para telar', [
-                            'NoTelarId' => $ultimoRegistro->NoTelarId,
-                            'VelocidadSTD' => $ultimoRegistro->VelocidadSTD,
-                            'EficienciaSTD' => $ultimoRegistro->EficienciaSTD
-                        ]);
-
                         return [
                             'NoTelar' => $ultimoRegistro->NoTelarId,
                             'VelocidadSTD' => $ultimoRegistro->VelocidadSTD ?? 0,
@@ -672,12 +614,6 @@ class CortesEficienciaController extends Controller
                     ];
                 })->filter();
             }
-
-            Log::info('Datos de programa tejido obtenidos', [
-                'telares_solicitados' => $telaresOrden,
-                'telares_encontrados' => $telares->pluck('NoTelar')->toArray(),
-                'total_telares' => $telares->count()
-            ]);
 
             return response()->json([
                 'success' => true,
@@ -732,18 +668,11 @@ class CortesEficienciaController extends Controller
                     ->where('Turno', $validated['turno'])
                     ->update([$campoHorario => $validated['hora'], 'updated_at' => now()]);
 
-                Log::info('Hora actualizada en TejEficiencia', [
-                    'folio' => $validated['folio'],
-                    'turno' => $validated['turno'],
-                    'campo' => $campoHorario,
-                    'hora' => $validated['hora']
-                ]);
             } else {
                 // Crear nuevo registro
                 $datos['created_at'] = now();
                 DB::table('TejEficiencia')->insert($datos);
 
-                Log::info('Hora guardada en TejEficiencia', $datos);
             }
 
             return response()->json([
@@ -881,12 +810,6 @@ class CortesEficienciaController extends Controller
                 return response()->json(['error' => 'Error: PDF generado está vacío'], 500);
             }
 
-            Log::info('PDF de cortes de eficiencia generado correctamente', [
-                'fecha' => $fechaNorm,
-                'filename' => $filename,
-                'size_kb' => round(strlen($pdfContent) / 1024, 2),
-            ]);
-
             try {
                 $this->enviarReporteCortesPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
             } catch (\Throwable $e) {
@@ -998,13 +921,6 @@ class CortesEficienciaController extends Controller
 
             $url = "https://api.telegram.org/bot{$botToken}/sendDocument";
 
-            Log::info('Enviando reporte de cortes a Telegram', [
-                'fecha' => $fecha,
-                'filename' => $filename,
-                'size_kb' => round(strlen($pdfContent) / 1024, 2),
-                'chat_id' => $chatId,
-            ]);
-
             $response = Http::timeout(30)
                 ->attach('document', $pdfContent, $filename)
                 ->post($url, [
@@ -1015,12 +931,6 @@ class CortesEficienciaController extends Controller
             if ($response->successful()) {
                 $data = $response->json();
                 if ($data['ok'] ?? false) {
-                    Log::info('PDF de cortes enviado a Telegram', [
-                        'fecha' => $fecha,
-                        'filename' => $filename,
-                        'chat_id' => $chatId,
-                        'message_id' => $data['result']['message_id'] ?? null,
-                    ]);
                 } else {
                     Log::error('Telegram respondió ok=false para cortes', [
                         'response' => $data,
@@ -1089,12 +999,6 @@ class CortesEficienciaController extends Controller
                     $rpmStd = $telar['RpmStd'] ?? null;
                     $eficienciaStd = $telar['EficienciaStd'] ?? null;
 
-                    Log::info('Guardando datos STD en TejEficienciaLine', [
-                        'NoTelarId' => $telar['NoTelar'],
-                        'RpmStd' => $rpmStd,
-                        'EficienciaSTD' => $eficienciaStd
-                    ]);
-
                     // Buscar si ya existe un registro con estos criterios
                     $registroExistente = TejEficienciaLine::where('Folio', $validated['folio'])
                         ->where('NoTelarId', $telar['NoTelar'])
@@ -1140,13 +1044,6 @@ class CortesEficienciaController extends Controller
                 }
 
                 DB::commit();
-
-                Log::info('Datos de tabla guardados en TejEficienciaLine', [
-                    'folio' => $validated['folio'],
-                    'fecha' => $validated['fecha'],
-                    'turno' => $validated['turno'],
-                    'total_registros' => $registrosGuardados
-                ]);
 
                 return response()->json([
                     'success' => true,
