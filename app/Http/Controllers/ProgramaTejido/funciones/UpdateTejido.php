@@ -6,8 +6,8 @@ use App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\ProgramaTejido\helper\UpdateHelpers;
 use App\Http\Controllers\ProgramaTejido\helper\UtilityHelpers;
+use App\Http\Controllers\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\ReqAplicaciones;
-use App\Models\ReqCalendarioLine;
 use App\Models\ReqModelosCodificados;
 use App\Models\ReqProgramaTejido;
 use App\Models\ReqProgramaTejidoLine;
@@ -288,18 +288,7 @@ class UpdateTejido
 
     private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
-        $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
-            ->where('FechaFin', '>', $fechaInicio)
-            ->orderBy('FechaInicio')
-            ->first();
-
-        if (!$linea) return null;
-
-        $ini = Carbon::parse($linea->FechaInicio);
-        $fin = Carbon::parse($linea->FechaFin);
-
-        if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) return $fechaInicio->copy();
-        return $ini->copy();
+        return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio);
     }
 
     private static function calcularHorasProd(ReqProgramaTejido $p): float
@@ -311,23 +300,16 @@ class UpdateTejido
         $luchaje = (float) ($p->Luchaje ?? 0);
         $rep     = (float) ($p->Repeticiones ?? 0);
 
-        if ($efic > 1) $efic = $efic / 100;
-
         $total = self::obtenerTotalModelo($p->TamanoClave ?? null);
-
-        $stdToaHra = 0.0;
-        if ($noTiras > 0 && $total > 0 && $luchaje > 0 && $rep > 0 && $vel > 0) {
-            $parte1 = $total;
-            $parte2 = (($luchaje * 0.5) / 0.0254) / $rep;
-            $den = ($parte1 + $parte2) / $vel;
-            if ($den > 0) $stdToaHra = ($noTiras * 60) / $den;
-        }
-
-        if ($stdToaHra > 0 && $efic > 0 && $cant > 0) {
-            return $cant / ($stdToaHra * $efic);
-        }
-
-        return 0.0;
+        return TejidoHelpers::calcularHorasProd(
+            $vel,
+            $efic,
+            $cant,
+            $noTiras,
+            $total,
+            $luchaje,
+            $rep
+        );
     }
 
     private static function obtenerTotalModelo(?string $tamanoClave): float
@@ -404,11 +386,7 @@ class UpdateTejido
 
     private static function sanitizeNumber($value): float
     {
-        if ($value === null) return 0.0;
-        if (is_numeric($value)) return (float)$value;
-
-        $clean = str_replace([',', ' '], '', (string)$value);
-        return is_numeric($clean) ? (float)$clean : 0.0;
+        return TejidoHelpers::sanitizeNumber($value);
     }
 
     /**

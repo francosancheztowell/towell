@@ -29,37 +29,18 @@ class ReqProgramaTejido extends Model
     protected $fillable = [
         'EnProceso','CuentaRizo','CalibreRizo','SalonTejidoId','NoTelarId','Ultimo','CambioHilo','Maquina','Ancho',
         'EficienciaSTD','VelocidadSTD','FibraRizo','CalibrePie','CalendarioId','TamanoClave','NoExisteBase',
-        'InventSizeId','Produccion','SaldoPedido','SaldoMarbete','ProgramarProd','NoProduccion','Programado','FlogsId',
-        'NombreProyecto','CustName','AplicacionId','Observaciones','TipoPedido','NoTiras','Peine','Luchaje','PesoCrudo',
-        'CalibreTrama','FibraTrama','DobladilloId','PasadasTrama','PasadasComb1','PasadasComb2','PasadasComb3',
-        'PasadasComb4','PasadasComb5','AnchoToalla','CodColorTrama','ColorTrama','CodColorC1','NomColorC1','CodColorC2',
-        'NomColorC2','CodColorC3','NomColorC3','CodColorC4','NomColorC4','CodColorC5','NomColorC5','CalibreComb12',
-        'FibraComb1','CodColorComb1','NombreCC1','CalibreComb22','FibraComb2','CodColorComb2','NombreCC2','CalibreComb32',
-        'FibraComb3','CodColorComb3','NombreCC3','CalibreComb42','FibraComb4','CodColorComb4','NombreCC4','CalibreComb52',
-        'FibraComb5','CodColorComb5','NombreCC5','MedidaPlano','CuentaPie','CodColorCtaPie','NombreCPie','PesoGRM2',
-        'DiasEficiencia','ProdKgDia','StdDia','ProdKgDia2','StdToaHra','DiasJornada','HorasProd','StdHrsEfect',
-        'Calc4','Calc5','Calc6','EntregaProduc','EntregaPT','EntregaCte','PTvsCte','CreatedAt','UpdatedAt','RowNum',
-        'FibraPie','FechaInicio','FechaFinal',
-        // Nuevos
+        'ItemId','InventSizeId','Rasurado','NombreProducto','TotalPedido','Produccion','SaldoPedido','SaldoMarbete',
+        'ProgramarProd','NoProduccion','Programado','FlogsId','NombreProyecto','CustName','AplicacionId','Observaciones',
+        'TipoPedido','NoTiras','Peine','Luchaje','PesoCrudo','CalibreTrama','FibraTrama','DobladilloId',
+        'PasadasTrama','PasadasComb1','PasadasComb2','PasadasComb3','PasadasComb4','PasadasComb5','AnchoToalla',
+        'CodColorTrama','ColorTrama','CalibreComb12','FibraComb1','CodColorComb1','NombreCC1',
+        'CalibreComb22','FibraComb2','CodColorComb2','NombreCC2','CalibreComb32','FibraComb3','CodColorComb3','NombreCC3',
+        'CalibreComb42','FibraComb4','CodColorComb4','NombreCC4','CalibreComb52','FibraComb5','CodColorComb5','NombreCC5',
+        'MedidaPlano','CuentaPie','CodColorCtaPie','NombreCPie','PesoGRM2','DiasEficiencia','ProdKgDia','StdDia',
+        'ProdKgDia2','StdToaHra','DiasJornada','HorasProd','StdHrsEfect','Calc4','Calc5','Calc6',
+        'EntregaProduc','EntregaPT','EntregaCte','PTvsCte','CreatedAt','UpdatedAt','FibraPie','FechaInicio','FechaFinal',
         'CalibreRizo2','CalibrePie2','CalibreTrama2','CalibreComb1','CalibreComb2','CalibreComb3','CalibreComb4','CalibreComb5',
-        // Campos que también usas aunque no estuvieran arriba en fillable en tu código previo
-        'ItemId','Rasurado','NombreProducto','TotalPedido',
-        // Calidad
-        'CategoriaCalidad',
-        // Prioridad
-        'Prioridad',
-        // Nuevo campo
-        'LargoCrudo',
-        // Campo para dividir registros (relaciona registros que comparten el mismo origen)
-        'OrdCompartida',
-        // Indica si el registro es el líder del grupo de registros compartidos
-        'OrdCompartidaLider',
-        // Porcentaje de segundos
-        'PorcentajeSegundos',
-        // Pedido temporal
-        'PedidoTempo',
-        // Reprogramar
-        'Reprogramar'
+        'Prioridad','LargoCrudo','OrdCompartida','CategoriaCalidad','PorcentajeSegundos','PedidoTempo','OrdCompartidaLider','Reprogramar'
     ];
 
     /**
@@ -115,7 +96,7 @@ class ReqProgramaTejido extends Model
 
         'MedidaPlano' => 'float',
         'PesoGRM2' => 'float',   // ⭐ Ahora la columna es float en BD
-        'CuentaPie' => 'integer',
+        'CuentaPie' => 'string', // NVARCHAR en SQL Server
         'DiasEficiencia' => 'float',
         'ProdKgDia' => 'float',
         'StdDia' => 'float',
@@ -135,12 +116,12 @@ class ReqProgramaTejido extends Model
         'PTvsCte' => 'float',
         'CreatedAt' => 'datetime',
         'UpdatedAt' => 'datetime',
-        'RowNum' => 'integer',
         'LargoCrudo' => 'integer',
         'OrdCompartida' => 'integer', // INT para relacionar registros divididos
         'OrdCompartidaLider' => 'boolean', // BIT para indicar si es el líder del grupo
-        'CategoriaCalidad' => 'string',
+        'CategoriaCalidad' => 'string', // VARCHAR en SQL Server
         'PorcentajeSegundos' => 'float',
+        'Reprogramar' => 'string', // CHAR en SQL Server
     ];
 
     /* ===========================
@@ -203,6 +184,6 @@ class ReqProgramaTejido extends Model
     {
         // Si tienes el modelo ReqProgramaTejidoLine, descomenta y ajusta
         // return $this->hasMany(ReqProgramaTejidoLine::class, 'ProgramaId', 'Id');
-        return $this->hasMany(\App\Models\ReqProgramaTejidoLine::class, 'ProgramaId', 'Id');
+        return $this->hasMany(ReqProgramaTejidoLine::class, 'ProgramaId', 'Id');
     }
 }

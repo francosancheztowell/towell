@@ -712,17 +712,15 @@ function updatePinnedColumnsPositions() {
 	const allIdx = [...new Set($$('th[class*="column-"]').map(th => +th.dataset.index))];
 	allIdx.forEach(idx => {
 		$$(`.column-${idx}`).forEach(el => {
-			// Mantén sticky top en TH, pero quita left/zIndex/background si no está fijada
+			// Mantén sticky top en TH, pero quita left/background si no está fijada
 			if (el.tagName === 'TH') {
 				el.style.top = '0';
 				el.style.position = 'sticky';
-				el.style.zIndex = '10';
 				el.style.backgroundColor = '#3b82f6';
 				el.style.color = '#fff';
 			} else {
 				el.style.position = '';
 				el.style.top = '';
-				el.style.zIndex = '';
 				el.style.backgroundColor = '';
 				el.style.color = '';
 			}
@@ -731,10 +729,9 @@ function updatePinnedColumnsPositions() {
 		});
 	});
 
-	// Asegurar que el thead tenga z-index alto cuando hay columnas fijadas
+	// Asegurar que el thead sea sticky cuando hay columnas fijadas
 	const thead = $('thead');
 	if (thead && pinnedColumns.length > 0) {
-		thead.style.zIndex = '100';
 		thead.style.position = 'sticky';
 		thead.style.top = '0';
 	}
@@ -750,15 +747,13 @@ function updatePinnedColumnsPositions() {
 			el.classList.add('pinned-column');
 			el.style.left = left + 'px';
 			if (el.tagName === 'TH') {
-				// Para encabezados fijados: sticky tanto en top como en left, con z-index muy alto
+				// Para encabezados fijados: sticky tanto en top como en left
 				el.style.top = '0';
-				el.style.zIndex = String(100 + order); // z-index muy alto para mantenerse sobre todo
 				el.style.position = 'sticky';
 				el.style.backgroundColor = '#3b82f6';
 				el.style.color = '#fff';
 			} else {
 				// Para celdas fijadas: solo sticky en left
-				el.style.zIndex = String(15 + order);
 				el.style.position = 'sticky';
 			}
 		});
