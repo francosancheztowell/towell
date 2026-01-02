@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Tejido\ProduccionReenconado;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -46,8 +47,8 @@ class ProduccionReenconadoCabezuelaController extends Controller
 
             // Calcular eficiencia: Cantidad / Capacidad
             $cantidad = isset($data['Cantidad']) ? (float)$data['Cantidad'] : null;
-            $eficiencia = ($cantidad !== null && $capacidad !== null && $capacidad > 0) 
-                ? round($cantidad / $capacidad, 2) 
+            $eficiencia = ($cantidad !== null && $capacidad !== null && $capacidad > 0)
+                ? round($cantidad / $capacidad, 2)
                 : null;
 
             $clean = [
@@ -200,24 +201,24 @@ class ProduccionReenconadoCabezuelaController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             // No consumir la secuencia al abrir modal: devolver folio sugerido (lectura)
             $folio = FolioHelper::obtenerFolioSugerido('Reenconado', 4);
-            
+
             // Si no hay folio sugerido, generar uno temporal
             if (empty($folio)) {
                 $folio = 'CE0001'; // Folio por defecto si no existe la secuencia
             }
-            
+
             $turno = TurnoHelper::getTurnoActual();
-            
+
             Log::info('Generando folio para modal', [
                 'folio' => $folio,
                 'turno' => $turno,
                 'usuario' => $user->nombre ?? '',
                 'numero_empleado' => $user->numero_empleado ?? '',
             ]);
-            
+
             return response()->json([
                 'success' => true,
                 'folio' => $folio,
@@ -231,9 +232,9 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => $e->getMessage(),
                 'folio' => 'TEMP-' . time(),
                 'turno' => '1',
@@ -275,8 +276,8 @@ class ProduccionReenconadoCabezuelaController extends Controller
 
         // Calcular eficiencia: Cantidad / Capacidad
         $cantidad = isset($data['Cantidad']) ? (float)$data['Cantidad'] : null;
-        $eficiencia = ($cantidad !== null && $capacidad !== null && $capacidad > 0) 
-            ? round($cantidad / $capacidad, 2) 
+        $eficiencia = ($cantidad !== null && $capacidad !== null && $capacidad > 0)
+            ? round($cantidad / $capacidad, 2)
             : null;
 
         $clean = [
@@ -329,7 +330,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
         try {
             $registro = TejProduccionReenconado::findOrFail($folio);
             $statusActual = $registro->status;
-            
+
             // Ciclo de estados: null/Creado -> En Proceso -> Terminado -> Creado
             if (empty($statusActual) || $statusActual === 'Creado') {
                 $nuevoStatus = 'En Proceso';
@@ -340,16 +341,16 @@ class ProduccionReenconadoCabezuelaController extends Controller
             } else {
                 $nuevoStatus = 'Creado';
             }
-            
+
             $registro->status = $nuevoStatus;
             $registro->save();
-            
+
             Log::info('Status cambiado', [
                 'folio' => $folio,
                 'status_anterior' => $statusActual,
                 'status_nuevo' => $nuevoStatus
             ]);
-            
+
             return response()->json([
                 'success' => true,
                 'status' => $nuevoStatus,

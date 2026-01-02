@@ -1,23 +1,24 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTrama;
 
-use App\Models\InvSecuenciaTelares;
+use App\Http\Controllers\Controller;
+use App\Models\InvSecuenciaTrama;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
-class SecuenciaInvTelasController extends Controller
+class SecuenciaInvTramaController extends Controller
 {
     public function index()
     {
         try {
-            $registros = InvSecuenciaTelares::orderBy('Secuencia', 'asc')
+            $registros = InvSecuenciaTrama::orderBy('Secuencia', 'asc')
                 ->get();
 
-            return view('modulos.tejido.secuencia.inv-telas', compact('registros'));
+            return view('modulos.tejido.secuencia.inv-trama', compact('registros'));
         } catch (\Exception $e) {
-            Log::error('Error al cargar Secuencia Inv Telas: ' . $e->getMessage());
+            Log::error('Error al cargar Secuencia Inv Trama: ' . $e->getMessage());
             return back()->with('error', 'Error al cargar los registros');
         }
     }
@@ -29,15 +30,12 @@ class SecuenciaInvTelasController extends Controller
                 'NoTelar' => 'required|integer',
                 'TipoTelar' => 'required|string|max:50',
                 'Secuencia' => 'required|integer',
-                'Observaciones' => 'nullable|string|max:500',
             ]);
 
-            $registro = InvSecuenciaTelares::create([
+            $registro = InvSecuenciaTrama::create([
                 'NoTelar' => $validated['NoTelar'],
                 'TipoTelar' => $validated['TipoTelar'],
                 'Secuencia' => $validated['Secuencia'],
-                'Observaciones' => $validated['Observaciones'] ?? null,
-                'Created_At' => now(),
             ]);
 
             return response()->json([
@@ -45,14 +43,14 @@ class SecuenciaInvTelasController extends Controller
                 'message' => 'Registro creado exitosamente',
                 'data' => $registro
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            Log::error('Error al crear Secuencia Inv Telas: ' . $e->getMessage());
+            Log::error('Error al crear Secuencia Inv Trama: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear el registro: ' . $e->getMessage()
@@ -63,21 +61,18 @@ class SecuenciaInvTelasController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $registro = InvSecuenciaTelares::findOrFail($id);
+            $registro = InvSecuenciaTrama::findOrFail($id);
 
             $validated = $request->validate([
                 'NoTelar' => 'required|integer',
                 'TipoTelar' => 'required|string|max:50',
                 'Secuencia' => 'required|integer',
-                'Observaciones' => 'nullable|string|max:500',
             ]);
 
             $registro->update([
                 'NoTelar' => $validated['NoTelar'],
                 'TipoTelar' => $validated['TipoTelar'],
                 'Secuencia' => $validated['Secuencia'],
-                'Observaciones' => $validated['Observaciones'] ?? null,
-                'Updated_At' => now(),
             ]);
 
             return response()->json([
@@ -85,14 +80,14 @@ class SecuenciaInvTelasController extends Controller
                 'message' => 'Registro actualizado exitosamente',
                 'data' => $registro
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar Secuencia Inv Telas: ' . $e->getMessage());
+            Log::error('Error al actualizar Secuencia Inv Trama: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar el registro: ' . $e->getMessage()
@@ -103,7 +98,7 @@ class SecuenciaInvTelasController extends Controller
     public function destroy($id)
     {
         try {
-            $registro = InvSecuenciaTelares::findOrFail($id);
+            $registro = InvSecuenciaTrama::findOrFail($id);
             $registro->delete();
 
             return response()->json([
@@ -111,7 +106,7 @@ class SecuenciaInvTelasController extends Controller
                 'message' => 'Registro eliminado exitosamente'
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al eliminar Secuencia Inv Telas: ' . $e->getMessage());
+            Log::error('Error al eliminar Secuencia Inv Trama: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al eliminar el registro: ' . $e->getMessage()
@@ -119,4 +114,19 @@ class SecuenciaInvTelasController extends Controller
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Tejido\InventarioTrama;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -185,7 +186,7 @@ class NuevoRequerimientoController extends Controller
             // (No bloqueante) Actualiza fechas en Programa
             // $this->actualizarFechasReqProgramaTejido($consumos, $fecha);
 
-            
+
 
             // Regresar consumos para actualizar data-consumo-id en el DOM
             $consumosGuardados = TejTramaConsumos::where('Folio', substr($folio, 0, 10))

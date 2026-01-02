@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Tejido\MarcasFinales;
 
+use App\Http\Controllers\Controller;
 use App\Models\TejMarcas;
 use App\Models\TejMarcasLine;
 use App\Models\ReqProgramaTejido;
