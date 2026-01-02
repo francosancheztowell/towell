@@ -106,7 +106,7 @@
                 @foreach($columns as $index => $col)
                   <th
                     class="px-2 py-1 text-left text-xs font-semibold text-white whitespace-nowrap column-{{ $index }}"
-                    style="position: sticky; top: 0; z-index: 10; background-color: #3b82f6; min-width: 80px;"
+                    style="position: sticky; top: 0; background-color: #3b82f6; min-width: 80px; z-index: 10;"
                     data-column="{{ $col['field'] }}"
                     data-index="{{ $index }}"
                   >
@@ -211,13 +211,23 @@
 <style>
   .pinned-column { position: sticky !important; background-color: #f3f8ff !important; color: #000 !important; }
 
-  /* Asegurar que los encabezados de columnas fijadas se mantengan visibles */
+  /* Asegurar que el thead completo se mantenga visible */
+  thead {
+    z-index: 10 !important; /* Base para todos los encabezados */
+  }
+
+  /* Asegurar que los encabezados de columnas fijadas se mantengan visibles al hacer scroll */
   thead th.pinned-column {
     position: sticky !important;
     top: 0 !important;
-    z-index: 100 !important;
     background-color: #3b82f6 !important;
     color: #fff !important;
+    z-index: 20 !important; /* Mayor que las celdas pero menor que modales (z-50) */
+  }
+
+  /* Asegurar que las celdas de columnas fijadas también tengan z-index apropiado */
+  tbody td.pinned-column {
+    z-index: 1 !important; /* Menor que el header para que el header siempre esté encima */
   }
 
   /* Estilo para columnas fijadas en filas REPASO - rojo pastel */

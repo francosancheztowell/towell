@@ -24,8 +24,11 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
     /** Cache de límites de columnas string según esquema */
     private static array $schemaStringLimits = [];
 
-    /* ====================== Maatwebsite API ====================== */
+    /** Cache en memoria para ReqModelosCodificados (SalonTejidoId + TamanoClave) */
+    private static array $modelosCodificadosCache = [];
 
+    /** Cache en memoria para TwFlogsCustomer (FlogsId) */
+    private static array $flogsCache = [];
     public function model(array $rawRow)
 	{
 		try {
@@ -224,27 +227,26 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
             // Si viene FlogsId/IdFlog, obtener CustName y CategoriaCalidad desde TwFlogsCustomer (otra conexión)
             if (!empty($data['FlogsId'])) {
-                // Conexión específica, igual que en ReservarProgramarController
-                $flogsConn = 'sqlsrv_ti';
-                try {
-                    $flog = DB::connection($flogsConn)
-                        ->table('TwFlogsCustomer')
-                        ->select(['IdFlog','CustName','CategoriaCalidad'])
-                        ->where('IdFlog', $data['FlogsId'])
-                        ->first();
-
-                    if ($flog) {
-                        // CustName siempre se toma del flog
-                        $data['CustName'] = $this->parseString($flog->CustName ?? null, 120);
-                        $data['CategoriaCalidad'] = $this->parseString($flog->CategoriaCalidad ?? null, 20);
+                $flogsId = (string)$data['FlogsId'];
+                // Usar caché en memoria para evitar consultas repetidas
+                if (!isset(self::$flogsCache[$flogsId])) {
+                    $flogsConn = 'sqlsrv_ti';
+                    try {
+                        $flog = DB::connection($flogsConn)
+                            ->table('TwFlogsCustomer')
+                            ->select(['IdFlog','CustName','CategoriaCalidad'])
+                            ->where('IdFlog', $flogsId)
+                            ->first();
+                        self::$flogsCache[$flogsId] = $flog;
+                    } catch (\Throwable $e) {
+                        self::$flogsCache[$flogsId] = null;
                     }
-                } catch (\Throwable $e) {
-                    Log::warning('Import PT: error al buscar TwFlogsCustomer', [
-                        'row_num' => $this->rowCounter,
-                        'flogs_id' => $data['FlogsId'],
-                        'conn' => $flogsConn,
-                        'error' => $e->getMessage(),
-                    ]);
+                }
+
+                $flog = self::$flogsCache[$flogsId];
+                if ($flog) {
+                    $data['CustName'] = $this->parseString($flog->CustName ?? null, 120);
+                    $data['CategoriaCalidad'] = $this->parseString($flog->CategoriaCalidad ?? null, 20);
                 }
             }
             // Fallback: si NombreProducto viene nulo, intenta con otras columnas conocidas
@@ -307,6 +309,9 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
             // Recorta contra el esquema real (INFORMATION_SCHEMA)
             $this->enforceSchemaStringLengths($data);
 
+            // Normalizar datos para batch insert: todos los registros deben tener las mismas columnas
+            $data = $this->normalizeDataForBatchInsert($data);
+
             $modelo = new ReqProgramaTejido($data);
 
             // Logging removido para rendimiento
@@ -326,8 +331,8 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
         }
     }
 
-    public function batchSize(): int { return 1; } // DIAGNÓSTICO: 1 para aislar fila problemática
-    public function chunkSize(): int { return 200; }
+    public function batchSize(): int { return 15; } // SQL Server limita a 2100 parámetros. Con ~100 campos, máximo 15 registros por batch
+    public function chunkSize(): int { return 500; } // Leer Excel en chunks de 500 filas
 
 	public function getStats(): array
 	{
@@ -448,7 +453,6 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
             return Carbon::parse($s)->format('Y-m-d H:i:s');
 
         } catch (\Throwable $e) {
-            Log::warning('No se pudo parsear fecha', ['valor' => $value, 'msg' => $e->getMessage()]);
             return null;
         }
     }
@@ -568,7 +572,6 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
             return $parsed ? substr($parsed, 0, 10) : null;
 
         } catch (\Throwable $e) {
-            Log::warning('No se pudo parsear fecha (solo fecha)', ['valor' => $value, 'msg' => $e->getMessage()]);
             return null;
         }
     }
@@ -729,6 +732,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
      * - CalibreComb1, CalibreComb2, CalibreComb3, CalibreComb4, CalibreComb5
      *
      * NOTA: Los campos verdes (*2) vienen del Excel y NO se sobrescriben
+     * OPTIMIZACIÓN: Usa caché en memoria para evitar consultas repetidas
      */
     private function enrichFromModelosCodificados(array &$data): void
     {
@@ -740,57 +744,101 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
             return;
         }
 
-        try {
-            // Buscar en ReqModelosCodificados por SalonTejidoId + TamanoClave
-            $modelo = ReqModelosCodificados::where('SalonTejidoId', $salonId)
-                ->where('TamanoClave', $tamanoClave)
-                ->first();
+        // Crear clave de caché
+        $cacheKey = $salonId . '|' . $tamanoClave;
 
-            if ($modelo) {
-                // Actualizar campos BLANCOS (base) con valores de modelos codificados
-                // Los campos verdes (*2) ya vienen del Excel y NO se sobrescriben
-                $data['CalibreRizo'] = $modelo->CalibreRizo;
-                $data['CalibreRizo2'] = $modelo->CalibreRizo2;
-                $data['CalibrePie'] = $modelo->CalibrePie;
-                $data['CalibreTrama'] = $modelo->CalibreTrama;
-                $data['CodColorTrama'] = $modelo->CodColorTrama;
-                $data['ColorTrama'] = $modelo->ColorTrama;
-
-                // Actualizar campos Comb base (1-5) desde modelos codificados
-                $data['CalibreComb1'] = $modelo->CalibreComb1;
-                $data['CalibreComb2'] = $modelo->CalibreComb2;
-                $data['CalibreComb3'] = $modelo->CalibreComb3;
-                $data['CalibreComb4'] = $modelo->CalibreComb4;
-                $data['CalibreComb5'] = $modelo->CalibreComb5;
-
-                // Colores y nombres de combinaciones
-                $data['CodColorComb1'] = $modelo->CodColorC1;
-                $data['NombreCC1'] = $modelo->NomColorC1;
-                $data['CodColorComb2'] = $modelo->CodColorC2;
-                $data['NombreCC2'] = $modelo->NomColorC2;
-                $data['CodColorComb3'] = $modelo->CodColorC3;
-                $data['NombreCC3'] = $modelo->NomColorC3;
-                $data['CodColorComb4'] = $modelo->CodColorC4;
-                $data['NombreCC4'] = $modelo->NomColorC4;
-                $data['CodColorComb5'] = $modelo->CodColorC5;
-                $data['NombreCC5'] = $modelo->NomColorC5;
-
-                // Datos generales adicionales
-                $data['ItemId'] = $modelo->ItemId;
-                $data['InventSizeId'] = $modelo->InventSizeId;
-                $data['Rasurado'] = $modelo->Rasurado;
+        // Verificar caché primero
+        if (!isset(self::$modelosCodificadosCache[$cacheKey])) {
+            try {
+                // Buscar en ReqModelosCodificados por SalonTejidoId + TamanoClave
+                $modelo = ReqModelosCodificados::where('SalonTejidoId', $salonId)
+                    ->where('TamanoClave', $tamanoClave)
+                    ->first();
+                self::$modelosCodificadosCache[$cacheKey] = $modelo;
+            } catch (\Throwable $e) {
+                self::$modelosCodificadosCache[$cacheKey] = null;
             }
-        } catch (\Throwable $e) {
-            Log::error('Error al buscar en ReqModelosCodificados', [
-                'row_num' => $this->rowCounter,
-                'salon_id' => $salonId,
-                'tamano_clave' => $tamanoClave,
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
         }
+
+        $modelo = self::$modelosCodificadosCache[$cacheKey];
+        if ($modelo) {
+            // Actualizar campos BLANCOS (base) con valores de modelos codificados
+            // Los campos verdes (*2) ya vienen del Excel y NO se sobrescriben
+            $data['CalibreRizo'] = $modelo->CalibreRizo;
+            $data['CalibreRizo2'] = $modelo->CalibreRizo2;
+            $data['CalibrePie'] = $modelo->CalibrePie;
+            $data['CalibreTrama'] = $modelo->CalibreTrama;
+            $data['CodColorTrama'] = $modelo->CodColorTrama;
+            $data['ColorTrama'] = $modelo->ColorTrama;
+
+            // Actualizar campos Comb base (1-5) desde modelos codificados
+            $data['CalibreComb1'] = $modelo->CalibreComb1;
+            $data['CalibreComb2'] = $modelo->CalibreComb2;
+            $data['CalibreComb3'] = $modelo->CalibreComb3;
+            $data['CalibreComb4'] = $modelo->CalibreComb4;
+            $data['CalibreComb5'] = $modelo->CalibreComb5;
+
+            // Colores y nombres de combinaciones
+            $data['CodColorComb1'] = $modelo->CodColorC1;
+            $data['NombreCC1'] = $modelo->NomColorC1;
+            $data['CodColorComb2'] = $modelo->CodColorC2;
+            $data['NombreCC2'] = $modelo->NomColorC2;
+            $data['CodColorComb3'] = $modelo->CodColorC3;
+            $data['NombreCC3'] = $modelo->NomColorC3;
+            $data['CodColorComb4'] = $modelo->CodColorC4;
+            $data['NombreCC4'] = $modelo->NomColorC4;
+            $data['CodColorComb5'] = $modelo->CodColorC5;
+            $data['NombreCC5'] = $modelo->NomColorC5;
+
+            // Datos generales adicionales
+            $data['ItemId'] = $modelo->ItemId;
+            $data['InventSizeId'] = $modelo->InventSizeId;
+            $data['Rasurado'] = $modelo->Rasurado;
+        }
+    }
+
+    /**
+     * Cache para las columnas válidas (fillable del modelo)
+     */
+    private static ?array $validColumns = null;
+
+    /**
+     * Obtiene las columnas válidas del modelo (fillable ya contiene solo campos que existen en BD)
+     */
+    private function getValidColumns(): array
+    {
+        if (self::$validColumns === null) {
+            self::$validColumns = (new ReqProgramaTejido())->getFillable();
+        }
+        return self::$validColumns;
+    }
+
+    /**
+     * Normaliza el array de datos para batch insert
+     * Asegura que todos los registros tengan exactamente las mismas columnas
+     * Esto es necesario porque SQL Server requiere que todos los registros en un batch insert tengan las mismas columnas
+     */
+    private function normalizeDataForBatchInsert(array $data): array
+    {
+        // Obtener solo las columnas válidas (excluyendo campos que no existen en la BD)
+        $validColumns = $this->getValidColumns();
+
+        // Crear un array normalizado con solo los campos válidos
+        $normalized = [];
+        foreach ($validColumns as $field) {
+            // Incluir el campo incluso si es null, para que todos los registros tengan las mismas columnas
+            $normalized[$field] = $data[$field] ?? null;
+        }
+
+        // Agregar CreatedAt y UpdatedAt si no están presentes
+        if (!isset($normalized['CreatedAt'])) {
+            $normalized['CreatedAt'] = now();
+        }
+        if (!isset($normalized['UpdatedAt'])) {
+            $normalized['UpdatedAt'] = now();
+        }
+
+        return $normalized;
     }
 
     /** Define si una fila debe omitirse por estar vacía o sin datos útiles */

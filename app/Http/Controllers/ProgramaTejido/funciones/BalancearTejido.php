@@ -610,93 +610,17 @@ class BalancearTejido
     // =========================================================
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        $formulas = [];
-
         try {
-            $vel = (float) ($programa->VelocidadSTD ?? 0);
-            $efic = (float) ($programa->EficienciaSTD ?? 0);
-            $cantidad = self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
-            $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
-
             $m = self::getModeloParams($programa->TamanoClave ?? null, $programa);
-
-            if ($efic > 1) $efic = $efic / 100;
-
-            $inicio = Carbon::parse($programa->FechaInicio);
-            $fin    = Carbon::parse($programa->FechaFinal);
-            $diffSeg = abs($fin->getTimestamp() - $inicio->getTimestamp());
-            $diffDias = $diffSeg / 86400;
-
-            // StdToaHra
-            $stdToaHra = 0;
-            if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
-                $parte1 = $m['total'];
-                $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
-                $den = ($parte1 + $parte2) / $vel;
-                if ($den > 0) {
-                    $stdToaHra = ($m['no_tiras'] * 60) / $den;
-                    $formulas['StdToaHra'] = (float) round($stdToaHra, 2);
-                }
-            }
-
-            // PesoGRM2
-            $largoToalla = (float) ($programa->LargoToalla ?? 0);
-            $anchoToalla = (float) ($programa->AnchoToalla ?? 0);
-            if ($pesoCrudo > 0 && $largoToalla > 0 && $anchoToalla > 0) {
-                $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 10000) / ($largoToalla * $anchoToalla), 2);
-            }
-
-            if ($diffDias > 0) $formulas['DiasEficiencia'] = (float) round($diffDias, 2);
-
-            if ($stdToaHra > 0 && $efic > 0) {
-                $stdDia = $stdToaHra * $efic * 24;
-                $formulas['StdDia'] = (float) round($stdDia, 2);
-
-                if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 2);
-                }
-            }
-
-            if ($diffDias > 0) {
-                $stdHrsEfect = ($cantidad / $diffDias) / 24;
-                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 2);
-
-                if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
-                }
-            }
-
-            if ($stdToaHra > 0 && $efic > 0) {
-                $horasProd = $cantidad / ($stdToaHra * $efic);
-                $formulas['HorasProd'] = (float) round($horasProd, 2);
-                $formulas['DiasJornada'] = (float) round($horasProd / 24, 2);
-            }
-
-            // PTvsCte = EntregaCte - EntregaPT (diferencia en días)
-            // EntregaCte = FechaFinal + 12 días
-            if (!empty($programa->FechaFinal)) {
-                try {
-                    $fechaFinal = Carbon::parse($programa->FechaFinal);
-                    $entregaCte = $fechaFinal->copy()->addDays(12);
-
-                    if (!empty($programa->EntregaPT)) {
-                        $entregaPT = Carbon::parse($programa->EntregaPT);
-                        $diferenciaDias = $entregaCte->diffInDays($entregaPT, false);
-                        $formulas['PTvsCte'] = (float) round($diferenciaDias, 2);
-                    }
-                } catch (\Throwable $e) {
-                    // Si hay error al parsear, no establecer PTvsCte
-                }
-            }
-
+            return TejidoHelpers::calcularFormulasEficiencia($programa, $m, false, true, false);
         } catch (\Throwable $e) {
-            Log::warning('BalancearTejido: Error al calcular fórmulas', [
+            Log::warning('BalancearTejido: Error al calcular formulas', [
                 'error' => $e->getMessage(),
                 'programa_id' => $programa->Id ?? null,
             ]);
         }
 
-        return $formulas;
+        return [];
     }
 
     // =========================================================

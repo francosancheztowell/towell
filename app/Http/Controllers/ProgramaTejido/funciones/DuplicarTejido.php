@@ -4,10 +4,8 @@ namespace App\Http\Controllers\ProgramaTejido\funciones;
 
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\ProgramaTejido\funciones\BalancearTejido;
-use App\Models\ReqEficienciaStd;
 use App\Models\ReqModelosCodificados;
 use App\Models\ReqProgramaTejido;
-use App\Models\ReqVelocidadStd;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
@@ -19,10 +17,6 @@ class DuplicarTejido
 {
     /** Cache de modelo para no pegar a ReqModelosCodificados por cada registro */
     private static array $modeloCache = [];
-
-    /** Valores válidos en catálogo */
-    private const DENSIDAD_NORMAL = 'Normal';
-    private const DENSIDAD_ALTA   = 'Alta';
 
     public static function duplicar(Request $request)
     {
@@ -351,51 +345,6 @@ class DuplicarTejido
                 ->first();
     }
 
-    // =========================================================
-    // FECHAS EXACTAS (IGUAL QUE DIVIDIR)
-    // =========================================================
-
-    private static function calcularInicioFinExactos(ReqProgramaTejido $r): array
-    {
-        if (empty($r->FechaInicio)) {
-            return [null, null, 0.0];
-        }
-
-        $inicio = Carbon::parse($r->FechaInicio);
-
-        if (!empty($r->CalendarioId)) {
-            $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
-            if ($snap) $inicio = $snap;
-        }
-
-        $horasNecesarias = self::calcularHorasProd($r);
-
-        if ($horasNecesarias <= 0) {
-            $fin = $inicio->copy()->addDays(30);
-            return [$inicio, $fin, 0.0];
-        }
-
-        if (!empty($r->CalendarioId)) {
-            $fin = BalancearTejido::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horasNecesarias);
-            if (!$fin) {
-                $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
-            }
-            return [$inicio, $fin, $horasNecesarias];
-        }
-
-        $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
-        return [$inicio, $fin, $horasNecesarias];
-    }
-
-    private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
-    {
-        return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio);
-    }
-
-    // =========================================================
-    // HORAS (CORREGIDO: toma NoTiras/Luchaje/Rep del modelo si faltan)
-    // =========================================================
-
     private static function calcularHorasProd(ReqProgramaTejido $p): float
     {
         $vel   = (float) ($p->VelocidadSTD ?? 0);
@@ -465,98 +414,19 @@ class DuplicarTejido
         TejidoHelpers::aplicarStdDesdeCatalogos($p);
     }
 
-    private static function resolverTipoTelarStd(?string $maquina, ?string $salonTejidoId): string
-    {
-        return TejidoHelpers::resolverTipoTelarStd($maquina, $salonTejidoId);
-    }
-
-    private static function resolverDensidadStd(ReqProgramaTejido $p): string
-    {
-        return TejidoHelpers::resolverDensidadStd($p->Densidad ?? null);
-    }
-
-    private static function buscarStdVelocidad(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqVelocidadStd
-    {
-        return TejidoHelpers::buscarStdVelocidad($tipoTelar, $telar, $fibraId, $densidad);
-    }
-
-    private static function buscarStdEficiencia(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqEficienciaStd
-    {
-        return TejidoHelpers::buscarStdEficiencia($tipoTelar, $telar, $fibraId, $densidad);
-    }
-
     public static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        $formulas = [];
-
         try {
-            $vel = (float) ($programa->VelocidadSTD ?? 0);
-            $efic = (float) ($programa->EficienciaSTD ?? 0);
-            $cantidad = self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
-            $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
-
-            if ($efic > 1) $efic = $efic / 100;
-
             $m = self::getModeloParams($programa->TamanoClave ?? null, $programa);
-
-            $inicio = Carbon::parse($programa->FechaInicio);
-            $fin    = Carbon::parse($programa->FechaFinal);
-            $diffSeg = abs($fin->getTimestamp() - $inicio->getTimestamp());
-            $diffDias = $diffSeg / 86400;
-
-            $stdToaHra = 0;
-            if ($m['no_tiras'] > 0 && $m['total'] > 0 && $m['luchaje'] > 0 && $m['repeticiones'] > 0 && $vel > 0) {
-                $parte1 = $m['total'];
-                $parte2 = (($m['luchaje'] * 0.5) / 0.0254) / $m['repeticiones'];
-                $den = ($parte1 + $parte2) / $vel;
-                if ($den > 0) {
-                    $stdToaHra = ($m['no_tiras'] * 60) / $den;
-                    $formulas['StdToaHra'] = (float) round($stdToaHra, 2);
-                }
-            }
-
-            $largoToalla = (float) ($programa->LargoToalla ?? 0);
-            $anchoToalla = (float) ($programa->AnchoToalla ?? 0);
-            if ($pesoCrudo > 0 && $largoToalla > 0 && $anchoToalla > 0) {
-                $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 10000) / ($largoToalla * $anchoToalla), 2);
-            }
-
-            if ($diffDias > 0) {
-                $formulas['DiasEficiencia'] = (float) round($diffDias, 2);
-            }
-
-            if ($stdToaHra > 0 && $efic > 0) {
-                $stdDia = $stdToaHra * $efic * 24;
-                $formulas['StdDia'] = (float) round($stdDia, 2);
-
-                if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 2);
-                }
-            }
-
-            if ($diffDias > 0) {
-                $stdHrsEfect = ($cantidad / $diffDias) / 24;
-                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 2);
-
-                if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
-                }
-            }
-
-            if ($stdToaHra > 0 && $efic > 0) {
-                $horasProd = $cantidad / ($stdToaHra * $efic);
-                $formulas['HorasProd'] = (float) round($horasProd, 2);
-                $formulas['DiasJornada'] = (float) round($horasProd / 24, 2);
-            }
-
+            return TejidoHelpers::calcularFormulasEficiencia($programa, $m);
         } catch (\Throwable $e) {
-            LogFacade::warning('DuplicarTejido: Error al calcular fórmulas', [
+            LogFacade::warning('DuplicarTejido: Error al calcular formulas', [
                 'error' => $e->getMessage(),
                 'programa_id' => $programa->Id ?? null,
             ]);
         }
 
-        return $formulas;
+        return [];
     }
 
     // =========================

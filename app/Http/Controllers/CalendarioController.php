@@ -21,7 +21,6 @@ use App\Imports\ReqCalendarioTabImport;
 class CalendarioController extends Controller
 {
     private const RECALC_TIMEOUT_SECONDS = 900; // 15 min
-    private const RECALC_CHUNK_SIZE = 25;       // (ya no se usa en el recalc por telar, lo dejo por compat)
     private const RECALC_LOG_EVERY = 25;
 
     private function boostRuntimeLimits(): void
@@ -1149,7 +1148,7 @@ class CalendarioController extends Controller
                     if ($horaInicio === '') continue;
 
                     $inicioDt = Carbon::parse($fecha->format('Y-m-d') . ' ' . $horaInicio);
-                    $finDt = $inicioDt->copy()->addSeconds((int) round($horas * 3600))->subSeconds(2);
+                    $finDt = $inicioDt->copy()->addSeconds((int) round($horas * 3600));
 
                     $lineas[] = [
                         'CalendarioId' => $calendarioId,

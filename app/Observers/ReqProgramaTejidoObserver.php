@@ -8,12 +8,17 @@ use App\Models\ReqAplicaciones;
 use App\Models\ReqMatrizHilos;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
-use App\Models\ReqModelosCodificados;
+use App\Http\Controllers\ProgramaTejido\helper\TejidoHelpers;
 use Illuminate\Support\Facades\DB;
 use DateTimeInterface;
 use Throwable;
 class ReqProgramaTejidoObserver
 {
+    /** Cache en memoria para ReqAplicaciones */
+    private static array $aplicacionesCache = [];
+
+    /** Cache en memoria para ReqMatrizHilos */
+    private static array $matrizHilosCache = [];
     public function saved(ReqProgramaTejido $programa)
     {
         $this->generarLineasDiarias($programa);
@@ -174,7 +179,14 @@ class ReqProgramaTejidoObserver
 
                     $factorAplicacion = null;
                     if ($programa->AplicacionId) {
-                        $aplicacionData = ReqAplicaciones::where('AplicacionId', $programa->AplicacionId)->first();
+                        $aplicacionId = (string)$programa->AplicacionId;
+                        // Usar caché en memoria para evitar consultas repetidas
+                        if (!isset(self::$aplicacionesCache[$aplicacionId])) {
+                            $aplicacionData = ReqAplicaciones::where('AplicacionId', $aplicacionId)->first();
+                            self::$aplicacionesCache[$aplicacionId] = $aplicacionData;
+                        } else {
+                            $aplicacionData = self::$aplicacionesCache[$aplicacionId];
+                        }
                         if ($aplicacionData) {
                             $factorAplicacion = (float) $aplicacionData->Factor;
                         }
@@ -304,129 +316,30 @@ class ReqProgramaTejidoObserver
 
     private function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        $formulas = [];
+        $stdToaHraAnteriorRaw = DB::table('ReqProgramaTejido')
+            ->where('Id', $programa->Id)
+            ->value('StdToaHra');
+        $stdToaHraAnterior = $stdToaHraAnteriorRaw !== null ? (float) $stdToaHraAnteriorRaw : 0;
 
-        try {
-            $vel = (float) ($programa->VelocidadSTD ?? 0);
+        $modeloParams = TejidoHelpers::obtenerModeloParams($programa);
 
-            $eficRaw = $programa->getAttribute('EficienciaSTD') ?? $programa->EficienciaSTD ?? 0;
-            $efic = $eficRaw !== null ? (float) $eficRaw : 0;
+        $checkVelocidadCambio = function() use ($programa) {
+            return [
+                'cambio' => $programa->isDirty('VelocidadSTD'),
+                'original' => (float) ($programa->getOriginal('VelocidadSTD') ?? 0),
+                'nueva' => (float) ($programa->VelocidadSTD ?? 0),
+            ];
+        };
 
-            $cantidadRaw = $programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0;
-            $cantidad = $cantidadRaw !== null ? (float) $cantidadRaw : 0;
-
-            $pesoCrudoRaw = $programa->PesoCrudo ?? 0;
-            $pesoCrudo = $pesoCrudoRaw !== null ? (float) $pesoCrudoRaw : 0;
-
-            $noTiras = 0;
-            $luchaje = 0;
-            $repeticiones = 0;
-            $total = 0;
-
-            if ($programa->TamanoClave) {
-                $modelo = ReqModelosCodificados::where('TamanoClave', $programa->TamanoClave)->first();
-                if ($modelo) {
-                    $totalRaw = $modelo->Total ?? 0;
-                    $total = $totalRaw !== null ? (float) $totalRaw : 0;
-
-                    $noTirasRaw = $modelo->NoTiras ?? 0;
-                    $noTiras = $noTirasRaw !== null ? (float) $noTirasRaw : 0;
-
-                    $luchajeRaw = $modelo->Luchaje ?? 0;
-                    $luchaje = $luchajeRaw !== null ? (float) $luchajeRaw : 0;
-
-                    $repeticionesRaw = $modelo->Repeticiones ?? 0;
-                    $repeticiones = $repeticionesRaw !== null ? (float) $repeticionesRaw : 0;
-                }
-            }
-            if ($efic > 1) {
-                $efic = $efic / 100;
-            }
-
-            $inicio = Carbon::parse($programa->FechaInicio);
-            $fin = Carbon::parse($programa->FechaFinal);
-            $diffSegundos = abs($fin->getTimestamp() - $inicio->getTimestamp());
-            $diffDias = $diffSegundos / (60 * 60 * 24);
-
-            $stdToaHraAnteriorRaw = DB::table('ReqProgramaTejido')
-                ->where('Id', $programa->Id)
-                ->value('StdToaHra');
-            $stdToaHraAnterior = $stdToaHraAnteriorRaw !== null ? (float) $stdToaHraAnteriorRaw : 0;
-            $velocidadCambio = $programa->isDirty('VelocidadSTD');
-            $velocidadOriginal = (float) ($programa->getOriginal('VelocidadSTD') ?? 0);
-            $velocidadNueva = (float) ($programa->VelocidadSTD ?? 0);
-
-            $velParaCalculo = $velocidadCambio && $velocidadNueva > 0 ? $velocidadNueva : $vel;
-
-            $stdToaHra = $stdToaHraAnterior;
-
-            $debeRecalcular = ($stdToaHraAnterior <= 0) ||
-                            ($velocidadCambio && $velocidadOriginal > 0 && $velocidadNueva > 0 && $velocidadOriginal !== $velocidadNueva) ||
-                            (!$velocidadCambio && $velocidadOriginal > 0 && $velocidadNueva > 0 && $velocidadOriginal !== $velocidadNueva && abs($velocidadOriginal - $velocidadNueva) > 0.1);
-
-            if ($debeRecalcular && $noTiras > 0 && $total > 0 && $luchaje > 0 && $velParaCalculo > 0) {
-                $repeticionesCalc = $repeticiones > 0 ? $repeticiones : 1;
-
-                $parte1 = $total / 1;
-                $parte2 = (($luchaje * 0.5) / 0.0254) / $repeticionesCalc;
-                $denominador = ($parte1 + $parte2) / $velParaCalculo;
-
-                if ($denominador > 0) {
-                    $stdToaHraCalculado = ($noTiras * 60) / $denominador;
-                    $stdToaHra = $stdToaHraCalculado;
-                    $formulas['StdToaHra'] = (float) $stdToaHra;
-                }
-            } elseif ($stdToaHraAnterior > 0 && !$debeRecalcular) {
-                $formulas['StdToaHra'] = (float) $stdToaHraAnterior;
-                $stdToaHra = $stdToaHraAnterior;
-            }
-
-            $largoToalla = (float) ($programa->LargoToalla ?? 0);
-            $anchoToalla = (float) ($programa->AnchoToalla ?? 0);
-            if ($pesoCrudo > 0 && $largoToalla > 0 && $anchoToalla > 0) {
-                $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 10000) / ($largoToalla * $anchoToalla), 2);
-            }
-
-            if ($diffDias > 0) {
-                $formulas['DiasEficiencia'] = (float) round($diffDias, 2);
-            }
-
-            $stdToaHraParaCalculos = isset($formulas['StdToaHra']) ? $formulas['StdToaHra'] : $stdToaHra;
-
-            $stdDia = 0;
-            if ($stdToaHraParaCalculos > 0 && $efic > 0) {
-                $stdDia = $stdToaHraParaCalculos * $efic * 24;
-                $formulas['StdDia'] = (float) $stdDia;
-            }
-
-            $horasProd = 0;
-            if ($stdToaHraParaCalculos > 0 && $efic > 0) {
-                $horasProd = $cantidad / ($stdToaHraParaCalculos * $efic);
-                $formulas['HorasProd'] = (float) $horasProd;
-            }
-
-            if ($stdDia > 0 && $pesoCrudo > 0) {
-                $prodKgDia = ($stdDia * $pesoCrudo) / 1000;
-                $formulas['ProdKgDia'] = (float) $prodKgDia;
-            }
-
-            if ($horasProd > 0) {
-                $formulas['DiasJornada'] = (float) ($horasProd / 24);
-            }
-
-            if ($diffDias > 0) {
-                $stdHrsEfect = ($cantidad / $diffDias) / 24;
-                $formulas['StdHrsEfect'] = (float) $stdHrsEfect;
-
-                if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia2'] = (float) ((($pesoCrudo * $stdHrsEfect) * 24) / 1000);
-                }
-            }
-
-        } catch (Throwable $e) {
-        }
-
-        return $formulas;
+        return TejidoHelpers::calcularFormulasEficiencia(
+            $programa,
+            $modeloParams,
+            false, // includeEntregaCte
+            false, // includePTvsCte
+            false, // fallbackEntregaCteFromProgram
+            $stdToaHraAnterior,
+            $checkVelocidadCambio
+        );
     }
 
     private function calcularMtsRizo(ReqProgramaTejido $programa, ?float $rizo): ?float
@@ -450,7 +363,14 @@ class ReqProgramaTejidoObserver
                 return null;
             }
 
-            $matrizHilo = ReqMatrizHilos::where('Hilo', $hilo)->first();
+            // Usar caché en memoria para evitar consultas repetidas
+            if (!isset(self::$matrizHilosCache[$hilo])) {
+                $matrizHilo = ReqMatrizHilos::where('Hilo', $hilo)->first();
+                self::$matrizHilosCache[$hilo] = $matrizHilo;
+            } else {
+                $matrizHilo = self::$matrizHilosCache[$hilo];
+            }
+
             if (!$matrizHilo) {
                 return null;
             }

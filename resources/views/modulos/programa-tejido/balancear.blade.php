@@ -74,10 +74,24 @@
       }
 
       function getRowById(id) {
+        // Buscar primero en el modal de SweetAlert si existe
+        const swalContent = document.querySelector('.swal2-html-container');
+        if (swalContent) {
+          const rowInModal = swalContent.querySelector(`tr[data-registro-id="${id}"]`);
+          if (rowInModal) return rowInModal;
+        }
+        // Fallback: buscar en todo el documento
         return document.querySelector(`tr[data-registro-id="${id}"]`);
       }
 
       function getInputById(id) {
+        // Buscar primero en el modal de SweetAlert si existe
+        const swalContent = document.querySelector('.swal2-html-container');
+        if (swalContent) {
+          const inputInModal = swalContent.querySelector(`.pedido-input[data-id="${id}"]`);
+          if (inputInModal) return inputInModal;
+        }
+        // Fallback: buscar en todo el documento
         return document.querySelector(`.pedido-input[data-id="${id}"]`);
       }
 
@@ -449,28 +463,62 @@
           if (!data?.success || !Array.isArray(data.data)) return;
           if (myVersion !== previewVersion) return; // respuesta vieja
 
-          // Pintar fechas exactas
-          data.data.forEach(item => {
-            const id = Number(item.id);
-            const row = getRowById(id);
-            const inp = getInputById(id);
-            if (!row || !inp) return;
+          // Pintar fechas exactas - usar requestAnimationFrame para asegurar que el DOM esté listo
+          requestAnimationFrame(() => {
+            data.data.forEach(item => {
+              const id = Number(item.id);
+              const row = getRowById(id);
+              const inp = getInputById(id);
 
-            const inicioMs = parseSQLDateToMs(item.fecha_inicio);
-            const finMs = parseSQLDateToMs(item.fecha_final);
+              if (!row) {
+                console.warn('No se encontró fila para id:', id);
+                return;
+              }
+              if (!inp) {
+                console.warn('No se encontró input para id:', id);
+                return;
+              }
 
-            // actualizar datasets para gantt preview
-            if (inicioMs) inp.dataset.fechaInicio = String(inicioMs);
-            if (finMs)    inp.dataset.fechaFinalCalculada = String(finMs);
+              const inicioMs = parseSQLDateToMs(item.fecha_inicio);
+              const finMs = parseSQLDateToMs(item.fecha_final);
 
-            const inicioCell = row.querySelector('.fecha-inicio-display');
-            const finalCell  = row.querySelector('.fecha-final-display');
+              // actualizar datasets para gantt preview
+              if (inicioMs) inp.dataset.fechaInicio = String(inicioMs);
+              if (finMs)    inp.dataset.fechaFinalCalculada = String(finMs);
 
-            if (inicioCell && item.fecha_inicio) inicioCell.textContent = formatearFecha(item.fecha_inicio.replace(' ', 'T'));
-            if (finalCell && item.fecha_final)   finalCell.textContent  = formatearFecha(item.fecha_final.replace(' ', 'T'));
+              const inicioCell = row.querySelector('.fecha-inicio-display');
+              const finalCell  = row.querySelector('.fecha-final-display');
+
+              // Actualizar fecha inicio
+              if (inicioCell && item.fecha_inicio) {
+                const fechaFormateada = formatearFecha(item.fecha_inicio.replace(' ', 'T'));
+                inicioCell.textContent = fechaFormateada;
+                inicioCell.innerText = fechaFormateada; // Forzar actualización
+              }
+
+              // Actualizar fecha final - asegurar que se actualice correctamente
+              if (finalCell) {
+                if (item.fecha_final) {
+                  const fechaFormateada = formatearFecha(item.fecha_final.replace(' ', 'T'));
+                  finalCell.textContent = fechaFormateada;
+                  finalCell.innerText = fechaFormateada; // Forzar actualización
+                  // También actualizar el atributo data si existe
+                  if (finalCell.dataset) {
+                    finalCell.dataset.fechaFinal = item.fecha_final;
+                  }
+                } else {
+                  // Si no hay fecha final, limpiar la celda
+                  finalCell.textContent = '-';
+                  finalCell.innerText = '-';
+                }
+              } else {
+                console.warn('No se encontró celda fecha-final-display para id:', id);
+              }
+            });
+
+            // Actualizar gantt después de actualizar las fechas
+            updateGanttPreview();
           });
-
-          updateGanttPreview();
         } catch (e) {
           if (e?.name === 'AbortError') return;
           console.error('previewFechasExactas error', e);
@@ -713,38 +761,19 @@
       async function guardarCambiosPedido(ordCompartida) {
         const inputs = document.querySelectorAll('.pedido-input');
         const cambios = [];
-
-        console.log('=== GUARDAR CAMBIOS PEDIDO ===');
-        console.log('Total inputs encontrados:', inputs.length);
-
         inputs.forEach(input => {
           const id = input.dataset.id;
           const original = Number(input.dataset.original) || 0;
           const nuevo = Math.round(Number(input.value) || 0);
-
-          console.log(`ID ${id}:`, {
-            original,
-            nuevo,
-            cambiado: original !== nuevo,
-            dataset_original: input.dataset.original,
-            input_value: input.value
-          });
 
           if (original !== nuevo) {
             cambios.push({
               id,
               total_pedido: nuevo,
               modo: 'total'
-              // NO mandamos fecha_final: la calcula el backend con calendario exacto
             });
-            console.log(`   Agregado a cambios`);
-          } else {
-            console.log(`   NO agregado (sin cambios)`);
           }
         });
-
-        console.log('Total cambios a enviar:', cambios.length);
-        console.log('Cambios:', cambios);
 
         if (cambios.length === 0) {
           Swal.showValidationMessage('No hay cambios para guardar');
