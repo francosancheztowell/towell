@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Engomado\Configuracion\ActividadesBPMEngomado;
 
+use App\Http\Controllers\Controller;
 use App\Models\EngActividadesBpmModel;
 use Illuminate\Http\Request;
 

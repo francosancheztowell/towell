@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Engomado\BPMEngomado;
 
+use App\Http\Controllers\Controller;
 use App\Models\EngBpmModel;
 use App\Models\SYSUsuario;
 use App\Models\URDCatalogoMaquina;
 use App\Helpers\FolioHelper;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class EngBpmController extends Controller
@@ -28,7 +28,7 @@ class EngBpmController extends Controller
             $folioSugerido = '';
             Log::error('Error al cargar BPM Engomado: ' . $e->getMessage());
         }
-        
+
         return view("modulos.engomado.BPM-Engomado.index", compact("items", "usuarios", "maquinas", "folioSugerido"));
     }
 
@@ -57,16 +57,16 @@ class EngBpmController extends Controller
             $maquinaId = $validated['MaquinaId'];
             $departamento = $validated['Departamento'] ?? 'Engomado';
             unset($validated['MaquinaId'], $validated['Departamento']);
-            
+
             // Generar folio automáticamente con el módulo "Engomado BPM"
             $folio = FolioHelper::obtenerSiguienteFolio('Engomado BPM', 3);
             $validated['Folio'] = $folio;
-            
+
             $header = EngBpmModel::create($validated);
-            
+
             // Guardar MaquinaId y Departamento en sesión para usarlos en las líneas
             session(['bpm_eng_maquina_id' => $maquinaId, 'bpm_eng_departamento' => $departamento]);
-            
+
             // Redirigir a la vista de líneas del folio creado
             return redirect()->route('eng-bpm-line.index', $folio)
                 ->with('success', 'Registro creado exitosamente con folio: ' . $folio);

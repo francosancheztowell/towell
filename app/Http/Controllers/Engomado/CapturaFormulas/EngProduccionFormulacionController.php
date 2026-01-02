@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Engomado\CapturaFormulas;
 
+use App\Http\Controllers\Controller;
 use App\Models\EngProduccionFormulacionModel;
 use App\Models\EngFormulacionLineModel;
 use App\Models\SYSUsuario;
