@@ -1,13 +1,15 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
+use App\Http\Controllers\Controller;
 use App\Models\TejInventarioTelares;
 use App\Models\InvTelasReservadas;
 use App\Models\ReqProgramaTejido;
-use App\Models\ReqProgramaTejidoLine;
+
 use App\Models\URDCatalogoMaquina;
+use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\InvTelasReservadasController;
 use App\Models\EngAnchoBalonaCuenta;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -159,7 +161,7 @@ class ReservarProgramarController extends Controller
 
     public function getInventarioDisponible(Request $request)
     {
-        return app(\App\Http\Controllers\InvTelasReservadasController::class)->disponible($request);
+        return app(InvTelasReservadasController::class)->disponible($request);
     }
 
     public function programarTelar(Request $request)
@@ -231,7 +233,7 @@ class ReservarProgramarController extends Controller
 
     public function reservarInventario(Request $request)
     {
-        return app(\App\Http\Controllers\InvTelasReservadasController::class)->reservar($request);
+        return app(InvTelasReservadasController::class)->reservar($request);
     }
 
     public function liberarTelar(Request $request)

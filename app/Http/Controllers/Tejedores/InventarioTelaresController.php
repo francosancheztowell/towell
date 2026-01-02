@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Tejedores;
 
+use App\Http\Controllers\Controller;
 use App\Models\TejInventarioTelares;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;

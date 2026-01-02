@@ -1,6 +1,7 @@
 <?php
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Tejedores\Desarrolladores;
 
+use App\Http\Controllers\Controller;
 use App\Helpers\TelDesarrolladoresHelper;
 use App\Models\TelTelaresOperador;
 use App\Models\catDesarrolladoresModel;

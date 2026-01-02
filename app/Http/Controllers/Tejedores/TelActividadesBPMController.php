@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Tejedores;
 
+use App\Http\Controllers\Controller;
 use App\Models\TelActividadesBPM;
 use Illuminate\Http\Request;
 

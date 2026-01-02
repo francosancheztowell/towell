@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Tejedores\BPMTejedores;
 
+use App\Http\Controllers\Controller;
 use App\Models\TelBpmModel;
 use App\Models\TelBpmLineModel;
 use App\Models\TelActividadesBPM;
