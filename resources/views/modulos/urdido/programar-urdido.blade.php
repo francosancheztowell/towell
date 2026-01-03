@@ -84,6 +84,7 @@
             // ==========================
             const routes = {
                 cargarOrdenes: '{{ route('urdido.programar.urdido.ordenes') }}',
+                verificarEnProceso: '{{ route('urdido.programar.urdido.verificar.en.proceso') }}',
                 subirPrioridad: '{{ route('urdido.programar.urdido.subir.prioridad') }}',
                 bajarPrioridad: '{{ route('urdido.programar.urdido.bajar.prioridad') }}',
                 produccion: '{{ route('urdido.modulo.produccion.urdido') }}',
@@ -366,6 +367,33 @@
             const irProduccion = async () => {
                 if (!state.ordenSeleccionada) {
                     showToast('warning', 'Seleccione una orden');
+                    return;
+                }
+
+                // Verificar si ya hay una orden con status "En Proceso"
+                try {
+                    const verificarUrl = `${routes.verificarEnProceso}?excluir_id=${state.ordenSeleccionada.id}`;
+                    const verificarResponse = await fetchJson(verificarUrl);
+
+                    if (verificarResponse.success && verificarResponse.tieneOrdenEnProceso) {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'No se puede cargar la orden',
+                                html: `
+                                    <p class="mb-2">${verificarResponse.mensaje || 'Ya existe una orden con status "En Proceso".'}</p>
+                                    <p class="text-sm text-gray-600">Por favor, finaliza la orden en proceso antes de cargar una nueva.</p>
+                                `,
+                                confirmButtonColor: '#2563eb',
+                            });
+                        } else {
+                            alert(verificarResponse.mensaje || 'Ya existe una orden con status "En Proceso". No se puede cargar otra orden.');
+                        }
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error al verificar órdenes en proceso:', error);
+                    showError('Error al verificar órdenes en proceso. Por favor, intente nuevamente.');
                     return;
                 }
 

@@ -22,7 +22,7 @@ class ModuloProduccionUrdidoController extends Controller
      * Mostrar la vista de producción de urdido con los datos de la orden seleccionada
      *
      * @param Request $request
-     * @return View|RedirectResponse
+     * @return View|RedirectResponse|JsonResponse
      */
     public function index(Request $request)
     {
@@ -79,6 +79,16 @@ class ModuloProduccionUrdidoController extends Controller
 
         // Actualizar el status a "En Proceso" cuando se carga la página de producción
         if ($orden->Status !== 'En Proceso') {
+            // Validar que no haya otra orden con status "En Proceso"
+            $ordenesEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
+                ->where('Id', '!=', $orden->Id)
+                ->count();
+
+            if ($ordenesEnProceso > 0) {
+                return redirect()->route('urdido.programar.urdido')
+                    ->with('error', 'Ya existe una orden con status "En Proceso". No se puede cargar otra orden hasta finalizar la actual.');
+            }
+
             try {
                 $statusAnterior = $orden->Status;
                 $orden->Status = 'En Proceso';

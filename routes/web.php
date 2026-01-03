@@ -906,6 +906,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::prefix('urdido')->name('urdido.')->group(function () {
         Route::get('/programar-urdido', [ProgramarUrdidoController::class, 'index'])->name('programar.urdido');
         Route::get('/programar-urdido/ordenes', [ProgramarUrdidoController::class, 'getOrdenes'])->name('programar.urdido.ordenes');
+        Route::get('/programar-urdido/verificar-en-proceso', [ProgramarUrdidoController::class, 'verificarOrdenEnProceso'])->name('programar.urdido.verificar.en.proceso');
         Route::post('/programar-urdido/subir-prioridad', [ProgramarUrdidoController::class, 'subirPrioridad'])->name('programar.urdido.subir.prioridad');
         Route::post('/programar-urdido/bajar-prioridad', [ProgramarUrdidoController::class, 'bajarPrioridad'])->name('programar.urdido.bajar.prioridad');
 
@@ -931,6 +932,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::prefix('engomado')->name('engomado.')->group(function () {
         Route::get('/programar-engomado', [ProgramarEngomadoController::class, 'index'])->name('programar.engomado');
         Route::get('/programar-engomado/ordenes', [ProgramarEngomadoController::class, 'getOrdenes'])->name('programar.engomado.ordenes');
+        Route::get('/programar-engomado/verificar-en-proceso', [ProgramarEngomadoController::class, 'verificarOrdenEnProceso'])->name('programar.engomado.verificar.en.proceso');
         Route::post('/programar-engomado/subir-prioridad', [ProgramarEngomadoController::class, 'subirPrioridad'])->name('programar.engomado.subir.prioridad');
         Route::post('/programar-engomado/bajar-prioridad', [ProgramarEngomadoController::class, 'bajarPrioridad'])->name('programar.engomado.bajar.prioridad');
 

@@ -208,6 +208,42 @@ class ProgramarUrdidoController extends Controller
     }
 
     /**
+     * Verificar si hay órdenes con status "En Proceso"
+     * Retorna true si hay al menos una orden con status "En Proceso" (excluyendo la orden actual si se proporciona)
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function verificarOrdenEnProceso(Request $request): JsonResponse
+    {
+        try {
+            $ordenIdExcluir = $request->query('excluir_id');
+            
+            $query = UrdProgramaUrdido::where('Status', 'En Proceso');
+            
+            if ($ordenIdExcluir) {
+                $query->where('Id', '!=', $ordenIdExcluir);
+            }
+            
+            $cantidadEnProceso = $query->count();
+            
+            return response()->json([
+                'success' => true,
+                'tieneOrdenEnProceso' => $cantidadEnProceso > 0,
+                'cantidad' => $cantidadEnProceso,
+                'mensaje' => $cantidadEnProceso > 0 
+                    ? "Ya existe una orden con status 'En Proceso'. No se puede cargar otra orden hasta finalizar la actual." 
+                    : 'No hay órdenes en proceso',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al verificar órdenes en proceso: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Bajar prioridad de una orden
      * Intercambia CreatedAt con la orden inmediatamente posterior en el mismo MC Coy
      * (la orden con CreatedAt más antiguo se mueve después)

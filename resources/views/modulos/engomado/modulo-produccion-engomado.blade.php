@@ -116,6 +116,23 @@
                 <table class="divide-y divide-gray-200 text-sm w-full">
                     <thead class="bg-blue-500 text-white sticky top-0 z-20">
                         <tr>
+                            <th class="py-1"></th>
+                            <th class="py-1"></th>
+                            <th class="py-1"></th>
+                            <th class="py-1 hidden lg:table-cell"></th>
+                            <th class="py-1 hidden lg:table-cell"></th>
+                            <th class="py-1"></th>
+                            <th class="py-1"></th>
+                            <th class="py-1"></th>
+                            <th class="py-1"></th>
+                            <th class="py-1"></th>
+                            <th class="py-1"></th>
+                            <th colspan="2" class="py-1 text-center font-semibold bg-blue-700 text-xs md:text-sm">Temp</th>
+                            <th class="py-1 hidden"></th>
+                            <th class="py-1 hidden"></th>
+                            <th class="py-1"></th>
+                        </tr>
+                        <tr>
                             <th class="py-2 px-1 text-center font-semibold sticky left-0 bg-blue-500 z-30 text-xs md:text-sm w-24 max-w-[60px]">Fecha</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-32 max-w-[120px]">Oficial</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-16 max-w-[50px]">Turno</th>
@@ -127,8 +144,12 @@
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-28 max-w-[90px]">Kg. Neto</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-28 max-w-[90px]">Metros</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-28 max-w-[90px]">Sol. Can.</th>
-                            <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-xs">Canoa 1</th>
-                            <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-xs">Canoa 2</th>
+                            <th class="py-2 px-1 text-center font-semibold bg-blue-700 text-[10px] md:text-xs w-10 md:w-9 lg:w-10 h-10 md:h-12 relative align-bottom">
+                                <span style="position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%) rotate(-60deg); transform-origin: left bottom; white-space: nowrap; font-weight: bold;">Canoa 1</span>
+                            </th>
+                            <th class="py-2 px-1 text-center font-semibold bg-blue-700 text-[10px] md:text-xs w-10 md:w-9 lg:w-10 h-10 md:h-12 relative align-bottom">
+                                <span style="position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%) rotate(-60deg); transform-origin: left bottom; white-space: nowrap; font-weight: bold;">Canoa 2</span>
+                            </th>
                             <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-xs hidden">Tambor</th>
                             <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden">Humedad</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-24 max-w-[75px]">Roturas</th>
@@ -295,7 +316,7 @@
                                                 value="{{ $horaInicio }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-sm cursor-pointer hover:text-blue-500 set-current-time flex-shrink-0"
+                                                class="fa-solid fa-clock text-gray-400 text-base md:text-lg cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full transition-colors"
                                                 data-time-target="h_inicio"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -312,7 +333,7 @@
                                                 value="{{ $horaFin }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-sm cursor-pointer hover:text-blue-500 set-current-time flex-shrink-0"
+                                                class="fa-solid fa-clock text-gray-400 text-base md:text-lg cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full transition-colors"
                                                 data-time-target="h_fin"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -389,7 +410,7 @@
                                     </td>
 
                                     {{-- Temperatura Canoa 1 --}}
-                                    <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap bg-blue-50">
+                                    <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap bg-blue-50 w-10 md:w-9 lg:w-10">
                                         <div class="flex items-center justify-center relative">
                                             <button
                                                 type="button"
@@ -418,7 +439,7 @@
                                     </td>
 
                                     {{-- Temperatura Canoa 2 --}}
-                                    <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap bg-blue-50">
+                                    <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap bg-blue-50 w-10 md:w-9 lg:w-10">
                                         <div class="flex items-center justify-center relative">
                                             <button
                                                 type="button"
@@ -1265,6 +1286,14 @@
                                 }
                             }
                         }
+                        const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
+                        const hFinInput = row.querySelector('input[data-field="h_fin"]');
+                        if (hInicioInput) {
+                            hInicioInput.setAttribute('data-valor-anterior', hInicioInput.value || '');
+                        }
+                        if (hFinInput) {
+                            hFinInput.setAttribute('data-valor-anterior', hFinInput.value || '');
+                        }
                     });
 
                     tablaBody.addEventListener('input', function (e) {
@@ -1468,7 +1497,14 @@
                         // Horas (input type="time")
                         if (field === 'h_inicio' || field === 'h_fin') {
                             const horaValue = target.value || null;
+                            if (!verificarOficialSeleccionado(registroId)) {
+                                mostrarAlertaOficialRequerido();
+                                const anterior = target.getAttribute('data-valor-anterior') || '';
+                                target.value = anterior;
+                                return;
+                            }
                             actualizarHora(registroId, field === 'h_inicio' ? 'HoraInicial' : 'HoraFinal', horaValue);
+                            target.setAttribute('data-valor-anterior', target.value || '');
                         }
 
                         // Campos de producción
@@ -1628,7 +1664,13 @@
                     const timeTarget = iconElement.getAttribute('data-time-target');
                     const row = iconElement.closest('tr');
                     const timeInput = row ? row.querySelector('input[data-field="' + timeTarget + '"]') : null;
+                    const registroId = row ? row.getAttribute('data-registro-id') : null;
                     if (!timeInput) return;
+                    if (!registroId) return;
+                    if (!verificarOficialSeleccionado(registroId)) {
+                        mostrarAlertaOficialRequerido();
+                        return;
+                    }
 
                     const now = new Date();
                     const hours = String(now.getHours()).padStart(2, '0');
@@ -1636,6 +1678,7 @@
                     const currentTime = `${hours}:${minutes}`;
 
                     timeInput.value = currentTime;
+                    timeInput.setAttribute('data-valor-anterior', currentTime);
                     timeInput.dispatchEvent(new Event('change', { bubbles: true }));
 
                     iconElement.classList.add('text-blue-500');

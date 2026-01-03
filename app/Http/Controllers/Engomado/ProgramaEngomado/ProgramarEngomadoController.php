@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Engomado\ProgramaEngomado;
 
 use App\Http\Controllers\Controller;
 use App\Models\EngProgramaEngomado;
+use App\Models\UrdProgramaUrdido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -85,6 +86,7 @@ class ProgramarEngomadoController extends Controller
     public function getOrdenes(): JsonResponse
     {
         try {
+            // Filtrar órdenes de engomado que tengan su orden de urdido finalizada
             $ordenes = EngProgramaEngomado::select([
                 'Id',
                 'Folio',
@@ -100,6 +102,10 @@ class ProgramarEngomadoController extends Controller
             ->whereIn('Status', ['Programado', 'En Proceso'])
             ->whereNotNull('MaquinaEng')
             ->where('MaquinaEng', '!=', '')
+            ->whereHas('programaUrdido', function($query) {
+                // Solo mostrar órdenes de engomado cuya orden de urdido esté finalizada
+                $query->where('Status', 'Finalizado');
+            })
             ->get();
 
             // Log para debug (puedes removerlo después)
@@ -162,6 +168,42 @@ class ProgramarEngomadoController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error al obtener órdenes: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar si hay órdenes con status "En Proceso"
+     * Retorna true si hay al menos una orden con status "En Proceso" (excluyendo la orden actual si se proporciona)
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function verificarOrdenEnProceso(Request $request): JsonResponse
+    {
+        try {
+            $ordenIdExcluir = $request->query('excluir_id');
+
+            $query = EngProgramaEngomado::where('Status', 'En Proceso');
+
+            if ($ordenIdExcluir) {
+                $query->where('Id', '!=', $ordenIdExcluir);
+            }
+
+            $cantidadEnProceso = $query->count();
+
+            return response()->json([
+                'success' => true,
+                'tieneOrdenEnProceso' => $cantidadEnProceso > 0,
+                'cantidad' => $cantidadEnProceso,
+                'mensaje' => $cantidadEnProceso > 0
+                    ? "Ya existe una orden con status 'En Proceso'. No se puede cargar otra orden hasta finalizar la actual."
+                    : 'No hay órdenes en proceso',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al verificar órdenes en proceso: ' . $e->getMessage(),
             ], 500);
         }
     }

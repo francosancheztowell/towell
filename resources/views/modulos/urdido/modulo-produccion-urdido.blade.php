@@ -153,21 +153,29 @@
                         <th colspan="4" class="py-1 text-center bg-blue-700">Roturas</th>
                     </tr>
                     <tr>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold sticky left-0 bg-blue-500 z-30 text-xs md:text-sm">Fecha</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Oficial</th>
+                        <th class="py-2 px-1 md:px-1.5 text-center font-semibold sticky left-0 bg-blue-500 z-30 text-xs md:text-sm w-16 md:w-14 lg:w-20">Fecha</th>
+                        <th class="py-2 px-1 md:px-1 text-center font-semibold text-xs md:text-sm w-24 md:w-28 lg:w-32">Oficial</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm w-20 max-w-[60px]">Turno</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-32 max-w-[110px]">H. Inicio</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-32 max-w-[110px]">H. Fin</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm w-24 max-w-[75px]">No. Julio</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-20 max-w-[60px]">Hilos</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Kg. Bruto</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Tara</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Kg. Neto</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm">Metros</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-sm">Hilat.</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-sm">Maq.</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-sm">Operac.</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-sm">Transf.</th>
+                        <th class="py-2 px-1 md:px-0.5 text-center font-semibold text-[10px] md:text-xs w-12 md:w-10 lg:w-12">Kg. Bruto</th>
+                        <th class="py-2 px-1 md:px-0.5 text-center font-semibold text-[10px] md:text-xs w-10 md:w-9 lg:w-10">Tara</th>
+                        <th class="py-2 px-1 md:px-0.5 text-center font-semibold text-[10px] md:text-xs w-12 md:w-10 lg:w-12">Kg. Neto</th>
+                        <th class="py-2 px-1 md:px-1.5 text-center font-semibold text-xs md:text-sm w-16 md:w-14 lg:w-20">Metros</th>
+                        <th class="py-2 px-1 md:px-1 text-center font-semibold bg-blue-700 text-[10px] md:text-xs w-12 md:w-10 lg:w-12 h-10 md:h-12 relative align-bottom">
+                            <span class="absolute bottom-0 left-1/2 whitespace-nowrap" style="transform: translateX(-50%) rotate(-45deg); transform-origin: left bottom;">Hilat.</span>
+                        </th>
+                        <th class="py-2 px-1 md:px-1 text-center font-semibold bg-blue-700 text-[10px] md:text-xs w-12 md:w-10 lg:w-12 h-10 md:h-12 relative align-bottom">
+                            <span class="absolute bottom-0 left-1/2 whitespace-nowrap" style="transform: translateX(-50%) rotate(-45deg); transform-origin: left bottom;">Maq.</span>
+                        </th>
+                        <th class="py-2 px-1 md:px-1 text-center font-semibold bg-blue-700 text-[10px] md:text-xs w-12 md:w-10 lg:w-12 h-10 md:h-12 relative align-bottom">
+                            <span class="absolute bottom-0 left-1/2 whitespace-nowrap" style="transform: translateX(-50%) rotate(-45deg); transform-origin: left bottom;">Operac.</span>
+                        </th>
+                        <th class="py-2 px-1 md:px-1 text-center font-semibold bg-blue-700 text-[10px] md:text-xs w-12 md:w-10 lg:w-12 h-10 md:h-12 relative align-bottom">
+                            <span class="absolute bottom-0 left-1/2 whitespace-nowrap" style="transform: translateX(-50%) rotate(-45deg); transform-origin: left bottom;">Transf.</span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody id="tabla-produccion-body" class="bg-white divide-y divide-gray-200">
@@ -234,7 +242,7 @@
 
                                 <tr class="hover:bg-gray-50" data-registro-id="{{ $registroId }}">
                                     {{-- Fecha --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-200">
+                        <td class="px-1 md:px-1.5 py-1 md:py-1.5 text-center whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-200 w-16 md:w-14 lg:w-20">
                                         <div class="flex items-center justify-center gap-0.5 relative">
                                             @php
                                                 $fechaGuardada = $registro && $registro->Fecha ? date('Y-m-d', strtotime($registro->Fecha)) : null;
@@ -251,7 +259,7 @@
                                             >
                                             <button
                                                 type="button"
-                                                class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
+                                                class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-sm bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
                                                 data-registro-id="{{ $registroId }}"
                                             >
                                                 <span class="fecha-display-text text-gray-900 font-medium">
@@ -262,12 +270,12 @@
                         </td>
 
                                     {{-- Oficial --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                        <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-24 md:w-28 lg:w-32">
                                         <div class="flex items-center justify-center gap-1">
                                             @if($tieneOficiales)
                                                 <select
                                                     data-field="oficial"
-                                                    class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 oficial-select"
+                                                    class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-xs md:text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 oficial-select"
                                                     data-registro-id="{{ $registroId }}"
                                                 >
                                                     <option value="">Seleccionar oficial...</option>
@@ -297,13 +305,13 @@
                                             @endphp
                                             <button
                                                 type="button"
-                                                class="btn-agregar-oficial flex-shrink-0 p-1.5 {{ $puedeAgregar ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed opacity-50' }} rounded transition-colors"
+                                                class="btn-agregar-oficial flex-shrink-0 p-1 md:p-1.5 {{ $puedeAgregar ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed opacity-50' }} rounded transition-colors"
                                                 data-registro-id="{{ $registroId }}"
                                                 data-cantidad-oficiales="{{ $cantidadOficiales }}"
                                                 title="{{ $puedeAgregar ? 'Agregar oficial' : 'Máximo de 3 oficiales alcanzado' }}"
                                                 {{ !$puedeAgregar ? 'disabled' : '' }}
                                             >
-                                                <i class="fa-solid fa-plus-circle text-lg"></i>
+                                                <i class="fa-solid fa-plus-circle text-base md:text-lg"></i>
                                             </button>
                                         </div>
                         </td>
@@ -333,7 +341,7 @@
                                                 value="{{ $horaInicio }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-sm cursor-pointer hover:text-blue-500 set-current-time flex-shrink-0"
+                                                class="fa-solid fa-clock text-gray-400 text-base md:text-lg cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-7 h-7 md:w-9 md:h-9 rounded-full transition-colors"
                                                 data-time-target="h_inicio"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -350,7 +358,7 @@
                                                 value="{{ $horaFin }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-sm cursor-pointer hover:text-blue-500 set-current-time flex-shrink-0"
+                                                class="fa-solid fa-clock text-gray-400 text-base md:text-lg cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-7 h-7 md:w-9 md:h-9 rounded-full transition-colors"
                                                 data-time-target="h_fin"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -380,57 +388,57 @@
                         </td>
 
                                     {{-- Kg Bruto --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                        <td class="px-1 md:px-0.5 py-1 md:py-1.5 text-center whitespace-nowrap w-12 md:w-10 lg:w-12">
                                         <input
                                             type="number"
                                             step="0.01"
                                             data-field="kg_bruto"
-                                            class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-xs md:text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $kgBruto }}"
                                         >
                         </td>
 
                                     {{-- Tara --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                        <td class="px-1 md:px-0.5 py-1 md:py-1.5 text-center whitespace-nowrap w-10 md:w-9 lg:w-10">
                                         <input
                                             type="number"
                                             step="0.01"
                                             disabled
                                             data-field="tara"
-                                            class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-xs md:text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $tara }}"
                                         >
                         </td>
 
                                     {{-- Kg Neto --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                        <td class="px-1 md:px-0.5 py-1 md:py-1.5 text-center whitespace-nowrap w-12 md:w-10 lg:w-12">
                                         <input
                                             type="number"
                                             step="0.01"
                                             data-field="kg_neto"
-                                            class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm text-center bg-gray-50 text-gray-600 cursor-not-allowed"
+                                            class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-xs md:text-sm text-center bg-gray-50 text-gray-600 cursor-not-allowed"
                                             value="{{ $kgNeto }}"
                                             readonly
                                         >
                         </td>
 
                                     {{-- Metros --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                        <td class="px-1 md:px-1.5 py-1 md:py-1.5 text-center whitespace-nowrap w-16 md:w-14 lg:w-20">
                                         <input
                                             type="number"
                                             disabled
                                             data-field="metros"
-                                            class="w-full border border-gray-300 rounded px-2 md:px-3 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $metros }}"
                                         >
                         </td>
 
                                     {{-- Hilatura --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                        <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-12 md:w-10 lg:w-12">
                             <div class="flex items-center justify-center relative">
                                             <button
                                                 type="button"
-                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-2 py-2 rounded text-sm transition-colors"
+                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
                                                 onclick="toggleQuantityEdit(this, 'hilat')"
                                             >
                                                 <span class="quantity-display font-semibold" data-field="hilat">
@@ -455,11 +463,11 @@
                         </td>
 
                                     {{-- Maquina --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                        <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-12 md:w-10 lg:w-12">
                             <div class="flex items-center justify-center relative">
                                             <button
                                                 type="button"
-                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-2 py-2 rounded text-sm transition-colors"
+                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
                                                 onclick="toggleQuantityEdit(this, 'maq')"
                                             >
                                                 <span class="quantity-display font-semibold" data-field="maq">
@@ -484,11 +492,11 @@
                         </td>
 
                                     {{-- Operac --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                        <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-12 md:w-10 lg:w-12">
                             <div class="flex items-center justify-center relative">
                                             <button
                                                 type="button"
-                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-2 py-2 rounded text-sm transition-colors"
+                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
                                                 onclick="toggleQuantityEdit(this, 'operac')"
                                             >
                                                 <span class="quantity-display font-semibold" data-field="operac">
@@ -513,11 +521,11 @@
                         </td>
 
                                     {{-- Transf --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap">
+                        <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-12 md:w-10 lg:w-12">
                             <div class="flex items-center justify-center relative">
                                             <button
                                                 type="button"
-                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-2 py-2 rounded text-sm transition-colors"
+                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
                                                 onclick="toggleQuantityEdit(this, 'transf')"
                                             >
                                                 <span class="quantity-display font-semibold" data-field="transf">
@@ -682,6 +690,7 @@
 
             document.addEventListener('DOMContentLoaded', function () {
                 const tablaBody = document.getElementById('tabla-produccion-body');
+                let autoFillOficialDone = false;
 
                 if (tablaBody) {
                     tablaBody.addEventListener('input', function (e) {
@@ -721,6 +730,14 @@
 
                     tablaBody.querySelectorAll('tr').forEach(row => {
                         calcularNeto(row);
+                        const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
+                        const hFinInput = row.querySelector('input[data-field="h_fin"]');
+                        if (hInicioInput) {
+                            hInicioInput.setAttribute('data-valor-anterior', hInicioInput.value || '');
+                        }
+                        if (hFinInput) {
+                            hFinInput.setAttribute('data-valor-anterior', hFinInput.value || '');
+                        }
                     });
 
                     // Inicializar valor anterior del oficial en cada fila y actualizar turno
@@ -802,6 +819,31 @@
                             if (selectedOption && selectedOption.value) {
                                 const turno = selectedOption.getAttribute('data-turno');
                                 turnoSelect.value = turno || '';
+                                target.setAttribute('data-oficial-anterior', selectedOption.value);
+                                if (!autoFillOficialDone) {
+                                    autoFillOficialDone = true;
+                                    const valor = selectedOption.value;
+                                    const optionTemplate = selectedOption;
+                                    const selects = tablaBody.querySelectorAll('.oficial-select');
+                                    selects.forEach(select => {
+                                        let opt = select.querySelector(`option[value="${valor}"]`);
+                                        if (!opt && optionTemplate) {
+                                            const clone = optionTemplate.cloneNode(true);
+                                            clone.removeAttribute('selected');
+                                            select.appendChild(clone);
+                                            opt = clone;
+                                        }
+                                        if (!opt) return;
+                                        select.value = valor;
+                                        select.setAttribute('data-oficial-anterior', valor);
+                                        const rowSelect = select.closest('tr');
+                                        const turnoSel = rowSelect ? rowSelect.querySelector('select[data-field="turno"]') : null;
+                                        const optSel = select.options[select.selectedIndex];
+                                        if (turnoSel) {
+                                            turnoSel.value = optSel && optSel.value ? (optSel.getAttribute('data-turno') || '') : '';
+                                        }
+                                    });
+                                }
                             } else {
                                 turnoSelect.value = '';
                             }
@@ -857,11 +899,14 @@
                             // Verificar que haya un oficial seleccionado
                             if (!verificarOficialSeleccionado(registroId)) {
                                 mostrarAlertaOficialRequerido();
+                                const anterior = target.getAttribute('data-valor-anterior') || '';
+                                target.value = anterior;
                                 return;
                             }
 
                             const campoBD = field === 'h_inicio' ? 'HoraInicial' : 'HoraFinal';
                             actualizarHora(registroId, campoBD, horaValue);
+                            target.setAttribute('data-valor-anterior', target.value || '');
                         }
                     });
                 }
@@ -1433,8 +1478,14 @@
                 const timeTarget = iconElement.getAttribute('data-time-target');
                 const row = iconElement.closest('tr');
                     const timeInput = row ? row.querySelector('input[data-field="' + timeTarget + '"]') : null;
+                    const registroId = row ? row.getAttribute('data-registro-id') : null;
 
                     if (!timeInput) return;
+                    if (!registroId) return;
+                    if (!verificarOficialSeleccionado(registroId)) {
+                        mostrarAlertaOficialRequerido();
+                        return;
+                    }
 
                     const now = new Date();
                     const hours = String(now.getHours()).padStart(2, '0');
@@ -1442,6 +1493,7 @@
                     const currentTime = `${hours}:${minutes}`;
 
                     timeInput.value = currentTime;
+                    timeInput.setAttribute('data-valor-anterior', currentTime);
                     timeInput.dispatchEvent(new Event('change', { bubbles: true }));
 
                     iconElement.classList.add('text-blue-500');
