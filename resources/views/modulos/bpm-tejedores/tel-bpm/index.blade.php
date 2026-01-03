@@ -17,10 +17,10 @@
         <i class="fa-solid fa-trash w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
         Eliminar folio
     </button>
-    <button id="btn-open-create" class="px-6 py-2.5 bg-green-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-green-600 transition-all duration-200 flex items-center gap-2 group">
+    {{-- <button id="btn-open-create" class="px-6 py-2.5 bg-green-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-green-600 transition-all duration-200 flex items-center gap-2 group">
         <i class="fa-solid fa-plus w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
         Nuevo folio
-    </button>
+    </button> --}}
 </div>
 @endsection
 

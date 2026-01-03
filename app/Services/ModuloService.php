@@ -401,7 +401,6 @@ class ModuloService
             'Producción Urdido' => '/urdido/modulo-produccion-urdido',
             'Produccion Urdido' => '/urdido/modulo-produccion-urdido',
             'Módulo Producción Urdido' => '/urdido/modulo-produccion-urdido',
-            // 'Modulo Produccion Urdido' => '/urdido/modulo-produccion-urdido',
             'Configuración' => '/urdido/configuracion',
 
             // Módulos de Engomado
@@ -427,8 +426,6 @@ class ModuloService
             'Desarrolladores' => '/tejedores/desarrolladores',
             'Mecánicos' => '/tejedores/mecanicos',
             'Notificar Montado de Rollo'=> 'tejedores/notificar-mont-rollos',
-            // 'Notificar Montado de Julio' => '/tejedores/notificar-montado-julios',
-            // 'Notificar Montado de Julio (Tej.)' => '/tejedores/notificar-montado-julios',
 
             // Módulos de Programa Urd/Eng
             'Reservar y Programar' => '/programa-urd-eng/reservar-programar',

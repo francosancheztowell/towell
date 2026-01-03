@@ -12,8 +12,8 @@
 @endsection
 
 @section('content')
-<div class="container">
-    <div class="overflow-x-auto overflow-y-auto flex-1 rounded-lg shadow-md">
+<div class="container mx-auto px-4 py-4">
+    <div class="overflow-x-auto overflow-y-auto rounded-lg shadow-md bg-white">
         <table class="min-w-full divide-y divide-gray-200 text-xs">
                 <thead class="bg-blue-500 sticky top-0 z-10">
                     <tr>
