@@ -33,7 +33,7 @@ class RequerimientoController extends Controller
             // Bloquear los registros activos del telar (para evitar condición de carrera)
             $bloqueo = Requerimiento::where('telar', $request->telar)
                 ->where('status', 'activo')
-                ->lockForUpdate() // 👈 Esto bloquea la fila hasta que la transacción termine
+                ->lockForUpdate() //  Esto bloquea la fila hasta que la transacción termine
                 ->get();
 
             //Aqui haremos el proceso para detectar que un requerimiento esta fuera del rango de la semana, para no borrarlo,
@@ -791,7 +791,7 @@ class RequerimientoController extends Controller
                 ]);
             DB::commit();
             return response()->json(['folio' => $newFolio]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (DB::transactionLevel() > 0) DB::rollBack();
             Log::error('resolveFolio error: ' . $e->getMessage());
             return response()->json(['message' => 'No se pudo crear folio'], 500);
@@ -841,7 +841,7 @@ class RequerimientoController extends Controller
                 'engo'         => $engo,
                 'construccion' => $conRows,
             ]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (DB::transactionLevel() > 0) DB::rollBack();
             Log::error('initAndFetchByFolio error: ' . $e->getMessage());
             return response()->json(['message' => 'Error al inicializar/consultar'], 500);
@@ -968,7 +968,7 @@ class RequerimientoController extends Controller
                 'engo'         => $engo,
                 'construccion' => $conRows,
             ]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (DB::transactionLevel() > 0) DB::rollBack();
             Log::error('upsertAndFetchByFolio error: ' . $e->getMessage());
             return response()->json(['message' => 'Error al inicializar/consultar'], 500);
@@ -1011,7 +1011,7 @@ class RequerimientoController extends Controller
 
             DB::commit();
             return response()->json(['ok' => true]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (DB::transactionLevel() > 0) DB::rollBack();
             Log::error('autosaveConstruccion error: ' . $e->getMessage());
             return response()->json(['ok' => false], 500);
@@ -1189,7 +1189,7 @@ class RequerimientoController extends Controller
             });
 
             return response()->json(['ok' => true] + $resultado, 200);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('autosaveUrdidoEngomado error', ['msg' => $e->getMessage()]);
             return response()->json(['ok' => false, 'message' => 'Error al guardar'], 500);
         }
@@ -1248,7 +1248,7 @@ class RequerimientoController extends Controller
                     // limpiar: cambia guiones o puntos a "/"
                     $clean = str_replace(['-', '.'], '/', trim($raw));
                     $fecha_req = Carbon::createFromFormat('d/m/Y', $clean)->format('Y-m-d');
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     // Si falla, lo dejas en null o lanzas validación
                     $fecha_req = null;
                 }
@@ -1283,7 +1283,7 @@ class RequerimientoController extends Controller
                         $data,
                         ['created_at' => now(), 'updated_at' => now()]
                     ));
-                } catch (\Illuminate\Database\QueryException $e) {
+                } catch (QueryException $e) {
                     // Si hubo carrera y ya existe, hacemos UPDATE definitivo
                     if ($e->getCode() === '23000') { // Violación PK
                         DB::table('urdido_engomado')
@@ -1504,7 +1504,7 @@ class RequerimientoController extends Controller
                     if (!empty($inv['fecha'])) {
                         try {
                             $fecha = Carbon::parse($inv['fecha']);
-                        } catch (\Throwable $e) {
+                        } catch (Throwable $e) {
                             $fecha = null;
                         }
                     }
@@ -1573,7 +1573,7 @@ class RequerimientoController extends Controller
                 'ue'     => $uePorFolio,  // colección/objeto indexado por folio
                 'ok'     => 'Inventarios guardados correctamente.',
             ]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             DB::rollBack();
             report($e);
             return back()->withErrors('Ocurrió un error al guardar: ' . $e->getMessage());

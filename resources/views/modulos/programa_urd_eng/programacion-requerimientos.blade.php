@@ -96,6 +96,17 @@ document.addEventListener('DOMContentLoaded', () => {
         destino: ['JACQUARD', 'SMIT', 'SULZER', 'SMITH']
     };
 
+    // Función para mapear salón a destino (ITEMA y SMITH ambos usan SMIT)
+    function mapearSalonADestino(salon) {
+        if (!salon) return 'JACQUARD';
+        const s = String(salon).toUpperCase().trim();
+        if (s === 'ITEMA' || s === 'SMITH') return 'SMIT';
+        if (s === 'JACQUARD' || s === 'JAC') return 'JACQUARD';
+        if (s === 'SMIT') return 'SMIT';
+        if (s === 'SULZER') return 'SULZER';
+        return 'JACQUARD'; // Default
+    }
+
     let telaresData = normalizeInput(@json($telaresSeleccionados ?? []));
 
     if (telaresData.length === 0) {
@@ -230,10 +241,12 @@ document.addEventListener('DOMContentLoaded', () => {
             </td>
             <td class="px-2 py-3 w-28">
                 <select class="w-full px-2 py-1.5 text-xs bg-transparent border-0 cursor-default appearance-none" data-field="destino" disabled>
-                    ${opciones.destino.map(x => {
-                        const d = (telar.destino || telar.salon || 'JACQUARD').toUpperCase();
-                        return `<option value="${x}" ${d===x?'selected':''}>${x}</option>`;
-                    }).join('')}
+                    ${(() => {
+                        const destinoMapeado = telar.destino ? mapearSalonADestino(telar.destino) : mapearSalonADestino(telar.salon);
+                        return opciones.destino.map(x => {
+                            return `<option value="${x}" ${destinoMapeado === x ? 'selected' : ''}>${x}</option>`;
+                        }).join('');
+                    })()}
                 </select>
             </td>
             <td class="px-2 py-3 w-28">
@@ -559,6 +572,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const payload = normalizeInput(telaresData);
 
+            console.log('Enviando datos al servidor:', { telares: payload.length, muestra: payload.slice(0, 2) });
+
             const res = await fetch(RUTA_RESUMEN, {
                 method: 'POST',
                 headers: {'Content-Type':'application/json','X-CSRF-TOKEN':CSRF,'Accept':'application/json'},
@@ -566,13 +581,32 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const json = await res.json();
-            if (!res.ok || json.success !== true || !json.data) {
+
+            console.log('Respuesta del servidor:', {
+                ok: res.ok,
+                status: res.status,
+                success: json.success,
+                tieneData: !!json.data,
+                tieneSemanas: !!json.semanas,
+                message: json.message
+            });
+
+            if (!res.ok) {
                 throw new Error(json.message || `Error HTTP ${res.status}`);
+            }
+
+            if (json.success !== true) {
+                throw new Error(json.message || 'La respuesta del servidor indica error');
+            }
+
+            if (!json.data) {
+                throw new Error('El servidor no devolvió datos');
             }
 
             renderResumen(json.data, validacion, json.semanas || []);
         } catch (e) {
-            renderResumenMensaje(e.message || 'Error al cargar datos');
+            console.error('Error al cargar resumen:', e);
+            renderResumenMensaje('Error al cargar datos: ' + (e.message || 'Error desconocido'));
         }
     }
 
@@ -673,8 +707,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const calIt = it.CalibrePie ?? it.calibrePie ?? it.Calibre ?? it.calibre;
                 const calNum = calIt!=null && calIt!=='' ? parseFloat(calIt) : null;
 
-                // Validar que el calibre del resumen coincida con el calibre esperado
-                const okCal = (calEsperado==null) || (calNum==null) || Math.abs(calEsperado - calNum) < 0.01;
+                // Validar que el calibre del resumen coincida con el calibre esperado (tolerancia 0.11 para cubrir errores de precisión)
+                const okCal = (calEsperado==null) || (calNum==null) || Math.abs(calEsperado - calNum) <= 0.11;
                 if (!okCal) continue;
 
                 // Para PIE, NO se filtra por hilo - se muestran todos los registros que coincidan en calibre
@@ -740,34 +774,51 @@ document.addEventListener('DOMContentLoaded', () => {
             itemsPorTelar[telarId].items.push(r);
         }
 
-        // Renderizar filas de la tabla 2
+        // Renderizar filas estilo Gantt: una fila por semana que tenga datos
         let sumaTotalMetros = 0;
         let sumaTotalKilos = 0;
+
         for (const r of items) {
-            sumaTotalMetros += Number(r.total || 0);
-            sumaTotalKilos += Number(r.totalKilos || 0);
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-50';
-            tr.innerHTML = `
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.telar}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.cuenta || '-'}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.hilo || '-'}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.calibre != null && r.calibre !== '' ? r.calibre : '-'}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.modelo || '-'}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.s0)}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.s1)}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.s2)}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.s3)}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.s4)}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-blue-600 bg-blue-50">${fmtNum(r.total)}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.k0)}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.k1)}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.k2)}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.k3)}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(r.k4)}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-green-600 bg-green-50">${fmtNum(r.totalKilos)}</td>
-            `;
-            tb.appendChild(tr);
+            const semanasData = [
+                { idx: 0, metros: Number(r.s0 || 0), kilos: Number(r.k0 || 0) },
+                { idx: 1, metros: Number(r.s1 || 0), kilos: Number(r.k1 || 0) },
+                { idx: 2, metros: Number(r.s2 || 0), kilos: Number(r.k2 || 0) },
+                { idx: 3, metros: Number(r.s3 || 0), kilos: Number(r.k3 || 0) },
+                { idx: 4, metros: Number(r.s4 || 0), kilos: Number(r.k4 || 0) }
+            ];
+
+            // Crear una fila por cada semana que tenga datos (metros > 0 o kilos > 0)
+            semanasData.forEach(semData => {
+                if (semData.metros > 0 || semData.kilos > 0) {
+                    sumaTotalMetros += semData.metros;
+                    sumaTotalKilos += semData.kilos;
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50';
+
+                    // Crear las columnas de metros y kilos, mostrando solo el valor de la semana actual
+                    const metrosCells = semanasData.map((s, i) => {
+                        return i === semData.idx ? fmtNum(s.metros) : '-';
+                    }).map(val => `<td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${val}</td>`).join('');
+
+                    const kilosCells = semanasData.map((s, i) => {
+                        return i === semData.idx ? fmtNum(s.kilos) : '-';
+                    }).map(val => `<td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${val}</td>`).join('');
+
+                    tr.innerHTML = `
+                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.telar}</td>
+                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.cuenta || '-'}</td>
+                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.hilo || '-'}</td>
+                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.calibre != null && r.calibre !== '' ? r.calibre : '-'}</td>
+                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.modelo || '-'}</td>
+                        ${metrosCells}
+                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-blue-600 bg-blue-50">${fmtNum(semData.metros)}</td>
+                        ${kilosCells}
+                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-green-600 bg-green-50">${fmtNum(semData.kilos)}</td>
+                    `;
+                    tb.appendChild(tr);
+                }
+            });
         }
 
         // Agregar fila de totales (sumas - solo lectura)

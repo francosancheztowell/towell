@@ -68,6 +68,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\DescargarProgramaController;
 use App\Http\Controllers\Simulaciones\SimulacionComprasEspecialesController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoLineController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
+use App\Models\Usuario;
 //Rutas de login, con logout, no protegidas por middleware
 
 // Rutas de autenticación
@@ -80,7 +81,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/obtener-empleados/{area}', function ($area) {
     try {
-        return App\Models\Usuario::where('area', $area)->get();
+        return Usuario::where('area', $area)->get();
     } catch (\Throwable $e) {
         return [];
     }
@@ -178,7 +179,7 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
                 Artisan::call('view:clear');
 
                 // Limpiar caché específico de módulos
-                $usuarios = \App\Models\SYSUsuario::all();
+                $usuarios = Usuario::all();
                 foreach($usuarios as $usuario) {
                     $cacheKeys = [
                         "modulos_principales_user_{$usuario->idusuario}",
