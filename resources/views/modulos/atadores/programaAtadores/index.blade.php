@@ -73,7 +73,8 @@
                             onclick="selectRow(this, {{ $item->id }})"
                             data-id="{{ $item->id }}"
                             data-no-julio="{{ $item->no_julio }}"
-                            data-no-orden="{{ $item->no_orden }}">
+                            data-no-orden="{{ $item->no_orden }}"
+                            data-hora-paro="{{ $item->horaParo ?? '' }}">
                             <td class="px-2 py-2 whitespace-nowrap text-xs">
                                 {{ $item->fecha ? $item->fecha->format('d/m/Y') : '-' }}
                             </td>
@@ -218,6 +219,16 @@ function selectRow(row, id) {
     // Obtener datos de la fila para validación
     const noJulio = row.getAttribute('data-no-julio');
     const noOrden = row.getAttribute('data-no-orden');
+    const horaParo = row.getAttribute('data-hora-paro') || '';
+    if (!horaParo.trim()) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Atención',
+            text: 'El telar debe registrar la hora de paro antes de iniciar el atado'
+        });
+        disableIniciarButton();
+        return;
+    }
 
     // Validar que la fila tenga los datos necesarios
     if (!noJulio || !noOrden) {
@@ -302,6 +313,15 @@ function iniciarAtado() {
 
     const noJulio = selectedRowElement.getAttribute('data-no-julio');
     const noOrden = selectedRowElement.getAttribute('data-no-orden');
+    const horaParo = selectedRowElement.getAttribute('data-hora-paro') || '';
+    if (!horaParo.trim()) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Atención',
+            text: 'Este telar aún no registra la hora de paro. Detén el telar antes de iniciar el atado'
+        });
+        return;
+    }
 
     // Validar que los datos estén presentes
     if (!noJulio || !noOrden) {
