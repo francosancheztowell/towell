@@ -56,38 +56,38 @@ class ModulosController extends Controller
 
     /**
      * Almacenar un nuevo módulo
-     * 
+     *
      * LÓGICA DE CREACIÓN DE MÓDULOS:
      * ================================
-     * 
+     *
      * 1. CAMPOS REQUERIDOS:
      *    - orden: Identificador único (ej: "300", "304", "401-1")
      *    - modulo: Nombre descriptivo del módulo
      *    - Nivel: 1 (Principal), 2 (Submódulo nivel 2), 3 (Submódulo nivel 3)
-     * 
+     *
      * 2. JERARQUÍA DE MÓDULOS:
      *    - Nivel 1: Módulos principales (Dependencia = NULL)
      *      Ejemplo: orden="300", modulo="Reportes Urdido", Nivel=1, Dependencia=NULL
-     *    
+     *
      *    - Nivel 2: Submódulos que dependen de un módulo Nivel 1
      *      Ejemplo: orden="304", modulo="Catálogos Julios", Nivel=2, Dependencia="300"
-     *    
+     *
      *    - Nivel 3: Submódulos que dependen de un módulo Nivel 2
      *      Ejemplo: orden="401-1", modulo="Producción Engomado", Nivel=3, Dependencia="401"
-     * 
+     *
      * 3. REGLAS DE VALIDACIÓN:
      *    - El campo "orden" debe ser único en toda la tabla
      *    - Si Nivel=1, entonces Dependencia debe ser NULL
      *    - Si Nivel=2 o 3, entonces Dependencia debe existir en otro módulo
      *    - La Dependencia debe apuntar al campo "orden" del módulo padre
-     * 
+     *
      * 4. PERMISOS (CHECKBOXES):
      *    - acceso: Permite acceder al módulo
      *    - crear: Permite crear registros en el módulo
      *    - modificar: Permite modificar registros
      *    - eliminar: Permite eliminar registros
      *    - reigstrar: Permiso especial de registro
-     * 
+     *
      * 5. IMAGEN (OPCIONAL):
      *    - Se almacena en public/images/fotos_modulos/
      *    - El nombre del archivo se guarda en el campo "imagen"
@@ -95,11 +95,6 @@ class ModulosController extends Controller
     public function store(Request $request)
     {
         try {
-            Log::info('Store method called', [
-                'user_id' => Auth::id(),
-                'user_authenticated' => Auth::check(),
-                'request_data' => $request->all()
-            ]);
 
             // Validar campos básicos
             $validator = Validator::make($request->all(), [
@@ -146,7 +141,7 @@ class ModulosController extends Controller
             // Si tiene dependencia, verificar que el módulo padre exista
             if (!empty($dependencia)) {
                 $moduloPadre = SYSRoles::where('orden', $dependencia)->first();
-                
+
                 if (!$moduloPadre) {
                     return back()
                         ->withErrors(['Dependencia' => 'El módulo padre con orden "' . $dependencia . '" no existe.'])
@@ -180,13 +175,13 @@ class ModulosController extends Controller
             if ($request->hasFile('imagen_archivo')) {
                 $imagen = $request->file('imagen_archivo');
                 $nombreImagen = time() . '_' . $imagen->getClientOriginalName();
-                
+
                 // Crear directorio si no existe
                 $rutaImagenes = public_path('images/fotos_modulos');
                 if (!file_exists($rutaImagenes)) {
                     mkdir($rutaImagenes, 0777, true);
                 }
-                
+
                 $imagen->move($rutaImagenes, $nombreImagen);
                 $data['imagen'] = $nombreImagen;
             } else {
@@ -194,7 +189,7 @@ class ModulosController extends Controller
             }
 
             Log::info('Datos a crear módulo:', $data);
-            
+
             // Crear el módulo
             $modulo = SYSRoles::create($data);
 
@@ -226,7 +221,7 @@ class ModulosController extends Controller
                 'user_authenticated' => Auth::check(),
                 'request_data' => $request->all()
             ]);
-            
+
             return back()
                 ->with('error', 'Error al crear el módulo: ' . $e->getMessage())
                 ->withInput();
@@ -427,7 +422,7 @@ class ModulosController extends Controller
             }
 
             $nombreModulo = $modulo->modulo;
-            
+
             // Eliminar registros relacionados en SYSUsuariosRoles
             SYSUsuariosRoles::where('idrol', $modulo->idrol)->delete();
             Log::info("Registros de permisos eliminados para el módulo {$modulo->idrol}");
@@ -618,7 +613,7 @@ class ModulosController extends Controller
 
     /**
      * Actualizar permisos para todos los usuarios cuando se crea un nuevo módulo
-     * 
+     *
      * @param SYSRoles $modulo El módulo recién creado
      * @return int Número de registros actualizados
      */
@@ -662,7 +657,7 @@ class ModulosController extends Controller
             }
 
             Log::info("Permisos actualizados para {$registrosActualizados} usuarios del módulo {$modulo->idrol}");
-            
+
             return $registrosActualizados;
         } catch (\Exception $e) {
             Log::error('Error al actualizar permisos del nuevo módulo: ' . $e->getMessage());

@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Engomado\Produccion;
 
+use App\Http\Controllers\Controller;
 use App\Models\EngProgramaEngomado;
 use App\Models\UrdJuliosOrden;
 use App\Models\EngProduccionEngomado;

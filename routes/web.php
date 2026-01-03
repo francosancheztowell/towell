@@ -31,7 +31,7 @@ use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ReservarProgramarContr
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ProgramarUrdEngController;
 use App\Http\Controllers\Urdido\ProgramaUrdido\ProgramarUrdidoController;
 use App\Http\Controllers\Engomado\ProgramaEngomado\ProgramarEngomadoController;
-use App\Http\Controllers\ModuloProduccionEngomadoController;
+use App\Http\Controllers\Engomado\Produccion\ModuloProduccionEngomadoController;
 use App\Http\Controllers\Urdido\Configuracion\ModuloProduccionUrdidoController;
 use App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController;
 use App\Http\Controllers\Tejedores\Configuracion\CatDesarrolladores\catDesarrolladoresController;
@@ -43,7 +43,7 @@ use App\Http\Controllers\Tejedores\Configuracion\TelaresOperador\TelTelaresOpera
 use App\Http\Controllers\Urdido\Configuracion\ActividadesBPMUrdido\UrdActividadesBpmController;
 use App\Http\Controllers\Urdido\BPMUrdido\UrdBpmController;
 use App\Http\Controllers\Urdido\BPMUrdido\UrdBpmLineController;
-use App\Http\Controllers\MantenimientoParosController;
+use App\Http\Controllers\Mantenimiento\MantenimientoParosController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoController;
 use App\Http\Controllers\Tejido\MarcasFinales\MarcasController;
 use App\Http\Controllers\Tejedores\NotificarMontadoJulios\NotificarMontadoJulioController;
