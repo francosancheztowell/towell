@@ -4,19 +4,19 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-create onclick="openModuloModal('createModal')"/>
-        <x-navbar.button-edit id="btn-top-edit" onclick="handleTopEdit('editModal')" :disabled="true" class="transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"/>
+        <x-navbar.button-create onclick="openModuloModal('createModal')" hoverBg="hover:bg-green-200" />
+        <x-navbar.button-edit id="btn-top-edit" onclick="handleTopEdit('editModal')" :disabled="true" iconColor="text-blue-400" hoverBg="hover:bg-blue-200"/>
         <button id="btn-top-sync" type="button" onclick="handleSyncPermisos()" disabled
             class="p-2 rounded-full transition hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed w-9 h-9 flex items-center justify-center"
             title="Sincronizar Permisos">
             <i class="fa-solid fa-sync text-purple-600 text-lg"></i>
         </button>
-        <x-navbar.button-delete id="btn-top-delete" onclick="handleTopDelete()" :disabled="true"/>
+        <x-navbar.button-delete id="btn-top-delete" onclick="handleTopDelete()" :disabled="true" iconColor="text-red-500" hoverBg="hover:bg-red-200"/>
     </div>
 @endsection
 
 @section('content')
-        <div class="container mx-auto px-4 py-6">
+        <div class="container mx-auto px-4 py-6 te">
             @if($errors->any())
                 <script>
                     Swal.fire({
