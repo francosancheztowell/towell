@@ -354,7 +354,18 @@ class ModuloProduccionEngomadoController extends Controller
                 ], 404);
             }
 
-            $numeroOficial = $request->numero_oficial;
+            $numeroOficial = (int) $request->numero_oficial;
+            $folio = $registro->Folio;
+
+            $propagarOficial = false;
+            if ($numeroOficial === 1) {
+                $existeOficialEnFolio = EngProduccionEngomado::where('Folio', $folio)
+                    ->whereNotNull("NomEmpl{$numeroOficial}")
+                    ->where("NomEmpl{$numeroOficial}", '!=', '')
+                    ->exists();
+
+                $propagarOficial = !$existeOficialEnFolio;
+            }
 
             if ($numeroOficial < 1 || $numeroOficial > 3) {
                 return response()->json([
@@ -393,6 +404,25 @@ class ModuloProduccionEngomadoController extends Controller
             }
 
             $registro->save();
+
+            if ($propagarOficial) {
+                $updateData = [
+                    "CveEmpl{$numeroOficial}" => $request->cve_empl,
+                    "NomEmpl{$numeroOficial}" => $request->nom_empl,
+                ];
+
+                if ($request->has('turno')) {
+                    $updateData["Turno{$numeroOficial}"] = $request->turno;
+                }
+
+                if ($request->has('metros')) {
+                    $updateData["Metros{$numeroOficial}"] = $request->metros;
+                }
+
+                EngProduccionEngomado::where('Folio', $folio)
+                    ->where('Id', '!=', $registro->Id)
+                    ->update($updateData);
+            }
 
             return response()->json([
                 'success' => true,
@@ -868,4 +898,3 @@ class ModuloProduccionEngomadoController extends Controller
         }
     }
 }
-

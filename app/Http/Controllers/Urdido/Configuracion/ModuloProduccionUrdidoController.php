@@ -453,6 +453,10 @@ class ModuloProduccionUrdidoController extends Controller
                     $updateData["Turno{$numeroOficial}"] = $request->turno;
                 }
 
+                if ($request->has('metros')) {
+                    $updateData["Metros{$numeroOficial}"] = $request->metros;
+                }
+
                 UrdProduccionUrdido::where('Folio', $folio)
                     ->where('Id', '!=', $registro->Id)
                     ->update($updateData);

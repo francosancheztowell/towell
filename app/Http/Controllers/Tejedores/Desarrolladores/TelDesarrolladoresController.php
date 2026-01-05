@@ -519,6 +519,45 @@ class TelDesarrolladoresController extends Controller
                             $idsAfectados = array_merge($idsAfectados, $idsMovidos);
                         } else {
                             // Si no tiene Reprogramar, aplicar lógica actual (actualizar CatCodificados y eliminar)
+                            $ordCompartidaRaw = trim((string) ($registroEnProceso->OrdCompartida ?? ''));
+                            $ordCompartida = $ordCompartidaRaw !== '' ? (int) $ordCompartidaRaw : null;
+
+                            if ($ordCompartida && $ordCompartida > 0) {
+                                $saldoTransferir = (float) ($registroEnProceso->SaldoPedido ?? 0);
+                                if ($saldoTransferir !== 0.0) {
+                                    $lider = ReqProgramaTejido::query()
+                                        ->where('OrdCompartida', $ordCompartida)
+                                        ->where('OrdCompartidaLider', 1)
+                                        ->lockForUpdate()
+                                        ->first();
+
+                                    if (!$lider || $lider->Id === $registroEnProceso->Id) {
+                                        $lider = ReqProgramaTejido::query()
+                                            ->where('OrdCompartida', $ordCompartida)
+                                            ->where('Id', '!=', $registroEnProceso->Id)
+                                            ->orderBy('FechaInicio', 'asc')
+                                            ->lockForUpdate()
+                                            ->first();
+
+                                        if ($lider) {
+                                            $lider->OrdCompartidaLider = 1;
+                                        }
+                                    }
+
+                                    if ($lider) {
+                                        $saldoActual = (float) ($lider->SaldoPedido ?? 0);
+                                        $lider->SaldoPedido = $saldoActual + $saldoTransferir;
+                                        $lider->saveQuietly();
+                                        $this->actualizarReqModelosDesdePrograma($lider);
+                                    } else {
+                                        Log::warning('No se encontró OrdCompartidaLider para transferir saldo', [
+                                            'registro_id' => $registroEnProceso->Id,
+                                            'ord_compartida' => $ordCompartida,
+                                        ]);
+                                    }
+                                }
+                            }
+
                             $this->actualizarReqModelosDesdePrograma($registroEnProceso);
                             $registroEnProceso->delete();
                         }
