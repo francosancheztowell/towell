@@ -337,6 +337,7 @@ class NuevoRequerimientoController extends Controller
             'EnProceso',
             'NoProduccion as Orden_Prod',
             'FlogsId as Id_Flog',
+            'CategoriaCalidad as Calidad',
             'CustName as Cliente',
             'TamanoClave as InventSizeId',
             'ItemId as ItemId',
@@ -387,6 +388,7 @@ class NuevoRequerimientoController extends Controller
             $base = array_merge($base, [
                 'Orden_Prod'      => $map['Orden_Prod']      ?? null,
                 'Id_Flog'         => $map['Id_Flog']         ?? null,
+                'Calidad'         => $map['Calidad']         ?? null,
                 'Cliente'         => $map['Cliente']         ?? null,
                 'InventSizeId'    => $map['InventSizeId']    ?? null,
                 'ItemId'          => $map['ItemId']          ?? null,
