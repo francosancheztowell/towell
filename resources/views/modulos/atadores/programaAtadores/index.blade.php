@@ -113,7 +113,7 @@
                             <td class="px-2 py-2 whitespace-nowrap text-xs">
                                 {{ $item->tipo_atado ?? '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-xs">
+                            <td class="px-2 py-2 whitespace-nowrap text-xs">de J
                                 {{ $item->cuenta ?? '-' }}
                             </td>
                             <td class="px-2 py-2 whitespace-nowrap text-xs">
