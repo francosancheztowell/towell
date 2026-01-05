@@ -89,47 +89,47 @@
                                 <span class="text-sm font-semibold text-gray-900 turno-actual">{{ $vm['turnoDesc'] ?? '' }}</span>
                     </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Orden:</span>
+                                <span class="text-sm font-semibold text-gray-600">Orden: </span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $d['Orden_Prod'] ?? '-' }}</span>
                     </div>
                 </div>
 
                         <div class="space-y-3">
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">No Flog:</span>
+                                <span class="text-sm font-semibold text-gray-600">No Flog: </span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $d['Id_Flog'] ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Cliente:</span>
+                                <span class="text-sm font-semibold text-gray-600">Cliente: </span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $d['Cliente'] ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Tamaño:</span>
+                                <span class="text-sm font-semibold text-gray-600">Tamaño: </span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $d['InventSizeId'] ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Artículo:</span>
+                                <span class="text-sm font-semibold text-gray-600">Artículo: </span>
                                 <span class="text-sm font-semibold text-gray-900">{{ ($d['ItemId'] ?? '-') . ' ' . ($d['Nombre_Producto'] ?? '-') }}</span>
                             </div>
                         </div>
 
                         <div class="space-y-3">
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Pedido:</span>
+                                <span class="text-sm font-semibold text-gray-600">Pedido: </span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $d['Saldos'] ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Producción:</span>
+                                <span class="text-sm font-semibold text-gray-600">Producción: </span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $d['Produccion'] ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Inicio:</span>
+                                <span class="text-sm font-semibold text-gray-600">Inicio: </span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $d['Inicio_Tejido'] ?? '-' }}</span>
                             </div>
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
-                                <span class="text-sm font-semibold text-gray-600">Fin:</span>
+                                <span class="text-sm font-semibold text-gray-600">Fin: </span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $d['Fin_Tejido'] ?? '-' }}</span>
-                        </div>
+                            </div>
                         </div>
                         </div>
 

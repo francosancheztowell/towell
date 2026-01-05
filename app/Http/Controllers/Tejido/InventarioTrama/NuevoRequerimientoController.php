@@ -393,8 +393,9 @@ class NuevoRequerimientoController extends Controller
                 'Nombre_Producto' => $map['Nombre_Producto'] ?? null,
                 'Saldos'          => $map['Saldos']          ?? null,
                 'Produccion'      => $map['Produccion']      ?? null,
-                'Inicio_Tejido'   => $map['FechaInicio']     ?? null,
-                'Fin_Tejido'      => $map['FechaFinal']      ?? null,
+                // Trae el query completo: fecha y hr, Carbon lo transforma a un DateString 
+                'Inicio_Tejido'   => !empty($map['FechaInicio']) ? Carbon::parse($map['FechaInicio']) ->toDateString() : null,
+                'Fin_Tejido'      => !empty($map['FechaFinal']) ? Carbon::parse($map['FechaFinal']) ->toDateString() : null,
 
                 'CALIBRE_TRA' => $map['CALIBRE_TRA'] ?? null,
                 'FIBRA_TRA'   => $map['FIBRA_TRA']   ?? null,
