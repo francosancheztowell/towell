@@ -385,7 +385,18 @@ class ModuloProduccionUrdidoController extends Controller
                 ], 404);
             }
 
-            $numeroOficial = $request->numero_oficial;
+            $numeroOficial = (int) $request->numero_oficial;
+            $folio = $registro->Folio;
+
+            $propagarOficial = false;
+            if ($numeroOficial === 1) {
+                $existeOficialEnFolio = UrdProduccionUrdido::where('Folio', $folio)
+                    ->whereNotNull("NomEmpl{$numeroOficial}")
+                    ->where("NomEmpl{$numeroOficial}", '!=', '')
+                    ->exists();
+
+                $propagarOficial = !$existeOficialEnFolio;
+            }
 
             // Validar que el número de oficial esté en el rango permitido (1-3)
             if ($numeroOficial < 1 || $numeroOficial > 3) {
@@ -431,6 +442,21 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             $registro->save();
+
+            if ($propagarOficial) {
+                $updateData = [
+                    "CveEmpl{$numeroOficial}" => $request->cve_empl,
+                    "NomEmpl{$numeroOficial}" => $request->nom_empl,
+                ];
+
+                if ($request->has('turno')) {
+                    $updateData["Turno{$numeroOficial}"] = $request->turno;
+                }
+
+                UrdProduccionUrdido::where('Folio', $folio)
+                    ->where('Id', '!=', $registro->Id)
+                    ->update($updateData);
+            }
 
             return response()->json([
                 'success' => true,
@@ -970,4 +996,3 @@ class ModuloProduccionUrdidoController extends Controller
         }
     }
 }
-

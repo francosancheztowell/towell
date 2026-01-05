@@ -152,8 +152,9 @@
                         <th class="py-1"></th>
                         <th colspan="4" class="py-1 text-center bg-blue-700">Roturas</th>
                     </tr>
+                    <!-- Cabecera de la tabla de producción -->
                     <tr>
-                        <th class="py-2 px-1 md:px-1.5 text-center font-semibold sticky left-0 bg-blue-500 z-30 text-xs md:text-sm w-16 md:w-14 lg:w-20">Fecha</th>
+                        <th class="py-2 px-1 md:px-1.5 text-center font-semibold sticky left-0 z-30 text-xs md:text-sm w-16 md:w-14 lg:w-20">Fecha</th>
                         <th class="py-2 px-1 md:px-1 text-center font-semibold text-xs md:text-sm w-24 md:w-28 lg:w-32">Oficial</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm w-20 max-w-[60px]">Turno</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-32 max-w-[110px]">H. Inicio</th>
@@ -242,30 +243,30 @@
 
                                 <tr class="hover:bg-gray-50" data-registro-id="{{ $registroId }}">
                                     {{-- Fecha --}}
-                        <td class="px-1 md:px-1.5 py-1 md:py-1.5 text-center whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-200 w-16 md:w-14 lg:w-20">
-                                        <div class="flex items-center justify-center gap-0.5 relative">
-                                            @php
-                                                $fechaGuardada = $registro && $registro->Fecha ? date('Y-m-d', strtotime($registro->Fecha)) : null;
-                                                $fechaMostrar = $registro && $registro->Fecha ? date('d/m', strtotime($registro->Fecha)) : date('d/m');
-                                            @endphp
-                                            <input
-                                                type="date"
-                                                data-field="fecha"
-                                                data-registro-id="{{ $registroId }}"
-                                                data-fecha-inicial="{{ $fechaGuardada ?? '' }}"
-                                                class="input-fecha"
-                                                value="{{ $fecha }}"
-                                                style="position:absolute;opacity:0;width:0;height:0;pointer-events:none;z-index:-1;"
-                                            >
-                                            <button
-                                                type="button"
-                                                class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-sm bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
-                                                data-registro-id="{{ $registroId }}"
-                                            >
-                                                <span class="fecha-display-text text-gray-900 font-medium">
-                                                    {{ $fechaMostrar }}
-                                                </span>
-                                            </button>
+                                <td class="px-1 md:px-1.5 py-1 md:py-1.5 text-center whitespace-nowrap sticky left-0 z-10 border-r border-gray-200 w-16 md:w-14 lg:w-20">
+                            <div class="flex items-center justify-center gap-0.5 relative">
+                                @php
+                                    $fechaGuardada = $registro && $registro->Fecha ? date('Y-m-d', strtotime($registro->Fecha)) : null;
+                                    $fechaMostrar = $registro && $registro->Fecha ? date('d/m', strtotime($registro->Fecha)) : date('d/m');
+                                @endphp
+                                <input
+                                    type="date"
+                                    data-field="fecha"
+                                    data-registro-id="{{ $registroId }}"
+                                    data-fecha-inicial="{{ $fechaGuardada ?? '' }}"
+                                    class="input-fecha"
+                                    value="{{ $fecha }}"
+                                    style="position:absolute;opacity:0;width:0;height:0;pointer-events:none;z-index:-1;"
+                                >
+                                <button
+                                    type="button"
+                                    class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-sm bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
+                                    data-registro-id="{{ $registroId }}"
+                                >
+                                    <span class="fecha-display-text text-gray-900 font-medium">
+                                        {{ $fechaMostrar }}
+                                    </span>
+                                </button>
                             </div>
                         </td>
 
@@ -491,28 +492,28 @@
                             </div>
                         </td>
 
-                                    {{-- Operac --}}
+                        {{-- Operac --}}
                         <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-12 md:w-10 lg:w-12">
                             <div class="flex items-center justify-center relative">
-                                            <button
-                                                type="button"
-                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
-                                                onclick="toggleQuantityEdit(this, 'operac')"
-                                            >
-                                                <span class="quantity-display font-semibold" data-field="operac">
-                                                    {{ $operac }}
-                                                </span>
+                                <button
+                                    type="button"
+                                    class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
+                                    onclick="toggleQuantityEdit(this, 'operac')"
+                                >
+                                    <span class="quantity-display font-semibold" data-field="operac">
+                                        {{ $operac }}
+                                    </span>
                                 </button>
                                 <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto w-48 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                                         <div class="flex space-x-1 min-w-max">
-                                                        @for($numIndex = 0; $numIndex <= 100; $numIndex++)
-                                                            <span
-                                                                class="number-option inline-block w-7 h-7 text-center leading-7 text-xs cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $numIndex == $operac ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}"
-                                                                data-value="{{ $numIndex }}"
-                                                            >
-                                                                {{ $numIndex }}
-                                                            </span>
+                                            @for($numIndex = 0; $numIndex <= 100; $numIndex++)
+                                                <span
+                                                    class="number-option inline-block w-7 h-7 text-center leading-7 text-xs cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $numIndex == $operac ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}"
+                                                    data-value="{{ $numIndex }}"
+                                                >
+                                                    {{ $numIndex }}
+                                                </span>
                                             @endfor
                                         </div>
                                     </div>
@@ -523,25 +524,25 @@
                                     {{-- Transf --}}
                         <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-12 md:w-10 lg:w-12">
                             <div class="flex items-center justify-center relative">
-                                            <button
-                                                type="button"
-                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
-                                                onclick="toggleQuantityEdit(this, 'transf')"
-                                            >
-                                                <span class="quantity-display font-semibold" data-field="transf">
-                                                    {{ $transf }}
-                                                </span>
+                                <button
+                                    type="button"
+                                    class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
+                                    onclick="toggleQuantityEdit(this, 'transf')"
+                                >
+                                    <span class="quantity-display font-semibold" data-field="transf">
+                                        {{ $transf }}
+                                    </span>
                                 </button>
                                 <div class="quantity-edit-container hidden absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full z-[9999] bg-white border border-gray-300 rounded-lg shadow-lg p-2">
                                     <div class="number-scroll-container overflow-x-auto w-48 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                                         <div class="flex space-x-1 min-w-max">
-                                                        @for($numIndex = 0; $numIndex <= 100; $numIndex++)
-                                                            <span
-                                                                class="number-option inline-block w-7 h-7 text-center leading-7 text-xs cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $numIndex == $transf ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}"
-                                                                data-value="{{ $numIndex }}"
-                                                            >
-                                                                {{ $numIndex }}
-                                                            </span>
+                                            @for($numIndex = 0; $numIndex <= 100; $numIndex++)
+                                                <span
+                                                    class="number-option inline-block w-7 h-7 text-center leading-7 text-xs cursor-pointer hover:bg-blue-100 rounded transition-colors {{ $numIndex == $transf ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700' }}"
+                                                    data-value="{{ $numIndex }}"
+                                                >
+                                                    {{ $numIndex }}
+                                                </span>
                                             @endfor
                                         </div>
                                     </div>
