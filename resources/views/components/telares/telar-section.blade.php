@@ -38,14 +38,53 @@
     $tipoNombre = $tipos[$tipo] ?? $tipos['jacquard'];
     $isActive = $telar->en_proceso ?? false;
 
-    // Verificar si hay datos de orden siguiente (cualquier campo relevante)
-    $tieneOrdenSig = $ordenSig && (
-        !empty($ordenSig->Orden_Prod) ||
-        !empty($ordenSig->Nombre_Producto) ||
-        !empty($ordenSig->Cuenta) ||
-        !empty($ordenSig->Cuenta_Pie) ||
-        !empty($ordenSig->Inicio_Tejido)
-    );
+    $formatSpec = function ($cuenta, $calibre, $fibra) {
+        $cuenta = $cuenta ?? '';
+        $calibre = $calibre ? number_format((float) $calibre, 2, '.', '') : '';
+        $fibra = $fibra ?? '';
+        $texto = $cuenta;
+        if ($calibre !== '') {
+            $texto .= ($texto !== '' ? ' - ' : '') . $calibre;
+        }
+        if ($fibra !== '') {
+            $texto .= ($texto !== '' ? ' - ' : '') . $fibra;
+        }
+        return $texto ?: '-';
+    };
+
+    $formatTrama = function ($calibre, $color) {
+        $calibre = $calibre ? number_format((float) $calibre, 2, '.', '') : '';
+        $color = $color ?? '';
+        $texto = $calibre;
+        if ($color !== '') {
+            $texto .= ($texto !== '' ? ' - ' : '') . $color;
+        }
+        return $texto ?: '-';
+    };
+
+    $formatDate = function ($value) {
+        if (!$value || $value === '1900-01-01') {
+            return '-';
+        }
+        return \Carbon\Carbon::parse($value)->format('d/m/Y');
+    };
+
+    $rowClass = 'flex items-start';
+    $labelClass = 'text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0';
+    $labelClassXs = 'text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0';
+    $valueClass = 'text-sm font-semibold text-gray-900 ml-2';
+    $valueClassTight = 'text-sm font-semibold text-gray-900 ml-1';
+    $sectionTitleClass = 'text-gray-900 bg-gray-200 px-4 py-2';
+
+    $tieneOrdenSig = $ordenSig && array_filter([
+        $ordenSig->Orden_Prod ?? null,
+        $ordenSig->Nombre_Producto ?? null,
+        $ordenSig->Cuenta ?? null,
+        $ordenSig->Cuenta_Pie ?? null,
+        $ordenSig->Inicio_Tejido ?? null,
+    ], function ($value) {
+        return !empty($value);
+    });
 @endphp
 
 <div class="telar-section bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
@@ -53,45 +92,18 @@
     @if($isActive)
         <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 relative">
             <!-- Separador superior -->
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500"></div>
+            <div class="absolute top-0 left-0 right-0 "></div>
 
             <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <h2 class="text-3xl font-bold">{{ $tipoNombre }}</h2>
-                    <div class="ml-4 h-8 w-px bg-white opacity-30"></div>
-                    <span class="ml-4 text-lg font-medium">TEJIDO</span>
-                </div>
 
                 <!-- Número del telar más prominente -->
-                <div class="bg-red-500 text-white px-5 py-2 rounded-lg shadow-lg transform hover:scale-105 transition-transform">
-                    <div class="text-center">
-                        <div class="text-xs uppercase tracking-wider opacity-90">TELAR</div>
-                        <div class="text-3xl font-bold">{{ $telar->Telar }}</div>
-                    </div>
+                <div class=" text-white px-5 py-2">
+                    <div class="text-4xl font-bold">{{ $telar->Telar }}</div>
                 </div>
             </div>
         </div>
     @else
-        <div class="bg-gray-100 border-b border-gray-300 px-4 py-3 relative">
-            <!-- Separador superior -->
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-gray-400 via-gray-500 to-gray-600"></div>
-
-            <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <h2 class="text-3xl font-bold text-gray-600">{{ $tipoNombre }}</h2>
-                    <div class="ml-4 h-8 w-px bg-gray-400 opacity-30"></div>
-                    <span class="ml-4 text-lg font-medium text-gray-500">TEJIDO</span>
-                </div>
-
-                <!-- Número del telar más prominente -->
-                <div class="bg-gray-400 text-white px-5 py-2 rounded-lg shadow-lg">
-                    <div class="text-center">
-                        <div class="text-xs uppercase tracking-wider opacity-90">TELAR</div>
-                        <div class="text-3xl font-bold">{{ $telar->Telar }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <div>Telar sin proceso activo</div>
     @endif
 
     @if($isActive)
@@ -100,114 +112,84 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 <!-- Información Principal -->
                 <div class="space-y-2">
-                    <div class="flex items-start justify-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Orden:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Orden_Prod ?? '-' }}</span>
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Orden:</span>
+                        <span class="{{ $valueClass }}">{{ $telar->Orden_Prod ?? '-' }}</span>
                     </div>
-                    <div class="flex items-start justify-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Flog:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Id_Flog ?? '-' }}</span>
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Flog:</span>
+                        <span class="{{ $valueClass }}">{{ $telar->Id_Flog ?? '-' }}</span>
                     </div>
-                    <div class="flex items-start justify-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Cliente:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-1">{{ $telar->Cliente ?? '-' }}</span>
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Cliente:</span>
+                        <span class="{{ $valueClassTight }}">{{ $telar->Cliente ?? '-' }}</span>
                     </div>
-                    <div class="flex items-start justify-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Tiras:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Tiras ?? '-' }}</span>
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Tiras:</span>
+                        <span class="{{ $valueClass }}">{{ $telar->Tiras ?? '-' }}</span>
                     </div>
-                    <div class="flex items-start justify-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Tamaño:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Tamano_AX ?? '-' }}</span>
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Tamaño:</span>
+                        <span class="{{ $valueClass }}">{{ $telar->Tamano_AX ?? '-' }}</span>
                     </div>
-                    <div class="flex items-start justify-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Artículo:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ ($telar->ItemId ?? '') . ' ' . ($telar->Nombre_Producto ?? '') }}</span>
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Artículo:</span>
+                        <span class="{{ $valueClass }}">{{ ($telar->ItemId ?? '') . ' ' . ($telar->Nombre_Producto ?? '') }}</span>
                     </div>
                 </div>
 
                 <!-- Especificaciones Técnicas -->
                 <div class="space-y-2">
-                    <div class="flex items-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Rizo:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">
-                            @php
-                                $cuentaRizo = $telar->Cuenta ?? '';
-                                $calibreRizo = isset($telar->CalibreRizo2) && $telar->CalibreRizo2 ? number_format((float)$telar->CalibreRizo2, 2, '.', '') : '';
-                                $fibraRizo = $telar->Fibra_Rizo ?? '';
-                                $rizoCompleto = $cuentaRizo . ($calibreRizo ? ' - ' . $calibreRizo : '') . ($fibraRizo ? ' - ' . $fibraRizo : '');
-                            @endphp
-                            {{ $rizoCompleto ?: '-' }}
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Rizo:</span>
+                        <span class="{{ $valueClass }}">
+                            {{ $formatSpec($telar->Cuenta ?? null, $telar->CalibreRizo2 ?? null, $telar->Fibra_Rizo ?? null) }}
                         </span>
                     </div>
-                    <div class="flex items-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Pie:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">
-                            @php
-                                $cuentaPie = $telar->Cuenta_Pie ?? '';
-                                $calibrePie = isset($telar->CalibrePie2) && $telar->CalibrePie2 ? number_format((float)$telar->CalibrePie2, 2, '.', '') : '';
-                                $fibraPie = $telar->Fibra_Pie ?? '';
-                                $pieCompleto = $cuentaPie . ($calibrePie ? ' - ' . $calibrePie : '') . ($fibraPie ? ' - ' . $fibraPie : '');
-                            @endphp
-                            {{ $pieCompleto ?: '-' }}
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Pie:</span>
+                        <span class="{{ $valueClass }}">
+                            {{ $formatSpec($telar->Cuenta_Pie ?? null, $telar->CalibrePie2 ?? null, $telar->Fibra_Pie ?? null) }}
                         </span>
                     </div>
-                    <div class="flex items-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Trama:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">
-                            @php
-                                $calibreTrama = $telar->CalibreTrama2 ?? null;
-                                $calibreFormateado = $calibreTrama ? number_format((float)$calibreTrama, 2, '.', '') : '';
-                                $colorTrama = $telar->COLOR_TRAMA ?? '';
-                                $tramaCompleto = $calibreFormateado . ($colorTrama ? ' - ' . $colorTrama : '');
-                            @endphp
-                            {{ $tramaCompleto ?: '-' }}
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Trama:</span>
+                        <span class="{{ $valueClass }}">
+                            {{ $formatTrama($telar->CalibreTrama2 ?? null, $telar->COLOR_TRAMA ?? null) }}
                         </span>
                     </div>
-                    <div class="flex items-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Pedido:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Saldos ?? '-' }}</span>
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Pedido:</span>
+                        <span class="{{ $valueClass }}">{{ $telar->Saldos ?? '-' }}</span>
                     </div>
-                    <div class="flex items-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Producción:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Prod_Kg_Dia ?? '-' }}</span>
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Producción:</span>
+                        <span class="{{ $valueClass }}">{{ $telar->Prod_Kg_Dia ?? '-' }}</span>
                     </div>
                 </div>
 
                 <!-- Información Adicional -->
                 <div class="space-y-2">
-                    <div class="flex items-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Marbetes:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">{{ $telar->Marbetes_Pend ?? '-' }}</span>
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Marbetes:</span>
+                        <span class="{{ $valueClass }}">{{ $telar->Marbetes_Pend ?? '-' }}</span>
                     </div>
-                    <div class="flex items-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Inicio:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">
-                            @if($telar->Inicio_Tejido && $telar->Inicio_Tejido !== '1900-01-01')
-                                {{ \Carbon\Carbon::parse($telar->Inicio_Tejido)->format('d/m/Y') }}
-                            @else
-                                -
-                            @endif
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Inicio:</span>
+                        <span class="{{ $valueClass }}">
+                            {{ $formatDate($telar->Inicio_Tejido ?? null) }}
                         </span>
                     </div>
-                    <div class="flex items-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Fin:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">
-                            @if($telar->Fin_Tejido && $telar->Fin_Tejido !== '1900-01-01')
-                                {{ \Carbon\Carbon::parse($telar->Fin_Tejido)->format('d/m/Y') }}
-                            @else
-                                -
-                            @endif
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Fin:</span>
+                        <span class="{{ $valueClass }}">
+                            {{ $formatDate($telar->Fin_Tejido ?? null) }}
                         </span>
                     </div>
-                    <div class="flex items-start">
-                        <span class="text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Comp:</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-2">
-                            @if($telar->Fecha_Compromiso && $telar->Fecha_Compromiso !== '1900-01-01')
-                                {{ \Carbon\Carbon::parse($telar->Fecha_Compromiso)->format('d/m/Y') }}
-                            @else
-                                -
-                            @endif
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Comp:</span>
+                        <span class="{{ $valueClass }}">
+                            {{ $formatDate($telar->Fecha_Compromiso ?? null) }}
                         </span>
                     </div>
                 </div>
@@ -216,70 +198,48 @@
 
         @if($showSiguienteOrden)
             <!-- Separador visual -->
-            <div>
-                <div class="text-gray-900 bg-gray-200 px-4 py-2">
-                    <h2 class="text-md font-bold text-center">DATOS DE LA SIGUIENTE ORDEN</h2>
-                </div>
-            </div>
-
             @if($tieneOrdenSig)
                 <!-- Sección SIGUIENTE ORDEN con datos -->
                 <div class="p-3">
                     <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                         <!-- Columna 1: Orden -->
                         <div class="space-y-2">
-                            <div class="flex items-start">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Orden:</span>
-                                <span class="text-sm font-semibold text-gray-900 ml-2">{{ $ordenSig->Orden_Prod ?? '-' }}</span>
+                            <div class="{{ $rowClass }}">
+                                <span class="{{ $labelClassXs }}">Orden:</span>
+                                <span class="{{ $valueClass }}">{{ $ordenSig->Orden_Prod ?? '-' }}</span>
                             </div>
-                            <div class="flex items-start">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Producto:</span>
-                                <span class="text-sm font-semibold text-gray-900 ml-2">{{ $ordenSig->Nombre_Producto ?? '-' }}</span>
+                            <div class="{{ $rowClass }}">
+                                <span class="{{ $labelClassXs }}">Producto:</span>
+                                <span class="{{ $valueClass }}">{{ $ordenSig->Nombre_Producto ?? '-' }}</span>
                             </div>
                         </div>
 
                         <!-- Columna 2: Especificaciones -->
                         <div class="space-y-2">
-                            <div class="flex items-start">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Rizo:</span>
-                                <span class="text-sm font-semibold text-gray-900 ml-2">
-                                    @php
-                                        $cuentaRizoSig = $ordenSig->Cuenta ?? '';
-                                        $calibreRizoSig = isset($ordenSig->CalibreRizo2) && $ordenSig->CalibreRizo2 ? number_format((float)$ordenSig->CalibreRizo2, 2, '.', '') : '';
-                                        $fibraRizoSig = $ordenSig->Fibra_Rizo ?? '';
-                                        $rizoCompletoSig = $cuentaRizoSig . ($calibreRizoSig ? ' - ' . $calibreRizoSig : '') . ($fibraRizoSig ? ' - ' . $fibraRizoSig : '');
-                                    @endphp
-                                    {{ $rizoCompletoSig ?: '-' }}
+                            <div class="{{ $rowClass }}">
+                                <span class="{{ $labelClassXs }}">Rizo:</span>
+                                <span class="{{ $valueClass }}">
+                                    {{ $formatSpec($ordenSig->Cuenta ?? null, $ordenSig->CalibreRizo2 ?? null, $ordenSig->Fibra_Rizo ?? null) }}
                                 </span>
                             </div>
-                            <div class="flex items-start">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Pie:</span>
-                                <span class="text-sm font-semibold text-gray-900 ml-2">
-                                    @php
-                                        $cuentaPieSig = $ordenSig->Cuenta_Pie ?? '';
-                                        $calibrePieSig = isset($ordenSig->CalibrePie2) && $ordenSig->CalibrePie2 ? number_format((float)$ordenSig->CalibrePie2, 2, '.', '') : '';
-                                        $fibraPieSig = $ordenSig->Fibra_Pie ?? '';
-                                        $pieCompletoSig = $cuentaPieSig . ($calibrePieSig ? ' - ' . $calibrePieSig : '') . ($fibraPieSig ? ' - ' . $fibraPieSig : '');
-                                    @endphp
-                                    {{ $pieCompletoSig ?: '-' }}
+                            <div class="{{ $rowClass }}">
+                                <span class="{{ $labelClassXs }}">Pie:</span>
+                                <span class="{{ $valueClass }}">
+                                    {{ $formatSpec($ordenSig->Cuenta_Pie ?? null, $ordenSig->CalibrePie2 ?? null, $ordenSig->Fibra_Pie ?? null) }}
                                 </span>
                             </div>
                         </div>
 
                         <!-- Columna 3: Pedido -->
                         <div class="space-y-2">
-                            <div class="flex items-start">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Pedido:</span>
-                                <span class="text-sm font-semibold text-gray-900 ml-2">{{ $ordenSig->Saldos ?? '-' }}</span>
+                            <div class="{{ $rowClass }}">
+                                <span class="{{ $labelClassXs }}">Pedido:</span>
+                                <span class="{{ $valueClass }}">{{ $ordenSig->Saldos ?? '-' }}</span>
                             </div>
-                            <div class="flex items-start">
-                                <span class="text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0">Inicio:</span>
-                                <span class="text-sm font-semibold text-gray-900 ml-2">
-                                    @if($ordenSig->Inicio_Tejido && $ordenSig->Inicio_Tejido !== '1900-01-01')
-                                        {{ \Carbon\Carbon::parse($ordenSig->Inicio_Tejido)->format('d/m/Y') }}
-                                    @else
-                                        -
-                                    @endif
+                            <div class="{{ $rowClass }}">
+                                <span class="{{ $labelClassXs }}">Inicio:</span>
+                                <span class="{{ $valueClass }}">
+                                    {{ $formatDate($ordenSig->Inicio_Tejido ?? null) }}
                                 </span>
                             </div>
                         </div>
@@ -294,7 +254,6 @@
                                 <i class="fas fa-exclamation-triangle text-orange-600 text-2xl"></i>
                             </div>
                             <h3 class="text-sm font-medium text-gray-900 mb-1">Sin siguiente orden programada</h3>
-                            <p class="text-xs text-gray-500">No hay órdenes futuras programadas para este telar</p>
                         </div>
                     </div>
                 </div>
@@ -304,8 +263,7 @@
         @if($showRequerimiento)
             <!-- Separador visual -->
             <div>
-                <div class="text-gray-900 bg-gray-200 px-4 py-2">
-                    <h2 class="text-md font-bold text-center">REQUERIMIENTO</h2>
+                <div class="{{ $sectionTitleClass }}">
                 </div>
             </div>
 

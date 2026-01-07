@@ -26,13 +26,12 @@
 <!-- Navbar fijo con números de telares -->
 <div
     id="{{ $id }}"
-    class="fixed top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-lg z-40 transition-all duration-300 transform -translate-y-full"
+    class="fixed top-16 left-0 right-0 z-40 transition-all duration-300 transform -translate-y-full"
 >
     <div class="container mx-auto px-4 py-3">
         <div class="flex flex-wrap justify-center gap-2 max-w-7xl mx-auto">
             @foreach($telares as $telar)
                 <button
-                    onclick="scrollToTelar({{ $telar }})"
                     id="nav-telar-{{ $telar }}"
                     class="telar-nav-btn px-3 py-1.5 rounded text-sm font-medium transition-all duration-200 border border-gray-300 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-700"
                     data-telar="{{ $telar }}">
@@ -45,20 +44,26 @@
 
 <script>
 class TelarNavbar {
-    constructor(navbarId, telares, showThreshold = 200) {
+    constructor(navbarId, telares, showThreshold = 200, autoShow = true) {
         this.navbar = document.getElementById(navbarId);
         this.telares = telares;
         this.showThreshold = showThreshold;
-        this.lastScrollTop = 0;
         this.isVisible = false;
+        this.autoShow = autoShow;
 
         this.init();
     }
 
     init() {
+        if (!this.navbar) return;
+
         this.setupScrollListener();
         this.setupClickListeners();
         this.updateActiveOnScroll();
+
+        if (!this.autoShow) {
+            this.show();
+        }
     }
 
     setupScrollListener() {
@@ -66,27 +71,29 @@ class TelarNavbar {
             const currentScrollTop = window.pageYOffset;
 
             // Mostrar/ocultar navbar basado en scroll
-            if (currentScrollTop < this.showThreshold) {
-                this.hide();
-            } else {
-                this.show();
+            if (this.autoShow) {
+                if (currentScrollTop < this.showThreshold) {
+                    this.hide();
+                } else {
+                    this.show();
+                }
             }
 
             // Actualizar telar activo
             this.updateActiveOnScroll();
 
-            this.lastScrollTop = currentScrollTop;
         });
     }
 
     setupClickListeners() {
-        this.telares.forEach(telar => {
-            const button = document.getElementById(`nav-telar-${telar}`);
-            if (button) {
-                button.addEventListener('click', () => {
-                    this.scrollToTelar(telar);
-                });
-            }
+        this.navbar.addEventListener('click', (event) => {
+            const button = event.target.closest('.telar-nav-btn');
+            if (!button) return;
+
+            const telarNumber = Number(button.dataset.telar);
+            if (Number.isNaN(telarNumber)) return;
+
+            this.scrollToTelar(telarNumber);
         });
     }
 
@@ -175,17 +182,14 @@ class TelarNavbar {
     }
 }
 
-// Función global para compatibilidad
-window.scrollToTelar = function(telarNumber) {
-    if (window.telarNavbar) {
-        window.telarNavbar.scrollToTelar(telarNumber);
-    }
-};
 
-// Inicializar navbar cuando el DOM esté listo
+// Inicializar navbar cuando el DOM este listo
 document.addEventListener('DOMContentLoaded', function() {
     const telares = @json($telares);
-    window.telarNavbar = new TelarNavbar('{{ $id }}', telares, {{ $showThreshold }});
+    const autoShow = @json($autoShow);
+    window.telarNavbar = new TelarNavbar('{{ $id }}', telares, {{ $showThreshold }}, autoShow);
 });
 </script>
+
+
 

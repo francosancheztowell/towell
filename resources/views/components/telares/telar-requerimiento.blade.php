@@ -22,40 +22,61 @@
 
     // Verificar si tiene permiso de crear
     $puedeCrear = $permisos ? $permisos->crear == 1 : false;
+
+    $containerClass = 'p-3 md:p-1.5 lg:p-3';
+    $accountBoxClass = 'mb-2 md:mb-1.5 lg:mb-0 mr-0 md:mr-0 lg:mr-4 mt-0 md:mt-0 lg:mt-[32px] rounded-lg p-3 md:p-1.5 lg:p-3 border border-gray-200';
+    $accountTitleClass = 'text-sm md:text-[10px] lg:text-sm font-semibold text-gray-700 mb-2 md:mb-0.5 lg:mb-2 md:inline md:mr-2 lg:block lg:mr-0';
+    $accountListClass = 'space-y-1 md:space-y-0 md:inline-flex md:gap-3 lg:space-y-1 lg:gap-0 lg:block text-sm md:text-[10px] lg:text-sm';
+    $accountRowClass = 'flex items-center md:justify-start lg:justify-between';
+    $accountValueClass = 'ml-2 md:ml-1 lg:ml-2 font-bold text-blue-600';
+    $accountButtonClass = 'ml-2 md:ml-1 lg:ml-2 p-1 md:p-0.5 lg:p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors';
+    $calendarTableClass = 'border border-gray-300 rounded overflow-hidden shadow-sm w-24 flex-shrink-0';
+    $calendarHeaderClass = 'text-center border-b border-gray-300 bg-blue-500 text-white px-1 py-1 text-xs font-bold';
+    $calendarCellClass = 'border border-gray-200 text-center px-1 py-1 bg-white min-w-[40px]';
+    $checkboxBaseClass = 'w-3 h-3 text-blue-600 rounded border-gray-300 focus:ring-blue-500';
+    $checkboxDisabledClass = 'opacity-50 cursor-not-allowed';
+    $modalThBaseClass = 'px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider';
+    $modalThBorderClass = $modalThBaseClass . ' border-r border-gray-200';
+    $modalRowClass = 'hover:bg-blue-50 transition-colors';
+    $modalRadioClass = 'w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2';
+    $modalTdBaseClass = 'px-4 py-4 text-base font-semibold text-gray-900';
+    $modalTdBorderClass = $modalTdBaseClass . ' border-r border-gray-200';
+    $modalCancelButtonClass = 'px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200';
+    $modalConfirmButtonClass = 'px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 border border-transparent rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-lg transition-all duration-200';
 @endphp
 
-<div class="p-3 md:p-1.5 lg:p-3">
+<div class="{{ $containerClass }}">
     <div class="md:flex md:flex-col lg:flex-row">
         <!-- Información de cuentas -->
-        <div class="mb-2 md:mb-1.5 lg:mb-0 mr-0 md:mr-0 lg:mr-4 mt-0 md:mt-0 lg:mt-[32px] rounded-lg p-3 md:p-1.5 lg:p-3 border border-gray-200">
-            <div class="text-sm md:text-[10px] lg:text-sm font-semibold text-gray-700 mb-2 md:mb-0.5 lg:mb-2 md:inline md:mr-2 lg:block lg:mr-0">Cuentas:</div>
-            <div class="space-y-1 md:space-y-0 md:inline-flex md:gap-3 lg:space-y-1 lg:gap-0 lg:block text-sm md:text-[10px] lg:text-sm">
-                <div class="flex items-center md:justify-start lg:justify-between">
+        <div class="{{ $accountBoxClass }}">
+            <div class="{{ $accountTitleClass }}">Cuentas:</div>
+            <div class="{{ $accountListClass }}">
+                <div class="{{ $accountRowClass }}">
                 <div class="flex items-center">
                     <span class="font-medium text-gray-600">RIZO</span>
-                        <span class="ml-2 md:ml-1 lg:ml-2 font-bold text-blue-600" id="cuenta-rizo-{{ $telar->Telar }}">
+                        <span class="{{ $accountValueClass }}" id="cuenta-rizo-{{ $telar->Telar }}">
                             {{ $telar->Cuenta ?? '' }}
                         </span>
                     </div>
                     <button
                         type="button"
-                        class="ml-2 md:ml-1 lg:ml-2 p-1 md:p-0.5 lg:p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        class="{{ $accountButtonClass }}"
                         title="Seleccionar cuenta RIZO"
                         onclick="abrirModalSeleccion('{{ $telar->Telar }}', 'rizo', '{{ $telar->Cuenta ?? '' }}', '{{ $telar->CalibreRizo2 ?? '' }}', '{{ $telar->Fibra_Rizo ?? '' }}')"
                     >
                         <i class="fas fa-chevron-right text-sm"></i>
                     </button>
                 </div>
-                <div class="flex items-center md:justify-start lg:justify-between">
+                <div class="{{ $accountRowClass }}">
                 <div class="flex items-center">
                     <span class="font-medium text-gray-600">PIE</span>
-                        <span class="ml-2 md:ml-1 lg:ml-2 font-bold text-blue-600" id="cuenta-pie-{{ $telar->Telar }}">
+                        <span class="{{ $accountValueClass }}" id="cuenta-pie-{{ $telar->Telar }}">
                             {{ $telar->Cuenta_Pie ?? '' }}
                         </span>
                     </div>
                     <button
                         type="button"
-                        class="ml-2 md:ml-1 lg:ml-2 p-1 md:p-0.5 lg:p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        class="{{ $accountButtonClass }}"
                         title="Seleccionar cuenta PIE"
                         onclick="abrirModalSeleccion('{{ $telar->Telar }}', 'pie', '{{ $telar->Cuenta_Pie ?? '' }}', '{{ $telar->CalibrePie2 ?? '' }}', '{{ $telar->Fibra_Pie ?? '' }}')"
                     >
@@ -75,7 +96,6 @@
         @for($dia = 0; $dia < $dias; $dia++)
             @php
                 $fecha = \Carbon\Carbon::now()->addDays($dia)->format('d/m');
-                $fechaCompleta = \Carbon\Carbon::now()->addDays($dia)->format('d-m-Y');
                 $claseTabla = 't' . ($dia + 1);
                 $prefijoId = $telar->Telar . '_' . $claseTabla;
                 // Mapeo de días en español
@@ -83,10 +103,10 @@
                 $diaSemana = $diasSemana[\Carbon\Carbon::now()->addDays($dia)->dayOfWeek];
             @endphp
 
-            <table class="border border-gray-300 rounded overflow-hidden shadow-sm w-24 flex-shrink-0">
+            <table class="{{ $calendarTableClass }}">
                 <thead>
                     <tr>
-                        <th colspan="{{ $turnos }}" class="text-center border-b border-gray-300 bg-blue-500 text-white px-1 py-1 text-xs font-bold">
+                        <th colspan="{{ $turnos }}" class="{{ $calendarHeaderClass }}">
                             <div class="text-xs leading-tight">{{ $fecha }}</div>
                             <div class="text-xs opacity-75 leading-tight">{{ $diaSemana }}</div>
                         </th>
@@ -95,14 +115,14 @@
                 <tbody>
                     <tr>
                         @for($turno = 1; $turno <= $turnos; $turno++)
-                            <td class="border border-gray-200 text-center px-1 py-1 bg-white min-w-[40px]">
+                            <td class="{{ $calendarCellClass }}">
                                 <div class="font-bold text-gray-700 mb-1 text-xs">{{ $turno }}</div>
                                 <div class="space-y-0.5">
                                     <label class="block">
                                         <input
                                             type="checkbox"
                                             name="rizo{{ $turno }}"
-                                            class="{{ $claseTabla }}rizo w-3 h-3 text-blue-600 rounded border-gray-300 focus:ring-blue-500 {{ !$puedeCrear ? 'opacity-50 cursor-not-allowed' : '' }}"
+                                            class="{{ $claseTabla }}rizo {{ $checkboxBaseClass }} {{ !$puedeCrear ? $checkboxDisabledClass : '' }}"
                                             value="rizo{{ $turno }}"
                                             id="{{ $prefijoId }}_rizo{{ $turno }}"
                                             data-telar="{{ $telar->Telar }}"
@@ -114,7 +134,7 @@
                                         <input
                                             type="checkbox"
                                             name="pie{{ $turno }}"
-                                            class="{{ $claseTabla }}pie w-3 h-3 text-blue-600 rounded border-gray-300 focus:ring-blue-500 {{ !$puedeCrear ? 'opacity-50 cursor-not-allowed' : '' }}"
+                                            class="{{ $claseTabla }}pie {{ $checkboxBaseClass }} {{ !$puedeCrear ? $checkboxDisabledClass : '' }}"
                                             value="pie{{ $turno }}"
                                             id="{{ $prefijoId }}_pie{{ $turno }}"
                                             data-telar="{{ $telar->Telar }}"
@@ -154,30 +174,30 @@
                 <table class="w-full">
                     <thead>
                         <tr class="bg-gradient-to-r from-gray-50 to-gray-100">
-                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Seleccionar</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Cuenta</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Calibre</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Fibra</th>
+                            <th class="{{ $modalThBorderClass }}">Seleccionar</th>
+                            <th class="{{ $modalThBorderClass }}">Cuenta</th>
+                            <th class="{{ $modalThBorderClass }}">Calibre</th>
+                            <th class="{{ $modalThBaseClass }}">Fibra</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         <!-- Fila: Producción en Proceso -->
-                        <tr class="hover:bg-blue-50 transition-colors">
+                        <tr class="{{ $modalRowClass }}">
                             <td class="px-4 py-4 border-r border-gray-200 text-center">
-                                <input type="radio" name="seleccion" value="proceso" id="radioProceso" class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2">
+                                <input type="radio" name="seleccion" value="proceso" id="radioProceso" class="{{ $modalRadioClass }}">
                             </td>
-                            <td class="px-4 py-4 border-r border-gray-200 text-base font-semibold text-gray-900" id="cuentaProceso">-</td>
-                            <td class="px-4 py-4 border-r border-gray-200 text-base font-semibold text-gray-900" id="calibreProceso">-</td>
-                            <td class="px-4 py-4 text-base font-semibold text-gray-900" id="fibraProceso">-</td>
+                            <td class="{{ $modalTdBorderClass }}" id="cuentaProceso">-</td>
+                            <td class="{{ $modalTdBorderClass }}" id="calibreProceso">-</td>
+                            <td class="{{ $modalTdBaseClass }}" id="fibraProceso">-</td>
                         </tr>
                         <!-- Fila: Siguiente Orden -->
-                        <tr class="hover:bg-blue-50 transition-colors">
+                        <tr class="{{ $modalRowClass }}">
                             <td class="px-4 py-4 border-r border-gray-200 text-center">
-                                <input type="radio" name="seleccion" value="siguiente" id="radioSiguiente" class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2">
+                                <input type="radio" name="seleccion" value="siguiente" id="radioSiguiente" class="{{ $modalRadioClass }}">
                             </td>
-                            <td class="px-4 py-4 border-r border-gray-200 text-base font-semibold text-gray-900" id="cuentaSiguiente">-</td>
-                            <td class="px-4 py-4 border-r border-gray-200 text-base font-semibold text-gray-900" id="calibreSiguiente">-</td>
-                            <td class="px-4 py-4 text-base font-semibold text-gray-900" id="fibraSiguiente">-</td>
+                            <td class="{{ $modalTdBorderClass }}" id="cuentaSiguiente">-</td>
+                            <td class="{{ $modalTdBorderClass }}" id="calibreSiguiente">-</td>
+                            <td class="{{ $modalTdBaseClass }}" id="fibraSiguiente">-</td>
                         </tr>
                     </tbody>
                 </table>
@@ -185,10 +205,10 @@
 
             <!-- Botones de Acción mejorados -->
             <div class="flex justify-end space-x-4 mt-6">
-                <button type="button" onclick="cerrarModalSeleccion()" class="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200">
+                <button type="button" onclick="cerrarModalSeleccion()" class="{{ $modalCancelButtonClass }}">
                     Cancelar
                 </button>
-                <button type="button" onclick="confirmarSeleccion()" class="px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 border border-transparent rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-lg transition-all duration-200">
+                <button type="button" onclick="confirmarSeleccion()" class="{{ $modalConfirmButtonClass }}">
                     Confirmar
                 </button>
             </div>
@@ -204,9 +224,37 @@
     const ordenSigData = @json($ordenSig);
     const salonTelar = '{{ $salon }}'; // Jacquard, Itema, etc.
 
+    function inicializarFechasTablas() {
+        // Inicializar atributos data-fecha-completa en todas las tablas del telar
+        const todasLasTablasDelDocumento = Array.from(document.querySelectorAll('table'));
+        const todasLasTablasDelTelar = todasLasTablasDelDocumento.filter(table => {
+            const tieneCheckboxDelTelar = table.querySelector(`input[data-telar="${telarId}"]`) !== null;
+            return tieneCheckboxDelTelar;
+        });
+
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+
+        todasLasTablasDelTelar.forEach((tabla, index) => {
+            const thHeader = tabla.querySelector('th');
+            if (thHeader && !thHeader.getAttribute('data-fecha-completa')) {
+                const fechaOriginal = new Date(hoy);
+                fechaOriginal.setDate(hoy.getDate() + index);
+                const año = fechaOriginal.getFullYear();
+                const mes = fechaOriginal.getMonth() + 1;
+                const dia = fechaOriginal.getDate();
+                const fechaCompleta = `${año}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                thHeader.setAttribute('data-fecha-completa', fechaCompleta);
+            }
+        });
+    }
+
     function inicializarTelar() {
         // Configurar event listeners para checkboxes con datos específicos de este telar
         setupRequerimientoCheckboxes(telarId, telarData, ordenSigData, salonTelar);
+
+        // Inicializar fechas de las tablas primero
+        inicializarFechasTablas();
 
         // Esperar a que las tablas estén renderizadas antes de cargar requerimientos
         // Usar setTimeout para asegurar que el DOM esté completamente renderizado
@@ -242,6 +290,14 @@ function setupRequerimientoCheckboxes(telarId, telarData, ordenSigData, salon) {
 }
 
 function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, salon) {
+    // Evitar procesar cambios mientras se están cargando requerimientos para este telar
+    const key = `${telarId}_${salon}`;
+    if (window.cargandoRequerimientosPorTelar && window.cargandoRequerimientosPorTelar[key]) {
+        // Revertir el cambio si estamos cargando
+        checkbox.checked = !checkbox.checked;
+        return;
+    }
+
     const fila = checkbox.closest('tr');
     const tabla = fila.closest('table');
     const fechaElement = tabla.querySelector('th');
@@ -258,8 +314,6 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         if (fechaOriginalAttr || fechaCompletaAttr) {
             // Usar la fecha completa del atributo si está disponible
             fechaISO = fechaCompletaAttr || fechaOriginalAttr;
-            console.log(`📅 Usando fecha modificada del header: ${fechaISO}`);
-
             // Convertir fecha ISO a formato dd/mm para el texto
             if (fechaISO) {
                 const [y, m, d] = fechaISO.split('-');
@@ -276,20 +330,14 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
 
     // Usar datos pasados como parámetros (específicos de este telar)
     const datos = telarData;
-    const ordenSiguiente = ordenSigData;
 
     const cuentaRizo = datos.Cuenta || '';
     const cuentaPie = datos.Cuenta_Pie || '';
     const calibreRizo = datos.CalibreRizo2 || 0;
     const calibrePie = datos.CalibrePie2 || 0;
-    const hilo = datos.Hilo || '';
 
     // Extraer el número de turno del valor del checkbox (ej: "rizo1" -> 1, "pie2" -> 2)
     const numeroTurno = parseInt(valorCheckbox.replace(/\D/g, ''));
-
-    // Preparar datos para envío
-    const rizo = tipo === 'rizo' ? 1 : 0;
-    const pie = tipo === 'pie' ? 1 : 0;
 
     // Convertir fecha del formato dd/mm a formato ISO (YYYY-MM-DD)
     function convertirFecha(fechaTexto, fechaISOExistente) {
@@ -323,6 +371,9 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
 
     // Si el checkbox se deseleccionó, eliminar el registro
     if (!checkbox.checked) {
+        // Marcar este checkbox como cambio reciente para preservarlo durante la recarga
+        checkbox.setAttribute('data-cambio-reciente', Date.now().toString());
+
         const datosEliminar = {
             no_telar: String(telarId),
             tipo: tipo === 'rizo' ? 'Rizo' : 'Pie',
@@ -341,8 +392,11 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
             data: datosEliminar
         })
         .then(response => {
-            // Después de eliminar exitosamente, obtener los datos actualizados
-            obtenerInventarioTelares();
+            // El checkbox ya está desmarcado visualmente, mantenerlo así
+            // Remover el atributo de cambio reciente después de un momento
+            setTimeout(() => {
+                checkbox.removeAttribute('data-cambio-reciente');
+            }, 3000);
 
             // Mostrar notificación de éxito
             if (typeof Swal !== 'undefined') {
@@ -350,9 +404,9 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
                     icon: 'success',
                     title: 'Eliminado con éxito',
                     showConfirmButton: false,
-                    timer: 2000,
+                    timer: 700,
                     timerProgressBar: true,
-                    position: 'bottom-end',
+                    position: 'top-end',
                     toast: true
                 });
             }
@@ -371,9 +425,9 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
                     title: 'Error al eliminar',
                     text: errorMessage,
                     showConfirmButton: false,
-                    timer: 4000,
+                    timer: 2500,
                     timerProgressBar: true,
-                    position: 'bottom-end',
+                    position: 'top-end',
                     toast: true
                 });
             }
@@ -411,8 +465,6 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         hiloSeleccionado = tipo === 'rizo' ? (datos.Fibra_Rizo || '') : (datos.Fibra_Pie || '');
         noOrden = String(datos.Orden_Prod || '');
     }
-
-    // Preparar datos para la nueva tabla TejInventarioTelares
     const datosInventario = {
         no_telar: String(telarId),
         tipo: tipo === 'rizo' ? 'Rizo' : 'Pie',
@@ -425,6 +477,9 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         no_orden: noOrden || ''
     };
 
+    // Marcar este checkbox como cambio reciente para preservarlo durante la recarga
+    checkbox.setAttribute('data-cambio-reciente', Date.now().toString());
+
     // Enviar datos a la nueva tabla de inventario
     axios.post('/inventario-telares/guardar', datosInventario, {
         headers: {
@@ -432,8 +487,11 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         }
     })
     .then(response => {
-        // Después de guardar exitosamente, obtener los datos actualizados
-        obtenerInventarioTelares();
+        // El checkbox ya está marcado visualmente, mantenerlo así
+        // Remover el atributo de cambio reciente después de un momento
+        setTimeout(() => {
+            checkbox.removeAttribute('data-cambio-reciente');
+        }, 3000);
 
         // Mostrar notificación de éxito
         if (typeof Swal !== 'undefined') {
@@ -441,9 +499,9 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
                 icon: 'success',
                 title: 'Guardado con éxito',
                 showConfirmButton: false,
-                timer: 2000,
+                timer: 700,
                 timerProgressBar: true,
-                position: 'bottom-end',
+                position: 'top-end',
                 toast: true
             });
         }
@@ -466,9 +524,9 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
                 title: 'Error al guardar',
                 text: errorMessage,
                 showConfirmButton: false,
-                timer: 4000,
+                timer: 2500,
                 timerProgressBar: true,
-                position: 'bottom-end',
+                position: 'top-end',
                 toast: true
             });
         }
@@ -480,7 +538,20 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     // El endpoint /guardar-requerimiento causaba errores de SQL y ya no es necesario
 }
 
+// Variable para evitar actualizaciones simultáneas por telar
+if (typeof window.cargandoRequerimientosPorTelar === 'undefined') {
+    window.cargandoRequerimientosPorTelar = {};
+}
+
 function loadRequerimientos(telarId, salon) {
+    // Evitar múltiples llamadas simultáneas para el mismo telar
+    const key = `${telarId}_${salon}`;
+    if (window.cargandoRequerimientosPorTelar[key]) {
+        return;
+    }
+
+    window.cargandoRequerimientosPorTelar[key] = true;
+
     // Usar inventario real para marcar selección (GET)
     fetch('/inventario-telares')
         .then(r => r.json())
@@ -496,6 +567,7 @@ function loadRequerimientos(telarId, salon) {
             });
 
             if (todasLasTablasDelTelar.length === 0) {
+                window.cargandoRequerimientosPorTelar[key] = false;
                 // Intentar buscar de nuevo después de un delay
                 setTimeout(() => {
                     loadRequerimientos(telarId, salon);
@@ -516,13 +588,46 @@ function loadRequerimientos(telarId, salon) {
             const primeraTabla = todasLasTablasDelTelar[0];
 
             if (!primeraTabla) {
+                window.cargandoRequerimientosPorTelar[key] = false;
                 return;
             }
 
-            // Limpiar todos los checkboxes de este telar en todas las tablas
+            // Guardar el estado actual de los checkboxes con cambios recientes antes de limpiar
+            // Esto nos permite preservar los cambios recientes del usuario
+            const estadosCheckboxesRecientes = new Map();
             todasLasTablasDelTelar.forEach(table => {
                 table.querySelectorAll(`input[data-telar="${telarId}"]`).forEach(checkbox => {
-                    checkbox.checked = false;
+                    // Guardar el estado actual con un timestamp para saber si es un cambio reciente
+                    const cambioReciente = checkbox.getAttribute('data-cambio-reciente');
+                    if (cambioReciente) {
+                        const timestampCambio = parseInt(cambioReciente);
+                        const ahora = Date.now();
+                        // Si el cambio fue hace menos de 3 segundos, preservarlo
+                        if (ahora - timestampCambio < 3000) {
+                            estadosCheckboxesRecientes.set(checkbox.id, {
+                                checked: checkbox.checked,
+                                timestamp: timestampCambio
+                            });
+                        } else {
+                            // Si el cambio es muy antiguo, remover el atributo
+                            checkbox.removeAttribute('data-cambio-reciente');
+                        }
+                    }
+                });
+            });
+
+            // Limpiar todos los checkboxes de este telar en todas las tablas
+            // EXCEPTO los que tienen cambios recientes del usuario
+            todasLasTablasDelTelar.forEach(table => {
+                table.querySelectorAll(`input[data-telar="${telarId}"]`).forEach(checkbox => {
+                    // Si este checkbox tenía un cambio reciente, preservar su estado
+                    if (estadosCheckboxesRecientes.has(checkbox.id)) {
+                        const estado = estadosCheckboxesRecientes.get(checkbox.id);
+                        checkbox.checked = estado.checked; // Preservar el estado (marcado o desmarcado)
+                    } else {
+                        // Si no tiene cambio reciente, limpiarlo normalmente
+                        checkbox.checked = false;
+                    }
                 });
             });
 
@@ -590,8 +695,9 @@ function loadRequerimientos(telarId, salon) {
                 return coincide;
             });
 
-            // PASO 1: Identificar si hay fechas antiguas para actualizar headers PRIMERO
+            // PASO 1: Identificar si hay fechas antiguas Y si hay registros dentro del rango
             let fechaMasAntiguaEnPrimeraTabla = null;
+            let hayRegistrosEnRango = false;
 
             registrosTelar.forEach(reg => {
                 const fechaISO = reg.fecha;
@@ -600,10 +706,19 @@ function loadRequerimientos(telarId, salon) {
                 if (fechaRegistro) {
                     const timestampRegistro = fechaRegistro.getTime();
                     const timestampHoy = hoy.getTime();
+                    const timestampUltimoDia = ultimoDia.getTime();
                     const fechaEsAnterior = timestampRegistro < timestampHoy;
+                    const fechaEsPosterior = timestampRegistro > timestampUltimoDia;
+                    const fechaEnRango = !fechaEsAnterior && !fechaEsPosterior;
+
+                    // Si hay registros dentro del rango, marcarlo
+                    if (fechaEnRango) {
+                        hayRegistrosEnRango = true;
+                    }
 
                     // Si la fecha es anterior, rastrearla para actualizar el header
-                    if (fechaEsAnterior && fechaRegistro) {
+                    // PERO solo si NO hay registros dentro del rango
+                    if (fechaEsAnterior && fechaRegistro && !hayRegistrosEnRango) {
                         if (!fechaMasAntiguaEnPrimeraTabla || fechaRegistro < fechaMasAntiguaEnPrimeraTabla) {
                             fechaMasAntiguaEnPrimeraTabla = fechaRegistro;
                         }
@@ -623,8 +738,9 @@ function loadRequerimientos(telarId, salon) {
                 return { fechaFormateada, diaSemana, año, mes, dia };
             }
 
-            // Si hay fechas antiguas, actualizar TODOS los headers primero
-            if (fechaMasAntiguaEnPrimeraTabla) {
+            // Si hay fechas antiguas Y NO hay registros dentro del rango, actualizar TODOS los headers primero
+            // Si hay registros dentro del rango, mantener las fechas originales de las tablas
+            if (fechaMasAntiguaEnPrimeraTabla && !hayRegistrosEnRango) {
                 // Actualizar la primera tabla con la fecha antigua
                 const thHeaderPrimera = primeraTabla.querySelector('th');
                 if (thHeaderPrimera) {
@@ -685,9 +801,43 @@ function loadRequerimientos(telarId, salon) {
                     thHeader.style.borderLeft = '';
                 });
             } else {
-                // Si no hay fechas antiguas, asegurar que todas las tablas estén visibles
-                todasLasTablasDelTelar.forEach(tabla => {
+                // Si no hay fechas antiguas o hay registros en rango, asegurar que todas las tablas estén visibles
+                // y establecer las fechas correctas basadas en el índice
+                todasLasTablasDelTelar.forEach((tabla, index) => {
                     tabla.style.display = '';
+                    const thHeader = tabla.querySelector('th');
+                    if (thHeader) {
+                        // Calcular la fecha original basada en el índice (tabla 0 = hoy, tabla 1 = hoy+1, etc.)
+                        const fechaOriginal = new Date(hoy);
+                        fechaOriginal.setDate(hoy.getDate() + index);
+                        const fechaFormateada = formatearFechaHeader(fechaOriginal);
+                        const fechaCompletaEsperada = `${fechaFormateada.año}-${String(fechaFormateada.mes).padStart(2, '0')}-${String(fechaFormateada.dia).padStart(2, '0')}`;
+
+                        // Siempre asegurar que el atributo data-fecha-completa esté correcto
+                        thHeader.setAttribute('data-fecha-completa', fechaCompletaEsperada);
+
+                        // Si hay registros en rango, restaurar fecha original del header si fue modificado
+                        if (hayRegistrosEnRango) {
+                            const fechaCompletaActual = thHeader.getAttribute('data-fecha-completa');
+
+                            // Verificar si el contenido visual necesita actualizarse
+                            const fechaVisualActual = thHeader.innerText.trim();
+                            const fechaVisualEsperada = `${fechaFormateada.fechaFormateada}\n${fechaFormateada.diaSemana}`;
+
+                            // Solo actualizar el contenido visual si no coincide
+                            if (!fechaVisualActual.includes(fechaFormateada.fechaFormateada)) {
+                                thHeader.innerHTML = `
+                                    <div class="text-xs leading-tight">${fechaFormateada.fechaFormateada}</div>
+                                    <div class="text-xs opacity-75 leading-tight">${fechaFormateada.diaSemana}</div>
+                                `;
+                            }
+
+                            // Limpiar estilos de fecha modificada
+                            thHeader.classList.remove('fecha-modificada');
+                            thHeader.style.backgroundColor = '';
+                            thHeader.style.borderLeft = '';
+                        }
+                    }
                 });
             }
 
@@ -712,33 +862,49 @@ function loadRequerimientos(telarId, salon) {
                         usarPrimeraFecha = true;
                         tablaDestino = obtenerPrimeraTabla();
                     } else {
-                        // Fecha dentro del rango: buscar tabla por fecha completa en atributo
-                        let thFecha = null;
-                        todasLasTablasDelTelar.forEach(tabla => {
-                            if (tabla.style.display === 'none') return; // Saltar tablas ocultas
-                            const th = tabla.querySelector('th');
-                            if (th) {
-                                const fechaCompletaAttr = th.getAttribute('data-fecha-completa');
-                                if (fechaCompletaAttr === fechaISO) {
-                                    thFecha = th;
+                        // Fecha dentro del rango: calcular qué tabla corresponde
+                        // Calcular la diferencia en días desde hoy
+                        const diferenciaDias = Math.floor((timestampRegistro - timestampHoy) / (1000 * 60 * 60 * 24));
+
+                        // La tabla correspondiente es la del índice = diferenciaDias
+                        // tabla 0 = hoy (diferencia 0), tabla 1 = hoy+1 (diferencia 1), etc.
+                        if (diferenciaDias >= 0 && diferenciaDias < todasLasTablasDelTelar.length) {
+                            tablaDestino = todasLasTablasDelTelar[diferenciaDias];
+
+                            // Verificar que la tabla tenga la fecha correcta
+                            if (tablaDestino) {
+                                const th = tablaDestino.querySelector('th');
+                                if (th) {
+                                    const fechaCompletaAttr = th.getAttribute('data-fecha-completa');
+                                    // Si la fecha no coincide, actualizarla
+                                    if (fechaCompletaAttr !== fechaISO) {
+                                        const fechaFormateada = formatearFechaHeader(fechaRegistro);
+                                        th.innerHTML = `
+                                            <div class="text-xs leading-tight">${fechaFormateada.fechaFormateada}</div>
+                                            <div class="text-xs opacity-75 leading-tight">${fechaFormateada.diaSemana}</div>
+                                        `;
+                                        th.setAttribute('data-fecha-completa', fechaISO);
+                                    }
                                 }
                             }
-                        });
-
-                        if (thFecha) {
-                            tablaDestino = thFecha.closest('table');
                         } else {
-                            // Buscar por texto como fallback
-                            const [y, m, d] = fechaISO.split('-');
-                            const fechaDM = d && m ? `${parseInt(d)}/${parseInt(m)}` : '';
-                            thFecha = Array.from(fechasTablas).find(th => {
-                                if (!th.closest('table') || th.closest('table').style.display === 'none') return false;
-                                return th.innerText.trim().includes(fechaDM);
+                            // Si el índice está fuera de rango, buscar por atributo como fallback
+                            let thFecha = null;
+                            todasLasTablasDelTelar.forEach(tabla => {
+                                if (tabla.style.display === 'none') return;
+                                const th = tabla.querySelector('th');
+                                if (th) {
+                                    const fechaCompletaAttr = th.getAttribute('data-fecha-completa');
+                                    if (fechaCompletaAttr === fechaISO) {
+                                        thFecha = th;
+                                    }
+                                }
                             });
 
                             if (thFecha) {
                                 tablaDestino = thFecha.closest('table');
                             } else {
+                                // Último fallback: usar primera tabla
                                 usarPrimeraFecha = true;
                                 tablaDestino = obtenerPrimeraTabla();
                             }
@@ -763,17 +929,35 @@ function loadRequerimientos(telarId, salon) {
 
                 checkboxes.forEach(cb => {
                     if (cb.value === valorEsperado) {
-                        cb.checked = true;
-                        if (usarPrimeraFecha && fechaISO) {
-                            cb.title = `Fecha original: ${fechaISO} (mostrado en primera fecha del calendario)`;
-                            cb.setAttribute('data-fecha-original', fechaISO);
-                            cb.classList.add('fecha-antigua');
+                        // Solo marcar si no tiene un cambio reciente del usuario
+                        // Si tiene un cambio reciente, preservar el estado del usuario
+                        const cambioReciente = cb.getAttribute('data-cambio-reciente');
+                        if (!cambioReciente) {
+                            cb.checked = true;
+                            if (usarPrimeraFecha && fechaISO) {
+                                cb.title = `Fecha original: ${fechaISO} (mostrado en primera fecha del calendario)`;
+                                cb.setAttribute('data-fecha-original', fechaISO);
+                                cb.classList.add('fecha-antigua');
+                            }
+                        } else {
+                            // Si tiene cambio reciente, verificar si el timestamp aún es válido
+                            const timestampCambio = parseInt(cambioReciente);
+                            const ahora = Date.now();
+                            if (ahora - timestampCambio > 3000) {
+                                // El cambio ya no es reciente, marcar normalmente
+                                cb.checked = true;
+                                cb.removeAttribute('data-cambio-reciente');
+                            }
+                            // Si el cambio es reciente, mantener el estado actual del checkbox
                         }
                     }
                 });
             });
+
+            window.cargandoRequerimientosPorTelar[key] = false;
         })
         .catch(error => {
+            window.cargandoRequerimientosPorTelar[key] = false;
         });
 }
 
@@ -904,16 +1088,15 @@ function confirmarSeleccion() {
     // Cerrar modal
     cerrarModalSeleccion();
 
-    // Mostrar notificación de éxito
+    // Mostrar notificación de éxito (muy rápida)
     if (typeof Swal !== 'undefined') {
         Swal.fire({
             icon: 'success',
-            title: 'Selección actualizada',
-            text: `Se ha seleccionado ${seleccionado.value === 'proceso' ? 'Producción en Proceso' : 'Siguiente Orden'} para ${window.modalData.tipo.toUpperCase()}`,
+            title: 'Actualizado',
             showConfirmButton: false,
-            timer: 2000,
-            timerProgressBar: true,
-            position: 'bottom-end',
+            timer: 500,
+            timerProgressBar: false,
+            position: 'top-end',
             toast: true
         });
     }
