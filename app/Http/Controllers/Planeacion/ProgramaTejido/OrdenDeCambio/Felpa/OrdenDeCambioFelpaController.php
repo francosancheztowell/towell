@@ -1367,7 +1367,8 @@ class OrdenDeCambioFelpaController extends Controller
     }
 
     /**
-     * Obtener modelo codificado desde ReqModelosCodificados usando TamanoClave y SalonTejidoId.
+     * Obtener modelo codificado desde ReqModelosCodificados usando TamanoClave y SalonTejidoId (Departamento).
+     * Busca primero por TamanoClave + SalonTejidoId, luego solo por SalonTejidoId, y finalmente solo por TamanoClave.
      * Retorna un objeto vacío si no se encuentra.
      */
     protected function obtenerModeloCodificado(ReqProgramaTejido $registro): ?ReqModelosCodificados
@@ -1385,18 +1386,33 @@ class OrdenDeCambioFelpaController extends Controller
                 return self::$modeloCodificadoCache[$cacheKey];
             }
 
-            $query = ReqModelosCodificados::query();
+            $modelo = null;
 
-            if (!empty($tamanoClave)) {
-                $query->where('TamanoClave', $tamanoClave);
+            // 1. Buscar por TamanoClave + SalonTejidoId (Departamento)
+            if (!empty($tamanoClave) && !empty($salonTejidoId)) {
+                $query = ReqModelosCodificados::query()
+                    ->where('TamanoClave', $tamanoClave)
+                    ->where('SalonTejidoId', $salonTejidoId)
+                    ->orderByDesc('FechaTejido');
+                $modelo = $query->first();
             }
 
-            if (!empty($salonTejidoId)) {
-                $query->where('SalonTejidoId', $salonTejidoId);
+            // 2. Si no se encuentra, buscar solo por SalonTejidoId (Departamento)
+            if (!$modelo && !empty($salonTejidoId)) {
+                $query = ReqModelosCodificados::query()
+                    ->where('SalonTejidoId', $salonTejidoId)
+                    ->orderByDesc('FechaTejido');
+                $modelo = $query->first();
             }
 
-            // Ordenar por fecha más reciente para obtener el modelo más actualizado
-            $modelo = $query->orderByDesc('FechaTejido')->first();
+            // 3. Si no se encuentra, buscar solo por TamanoClave
+            if (!$modelo && !empty($tamanoClave)) {
+                $query = ReqModelosCodificados::query()
+                    ->where('TamanoClave', $tamanoClave)
+                    ->orderByDesc('FechaTejido');
+                $modelo = $query->first();
+            }
+
             self::$modeloCodificadoCache[$cacheKey] = $modelo;
             return $modelo;
         } catch (\Exception $e) {
@@ -1417,6 +1433,9 @@ class OrdenDeCambioFelpaController extends Controller
             if (empty($tamanoClave) && empty($salonTejidoId)) {
                 return;
             }
+
+            // Obtener modelo codificado para campos que no están en ReqProgramaTejido
+            $modeloCodificado = $this->obtenerModeloCodificado($registro);
 
             // Siempre crear nuevo registro, sin verificar duplicados
             $catCodificado = new CatCodificados();
@@ -1449,13 +1468,14 @@ class OrdenDeCambioFelpaController extends Controller
 
             $catCodificado->Departamento = $salonTejidoId;
             $catCodificado->TelarId = $registro->NoTelarId ?? null;
+            // Prioridad viene del formulario (puede ser del registro anterior o editada por el usuario)
             $catCodificado->Prioridad = $registro->Prioridad ?? null;
             $catCodificado->Nombre = $registro->NombreProducto ?? $registro->NombreProyecto ?? null;
             $catCodificado->ClaveModelo = $tamanoClave;
             $catCodificado->ItemId = $registro->ItemId ?? null;
             $catCodificado->InventSizeId = $registro->InventSizeId ?? null;
-            $catCodificado->Tolerancia = $registro->Tolerancia ?? null;
-            $catCodificado->CodigoDibujo = $registro->CodigoDibujo ?? null;
+            $catCodificado->Tolerancia = $modeloCodificado?->Tolerancia ?? $registro->Tolerancia ?? null;
+            $catCodificado->CodigoDibujo = $modeloCodificado?->CodigoDibujo ?? $registro->CodigoDibujo ?? null;
             $catCodificado->FlogsId = $registro->FlogsId ?? null;
             $catCodificado->NombreProyecto = $registro->NombreProyecto ?? null;
             $catCodificado->Clave = $tamanoClave;
@@ -1480,15 +1500,15 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->Luchaje = $registro->Luchaje ?? null;
             $catCodificado->Tra = $registro->CalibreTrama ?? null;
             $catCodificado->CalibreTrama2 = $registro->CalibreTrama ?? null;
-            // Campos de color de trama - asignar directamente desde ReqProgramaTejido
-            $catCodificado->CodColorTrama = $registro->CodColorTrama;
-            $catCodificado->ColorTrama = $registro->ColorTrama;
+            // Campos de color de trama - usar ReqModelosCodificados si no está en ReqProgramaTejido
+            $catCodificado->CodColorTrama = $registro->CodColorTrama ?? $modeloCodificado?->CodColorTrama ?? null;
+            $catCodificado->ColorTrama = $registro->ColorTrama ?? null;
             $catCodificado->FibraId = $registro->FibraTrama ?? null;
-            $catCodificado->DobladilloId = $registro->DobladilloId ?? null;
+            $catCodificado->DobladilloId = $modeloCodificado?->DobladilloId ?? $registro->DobladilloId ?? null;
             $catCodificado->MedidaPlano = $registro->MedidaPlano ?? null;
             $catCodificado->TipoRizo = $registro->TipoRizo ?? null;
-            $catCodificado->AlturaRizo = null;
-            $catCodificado->Obs = $registro->Observaciones ?? null;
+            $catCodificado->AlturaRizo = $modeloCodificado?->AlturaRizo ?? null;
+            $catCodificado->Obs = $modeloCodificado?->Obs ?? $registro->Observaciones ?? null;
             $catCodificado->VelocidadSTD = $registro->VelocidadSTD ?? null;
             $catCodificado->EficienciaSTD = $registro->EficienciaSTD ?? null;
             $catCodificado->CalibreRizo = $registro->CalibreRizo ?? null;
@@ -1528,12 +1548,12 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->CambioRepaso = $registro->CambioHilo ?? 'NO';
             $catCodificado->Vendedor = null;
             $catCodificado->NoOrden = $registro->NoProduccion ?? null;
-            $catCodificado->Obs5 = $registro->Observaciones ?? null;
+            $catCodificado->Obs5 = $modeloCodificado?->Obs5 ??
             $catCodificado->TramaAnchoPeine = $registro->Ancho ?? null;
-            $catCodificado->LogLuchaTotal = null;
-            $catCodificado->CalTramaFondoC1 = null;
-            $catCodificado->CalTramaFondoC12 = null;
-            $catCodificado->FibraTramaFondoC1 = null;
+            $catCodificado->LogLuchaTotal = $modeloCodificado?->LogLuchaTotal ?? null;
+            $catCodificado->CalTramaFondoC1 = $modeloCodificado?->CalTramaFondoC1 ?? null;
+            $catCodificado->CalTramaFondoC12 = $modeloCodificado?->CalTramaFondoC12 ?? null;
+            $catCodificado->FibraTramaFondoC1 = $modeloCodificado?->FibraTramaFondoC1 ?? null;
             // PasadasTrama desde ReqProgramaTejido según mapeo de imagen
             $catCodificado->PasadasTramaFondoC1 = $registro->PasadasTrama ?? null;
 
@@ -1594,9 +1614,9 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->CombinaTram = $registro->CombinaTram ?? null;
             $catCodificado->BomId = $registro->BomId ?? null;
             $catCodificado->BomName = $registro->BomName ?? null;
-            $catCodificado->CreaProd = $registro->CreaProd ?? null;
+            $catCodificado->CreaProd = $registro->CreaProd ?? 1;
             $catCodificado->HiloAX = $registro->HiloAX ?? null;
-            $catCodificado->ActualizaLmat = $registro->ActualizaLmat ?? null;
+            $catCodificado->ActualizaLmat = $registro->ActualizaLmat ?? 1;
 
             // Campos de auditoría
             $usuario = Auth::check() && Auth::user() ? Auth::user()->name : 'Sistema';

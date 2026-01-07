@@ -66,12 +66,27 @@
             }
 
             if ($field === 'prioridad') {
-                $prioridad = $registro->Prioridad ?? '';
+                // Usar PrioridadAnterior si existe, sino usar Prioridad actual, sino vacío
+                $prioridadAnterior = $registro->PrioridadAnterior ?? '';
+                $prioridadActual = $registro->Prioridad ?? '';
+                $prioridad = !empty($prioridadAnterior) ? $prioridadAnterior : $prioridadActual;
                 $id = $registro->Id ?? '';
+
+                // Log para debug (solo en desarrollo)
+                if (config('app.debug')) {
+                    \Log::info('Generando input de prioridad', [
+                        'id' => $id,
+                        'prioridad_anterior' => $prioridadAnterior,
+                        'prioridad_actual' => $prioridadActual,
+                        'prioridad_final' => $prioridad,
+                    ]);
+                }
+
                 return '<input type="text"
                               class="prioridad-input w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               value="' . htmlspecialchars($prioridad, ENT_QUOTES, 'UTF-8') . '"
                               data-id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"
+                              data-prioridad-anterior="' . htmlspecialchars($prioridadAnterior, ENT_QUOTES, 'UTF-8') . '"
                               placeholder="Prioridad"
                               style="min-width: 280px;">';
             }
@@ -235,14 +250,53 @@ let hiddenColumns = [];
 let filtersActive = false;
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded - Iniciando relleno de prioridades');
+
     // Marcar todos los checkboxes por defecto
     const checkboxes = document.querySelectorAll('.row-checkbox');
     checkboxes.forEach(checkbox => {
         checkbox.checked = true;
     });
 
+    // Rellenar automáticamente los inputs de prioridad con el valor del registro anterior
+    const prioridadInputs = document.querySelectorAll('.prioridad-input');
+    console.log('Inputs de prioridad encontrados:', prioridadInputs.length);
+
+    prioridadInputs.forEach((input, index) => {
+        const prioridadAnterior = input.getAttribute('data-prioridad-anterior') || '';
+        const valorActual = input.value.trim();
+        const id = input.getAttribute('data-id');
+
+        console.log(`Input ${index}:`, {
+            id: id,
+            valorActual: valorActual,
+            prioridadAnterior: prioridadAnterior,
+            tieneValor: !!valorActual,
+            tienePrioridadAnterior: !!prioridadAnterior
+        });
+
+        // Si el input está vacío, intentar rellenarlo
+        if (!valorActual) {
+            // Primero intentar con data-prioridad-anterior
+            if (prioridadAnterior) {
+                input.value = prioridadAnterior;
+                console.log(`Input ${index} rellenado con prioridad anterior:`, prioridadAnterior);
+            }
+            // Si no hay prioridad anterior y no es el primero, buscar el valor del input anterior
+            else if (index > 0) {
+                const inputAnterior = prioridadInputs[index - 1];
+                if (inputAnterior && inputAnterior.value.trim()) {
+                    input.value = inputAnterior.value.trim();
+                    console.log(`Input ${index} rellenado con valor del input anterior:`, inputAnterior.value.trim());
+                }
+            }
+        }
+    });
+
     // Inicializar posiciones de columnas fijadas
     updatePinnedColumnsPositions();
+
+    console.log('DOMContentLoaded - Finalizado relleno de prioridades');
 });
 
 // Funciones para fijar columnas

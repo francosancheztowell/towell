@@ -8,6 +8,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCa
 use App\Models\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -122,12 +123,75 @@ class LiberarOrdenesController extends Controller
                     && (empty($registro->NoExisteBase) || is_null($registro->NoExisteBase));
             })->values();
 
+            // Calcular prioridad del registro anterior para cada registro
+            // Prioridad = "CHECAR + NombreProducto" del registro anterior en ReqProgramaTejido
+            // Buscar el registro anterior que tenga el mismo NoTelarId según el ordenamiento original
+            $registros->each(function($registro) {
+                $noTelarId = $registro->NoTelarId ?? null;
+                $salonTejidoId = $registro->SalonTejidoId ?? '';
+                $fechaInicio = $registro->FechaInicio ?? null;
+                $idActual = $registro->Id ?? null;
+
+                if (!$noTelarId || !$idActual) {
+                    $registro->PrioridadAnterior = '';
+                    return;
+                }
+
+                // Buscar el registro anterior en ReqProgramaTejido con el mismo NoTelarId
+                // El ordenamiento original es: SalonTejidoId, NoTelarId, FechaInicio (asc)
+                $query = ReqProgramaTejido::query()
+                    ->select(['Id', 'NombreProducto', 'SalonTejidoId', 'NoTelarId', 'FechaInicio'])
+                    ->where('NoTelarId', $noTelarId)
+                    ->where('SalonTejidoId', $salonTejidoId);
+
+                // Construir condiciones para encontrar el registro anterior
+                if ($fechaInicio) {
+                    // Buscar registros con FechaInicio menor, o si es igual, con Id menor
+                    $query->where(function($q) use ($fechaInicio, $idActual) {
+                        $q->where('FechaInicio', '<', $fechaInicio)
+                          ->orWhere(function($q2) use ($fechaInicio, $idActual) {
+                              $q2->where('FechaInicio', '=', $fechaInicio)
+                                 ->where('Id', '<', $idActual);
+                          });
+                    });
+                } else {
+                    // Si no tiene FechaInicio, buscar por Id menor
+                    $query->where('Id', '<', $idActual);
+                }
+
+                // Ordenar por FechaInicio DESC y Id DESC para obtener el registro más cercano anterior
+                $registroAnterior = $query->orderByDesc('FechaInicio')
+                    ->orderByDesc('Id')
+                    ->first();
+
+                if ($registroAnterior && !empty($registroAnterior->NombreProducto)) {
+                    $nombreProductoAnterior = $registroAnterior->NombreProducto;
+                    // Formar prioridad: "CHECAR + NombreProducto"
+                    $prioridadFormada = 'SALDAR ' . $nombreProductoAnterior;
+                    $registro->PrioridadAnterior = $prioridadFormada;
+
+                    Log::info('Prioridad formada para registro desde BD', [
+                        'id' => $idActual,
+                        'no_telar_id' => $noTelarId,
+                        'salon_tejido_id' => $salonTejidoId,
+                        'fecha_inicio' => $fechaInicio,
+                        'id_anterior' => $registroAnterior->Id ?? null,
+                        'nombre_producto_anterior' => $nombreProductoAnterior,
+                        'prioridad_formada' => $prioridadFormada,
+                    ]);
+                } else {
+                    $registro->PrioridadAnterior = '';
+                    Log::info('No se encontró registro anterior en BD', [
+                        'id' => $idActual,
+                        'no_telar_id' => $noTelarId,
+                        'salon_tejido_id' => $salonTejidoId,
+                        'fecha_inicio' => $fechaInicio,
+                    ]);
+                }
+            });
+
             return view('modulos.programa-tejido.liberar-ordenes.index', compact('registros', 'dias'));
         } catch (\Throwable $e) {
-            Log::error('Error al cargar liberar órdenes', [
-                'msg' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
 
             return view('modulos.programa-tejido.liberar-ordenes.index', [
                 'registros' => collect(),
@@ -203,6 +267,65 @@ class LiberarOrdenesController extends Controller
                     $registro->Programado = $programado;
                 }
                 $registro->NoProduccion = $folio;
+
+                // Calcular Repeticiones: TRUNCAR((41.5/PesoCrudo)/NoTiras*1000)
+                $pCrudo = $registro->PesoCrudo ?? null;
+                $tiras = $registro->NoTiras ?? null;
+                $repeticiones = null;
+                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
+                    $repeticiones = floor(((41.5 / (float)$pCrudo) / (float)$tiras) * 1000);
+                }
+
+                // Calcular NoMarbetes: TRUNCAR(SaldoPedido/NoTiras/Repeticiones)
+                $cantidadProducir = $registro->SaldoPedido ?? null;
+                $noMarbetes = null;
+                if ($cantidadProducir && $tiras && $repeticiones !== null &&
+                    is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
+                    $tiras > 0 && $repeticiones > 0) {
+                    $noMarbetes = floor((float)$cantidadProducir / (float)$tiras / (float)$repeticiones);
+                }
+
+                // Calcular MtsRollo: (LargoCrudo * Repeticiones) / 100
+                $largo = $registro->LargoCrudo ?? null;
+                $mtsRollo = null;
+                if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
+                    $largoNum = is_numeric($largo) ? (float)$largo : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
+                    if ($largoNum > 0 && $repeticiones > 0) {
+                        $mtsRollo = round($largoNum * $repeticiones / 100, 2);
+                    }
+                }
+
+                // Calcular PzasRollo: Repeticiones * NoTiras
+                $pzasRollo = null;
+                if ($repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
+                    $pzasRollo = round($repeticiones * $tiras, 0);
+                }
+
+                // Actualizar campos calculados
+                $registro->Repeticiones = $repeticiones;
+                $registro->MtsRollo = $mtsRollo;
+                $registro->PzasRollo = $pzasRollo;
+                $registro->TotalRollos = null; // No disponible
+                $registro->TotalPzas = null; // No disponible
+                $registro->CombinaTram = $registro->CombinaTram ?? null;
+                $registro->BomId = $registro->BomId ?? null;
+                $registro->BomName = $registro->BomName ?? null;
+                $registro->CreaProd = $registro->CreaProd ?? 1;
+                $registro->EficienciaSTD = $registro->EficienciaSTD ?? null;
+                $registro->Densidad = $registro->PesoGRM2 ?? null;
+                $registro->HiloAX = $registro->HiloAX ?? null;
+                $registro->ActualizaLmat = $registro->ActualizaLmat ?? 1;
+
+                // Campos de auditoría
+                $usuario = Auth::check() && Auth::user() ? Auth::user()->name : 'Sistema';
+                $fechaActual = now();
+                $registro->setAttribute('FechaCreacion', $fechaActual);
+                $registro->HoraCreacion = $fechaActual->format('H:i:s');
+                $registro->UsuarioCrea = $usuario;
+                $registro->setAttribute('FechaModificacion', $fechaActual);
+                $registro->HoraModificacion = $fechaActual->format('H:i:s');
+                $registro->UsuarioModifica = $usuario;
+
                 $registro->save();
 
                 // Recargar el modelo sin relaciones para evitar errores

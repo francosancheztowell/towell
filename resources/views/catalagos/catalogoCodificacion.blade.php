@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-title', 'Catálogo de Codificación')
+@section('page-title', 'Modelos Codificados')
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
