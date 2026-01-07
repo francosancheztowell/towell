@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
+
 class ReservarProgramarController extends Controller
 {
     private const STATUS_ACTIVO = 'Activo';
@@ -394,19 +395,28 @@ class ReservarProgramarController extends Controller
     public function getResumenSemanas(Request $request)
     {
         try {
+            // Manejar datos que vienen en el body (JSON) o query string
             $raw = $request->input('telares') ?? $request->query('telares');
             $telares = [];
 
             if ($raw) {
-                $telares = is_string($raw) ? json_decode(urldecode($raw), true) : $raw;
-                if (!is_array($telares)) $telares = [];
+                // Si es string, intentar parsearlo (viene de query string URL-encoded)
+                if (is_string($raw)) {
+                    $decoded = json_decode(urldecode($raw), true);
+                    $telares = is_array($decoded) ? $decoded : [];
+                } elseif (is_array($raw)) {
+                    // Si ya es array (viene del body JSON parseado por Laravel)
+                    $telares = $raw;
+                }
             }
 
             if (empty($telares)) {
+                $semanas = $this->construirSemanas(5);
                 return response()->json([
                     'success' => true,
                     'message' => 'No hay telares seleccionados',
                     'data'    => ['rizo' => [], 'pie' => []],
+                    'semanas' => $semanas,
                 ]);
             }
 
@@ -416,10 +426,12 @@ class ReservarProgramarController extends Controller
             // Validación de consistencia entre telares
             $v = $this->validarTelaresConsistentes($telares);
             if ($v['error']) {
+                $semanas = $this->construirSemanas(5);
                 return response()->json([
                     'success' => false,
                     'message' => $v['mensaje'],
                     'data'    => ['rizo' => [], 'pie' => []],
+                    'semanas' => $semanas,
                 ], 400);
             }
 
@@ -431,10 +443,12 @@ class ReservarProgramarController extends Controller
 
             $noTelares = collect($telares)->pluck('no_telar')->filter()->unique()->values()->toArray();
             if (empty($noTelares)) {
+                $semanas = $this->construirSemanas(5);
                 return response()->json([
                     'success' => true,
                     'message' => 'No se encontraron números de telar válidos',
                     'data'    => ['rizo' => [], 'pie' => []],
+                    'semanas' => $semanas,
                 ]);
             }
 
@@ -484,10 +498,11 @@ class ReservarProgramarController extends Controller
                 'usarFallbackMetros' => $usarFallbackMetros,
             ]);
 
-            // Programas + líneas (eager)
+            // Programas + líneas (eager) - Seleccionar campos específicos de ReqProgramaTejidoLine
             $programas = ReqProgramaTejido::whereIn('NoTelarId', $noTelares)
                 ->with(['lineas' => function($query) use ($fechaIni, $fechaFin) {
-                    $query->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$fechaIni])
+                    $query->select('Id', 'ProgramaId', 'Fecha', 'Kilos', 'MtsRizo', 'MtsPie')
+                          ->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$fechaIni])
                           ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fechaFin])
                           ->orderBy('Fecha');
                 }])
@@ -530,6 +545,17 @@ class ReservarProgramarController extends Controller
                     $matchSalon = $this->matchSalon($salonEsperado, (string)($p->SalonTejidoId ?? ''));
                     $tieneCuentaRizo = !empty($p->CuentaRizo);
 
+                    Log::debug('Filtrado programa RIZO - Detalle', [
+                        'ProgramaId' => $p->Id ?? null,
+                        'NoTelarId' => $p->NoTelarId ?? null,
+                        'SalonEsperado' => $salonEsperado,
+                        'SalonPrograma' => $p->SalonTejidoId ?? null,
+                        'matchSalon' => $matchSalon,
+                        'tieneCuentaRizo' => $tieneCuentaRizo,
+                        'CuentaRizo' => $p->CuentaRizo ?? null,
+                    ]);
+
+
                     $fibraRizoRaw = $p->FibraRizo ?? null;
                     $hiloPrograma = ($fibraRizoRaw !== null && trim((string)$fibraRizoRaw) !== '') ? trim((string)$fibraRizoRaw) : '';
 
@@ -567,10 +593,33 @@ class ReservarProgramarController extends Controller
                     $matchCalibre = true;
                     if (!$calibreEsVacio && $calibreEsperado !== null) {
                         $matchCalibre = $this->matchCalibre($calibreEsperado, $calibreEsVacio, $p->CalibreRizo ?? null);
+                        Log::debug('Filtrado programa RIZO - Calibre', [
+                            'ProgramaId' => $p->Id ?? null,
+                            'CalibreEsperado' => $calibreEsperado,
+                            'CalibrePrograma' => $p->CalibreRizo ?? null,
+                            'matchCalibre' => $matchCalibre,
+                        ]);
                     }
 
-                    return $matchSalon && $tieneCuentaRizo && $matchHiloTelar && $matchCalibre;
+                    $resultadoFinal = $matchSalon && $tieneCuentaRizo && $matchHiloTelar && $matchCalibre;
+
+                    Log::debug('Filtrado programa RIZO - Resultado final', [
+                        'ProgramaId' => $p->Id ?? null,
+                        'matchSalon' => $matchSalon,
+                        'tieneCuentaRizo' => $tieneCuentaRizo,
+                        'matchHiloTelar' => $matchHiloTelar,
+                        'matchCalibre' => $matchCalibre,
+                        'resultadoFinal' => $resultadoFinal,
+                    ]);
+
+                    return $resultadoFinal;
                 })->values();
+
+                Log::info('getResumenSemanas - Programas filtrados para RIZO', [
+                    'totalProgramas' => $programas->count(),
+                    'programasFiltrados' => $programasFiltrados->count(),
+                    'programasFiltrados_ids' => $programasFiltrados->pluck('Id')->toArray(),
+                ]);
 
                 $resumenRizo = $this->procesarResumenPorTipo(
                     $programasFiltrados, $semanas, 'Rizo',
@@ -582,6 +631,10 @@ class ReservarProgramarController extends Controller
                     $fechaFin,
                     $usarFallbackMetros
                 );
+
+                Log::info('getResumenSemanas - Resumen RIZO generado', [
+                    'totalItems' => count($resumenRizo),
+                ]);
 
                 return response()->json([
                     'success' => true,
@@ -600,6 +653,12 @@ class ReservarProgramarController extends Controller
                 return $matchSalon && $tieneCuentaPie && $matchCalibre;
             })->values();
 
+            Log::info('getResumenSemanas - Programas filtrados para PIE', [
+                'totalProgramas' => $programas->count(),
+                'programasFiltrados' => $programasFiltrados->count(),
+                'programasFiltrados_ids' => $programasFiltrados->pluck('Id')->toArray(),
+            ]);
+
             $resumenPie = $this->procesarResumenPorTipo(
                 $programasFiltrados, $semanas, 'Pie',
                 null, $hiloEsperado, $calibreEsperado, $calibreEsVacio, $lineasPorPrograma,
@@ -608,17 +667,28 @@ class ReservarProgramarController extends Controller
                 $usarFallbackMetros
             );
 
+            Log::info('getResumenSemanas - Resumen PIE generado', [
+                'totalItems' => count($resumenPie),
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data'    => ['rizo' => [], 'pie' => $resumenPie],
                 'semanas' => $semanas,
             ]);
         } catch (\Throwable $e) {
-            Log::error('getResumenSemanas', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error('getResumenSemanas', [
+                'msg' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            $semanas = $this->construirSemanas(5);
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener resumen de semanas: '.$e->getMessage(),
                 'data'    => ['rizo' => [], 'pie' => []],
+                'semanas' => $semanas,
             ], 500);
         }
     }
@@ -644,7 +714,7 @@ class ReservarProgramarController extends Controller
      */
     private function procesarResumenPorTipo(
         $programas,
-        array $semanas,
+        array &$semanas,
         string $tipo,
         $cuentaEsperada = null,
         $hiloEsperado = null,
@@ -710,6 +780,7 @@ class ReservarProgramarController extends Controller
                 } else {
                     if ($fechaIni && $fechaFin) {
                         $lineas = $programa->lineas()
+                            ->select('Id', 'ProgramaId', 'Fecha', 'Kilos', 'MtsRizo', 'MtsPie')
                             ->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$fechaIni])
                             ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fechaFin])
                             ->orderBy('Fecha')
@@ -768,28 +839,23 @@ class ReservarProgramarController extends Controller
                 $idx = $this->semanaIndex($semanas, $f);
                 if ($idx === null) continue;
 
-                // Acumular metros y kilos por semana
-                if ($idx === 0) {
-                    $resumen[$clave]['SemActual'] += $mts;
-                    $resumen[$clave]['SemActualKilos'] += $kilos;
-                } elseif ($idx === 1) {
-                    $resumen[$clave]['SemActual1'] += $mts;
-                    $resumen[$clave]['SemActual1Kilos'] += $kilos;
-                } elseif ($idx === 2) {
-                    $resumen[$clave]['SemActual2'] += $mts;
-                    $resumen[$clave]['SemActual2Kilos'] += $kilos;
-                } elseif ($idx === 3) {
-                    $resumen[$clave]['SemActual3'] += $mts;
-                    $resumen[$clave]['SemActual3Kilos'] += $kilos;
-                } elseif ($idx === 4) {
-                    $resumen[$clave]['SemActual4'] += $mts;
-                    $resumen[$clave]['SemActual4Kilos'] += $kilos;
-                }
+                $semKey = $idx === 0 ? 'SemActual' : 'SemActual' . $idx;
+                $semKilosKey = $idx === 0 ? 'SemActualKilos' : 'SemActual' . $idx . 'Kilos';
+                $resumen[$clave][$semKey] += $mts;
+                $resumen[$clave][$semKilosKey] += $kilos;
+                $this->agregarTotalesSemana($semanas, $idx, $mts, $kilos);
 
                 $resumen[$clave]['Total'] += $mts;
                 $resumen[$clave]['TotalKilos'] += $kilos;
             }
         }
+
+        Log::info('procesarResumenPorTipo - Resumen generado', [
+            'tipo' => $tipo,
+            'totalProgramas' => count($programas),
+            'itemsEnResumen' => count($resumen),
+            'clavesResumen' => array_keys($resumen),
+        ]);
 
         // *** NO filtramos por Total > 0: si existe el programa, se muestra con ceros ***
         return collect($resumen)
@@ -971,6 +1037,8 @@ class ReservarProgramarController extends Controller
                 'inicio' => $ini->format('Y-m-d'),
                 'fin'    => $fin->format('Y-m-d'),
                 'label'  => $i === 0 ? 'Sem Actual' : "Sem Actual +{$i}",
+                'total_metros' => 0.0,
+                'total_kilos' => 0.0,
             ];
         }
         return $out;
@@ -987,6 +1055,16 @@ class ReservarProgramarController extends Controller
         return null;
     }
 
+    private function agregarTotalesSemana(array &$semanas, int $idx, float $mts, float $kilos): void
+    {
+        if (!isset($semanas[$idx])) {
+            return;
+        }
+
+        $semanas[$idx]['total_metros'] = (float)($semanas[$idx]['total_metros'] ?? 0) + $mts;
+        $semanas[$idx]['total_kilos'] = (float)($semanas[$idx]['total_kilos'] ?? 0) + $kilos;
+    }
+
 
 
     /** Hilo: '' => buscar vacío/null; null => sin filtro; string => coincidencia exacta (case-insensitive) */
@@ -1001,21 +1079,37 @@ class ReservarProgramarController extends Controller
         return strcasecmp($act, $esp) === 0;
     }
 
-    /** Calibre: $vacio=true => requiere null/vacío; valor numérico => tolerancia 0.01; null => sin filtro */
+    /** Calibre: $vacio=true => requiere null/vacío; valor numérico => tolerancia 0.11; null => sin filtro */
     private function matchCalibre($esperado, bool $vacio, $actual): bool
     {
         if ($vacio) return ($actual === null || $actual === '' || trim((string)$actual) === '');
         if ($esperado === null || $esperado === '') return true;
         $a = is_numeric($actual) ? (float)$actual : 0;
         $e = (float)$esperado;
-        return abs($a - $e) < 0.01;
+        $diff = abs($a - $e);
+        $result = $diff <= 0.11; // Tolerancia 0.11 para cubrir errores de precisión de punto flotante (16.0 vs 16.1)
+        return $result;
     }
 
-    /** Salón: si $esperado vacío no filtra */
+    /** Salón: si $esperado vacío no filtra
+     * NOTA: ITEMA y SMITH comparten el salón "SMIT" en ReqProgramaTejido
+     */
     private function matchSalon(string $esperado, string $actual): bool
     {
         if ($esperado === '') return true;
-        return strtoupper(trim($actual)) === strtoupper(trim($esperado));
+
+        $esp = strtoupper(trim($esperado));
+        $act = strtoupper(trim($actual));
+
+        // Coincidencia exacta
+        if ($act === $esp) return true;
+
+        // Mapeo especial: ITEMA y SMITH ambos usan SMIT en ReqProgramaTejido
+        if ($esp === 'ITEMA' && $act === 'SMIT') return true;
+        if ($esp === 'SMITH' && $act === 'SMIT') return true;
+        if ($esp === 'SMIT' && ($act === 'ITEMA' || $act === 'SMITH')) return true;
+
+        return false;
     }
 
     private function nullSiVacio($v)

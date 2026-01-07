@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Engomado\Produccion;
 
+use App\Http\Controllers\Controller;
 use App\Models\EngProgramaEngomado;
 use App\Models\UrdJuliosOrden;
 use App\Models\EngProduccionEngomado;
@@ -20,7 +21,7 @@ class ModuloProduccionEngomadoController extends Controller
      * Mostrar la vista de producción de engomado con los datos de la orden seleccionada
      *
      * @param Request $request
-     * @return View|RedirectResponse
+     * @return View|RedirectResponse|JsonResponse
      */
     public function index(Request $request)
     {
@@ -76,6 +77,16 @@ class ModuloProduccionEngomadoController extends Controller
 
         // Actualizar el status a "En Proceso" cuando se carga la página de producción
         if ($orden->Status !== 'En Proceso') {
+            // Validar que no haya otra orden con status "En Proceso"
+            $ordenesEnProceso = EngProgramaEngomado::where('Status', 'En Proceso')
+                ->where('Id', '!=', $orden->Id)
+                ->count();
+
+            if ($ordenesEnProceso > 0) {
+                return redirect()->route('engomado.programar.engomado')
+                    ->with('error', 'Ya existe una orden con status "En Proceso". No se puede cargar otra orden hasta finalizar la actual.');
+            }
+
             try {
                 $statusAnterior = $orden->Status;
                 $orden->Status = 'En Proceso';
@@ -343,7 +354,18 @@ class ModuloProduccionEngomadoController extends Controller
                 ], 404);
             }
 
-            $numeroOficial = $request->numero_oficial;
+            $numeroOficial = (int) $request->numero_oficial;
+            $folio = $registro->Folio;
+
+            $propagarOficial = false;
+            if ($numeroOficial === 1) {
+                $existeOficialEnFolio = EngProduccionEngomado::where('Folio', $folio)
+                    ->whereNotNull("NomEmpl{$numeroOficial}")
+                    ->where("NomEmpl{$numeroOficial}", '!=', '')
+                    ->exists();
+
+                $propagarOficial = !$existeOficialEnFolio;
+            }
 
             if ($numeroOficial < 1 || $numeroOficial > 3) {
                 return response()->json([
@@ -382,6 +404,25 @@ class ModuloProduccionEngomadoController extends Controller
             }
 
             $registro->save();
+
+            if ($propagarOficial) {
+                $updateData = [
+                    "CveEmpl{$numeroOficial}" => $request->cve_empl,
+                    "NomEmpl{$numeroOficial}" => $request->nom_empl,
+                ];
+
+                if ($request->has('turno')) {
+                    $updateData["Turno{$numeroOficial}"] = $request->turno;
+                }
+
+                if ($request->has('metros')) {
+                    $updateData["Metros{$numeroOficial}"] = $request->metros;
+                }
+
+                EngProduccionEngomado::where('Folio', $folio)
+                    ->where('Id', '!=', $registro->Id)
+                    ->update($updateData);
+            }
 
             return response()->json([
                 'success' => true,
@@ -857,4 +898,3 @@ class ModuloProduccionEngomadoController extends Controller
         }
     }
 }
-

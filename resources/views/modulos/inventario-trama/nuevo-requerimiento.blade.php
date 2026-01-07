@@ -97,8 +97,14 @@
                         <div class="space-y-3">
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">No Flog:</span>
-                                <span class="text-sm font-semibold text-gray-900">{{ $d['Id_Flog'] ?? '-' }}</span>
+                                <span class="text-sm font-semibold text-gray-900">
+                                    {{ trim(($d['Id_Flog'] ?? '') . ' / ' . ($d['Calidad'] ?? '')) ?: '-' }}
+                                </span>
                             </div>
+                            {{-- <div class="flex justify-start items-center border-b border-gray-200 pb-2">
+                                <span class="text-sm font-semibold text-gray-600">Calidad:</span>
+                                <span class="text-sm font-semibold text-gray-900">{{ $d['Calidad'] ?? '-' }}</span>
+                            </div> --}}
                             <div class="flex justify-start items-center border-b border-gray-200 pb-2">
                                 <span class="text-sm font-semibold text-gray-600">Cliente:</span>
                                 <span class="text-sm font-semibold text-gray-900">{{ $d['Cliente'] ?? '-' }}</span>

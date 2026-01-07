@@ -25,6 +25,7 @@
         'aplicaciones' => 'Aplicaciones (Cat.)',
         'codificacion' => 'Codificación Modelos',
         'matriz-hilos' => 'Matriz Hilos',
+        'pesos-rollos' => 'Pesos por Rollos',
     ];
 
     // Obtener permisos del usuario usando helper reutilizable

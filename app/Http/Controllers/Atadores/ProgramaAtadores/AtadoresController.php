@@ -51,7 +51,7 @@ class AtadoresController extends Controller
             $join->on('tej_inventario_telares.no_julio', '=', 'AtaMontadoTelas.NoJulio')
                  ->on('tej_inventario_telares.no_orden', '=', 'AtaMontadoTelas.NoProduccion');
         })
-        ->where('tej_inventario_telares.status', 'activo') // Solo registros activos
+        ->whereIn('tej_inventario_telares.status', ['activo', 'En Proceso']) // Mostrar activos y en proceso
         ->whereNotNull('tej_inventario_telares.no_julio')
         ->where('tej_inventario_telares.no_julio', '!=', '') // No_julio debe estar lleno
         ->orderBy('tej_inventario_telares.fecha', 'desc')

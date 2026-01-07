@@ -22,7 +22,7 @@ class ModuloProduccionUrdidoController extends Controller
      * Mostrar la vista de producción de urdido con los datos de la orden seleccionada
      *
      * @param Request $request
-     * @return View|RedirectResponse
+     * @return View|RedirectResponse|JsonResponse
      */
     public function index(Request $request)
     {
@@ -79,6 +79,16 @@ class ModuloProduccionUrdidoController extends Controller
 
         // Actualizar el status a "En Proceso" cuando se carga la página de producción
         if ($orden->Status !== 'En Proceso') {
+            // Validar que no haya otra orden con status "En Proceso"
+            $ordenesEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
+                ->where('Id', '!=', $orden->Id)
+                ->count();
+
+            if ($ordenesEnProceso > 0) {
+                return redirect()->route('urdido.programar.urdido')
+                    ->with('error', 'Ya existe una orden con status "En Proceso". No se puede cargar otra orden hasta finalizar la actual.');
+            }
+
             try {
                 $statusAnterior = $orden->Status;
                 $orden->Status = 'En Proceso';
@@ -375,7 +385,18 @@ class ModuloProduccionUrdidoController extends Controller
                 ], 404);
             }
 
-            $numeroOficial = $request->numero_oficial;
+            $numeroOficial = (int) $request->numero_oficial;
+            $folio = $registro->Folio;
+
+            $propagarOficial = false;
+            if ($numeroOficial === 1) {
+                $existeOficialEnFolio = UrdProduccionUrdido::where('Folio', $folio)
+                    ->whereNotNull("NomEmpl{$numeroOficial}")
+                    ->where("NomEmpl{$numeroOficial}", '!=', '')
+                    ->exists();
+
+                $propagarOficial = !$existeOficialEnFolio;
+            }
 
             // Validar que el número de oficial esté en el rango permitido (1-3)
             if ($numeroOficial < 1 || $numeroOficial > 3) {
@@ -421,6 +442,25 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             $registro->save();
+
+            if ($propagarOficial) {
+                $updateData = [
+                    "CveEmpl{$numeroOficial}" => $request->cve_empl,
+                    "NomEmpl{$numeroOficial}" => $request->nom_empl,
+                ];
+
+                if ($request->has('turno')) {
+                    $updateData["Turno{$numeroOficial}"] = $request->turno;
+                }
+
+                if ($request->has('metros')) {
+                    $updateData["Metros{$numeroOficial}"] = $request->metros;
+                }
+
+                UrdProduccionUrdido::where('Folio', $folio)
+                    ->where('Id', '!=', $registro->Id)
+                    ->update($updateData);
+            }
 
             return response()->json([
                 'success' => true,
@@ -960,4 +1000,3 @@ class ModuloProduccionUrdidoController extends Controller
         }
     }
 }
-

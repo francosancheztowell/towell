@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Mantenimiento;
 
+use App\Http\Controllers\Controller;
 use App\Helpers\FolioHelper;
 use App\Models\CatParosFallas;
 use App\Models\CatTipoFalla;

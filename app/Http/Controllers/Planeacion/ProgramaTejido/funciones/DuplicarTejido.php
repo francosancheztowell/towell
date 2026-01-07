@@ -418,7 +418,7 @@ class DuplicarTejido
     {
         try {
             $m = self::getModeloParams($programa->TamanoClave ?? null, $programa);
-            return TejidoHelpers::calcularFormulasEficiencia($programa, $m);
+            return TejidoHelpers::calcularFormulasEficiencia($programa, $m, true, true, true);
         } catch (\Throwable $e) {
             LogFacade::warning('DuplicarTejido: Error al calcular formulas', [
                 'error' => $e->getMessage(),

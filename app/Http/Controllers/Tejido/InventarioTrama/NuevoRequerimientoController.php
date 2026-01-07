@@ -337,6 +337,7 @@ class NuevoRequerimientoController extends Controller
             'EnProceso',
             'NoProduccion as Orden_Prod',
             'FlogsId as Id_Flog',
+            'CategoriaCalidad as Calidad',
             'CustName as Cliente',
             'TamanoClave as InventSizeId',
             'ItemId as ItemId',
@@ -387,14 +388,16 @@ class NuevoRequerimientoController extends Controller
             $base = array_merge($base, [
                 'Orden_Prod'      => $map['Orden_Prod']      ?? null,
                 'Id_Flog'         => $map['Id_Flog']         ?? null,
+                'Calidad'         => $map['Calidad']         ?? null,
                 'Cliente'         => $map['Cliente']         ?? null,
                 'InventSizeId'    => $map['InventSizeId']    ?? null,
                 'ItemId'          => $map['ItemId']          ?? null,
                 'Nombre_Producto' => $map['Nombre_Producto'] ?? null,
                 'Saldos'          => $map['Saldos']          ?? null,
                 'Produccion'      => $map['Produccion']      ?? null,
-                'Inicio_Tejido'   => $map['FechaInicio']     ?? null,
-                'Fin_Tejido'      => $map['FechaFinal']      ?? null,
+                // Trae el query completo: fecha y hr, Carbon lo transforma a un DateString 
+                'Inicio_Tejido'   => !empty($map['FechaInicio']) ? Carbon::parse($map['FechaInicio']) ->toDateString() : null,
+                'Fin_Tejido'      => !empty($map['FechaFinal']) ? Carbon::parse($map['FechaFinal']) ->toDateString() : null,
 
                 'CALIBRE_TRA' => $map['CALIBRE_TRA'] ?? null,
                 'FIBRA_TRA'   => $map['FIBRA_TRA']   ?? null,

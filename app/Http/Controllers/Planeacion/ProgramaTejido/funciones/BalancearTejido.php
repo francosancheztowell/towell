@@ -19,9 +19,6 @@ class BalancearTejido
     /** Cache de líneas por calendario (ya parseadas) */
     private static array $calLinesCache = []; // [calId => [ ['ini'=>Carbon,'fin'=>Carbon,'ini_ts'=>int,'fin_ts'=>int], ... ] ]
 
-    /** si el cambio de fin es menor a esto, NO cascada (evita “rebotes”) */
-    private const CASCADE_THRESHOLD_SECONDS = 300; // 5 min
-
     /** gaps muy pequeños (ej. 2s entre :29:58 y :30:00) se ignoran */
     private const SMALL_GAP_SECONDS = 5;
     // =========================================================
@@ -612,7 +609,7 @@ class BalancearTejido
     {
         try {
             $m = self::getModeloParams($programa->TamanoClave ?? null, $programa);
-            return TejidoHelpers::calcularFormulasEficiencia($programa, $m, false, true, false);
+            return TejidoHelpers::calcularFormulasEficiencia($programa, $m, true, true, false);
         } catch (\Throwable $e) {
             Log::warning('BalancearTejido: Error al calcular formulas', [
                 'error' => $e->getMessage(),

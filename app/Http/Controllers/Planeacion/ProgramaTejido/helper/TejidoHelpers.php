@@ -105,6 +105,16 @@ class TejidoHelpers
         return 0.0;
     }
 
+    public static function resolverDiasEntrega(ReqProgramaTejido $programa): int
+    {
+        $aplicacion = trim((string)($programa->AplicacionId ?? ''));
+        if ($aplicacion === '' || strtoupper($aplicacion) === 'NA' || strtoupper($aplicacion) === null) {
+            return 12;
+        }
+
+        return 16;
+    }
+
     public static function calcularFormulasEficiencia(
         ReqProgramaTejido $programa,
         array $modeloParams,
@@ -222,35 +232,47 @@ class TejidoHelpers
             }
 
             if ($includeEntregaCte || $includePTvsCte) {
+                $diasEntrega = self::resolverDiasEntrega($programa);
                 $entregaCteCalculada = null;
+                $entregaPT = null;
                 if (!empty($programa->FechaFinal)) {
                     try {
                         $fechaFinal = Carbon::parse($programa->FechaFinal);
-                        $entregaCteCalculada = $fechaFinal->copy()->addDays(12);
+                        $entregaCteCalculada = $fechaFinal->copy()->addDays($diasEntrega);
 
                         if ($includeEntregaCte) {
                             $formulas['EntregaCte'] = $entregaCteCalculada->format('Y-m-d H:i:s');
                         }
+
+                        $entregaPT = $fechaFinal->copy()->day(15);
+                        $formulas['EntregaPT'] = $entregaPT->format('Y-m-d');
                     } catch (\Throwable $e) {
                         // Si hay error al parsear, no establecer EntregaCte
                     }
                 }
 
-                if ($includePTvsCte && !empty($programa->EntregaPT)) {
+                if (!$entregaPT && !empty($programa->EntregaPT)) {
                     try {
                         $entregaPT = Carbon::parse($programa->EntregaPT);
-                        $entregaCteParaCalcular = $entregaCteCalculada;
-
-                        if (!$entregaCteParaCalcular && $fallbackEntregaCteFromProgram && !empty($programa->EntregaCte)) {
-                            $entregaCteParaCalcular = Carbon::parse($programa->EntregaCte);
-                        }
-
-                        if ($entregaCteParaCalcular) {
-                            $diferenciaDias = $entregaCteParaCalcular->diffInDays($entregaPT, false);
-                            $formulas['PTvsCte'] = (float) round($diferenciaDias, 2);
-                        }
                     } catch (\Throwable $e) {
-                        // Si hay error al parsear, no establecer PTvsCte
+                        $entregaPT = null;
+                    }
+                }
+
+                if ($entregaPT) {
+                    $formulas['EntregaProduc'] = $entregaPT->copy()->subDays($diasEntrega)->format('Y-m-d');
+                }
+
+                if ($includePTvsCte && $entregaPT) {
+                    $entregaCteParaCalcular = $entregaCteCalculada;
+
+                    if (!$entregaCteParaCalcular && $fallbackEntregaCteFromProgram && !empty($programa->EntregaCte)) {
+                        $entregaCteParaCalcular = Carbon::parse($programa->EntregaCte);
+                    }
+
+                    if ($entregaCteParaCalcular) {
+                        $diferenciaDias = $entregaCteParaCalcular->diffInDays($entregaPT, false);
+                        $formulas['PTvsCte'] = (float) round($diferenciaDias, 2);
                     }
                 }
             }
@@ -316,7 +338,7 @@ class TejidoHelpers
         return null;
     }
 
-    public static function aplicarStdDesdeCatalogos(ReqProgramaTejido $p, bool $logWarnings = false, bool $logChanges = false): void
+    public static function aplicarStdDesdeCatalogos(ReqProgramaTejido $p): void
     {
         $tipoTelar = self::resolverTipoTelarStd($p->Maquina ?? null, $p->SalonTejidoId ?? null);
         $telar     = trim((string)($p->NoTelarId ?? ''));
@@ -324,14 +346,6 @@ class TejidoHelpers
         $densidad  = self::resolverDensidadStd($p->Densidad ?? null);
 
         if ($telar === '' || $fibraId === '') {
-            if ($logWarnings) {
-                Log::warning('STD: telar o fibra vacios, no se puede aplicar', [
-                    'tipoTelar' => $tipoTelar,
-                    'telar' => $telar,
-                    'fibra' => $fibraId,
-                    'programa_id' => $p->Id ?? null,
-                ]);
-            }
             return;
         }
 
@@ -343,28 +357,12 @@ class TejidoHelpers
 
         if ($velRow) {
             $p->VelocidadSTD = (float)$velRow->Velocidad;
-        } elseif ($logWarnings) {
-            Log::warning('STD: No se encontro velocidad', [
-                'tipoTelar' => $tipoTelar,
-                'telar' => $telar,
-                'fibra' => $fibraId,
-                'densidad' => $densidad,
-                'velocidad_actual' => $oldVel,
-            ]);
         }
 
         if ($efiRow) {
             $efi = (float)$efiRow->Eficiencia;
             if ($efi > 1) $efi = $efi / 100;
             $p->EficienciaSTD = round($efi, 2);
-        } elseif ($logWarnings) {
-            Log::warning('STD: No se encontro eficiencia', [
-                'tipoTelar' => $tipoTelar,
-                'telar' => $telar,
-                'fibra' => $fibraId,
-                'densidad' => $densidad,
-                'eficiencia_actual' => $oldEfi,
-            ]);
         }
     }
 

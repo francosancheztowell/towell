@@ -6,6 +6,7 @@ use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\Calendario
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatEficiencias\CatalagoEficienciaController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatTelares\CatalagoTelarController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatVelocidades\CatalagoVelocidadController;
+use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatPesosRollos\PesosRollosController;
 use App\Http\Controllers\Tejido\CortesEficiencia\CortesEficienciaController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ColumnasProgramaTejidoController;
@@ -31,7 +32,7 @@ use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ReservarProgramarContr
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ProgramarUrdEngController;
 use App\Http\Controllers\Urdido\ProgramaUrdido\ProgramarUrdidoController;
 use App\Http\Controllers\Engomado\ProgramaEngomado\ProgramarEngomadoController;
-use App\Http\Controllers\ModuloProduccionEngomadoController;
+use App\Http\Controllers\Engomado\Produccion\ModuloProduccionEngomadoController;
 use App\Http\Controllers\Urdido\Configuracion\ModuloProduccionUrdidoController;
 use App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController;
 use App\Http\Controllers\Tejedores\Configuracion\CatDesarrolladores\catDesarrolladoresController;
@@ -43,7 +44,7 @@ use App\Http\Controllers\Tejedores\Configuracion\TelaresOperador\TelTelaresOpera
 use App\Http\Controllers\Urdido\Configuracion\ActividadesBPMUrdido\UrdActividadesBpmController;
 use App\Http\Controllers\Urdido\BPMUrdido\UrdBpmController;
 use App\Http\Controllers\Urdido\BPMUrdido\UrdBpmLineController;
-use App\Http\Controllers\MantenimientoParosController;
+use App\Http\Controllers\Mantenimiento\MantenimientoParosController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoController;
 use App\Http\Controllers\Tejido\MarcasFinales\MarcasController;
 use App\Http\Controllers\Tejedores\NotificarMontadoJulios\NotificarMontadoJulioController;
@@ -68,6 +69,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\DescargarProgramaController;
 use App\Http\Controllers\Simulaciones\SimulacionComprasEspecialesController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoLineController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
+use App\Models\Usuario;
 //Rutas de login, con logout, no protegidas por middleware
 
 // Rutas de autenticación
@@ -80,7 +82,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/obtener-empleados/{area}', function ($area) {
     try {
-        return App\Models\Usuario::where('area', $area)->get();
+        return Usuario::where('area', $area)->get();
     } catch (\Throwable $e) {
         return [];
     }
@@ -178,7 +180,7 @@ Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () 
                 Artisan::call('view:clear');
 
                 // Limpiar caché específico de módulos
-                $usuarios = \App\Models\SYSUsuario::all();
+                $usuarios = Usuario::all();
                 foreach($usuarios as $usuario) {
                     $cacheKeys = [
                         "modulos_principales_user_{$usuario->idusuario}",
@@ -343,6 +345,10 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios');
             Route::get('/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones');
             Route::get('/matriz-hilos', [MatrizHilosController::class, 'index'])->name('matriz-hilos');
+            Route::get('/pesos-rollos', [PesosRollosController::class, 'index'])->name('pesos-rollos');
+            Route::post('/pesos-rollos', [PesosRollosController::class, 'store'])->name('pesos-rollos.store');
+            Route::put('/pesos-rollos/{id}', [PesosRollosController::class, 'update'])->name('pesos-rollos.update');
+            Route::delete('/pesos-rollos/{id}', [PesosRollosController::class, 'destroy'])->name('pesos-rollos.destroy');
             // Rutas para Codificación de Modelos (orden específico primero)
             Route::get('/codificacion-modelos', [CodificacionController::class, 'index'])->name('codificacion-modelos');
             Route::get('/codificacion-modelos/create', [CodificacionController::class, 'create'])->name('codificacion.create');
@@ -905,6 +911,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::prefix('urdido')->name('urdido.')->group(function () {
         Route::get('/programar-urdido', [ProgramarUrdidoController::class, 'index'])->name('programar.urdido');
         Route::get('/programar-urdido/ordenes', [ProgramarUrdidoController::class, 'getOrdenes'])->name('programar.urdido.ordenes');
+        Route::get('/programar-urdido/verificar-en-proceso', [ProgramarUrdidoController::class, 'verificarOrdenEnProceso'])->name('programar.urdido.verificar.en.proceso');
         Route::post('/programar-urdido/subir-prioridad', [ProgramarUrdidoController::class, 'subirPrioridad'])->name('programar.urdido.subir.prioridad');
         Route::post('/programar-urdido/bajar-prioridad', [ProgramarUrdidoController::class, 'bajarPrioridad'])->name('programar.urdido.bajar.prioridad');
 
@@ -930,6 +937,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     Route::prefix('engomado')->name('engomado.')->group(function () {
         Route::get('/programar-engomado', [ProgramarEngomadoController::class, 'index'])->name('programar.engomado');
         Route::get('/programar-engomado/ordenes', [ProgramarEngomadoController::class, 'getOrdenes'])->name('programar.engomado.ordenes');
+        Route::get('/programar-engomado/verificar-en-proceso', [ProgramarEngomadoController::class, 'verificarOrdenEnProceso'])->name('programar.engomado.verificar.en.proceso');
         Route::post('/programar-engomado/subir-prioridad', [ProgramarEngomadoController::class, 'subirPrioridad'])->name('programar.engomado.subir.prioridad');
         Route::post('/programar-engomado/bajar-prioridad', [ProgramarEngomadoController::class, 'bajarPrioridad'])->name('programar.engomado.bajar.prioridad');
 
