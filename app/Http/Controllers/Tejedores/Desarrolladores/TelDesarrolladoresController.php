@@ -62,7 +62,7 @@ class TelDesarrolladoresController extends Controller
                 ->where('NoProduccion', '!=', '')
                 ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
                 ->distinct()
-                ->orderBy('NoProduccion')
+                ->orderBy('FechaInicio', 'desc')
                 ->get();
 
             return response()->json([
