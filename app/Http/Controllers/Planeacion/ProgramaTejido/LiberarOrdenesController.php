@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LiberarOrdenesController extends Controller
 {
@@ -59,6 +60,7 @@ class LiberarOrdenesController extends Controller
                 'InventSizeId',
                 'NoExisteBase',
                 'NombreProducto',
+                'TotalPedido',
                 'SaldoPedido',
                 'ProgramarProd',
                 'NoProduccion',
@@ -68,7 +70,12 @@ class LiberarOrdenesController extends Controller
                 'Observaciones',
                 'FechaInicio',
                 'FechaFinal',
-                'Prioridad'
+                'Prioridad',
+                'TipoPedido',
+                'EntregaProduc',
+                'EntregaPT',
+                'EntregaCte',
+                'PTvsCte'
             ])
             ->where(function($query) {
                 $query->whereNull('NoProduccion')
@@ -108,6 +115,13 @@ class LiberarOrdenesController extends Controller
                 }
             });
 
+            // Filtrar solo los registros que tienen fecha INN (ProgramadoCalculado no nulo)
+            // y que NO tengan valor en NoExisteBase
+            $registros = $registros->filter(function($registro) {
+                return $registro->ProgramadoCalculado !== null
+                    && (empty($registro->NoExisteBase) || is_null($registro->NoExisteBase));
+            })->values();
+
             return view('modulos.programa-tejido.liberar-ordenes.index', compact('registros', 'dias'));
         } catch (\Throwable $e) {
             Log::error('Error al cargar liberar órdenes', [
@@ -127,6 +141,8 @@ class LiberarOrdenesController extends Controller
      */
     public function liberar(Request $request)
     {
+        set_time_limit(0);
+
         $data = $request->validate([
             'registros' => 'required|array|min:1',
             'registros.*.id' => 'required|integer|exists:ReqProgramaTejido,Id',
@@ -217,6 +233,70 @@ class LiberarOrdenesController extends Controller
                     'Observaciones',
                     'FechaFinal',
                     'Prioridad',
+                    // Campos de color y combinaciones necesarios para CatCodificados
+                    'CodColorTrama',
+                    'ColorTrama',
+                    'FibraTrama',
+                    'CalibreTrama',
+                    'PesoCrudo',
+                    'Luchaje',
+                    'Peine',
+                    'NoTiras',
+                    'ItemId',
+
+                    'FlogsId',
+                    'LargoCrudo',
+                    'Rasurado',
+                    'MedidaPlano',
+
+                    'CalibreRizo',
+                    'CalibreRizo2',
+                    'CalibrePie',
+                    'CuentaPie',
+                    'FibraPie',
+                    'CalibreComb1',
+                    'CalibreComb12',
+                    'FibraComb1',
+                    'CodColorComb1',
+                    'NombreCC1',
+                    'PasadasComb1',
+                    'CalibreComb2',
+                    'CalibreComb22',
+                    'FibraComb2',
+                    'CodColorComb2',
+                    'NombreCC2',
+                    'PasadasComb2',
+                    'CalibreComb3',
+                    'CalibreComb32',
+                    'FibraComb3',
+                    'CodColorComb3',
+                    'NombreCC3',
+                    'PasadasComb3',
+                    'CalibreComb4',
+                    'CalibreComb42',
+                    'FibraComb4',
+                    'CodColorComb4',
+                    'NombreCC4',
+                    'PasadasComb4',
+                    'CalibreComb5',
+                    'CalibreComb52',
+                    'FibraComb5',
+                    'CodColorComb5',
+                    'NombreCC5',
+                    'PasadasComb5',
+                    'PasadasTrama',
+                    'TotalPedido',
+                    'Produccion',
+                    'SaldoMarbete',
+                    'OrdCompartida',
+                    'OrdCompartidaLider',
+                    'CombinaTram',
+                    'BomId',
+                    'BomName',
+                    'CreaProd',
+                    'HiloAX',
+                    'ActualizaLmat',
+                    'PesoGRM2',
                 ])->find($id);
 
                 if ($registroActualizado) {
@@ -239,7 +319,7 @@ class LiberarOrdenesController extends Controller
             $response = $ordenCambioController->generarExcelDesdeBD($actualizados);
 
             // Si la respuesta es un StreamedResponse, convertirla a base64
-            if ($response instanceof \Symfony\Component\HttpFoundation\StreamedResponse) {
+            if ($response instanceof StreamedResponse) {
                 ob_start();
                 $response->sendContent();
                 $excelBinary = ob_get_clean();

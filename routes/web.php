@@ -6,6 +6,7 @@ use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\Calendario
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatEficiencias\CatalagoEficienciaController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatTelares\CatalagoTelarController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatVelocidades\CatalagoVelocidadController;
+use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatPesosRollos\PesosRollosController;
 use App\Http\Controllers\Tejido\CortesEficiencia\CortesEficienciaController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ColumnasProgramaTejidoController;
@@ -344,6 +345,10 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios');
             Route::get('/aplicaciones', [AplicacionesController::class, 'index'])->name('aplicaciones');
             Route::get('/matriz-hilos', [MatrizHilosController::class, 'index'])->name('matriz-hilos');
+            Route::get('/pesos-rollos', [PesosRollosController::class, 'index'])->name('pesos-rollos');
+            Route::post('/pesos-rollos', [PesosRollosController::class, 'store'])->name('pesos-rollos.store');
+            Route::put('/pesos-rollos/{id}', [PesosRollosController::class, 'update'])->name('pesos-rollos.update');
+            Route::delete('/pesos-rollos/{id}', [PesosRollosController::class, 'destroy'])->name('pesos-rollos.destroy');
             // Rutas para Codificación de Modelos (orden específico primero)
             Route::get('/codificacion-modelos', [CodificacionController::class, 'index'])->name('codificacion-modelos');
             Route::get('/codificacion-modelos/create', [CodificacionController::class, 'create'])->name('codificacion.create');

@@ -962,7 +962,7 @@ class DividirTejido
 
     private static function aplicarStdDesdeCatalogos(ReqProgramaTejido $p): void
     {
-        TejidoHelpers::aplicarStdDesdeCatalogos($p, true, true);
+        TejidoHelpers::aplicarStdDesdeCatalogos($p);
     }
 
     public static function calcularTotalesDividir(Request $request)

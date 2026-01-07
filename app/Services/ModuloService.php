@@ -343,6 +343,8 @@ class ModuloService
             'Matriz Calibres' => '/planeacion/catalogos/matriz-calibres',
             'Matriz Hilos' => '/planeacion/catalogos/matriz-hilos',
             'Codificación Modelos' => '/planeacion/catalogos/codificacion-modelos',
+            'Pesos por Rollos' => '/planeacion/catalogos/pesos-rollos',
+            'Pesos Rollos' => '/planeacion/catalogos/pesos-rollos',
 
             // Submódulos de Programa Tejido
             'Programa Tejido' => '/planeacion/programa-tejido',

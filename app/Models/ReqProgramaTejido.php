@@ -40,7 +40,10 @@ class ReqProgramaTejido extends Model
         'ProdKgDia2','StdToaHra','DiasJornada','HorasProd','StdHrsEfect','Calc4','Calc5','Calc6',
         'EntregaProduc','EntregaPT','EntregaCte','PTvsCte','CreatedAt','UpdatedAt','FibraPie','FechaInicio','FechaFinal',
         'CalibreRizo2','CalibrePie2','CalibreTrama2','CalibreComb1','CalibreComb2','CalibreComb3','CalibreComb4','CalibreComb5',
-        'Prioridad','LargoCrudo','OrdCompartida','CategoriaCalidad','PorcentajeSegundos','PedidoTempo','OrdCompartidaLider','Reprogramar'
+        'Prioridad','LargoCrudo','OrdCompartida','CategoriaCalidad','PorcentajeSegundos','PedidoTempo','OrdCompartidaLider','Reprogramar',
+        'MtsRollo','PzasRollo','TotalRollos','TotalPzas','Repeticiones','CombinaTram','BomId','BomName','CreaProd',
+        'Densidad','HiloAX','ActualizaLmat',
+        'FechaCreacion','HoraCreacion','UsuarioCrea','FechaModificacion','HoraModificacion','UsuarioModifica'
     ];
 
     /**
@@ -114,6 +117,7 @@ class ReqProgramaTejido extends Model
         'EntregaCte' => 'datetime',
 
         'PTvsCte' => 'float',
+        'Densidad' => 'float',
         'CreatedAt' => 'datetime',
         'UpdatedAt' => 'datetime',
         'LargoCrudo' => 'integer',
@@ -122,6 +126,26 @@ class ReqProgramaTejido extends Model
         'CategoriaCalidad' => 'string', // VARCHAR en SQL Server
         'PorcentajeSegundos' => 'float',
         'Reprogramar' => 'string', // CHAR en SQL Server
+
+        // Nuevos campos agregados
+        'MtsRollo' => 'float', // REAL en SQL Server
+        'PzasRollo' => 'float', // REAL en SQL Server
+        'TotalRollos' => 'float', // REAL en SQL Server
+        'TotalPzas' => 'float', // REAL en SQL Server
+        'Repeticiones' => 'float', // REAL en SQL Server
+        'CombinaTram' => 'string', // VARCHAR(60) en SQL Server
+        'BomId' => 'string', // VARCHAR(20) en SQL Server
+        'BomName' => 'string', // VARCHAR(60) en SQL Server
+        'CreaProd' => 'boolean', // BIT DEFAULT 1 en SQL Server
+        'HiloAX' => 'string', // VARCHAR(30) en SQL Server
+        'ActualizaLmat' => 'boolean', // BIT DEFAULT 1 en SQL Server
+        // Campos de auditoría
+        'FechaCreacion' => 'date', // DATE en SQL Server
+        'HoraCreacion' => 'string', // TIME en SQL Server
+        'UsuarioCrea' => 'string', // VARCHAR(50) en SQL Server
+        'FechaModificacion' => 'date', // DATE en SQL Server
+        'HoraModificacion' => 'string', // TIME en SQL Server
+        'UsuarioModifica' => 'string', // VARCHAR(50) en SQL Server
     ];
 
     /* ===========================

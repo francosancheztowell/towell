@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 /**
  * Controlador para gestionar el programa de tejido
  */
@@ -1866,7 +1867,7 @@ class ProgramaTejidoController extends Controller
                 'message' => 'Reprogramar actualizado correctamente',
                 'reprogramar' => $registro->Reprogramar
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Registro no encontrado'

@@ -58,6 +58,7 @@ class CatCodificacionController extends Controller
 
         'RespInicio', 'HrInicio', 'HrTermino', 'MinutosCambio', 'PesoMuestra', 'RegAlinacion',
         'Supervisor', 'OBSParaPro', 'CantidadProducir_2', 'Tejidas', 'pzaXrollo',
+        'MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'CombinaTram', 'BomId', 'BomName', 'CreaProd',
     ];
 
     /**
@@ -186,8 +187,10 @@ class CatCodificacionController extends Controller
             // Construir SELECT con campos específicos (más eficiente que array)
             $columnsStr = implode(', ', array_map(fn($col) => "[{$col}]", $columnas));
 
-            // Consulta directa SIN ordenamiento para máxima velocidad
-            $query = DB::table($table)->selectRaw($columnsStr);
+            // Consulta directa ordenada por Id descendente (más nuevos primero)
+            $query = DB::table($table)
+                ->selectRaw($columnsStr)
+                ->orderByDesc('Id');
 
             // Busqueda directa por Id (index) si se envia ?id=123 (atajo rapido)
             if ($idFilter !== null) {

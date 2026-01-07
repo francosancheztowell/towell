@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa;
 use App\Http\Controllers\Controller;
 use App\Models\ReqProgramaTejido;
 use App\Models\ReqModelosCodificados;
+use App\Models\catcodificados\CatCodificados;
+use App\Models\Planeacion\Catalogos\ReqPesosRollosTejido;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Drawing as SharedDrawing;
@@ -14,9 +17,12 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 class OrdenDeCambioFelpaController extends Controller
 {
+    /** Cache simple para modelos codificados (TamanoClave|SalonTejidoId). */
+    private static array $modeloCodificadoCache = [];
+
     /**
      * Generar Excel de Orden de Cambio de Modelo desde datos de la BD.
      * Usado cuando se libera una ordeddn desde LiberarOrdenesController.
@@ -42,7 +48,56 @@ class OrdenDeCambioFelpaController extends Controller
                 /** @var ReqProgramaTejido $registro */
                 $datosRegistro = $this->mapearDatosBDaRegistro($registro, $horaActual);
 
+                // Calcular repeticiones y no_marbetes usando las mismas fórmulas que Excel
+                // AX = TRUNCAR((41.5/S)/AW*1000) donde S es p_crudo y AW es tiras
+                $pCrudo = $datosRegistro['p_crudo'] ?? $registro->PesoCrudo ?? null;
+                $tiras = $datosRegistro['tiras'] ?? $registro->NoTiras ?? null;
+                $repeticionesCalculada = '';
+                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
+                    $repeticionesCalculada = (string) floor(((41.5 / (float)$pCrudo) / (float)$tiras) * 1000);
+                }
+
+                // AY = TRUNCAR(O/AW/AX) donde O es cantidad_producir, AW es tiras, AX es repeticiones
+                $cantidadProducir = $datosRegistro['cantidad_producir'] ?? $registro->SaldoPedido ?? null;
+                $noMarbetesCalculado = '';
+                if ($cantidadProducir && $tiras && $repeticionesCalculada &&
+                    is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticionesCalculada) &&
+                    $tiras > 0 && $repeticionesCalculada > 0) {
+                    $noMarbetesCalculado = (string) floor((float)$cantidadProducir / (float)$tiras / (float)$repeticionesCalculada);
+                }
+
+                // Actualizar datosRegistro con los valores calculados
+                $datosRegistro['repeticiones'] = $repeticionesCalculada;
+                $datosRegistro['no_marbetes'] = $noMarbetesCalculado;
+
+                // Calcular mts_rollo y toallas_rollo usando repeticiones calculada
+                $largo = $datosRegistro['largo'] ?? $registro->LargoToalla ?? $registro->AnchoToalla ?? $registro->LargoCrudo ?? '';
+                $mtsRollo = '';
+                if (!empty($largo) && !empty($repeticionesCalculada) && is_numeric($repeticionesCalculada)) {
+                    $largoNum = (float) str_replace([' Cms.', 'Cms.', 'cm', 'CM'], '', (string) $largo);
+                    $repNum = (float) $repeticionesCalculada;
+                    if ($largoNum > 0 && $repNum > 0) {
+                        $mtsRollo = (string) round($largoNum * $repNum / 100, 2);
+                    }
+                }
+                $datosRegistro['mts_rollo'] = $mtsRollo;
+                $datosRegistro['programa_corte_rollo'] = $mtsRollo;
+
+                $toallasRollo = '';
+                if (!empty($repeticionesCalculada) && !empty($tiras) && is_numeric($repeticionesCalculada) && is_numeric($tiras)) {
+                    $repNum = (float) $repeticionesCalculada;
+                    $tirasNum = (float) $tiras;
+                    if ($repNum > 0 && $tirasNum > 0) {
+                        $toallasRollo = (string) round($repNum * $tirasNum, 0);
+                    }
+                }
+                $datosRegistro['toallas_rollo'] = $toallasRollo;
+
+                // Llenar la fila en REGISTRO con las fórmulas y valores calculados
                 $this->llenarFilaRegistroDesdeBD($spreadsheet, $datosRegistro, $filaRegistro);
+
+                // Crear registro en CatCodificados con los valores de las fórmulas
+                $this->crearOActualizarModeloCodificado($registro, $datosRegistro);
 
                 $registrosParaFormato[] = [
                     'fila'  => $filaRegistro,
@@ -91,7 +146,7 @@ class OrdenDeCambioFelpaController extends Controller
                 $nuevaHoja->setTitle($nombreHoja);
 
                 // Llenar fórmulas que referencian a REGISTRO
-                $this->llenarFormatoEnHoja($nuevaHoja, $filaRegistro, $tipoFormato, $indice + 1);
+                $this->llenarFormatoEnHoja($nuevaHoja, $filaRegistro, $tipoFormato, $indice + 1, $registroBD);
             }
 
             // 7) Eliminar hoja plantilla original
@@ -224,7 +279,7 @@ class OrdenDeCambioFelpaController extends Controller
     /**
      * Llenar formato (talón) en una hoja específica con fórmulas que referencian REGISTRO.
      */
-    protected function llenarFormatoEnHoja(Worksheet $sheet, int $filaRegistro, string $tipoFormato, int $talonNumero): void
+    protected function llenarFormatoEnHoja(Worksheet $sheet, int $filaRegistro, string $tipoFormato, int $talonNumero, ?ReqProgramaTejido $registroBD = null): void
     {
         // Hora impresión
         $this->establecerFormulaCelda($sheet, 'D5', '=NOW()');
@@ -324,6 +379,7 @@ class OrdenDeCambioFelpaController extends Controller
             '=(K17*REGISTRO!R' . $filaRegistro . ')/100'
         );
 
+
         // Cenefa
         $this->establecerFormulaCelda($sheet, 'C17', '=REGISTRO!AT' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'D17', '=REGISTRO!AT' . $filaRegistro);
@@ -344,6 +400,36 @@ class OrdenDeCambioFelpaController extends Controller
         // Velocidad / tiras
         $this->establecerFormulaCelda($sheet, 'H19', '=REGISTRO!AC' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'M19', '=REGISTRO!AW' . $filaRegistro);
+
+        // Establecer fórmulas en O2, S2, AW2, AX2, AY5
+        $this->establecerFormulaCelda($sheet, 'O2', '=REGISTRO!O' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'S2', '=REGISTRO!S' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'AW2', '=REGISTRO!AW' . $filaRegistro);
+
+        // AX2 y AY5 usan directamente REGISTRO!AX y REGISTRO!AY que tienen fórmulas calculadas
+        $formulaAX2 = '=REGISTRO!AX' . $filaRegistro;
+        $formulaAY5 = '=REGISTRO!AY' . $filaRegistro;
+
+        // Forzar inserción de fórmulas AX2 y AY5
+        try {
+            $cellAX2 = $sheet->getCell('AX2');
+            $estiloAX2 = $cellAX2->getStyle();
+            $estiloDataAX2 = $estiloAX2->exportArray();
+            $cellAX2->setValueExplicit($formulaAX2, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_FORMULA);
+            $estiloAX2->applyFromArray($estiloDataAX2);
+        } catch (\Exception $e) {
+            $this->establecerFormulaCelda($sheet, 'AX2', $formulaAX2);
+        }
+
+        try {
+            $cellAY5 = $sheet->getCell('AY5');
+            $estiloAY5 = $cellAY5->getStyle();
+            $estiloDataAY5 = $estiloAY5->exportArray();
+            $cellAY5->setValueExplicit($formulaAY5, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_FORMULA);
+            $estiloAY5->applyFromArray($estiloDataAY5);
+        } catch (\Exception $e) {
+            $this->establecerFormulaCelda($sheet, 'AY5', $formulaAY5);
+        }
 
         // Plano de dobladillo (fórmulas)
         $this->establecerPlanoDobladilloFormulas($sheet, $filaRegistro);
@@ -458,26 +544,7 @@ class OrdenDeCambioFelpaController extends Controller
 
                 $destCell = $hojaDestino->getCell($col . $row);
 
-                if (is_string($value) && strpos($value, '=') === 0) {
-                    // Fórmula
-                    $tieneReferenciaRegistro =
-                        stripos($value, 'REGISTRO') !== false ||
-                        preg_match('/\[.*\]REGISTRO/i', $value) ||
-                        preg_match('/[\'"]?REGISTRO[\'"]?!/i', $value);
-
-                    if ($tieneReferenciaRegistro) {
-                        try {
-                            $calculatedValue = $cell->getCalculatedValue();
-                            $destCell->setValue($calculatedValue !== null ? $calculatedValue : '');
-                        } catch (\Exception $e) {
-                            $destCell->setValue('');
-                        }
-                    } else {
-                        $destCell->setValue($value);
-                    }
-                } else {
-                    $destCell->setValue($value);
-                }
+                $destCell->setValue($value);
 
                 $destCell->getStyle()->applyFromArray($styleArray);
             }
@@ -712,6 +779,7 @@ class OrdenDeCambioFelpaController extends Controller
             'tiras_final'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CO'),
             'pasadastotal'         => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CQ'),
             'folio_codificacion'   => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CR'),
+            'peso_rollo'           => $this->obtenerPesoRolloDesdeRegistro($worksheet, $filaAUsar),
 
             // Campos extra para compatibilidad con código
             'clave_sistema'        => $this->obtenerValorCelda($worksheet, $filaAUsar, 'H')
@@ -786,7 +854,7 @@ class OrdenDeCambioFelpaController extends Controller
 
         if (is_numeric($fecha)) {
             try {
-                $fechaPhp = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($fecha);
+                $fechaPhp = Date::excelToDateTimeObject($fecha);
                 return $fechaPhp->format('d-m-Y');
             } catch (\Exception $e) {
                 return (string) $fecha;
@@ -937,6 +1005,7 @@ class OrdenDeCambioFelpaController extends Controller
             'CP' => 'TIRAS (dup)',
             'CQ' => 'PASADAS (total)',
             'CR' => 'FOLIO CODIFICACION',
+            'CS' => 'Peso Rollo',
         ];
 
         foreach ($encabezados as $columna => $titulo) {
@@ -1097,10 +1166,11 @@ class OrdenDeCambioFelpaController extends Controller
         }
 
         // Metros de rollo y toallas por rollo
-        // Usar datos de ReqModelosCodificados si están disponibles
-        $largo        = $modeloCodificado?->LargoToalla ?? $registro->LargoToalla ?? $registro->AnchoToalla ?? $registro->LargoCrudo ?? '';
-        $repeticiones = $modeloCodificado?->Repeticiones ?? $registro->NoTiras ?? 2;
-        $tiras        = $modeloCodificado?->NoTiras ?? $registro->NoTiras ?? 2;
+        // Usar datos de ReqProgramaTejido (NO de ReqModelosCodificados)
+        $largo        = $registro->LargoToalla ?? $registro->AnchoToalla ?? $registro->LargoCrudo ?? '';
+        // Repeticiones y NoMarbetes se calcularán desde las fórmulas del Excel, no desde BD
+        $repeticiones = ''; // Se calculará desde fórmula AX
+        $tiras        = $registro->NoTiras ?? 2;
 
         $mtsRollo = '';
         if (!empty($largo) && !empty($repeticiones)) {
@@ -1138,7 +1208,7 @@ class OrdenDeCambioFelpaController extends Controller
             'cantidad_producir'    => $registro->SaldoPedido ?? '',
             'peine'                => $modeloCodificado?->Peine ?? $registro->Peine ?? '',
             'ancho'                => ($modeloCodificado?->AnchoToalla ?? $registro->Ancho) ? (($modeloCodificado?->AnchoToalla ?? $registro->Ancho) . ' Cms.') : '',
-            'largo'                => $largo,
+            'largo'                => $modeloCodificado?->LargoToalla ?? $registro->LargoToalla ?? '',
             'p_crudo'              => $modeloCodificado?->PesoCrudo ?? $registro->PesoCrudo ?? '',
             'luchaje'              => $modeloCodificado?->Luchaje ?? $registro->Luchaje ?? '',
             'tra'                  => $modeloCodificado?->CalibreTrama ?? $registro->Tra ?? '',
@@ -1168,10 +1238,10 @@ class OrdenDeCambioFelpaController extends Controller
             'obs_c4'               => $modeloCodificado?->Obs4 ?? '',
             'med_cenefa'           => $modeloCodificado?->MedidaCenefa ?? '',
             'med_inicio_rizo_cenefa' => $modeloCodificado?->MedIniRizoCenefa ?? '',
-            'rasurada'             => $modeloCodificado?->Rasurado ?? $registro->Rasurado ?? 'NO',
+            'rasurada'             => $registro->Rasurado ?? 'NO',
             'tiras'                => $tiras,
-            'repeticiones'         => $repeticiones,
-            'no_marbetes'          => $modeloCodificado?->TotalMarbetes ?? $registro->SaldoMarbete ?? '',
+            'repeticiones'         => $repeticiones, // Se calculará desde fórmula AX después
+            'no_marbetes'          => '', // Se calculará desde fórmula AY después
             'cambio_repaso'        => $modeloCodificado?->CambioRepaso ?? $registro->CambioHilo ?? 'NO',
             'vendedor'             => $modeloCodificado?->Vendedor ?? '',
             'no_orden'             => $registro->NoProduccion ?? '',
@@ -1216,11 +1286,84 @@ class OrdenDeCambioFelpaController extends Controller
             'tiras_final'          => $tiras,
             'pasadastotal'         => $modeloCodificado?->PASADAS ?? '',
             'folio_codificacion'   => $registro->NoProduccion ?? '',
+            'peso_rollo'           => $this->obtenerPesoRolloDesdeBD($registro) ?? 0,
             'hora_impresion'       => $horaActual,
             'mts_rollo'            => $mtsRollo,
             'programa_corte_rollo' => $mtsRollo,
             'toallas_rollo'        => $toallasRollo,
         ];
+    }
+
+    /**
+     * Obtener PesoRollo desde REGISTRO, si está vacío calcularlo desde BD usando ItemId.
+     */
+    protected function obtenerPesoRolloDesdeRegistro(Worksheet $worksheet, int $fila): ?float
+    {
+        try {
+            // Primero intentar leer desde la columna CS
+            $pesoRollo = $this->obtenerValorCelda($worksheet, $fila, 'CS');
+
+            if (!empty($pesoRollo) && is_numeric($pesoRollo)) {
+                return (float) $pesoRollo;
+            }
+
+            // Si está vacío, calcularlo desde BD usando ItemId (columna I)
+            $itemId = trim($this->obtenerValorCelda($worksheet, $fila, 'I'));
+
+            if (!empty($itemId)) {
+                $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
+                    ->orderBy('Id')
+                    ->first();
+
+                if ($pesoRollo && $pesoRollo->PesoRollo) {
+                    return (float) $pesoRollo->PesoRollo;
+                }
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Obtener PesoRollo desde ReqPesosRolloTejido usando ItemId e InventSizeId desde datos de BD.
+     */
+    protected function obtenerPesoRolloDesdeBD(ReqProgramaTejido $registro): ?float
+    {
+        try {
+            $itemId = trim($registro->ItemId ?? '');
+            $inventSizeId = trim($registro->InventSizeId ?? '');
+
+            // Buscar por ItemId e InventSizeId si ambos están disponibles
+            if (!empty($itemId) && !empty($inventSizeId)) {
+                $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
+                    ->where('InventSizeId', $inventSizeId)
+                    ->first();
+
+                if ($pesoRollo && $pesoRollo->PesoRollo !== null) {
+                    return (float) $pesoRollo->PesoRollo;
+                }
+            }
+
+            // Si no se encuentra con ambos, buscar solo por ItemId
+            if (!empty($itemId)) {
+                $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
+                    ->orderBy('Id')
+                    ->first();
+                if ($pesoRollo && $pesoRollo->PesoRollo !== null) {
+                    return (float) $pesoRollo->PesoRollo;
+                }
+            }
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Error al obtener PesoRollo desde BD', [
+                'item_id' => $registro->ItemId ?? '',
+                'invent_size_id' => $registro->InventSizeId ?? '',
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 
     /**
@@ -1237,6 +1380,11 @@ class OrdenDeCambioFelpaController extends Controller
                 return null;
             }
 
+            $cacheKey = strtoupper(trim((string)$tamanoClave)) . '|' . strtoupper(trim((string)$salonTejidoId));
+            if (array_key_exists($cacheKey, self::$modeloCodificadoCache)) {
+                return self::$modeloCodificadoCache[$cacheKey];
+            }
+
             $query = ReqModelosCodificados::query();
 
             if (!empty($tamanoClave)) {
@@ -1248,14 +1396,229 @@ class OrdenDeCambioFelpaController extends Controller
             }
 
             // Ordenar por fecha más reciente para obtener el modelo más actualizado
-            return $query->orderByDesc('FechaTejido')->first();
+            $modelo = $query->orderByDesc('FechaTejido')->first();
+            self::$modeloCodificadoCache[$cacheKey] = $modelo;
+            return $modelo;
         } catch (\Exception $e) {
-            Log::warning('Error al obtener modelo codificado', [
+            return null;
+        }
+    }
+
+    /**
+     * Crear nuevo registro en CatCodificados con los datos del registro seleccionado.
+     * Solo crea nuevos registros, no actualiza existentes.
+     */
+    protected function crearOActualizarModeloCodificado(ReqProgramaTejido $registro, array $datosRegistro): void
+    {
+        try {
+            $tamanoClave = $registro->TamanoClave ?? '';
+            $salonTejidoId = $registro->SalonTejidoId ?? '';
+
+            if (empty($tamanoClave) && empty($salonTejidoId)) {
+                return;
+            }
+
+            // Siempre crear nuevo registro, sin verificar duplicados
+            $catCodificado = new CatCodificados();
+
+            // Mapear datos desde ReqProgramaTejido y datosRegistro a CatCodificados
+            $catCodificado->OrdenTejido = $registro->NoProduccion ?? null;
+
+            // Fechas - usar setAttribute para que Laravel maneje el cast correctamente
+            if ($registro->ProgramarProd) {
+                $fechaTejido = $registro->ProgramarProd instanceof \Carbon\Carbon
+                    ? $registro->ProgramarProd
+                    : \Carbon\Carbon::parse($registro->ProgramarProd);
+                $catCodificado->setAttribute('FechaTejido', $fechaTejido);
+            } else {
+                $catCodificado->setAttribute('FechaTejido', now());
+            }
+
+            if ($registro->FechaFinal) {
+                $fechaFinal = $registro->FechaFinal instanceof \Carbon\Carbon
+                    ? $registro->FechaFinal
+                    : \Carbon\Carbon::parse($registro->FechaFinal);
+                $catCodificado->setAttribute('FechaCumplimiento', $fechaFinal);
+                $catCodificado->setAttribute('FechaCompromiso', $fechaFinal);
+            } else {
+                $catCodificado->FechaCumplimiento = null;
+                $catCodificado->FechaCompromiso = null;
+            }
+
+
+
+            $catCodificado->Departamento = $salonTejidoId;
+            $catCodificado->TelarId = $registro->NoTelarId ?? null;
+            $catCodificado->Prioridad = $registro->Prioridad ?? null;
+            $catCodificado->Nombre = $registro->NombreProducto ?? $registro->NombreProyecto ?? null;
+            $catCodificado->ClaveModelo = $tamanoClave;
+            $catCodificado->ItemId = $registro->ItemId ?? null;
+            $catCodificado->InventSizeId = $registro->InventSizeId ?? null;
+            $catCodificado->Tolerancia = $registro->Tolerancia ?? null;
+            $catCodificado->CodigoDibujo = $registro->CodigoDibujo ?? null;
+            $catCodificado->FlogsId = $registro->FlogsId ?? null;
+            $catCodificado->NombreProyecto = $registro->NombreProyecto ?? null;
+            $catCodificado->Clave = $tamanoClave;
+            $catCodificado->Cantidad = $registro->SaldoPedido ?? null;
+            $catCodificado->Peine = $registro->Peine ?? null;
+
+            // Ancho desde ancho (quitar " Cms." si existe)
+            $ancho = $datosRegistro['ancho'] ?? $registro->Ancho ?? null;
+            if ($ancho) {
+                $anchoNum = (int) str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string) $ancho);
+                $catCodificado->Ancho = $anchoNum ?: null;
+            }
+
+            // Largo desde LargoCrudo según mapeo
+            $largo = $registro->LargoCrudo ?? null;
+            if ($largo) {
+                $largoNum = is_numeric($largo) ? (int) $largo : (int) str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string) $largo);
+                $catCodificado->Largo = $largoNum ?: null;
+            }
+
+            $catCodificado->P_crudo = $registro->PesoCrudo ?? null;
+            $catCodificado->Luchaje = $registro->Luchaje ?? null;
+            $catCodificado->Tra = $registro->CalibreTrama ?? null;
+            $catCodificado->CalibreTrama2 = $registro->CalibreTrama ?? null;
+            // Campos de color de trama - asignar directamente desde ReqProgramaTejido
+            $catCodificado->CodColorTrama = $registro->CodColorTrama;
+            $catCodificado->ColorTrama = $registro->ColorTrama;
+            $catCodificado->FibraId = $registro->FibraTrama ?? null;
+            $catCodificado->DobladilloId = $registro->DobladilloId ?? null;
+            $catCodificado->MedidaPlano = $registro->MedidaPlano ?? null;
+            $catCodificado->TipoRizo = $registro->TipoRizo ?? null;
+            $catCodificado->AlturaRizo = null;
+            $catCodificado->Obs = $registro->Observaciones ?? null;
+            $catCodificado->VelocidadSTD = $registro->VelocidadSTD ?? null;
+            $catCodificado->EficienciaSTD = $registro->EficienciaSTD ?? null;
+            $catCodificado->CalibreRizo = $registro->CalibreRizo ?? null;
+            $catCodificado->CalibreRizo2 = $registro->CalibreRizo2 ?? null;
+            $catCodificado->CuentaRizo = $registro->CuentaRizo ?? null;
+            $catCodificado->FibraRizo = $registro->FibraRizo ?? null;
+            $catCodificado->CalibrePie = $registro->CalibrePie ?? null;
+            $catCodificado->CalibrePie2 = $registro->CalibrePie2 ?? null;
+            $catCodificado->CuentaPie = $registro->CuentaPie ?? null;
+            $catCodificado->FibraPie = $registro->FibraPie ?? null;
+            $catCodificado->Comb1 = $registro->CalibreComb1 ?? null;
+            $catCodificado->Obs1 = null;
+            $catCodificado->Comb2 = $registro->CalibreComb2 ?? null;
+            $catCodificado->Obs2 = null;
+            $catCodificado->Comb3 = $registro->CalibreComb3 ?? null;
+            $catCodificado->Obs3 = null;
+            $catCodificado->Comb4 = $registro->CalibreComb4 ?? null;
+            $catCodificado->Obs4 = null;
+            $catCodificado->MedidaCenefa = null;
+            $catCodificado->MedIniRizoCenefa = null;
+            $catCodificado->Razurada = $registro->Rasurado ?? 'NO';
+            $catCodificado->NoTiras = $datosRegistro['tiras'] ?? $registro->NoTiras ?? null;
+
+            // Repeticiones viene de la fórmula AX (TRUNCAR((41.5/S)/AW*1000)) calculada en el Excel
+            // Debe venir de $datosRegistro que ya tiene el valor calculado de la fórmula
+            $repeticiones = isset($datosRegistro['repeticiones']) && is_numeric($datosRegistro['repeticiones'])
+                ? (int) $datosRegistro['repeticiones']
+                : null;
+            $catCodificado->Repeticiones = $repeticiones;
+
+            // NoMarbete viene de la fórmula AY (TRUNCAR(O/AW/AX)) calculada en el Excel
+            // Debe venir de $datosRegistro que ya tiene el valor calculado de la fórmula
+            $noMarbete = isset($datosRegistro['no_marbetes']) && is_numeric($datosRegistro['no_marbetes'])
+                ? (float) $datosRegistro['no_marbetes']
+                : null;
+            $catCodificado->NoMarbete = $noMarbete;
+            $catCodificado->CambioRepaso = $registro->CambioHilo ?? 'NO';
+            $catCodificado->Vendedor = null;
+            $catCodificado->NoOrden = $registro->NoProduccion ?? null;
+            $catCodificado->Obs5 = $registro->Observaciones ?? null;
+            $catCodificado->TramaAnchoPeine = $registro->Ancho ?? null;
+            $catCodificado->LogLuchaTotal = null;
+            $catCodificado->CalTramaFondoC1 = null;
+            $catCodificado->CalTramaFondoC12 = null;
+            $catCodificado->FibraTramaFondoC1 = null;
+            // PasadasTrama desde ReqProgramaTejido según mapeo de imagen
+            $catCodificado->PasadasTramaFondoC1 = $registro->PasadasTrama ?? null;
+
+            // Campos de combinaciones según mapeo
+            // Combinación 1 - asignar directamente desde ReqProgramaTejido
+            $catCodificado->CalibreComb1 = $registro->CalibreComb1 ?? null;
+            $catCodificado->CalibreComb12 = $registro->CalibreComb12 ?? null;
+            $catCodificado->FibraComb1 = $registro->FibraComb1;
+            $catCodificado->CodColorC1 = $registro->CodColorComb1;
+            $catCodificado->NomColorC1 = $registro->NombreCC1;
+            $catCodificado->PasadasComb1 = $registro->PasadasComb1 ?? null;
+
+            // Combinación 2 - asignar directamente desde ReqProgramaTejido
+            $catCodificado->CalibreComb2 = $registro->CalibreComb2 ?? null;
+            $catCodificado->CalibreComb22 = $registro->CalibreComb22 ?? null;
+            $catCodificado->FibraComb2 = $registro->FibraComb2;
+            $catCodificado->CodColorC2 = $registro->CodColorComb2;
+            $catCodificado->NomColorC2 = $registro->NombreCC2;
+            $catCodificado->PasadasComb2 = $registro->PasadasComb2 ?? null;
+
+            // Combinación 3 - asignar directamente desde ReqProgramaTejido
+            $catCodificado->CalibreComb3 = $registro->CalibreComb3 ?? null;
+            $catCodificado->CalibreComb32 = $registro->CalibreComb32 ?? null;
+            $catCodificado->FibraComb3 = $registro->FibraComb3;
+            $catCodificado->CodColorC3 = $registro->CodColorComb3;
+            $catCodificado->NomColorC3 = $registro->NombreCC3;
+            $catCodificado->PasadasComb3 = $registro->PasadasComb3 ?? null;
+
+            // Combinación 4 - asignar directamente desde ReqProgramaTejido
+            $catCodificado->CalibreComb4 = $registro->CalibreComb4 ?? null;
+            $catCodificado->CalibreComb42 = $registro->CalibreComb42 ?? null;
+            $catCodificado->FibraComb4 = $registro->FibraComb4;
+            $catCodificado->CodColorC4 = $registro->CodColorComb4;
+            $catCodificado->NomColorC4 = $registro->NombreCC4;
+            $catCodificado->PasadasComb4 = $registro->PasadasComb4 ?? null;
+
+            // Combinación 5 - asignar directamente desde ReqProgramaTejido
+            $catCodificado->CalibreComb5 = $registro->CalibreComb5 ?? null;
+            $catCodificado->CalibreComb52 = $registro->CalibreComb52 ?? null;
+            $catCodificado->FibraComb5 = $registro->FibraComb5;
+            $catCodificado->CodColorC5 = $registro->CodColorComb5;
+            $catCodificado->NomColorC5 = $registro->NombreCC5;
+            $catCodificado->PasadasComb5 = $registro->PasadasComb5 ?? null;
+
+            $catCodificado->Total = null; // No disponible en ReqProgramaTejido
+            $catCodificado->Densidad = $registro->PesoGRM2 ?? null;
+            $catCodificado->Pedido = $registro->TotalPedido ?? null;
+            $catCodificado->Produccion = $registro->Produccion ?? null;
+            $catCodificado->Saldos = $registro->SaldoPedido ?? null;
+            $catCodificado->OrdCompartida = $registro->OrdCompartida ?? null;
+            $catCodificado->OrdCompartidaLider = $registro->OrdCompartidaLider ?? null;
+
+            // Campos de rollos desde datosRegistro
+            $catCodificado->MtsRollo = isset($datosRegistro['mts_rollo']) && is_numeric($datosRegistro['mts_rollo']) ? (float) $datosRegistro['mts_rollo'] : null;
+            $catCodificado->PzasRollo = isset($datosRegistro['toallas_rollo']) && is_numeric($datosRegistro['toallas_rollo']) ? (float) $datosRegistro['toallas_rollo'] : null;
+            $catCodificado->TotalRollos = null; // No disponible
+            $catCodificado->TotalPzas = null; // No disponible
+            $catCodificado->CombinaTram = $registro->CombinaTram ?? null;
+            $catCodificado->BomId = $registro->BomId ?? null;
+            $catCodificado->BomName = $registro->BomName ?? null;
+            $catCodificado->CreaProd = $registro->CreaProd ?? null;
+            $catCodificado->HiloAX = $registro->HiloAX ?? null;
+            $catCodificado->ActualizaLmat = $registro->ActualizaLmat ?? null;
+
+            // Campos de auditoría
+            $usuario = Auth::check() && Auth::user() ? Auth::user()->name : 'Sistema';
+            $fechaActual = now();
+            $catCodificado->setAttribute('FechaCreacion', $fechaActual);
+            $catCodificado->HoraCreacion = $fechaActual->format('H:i:s');
+            $catCodificado->UsuarioCrea = $usuario;
+            $catCodificado->setAttribute('FechaModificacion', $fechaActual);
+            $catCodificado->HoraModificacion = $fechaActual->format('H:i:s');
+            $catCodificado->UsuarioModifica = $usuario;
+
+            $catCodificado->save();
+
+
+        } catch (\Exception $e) {
+            Log::error('Error al crear registro en CatCodificados', [
                 'tamano_clave' => $registro->TamanoClave ?? '',
                 'salon_tejido_id' => $registro->SalonTejidoId ?? '',
+                'orden_tejido' => $registro->NoProduccion ?? '',
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
-            return null;
         }
     }
 
@@ -1373,11 +1736,35 @@ class OrdenDeCambioFelpaController extends Controller
             'CO' => 'tiras_final',
             'CQ' => 'pasadastotal',
             'CR' => 'folio_codificacion',
+            'CS' => 'peso_rollo',
         ];
 
         foreach ($mapeo as $columna => $campo) {
+            // AX y AY deben llenarse con fórmulas, no con valores directos
+            if ($columna === 'AX') {
+                // AX = Repeticiones p/corte: TRUNCAR((41.5/S)/AW*1000)
+                $formulaAX = '=IFERROR(TRUNC((41.5/S' . $fila . ')/AW' . $fila . '*1000,0),0)';
+                $worksheet->setCellValue($columna . $fila, $formulaAX);
+            } elseif ($columna === 'AY') {
+                // AY = No. De Marbetes: TRUNCAR(O/AW/AX)
+                $formulaAY = '=IFERROR(TRUNC(O' . $fila . '/AW' . $fila . '/AX' . $fila . ',0),0)';
+                $worksheet->setCellValue($columna . $fila, $formulaAY);
+            } else {
+                // Para las demás columnas, establecer valores directos
             $valor = $datos[$campo] ?? '';
+            // Para peso_rollo, asegurar que sea numérico
+            if ($campo === 'peso_rollo') {
+                if ($valor === null || $valor === '') {
+                    $valor = 0;
+                } elseif (is_numeric($valor)) {
+                    $valor = (float) $valor;
+                } else {
+                    // Si no es numérico, intentar convertir o usar 0
+                    $valor = is_numeric($valor) ? (float) $valor : 0;
+                }
+            }
             $worksheet->setCellValue($columna . $fila, $valor);
+            }
 
             $style = $worksheet->getStyle($columna . $fila);
             $style->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
