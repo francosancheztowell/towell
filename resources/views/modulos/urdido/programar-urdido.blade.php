@@ -29,6 +29,15 @@
             text="Cargar"
             bg="bg-blue-500"
         />
+        <x-navbar.button-create
+            onclick="editarOrdenes()"
+            title="Editar Órdenes"
+            icon="fa-pen-to-square"
+            iconColor="text-white"
+            hoverBg="hover:bg-yellow-600"
+            text="Editar"
+            bg="bg-yellow-600"
+        />
     </div>
 @endsection
 
@@ -60,6 +69,7 @@
                                         <th class="{{ $thBaseClasses }}">Calibre</th>
                                         <th class="{{ $thBaseClasses }}">Metros</th>
                                         <th class="{{ $thBaseClasses }}">Status</th>
+                                        <th class="{{ $thBaseClasses }}">Observaciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="mcCoy{{ $i }}TableBody" class="bg-white">
@@ -112,7 +122,7 @@
                     icon,
                     title,
                     showConfirmButton: false,
-                    timer: 2000,
+                    timer: 800,
                 });
             };
 
@@ -212,6 +222,17 @@
                             <td class="${baseTd}">${orden.calibre || ''}</td>
                             <td class="${baseTd}">${metros}</td>
                             <td class="${baseTd}">${orden.status}</td>
+                            <td class="${baseTd} p-0">
+                                <input
+                                    type="text"
+                                    class="w-full h-9 px-2 py-0 border-0 outline-none bg-transparent focus:bg-blue-50 ${isSelected ? 'text-white focus:text-gray-900' : 'text-gray-900'}"
+                                    value="${orden.observaciones || ''}"
+                                    data-orden-id="${orden.id}"
+                                    onblur="guardarObservaciones(event, ${orden.id})"
+                                    onkeydown="if(event.key === 'Enter') event.target.blur()"
+                                    placeholder="Escriba observaciones..."
+                                />
+                            </td>
                         </tr>
                     `;
                 }).join('');
