@@ -605,10 +605,7 @@ class RequerimientoController extends Controller
                         ->where('folio', $row['folio'])
                         ->update($payload);
 
-                    Log::info('urdido_engomado actualizado', [
-                        'folio'   => $row['folio'],
-                        'updates' => $payload,
-                    ]);
+
                 }
             });
             /* ====== FIN EXTRA ====== */
@@ -1524,10 +1521,10 @@ class RequerimientoController extends Controller
                         'localidad'   => $inv['wmslocationid']    ?? null,
                         'serie'       => $inv['inventserialid']   ?? null,
 
-                        'conos'       => isset($inv['tiras']) ? (float)$inv['tiras'] : null,
                         'lote_provee' => $inv['calidad'] ?? null,
                         'provee'      => $inv['cliente'] ?? null,
                         'entrada'     => $fecha,
+                        'conos'       => isset($inv['tiras']) ? (float)$inv['tiras'] : null,
                         'kilos'       => isset($inv['physicalinvent']) ? (float)$inv['physicalinvent'] : null,
 
                         'created_at'  => $now,

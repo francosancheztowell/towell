@@ -529,7 +529,16 @@ class ReservarProgramarController extends Controller
             // Programas + líneas (eager) - Seleccionar campos específicos de ReqProgramaTejidoLine
             $programas = ReqProgramaTejido::whereIn('NoTelarId', $noTelares)
                 ->with(['lineas' => function($query) use ($fechaIni, $fechaFin) {
-                    $query->select('Id', 'ProgramaId', 'Fecha', 'Kilos', 'MtsRizo', 'MtsPie')
+                    // Usar DB::raw para asegurar que SQL Server reconozca los nombres de columna
+                    $query->select([
+                        'Id',
+                        'ProgramaId',
+                        'Fecha',
+                        DB::raw('[Pie] as Pie'),
+                        DB::raw('[Rizo] as Rizo'),
+                        'MtsRizo',
+                        'MtsPie'
+                    ])
                           ->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$fechaIni])
                           ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fechaFin])
                           ->orderBy('Fecha');
@@ -762,12 +771,14 @@ class ReservarProgramarController extends Controller
                 $fibraRizoRaw = $programa->FibraRizo ?? null;
                 $hilo         = ($fibraRizoRaw !== null && trim((string)$fibraRizoRaw) !== '') ? trim((string)$fibraRizoRaw) : '';
                 $campoMetros  = 'MtsRizo';
+                $campoKilos   = 'Rizo'; // Para RIZO usar columna Rizo
             } else {
                 $cuenta       = trim((string)($programa->CuentaPie ?? ''));
                 $calibre      = $programa->CalibrePie ?? null;
                 $fibraPieRaw  = $programa->FibraPie ?? null;
                 $hilo         = ($fibraPieRaw !== null && trim((string)$fibraPieRaw) !== '') ? trim((string)$fibraPieRaw) : '';
                 $campoMetros  = 'MtsPie';
+                $campoKilos   = 'Pie'; // Para PIE usar columna Pie
             }
 
             if ($cuenta === '') continue;
@@ -808,7 +819,15 @@ class ReservarProgramarController extends Controller
                 } else {
                     if ($fechaIni && $fechaFin) {
                         $lineas = $programa->lineas()
-                            ->select('Id', 'ProgramaId', 'Fecha', 'Kilos', 'MtsRizo', 'MtsPie')
+                            ->select([
+                                'Id',
+                                'ProgramaId',
+                                'Fecha',
+                                DB::raw('[Pie] as Pie'),
+                                DB::raw('[Rizo] as Rizo'),
+                                'MtsRizo',
+                                'MtsPie'
+                            ])
                             ->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$fechaIni])
                             ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fechaFin])
                             ->orderBy('Fecha')
@@ -842,8 +861,15 @@ class ReservarProgramarController extends Controller
                     }
                 }
 
-                // Kilos desde la línea
-                $kilos = (float)($ln->Kilos ?? 0);
+                // Kilos desde la línea según el tipo (Rizo o Pie)
+                // Con DB::raw y alias, debería funcionar directamente con acceso a propiedad
+                if ($tipo === 'Rizo') {
+                    // Para RIZO: usar columna Rizo
+                    $kilos = (float)($ln->Rizo ?? 0);
+                } else {
+                    // Para PIE: usar columna Pie
+                    $kilos = (float)($ln->Pie ?? 0);
+                }
 
                 // Procesar si hay metros o kilos (para mostrar datos incluso si solo hay kilos)
                 if ($mts <= 0 && $kilos <= 0) continue;
@@ -1055,11 +1081,18 @@ class ReservarProgramarController extends Controller
     /** Construye N semanas desde el lunes actual */
     private function construirSemanas(int $n = 5): array
     {
-        $inicio = Carbon::now()->startOfWeek(Carbon::MONDAY);
+        // Obtener el inicio de la semana actual (lunes)
+        $inicioBase = Carbon::now()->startOfWeek(Carbon::MONDAY);
         $out = [];
+
         for ($i = 0; $i < $n; $i++) {
-            $ini = $inicio->copy()->addWeeks($i);
-            $fin = $ini->copy()->endOfWeek(Carbon::SUNDAY);
+            // Crear una copia nueva del inicio base y agregar las semanas correspondientes
+            $ini = $inicioBase->copy()->addWeeks($i);
+            // Asegurar que el inicio esté al inicio del día (lunes 00:00:00)
+            $ini->startOfDay();
+            // Calcular el fin de semana (domingo 23:59:59)
+            $fin = $ini->copy()->endOfWeek(Carbon::SUNDAY)->endOfDay();
+
             $out[] = [
                 'numero' => $i + 1,
                 'inicio' => $ini->format('Y-m-d'),
