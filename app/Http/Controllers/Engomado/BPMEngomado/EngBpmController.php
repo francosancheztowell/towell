@@ -7,6 +7,7 @@ use App\Models\EngBpmModel;
 use App\Models\SYSUsuario;
 use App\Models\URDCatalogoMaquina;
 use App\Helpers\FolioHelper;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -57,6 +58,16 @@ class EngBpmController extends Controller
             $maquinaId = $validated['MaquinaId'];
             $departamento = $validated['Departamento'] ?? 'Engomado';
             unset($validated['MaquinaId'], $validated['Departamento']);
+
+            // Combinar la fecha seleccionada con la hora actual (si viene sin hora)
+            // Conserva el día elegido y usa la hora/minuto actual del servidor
+            if (!empty($validated['Fecha'])) {
+                $fechaInput = $validated['Fecha'];
+                $fecha = Carbon::parse($fechaInput);
+                // Si el input no contiene hora explícita (ej. formato 'Y-m-d'), asignar hora actual
+                // Nota: aunque contenga hora, este setTimeFrom asegura que guardamos la hora actual deseada
+                $validated['Fecha'] = $fecha->setTimeFrom(Carbon::now());
+            }
 
             // Generar folio automáticamente con el módulo "Engomado BPM"
             $folio = FolioHelper::obtenerSiguienteFolio('Engomado BPM', 3);
