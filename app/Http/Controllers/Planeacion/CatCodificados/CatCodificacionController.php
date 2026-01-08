@@ -143,9 +143,7 @@ class CatCodificacionController extends Controller
                 'errors'  => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('CatCodificacionController::procesarExcel', [
-                'error' => $e->getMessage(),
-            ]);
+
 
             return response()->json([
                 'success' => false,
@@ -242,10 +240,7 @@ class CatCodificacionController extends Controller
                 ->header('Cache-Control', 'private, max-age=60')
                 ->header('X-Cache', 'MISS');
         } catch (\Throwable $e) {
-            Log::error('CatCodificacionController::getAllFast - ERROR', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+
 
             return response()->json([
                 's' => false,

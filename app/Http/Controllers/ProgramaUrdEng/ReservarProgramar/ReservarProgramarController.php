@@ -144,7 +144,15 @@ class ReservarProgramarController extends Controller
                     continue;
                 }
 
-                $q->where($col, 'like', "%{$val}%");
+                // Para 'hilo', usar igualdad exacta (case-insensitive)
+                // Asegurarse de excluir NULL y valores vacíos
+                if ($col === 'hilo') {
+                    $q->whereNotNull($col)
+                      ->where($col, '!=', '')
+                      ->whereRaw('LOWER(TRIM(' . $col . ')) = LOWER(TRIM(?))', [$val]);
+                } else {
+                    $q->where($col, 'like', "%{$val}%");
+                }
             }
 
             $rows = $q->orderBy('no_telar')->orderBy('tipo')->limit(2000)->get();
@@ -195,6 +203,7 @@ class ReservarProgramarController extends Controller
                 'no_orden' => ['nullable','string','max:50'],
                 'localidad' => ['nullable','string','max:10'],
                 'tipo_atado' => ['nullable','string','in:Normal,Especial'],
+                'hilo'     => ['nullable','string','max:50'],
             ]);
 
             $noTelar = (string)$request->input('no_telar');
@@ -205,8 +214,8 @@ class ReservarProgramarController extends Controller
 
             if ($tipo !== null) $query->where('tipo', $tipo);
 
-            $telar = $query->first();
-            if (!$telar) {
+            $telares = $query->get();
+            if ($telares->isEmpty()) {
                 return response()->json(['success'=>false,'message'=>'Telar no encontrado o no está activo'], 404);
             }
 
@@ -216,8 +225,27 @@ class ReservarProgramarController extends Controller
             if ($request->filled('no_orden')) $update['no_orden'] = (string)$request->input('no_orden');
             if ($request->filled('localidad')) $update['localidad'] = (string)$request->input('localidad');
             if ($request->filled('tipo_atado')) $update['tipo_atado'] = (string)$request->input('tipo_atado');
+            if ($request->filled('hilo')) $update['hilo'] = (string)$request->input('hilo');
 
-            if ($update) $telar->update($update);
+            // Actualizar TODOS los registros activos del telar (y tipo si se especifica)
+            if ($update) {
+                $actualizados = 0;
+                foreach ($telares as $telar) {
+                    $telar->update($update);
+                    $actualizados++;
+                }
+
+                Log::info('Telar actualizado', [
+                    'no_telar' => $noTelar,
+                    'tipo' => $tipo,
+                    'registros_actualizados' => $actualizados,
+                    'total_registros' => $telares->count(),
+                    'update' => $update
+                ]);
+            }
+
+            // Retornar el primer registro actualizado para compatibilidad
+            $telar = $telares->first();
 
             Log::info('Telar actualizado', ['no_telar' => $noTelar, 'tipo' => $telar->tipo, 'update' => $update]);
 

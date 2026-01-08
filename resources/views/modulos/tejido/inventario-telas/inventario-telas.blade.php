@@ -23,7 +23,7 @@
             <div class="py-2">
                 <button
                     type="button"
-                    onclick="irATelar('')"
+                    onclick="event.stopPropagation(); irATelar('');"
                     class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                 >
                     <span class="font-medium">Todos los telares</span>
@@ -32,7 +32,7 @@
                 @foreach($telares as $t)
                     <button
                         type="button"
-                        onclick="irATelar('{{ $t }}')"
+                        onclick="event.stopPropagation(); irATelar('{{ $t }}');"
                         class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
                         Telar <span class="font-semibold">{{ $t }}</span>
@@ -200,10 +200,14 @@
   });
 
   document.addEventListener('click', (e) => {
-    if (!btn.contains(e.target) && !menu.contains(e.target)) {
-      menu.classList.add('hidden');
-      icon.classList.remove('rotate-180');
-      icon.classList.add('rotate-0');
+    // Solo cerrar si el click fue fuera del botón y del menú
+    // Y si el menú no está oculto (para evitar cerrar múltiples veces)
+    if (menu && !menu.classList.contains('hidden')) {
+      if (!btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.add('hidden');
+        icon.classList.remove('rotate-180');
+        icon.classList.add('rotate-0');
+      }
     }
   });
 
@@ -229,11 +233,13 @@
   }
 
   window.irATelar = function(noTelar){
-    // Cerrar dropdown
-    const menu = document.getElementById('menuDropdownTelares');
-    const icon = document.getElementById('iconDropdown');
-    if (menu) menu.classList.add('hidden');
-    if (icon) { icon.classList.remove('rotate-180'); icon.classList.add('rotate-0'); }
+    // Cerrar dropdown después de un pequeño delay para permitir que el click se procese
+    setTimeout(() => {
+      const menu = document.getElementById('menuDropdownTelares');
+      const icon = document.getElementById('iconDropdown');
+      if (menu) menu.classList.add('hidden');
+      if (icon) { icon.classList.remove('rotate-180'); icon.classList.add('rotate-0'); }
+    }, 100);
 
     // Mostrar todo (por si había filtro previo)
     document.querySelectorAll('[id^="telar-"]').forEach(el => el.classList.remove('hidden'));
@@ -269,18 +275,53 @@
   }
 })();
 
-/** Inyectar etiqueta “SIG. ORDEN” en la columna izquierda (no podemos tocar el componente interno) */
+/** Inyectar etiqueta "SIG. ORDEN" y número del telar en la columna izquierda (no podemos tocar el componente interno) */
 (function(){
   function placeLabels(){
     document.querySelectorAll('.telar-section').forEach(section => {
       const col = section.querySelector('.bg-gradient-to-r.from-blue-600.to-blue-700, .bg-gray-100');
       if(!col) return;
+
+      // Buscar o crear la etiqueta "SIG. ORDEN"
       let center = col.querySelector('.col-label.center');
       if(!center){
         center = document.createElement('div');
-        center.className = 'col-label center';
+        center.className = 'col-label center mt-4';
         center.textContent = 'SIG. ORDEN';
         col.appendChild(center);
+      }
+
+      // Buscar o crear el número del telar debajo de "SIG. ORDEN"
+      let telarNumber = col.querySelector('.telar-number-label');
+      if(!telarNumber){
+        // Buscar el número del telar en el header (elemento con text-4xl font-bold)
+        let numeroTelar = null;
+        const header = section.querySelector('.bg-gradient-to-r.from-blue-600.to-blue-700, .bg-gray-100');
+        if(header){
+          const numeroElement = header.querySelector('.text-4xl.font-bold');
+          if(numeroElement && numeroElement.textContent.trim()){
+            numeroTelar = numeroElement.textContent.trim();
+          }
+        }
+
+        // Si no se encuentra, intentar desde el ID de la sección padre
+        if(!numeroTelar){
+          const sectionParent = section.closest('[id^="telar-"]');
+          if(sectionParent){
+            const idMatch = sectionParent.id.match(/telar-(\d+)/);
+            if(idMatch){
+              numeroTelar = idMatch[1];
+            }
+          }
+        }
+
+        if(numeroTelar){
+          telarNumber = document.createElement('div');
+          telarNumber.className = 'telar-number-label text-4xl font-bold';
+          telarNumber.style.cssText = 'position: absolute; left: 0; right: 0; color: #ffffff; text-align: center; pointer-events: none; opacity: .95; top: calc(50% + 220px); transform: translateY(-50%); line-height: 1;';
+          telarNumber.textContent = numeroTelar;
+          col.appendChild(telarNumber);
+        }
       }
     });
   }

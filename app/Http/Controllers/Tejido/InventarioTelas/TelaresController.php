@@ -181,13 +181,6 @@ class TelaresController extends Controller
             ];
         }
 
-        Log::info('ITEMA - Datos finales enviados a la vista', [
-            'telares_count'                => count($telaresOrdenados),
-            'telares'                      => $telaresOrdenados,
-            'datosTelaresCompletos_count'  => count($datosTelaresCompletos),
-            'datosTelaresCompletos_keys'   => array_keys($datosTelaresCompletos)
-        ]);
-
         return view('modulos/tejido/inventario-telas/inventario-telas', [
             'telares'              => $telaresOrdenados,
             'datosTelaresCompletos' => $datosTelaresCompletos,
