@@ -91,7 +91,7 @@
     </div>
 
     <!-- Modal Crear -->
-    <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
+    <div id="createModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center hidden">
         <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-t-lg flex justify-between items-center">
                 <h3 class="text-lg font-semibold">Crear Nuevo Folio BPM Engomado</h3>
@@ -114,32 +114,32 @@
                     </div>
                 </div>
 
-                <!-- Sección: Quien Entrega -->
-                <div class="mb-3">
-                    <h4 class="text-sm font-semibold text-blue-700 mb-2">Quien Entrega</h4>
-                    <div class="grid grid-cols-3 gap-2">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
-                            <input type="text" id="create_NombreEmplEnt" name="NombreEmplEnt" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
-                            <input type="text" id="create_CveEmplEnt" name="CveEmplEnt" value="{{ auth()->user()->numero_empleado ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
-                            <input type="text" id="create_TurnoEntrega" name="TurnoEntrega" value="{{ auth()->user()->turno ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sección: Quien Recibe -->
+                <!-- Sección: Quien Recibe (autollenado con usuario actual) -->
                 <div class="mb-3">
                     <h4 class="text-sm font-semibold text-green-700 mb-2">Quien Recibe</h4>
                     <div class="grid grid-cols-3 gap-2">
                         <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
+                            <input type="text" id="create_NombreEmplRec" name="NombreEmplRec" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
+                            <input type="text" id="create_CveEmplRec" name="CveEmplRec" value="{{ auth()->user()->numero_empleado ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
+                            <input type="text" id="create_TurnoRecibe" name="TurnoRecibe" value="{{ auth()->user()->turno ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección: Quien Entrega (selección y autocompletado) -->
+                <div class="mb-3">
+                    <h4 class="text-sm font-semibold text-blue-700 mb-2">Quien Entrega</h4>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Nombre <span class="text-red-600">*</span></label>
-                            <select id="select_NombreEmplRec" name="NombreEmplRec" onchange="fillRecibe(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('NombreEmplRec') border-red-500 @enderror">
+                            <select id="select_NombreEmplEnt" name="NombreEmplEnt" onchange="fillEntrega(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('NombreEmplEnt') border-red-500 @enderror">
                                 <option value="">Seleccione...</option>
                                 @foreach($usuarios as $usuario)
                                     <option value="{{ $usuario->nombre }}" 
@@ -149,17 +149,17 @@
                                     </option>
                                 @endforeach
                             </select>
-                            @error('NombreEmplRec')
+                            @error('NombreEmplEnt')
                                 <div class="text-red-600 text-xs mt-1">{{ $message }}</div>
                             @enderror
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
-                            <input type="text" id="input_CveEmplRec" name="CveEmplRec" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                            <input type="text" id="input_CveEmplEnt" name="CveEmplEnt" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
-                            <input type="text" id="input_TurnoRecibe" name="TurnoRecibe" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                            <input type="text" id="input_TurnoEntrega" name="TurnoEntrega" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
@@ -387,6 +387,15 @@
             const departamento = selectedOption.getAttribute('data-departamento');
             
             document.getElementById('input_Departamento').value = departamento || '';
+        }
+
+        function fillEntrega(select) {
+            const selectedOption = select.options[select.selectedIndex];
+            const numero = selectedOption.getAttribute('data-numero');
+            const turno = selectedOption.getAttribute('data-turno');
+            
+            document.getElementById('input_CveEmplEnt').value = numero || '';
+            document.getElementById('input_TurnoEntrega').value = turno || '';
         }
 
         function fillRecibeEdit(select) {

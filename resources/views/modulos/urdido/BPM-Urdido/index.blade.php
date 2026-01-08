@@ -151,36 +151,55 @@
                     </div>
                 </div>
 
-                <!-- Sección: Quien Recibe -->
-                <div class="mb-3">
-                    <h4 class="text-sm font-semibold text-green-700 mb-2">Quien Recibe</h4>
-                    <div class="grid grid-cols-3 gap-2">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Nombre <span class="text-red-600">*</span></label>
-                            <select id="select_NombreEmplRec" name="NombreEmplRec" onchange="fillRecibe(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('NombreEmplRec') border-red-500 @enderror">
-                                <option value="">Seleccione...</option>
-                                @foreach($usuarios as $usuario)
-                                    <option value="{{ $usuario->nombre }}" 
-                                            data-numero="{{ $usuario->numero_empleado }}" 
-                                            data-turno="{{ $usuario->turno }}">
-                                        {{ $usuario->nombre }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('NombreEmplRec')
-                                <div class="text-red-600 text-xs mt-1">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
-                            <input type="text" id="input_CveEmplRec" name="CveEmplRec" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
-                            <input type="text" id="input_TurnoRecibe" name="TurnoRecibe" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                    <!-- Sección: Quien Recibe (autollenado con usuario actual) -->
+                    <div class="mb-3">
+                        <h4 class="text-sm font-semibold text-green-700 mb-2">Quien Recibe</h4>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
+                                <input type="text" id="create_NombreEmplRec" name="NombreEmplRec" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
+                                <input type="text" id="create_CveEmplRec" name="CveEmplRec" value="{{ auth()->user()->numero_empleado ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
+                                <input type="text" id="create_TurnoRecibe" name="TurnoRecibe" value="{{ auth()->user()->turno ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                            </div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-2">
+
+                    <!-- Sección: Quien Entrega (selección y autocompletado) -->
+                    <div class="mb-3">
+                        <h4 class="text-sm font-semibold text-blue-700 mb-2">Quien Entrega</h4>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Nombre <span class="text-red-600">*</span></label>
+                                <select id="select_NombreEmplEnt" name="NombreEmplEnt" onchange="fillEntrega(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('NombreEmplEnt') border-red-500 @enderror">
+                                    <option value="">Seleccione...</option>
+                                    @foreach($usuarios as $usuario)
+                                        <option value="{{ $usuario->nombre }}" 
+                                                data-numero="{{ $usuario->numero_empleado }}" 
+                                                data-turno="{{ $usuario->turno }}">
+                                            {{ $usuario->nombre }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('NombreEmplEnt')
+                                    <div class="text-red-600 text-xs mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
+                                <input type="text" id="input_CveEmplEnt" name="CveEmplEnt" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
+                                <input type="text" id="input_TurnoEntrega" name="TurnoEntrega" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
                         <div> 
                             <label class="block text-xs font-medium text-gray-700 mb-1">Máquina <span class="text-red-600">*</span></label>
                             <select id="select_Maquina" name="MaquinaId" onchange="fillMaquina(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('MaquinaId') border-red-500 @enderror">
@@ -347,6 +366,16 @@
             const departamento = selectedOption.getAttribute('data-departamento');
             
             document.getElementById('input_Departamento').value = departamento || '';
+        }
+
+        // Autocompletar campos de Quien Entrega (create)
+        function fillEntrega(select) {
+            const selectedOption = select.options[select.selectedIndex];
+            const numero = selectedOption.getAttribute('data-numero');
+            const turno = selectedOption.getAttribute('data-turno');
+
+            document.getElementById('input_CveEmplEnt').value = numero || '';
+            document.getElementById('input_TurnoEntrega').value = turno || '';
         }
 
         // Autocompletar campos de Quien Recibe en modal de editar
