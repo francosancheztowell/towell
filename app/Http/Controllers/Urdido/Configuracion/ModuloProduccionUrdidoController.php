@@ -19,6 +19,31 @@ use Illuminate\Support\Facades\Auth;
 class ModuloProduccionUrdidoController extends Controller
 {
     /**
+     * Extraer numero de MC Coy o identificar Karl Mayer.
+     *
+     * @param string|null $maquinaId
+     * @return int|null
+     */
+    private function extractMcCoyNumber(?string $maquinaId): ?int
+    {
+        if (empty($maquinaId)) {
+            return null;
+        }
+
+        // Karl Mayer se maneja como MC Coy 4 en esta vista
+        if (stripos($maquinaId, 'karl mayer') !== false) {
+            return 4;
+        }
+
+        // Buscar patron "Mc Coy X" (case insensitive, permite espacios variables)
+        if (preg_match('/mc\s*coy\s*(\d+)/i', $maquinaId, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return null;
+    }
+
+    /**
      * Mostrar la vista de producción de urdido con los datos de la orden seleccionada
      *
      * @param Request $request
@@ -79,14 +104,26 @@ class ModuloProduccionUrdidoController extends Controller
 
         // Actualizar el status a "En Proceso" cuando se carga la página de producción
         if ($orden->Status !== 'En Proceso') {
-            // Validar que no haya otra orden con status "En Proceso"
-            $ordenesEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
-                ->where('Id', '!=', $orden->Id)
-                ->count();
+            // Validar que no haya mas de 2 ordenes con status "En Proceso" en la misma maquina
+            $mcCoyActual = $this->extractMcCoyNumber($orden->MaquinaId);
+            $limitePorMaquina = 2;
 
-            if ($ordenesEnProceso > 0) {
-                return redirect()->route('urdido.programar.urdido')
-                    ->with('error', 'Ya existe una orden con status "En Proceso". No se puede cargar otra orden hasta finalizar la actual.');
+            if ($mcCoyActual !== null) {
+                $ordenesEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
+                    ->whereNotNull('MaquinaId')
+                    ->where('Id', '!=', $orden->Id)
+                    ->get()
+                    ->filter(function ($item) use ($mcCoyActual) {
+                        return $this->extractMcCoyNumber($item->MaquinaId) === $mcCoyActual;
+                    })
+                    ->count();
+
+                if ($ordenesEnProceso >= $limitePorMaquina) {
+                    $nombreMaquina = $mcCoyActual === 4 ? 'Karl Mayer' : "MC Coy {$mcCoyActual}";
+
+                    return redirect()->route('urdido.programar.urdido')
+                        ->with('error', "Ya existen {$limitePorMaquina} ordenes con status \"En Proceso\" en {$nombreMaquina}. No se puede cargar otra orden hasta finalizar alguna de las actuales.");
+                }
             }
 
             try {

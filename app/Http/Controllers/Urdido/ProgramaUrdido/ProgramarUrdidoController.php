@@ -7,9 +7,23 @@ use App\Models\UrdProgramaUrdido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
 
 class ProgramarUrdidoController extends Controller
 {
+    private function usuarioPuedeEditar(): bool
+    {
+        $usuario = Auth::user();
+        if (!$usuario) {
+            return false;
+        }
+
+        $area = strtolower($usuario->area ?? '');
+        $puesto = strtolower($usuario->puesto ?? '');
+
+        return $area === 'urdido' && str_contains($puesto, 'supervisor');
+    }
     /**
      * Mostrar la vista de programar urdido
      */
@@ -67,7 +81,7 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'Observaciones',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Cancelado'])
                 ->whereNotNull('MaquinaId')
                 ->get();
 
@@ -87,7 +101,7 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'Observaciones',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Cancelado'])
                 ->whereNotNull('MaquinaId')
                 ->get();
             }
@@ -102,7 +116,7 @@ class ProgramarUrdidoController extends Controller
                 if ($ordenesSinPrioridad->count() > 0) {
                     try {
                         // Obtener la máxima prioridad existente
-                        $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso'])
+                        $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Cancelado'])
                             ->whereNotNull('MaquinaId')
                             ->whereNotNull('Prioridad')
                             ->max('Prioridad') ?? 0;
@@ -131,7 +145,7 @@ class ProgramarUrdidoController extends Controller
                             'CreatedAt',
                             'Observaciones',
                         ])
-                        ->whereIn('Status', ['Programado', 'En Proceso'])
+                        ->whereIn('Status', ['Programado', 'En Proceso', 'Cancelado'])
                         ->whereNotNull('MaquinaId')
                         ->get();
                     } catch (\Exception $e) {
@@ -175,6 +189,7 @@ class ProgramarUrdidoController extends Controller
                         'calibre' => $orden->Calibre,
                         'metros' => $orden->Metros,
                         'mccoy' => $mcCoy,
+                        'maquina_id' => $orden->MaquinaId ?? null,
                         'status' => $orden->Status ?? null,
                         'observaciones' => $orden->Observaciones ?? '',
                         'prioridad' => ($tienePrioridad && isset($orden->Prioridad)) ? ($orden->Prioridad ?? 999999) : $indexEnGrupo,
@@ -221,7 +236,7 @@ class ProgramarUrdidoController extends Controller
             }
 
             // Obtener todas las órdenes del mismo MC Coy ordenadas por CreatedAt
-            $ordenesMcCoy = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso'])
+            $ordenesMcCoy = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Cancelado'])
                 ->whereNotNull('MaquinaId')
                 ->get()
                 ->filter(function ($item) use ($mcCoy) {
@@ -284,8 +299,9 @@ class ProgramarUrdidoController extends Controller
     }
 
     /**
-     * Verificar si hay órdenes con status "En Proceso"
-     * Retorna true si hay al menos una orden con status "En Proceso" (excluyendo la orden actual si se proporciona)
+     * Verificar si hay órdenes con status "En Proceso" por máquina (MC Coy)
+     * Retorna true si hay al menos una orden con status "En Proceso" en la misma máquina
+     * (excluyendo la orden actual si se proporciona)
      *
      * @param Request $request
      * @return JsonResponse
@@ -294,22 +310,62 @@ class ProgramarUrdidoController extends Controller
     {
         try {
             $ordenIdExcluir = $request->query('excluir_id');
+            $maquinaId = $request->query('maquina_id');
 
-            $query = UrdProgramaUrdido::where('Status', 'En Proceso');
-
-            if ($ordenIdExcluir) {
-                $query->where('Id', '!=', $ordenIdExcluir);
+            // Si no se proporciona maquina_id, permitir (no bloquear)
+            // Esto permite que funcione aunque no se pueda determinar la máquina
+            if (empty($maquinaId)) {
+                return response()->json([
+                    'success' => true,
+                    'tieneOrdenEnProceso' => false,
+                    'cantidad' => 0,
+                    'mensaje' => 'No se proporcionó información de máquina. Se permite cargar la orden.',
+                ]);
             }
 
-            $cantidadEnProceso = $query->count();
+            // Verificar por máquina (MC Coy)
+            $mcCoy = $this->extractMcCoyNumber($maquinaId);
+
+            // Si no se puede determinar el MC Coy, permitir (no bloquear)
+            if ($mcCoy === null) {
+                return response()->json([
+                    'success' => true,
+                    'tieneOrdenEnProceso' => false,
+                    'cantidad' => 0,
+                    'mensaje' => 'No se pudo determinar el MC Coy de la máquina. Se permite cargar la orden.',
+                ]);
+            }
+
+            // Obtener todas las órdenes en proceso y filtrar por MC Coy
+            $ordenesEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
+                ->whereNotNull('MaquinaId')
+                ->get()
+                ->filter(function ($orden) use ($mcCoy, $ordenIdExcluir) {
+                    $ordenMcCoy = $this->extractMcCoyNumber($orden->MaquinaId);
+                    if ($ordenIdExcluir && $orden->Id == $ordenIdExcluir) {
+                        return false;
+                    }
+                    return $ordenMcCoy === $mcCoy;
+                });
+
+            $cantidadEnProceso = $ordenesEnProceso->count();
+
+            $nombreMaquina = $mcCoy == 4 ? 'Karl Mayer' : "MC Coy {$mcCoy}";
+
+            // Permitir hasta 2 órdenes en proceso por máquina
+            // Solo bloquear si ya hay 2 o más órdenes en proceso
+            $limitePorMaquina = 2;
+            $tieneOrdenEnProceso = $cantidadEnProceso >= $limitePorMaquina;
 
             return response()->json([
                 'success' => true,
-                'tieneOrdenEnProceso' => $cantidadEnProceso > 0,
+                'tieneOrdenEnProceso' => $tieneOrdenEnProceso,
                 'cantidad' => $cantidadEnProceso,
-                'mensaje' => $cantidadEnProceso > 0
-                    ? "Ya existe una orden con status 'En Proceso'. No se puede cargar otra orden hasta finalizar la actual."
-                    : 'No hay órdenes en proceso',
+                'limite' => $limitePorMaquina,
+                'maquina' => $nombreMaquina,
+                'mensaje' => $tieneOrdenEnProceso
+                    ? "Ya existen {$limitePorMaquina} órdenes con status 'En Proceso' en {$nombreMaquina}. No se puede cargar otra orden en esta máquina hasta finalizar alguna de las actuales."
+                    : "Hay {$cantidadEnProceso} orden(es) en proceso en {$nombreMaquina}. Puede cargar hasta {$limitePorMaquina} órdenes en proceso por máquina.",
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -417,6 +473,13 @@ class ProgramarUrdidoController extends Controller
     public function intercambiarPrioridad(Request $request): JsonResponse
     {
         try {
+            if (!$this->usuarioPuedeEditar()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No autorizado',
+                ], 403);
+            }
+
             $request->validate([
                 'source_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'target_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
@@ -475,6 +538,13 @@ class ProgramarUrdidoController extends Controller
     public function guardarObservaciones(Request $request): JsonResponse
     {
         try {
+            if (!$this->usuarioPuedeEditar()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No autorizado',
+                ], 403);
+            }
+
             $request->validate([
                 'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'observaciones' => 'nullable|string|max:1000',
@@ -502,8 +572,84 @@ class ProgramarUrdidoController extends Controller
     }
 
     /**
+     * Actualizar el status de una orden
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function actualizarStatus(Request $request): JsonResponse
+    {
+        try {
+            if (!$this->usuarioPuedeEditar()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No autorizado',
+                ], 403);
+            }
+
+            $request->validate([
+                'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
+                'status' => ['required', 'string', Rule::in(['Programado', 'En Proceso', 'Cancelado'])],
+            ]);
+
+            $orden = UrdProgramaUrdido::findOrFail($request->id);
+            $nuevoStatus = $request->status;
+
+            if ($orden->Status === $nuevoStatus) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Status sin cambios',
+                ]);
+            }
+
+            if ($nuevoStatus === 'En Proceso') {
+                $mcCoy = $this->extractMcCoyNumber($orden->MaquinaId);
+                $limitePorMaquina = 2;
+
+                if ($mcCoy !== null) {
+                    $cantidadEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
+                        ->whereNotNull('MaquinaId')
+                        ->where('Id', '!=', $orden->Id)
+                        ->get()
+                        ->filter(function ($item) use ($mcCoy) {
+                            return $this->extractMcCoyNumber($item->MaquinaId) === $mcCoy;
+                        })
+                        ->count();
+
+                    if ($cantidadEnProceso >= $limitePorMaquina) {
+                        $nombreMaquina = $mcCoy === 4 ? 'Karl Mayer' : "MC Coy {$mcCoy}";
+
+                        return response()->json([
+                            'success' => false,
+                            'error' => "Ya existen {$limitePorMaquina} ordenes en proceso en {$nombreMaquina}.",
+                        ], 422);
+                    }
+                }
+            }
+
+            $orden->Status = $nuevoStatus;
+            $orden->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Status actualizado correctamente',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de validaciÇün: ' . $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al actualizar status: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Obtener todas las órdenes sin agrupar por MC Coy
-     * Solo órdenes con status "En Proceso" o "Programado"
+     * Solo órdenes con status "En Proceso", "Programado" o "Cancelado"
      * Si no tienen prioridad, se asignan automáticamente
      *
      * @return JsonResponse
@@ -526,7 +672,7 @@ class ProgramarUrdidoController extends Controller
                     'Prioridad',
                     'CreatedAt',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Cancelado'])
                 ->get();
 
                 $tienePrioridad = true;
@@ -543,7 +689,7 @@ class ProgramarUrdidoController extends Controller
                     'Status',
                     'CreatedAt',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Cancelado'])
                 ->get();
             }
 
@@ -555,7 +701,7 @@ class ProgramarUrdidoController extends Controller
 
                 if ($ordenesSinPrioridad->count() > 0) {
                     try {
-                        $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso'])
+                        $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Cancelado'])
                             ->whereNotNull('Prioridad')
                             ->max('Prioridad') ?? 0;
 
@@ -580,7 +726,7 @@ class ProgramarUrdidoController extends Controller
                             'Prioridad',
                             'CreatedAt',
                         ])
-                        ->whereIn('Status', ['Programado', 'En Proceso'])
+                        ->whereIn('Status', ['Programado', 'En Proceso', 'Cancelado'])
                         ->get();
                     } catch (\Exception $e) {
                         $tienePrioridad = false;
@@ -636,6 +782,13 @@ class ProgramarUrdidoController extends Controller
     public function actualizarPrioridades(Request $request): JsonResponse
     {
         try {
+            if (!$this->usuarioPuedeEditar()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No autorizado',
+                ], 403);
+            }
+
             $request->validate([
                 'prioridades' => 'required|array',
                 'prioridades.*.id' => 'required|integer|exists:UrdProgramaUrdido,Id',
@@ -671,4 +824,3 @@ class ProgramarUrdidoController extends Controller
         }
     }
 }
-

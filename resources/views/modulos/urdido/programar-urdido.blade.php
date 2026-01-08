@@ -5,7 +5,7 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create
-             onclick="irProduccion()"
+             onclick="return irProduccion(event)"
             title="Cargar Información"
             icon="fa-download"
             iconColor="text-white"
@@ -133,6 +133,13 @@
         </div>
     </div>
 
+    @php
+        $usuario = auth()->user();
+        $area = $usuario ? strtolower($usuario->area ?? '') : '';
+        $puesto = $usuario ? strtolower($usuario->puesto ?? '') : '';
+        $puedeEditar = $area === 'urdido' && str_contains($puesto, 'supervisor');
+    @endphp
+
     <script>
         (() => {
             // ==========================
@@ -146,9 +153,11 @@
                 guardarObservaciones: '{{ route('urdido.programar.urdido.guardar.observaciones') }}',
                 obtenerTodasOrdenes: '{{ route('urdido.programar.urdido.todas.ordenes') }}',
                 actualizarPrioridades: '{{ route('urdido.programar.urdido.actualizar.prioridades') }}',
+                actualizarStatus: '{{ route('urdido.programar.urdido.actualizar.status') }}',
             };
 
             const csrfToken = '{{ csrf_token() }}';
+            const canEdit = {{ $puedeEditar ? 'true' : 'false' }};
 
             const state = {
                 ordenes: {},            // { 1: [..], 2: [..], 3: [..], 4: [..] }
@@ -224,6 +233,37 @@
                     : `<span class="${normalBase} bg-gray-200 text-gray-800">${label}</span>`;
             };
 
+            const renderStatusSelect = (orden, isSelected = false) => {
+                const statusActual = String(orden.status || '').trim();
+                const opciones = statusActual === 'En Proceso'
+                    ? ['Programado', 'En Proceso', 'Cancelado']
+                    : ['Programado', 'Cancelado'];
+                const disabledAttr = canEdit ? '' : 'disabled';
+                const baseClasses = isSelected
+                    ? 'w-full h-9 px-2 border-0 bg-blue-500 text-white'
+                    : 'w-full h-9 px-2 border-0 bg-transparent text-gray-900';
+                const disabledClasses = canEdit ? '' : 'opacity-70 cursor-not-allowed';
+
+                const optionsHtml = opciones.map((status) => {
+                    const selected = statusActual === status ? 'selected' : '';
+                    return `<option value="${status}" ${selected}>${status}</option>`;
+                }).join('');
+
+                return `
+                    <select
+                        class="${baseClasses} ${disabledClasses}"
+                        data-orden-id="${orden.id}"
+                        data-current="${statusActual}"
+                        onchange="actualizarStatus(event, ${orden.id})"
+                        onmousedown="event.stopPropagation()"
+                        onclick="event.stopPropagation()"
+                        ${disabledAttr}
+                    >
+                        ${optionsHtml}
+                    </select>
+                `;
+            };
+
             // ==========================
             // Renderizado Tablas
             // ==========================
@@ -253,31 +293,21 @@
                     const prioridad = orden.prioridad ?? (index + 1);
 
                     const rowClasses = isSelected
-                        ? 'bg-blue-500 text-white cursor-move h-9 transition-all duration-200'
-                        : 'hover:bg-gray-50 cursor-move h-9 transition-all duration-200 select-none';
+                        ? 'bg-blue-500 text-white h-9 transition-all duration-200'
+                        : 'hover:bg-gray-50 h-9 transition-all duration-200 select-none';
+
+                    const rowCursorClass = canEdit ? 'cursor-move' : 'cursor-default';
 
                     const metros = orden.metros
                         ? Math.round(parseFloat(orden.metros))
                         : '';
 
-                    return `
-                        <tr
-                            class="${rowClasses}"
-                            data-orden-id="${orden.id}"
-                            data-mccoy="${mccoy}"
-                            data-index="${index}"
-                            draggable="true"
-                        >
-                            <td class="${baseTd} text-center font-semibold">
-                                <i class="fas fa-grip-vertical text-gray-400 mr-1"></i>${prioridad}
-                            </td>
-                            <td class="${baseTd}">${orden.folio || ''}</td>
-                            <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, isSelected)}</td>
-                            <td class="${baseTd}">${orden.cuenta || ''}</td>
-                            <td class="${baseTd}">${orden.calibre || ''}</td>
-                            <td class="${baseTd}">${metros}</td>
-                            <td class="${baseTd}">${orden.status}</td>
-                            <td class="${baseTd} p-0">
+                    const dragIcon = canEdit
+                        ? '<i class="fas fa-grip-vertical text-gray-400 mr-1"></i>'
+                        : '';
+
+                    const observacionesCell = canEdit
+                        ? `
                                 <input
                                     type="text"
                                     class="w-full h-9 px-2 py-0 border-0 outline-none bg-transparent focus:bg-blue-50 ${isSelected ? 'text-white focus:text-gray-900' : 'text-gray-900'}"
@@ -290,6 +320,30 @@
                                     onkeydown="if(event.key === 'Enter') event.target.blur()"
                                     placeholder="Escriba observaciones..."
                                 />
+                        `
+                        : `<span class="px-2 text-gray-700">${orden.observaciones || ''}</span>`;
+
+                    return `
+                        <tr
+                            class="${rowClasses} ${rowCursorClass}"
+                            data-orden-id="${orden.id}"
+                            data-mccoy="${mccoy}"
+                            data-index="${index}"
+                            draggable="${canEdit ? 'true' : 'false'}"
+                        >
+                            <td class="${baseTd} text-center font-semibold">
+                                ${dragIcon}${prioridad}
+                            </td>
+                            <td class="${baseTd}">${orden.folio || ''}</td>
+                            <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, isSelected)}</td>
+                            <td class="${baseTd}">${orden.cuenta || ''}</td>
+                            <td class="${baseTd}">${orden.calibre || ''}</td>
+                            <td class="${baseTd}">${metros}</td>
+                            <td class="${baseTd} ${canEdit ? 'p-0' : ''}">
+                                ${canEdit ? renderStatusSelect(orden, isSelected) : (orden.status || '')}
+                            </td>
+                            <td class="${baseTd} ${canEdit ? 'p-0' : ''}">
+                                ${observacionesCell}
                             </td>
                         </tr>
                     `;
@@ -316,6 +370,16 @@
 
                 const orden = (state.ordenes[mccoy] || []).find(o => o.id === ordenId);
                 if (!orden) return;
+
+                // Asegurar que la orden tenga maquina_id
+                if (!orden.maquina_id) {
+                    // Construir maquina_id basado en mccoy
+                    if (mccoy === 4) {
+                        orden.maquina_id = 'Karl Mayer';
+                    } else {
+                        orden.maquina_id = `Mc Coy ${mccoy}`;
+                    }
+                }
 
                 state.ordenSeleccionada = orden;
                 setButtonsEnabled(true);
@@ -344,6 +408,10 @@
             // Prioridad única global pero drag solo en misma MC Coy
             // ==========================
             const setupDragAndDrop = (mccoy) => {
+                if (!canEdit) {
+                    return;
+                }
+
                 const tbody = document.getElementById(`mcCoy${mccoy}TableBody`);
                 if (!tbody) return;
 
@@ -562,6 +630,11 @@
             // Guardar Observaciones
             // ==========================
             const guardarObservaciones = async (event, ordenId) => {
+                if (!canEdit) {
+                    showToast('warning', 'No autorizado');
+                    return;
+                }
+
                 const input = event.target;
                 const observaciones = input.value.trim();
 
@@ -599,18 +672,118 @@
             };
 
             // ==========================
+            // Actualizar Status
+            // ==========================
+            const actualizarStatus = async (event, ordenId) => {
+                if (!canEdit) {
+                    showToast('warning', 'No autorizado');
+                    return;
+                }
+
+                const select = event.target;
+                const nuevoStatus = select.value;
+                const statusAnterior = select.dataset.current || '';
+
+                if (!nuevoStatus || nuevoStatus === statusAnterior) {
+                    return;
+                }
+
+                select.disabled = true;
+
+                try {
+                    const payload = JSON.stringify({
+                        id: ordenId,
+                        status: nuevoStatus,
+                    });
+
+                    const result = await fetchJson(routes.actualizarStatus, {
+                        method: 'POST',
+                        body: payload,
+                    });
+
+                    if (!result.success) {
+                        throw new Error(result.error || 'Error al actualizar status');
+                    }
+
+                    select.dataset.current = nuevoStatus;
+
+                    for (let mccoy = 1; mccoy <= 4; mccoy++) {
+                        const orden = (state.ordenes[mccoy] || []).find(o => o.id === ordenId);
+                        if (orden) {
+                            orden.status = nuevoStatus;
+                            break;
+                        }
+                    }
+
+                    showToast('success', 'Status actualizado correctamente');
+                    await cargarOrdenes(true);
+                } catch (error) {
+                    console.error('Error al actualizar status:', error);
+                    select.value = statusAnterior;
+                    showError(`Error al actualizar status: ${error.message}`);
+                } finally {
+                    select.disabled = false;
+                }
+            };
+
+            // ==========================
             // Ir a Producción
             // ==========================
-            const irProduccion = async () => {
+            const irProduccion = async (event) => {
+                // Prevenir comportamiento por defecto si hay un evento
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+
                 if (!state.ordenSeleccionada) {
                     showToast('warning', 'Seleccione una orden');
                     return;
                 }
 
-                // Verificar si ya hay una orden con status "En Proceso"
+                console.log('Iniciando irProduccion para orden:', state.ordenSeleccionada.id);
+
+                // Verificar si ya hay 2 órdenes con status "En Proceso" en la misma máquina
                 try {
-                    const verificarUrl = `${routes.verificarEnProceso}?excluir_id=${state.ordenSeleccionada.id}`;
+                    // Obtener el MaquinaId de la orden seleccionada
+                    let maquinaId = state.ordenSeleccionada.maquina_id || null;
+
+                    // Si no está en la orden seleccionada, buscarla en el estado
+                    if (!maquinaId) {
+                        for (let mccoy = 1; mccoy <= 4; mccoy++) {
+                            const orden = (state.ordenes[mccoy] || []).find(o => o.id === state.ordenSeleccionada.id);
+                            if (orden) {
+                                if (orden.maquina_id) {
+                                    maquinaId = orden.maquina_id;
+                                } else {
+                                    // Construir maquina_id basado en mccoy si no existe
+                                    if (mccoy === 4) {
+                                        maquinaId = 'Karl Mayer';
+                                    } else {
+                                        maquinaId = `Mc Coy ${mccoy}`;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    // Si aún no tenemos maquina_id, intentar obtenerlo del mccoy de la orden seleccionada
+                    if (!maquinaId && state.ordenSeleccionada.mccoy) {
+                        const mccoy = state.ordenSeleccionada.mccoy;
+                        if (mccoy === 4) {
+                            maquinaId = 'Karl Mayer';
+                        } else {
+                            maquinaId = `Mc Coy ${mccoy}`;
+                        }
+                    }
+
+                    console.log('Verificando orden en proceso - maquinaId:', maquinaId, 'ordenId:', state.ordenSeleccionada.id);
+
+                    const verificarUrl = `${routes.verificarEnProceso}?excluir_id=${state.ordenSeleccionada.id}${maquinaId ? `&maquina_id=${encodeURIComponent(maquinaId)}` : ''}`;
                     const verificarResponse = await fetchJson(verificarUrl);
+
+                    console.log('Respuesta de verificación:', verificarResponse);
 
                     if (verificarResponse.success && verificarResponse.tieneOrdenEnProceso) {
                         if (typeof Swal !== 'undefined') {
@@ -618,13 +791,14 @@
                                 icon: 'warning',
                                 title: 'No se puede cargar la orden',
                                 html: `
-                                    <p class="mb-2">${verificarResponse.mensaje || 'Ya existe una orden con status "En Proceso".'}</p>
-                                    <p class="text-sm text-gray-600">Por favor, finaliza la orden en proceso antes de cargar una nueva.</p>
+                                    <p class="mb-2">${verificarResponse.mensaje || 'Ya existen 2 órdenes con status "En Proceso" en esta máquina.'}</p>
+                                    <p class="text-sm text-gray-600">Por favor, finaliza alguna de las órdenes en proceso en esta máquina antes de cargar una nueva.</p>
+                                    <p class="text-sm text-gray-500 mt-2">Cantidad actual: ${verificarResponse.cantidad || 0} / ${verificarResponse.limite || 2}</p>
                                 `,
                                 confirmButtonColor: '#2563eb',
                             });
                         } else {
-                            alert(verificarResponse.mensaje || 'Ya existe una orden con status "En Proceso". No se puede cargar otra orden.');
+                            alert(verificarResponse.mensaje || 'Ya existen 2 órdenes con status "En Proceso" en esta máquina. No se puede cargar otra orden.');
                         }
                         return;
                     }
@@ -634,16 +808,24 @@
                     return;
                 }
 
-                // Verificar si el usuario puede crear registros
+                // Verificar si el usuario puede crear registros (con timeout)
                 try {
                     const checkUrl = `${routes.produccion}?orden_id=${state.ordenSeleccionada.id}&check_only=true`;
-                    const response = await fetch(checkUrl, {
+
+                    // Crear un timeout para la petición
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Timeout')), 3000)
+                    );
+
+                    const fetchPromise = fetch(checkUrl, {
                         headers: {
                             'X-CSRF-TOKEN': csrfToken,
                         }
                     });
 
-                    if (response.ok) {
+                    const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+                    if (response && response.ok) {
                         const data = await response.json();
 
                         // Si no puede crear y no hay registros existentes, mostrar error
@@ -666,13 +848,43 @@
                         }
                     }
                 } catch (error) {
-                    console.error('Error al verificar permisos:', error);
+                    console.error('Error al verificar permisos (continuando con redirección):', error);
                     // Continuar con la redirección si hay error en la verificación
                 }
 
                 // Si puede crear o hay registros existentes, redirigir
                 const url = `${routes.produccion}?orden_id=${state.ordenSeleccionada.id}`;
+                console.log('Redirigiendo a:', url);
+                console.log('Orden seleccionada:', state.ordenSeleccionada);
+                console.log('Route produccion:', routes.produccion);
+
+                // Verificar que la URL sea válida
+                if (!url || url.includes('undefined') || url.includes('null')) {
+                    console.error('URL inválida para redirección:', url);
+                    showError('Error: No se pudo construir la URL de redirección. Por favor, intente nuevamente.');
+                    return false;
+                }
+
+                // Redirigir inmediatamente - FORZAR navegación de múltiples formas
+                console.log('Ejecutando redirección inmediata a:', url);
+
+                // Método 1: location.replace (más difícil de interceptar)
+                window.location.replace(url);
+
+                // Método 2: location.href como respaldo inmediato
                 window.location.href = url;
+
+                // Método 3: Si aún no funciona, usar window.open después de un delay muy corto
+                setTimeout(() => {
+                    console.log('Verificando redirección...');
+                    if (window.location.href !== url && !window.location.href.includes('modulo-produccion-urdido')) {
+                        console.log('Forzando con window.open...');
+                        window.open(url, '_self');
+                    }
+                }, 50);
+
+                // NO retornar nada - dejar que la función termine naturalmente
+                // Esto permite que la navegación se ejecute sin interferencias
             };
 
             // ==========================
@@ -783,6 +995,10 @@
             };
 
             const setupModalDragAndDrop = () => {
+                if (!canEdit) {
+                    return;
+                }
+
                 const tbody = document.getElementById('modalPrioridadTableBody');
                 if (!tbody) return;
 
@@ -905,6 +1121,7 @@
             window.cargarOrdenes = cargarOrdenes;
             window.irProduccion = irProduccion;
             window.guardarObservaciones = guardarObservaciones;
+            window.actualizarStatus = actualizarStatus;
             window.abrirModalEditarPrioridad = abrirModalEditarPrioridad;
             window.cerrarModalEditarPrioridad = cerrarModalEditarPrioridad;
             window.guardarPrioridades = guardarPrioridades;
