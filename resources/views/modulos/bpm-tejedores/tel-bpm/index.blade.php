@@ -9,10 +9,6 @@
             class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
         <i class="fa-solid fa-eye text-blue-600 text-lg"></i>
     </button>
-    {{-- <button id="btn-edit" title="Editar folio"
-            class="p-2 rounded-lg transition hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-        <i class="fa-solid fa-edit text-amber-600 text-lg"></i>
-    </button> --}}
     <button id="btn-delete" title="Eliminar folio"
             class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
         <i class="fa-solid fa-trash text-red-600 text-lg"></i>

@@ -60,39 +60,25 @@
     @endif
 
     <!-- Información del Header -->
-    <div class="bg-white rounded-lg shadow-sm border p-2 mb-2 mt-2 mx-4">
-        <div class="grid grid-cols-3 md:grid-cols-6 gap-2 text-xs">
+    <div class="bg-white rounded-lg shadow-sm border p-3 md:p-4 mb-2 mt-2 max-w-4xl mx-auto">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 items-center justify-items-center text-center text-sm">
             <div>
-                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Folio</p>
-                <p class="text-lg font-bold text-blue-600">{{ $header->Folio }}</p>
+                <p class="text-sm text-gray-500 font-medium uppercase mb-0.5">Fecha</p>
+                <p class="text-base font-semibold">{{ $header->Fecha ? $header->Fecha->format('d/m/Y H:i') : '' }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Fecha</p>
-                <p class="text-xs font-semibold">{{ $header->Fecha ? $header->Fecha->format('d/m/Y H:i') : '' }}</p>
+                <p class="text-sm text-gray-500 font-medium uppercase mb-0.5">Recibe</p>
+                <p class="text-base font-semibold">{{ $header->NombreEmplRec }}</p>
+                <p class="text-sm text-gray-600">Turno {{ $header->TurnoRecibe }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Entrega</p>
-                <p class="text-xs font-semibold">{{ $header->NombreEmplEnt }}</p>
-                <p class="text-xs text-gray-600">T{{ $header->TurnoEntrega }}</p>
+                <p class="text-sm text-gray-500 font-medium uppercase mb-0.5">Entrega</p>
+                <p class="text-base font-semibold">{{ $header->NombreEmplEnt }}</p>
+                <p class="text-sm text-gray-600">Turno {{ $header->TurnoEntrega }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Recibe</p>
-                <p class="text-xs font-semibold">{{ $header->NombreEmplRec }}</p>
-                <p class="text-xs text-gray-600">T{{ $header->TurnoRecibe }}</p>
-            </div>
-            <div>
-                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Autoriza</p>
-                <p class="text-xs font-semibold">{{ $header->NomEmplAutoriza }}</p>
-            </div>
-            <div>
-                <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Status</p>
-                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold
-                    @if($header->Status === 'Creado') bg-yellow-100 text-yellow-800
-                    @elseif($header->Status === 'Terminado') bg-blue-100 text-blue-800
-                    @elseif($header->Status === 'Autorizado') bg-green-100 text-green-800
-                    @endif">
-                    {{ $header->Status }}
-                </span>
+                <p class="text-sm text-gray-500 font-medium uppercase mb-0.5">Autoriza</p>
+                <p class="text-base font-semibold">{{ $header->NomEmplAutoriza }}</p>
             </div>
         </div>
     </div>
