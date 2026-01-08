@@ -259,13 +259,49 @@
         // Esperar a que las tablas estén renderizadas antes de cargar requerimientos
         // Usar setTimeout para asegurar que el DOM esté completamente renderizado
         setTimeout(() => {
-            // Cargar requerimientos existentes (filtrado por salón)
-            loadRequerimientos(telarId, salonTelar);
+            // Obtener el tipo del componente desde los checkboxes (rizo o pie)
+            const primerCheckbox = document.querySelector(`input[data-telar="${telarId}"]`);
+            const tipoComponente = primerCheckbox ? primerCheckbox.getAttribute('data-tipo') : null;
+
+            if (!tipoComponente) {
+                // Si no se encuentra el tipo, cargar sin filtro
+                loadRequerimientos(telarId, salonTelar);
+                return;
+            }
+
+            // Verificar si hay una selección guardada para este telar y tipo
+            // Si existe, usar esa fibra para filtrar desde el inicio
+            const seleccionGuardada = window.modalData?.seleccionGuardada?.[String(telarId)]?.[tipoComponente];
+
+            if (seleccionGuardada && seleccionGuardada.datos && seleccionGuardada.datos.fibra) {
+                const fibraGuardada = seleccionGuardada.datos.fibra;
+                const fibraNormalizada = fibraGuardada ? String(fibraGuardada).trim().toLowerCase() : '';
+                const fibraValida = fibraNormalizada && fibraNormalizada !== '' && fibraNormalizada !== '-';
+
+                console.log('Cargando requerimientos con selección guardada:', {
+                    telarId: telarId,
+                    tipo: tipoComponente,
+                    seleccion: seleccionGuardada.seleccion,
+                    fibra: fibraNormalizada,
+                    fibraValida: fibraValida
+                });
+
+                if (fibraValida) {
+                    // Cargar requerimientos filtrando por la fibra guardada
+                    loadRequerimientosConFiltro(telarId, salonTelar, tipoComponente, fibraNormalizada);
+                } else {
+                    // Si no hay fibra válida, cargar todos los requerimientos sin filtro
+                    loadRequerimientos(telarId, salonTelar);
+                }
+            } else {
+                // No hay selección guardada, cargar todos los requerimientos sin filtro
+                loadRequerimientos(telarId, salonTelar);
+            }
         }, 100);
 
-        // Cargar inventario de telares al inicio (solo una vez)
+        // Precargar inventario al inicio (solo una vez) usando el sistema de caché
         if (!window.inventarioCargado) {
-            obtenerInventarioTelares();
+            obtenerInventarioConCache();
             window.inventarioCargado = true;
         }
     }
@@ -392,6 +428,9 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
             data: datosEliminar
         })
         .then(response => {
+            // Invalidar caché para que se actualice en la próxima carga
+            invalidarCacheInventario();
+
             // El checkbox ya está desmarcado visualmente, mantenerlo así
             // Remover el atributo de cambio reciente después de un momento
             setTimeout(() => {
@@ -486,26 +525,29 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         }
     })
-    .then(response => {
-        // El checkbox ya está marcado visualmente, mantenerlo así
-        // Remover el atributo de cambio reciente después de un momento
-        setTimeout(() => {
-            checkbox.removeAttribute('data-cambio-reciente');
-        }, 3000);
+        .then(response => {
+            // Invalidar caché para que se actualice en la próxima carga
+            invalidarCacheInventario();
 
-        // Mostrar notificación de éxito
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'success',
-                title: 'Guardado con éxito',
-                showConfirmButton: false,
-                timer: 700,
-                timerProgressBar: true,
-                position: 'top-end',
-                toast: true
-            });
-        }
-    })
+            // El checkbox ya está marcado visualmente, mantenerlo así
+            // Remover el atributo de cambio reciente después de un momento
+            setTimeout(() => {
+                checkbox.removeAttribute('data-cambio-reciente');
+            }, 3000);
+
+            // Mostrar notificación de éxito
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Guardado con éxito',
+                    showConfirmButton: false,
+                    timer: 700,
+                    timerProgressBar: true,
+                    position: 'top-end',
+                    toast: true
+                });
+            }
+        })
     .catch(error => {
         // Mostrar notificación de error con más detalles
         if (typeof Swal !== 'undefined') {
@@ -543,7 +585,137 @@ if (typeof window.cargandoRequerimientosPorTelar === 'undefined') {
     window.cargandoRequerimientosPorTelar = {};
 }
 
-function loadRequerimientos(telarId, salon) {
+// Sistema de caché para inventario compartido entre todos los telares
+if (typeof window.inventarioCache === 'undefined') {
+    window.inventarioCache = {
+        data: null,
+        timestamp: null,
+        loading: false,
+        promises: [],
+        maxAge: 5000 // 5 segundos de caché
+    };
+}
+
+// Función para obtener inventario con caché y evitar múltiples peticiones simultáneas
+async function obtenerInventarioConCache(filtros = {}) {
+    const ahora = Date.now();
+
+    // Crear clave de caché basada en los filtros
+    const filtrosKey = JSON.stringify(filtros);
+    const cacheKey = `inventario_${filtrosKey}`;
+
+    // Si hay datos en caché para estos filtros y son recientes, devolverlos
+    if (window.inventarioCache[cacheKey] && window.inventarioCache[cacheKey].timestamp &&
+        (ahora - window.inventarioCache[cacheKey].timestamp) < window.inventarioCache.maxAge) {
+        return Promise.resolve(window.inventarioCache[cacheKey].data);
+    }
+
+    // Si ya hay una petición en curso para estos filtros, esperar a que termine
+    if (window.inventarioCache[`loading_${cacheKey}`]) {
+        return new Promise((resolve) => {
+            if (!window.inventarioCache[`promises_${cacheKey}`]) {
+                window.inventarioCache[`promises_${cacheKey}`] = [];
+            }
+            window.inventarioCache[`promises_${cacheKey}`].push(resolve);
+        });
+    }
+
+    // Iniciar nueva petición
+    window.inventarioCache[`loading_${cacheKey}`] = true;
+
+    try {
+        // Construir URL con filtros
+        let url = '/inventario-telares';
+        const filtrosArray = [];
+
+        if (filtros.hilo) {
+            filtrosArray.push({ columna: 'hilo', valor: filtros.hilo });
+        }
+        if (filtros.no_telar) {
+            filtrosArray.push({ columna: 'no_telar', valor: filtros.no_telar });
+        }
+        if (filtros.tipo) {
+            filtrosArray.push({ columna: 'tipo', valor: filtros.tipo });
+        }
+        if (filtros.salon) {
+            filtrosArray.push({ columna: 'salon', valor: filtros.salon });
+        }
+
+        if (filtrosArray.length > 0) {
+            const params = new URLSearchParams();
+            params.append('filtros', JSON.stringify(filtrosArray));
+            url += '?' + params.toString();
+        }
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            cache: 'no-cache' // Evitar caché del navegador
+        });
+
+        if (response.ok) {
+            const json = await response.json();
+            const registros = json?.data || [];
+
+            // Actualizar caché para estos filtros
+            if (!window.inventarioCache[cacheKey]) {
+                window.inventarioCache[cacheKey] = {};
+            }
+            window.inventarioCache[cacheKey].data = registros;
+            window.inventarioCache[cacheKey].timestamp = ahora;
+
+            // Resolver todas las promesas pendientes para estos filtros
+            if (window.inventarioCache[`promises_${cacheKey}`]) {
+                window.inventarioCache[`promises_${cacheKey}`].forEach(resolve => resolve(registros));
+                window.inventarioCache[`promises_${cacheKey}`] = [];
+            }
+            window.inventarioCache[`loading_${cacheKey}`] = false;
+
+            return registros;
+        } else {
+            throw new Error('Error al obtener inventario');
+        }
+    } catch (error) {
+        // Resolver todas las promesas pendientes con error
+        if (window.inventarioCache[`promises_${cacheKey}`]) {
+            window.inventarioCache[`promises_${cacheKey}`].forEach(resolve => resolve([]));
+            window.inventarioCache[`promises_${cacheKey}`] = [];
+        }
+        window.inventarioCache[`loading_${cacheKey}`] = false;
+
+        // Si hay datos antiguos en caché, usarlos
+        if (window.inventarioCache.data) {
+            return window.inventarioCache.data;
+        }
+
+        return [];
+    }
+}
+
+// Función para invalidar el caché (llamar después de guardar/eliminar)
+function invalidarCacheInventario() {
+    // Limpiar caché antiguo (compatibilidad)
+    window.inventarioCache.data = null;
+    window.inventarioCache.timestamp = null;
+
+    // Limpiar todos los cachés filtrados
+    Object.keys(window.inventarioCache).forEach(key => {
+        if (key.startsWith('inventario_') || key.startsWith('loading_inventario_') || key.startsWith('promises_inventario_')) {
+            delete window.inventarioCache[key];
+        }
+    });
+
+    console.log('Caché invalidado completamente');
+}
+
+function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
+    // Si se proporciona tipo y fibra, usar la función con filtro
+    if (tipo && fibraFiltro) {
+        return loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro);
+    }
+
     // Evitar múltiples llamadas simultáneas para el mismo telar
     const key = `${telarId}_${salon}`;
     if (window.cargandoRequerimientosPorTelar[key]) {
@@ -552,11 +724,9 @@ function loadRequerimientos(telarId, salon) {
 
     window.cargandoRequerimientosPorTelar[key] = true;
 
-    // Usar inventario real para marcar selección (GET)
-    fetch('/inventario-telares')
-        .then(r => r.json())
-        .then(json => {
-            const registros = json?.data || [];
+    // Usar inventario con caché (más rápido)
+    obtenerInventarioConCache()
+        .then(registros => {
 
             // Buscar todas las tablas que contienen checkboxes de este telar
             // IMPORTANTE: Las tablas deben estar en orden (primera = hoy)
@@ -961,6 +1131,204 @@ function loadRequerimientos(telarId, salon) {
         });
 }
 
+// Función para cargar requerimientos filtrando por fibra específica
+function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
+    // Evitar múltiples llamadas simultáneas para el mismo telar
+    const key = `${telarId}_${salon}_${tipo}_${fibraFiltro}`;
+    if (window.cargandoRequerimientosPorTelar[key]) {
+        return;
+    }
+
+    window.cargandoRequerimientosPorTelar[key] = true;
+
+    // Preparar filtros para el GET
+    const filtros = {
+        no_telar: String(telarId),
+        tipo: tipo === 'rizo' ? 'Rizo' : 'Pie'
+    };
+
+    // Agregar filtro por hilo si se proporciona
+    if (fibraFiltro && fibraFiltro !== '' && fibraFiltro !== '-') {
+        filtros.hilo = String(fibraFiltro).trim();
+    }
+
+    // Agregar filtro por salón si se proporciona
+    if (salon && salon !== '') {
+        filtros.salon = String(salon).trim();
+    }
+
+    // Usar inventario con caché y filtros (más rápido y filtrado en el servidor)
+    console.log('Obteniendo inventario con filtros:', filtros);
+    obtenerInventarioConCache(filtros)
+        .then(registros => {
+            console.log('Registros recibidos del servidor:', {
+                total: registros.length,
+                registros: registros.slice(0, 5).map(r => ({
+                    no_telar: r.no_telar,
+                    tipo: r.tipo,
+                    hilo: r.hilo,
+                    fecha: r.fecha,
+                    turno: r.turno
+                })),
+                filtrosAplicados: filtros,
+                nota: 'El servidor debería haber filtrado por hilo, pero algunos registros pueden tener hilo vacío'
+            });
+
+            // Los registros ya vienen filtrados del servidor, pero hacer una verificación adicional
+            // IMPORTANTE: Filtrar en el cliente también para asegurar que solo se muestren registros con el hilo correcto
+            const registrosFiltrados = registros.filter(reg => {
+                const telarCoincide = String(reg.no_telar) === String(telarId);
+                if (!telarCoincide) return false;
+
+                const salonRegistro = String(reg.salon || '').toLowerCase().trim();
+                const salonEsperado = String(salon || '').toLowerCase().trim();
+                let salonCoincide = true;
+                if (salonEsperado && salonEsperado !== '') {
+                    const salonRegistroNormalizado = salonRegistro.replace(/\s+/g, ' ').trim();
+                    const salonEsperadoNormalizado = salonEsperado.replace(/\s+/g, ' ').trim();
+                    salonCoincide = salonRegistroNormalizado === salonEsperadoNormalizado ||
+                                   salonRegistroNormalizado.includes(salonEsperadoNormalizado) ||
+                                   salonEsperadoNormalizado.includes(salonRegistroNormalizado);
+                }
+
+                const tipoRegistro = String(reg.tipo || '').toLowerCase().trim();
+                const tipoEsperado = tipo === 'rizo' ? 'rizo' : 'pie';
+                const tipoCoincide = tipoRegistro === tipoEsperado;
+
+                // Filtrar por fibra si se proporciona
+                // IMPORTANTE: Si hay filtro por fibra, SOLO aceptar registros con esa fibra exacta
+                // Rechazar registros con hilo vacío, NULL, o diferente
+                const fibraRegistro = String(reg.hilo || '').toLowerCase().trim();
+                const fibraEsperada = String(fibraFiltro || '').toLowerCase().trim();
+                const tieneFibraFiltro = fibraFiltro && fibraFiltro !== '' && fibraFiltro !== '-';
+
+                // Si hay filtro por fibra, el registro DEBE tener la fibra exacta (no vacía, no NULL)
+                let fibraCoincide = true;
+                if (tieneFibraFiltro) {
+                    // Con filtro: solo aceptar si la fibra coincide exactamente Y no está vacía
+                    fibraCoincide = fibraRegistro !== '' && fibraRegistro === fibraEsperada;
+                } else {
+                    // Sin filtro: aceptar todos (incluidos los vacíos)
+                    fibraCoincide = true;
+                }
+
+                // Debug: mostrar comparación de fibras (solo para el primer registro)
+                if (registros.length > 0 && registros.indexOf(reg) === 0) {
+                    console.log('Comparando fibras (filtro adicional en cliente):', {
+                        fibraRegistro: fibraRegistro,
+                        fibraEsperada: fibraEsperada,
+                        tieneFibraFiltro: tieneFibraFiltro,
+                        fibraCoincide: fibraCoincide,
+                        fibraFiltroOriginal: fibraFiltro,
+                        filtrosAplicadosEnGET: filtros,
+                        motivoRechazo: (tieneFibraFiltro && (!fibraRegistro || fibraRegistro !== fibraEsperada)) ?
+                            'Hilo vacío o diferente' : 'OK'
+                    });
+                }
+
+                return telarCoincide && salonCoincide && tipoCoincide && fibraCoincide;
+            });
+
+            // Buscar todas las tablas que contienen checkboxes de este telar
+            const todasLasTablasDelDocumento = Array.from(document.querySelectorAll('table'));
+            const todasLasTablasDelTelar = todasLasTablasDelDocumento.filter(table => {
+                const tieneCheckboxDelTelar = table.querySelector(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`) !== null;
+                return tieneCheckboxDelTelar;
+            });
+
+            if (todasLasTablasDelTelar.length === 0) {
+                window.cargandoRequerimientosPorTelar[key] = false;
+                setTimeout(() => {
+                    loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro);
+                }, 500);
+                return;
+            }
+
+            // Limpiar TODOS los checkboxes de este telar y tipo primero
+            todasLasTablasDelTelar.forEach(table => {
+                table.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`).forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
+
+            // Obtener el rango de fechas del calendario
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const ultimoDia = new Date(hoy);
+            ultimoDia.setDate(hoy.getDate() + 6);
+            ultimoDia.setHours(23, 59, 59, 999);
+
+            // Función para convertir fecha ISO (YYYY-MM-DD) a objeto Date
+            function parseFechaISO(fechaISO) {
+                if (!fechaISO) return null;
+                const partes = fechaISO.split('-');
+                if (partes.length !== 3) return null;
+                const año = parseInt(partes[0]);
+                const mes = parseInt(partes[1]) - 1;
+                const dia = parseInt(partes[2]);
+                if (isNaN(año) || isNaN(mes) || isNaN(dia)) return null;
+                try {
+                    const fecha = new Date(año, mes, dia);
+                    fecha.setHours(0, 0, 0, 0);
+                    if (fecha.getFullYear() === año && fecha.getMonth() === mes && fecha.getDate() === dia) {
+                        return fecha;
+                    }
+                } catch (e) {
+                }
+                return null;
+            }
+
+            // Marcar solo los checkboxes que corresponden a la fibra seleccionada
+            registrosFiltrados.forEach(reg => {
+                const fechaISO = reg.fecha;
+                const fechaRegistro = parseFechaISO(fechaISO);
+
+                if (!fechaRegistro) return;
+
+                const timestampRegistro = fechaRegistro.getTime();
+                const timestampHoy = hoy.getTime();
+                const timestampUltimoDia = ultimoDia.getTime();
+                const fechaEsAnterior = timestampRegistro < timestampHoy;
+                const fechaEsPosterior = timestampRegistro > timestampUltimoDia;
+
+                let tablaDestino = null;
+                if (fechaEsAnterior || fechaEsPosterior) {
+                    tablaDestino = todasLasTablasDelTelar[0];
+                } else {
+                    const diferenciaDias = Math.floor((timestampRegistro - timestampHoy) / (1000 * 60 * 60 * 24));
+                    if (diferenciaDias >= 0 && diferenciaDias < todasLasTablasDelTelar.length) {
+                        tablaDestino = todasLasTablasDelTelar[diferenciaDias];
+                    }
+                }
+
+                if (!tablaDestino) return;
+
+                // Marcar checkbox
+                const valorEsperado = `${tipo}${reg.turno}`;
+                const checkboxes = tablaDestino.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`);
+
+                checkboxes.forEach(cb => {
+                    if (cb.value === valorEsperado) {
+                        cb.checked = true;
+                    }
+                });
+            });
+
+            console.log('Checkboxes marcados después del filtro:', {
+                registrosFiltrados: registrosFiltrados.length,
+                filtroAplicado: filtros,
+                telarId: telarId,
+                tipo: tipo
+            });
+
+            window.cargandoRequerimientosPorTelar[key] = false;
+        })
+        .catch(error => {
+            console.error('Error al cargar requerimientos con filtro:', error);
+            window.cargandoRequerimientosPorTelar[key] = false;
+        });
+}
+
 // Variables globales para el modal
 if (typeof window.modalData === 'undefined') {
     window.modalData = {
@@ -977,14 +1345,27 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
     window.modalData.telarId = telarId;
     window.modalData.tipo = tipo;
 
+    // Guardar el salón del telar para usarlo después
+    // Buscar el salón desde el contexto del componente
+    const salonTelar = document.querySelector(`input[data-telar="${telarId}"]`)?.closest('.telar-section')?.dataset?.salon ||
+                       (tipo === 'rizo' ? 'Jacquard' : 'Itema'); // Fallback
+    window.modalData.salonTelar = salonTelar;
+
     // Actualizar título del modal
     document.getElementById('modalTelarNumero').textContent = telarId;
 
+    // Verificar si hay una selección guardada previa de "Siguiente Orden" para este telar y tipo
+    const seleccionPrevia = window.modalData?.seleccionGuardada?.[telarId]?.[tipo];
+    const usarFibraPrevia = seleccionPrevia && seleccionPrevia.seleccion === 'siguiente' && seleccionPrevia.datos?.fibra;
+
     // Obtener datos del proceso actual y siguiente orden
-    Promise.all([
+    // Si hay una selección previa de "Siguiente Orden", usar esa fibra para el GET
+    const promesas = [
         obtenerDatosProcesoActual(telarId),
-        obtenerDatosSiguienteOrden(telarId)
-    ]).then(([datosProceso, datosSiguiente]) => {
+        obtenerDatosSiguienteOrden(telarId, usarFibraPrevia ? seleccionPrevia.datos.fibra : null)
+    ];
+
+    Promise.all(promesas).then(([datosProceso, datosSiguiente]) => {
         // Configurar datos del proceso actual según el tipo (RIZO o PIE)
         window.modalData.datosProceso = {
             cuenta: tipo === 'rizo' ?
@@ -1027,13 +1408,106 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
         modal.classList.remove('hidden');
         modal.classList.add('flex', 'items-center', 'justify-center');
 
-        // Limpiar selección anterior y seleccionar por defecto "Producción en Proceso"
-        document.querySelectorAll('input[name="seleccion"]').forEach(radio => {
-            radio.checked = false;
+        // Agregar event listeners a los radio buttons para actualizar datos cuando cambien
+        const radioProceso = document.getElementById('radioProceso');
+        const radioSiguiente = document.getElementById('radioSiguiente');
+
+        // Remover listeners anteriores si existen (clonar y reemplazar para limpiar listeners)
+        const nuevoRadioProceso = radioProceso.cloneNode(true);
+        radioProceso.parentNode.replaceChild(nuevoRadioProceso, radioProceso);
+        const nuevoRadioSiguiente = radioSiguiente.cloneNode(true);
+        radioSiguiente.parentNode.replaceChild(nuevoRadioSiguiente, radioSiguiente);
+
+        // Limpiar selección anterior
+        nuevoRadioProceso.checked = false;
+        nuevoRadioSiguiente.checked = false;
+
+        // Verificar si hay una selección guardada previa para este telar y tipo
+        const seleccionPrevia = window.modalData?.seleccionGuardada?.[telarId]?.[tipo];
+
+        // Agregar listener para "Producción en Proceso"
+        nuevoRadioProceso.addEventListener('change', function() {
+            if (this.checked) {
+                // Hacer GET del proceso actual
+                obtenerDatosProcesoActual(telarId).then(datosProceso => {
+                    if (datosProceso) {
+                        window.modalData.datosProceso = {
+                            cuenta: tipo === 'rizo' ?
+                                (datosProceso?.Cuenta && datosProceso.Cuenta.trim() !== '' ? datosProceso.Cuenta : '-') :
+                                (datosProceso?.Cuenta_Pie && datosProceso.Cuenta_Pie.trim() !== '' ? datosProceso.Cuenta_Pie : '-'),
+                            calibre: tipo === 'rizo' ?
+                                (datosProceso?.CalibreRizo2 && datosProceso.CalibreRizo2 !== '' ? datosProceso.CalibreRizo2 : '-') :
+                                (datosProceso?.CalibrePie2 && datosProceso.CalibrePie2 !== '' ? datosProceso.CalibrePie2 : '-'),
+                            fibra: tipo === 'rizo' ?
+                                (datosProceso?.Fibra_Rizo && datosProceso.Fibra_Rizo.trim() !== '' ? datosProceso.Fibra_Rizo : '-') :
+                                (datosProceso?.Fibra_Pie && datosProceso.Fibra_Pie.trim() !== '' ? datosProceso.Fibra_Pie : '-'),
+                            ordenProd: datosProceso?.Orden_Prod || ''
+                        };
+
+                        // Actualizar tabla del modal
+                        document.getElementById('cuentaProceso').textContent = window.modalData.datosProceso.cuenta;
+                        document.getElementById('calibreProceso').textContent = window.modalData.datosProceso.calibre;
+                        document.getElementById('fibraProceso').textContent = window.modalData.datosProceso.fibra;
+
+                        // Actualizar checkboxes por la fibra del proceso actual (opcional: preview en tiempo real)
+                        // Esto se puede hacer aquí o solo cuando se confirme la selección
+                    }
+                });
+            }
         });
 
-        // Seleccionar por defecto "Producción en Proceso"
-        document.getElementById('radioProceso').checked = true;
+        // Agregar listener para "Siguiente Orden"
+        nuevoRadioSiguiente.addEventListener('change', function() {
+            if (this.checked) {
+                // Verificar si hay una selección guardada previa para obtener la fibra
+                const seleccionPreviaActual = window.modalData?.seleccionGuardada?.[telarId]?.[tipo];
+                const fibraPrevia = seleccionPreviaActual && seleccionPreviaActual.seleccion === 'siguiente' && seleccionPreviaActual.datos?.fibra ? seleccionPreviaActual.datos.fibra : null;
+
+                // Hacer GET de la siguiente orden (con fibra si existe selección previa)
+                obtenerDatosSiguienteOrden(telarId, fibraPrevia).then(datosSiguiente => {
+                    if (datosSiguiente) {
+                        window.modalData.datosSiguiente = {
+                            cuenta: tipo === 'rizo' ?
+                                (datosSiguiente?.Cuenta && datosSiguiente.Cuenta.trim() !== '' ? datosSiguiente.Cuenta : '-') :
+                                (datosSiguiente?.Cuenta_Pie && datosSiguiente.Cuenta_Pie.trim() !== '' ? datosSiguiente.Cuenta_Pie : '-'),
+                            calibre: tipo === 'rizo' ?
+                                (datosSiguiente?.CalibreRizo2 && datosSiguiente.CalibreRizo2 !== '' ? datosSiguiente.CalibreRizo2 : '-') :
+                                (datosSiguiente?.CalibrePie2 && datosSiguiente.CalibrePie2 !== '' ? datosSiguiente.CalibrePie2 : '-'),
+                            fibra: tipo === 'rizo' ?
+                                (datosSiguiente?.Fibra_Rizo && datosSiguiente.Fibra_Rizo.trim() !== '' ? datosSiguiente.Fibra_Rizo : '-') :
+                                (datosSiguiente?.Fibra_Pie && datosSiguiente.Fibra_Pie.trim() !== '' ? datosSiguiente.Fibra_Pie : '-'),
+                            ordenProd: datosSiguiente?.Orden_Prod || ''
+                        };
+
+                        // Actualizar tabla del modal
+                        document.getElementById('cuentaSiguiente').textContent = window.modalData.datosSiguiente.cuenta;
+                        document.getElementById('calibreSiguiente').textContent = window.modalData.datosSiguiente.calibre;
+                        document.getElementById('fibraSiguiente').textContent = window.modalData.datosSiguiente.fibra;
+                    }
+                });
+            }
+        });
+
+        // Si hay selección previa, seleccionar esa opción; si no, seleccionar "Producción en Proceso" por defecto
+        if (seleccionPrevia) {
+            if (seleccionPrevia.seleccion === 'siguiente') {
+                nuevoRadioSiguiente.checked = true;
+                // Disparar el evento change para cargar los datos de la siguiente orden
+                nuevoRadioSiguiente.dispatchEvent(new Event('change'));
+            } else if (seleccionPrevia.seleccion === 'proceso') {
+                nuevoRadioProceso.checked = true;
+                // Disparar el evento change para cargar los datos del proceso actual
+                nuevoRadioProceso.dispatchEvent(new Event('change'));
+            } else {
+                // Seleccionar por defecto "Producción en Proceso"
+                nuevoRadioProceso.checked = true;
+                nuevoRadioProceso.dispatchEvent(new Event('change'));
+            }
+        } else {
+            // Seleccionar por defecto "Producción en Proceso"
+            nuevoRadioProceso.checked = true;
+            nuevoRadioProceso.dispatchEvent(new Event('change'));
+        }
     });
 }
 
@@ -1052,10 +1526,32 @@ function cerrarModalSeleccion() {
 
 // Función para confirmar la selección
 function confirmarSeleccion() {
+    // Asegurar que window.modalData esté inicializado
+    if (typeof window.modalData === 'undefined') {
+        window.modalData = {
+            telarId: null,
+            tipo: null,
+            datosProceso: null,
+            datosSiguiente: null,
+            seleccionGuardada: {}
+        };
+    }
+
+    // Asegurar que seleccionGuardada esté inicializado
+    if (!window.modalData.seleccionGuardada) {
+        window.modalData.seleccionGuardada = {};
+    }
+
     const seleccionado = document.querySelector('input[name="seleccion"]:checked');
 
     if (!seleccionado) {
         alert('Por favor seleccione una opción.');
+        return;
+    }
+
+    // Validar que tenemos los datos necesarios
+    if (!window.modalData.telarId || !window.modalData.tipo) {
+        alert('Error: No se encontraron los datos del telar. Por favor, cierre y vuelva a abrir el modal.');
         return;
     }
 
@@ -1067,23 +1563,154 @@ function confirmarSeleccion() {
         datosSeleccionados = window.modalData.datosSiguiente;
     }
 
+    // Validar que tenemos datos seleccionados
+    if (!datosSeleccionados) {
+        alert('Error: No se encontraron los datos seleccionados.');
+        return;
+    }
+
     // Actualizar visualmente la cuenta seleccionada
     const elemento = document.getElementById(`cuenta-${window.modalData.tipo}-${window.modalData.telarId}`);
     if (elemento) {
-        elemento.textContent = datosSeleccionados.cuenta;
+        elemento.textContent = datosSeleccionados.cuenta || '-';
     }
 
     // Guardar la selección Y los datos completos para este telar y tipo
-    if (!window.modalData.seleccionGuardada[window.modalData.telarId]) {
-        window.modalData.seleccionGuardada[window.modalData.telarId] = {};
+    const telarId = String(window.modalData.telarId);
+    const tipo = String(window.modalData.tipo);
+
+    if (!window.modalData.seleccionGuardada[telarId]) {
+        window.modalData.seleccionGuardada[telarId] = {};
     }
-    window.modalData.seleccionGuardada[window.modalData.telarId][window.modalData.tipo] = {
+
+    window.modalData.seleccionGuardada[telarId][tipo] = {
         seleccion: seleccionado.value,
         datos: datosSeleccionados,
         ordenProd: seleccionado.value === 'proceso'
-            ? window.modalData.datosProceso?.ordenProd
-            : window.modalData.datosSiguiente?.ordenProd
+            ? (window.modalData.datosProceso?.ordenProd || '')
+            : (window.modalData.datosSiguiente?.ordenProd || '')
     };
+
+    // Cuando se selecciona una nueva fibra (proceso o siguiente), actualizar el hilo en el inventario y filtrar checkboxes
+    const fibraSeleccionada = datosSeleccionados?.fibra || '';
+    const salonTelar = window.modalData?.salonTelar || '';
+
+    // Guardar valores antes del setTimeout para evitar que se pierdan
+    const telarIdParaFiltro = window.modalData.telarId;
+    const tipoParaFiltro = window.modalData.tipo;
+    const esProceso = seleccionado.value === 'proceso';
+
+    // Debug: mostrar la fibra seleccionada
+    console.log('Fibra seleccionada:', {
+        fibraOriginal: fibraSeleccionada,
+        seleccion: seleccionado.value,
+        esProceso: esProceso,
+        telarId: telarIdParaFiltro,
+        tipo: tipoParaFiltro,
+        datosCompletos: datosSeleccionados
+    });
+
+    // Limpiar TODOS los checkboxes de este telar y tipo antes de aplicar el nuevo filtro
+    const todasLasTablasDelDocumento = Array.from(document.querySelectorAll('table'));
+    const todasLasTablasDelTelar = todasLasTablasDelDocumento.filter(table => {
+        const tieneCheckboxDelTelar = table.querySelector(`input[data-telar="${telarIdParaFiltro}"][data-tipo="${tipoParaFiltro}"]`) !== null;
+        return tieneCheckboxDelTelar;
+    });
+
+    todasLasTablasDelTelar.forEach(table => {
+        table.querySelectorAll(`input[data-telar="${telarIdParaFiltro}"][data-tipo="${tipoParaFiltro}"]`).forEach(checkbox => {
+            checkbox.checked = false;
+            // Limpiar también el atributo de cambio reciente
+            checkbox.removeAttribute('data-cambio-reciente');
+        });
+    });
+
+    console.log('Checkboxes limpiados antes de aplicar nuevo filtro:', {
+        telarId: telarIdParaFiltro,
+        tipo: tipoParaFiltro,
+        checkboxesLimpiados: todasLasTablasDelTelar.reduce((total, table) => {
+            return total + table.querySelectorAll(`input[data-telar="${telarIdParaFiltro}"][data-tipo="${tipoParaFiltro}"]`).length;
+        }, 0)
+    });
+
+    // Actualizar el hilo en el inventario cuando se confirma una selección
+    if (telarIdParaFiltro && tipoParaFiltro && fibraSeleccionada && fibraSeleccionada !== '-') {
+        // Actualizar el hilo en todos los registros activos del inventario para este telar y tipo
+        const hiloParaActualizar = String(fibraSeleccionada).trim();
+
+        // Llamar al endpoint para actualizar el hilo
+        fetch('/programa-urd-eng/actualizar-telar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                no_telar: telarIdParaFiltro,
+                tipo: tipoParaFiltro === 'rizo' ? 'Rizo' : 'Pie',
+                hilo: hiloParaActualizar
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Hilo actualizado en inventario:', data);
+
+            // Invalidar TODOS los cachés para forzar una nueva consulta
+            invalidarCacheInventario();
+
+            // Esperar un poco más para asegurar que la base de datos se actualizó completamente
+            // Recargar requerimientos después de actualizar el hilo
+            setTimeout(() => {
+                // Normalizar la fibra: remover espacios, convertir a minúsculas, y verificar que no sea '-' o vacía
+                const fibraNormalizada = fibraSeleccionada ? String(fibraSeleccionada).trim().toLowerCase() : '';
+                const fibraValida = fibraNormalizada && fibraNormalizada !== '' && fibraNormalizada !== '-';
+
+                console.log('Filtrando por fibra después de actualizar hilo:', {
+                    fibraNormalizada: fibraNormalizada,
+                    fibraValida: fibraValida,
+                    seleccion: seleccionado.value,
+                    telarId: telarIdParaFiltro,
+                    tipo: tipoParaFiltro,
+                    salonTelar: salonTelar,
+                    hiloActualizado: hiloParaActualizar
+                });
+
+                if (fibraValida) {
+                    // Filtrar por la fibra específica seleccionada
+                    // Invalidar caché nuevamente antes de cargar para asegurar que se use el hilo actualizado
+                    invalidarCacheInventario();
+
+                    // Esperar un poco más para asegurar que TODOS los registros se actualizaron en la BD
+                    setTimeout(() => {
+                        loadRequerimientosConFiltro(telarIdParaFiltro, salonTelar, tipoParaFiltro, fibraNormalizada);
+                    }, 300); // Delay adicional para asegurar que el UPDATE completo terminó
+                } else {
+                    // Si no hay fibra válida, cargar todos los requerimientos sin filtro
+                    loadRequerimientos(telarIdParaFiltro, salonTelar);
+                }
+            }, 500); // Aumentar el delay a 500ms para dar tiempo a que la BD se actualice
+        })
+        .catch(error => {
+            console.error('Error al actualizar hilo en inventario:', error);
+            // Aún así, intentar filtrar los checkboxes
+            invalidarCacheInventario();
+            setTimeout(() => {
+                const fibraNormalizada = fibraSeleccionada ? String(fibraSeleccionada).trim().toLowerCase() : '';
+                const fibraValida = fibraNormalizada && fibraNormalizada !== '' && fibraNormalizada !== '-';
+                if (fibraValida) {
+                    loadRequerimientosConFiltro(telarIdParaFiltro, salonTelar, tipoParaFiltro, fibraNormalizada);
+                } else {
+                    loadRequerimientos(telarIdParaFiltro, salonTelar);
+                }
+            }, 200);
+        });
+    } else {
+        // Si no hay fibra válida, solo recargar requerimientos sin actualizar hilo
+        invalidarCacheInventario();
+        setTimeout(() => {
+            loadRequerimientos(telarIdParaFiltro, salonTelar);
+        }, 100);
+    }
 
     // Cerrar modal
     cerrarModalSeleccion();
@@ -1123,9 +1750,15 @@ async function obtenerDatosProcesoActual(telarId) {
 }
 
 // Función para obtener datos de la siguiente orden
-async function obtenerDatosSiguienteOrden(telarId) {
+async function obtenerDatosSiguienteOrden(telarId, fibra = null) {
     try {
-        const response = await fetch(`/api/telares/siguiente-orden/${telarId}`, {
+        let url = `/api/telares/siguiente-orden/${telarId}`;
+        // Si se proporciona una fibra, agregarla como parámetro de consulta
+        if (fibra) {
+            url += `?fibra=${encodeURIComponent(fibra)}`;
+        }
+
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
@@ -1142,25 +1775,9 @@ async function obtenerDatosSiguienteOrden(telarId) {
     }
 }
 
-// Función para obtener el inventario completo de telares
+// Función para obtener el inventario completo de telares (usa caché)
 async function obtenerInventarioTelares() {
-    try {
-        const response = await fetch('/inventario-telares', {
-            method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            return data.data;
-        } else {
-            return [];
-        }
-    } catch (error) {
-        return [];
-    }
+    return await obtenerInventarioConCache();
 }
 </script>
 

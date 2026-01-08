@@ -352,6 +352,16 @@
                         return obj;
                     });
 
+                    // Ordenar por Id descendente (más nuevos primero)
+                    const idIndex = columnas.indexOf('Id');
+                    if (idIndex !== -1) {
+                        state.data.sort((a, b) => {
+                            const idA = parseInt(a.Id) || 0;
+                            const idB = parseInt(b.Id) || 0;
+                            return idB - idA; // Descendente: mayor Id primero
+                        });
+                    }
+
                     state.filtered = [...state.data];
                     state.total    = json.t || state.data.length;
 
@@ -533,6 +543,13 @@
                         });
                     });
                 }
+
+                // Mantener ordenamiento por Id descendente (más nuevos primero)
+                state.filtered.sort((a, b) => {
+                    const idA = parseInt(a.Id) || 0;
+                    const idB = parseInt(b.Id) || 0;
+                    return idB - idA; // Descendente: mayor Id primero
+                });
 
                 state.page = 1;
                 state.selectedRowIndex = null; // Limpiar selección al filtrar
