@@ -71,17 +71,27 @@
                             <th class="px-2 py-2 text-center text-xs font-semibold w-20">Lote</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-24">Localidad</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-20">Serie</th>
-                            <th class="px-2 py-2 text-center text-xs font-semibold w-20">Kilos</th>
-                            <th class="px-2 py-2 text-center text-xs font-semibold w-20">Conos</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-28">Lote Proveedor</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-24">No Proveedor</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-28">Fecha</th>
+                            <th class="px-2 py-2 text-center text-xs font-semibold w-20">Conos</th>
+                            <th class="px-2 py-2 text-center text-xs font-semibold w-20">Kilos</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold w-20">Seleccionar</th>
                         </tr>
                     </thead>
-                    <tbody id="tbodyMaterialesEngomado" class="bg-white divide-y">
+                    <tbody id="tbodyMaterialesEngomado" class="bg-white">
                         {{-- filas dinámicas --}}
                     </tbody>
+                    <tfoot class="bg-gray-100 border-t-2 border-gray-300 sticky bottom-0">
+                        <tr class="font-semibold">
+                            <td colspan="11" class="px-2 py-2 text-xs text-right text-gray-700">
+                                Total registros seleccionados: <span id="totalRegistros" class="font-bold text-blue-600">0</span>
+                            </td>
+                            <td id="totalConos" class="px-2 py-2 text-xs text-center font-bold text-blue-600">0</td>
+                            <td id="totalKilos" class="px-2 py-2 text-xs text-center font-bold text-blue-600">0.00</td>
+                            <td class="px-2 py-2 text-xs text-center"></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
@@ -100,16 +110,16 @@
                             <th class="px-2 py-1 text-center text-xs font-semibold">Observaciones</th>
                         </tr>
                     </thead>
-                    <tbody id="tbodyConstruccionUrdido" class="bg-white divide-y">
+                    <tbody id="tbodyConstruccionUrdido" class="bg-white ">
                         <tr>
                             <td class="px-2 py-0.5">
-                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="number" step="1" min="0" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
-                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="number" step="1" min="0" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="text" step="1" min="0" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                         </tr>
                         <tr>

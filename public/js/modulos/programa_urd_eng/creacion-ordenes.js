@@ -561,6 +561,8 @@
             if (filaSeleccionadaId && gruposData[filaSeleccionadaId]) {
                 gruposData[filaSeleccionadaId].materialesEngomado = [];
             }
+            // Actualizar totales a cero cuando no hay materiales
+            actualizarTotalesMaterialesEngomado();
             return;
         }
 
@@ -596,11 +598,12 @@
                 <td class="px-2 py-3 text-xs text-center">${m.InventBatchId || '-'}</td>
                 <td class="px-2 py-3 text-xs text-center">${m.WMSLocationId || '-'}</td>
                 <td class="px-2 py-3 text-xs text-center">${m.InventSerialId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${fmtNumber(kilos)}</td>
-                <td class="px-2 py-3 text-xs text-center">${fmtNumber(conos)}</td>
                 <td class="px-2 py-3 text-xs text-center">${lotePr}</td>
                 <td class="px-2 py-3 text-xs text-center">${noProv}</td>
                 <td class="px-2 py-3 text-xs text-center">${prodDate}</td>
+                <td class="px-2 py-3 text-xs text-center">${conos.toFixed(0)}</td>
+                <td class="px-2 py-3 text-xs text-center">${fmtNumber(kilos)}</td>
+
                 <td class="px-2 py-3 text-center">
                     <input type="checkbox" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 checkbox-material"
                         data-material-id="${m.ItemId || ''}" data-serial-id="${m.InventSerialId || ''}"
@@ -611,13 +614,23 @@
         }
 
         agregarEventListenersCheckboxes(bomId);
-        if (bomId) setTimeout(()=>restaurarSelecciones(LS.getSelecciones(bomId)), 50);
+        if (bomId) {
+            setTimeout(() => {
+                restaurarSelecciones(LS.getSelecciones(bomId));
+                actualizarTotalesMaterialesEngomado();
+            }, 50);
+        } else {
+            actualizarTotalesMaterialesEngomado();
+        }
     }
 
     /* =================== Checkboxes (selecciones) =================== */
     function agregarEventListenersCheckboxes(bomId) {
         qsa('.checkbox-material').forEach(chk => {
-            chk.addEventListener('change', () => guardarSeleccionesCheckboxes(bomId));
+            chk.addEventListener('change', () => {
+                guardarSeleccionesCheckboxes(bomId);
+                actualizarTotalesMaterialesEngomado();
+            });
         });
     }
 
@@ -634,6 +647,40 @@
             checkboxKey: c.dataset.checkboxKey || ''
         }));
         LS.setSelecciones(id, selecciones);
+    }
+
+    /* =================== Actualizar totales de materiales engomado =================== */
+    function actualizarTotalesMaterialesEngomado() {
+        const filas = qsa('#tbodyMaterialesEngomado tr');
+        let totalConos = 0;
+        let totalKilos = 0;
+        let totalRegistros = 0;
+
+        filas.forEach(fila => {
+            const checkbox = fila.querySelector('.checkbox-material');
+            if (checkbox && checkbox.checked) {
+                // Obtener los valores de conos y kilos de las celdas de la fila
+                const celdas = fila.querySelectorAll('td');
+                if (celdas.length >= 13) {
+                    // Conos está en la columna 11 (índice 11)
+                    const conosText = celdas[11]?.textContent?.trim() || '0';
+                    const kilosText = celdas[12]?.textContent?.trim() || '0';
+
+                    totalConos += toNumber(conosText, 0);
+                    totalKilos += toNumber(kilosText, 0);
+                    totalRegistros++;
+                }
+            }
+        });
+
+        // Actualizar los elementos del tfoot
+        const totalConosEl = qs('#totalConos');
+        const totalKilosEl = qs('#totalKilos');
+        const totalRegistrosEl = qs('#totalRegistros');
+
+        if (totalConosEl) totalConosEl.textContent = totalConos.toFixed(0);
+        if (totalKilosEl) totalKilosEl.textContent = fmtNumber(totalKilos);
+        if (totalRegistrosEl) totalRegistrosEl.textContent = totalRegistros.toString();
     }
 
     function restaurarSelecciones(selecciones) {

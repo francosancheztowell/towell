@@ -4,23 +4,19 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-3">
-    <x-navbar.button-create id="" onclick="openModal('createModal')" title="Nueva Actividad" module="Actividades BPM" />
-    <button id="btn-consult" class="px-6 py-2.5 bg-blue-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-blue-600 transition-all duration-200 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-        <i class="fa-solid fa-eye w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
-        Consultar folio
+    {{-- Botones icon-only al estilo BPM Engomado --}}
+    <button id="btn-consult" title="Consultar folio"    
+            class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+        <i class="fa-solid fa-eye text-blue-600 text-lg"></i>
     </button>
-    <button id="btn-edit" class="px-6 py-2.5 bg-amber-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-amber-600 transition-all duration-200 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-        <i class="fa-solid fa-edit w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
-        Editar folio
+    <button id="btn-delete" title="Eliminar folio"
+            class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+        <i class="fa-solid fa-trash text-red-600 text-lg"></i>
     </button>
-    <button id="btn-delete" class="px-6 py-2.5 bg-red-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-red-600 transition-all duration-200 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-        <i class="fa-solid fa-trash w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
-        Eliminar folio
+    <button id="btn-open-create" title="Nuevo folio"
+            class="p-2 rounded-lg transition hover:bg-green-100">
+        <i class="fa-solid fa-plus text-green-600 text-lg"></i>
     </button>
-    {{-- <button id="btn-open-create" class="px-6 py-2.5 bg-green-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-green-600 transition-all duration-200 flex items-center gap-2 group">
-        <i class="fa-solid fa-plus w-4 h-4 group-hover:scale-110 transition-transform duration-200"></i>
-        Nuevo folio
-    </button> --}}
 </div>
 @endsection
 

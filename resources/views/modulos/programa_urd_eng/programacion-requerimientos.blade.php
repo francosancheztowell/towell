@@ -774,10 +774,13 @@ document.addEventListener('DOMContentLoaded', () => {
             itemsPorTelar[telarId].items.push(r);
         }
 
-        // Renderizar filas estilo Gantt: una fila por semana que tenga datos
+        // Calcular totales por columna de semana (metros y kilos)
+        const totalesMetrosPorSemana = [0, 0, 0, 0, 0];
+        const totalesKilosPorSemana = [0, 0, 0, 0, 0];
         let sumaTotalMetros = 0;
         let sumaTotalKilos = 0;
 
+        // Primero calcular los totales por columna
         for (const r of items) {
             const semanasData = [
                 { idx: 0, metros: Number(r.s0 || 0), kilos: Number(r.k0 || 0) },
@@ -787,52 +790,76 @@ document.addEventListener('DOMContentLoaded', () => {
                 { idx: 4, metros: Number(r.s4 || 0), kilos: Number(r.k4 || 0) }
             ];
 
-            // Crear una fila por cada semana que tenga datos (metros > 0 o kilos > 0)
-            semanasData.forEach(semData => {
-                if (semData.metros > 0 || semData.kilos > 0) {
-                    sumaTotalMetros += semData.metros;
-                    sumaTotalKilos += semData.kilos;
-
-                    const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-gray-50';
-
-                    // Crear las columnas de metros y kilos, mostrando solo el valor de la semana actual
-                    const metrosCells = semanasData.map((s, i) => {
-                        return i === semData.idx ? fmtNum(s.metros) : '-';
-                    }).map(val => `<td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${val}</td>`).join('');
-
-                    const kilosCells = semanasData.map((s, i) => {
-                        return i === semData.idx ? fmtNum(s.kilos) : '-';
-                    }).map(val => `<td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${val}</td>`).join('');
-
-                    tr.innerHTML = `
-                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.telar}</td>
-                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.cuenta || '-'}</td>
-                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.hilo || '-'}</td>
-                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.calibre != null && r.calibre !== '' ? r.calibre : '-'}</td>
-                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.modelo || '-'}</td>
-                        ${metrosCells}
-                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-blue-600 bg-blue-50">${fmtNum(semData.metros)}</td>
-                        ${kilosCells}
-                        <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-green-600 bg-green-50">${fmtNum(semData.kilos)}</td>
-                    `;
-                    tb.appendChild(tr);
-                }
+            semanasData.forEach((semData, idx) => {
+                totalesMetrosPorSemana[idx] += semData.metros;
+                totalesKilosPorSemana[idx] += semData.kilos;
+                sumaTotalMetros += semData.metros;
+                sumaTotalKilos += semData.kilos;
             });
         }
 
-        // Agregar fila de totales (sumas - solo lectura)
+        // Renderizar una fila por cada item con todas sus semanas
+        for (const r of items) {
+            const semanasData = [
+                { idx: 0, metros: Number(r.s0 || 0), kilos: Number(r.k0 || 0) },
+                { idx: 1, metros: Number(r.s1 || 0), kilos: Number(r.k1 || 0) },
+                { idx: 2, metros: Number(r.s2 || 0), kilos: Number(r.k2 || 0) },
+                { idx: 3, metros: Number(r.s3 || 0), kilos: Number(r.k3 || 0) },
+                { idx: 4, metros: Number(r.s4 || 0), kilos: Number(r.k4 || 0) }
+            ];
+
+            // Solo crear fila si tiene al menos un valor en alguna semana
+            const tieneDatos = semanasData.some(s => s.metros > 0 || s.kilos > 0);
+            if (!tieneDatos) continue;
+
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50';
+
+            // Crear las columnas de metros y kilos para todas las semanas
+            const metrosCells = semanasData.map(s => {
+                return `<td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(s.metros)}</td>`;
+            }).join('');
+
+            const kilosCells = semanasData.map(s => {
+                return `<td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(s.kilos)}</td>`;
+            }).join('');
+
+            tr.innerHTML = `
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.telar}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.cuenta || '-'}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.hilo || '-'}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.calibre != null && r.calibre !== '' ? r.calibre : '-'}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.modelo || '-'}</td>
+                ${metrosCells}
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-blue-600 bg-blue-50">${fmtNum(r.total || 0)}</td>
+                ${kilosCells}
+                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-green-600 bg-green-50">${fmtNum(r.totalKilos || 0)}</td>
+            `;
+            tb.appendChild(tr);
+        }
+
+        // Agregar fila de totales con totales por cada columna de semana
         const trTotal = document.createElement('tr');
-        trTotal.className = 'bg-gray-100';
+        trTotal.className = 'bg-gray-100 font-bold';
         trTotal.id = 'filaTotal';
+
+        // Crear celdas de totales por semana para metros
+        const totalesMetrosCells = totalesMetrosPorSemana.map(total => {
+            return `<td class="px-2 py-2 whitespace-nowrap text-[10px] font-semibold text-right text-blue-700 bg-blue-100">${fmtNum(total)}</td>`;
+        }).join('');
+
+        // Crear celdas de totales por semana para kilos
+        const totalesKilosCells = totalesKilosPorSemana.map(total => {
+            return `<td class="px-2 py-2 whitespace-nowrap text-[10px] font-semibold text-right text-green-700 bg-green-100">${fmtNum(total)}</td>`;
+        }).join('');
 
         trTotal.innerHTML = `
             <td class="px-2 py-2 whitespace-nowrap text-[10px] font-bold text-gray-800 bg-gray-100" colspan="5">TOTAL</td>
-            <td class="px-2 py-2 whitespace-nowrap text-[10px] text-right bg-gray-100" colspan="5"></td>
+            ${totalesMetrosCells}
             <td class="px-2 py-2 whitespace-nowrap text-[10px] font-semibold text-right text-blue-700 bg-blue-100">
                 <span class="block">${fmtNum(sumaTotalMetros)}</span>
             </td>
-            <td class="px-2 py-2 whitespace-nowrap text-[10px] text-right bg-gray-100" colspan="5"></td>
+            ${totalesKilosCells}
             <td class="px-2 py-2 whitespace-nowrap text-[10px] font-semibold text-right text-green-700 bg-green-100">
                 <span class="block">${fmtNum(sumaTotalKilos)}</span>
             </td>
