@@ -36,6 +36,9 @@ class UrdProgramaUrdido extends Model
         'CveEmpl',
         'NomEmpl',
         'LoteProveedor',
+        'Observaciones',
+        'Prioridad',
+        'CreatedAt',
     ];
 
     protected $casts = [
@@ -45,13 +48,15 @@ class UrdProgramaUrdido extends Model
         'Metros' => 'float',
         'Kilos' => 'float',
         'FechaProg' => 'date',
+        'Prioridad' => 'integer',
         'CreatedAt' => 'datetime',
+        'Observaciones' => 'string',
     ];
 
     /**
      * Extraer el número de MC Coy del campo MaquinaId
      * Ejemplos: "Mc Coy 1" -> 1, "Mc Coy 2" -> 2
-     * 
+     *
      * @return int|null
      */
     public function getMcCoyNumberAttribute(): ?int

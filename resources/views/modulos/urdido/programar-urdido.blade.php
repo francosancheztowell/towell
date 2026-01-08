@@ -4,22 +4,6 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-edit
-            id="btnSubirPrioridad"
-            onclick="subirPrioridad()"
-            title="Subir Prioridad"
-            icon="fa-arrow-up"
-            iconColor="text-green-500"
-            hoverBg="hover:bg-green-100"
-        />
-        <x-navbar.button-edit
-            id="btnBajarPrioridad"
-            onclick="bajarPrioridad()"
-            title="Bajar Prioridad"
-            icon="fa-arrow-down"
-            iconColor="text-red-500"
-            hoverBg="hover:bg-red-100"
-        />
         <x-navbar.button-create
              onclick="irProduccion()"
             title="Cargar Información"
@@ -37,6 +21,15 @@
             hoverBg="hover:bg-yellow-600"
             text="Editar"
             bg="bg-yellow-600"
+        />
+        <x-navbar.button-create
+            onclick="abrirModalEditarPrioridad()"
+            title="Editar Prioridad"
+            icon="fa-sort-numeric-up"
+            iconColor="text-white"
+            hoverBg="hover:bg-purple-600"
+            text="Editar Prioridad"
+            bg="bg-purple-600"
         />
     </div>
 @endsection
@@ -87,6 +80,59 @@
         </div>
     </div>
 
+    <!-- Modal Editar Prioridad -->
+    <div id="modalEditarPrioridad" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
+        <div class="relative bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 my-8">
+            <!-- Header del Modal -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800">Editar Prioridad de Órdenes</h2>
+                <button type="button" onclick="cerrarModalEditarPrioridad()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Body del Modal -->
+            <div class="p-6">
+
+                <div class="overflow-x-auto max-h-[600px]">
+                    <table class="w-full table-auto border-collapse">
+                        <thead class="sticky top-0 bg-gray-100 z-10">
+                            <tr class="bg-gray-100">
+                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Prioridad</th>
+                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Folio</th>
+                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Tipo</th>
+                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Cuenta</th>
+                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Calibre</th>
+                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Metros</th>
+                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Máquina</th>
+                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalPrioridadTableBody" class="bg-white">
+                            <tr>
+                                <td colspan="8" class="px-3 py-4 text-center text-gray-500">
+                                    <div class="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-500 mx-auto"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Footer del Modal -->
+            <div class="flex justify-end gap-2 p-6 border-t border-gray-200">
+                <button type="button" onclick="cerrarModalEditarPrioridad()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                    Cancelar
+                </button>
+                <button type="button" onclick="guardarPrioridades()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                    Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         (() => {
             // ==========================
@@ -95,16 +141,21 @@
             const routes = {
                 cargarOrdenes: '{{ route('urdido.programar.urdido.ordenes') }}',
                 verificarEnProceso: '{{ route('urdido.programar.urdido.verificar.en.proceso') }}',
-                subirPrioridad: '{{ route('urdido.programar.urdido.subir.prioridad') }}',
-                bajarPrioridad: '{{ route('urdido.programar.urdido.bajar.prioridad') }}',
+                intercambiarPrioridad: '{{ route('urdido.programar.urdido.intercambiar.prioridad') }}',
                 produccion: '{{ route('urdido.modulo.produccion.urdido') }}',
+                guardarObservaciones: '{{ route('urdido.programar.urdido.guardar.observaciones') }}',
+                obtenerTodasOrdenes: '{{ route('urdido.programar.urdido.todas.ordenes') }}',
+                actualizarPrioridades: '{{ route('urdido.programar.urdido.actualizar.prioridades') }}',
             };
 
             const csrfToken = '{{ csrf_token() }}';
 
             const state = {
                 ordenes: {},            // { 1: [..], 2: [..], 3: [..], 4: [..] }
-                ordenSeleccionada: null // { id, mccoy, ... }
+                ordenSeleccionada: null, // { id, mccoy, ... }
+                dragSource: null,        // { id, mccoy, index }
+                dragTarget: null,        // { id, mccoy, index }
+                todasOrdenes: []        // Todas las órdenes para el modal de prioridad
             };
 
             // ==========================
@@ -141,12 +192,8 @@
             };
 
             const setButtonsEnabled = (enabled) => {
-                const btnSubir = document.getElementById('btnSubirPrioridad');
-                const btnBajar = document.getElementById('btnBajarPrioridad');
                 const btnProduccion = document.getElementById('btnIrProduccion');
 
-                if (btnSubir) btnSubir.disabled = !enabled;
-                if (btnBajar) btnBajar.disabled = !enabled;
                 if (btnProduccion) btnProduccion.disabled = !enabled;
             };
 
@@ -190,7 +237,7 @@
                 if (!ordenes.length) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="6" class="px-2 py-2 text-center text-gray-500 text-xl">
+                            <td colspan="8" class="px-2 py-2 text-center text-gray-500 text-xl">
                                 No hay órdenes pendientes
                             </td>
                         </tr>
@@ -206,16 +253,24 @@
                     const prioridad = orden.prioridad ?? (index + 1);
 
                     const rowClasses = isSelected
-                        ? 'bg-blue-500 text-white cursor-pointer h-9 transition-all duration-200'
-                        : 'hover:bg-gray-50 cursor-pointer h-9 transition-all duration-200';
+                        ? 'bg-blue-500 text-white cursor-move h-9 transition-all duration-200'
+                        : 'hover:bg-gray-50 cursor-move h-9 transition-all duration-200 select-none';
 
                     const metros = orden.metros
                         ? Math.round(parseFloat(orden.metros))
                         : '';
 
                     return `
-                        <tr class="${rowClasses}" data-orden-id="${orden.id}" data-mccoy="${mccoy}">
-                            <td class="${baseTd} text-center font-semibold">${prioridad}</td>
+                        <tr
+                            class="${rowClasses}"
+                            data-orden-id="${orden.id}"
+                            data-mccoy="${mccoy}"
+                            data-index="${index}"
+                            draggable="true"
+                        >
+                            <td class="${baseTd} text-center font-semibold">
+                                <i class="fas fa-grip-vertical text-gray-400 mr-1"></i>${prioridad}
+                            </td>
                             <td class="${baseTd}">${orden.folio || ''}</td>
                             <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, isSelected)}</td>
                             <td class="${baseTd}">${orden.cuenta || ''}</td>
@@ -228,6 +283,9 @@
                                     class="w-full h-9 px-2 py-0 border-0 outline-none bg-transparent focus:bg-blue-50 ${isSelected ? 'text-white focus:text-gray-900' : 'text-gray-900'}"
                                     value="${orden.observaciones || ''}"
                                     data-orden-id="${orden.id}"
+                                    draggable="false"
+                                    onmousedown="event.stopPropagation()"
+                                    onclick="event.stopPropagation()"
                                     onblur="guardarObservaciones(event, ${orden.id})"
                                     onkeydown="if(event.key === 'Enter') event.target.blur()"
                                     placeholder="Escriba observaciones..."
@@ -238,6 +296,9 @@
                 }).join('');
 
                 tbody.innerHTML = rowsHtml;
+
+                // Configurar eventos drag and drop para esta tabla
+                setupDragAndDrop(mccoy);
             };
 
             const renderAllTables = () => {
@@ -267,11 +328,125 @@
                     if (!tbody) continue;
 
                     tbody.addEventListener('click', (event) => {
+                        // No seleccionar si se está haciendo drag o si es un input
+                        if (state.dragSource || event.target.tagName === 'INPUT') {
+                            return;
+                        }
                         const row = event.target.closest('tr[data-orden-id]');
                         if (!row) return;
                         handleRowClick(row);
                     });
                 }
+            };
+
+            // ==========================
+            // Drag and Drop (solo dentro de la misma máquina)
+            // Prioridad única global pero drag solo en misma MC Coy
+            // ==========================
+            const setupDragAndDrop = (mccoy) => {
+                const tbody = document.getElementById(`mcCoy${mccoy}TableBody`);
+                if (!tbody) return;
+
+                const rows = tbody.querySelectorAll('tr[data-orden-id]');
+
+                rows.forEach(row => {
+                    row.addEventListener('dragstart', (e) => {
+                        // No permitir drag si se hace clic en un input
+                        if (e.target.tagName === 'INPUT' || e.target.closest('input')) {
+                            e.preventDefault();
+                            return false;
+                        }
+
+                        const ordenId = Number(row.dataset.ordenId);
+                        const index = Number(row.dataset.index);
+
+                        state.dragSource = {
+                            id: ordenId,
+                            mccoy: mccoy,
+                            index: index,
+                            element: row
+                        };
+
+                        row.classList.add('opacity-50', 'bg-gray-300');
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/html', row.outerHTML);
+                    });
+
+                    row.addEventListener('dragend', (e) => {
+                        // Restaurar apariencia
+                        rows.forEach(r => {
+                            r.classList.remove('border-t-4', 'border-blue-500', 'bg-blue-100');
+                        });
+
+                        if (state.dragSource) {
+                            state.dragSource.element.classList.remove('opacity-50', 'bg-gray-300');
+                        }
+
+                        state.dragSource = null;
+                        state.dragTarget = null;
+                    });
+
+                    row.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+
+                        if (!state.dragSource) return;
+
+                        // Solo permitir drop en la misma tabla (mismo MC Coy)
+                        if (Number(row.dataset.mccoy) !== state.dragSource.mccoy) {
+                            e.dataTransfer.dropEffect = 'none';
+                            return;
+                        }
+
+                        // Limpiar clases anteriores
+                        rows.forEach(r => {
+                            r.classList.remove('border-t-4', 'border-blue-500', 'bg-blue-100');
+                        });
+
+                        // Agregar indicador visual
+                        row.classList.add('border-t-4', 'border-blue-500', 'bg-blue-100');
+                    });
+
+                    row.addEventListener('dragleave', (e) => {
+                        // Solo limpiar si realmente se sale de la fila
+                        if (!row.contains(e.relatedTarget)) {
+                            row.classList.remove('border-t-4', 'border-blue-500', 'bg-blue-100');
+                        }
+                    });
+
+                    row.addEventListener('drop', async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        if (!state.dragSource) return;
+
+                        const targetOrdenId = Number(row.dataset.ordenId);
+                        const targetIndex = Number(row.dataset.index);
+                        const sourceIndex = state.dragSource.index;
+
+                        // Verificar que sea la misma MC Coy
+                        if (Number(row.dataset.mccoy) !== state.dragSource.mccoy) {
+                            rows.forEach(r => {
+                                r.classList.remove('border-t-4', 'border-blue-500', 'bg-blue-100');
+                            });
+                            return;
+                        }
+
+                        // Si es la misma posición, no hacer nada
+                        if (state.dragSource.id === targetOrdenId || sourceIndex === targetIndex) {
+                            rows.forEach(r => {
+                                r.classList.remove('border-t-4', 'border-blue-500', 'bg-blue-100');
+                            });
+                            return;
+                        }
+
+                        // Intercambiar prioridades (prioridad única global pero drag solo en misma MC Coy)
+                        await intercambiarPrioridad(
+                            state.dragSource.id,
+                            targetOrdenId
+                        );
+                    });
+                });
             };
 
             // ==========================
@@ -340,45 +515,86 @@
             };
 
             // ==========================
-            // Actualizar Prioridad
+            // Intercambiar Prioridad (Drag and Drop)
+            // Prioridad única global, pero drag solo dentro de misma MC Coy
             // ==========================
-            const actualizarPrioridad = async (endpoint) => {
-                if (!state.ordenSeleccionada) {
-                    showToast('warning', 'Seleccione una orden');
-                    return;
-                }
-
+            const intercambiarPrioridad = async (sourceId, targetId) => {
                 try {
-                    const payload = JSON.stringify({ id: state.ordenSeleccionada.id });
+                    const payload = JSON.stringify({
+                        source_id: sourceId,
+                        target_id: targetId
+                    });
 
-                    const result = await fetchJson(endpoint, {
+                    const result = await fetchJson(routes.intercambiarPrioridad, {
                         method: 'POST',
                         body: payload,
                     });
 
                     if (!result.success) {
-                        throw new Error(result.error || 'Error al actualizar prioridad');
+                        throw new Error(result.error || 'Error al intercambiar prioridad');
                     }
 
-                    const ordenId = state.ordenSeleccionada.id;
+                    const ordenSeleccionadaId = state.ordenSeleccionada?.id;
 
                     // Recargar sin duplicar notificaciones
                     await cargarOrdenes(true);
 
                     // Restaurar selección si sigue existiendo
-                    for (let mccoy = 1; mccoy <= 4; mccoy++) {
-                        const orden = (state.ordenes[mccoy] || []).find(o => o.id === ordenId);
-                        if (orden) {
-                            state.ordenSeleccionada = orden;
-                            renderTable(mccoy);
-                            break;
+                    if (ordenSeleccionadaId) {
+                        for (let m = 1; m <= 4; m++) {
+                            const orden = (state.ordenes[m] || []).find(o => o.id === ordenSeleccionadaId);
+                            if (orden) {
+                                state.ordenSeleccionada = orden;
+                                renderAllTables();
+                                break;
+                            }
                         }
                     }
 
                     showToast('success', result.message || 'Prioridad actualizada correctamente');
                 } catch (error) {
-                    console.error('Error al actualizar prioridad:', error);
-                    showError(`Error al actualizar prioridad: ${error.message}`);
+                    console.error('Error al intercambiar prioridad:', error);
+                    showError(`Error al intercambiar prioridad: ${error.message}`);
+                }
+            };
+
+            // ==========================
+            // Guardar Observaciones
+            // ==========================
+            const guardarObservaciones = async (event, ordenId) => {
+                const input = event.target;
+                const observaciones = input.value.trim();
+
+                try {
+                    const payload = JSON.stringify({
+                        id: ordenId,
+                        observaciones: observaciones
+                    });
+
+                    const result = await fetchJson(routes.guardarObservaciones, {
+                        method: 'POST',
+                        body: payload,
+                    });
+
+                    if (!result.success) {
+                        throw new Error(result.error || 'Error al guardar observaciones');
+                    }
+
+                    // Actualizar el estado local
+                    for (let mccoy = 1; mccoy <= 4; mccoy++) {
+                        const orden = (state.ordenes[mccoy] || []).find(o => o.id === ordenId);
+                        if (orden) {
+                            orden.observaciones = observaciones;
+                            break;
+                        }
+                    }
+
+                    showToast('success', 'Observaciones guardadas correctamente');
+                } catch (error) {
+                    console.error('Error al guardar observaciones:', error);
+                    showError(`Error al guardar observaciones: ${error.message}`);
+                    // Restaurar valor anterior si falla
+                    input.value = observaciones;
                 }
             };
 
@@ -460,15 +676,238 @@
             };
 
             // ==========================
+            // Modal Editar Prioridad
+            // ==========================
+            const abrirModalEditarPrioridad = async () => {
+                const modal = document.getElementById('modalEditarPrioridad');
+                if (!modal) return;
+
+                modal.style.display = 'flex';
+                await cargarTodasOrdenes();
+            };
+
+            const cerrarModalEditarPrioridad = () => {
+                const modal = document.getElementById('modalEditarPrioridad');
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+            };
+
+            const cargarTodasOrdenes = async () => {
+                try {
+                    const tbody = document.getElementById('modalPrioridadTableBody');
+                    if (!tbody) return;
+
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="px-3 py-4 text-center text-gray-500">
+                                <div class="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-500 mx-auto"></div>
+                            </td>
+                        </tr>
+                    `;
+
+                    const result = await fetchJson(routes.obtenerTodasOrdenes);
+
+                    if (!result.success) {
+                        throw new Error(result.error || 'Error al cargar órdenes');
+                    }
+
+                    const ordenes = result.data || [];
+                    state.todasOrdenes = ordenes;
+
+                    renderModalPrioridadTable();
+                } catch (error) {
+                    console.error('Error al cargar todas las órdenes:', error);
+                    showError(`Error al cargar órdenes: ${error.message}`);
+                    const tbody = document.getElementById('modalPrioridadTableBody');
+                    if (tbody) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="8" class="px-3 py-4 text-center text-red-500">
+                                    Error al cargar órdenes
+                                </td>
+                            </tr>
+                        `;
+                    }
+                }
+            };
+
+            const renderModalPrioridadTable = () => {
+                const tbody = document.getElementById('modalPrioridadTableBody');
+                if (!tbody) return;
+
+                const ordenes = state.todasOrdenes || [];
+
+                if (!ordenes.length) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="px-3 py-4 text-center text-gray-500">
+                                No hay órdenes disponibles
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                const baseTd = 'px-3 py-2 text-sm border border-gray-300 whitespace-nowrap align-middle';
+
+                const rowsHtml = ordenes.map((orden, index) => {
+                    const prioridad = orden.prioridad ?? (index + 1);
+                    const metros = orden.metros ? Math.round(parseFloat(orden.metros)) : '';
+
+                    return `
+                        <tr
+                            class="hover:bg-gray-50 cursor-move transition-all duration-200"
+                            data-orden-id="${orden.id}"
+                            data-index="${index}"
+                            draggable="true"
+                        >
+                            <td class="${baseTd} text-center font-semibold">
+                                <i class="fas fa-grip-vertical text-gray-400 mr-1"></i>${prioridad}
+                            </td>
+                            <td class="${baseTd}">${orden.folio || ''}</td>
+                            <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, false)}</td>
+                            <td class="${baseTd}">${orden.cuenta || ''}</td>
+                            <td class="${baseTd}">${orden.calibre || ''}</td>
+                            <td class="${baseTd}">${metros}</td>
+                            <td class="${baseTd}">${orden.maquina || ''}</td>
+                            <td class="${baseTd}">${orden.status || ''}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                tbody.innerHTML = rowsHtml;
+
+                // Configurar drag and drop para el modal
+                setupModalDragAndDrop();
+            };
+
+            const setupModalDragAndDrop = () => {
+                const tbody = document.getElementById('modalPrioridadTableBody');
+                if (!tbody) return;
+
+                const rows = tbody.querySelectorAll('tr[data-orden-id]');
+                let dragSource = null;
+
+                rows.forEach(row => {
+                    row.addEventListener('dragstart', (e) => {
+                        const ordenId = Number(row.dataset.ordenId);
+                        const index = Number(row.dataset.index);
+
+                        dragSource = {
+                            id: ordenId,
+                            index: index,
+                            element: row
+                        };
+
+                        row.classList.add('opacity-50', 'bg-gray-300');
+                        e.dataTransfer.effectAllowed = 'move';
+                    });
+
+                    row.addEventListener('dragend', (e) => {
+                        rows.forEach(r => {
+                            r.classList.remove('border-t-4', 'border-blue-500', 'bg-blue-100');
+                        });
+
+                        if (dragSource) {
+                            dragSource.element.classList.remove('opacity-50', 'bg-gray-300');
+                        }
+
+                        dragSource = null;
+                    });
+
+                    row.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+
+                        if (!dragSource) return;
+
+                        rows.forEach(r => {
+                            r.classList.remove('border-t-4', 'border-blue-500', 'bg-blue-100');
+                        });
+
+                        row.classList.add('border-t-4', 'border-blue-500', 'bg-blue-100');
+                    });
+
+                    row.addEventListener('dragleave', (e) => {
+                        if (!row.contains(e.relatedTarget)) {
+                            row.classList.remove('border-t-4', 'border-blue-500', 'bg-blue-100');
+                        }
+                    });
+
+                    row.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        if (!dragSource) return;
+
+                        const targetIndex = Number(row.dataset.index);
+                        const sourceIndex = dragSource.index;
+
+                        if (sourceIndex === targetIndex) {
+                            rows.forEach(r => {
+                                r.classList.remove('border-t-4', 'border-blue-500', 'bg-blue-100');
+                            });
+                            return;
+                        }
+
+                        // Reordenar en el array
+                        const ordenes = [...state.todasOrdenes];
+                        const [removed] = ordenes.splice(sourceIndex, 1);
+                        ordenes.splice(targetIndex, 0, removed);
+
+                        // Actualizar índices y prioridades
+                        ordenes.forEach((orden, idx) => {
+                            orden.prioridad = idx + 1;
+                        });
+
+                        state.todasOrdenes = ordenes;
+                        renderModalPrioridadTable();
+                    });
+                });
+            };
+
+            const guardarPrioridades = async () => {
+                try {
+                    const ordenes = state.todasOrdenes || [];
+
+                    // Preparar datos: array de {id, prioridad}
+                    const prioridades = ordenes.map((orden, index) => ({
+                        id: orden.id,
+                        prioridad: orden.prioridad ?? (index + 1)
+                    }));
+
+                    const payload = JSON.stringify({ prioridades });
+
+                    const result = await fetchJson(routes.actualizarPrioridades, {
+                        method: 'POST',
+                        body: payload,
+                    });
+
+                    if (!result.success) {
+                        throw new Error(result.error || 'Error al guardar prioridades');
+                    }
+
+                    showToast('success', 'Prioridades guardadas correctamente');
+                    cerrarModalEditarPrioridad();
+
+                    // Recargar las órdenes en la vista principal
+                    await cargarOrdenes(true);
+                } catch (error) {
+                    console.error('Error al guardar prioridades:', error);
+                    showError(`Error al guardar prioridades: ${error.message}`);
+                }
+            };
+
+            // ==========================
             // API pública (para onclick del Blade)
             // ==========================
-            const subirPrioridad = () => actualizarPrioridad(routes.subirPrioridad);
-            const bajarPrioridad = () => actualizarPrioridad(routes.bajarPrioridad);
-
             window.cargarOrdenes = cargarOrdenes;
-            window.subirPrioridad = subirPrioridad;
-            window.bajarPrioridad = bajarPrioridad;
             window.irProduccion = irProduccion;
+            window.guardarObservaciones = guardarObservaciones;
+            window.abrirModalEditarPrioridad = abrirModalEditarPrioridad;
+            window.cerrarModalEditarPrioridad = cerrarModalEditarPrioridad;
+            window.guardarPrioridades = guardarPrioridades;
 
             // ==========================
             // Init
