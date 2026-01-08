@@ -60,25 +60,25 @@
     @endif
 
     <!-- Información del Header -->
-    <div class="bg-white rounded-lg shadow-sm border p-3 md:p-4 mb-2 mt-2 max-w-4xl mx-auto">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 items-center justify-items-center text-center text-sm">
-            <div>
-                <p class="text-sm text-gray-500 font-medium uppercase mb-0.5">Fecha</p>
-                <p class="text-base font-semibold">{{ $header->Fecha ? $header->Fecha->format('d/m/Y H:i') : '' }}</p>
+    <div class="bg-white rounded-lg shadow-sm border p-3 md:p-4 mb-2 mt-2 max-w-6xl mx-auto overflow-x-auto">
+        <div class="flex items-center gap-4 md:gap-6 justify-between divide-x divide-gray-200 whitespace-nowrap text-sm px-2">
+            <div class="flex items-baseline gap-1 px-4">
+                <span class="text-sm text-gray-500 font-medium uppercase">Fecha:</span>
+                <span class="text-base font-semibold">{{ $header->Fecha ? $header->Fecha->format('d/m/Y H:i') : '' }}</span>
             </div>
-            <div>
-                <p class="text-sm text-gray-500 font-medium uppercase mb-0.5">Recibe</p>
-                <p class="text-base font-semibold">{{ $header->NombreEmplRec }}</p>
-                <p class="text-sm text-gray-600">Turno {{ $header->TurnoRecibe }}</p>
+            <div class="flex items-baseline gap-1 px-4">
+                <span class="text-sm text-gray-500 font-medium uppercase">Recibe:</span>
+                <span class="text-base font-semibold">{{ $header->NombreEmplRec }}</span>
+                <span class="text-sm text-gray-600">(Turno {{ $header->TurnoRecibe }})</span>
             </div>
-            <div>
-                <p class="text-sm text-gray-500 font-medium uppercase mb-0.5">Entrega</p>
-                <p class="text-base font-semibold">{{ $header->NombreEmplEnt }}</p>
-                <p class="text-sm text-gray-600">Turno {{ $header->TurnoEntrega }}</p>
+            <div class="flex items-baseline gap-1 px-4">
+                <span class="text-sm text-gray-500 font-medium uppercase">Entrega:</span>
+                <span class="text-base font-semibold">{{ $header->NombreEmplEnt }}</span>
+                <span class="text-sm text-gray-600">(Turno {{ $header->TurnoEntrega }})</span>
             </div>
-            <div>
-                <p class="text-sm text-gray-500 font-medium uppercase mb-0.5">Autoriza</p>
-                <p class="text-base font-semibold">{{ $header->NomEmplAutoriza }}</p>
+            <div class="flex items-baseline gap-1 px-4">
+                <span class="text-sm text-gray-500 font-medium uppercase">Autoriza:</span>
+                <span class="text-base font-semibold">{{ $header->NomEmplAutoriza }}</span>
             </div>
         </div>
     </div>
