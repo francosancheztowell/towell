@@ -87,6 +87,8 @@ class LiberarOrdenesController extends Controller
                 'TotalRollos',
                 'TotalPzas',
                 'Repeticiones',
+                'SaldoMarbete',
+                'CategoriaCalidad',
                 'CombinaTram',
                 'BomId',
                 'BomName',
@@ -193,39 +195,70 @@ class LiberarOrdenesController extends Controller
                 $pCrudo = $registro->PesoCrudo ?? null;
                 $tiras = $registro->NoTiras ?? null;
                 $repeticiones = null;
-                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
+                if (isset($registro->Repeticiones) && is_numeric($registro->Repeticiones)) {
+                    $repeticiones = (int) $registro->Repeticiones;
+                } elseif ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
                     $repeticiones = floor(((41.5 / (float)$pCrudo) / (float)$tiras) * 1000);
                 }
 
-                $cantidadProducir = $registro->SaldoPedido ?? null;
-                $noMarbetes = null;
-                if ($cantidadProducir && $tiras && $repeticiones !== null &&
-                    is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
-                    $tiras > 0 && $repeticiones > 0) {
-                    $noMarbetes = floor((float)$cantidadProducir / (float)$tiras / (float)$repeticiones);
+                $saldoMarbeteInt = 0;
+                if (isset($registro->SaldoMarbete) && is_numeric($registro->SaldoMarbete)) {
+                    $saldoMarbeteInt = (int) $registro->SaldoMarbete;
+                } else {
+                    $cantidadProducir = $registro->SaldoPedido ?? null;
+                    $saldoMarbete = 0;
+                    if ($cantidadProducir !== null && $tiras && $repeticiones !== null &&
+                        is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
+                        $tiras > 0 && $repeticiones > 0) {
+                        $saldoMarbete = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
+                    }
+                    if (is_numeric($saldoMarbete)) {
+                        $saldoFloat = (float) $saldoMarbete;
+                        $entero = (int) floor($saldoFloat);
+                        $decimal = abs($saldoFloat - $entero);
+                        $saldoMarbeteInt = $decimal >= 0.5 ? (int) ceil($saldoFloat) : $entero;
+                    }
                 }
-
-                $largo = $registro->LargoCrudo ?? null;
                 $mtsRollo = null;
-                if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
-                    $largoNum = is_numeric($largo) ? (float)$largo : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
-                    if ($largoNum > 0 && $repeticiones > 0) {
-                        $mtsRollo = round($largoNum * $repeticiones / 100, 2);
+                if (isset($registro->MtsRollo) && is_numeric($registro->MtsRollo)) {
+                    $mtsRollo = (float) $registro->MtsRollo;
+                } else {
+                    $largo = $registro->LargoCrudo ?? null;
+                    if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
+                        $largoNum = is_numeric($largo) ? (float)$largo : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
+                        if ($largoNum > 0 && $repeticiones > 0) {
+                            $mtsRollo = round($largoNum * $repeticiones / 100, 2);
+                        }
                     }
                 }
 
                 $pzasRollo = null;
-                if ($repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
-                    $pzasRollo = round($repeticiones * $tiras, 0);
+                if (isset($registro->PzasRollo) && is_numeric($registro->PzasRollo)) {
+                    $pzasRollo = (float) $registro->PzasRollo;
+                } else {
+                    if ($repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
+                        $pzasRollo = round($repeticiones * $tiras, 0);
+                    }
                 }
 
-                $totalRollos = $noMarbetes;
+                $totalRollos = null;
+                if (isset($registro->TotalRollos) && is_numeric($registro->TotalRollos)) {
+                    $totalRollos = (float) $registro->TotalRollos;
+                } else {
+                    $totalRollos = $saldoMarbeteInt;
+                }
+
                 $totalPzas = null;
-                if ($totalRollos !== null && $pzasRollo !== null && is_numeric($totalRollos) && is_numeric($pzasRollo)) {
-                    $totalPzas = round((float)$totalRollos * (float)$pzasRollo, 0);
+                if (isset($registro->TotalPzas) && is_numeric($registro->TotalPzas)) {
+                    $totalPzas = (float) $registro->TotalPzas;
+                } else {
+                    if ($totalRollos !== null && $pzasRollo !== null && is_numeric($totalRollos) && is_numeric($pzasRollo)) {
+                        $totalPzas = round((float)$totalRollos * (float)$pzasRollo, 0);
+                    }
                 }
 
                 $registro->Repeticiones = $repeticiones;
+                $registro->SaldoMarbete = $saldoMarbeteInt;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
                 $registro->TotalRollos = $totalRollos;
@@ -321,11 +354,18 @@ class LiberarOrdenesController extends Controller
 
                 // Calcular NoMarbetes: TRUNCAR(SaldoPedido/NoTiras/Repeticiones)
                 $cantidadProducir = $registro->SaldoPedido ?? null;
-                $noMarbetes = null;
-                if ($cantidadProducir && $tiras && $repeticiones !== null &&
+                $saldoMarbete = 0;
+                if ($cantidadProducir !== null && $tiras && $repeticiones !== null &&
                     is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
                     $tiras > 0 && $repeticiones > 0) {
-                    $noMarbetes = floor((float)$cantidadProducir / (float)$tiras / (float)$repeticiones);
+                    $saldoMarbete = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
+                }
+                $saldoMarbeteInt = 0;
+                if (is_numeric($saldoMarbete)) {
+                    $saldoFloat = (float) $saldoMarbete;
+                    $entero = (int) floor($saldoFloat);
+                    $decimal = abs($saldoFloat - $entero);
+                    $saldoMarbeteInt = $decimal >= 0.5 ? (int) ceil($saldoFloat) : $entero;
                 }
 
                 // Calcular MtsRollo: (LargoCrudo * Repeticiones) / 100
@@ -345,7 +385,7 @@ class LiberarOrdenesController extends Controller
                 }
 
                 // Calcular TotalRollos y TotalPzas
-                $totalRollos = $noMarbetes;
+                $totalRollos = $saldoMarbeteInt;
                 $totalPzas = null;
                 if ($totalRollos !== null && $pzasRollo !== null && is_numeric($totalRollos) && is_numeric($pzasRollo)) {
                     $totalPzas = round((float) $totalRollos * (float) $pzasRollo, 0);
@@ -353,6 +393,7 @@ class LiberarOrdenesController extends Controller
 
                 // Actualizar campos calculados
                 $registro->Repeticiones = $repeticiones;
+                $registro->SaldoMarbete = $saldoMarbeteInt;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
                 $registro->TotalRollos = $totalRollos;
@@ -463,6 +504,7 @@ class LiberarOrdenesController extends Controller
                     'TotalPedido',
                     'Produccion',
                     'SaldoMarbete',
+                    'CategoriaCalidad',
                     'OrdCompartida',
                     'OrdCompartidaLider',
                     'CombinaTram',
@@ -520,6 +562,197 @@ class LiberarOrdenesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al liberar las órdenes: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+
+    public function buscarBom(Request $request)
+    {
+        // Si viene el parámetro 'combinations', es para múltiples combinaciones (más rápido)
+        $combinationsParam = trim((string) $request->query('combinations', ''));
+
+        if ($combinationsParam !== '') {
+            return $this->buscarBomMultiple($combinationsParam);
+        }
+
+        // Lógica original para una sola combinación (autocompletado)
+        $itemId = trim((string) $request->query('itemId', ''));
+        $inventSizeId = trim((string) $request->query('inventSizeId', ''));
+        $term = trim((string) $request->query('term', ''));
+
+        if ($itemId === '' || $inventSizeId === '') {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        try {
+            $itemIdWithSuffix = $itemId . '-1';
+
+            $query = DB::connection('sqlsrv_ti')
+                ->table('BOMTABLE as BT')
+                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
+                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
+                ->where('BV.ITEMID', $itemIdWithSuffix)
+                ->where('BT.INVENTSIZEID', $inventSizeId);
+
+            if ($term !== '') {
+                $query->where(function ($q) use ($term) {
+                    $q->where('BT.BOMID', 'like', '%' . $term . '%')
+                      ->orWhere('BT.NAME', 'like', '%' . $term . '%');
+                });
+            }
+
+            $results = $query->orderBy('BT.BOMID')->limit(20)->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $results,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al buscar BOMId', [
+                'item_id' => $itemId,
+                'invent_size_id' => $inventSizeId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar L.Mat.',
+            ], 500);
+        }
+    }
+
+    private function buscarBomMultiple($combinationsParam)
+    {
+        try {
+            // Formato: "itemId1:inventSizeId1,itemId2:inventSizeId2,..."
+            $combinations = array_filter(array_map('trim', explode(',', $combinationsParam)));
+
+            if (empty($combinations)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            $pairs = [];
+            foreach ($combinations as $combo) {
+                $parts = explode(':', $combo);
+                if (count($parts) === 2) {
+                    $itemId = trim($parts[0]);
+                    $inventSizeId = trim($parts[1]);
+                    $pairs[] = [
+                        'itemId' => $itemId,
+                        'itemIdWithSuffix' => $itemId . '-1',
+                        'inventSizeId' => $inventSizeId,
+                        'key' => $itemId . '|' . $inventSizeId
+                    ];
+                }
+            }
+
+            if (empty($pairs)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            // Consulta única optimizada con múltiples condiciones OR
+            $results = DB::connection('sqlsrv_ti')
+                ->table('BOMTABLE as BT')
+                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
+                ->select('BV.ITEMID', 'BT.INVENTSIZEID', 'BT.BOMID as bomId', 'BT.NAME as bomName')
+                ->where(function($query) use ($pairs) {
+                    foreach ($pairs as $pair) {
+                        $query->orWhere(function($q) use ($pair) {
+                            $q->where('BV.ITEMID', $pair['itemIdWithSuffix'])
+                              ->where('BT.INVENTSIZEID', $pair['inventSizeId']);
+                        });
+                    }
+                })
+                ->orderBy('BT.BOMID')
+                ->get();
+
+            // Agrupar resultados por combinación (solo el primero si hay múltiples)
+            $map = [];
+            foreach ($results as $result) {
+                $itemIdOriginal = str_replace('-1', '', $result->ITEMID);
+                $key = $itemIdOriginal . '|' . $result->INVENTSIZEID;
+
+                // Solo guardar el primer resultado por combinación
+                if (!isset($map[$key])) {
+                    $map[$key] = [
+                        [
+                            'bomId' => $result->bomId,
+                            'bomName' => $result->bomName
+                        ]
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $map,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al buscar BOM múltiple', [
+                'combinations' => $combinationsParam,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar L.Mat.',
+            ], 500);
+        }
+    }
+
+    public function obtenerTipoHilo(Request $request)
+    {
+        $itemIdsParam = trim((string) $request->query('itemIds', ''));
+
+        if ($itemIdsParam === '') {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        try {
+            $itemIds = array_filter(array_map('trim', explode(',', $itemIdsParam)));
+            $itemIdsWithSuffix = array_map(function($id) {
+                return $id . '-1';
+            }, $itemIds);
+
+            $results = DB::connection('sqlsrv_ti')
+                ->table('INVENTTABLE')
+                ->select('ITEMID', 'TwTipoHiloId')
+                ->whereIn('ITEMID', $itemIdsWithSuffix)
+                ->get();
+
+            $map = [];
+            foreach ($results as $result) {
+                $itemIdOriginal = str_replace('-1', '', $result->ITEMID);
+                $map[$itemIdOriginal] = $result->TwTipoHiloId ?? null;
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $map,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener TipoHilo', [
+                'item_ids' => $itemIdsParam,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener Tipo Hilo.',
             ], 500);
         }
     }
