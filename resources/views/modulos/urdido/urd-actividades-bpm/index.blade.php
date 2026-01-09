@@ -8,24 +8,31 @@ Actividades BPM Urdido
 @section('navbar-right')
     <div class="flex items-center gap-2">
 
-        <!-- Botón Agregar -->
-        <button onclick="openModal('createModal')" class="p-2 rounded-lg transition hover:bg-green-100" title="Nueva Actividad">
-            <i class="fa-solid fa-plus text-green-600 text-lg"></i>
-        </button>
+            <x-navbar.button-create
+            onclick="openUrdModal('createModal')"
+            id="btn-nuevo"
+            title="Nueva Actividad"
+            icon="fa-plus"
+            iconColor="text-green-600"
+            hoverBg="hover:bg-green-100" />
 
         <!-- Botón Editar -->
-        <button id="btn-top-edit" type="button"
-            class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            onclick="handleTopEdit()" disabled title="Editar Actividad">
-            <i class="fa-solid fa-pen-to-square text-yellow-500 text-lg"></i>
-        </button>
+        <x-navbar.button-edit
+            onclick="handleTopEdit()"
+            id="btn-top-edit"
+            title="Editar Actividad"
+            :disabled="true"
+            iconColor="text-yellow-500"
+            hoverBg="hover:bg-yellow-100" />
 
         <!-- Botón Eliminar -->
-        <button id="btn-top-delete" type="button"
-            class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            onclick="handleTopDelete()" disabled title="Eliminar Actividad">
-            <i class="fa-solid fa-trash text-red-600 text-lg"></i>
-        </button>
+        <x-navbar.button-delete
+            onclick="handleTopDelete()"
+            id="btn-top-delete"
+            title="Eliminar Actividad"
+            :disabled="true"
+            iconColor="text-red-600"
+            hoverBg="hover:bg-red-100" />
     </div>
 @endsection
 
@@ -149,7 +156,7 @@ Actividades BPM Urdido
                 <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
                     <button 
                         type="button" 
-                        onclick="closeModal('createModal')" 
+                        onclick="closeUrdModal('createModal')" 
                         class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
                         <i class="fa-solid fa-times mr-1"></i> Cancelar
                     </button>
@@ -208,7 +215,7 @@ Actividades BPM Urdido
                 <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
                     <button 
                         type="button" 
-                        onclick="closeModal('editModal')" 
+                        onclick="closeUrdModal('editModal')" 
                         class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
                         <i class="fa-solid fa-times mr-1"></i> Cancelar
                     </button>
@@ -273,16 +280,11 @@ Actividades BPM Urdido
         const btnEdit = document.getElementById('btn-top-edit');
         const btnDelete = document.getElementById('btn-top-delete');
         const hasSelection = !!selectedKey;
-        
+
         [btnEdit, btnDelete].forEach(btn => {
             if (!btn) return;
-            if (hasSelection) {
-                btn.removeAttribute('disabled');
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            } else {
-                btn.setAttribute('disabled', 'disabled');
-                btn.classList.add('opacity-50', 'cursor-not-allowed');
-            }
+            // Usar la propiedad disabled para mayor consistencia
+            btn.disabled = !hasSelection;
         });
     }
 
@@ -328,13 +330,13 @@ Actividades BPM Urdido
     }
 
     // Abrir modal
-    function openModal(modalId) {
+    function openUrdModal(modalId) {
         document.getElementById(modalId).classList.remove('hidden');
         document.body.style.overflow = 'hidden';
     }
 
     // Cerrar modal
-    function closeModal(modalId) {
+    function closeUrdModal(modalId) {
         document.getElementById(modalId).classList.add('hidden');
         document.body.style.overflow = 'auto';
     }
@@ -344,7 +346,7 @@ Actividades BPM Urdido
         document.getElementById('editOrden').value = orden || '';
         document.getElementById('editActividad').value = actividad || '';
         document.getElementById('editForm').action = updateUrl.replace('PLACEHOLDER', encodeURIComponent(key));
-        openModal('editModal');
+        openUrdModal('editModal');
     }
 
     // Abrir modal de edición directamente (desde botón de fila)
@@ -380,19 +382,48 @@ Actividades BPM Urdido
     // Cerrar modal al hacer clic fuera
     window.onclick = function(event) {
         if (event.target.id === 'createModal' || event.target.id === 'editModal') {
-            closeModal(event.target.id);
+            closeUrdModal(event.target.id);
         }
     }
 
     // Cerrar modal con tecla ESC
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
-            closeModal('createModal');
-            closeModal('editModal');
+            closeUrdModal('createModal');
+            closeUrdModal('editModal');
         }
     });
 
-    // Estado inicial
-    updateTopButtonsState();
+    // Inicialización: vincular eventos a los botones del navbar
+    document.addEventListener('DOMContentLoaded', function() {
+        // Botón Nuevo/Crear
+        const btnNuevo = document.getElementById('btn-nuevo');
+        if (btnNuevo) {
+            btnNuevo.addEventListener('click', function(e) {
+                e.preventDefault();
+                openUrdModal('createModal');
+            });
+        }
+
+        // Botón Editar
+        const btnEdit = document.getElementById('btn-top-edit');
+        if (btnEdit) {
+            btnEdit.addEventListener('click', function(e) {
+                e.preventDefault();
+                handleTopEdit();
+            });
+        }
+
+        // Botón Eliminar
+        const btnDelete = document.getElementById('btn-top-delete');
+        if (btnDelete) {
+            btnDelete.addEventListener('click', function(e) {
+                e.preventDefault();
+                handleTopDelete();
+            });
+        }
+
+        updateTopButtonsState();
+    });
 </script>
 @endsection
