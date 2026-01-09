@@ -427,7 +427,8 @@ class ModuloService
             'BPM Tejedores' => '/tejedores/bpm',
             'Desarrolladores' => '/tejedores/desarrolladores',
             'Mecánicos' => '/tejedores/mecanicos',
-            'Notificar Montado de Rollo'=> 'tejedores/notificar-mont-rollos',
+            'Notificar Montado de Rollo' => '/tejedores/notificar-mont-rollos',
+            'Notificar Cortado de Rollo' => '/tejedores/notificar-mont-rollos',
 
             // Módulos de Programa Urd/Eng
             'Reservar y Programar' => '/programa-urd-eng/reservar-programar',
