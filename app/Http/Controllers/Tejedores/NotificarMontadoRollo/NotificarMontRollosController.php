@@ -65,7 +65,7 @@ class NotificarMontRollosController extends Controller
 
         $telares = $query->get();
 
-        return view('modulos.notificar-montado-rollos.index', compact('telares', 'tipo', 'telaresUsuario', 'telarSeleccionado'));
+        return view('modulos.tejedores.notificar-mont-rollos.index', compact('telares', 'tipo', 'telaresUsuario', 'telarSeleccionado'));
     }
 
     public function notificar(Request $request)

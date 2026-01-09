@@ -9,9 +9,24 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
 
 class ProgramarEngomadoController extends Controller
 {
+    private function usuarioPuedeEditar(): bool
+    {
+        $usuario = Auth::user();
+        if (!$usuario) {
+            return false;
+        }
+
+        $area = strtolower($usuario->area ?? '');
+        $puesto = strtolower($usuario->puesto ?? '');
+
+        return $area === 'engomado' && str_contains($puesto, 'supervisor');
+    }
+
     /**
      * Mostrar la vista de programar engomado
      */
@@ -79,39 +94,120 @@ class ProgramarEngomadoController extends Controller
     /**
      * Obtener órdenes de engomado agrupadas por tabla (Izquierda/Derecha)
      * Extrae el número de tabla del campo MaquinaEng
-     * Ordena por CreatedAt ascendente (más antiguas primero) dentro de cada grupo
+     * Muestra todas las órdenes pero marca visualmente las que tienen status "Finalizado" en UrdProgramaUrdido
+     * Ordena por Prioridad si existe, sino por FechaProg ascendente
      *
      * @return JsonResponse
      */
     public function getOrdenes(): JsonResponse
     {
         try {
-            // Filtrar órdenes de engomado que tengan su orden de urdido finalizada
-            $ordenes = EngProgramaEngomado::select([
-                'Id',
-                'Folio',
-                'RizoPie as tipo',
-                'Cuenta',
-                'Calibre',
-                'Metros',
-                'MaquinaEng',
-                'Status',
-                'FechaProg',
-                'BomFormula',
-            ])
-            ->whereIn('Status', ['Programado', 'En Proceso'])
-            ->whereNotNull('MaquinaEng')
-            ->where('MaquinaEng', '!=', '')
-            ->whereHas('programaUrdido', function($query) {
-                // Solo mostrar órdenes de engomado cuya orden de urdido esté finalizada
-                $query->where('Status', 'Finalizado');
-            })
-            ->get();
+            // Intentar cargar con Prioridad y Observaciones
+            $tienePrioridad = false;
+            try {
+                $ordenes = EngProgramaEngomado::select([
+                    'Id',
+                    'Folio',
+                    'RizoPie as tipo',
+                    'Cuenta',
+                    'Calibre',
+                    'Metros',
+                    'MaquinaEng',
+                    'Status',
+                    'FechaProg',
+                    'BomFormula',
+                    'Prioridad',
+                    'Observaciones',
+                ])
+                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereNotNull('MaquinaEng')
+                ->where('MaquinaEng', '!=', '')
+                ->get();
 
-            // Log para debug (puedes removerlo después)
-            Log::info('EngProgramaEngomado - Total órdenes encontradas: ' . $ordenes->count());
-            foreach ($ordenes->take(5) as $orden) {
-                Log::info('Orden ID: ' . $orden->Id . ', MaquinaEng: ' . $orden->MaquinaEng . ', Tabla extraída: ' . ($this->extractTablaNumber($orden->MaquinaEng) ?? 'null'));
+                $tienePrioridad = true;
+            } catch (\Exception $e) {
+                // Si falla, cargar sin Prioridad
+                $ordenes = EngProgramaEngomado::select([
+                    'Id',
+                    'Folio',
+                    'RizoPie as tipo',
+                    'Cuenta',
+                    'Calibre',
+                    'Metros',
+                    'MaquinaEng',
+                    'Status',
+                    'FechaProg',
+                    'BomFormula',
+                    'Observaciones',
+                ])
+                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereNotNull('MaquinaEng')
+                ->where('MaquinaEng', '!=', '')
+                ->get();
+            }
+
+            // Cargar información de UrdProgramaUrdido para verificar status "Finalizado"
+            $folios = $ordenes->pluck('Folio')->unique()->toArray();
+            $urdidos = UrdProgramaUrdido::whereIn('Folio', $folios)
+                ->select('Folio', 'Status')
+                ->get()
+                ->keyBy('Folio');
+
+            // Inicializar Prioridad si no existe
+            if ($tienePrioridad) {
+                $ordenesSinPrioridad = $ordenes->filter(function ($orden) {
+                    return empty($orden->Prioridad);
+                });
+
+                if ($ordenesSinPrioridad->count() > 0) {
+                    try {
+                        $maxPrioridad = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso'])
+                            ->whereNotNull('MaquinaEng')
+                            ->whereNotNull('Prioridad')
+                            ->max('Prioridad') ?? 0;
+
+                        foreach ($ordenesSinPrioridad as $orden) {
+                            $maxPrioridad++;
+                            DB::connection('sqlsrv')
+                                ->table('EngProgramaEngomado')
+                                ->where('Id', $orden->Id)
+                                ->update(['Prioridad' => $maxPrioridad]);
+                        }
+
+                        // Recargar las órdenes con Prioridad
+                        $ordenes = EngProgramaEngomado::select([
+                            'Id',
+                            'Folio',
+                            'RizoPie as tipo',
+                            'Cuenta',
+                            'Calibre',
+                            'Metros',
+                            'MaquinaEng',
+                            'Status',
+                            'FechaProg',
+                            'BomFormula',
+                            'Prioridad',
+                            'Observaciones',
+                        ])
+                        ->whereIn('Status', ['Programado', 'En Proceso'])
+                        ->whereNotNull('MaquinaEng')
+                        ->where('MaquinaEng', '!=', '')
+                        ->get();
+                    } catch (\Exception $e) {
+                        $tienePrioridad = false;
+                    }
+                }
+            }
+
+            // Ordenar por Prioridad si existe, sino por FechaProg
+            if ($tienePrioridad) {
+                $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
+                    return isset($orden->Prioridad) && !empty($orden->Prioridad) ? $orden->Prioridad : 999999;
+                })->values();
+            } else {
+                $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
+                    return $orden->FechaProg ? strtotime($orden->FechaProg) : 999999999;
+                })->values();
             }
 
             // Agrupar por tabla (extraído de MaquinaEng)
@@ -120,11 +216,15 @@ class ProgramarEngomadoController extends Controller
                 2 => [], // West Point 3
             ];
 
-            foreach ($ordenes as $orden) {
+            foreach ($ordenesOrdenadas as $orden) {
                 $tabla = $this->extractTablaNumber($orden->MaquinaEng);
 
                 // Solo incluir si la tabla es válida (1-2)
                 if ($tabla !== null && isset($ordenesPorTabla[$tabla])) {
+                    // Verificar si la orden de urdido está finalizada
+                    $urdido = $urdidos->get($orden->Folio);
+                    $urdidoFinalizado = $urdido && $urdido->Status === 'Finalizado';
+
                     $ordenesPorTabla[$tabla][] = [
                         'id' => $orden->Id,
                         'folio' => $orden->Folio,
@@ -132,32 +232,26 @@ class ProgramarEngomadoController extends Controller
                         'cuenta' => $orden->Cuenta,
                         'calibre' => $orden->Calibre,
                         'metros' => $orden->Metros,
+                        'maquina_eng' => $orden->MaquinaEng ?? null,
                         'tabla' => $tabla,
                         'status' => $orden->Status ?? null,
                         'formula' => $orden->BomFormula ?? null,
+                        'observaciones' => $orden->Observaciones ?? '',
+                        'prioridad' => ($tienePrioridad && isset($orden->Prioridad)) ? ($orden->Prioridad ?? 999999) : null,
+                        'urdido_finalizado' => $urdidoFinalizado, // Flag para marcar visualmente
                     ];
                 }
             }
 
-            // Ordenar cada grupo por CreatedAt ascendente (más antiguas primero)
-            // y agregar número de prioridad consecutivo (empezando desde 1)
+            // Ordenar cada grupo por prioridad si existe, sino mantener el orden
             foreach ($ordenesPorTabla as $key => $grupo) {
-                // Si no hay CreatedAt, usar FechaProg como alternativa
-                usort($ordenesPorTabla[$key], function ($a, $b) use ($ordenes) {
-                    $ordenA = $ordenes->firstWhere('Id', $a['id']);
-                    $ordenB = $ordenes->firstWhere('Id', $b['id']);
-
-                    $dateA = $ordenA && $ordenA->FechaProg ? strtotime($ordenA->FechaProg) : 0;
-                    $dateB = $ordenB && $ordenB->FechaProg ? strtotime($ordenB->FechaProg) : 0;
-
-                    return $dateA - $dateB; // Ascendente (más antiguas primero)
-                });
-
-                // Agregar número de prioridad consecutivo (1, 2, 3, ...) para cada grupo
-                foreach ($ordenesPorTabla[$key] as $index => &$orden) {
-                    $orden['prioridad'] = $index + 1; // Prioridad consecutiva empezando desde 1
+                if ($tienePrioridad) {
+                    usort($ordenesPorTabla[$key], function ($a, $b) {
+                        $prioridadA = $a['prioridad'] ?? 999999;
+                        $prioridadB = $b['prioridad'] ?? 999999;
+                        return $prioridadA - $prioridadB;
+                    });
                 }
-                unset($orden); // Liberar referencia
             }
 
             return response()->json([
@@ -173,8 +267,9 @@ class ProgramarEngomadoController extends Controller
     }
 
     /**
-     * Verificar si hay órdenes con status "En Proceso"
-     * Retorna true si hay al menos una orden con status "En Proceso" (excluyendo la orden actual si se proporciona)
+     * Verificar si hay órdenes con status "En Proceso" por tabla (máquina)
+     * Retorna true si hay 2 o más órdenes con status "En Proceso" en la misma tabla
+     * (excluyendo la orden actual si se proporciona)
      *
      * @param Request $request
      * @return JsonResponse
@@ -183,22 +278,62 @@ class ProgramarEngomadoController extends Controller
     {
         try {
             $ordenIdExcluir = $request->query('excluir_id');
+            $maquinaEng = $request->query('maquina_eng');
 
-            $query = EngProgramaEngomado::where('Status', 'En Proceso');
-
-            if ($ordenIdExcluir) {
-                $query->where('Id', '!=', $ordenIdExcluir);
+            // Si no se proporciona maquina_eng, permitir (no bloquear)
+            // Esto permite que funcione aunque no se pueda determinar la máquina
+            if (empty($maquinaEng)) {
+                return response()->json([
+                    'success' => true,
+                    'tieneOrdenEnProceso' => false,
+                    'cantidad' => 0,
+                    'mensaje' => 'No se proporcionó información de máquina. Se permite cargar la orden.',
+                ]);
             }
 
-            $cantidadEnProceso = $query->count();
+            // Verificar por tabla (extraída de MaquinaEng)
+            $tabla = $this->extractTablaNumber($maquinaEng);
+
+            // Si no se puede determinar la tabla, permitir (no bloquear)
+            if ($tabla === null) {
+                return response()->json([
+                    'success' => true,
+                    'tieneOrdenEnProceso' => false,
+                    'cantidad' => 0,
+                    'mensaje' => 'No se pudo determinar la tabla de la máquina. Se permite cargar la orden.',
+                ]);
+            }
+
+            // Obtener todas las órdenes en proceso y filtrar por tabla
+            $ordenesEnProceso = EngProgramaEngomado::where('Status', 'En Proceso')
+                ->whereNotNull('MaquinaEng')
+                ->get()
+                ->filter(function ($orden) use ($tabla, $ordenIdExcluir) {
+                    $ordenTabla = $this->extractTablaNumber($orden->MaquinaEng);
+                    if ($ordenIdExcluir && $orden->Id == $ordenIdExcluir) {
+                        return false;
+                    }
+                    return $ordenTabla === $tabla;
+                });
+
+            $cantidadEnProceso = $ordenesEnProceso->count();
+
+            $nombreTabla = $tabla == 1 ? 'West Point 2' : 'West Point 3';
+
+            // Permitir hasta 2 órdenes en proceso por tabla
+            // Solo bloquear si ya hay 2 o más órdenes en proceso
+            $limitePorTabla = 2;
+            $tieneOrdenEnProceso = $cantidadEnProceso >= $limitePorTabla;
 
             return response()->json([
                 'success' => true,
-                'tieneOrdenEnProceso' => $cantidadEnProceso > 0,
+                'tieneOrdenEnProceso' => $tieneOrdenEnProceso,
                 'cantidad' => $cantidadEnProceso,
-                'mensaje' => $cantidadEnProceso > 0
-                    ? "Ya existe una orden con status 'En Proceso'. No se puede cargar otra orden hasta finalizar la actual."
-                    : 'No hay órdenes en proceso',
+                'limite' => $limitePorTabla,
+                'tabla' => $nombreTabla,
+                'mensaje' => $tieneOrdenEnProceso
+                    ? "Ya existen {$limitePorTabla} órdenes con status 'En Proceso' en {$nombreTabla}. No se puede cargar otra orden en esta tabla hasta finalizar alguna de las actuales."
+                    : "Hay {$cantidadEnProceso} orden(es) en proceso en {$nombreTabla}. Puede cargar hasta {$limitePorTabla} órdenes en proceso por tabla.",
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -209,71 +344,50 @@ class ProgramarEngomadoController extends Controller
     }
 
     /**
-     * Subir prioridad de una orden
-     * Intercambia FechaProg con la orden inmediatamente anterior en la misma tabla
+     * Intercambiar prioridad entre dos órdenes mediante drag and drop
+     * Intercambia el campo Prioridad (único globalmente, sin importar tabla)
      *
      * @param Request $request
      * @return JsonResponse
      */
-    public function subirPrioridad(Request $request): JsonResponse
+    public function intercambiarPrioridad(Request $request): JsonResponse
     {
         try {
+            if (!$this->usuarioPuedeEditar()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No autorizado',
+                ], 403);
+            }
+
             $request->validate([
-                'id' => 'required|integer|exists:EngProgramaEngomado,Id',
+                'source_id' => 'required|integer|exists:EngProgramaEngomado,Id',
+                'target_id' => 'required|integer|exists:EngProgramaEngomado,Id',
             ]);
 
-            $orden = EngProgramaEngomado::findOrFail($request->id);
-            $tabla = $this->extractTablaNumber($orden->MaquinaEng);
+            $ordenSource = EngProgramaEngomado::findOrFail($request->source_id);
+            $ordenTarget = EngProgramaEngomado::findOrFail($request->target_id);
 
-            if ($tabla === null) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se pudo determinar la tabla de la orden',
-                ], 400);
+            // Asegurar que ambas órdenes tengan Prioridad
+            if (empty($ordenSource->Prioridad)) {
+                $maxPrioridad = EngProgramaEngomado::max('Prioridad') ?? 0;
+                $ordenSource->Prioridad = $maxPrioridad + 1;
             }
 
-            // Obtener todas las órdenes de la misma tabla ordenadas por FechaProg
-            $ordenesTabla = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso'])
-                ->whereNotNull('MaquinaEng')
-                ->get()
-                ->filter(function ($item) use ($tabla) {
-                    return $this->extractTablaNumber($item->MaquinaEng) === $tabla;
-                })
-                ->sortBy('FechaProg')
-                ->values();
-
-            // Encontrar la posición actual de la orden
-            $posicionActual = $ordenesTabla->search(function ($item) use ($orden) {
-                return $item->Id === $orden->Id;
-            });
-
-            if ($posicionActual === false || $posicionActual === 0) {
-                // Ya está en la primera posición o no se encontró
-                return response()->json([
-                    'success' => false,
-                    'error' => 'La orden ya está en la primera posición',
-                ], 400);
-            }
-
-            // Obtener la orden anterior
-            $ordenAnterior = $ordenesTabla->get($posicionActual - 1);
-
-            if (!$ordenAnterior) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se encontró la orden anterior',
-                ], 400);
+            if (empty($ordenTarget->Prioridad)) {
+                $maxPrioridad = EngProgramaEngomado::max('Prioridad') ?? 0;
+                $ordenTarget->Prioridad = $maxPrioridad + 1;
             }
 
             DB::beginTransaction();
 
-            // Intercambiar FechaProg (aumentar la prioridad = FechaProg más antigua)
-            $fechaProgTemp = $orden->FechaProg;
-            $orden->FechaProg = $ordenAnterior->FechaProg;
-            $ordenAnterior->FechaProg = $fechaProgTemp;
+            // Intercambiar Prioridad (único global)
+            $prioridadTemp = $ordenSource->Prioridad;
+            $ordenSource->Prioridad = $ordenTarget->Prioridad;
+            $ordenTarget->Prioridad = $prioridadTemp;
 
-            $orden->save();
-            $ordenAnterior->save();
+            $ordenSource->save();
+            $ordenTarget->save();
 
             DB::commit();
 
@@ -290,85 +404,183 @@ class ProgramarEngomadoController extends Controller
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'error' => 'Error al subir prioridad: ' . $e->getMessage(),
+                'error' => 'Error al intercambiar prioridad: ' . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Bajar prioridad de una orden
-     * Intercambia FechaProg con la orden inmediatamente posterior en la misma tabla
+     * Guardar observaciones de una orden
      *
      * @param Request $request
      * @return JsonResponse
      */
-    public function bajarPrioridad(Request $request): JsonResponse
+    public function guardarObservaciones(Request $request): JsonResponse
     {
         try {
+            if (!$this->usuarioPuedeEditar()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No autorizado',
+                ], 403);
+            }
+
             $request->validate([
                 'id' => 'required|integer|exists:EngProgramaEngomado,Id',
+                'observaciones' => 'nullable|string|max:60',
             ]);
 
             $orden = EngProgramaEngomado::findOrFail($request->id);
-            $tabla = $this->extractTablaNumber($orden->MaquinaEng);
+            $orden->Observaciones = $request->observaciones ?? '';
+            $orden->save();
 
-            if ($tabla === null) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se pudo determinar la tabla de la orden',
-                ], 400);
-            }
+            return response()->json([
+                'success' => true,
+                'message' => 'Observaciones guardadas correctamente',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de validación: ' . $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al guardar observaciones: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 
-            // Obtener todas las órdenes de la misma tabla ordenadas por FechaProg
-            $ordenesTabla = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso'])
+    /**
+     * Recalcular prioridades consecutivas para todas las órdenes activas
+     * Excluye órdenes canceladas
+     */
+    private function recalcularPrioridades(): void
+    {
+        try {
+            // Obtener todas las órdenes activas
+            $ordenes = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso'])
                 ->whereNotNull('MaquinaEng')
-                ->get()
-                ->filter(function ($item) use ($tabla) {
-                    return $this->extractTablaNumber($item->MaquinaEng) === $tabla;
-                })
-                ->sortBy('FechaProg')
-                ->values();
+                ->where('MaquinaEng', '!=', '')
+                ->get();
 
-            // Encontrar la posición actual de la orden
-            $posicionActual = $ordenesTabla->search(function ($item) use ($orden) {
-                return $item->Id === $orden->Id;
-            });
+            // Ordenar: primero por prioridad (las que tienen), luego por FechaProg
+            $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
+                $prioridad = isset($orden->Prioridad) && !empty($orden->Prioridad) ? $orden->Prioridad : 999999;
+                $fecha = $orden->FechaProg ? strtotime($orden->FechaProg) : 999999999;
+                return [$prioridad, $fecha];
+            })->values();
 
-            if ($posicionActual === false || $posicionActual === $ordenesTabla->count() - 1) {
-                // Ya está en la última posición o no se encontró
-                return response()->json([
-                    'success' => false,
-                    'error' => 'La orden ya está en la última posición',
-                ], 400);
+            DB::beginTransaction();
+
+            // Asignar prioridades consecutivas empezando desde 1
+            foreach ($ordenesOrdenadas as $index => $orden) {
+                $nuevaPrioridad = $index + 1;
+                DB::connection('sqlsrv')
+                    ->table('EngProgramaEngomado')
+                    ->where('Id', $orden->Id)
+                    ->update(['Prioridad' => $nuevaPrioridad]);
             }
 
-            // Obtener la orden posterior
-            $ordenPosterior = $ordenesTabla->get($posicionActual + 1);
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error al recalcular prioridades: ' . $e->getMessage());
+        }
+    }
 
-            if (!$ordenPosterior) {
+    /**
+     * Actualizar el status de una orden
+     * Si se cancela, se elimina la prioridad y se recalculan todas las demás
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function actualizarStatus(Request $request): JsonResponse
+    {
+        try {
+            if (!$this->usuarioPuedeEditar()) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'No se encontró la orden posterior',
-                ], 400);
+                    'error' => 'No autorizado',
+                ], 403);
+            }
+
+            $request->validate([
+                'id' => 'required|integer|exists:EngProgramaEngomado,Id',
+                'status' => ['required', 'string', Rule::in(['Programado', 'En Proceso', 'Cancelado'])],
+            ]);
+
+            $orden = EngProgramaEngomado::findOrFail($request->id);
+            $nuevoStatus = $request->status;
+            $statusAnterior = $orden->Status;
+
+            if ($orden->Status === $nuevoStatus) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Status sin cambios',
+                ]);
+            }
+
+            if ($nuevoStatus === 'En Proceso') {
+                $tabla = $this->extractTablaNumber($orden->MaquinaEng);
+                $limitePorTabla = 2;
+
+                if ($tabla !== null) {
+                    $cantidadEnProceso = EngProgramaEngomado::where('Status', 'En Proceso')
+                        ->whereNotNull('MaquinaEng')
+                        ->where('Id', '!=', $orden->Id)
+                        ->get()
+                        ->filter(function ($item) use ($tabla) {
+                            return $this->extractTablaNumber($item->MaquinaEng) === $tabla;
+                        })
+                        ->count();
+
+                    if ($cantidadEnProceso >= $limitePorTabla) {
+                        $nombreTabla = $tabla === 1 ? 'West Point 2' : 'West Point 3';
+
+                        return response()->json([
+                            'success' => false,
+                            'error' => "Ya existen {$limitePorTabla} ordenes en proceso en {$nombreTabla}.",
+                        ], 422);
+                    }
+                }
             }
 
             DB::beginTransaction();
 
-            // Intercambiar FechaProg (disminuir la prioridad = FechaProg más reciente)
-            $fechaProgTemp = $orden->FechaProg;
-            $orden->FechaProg = $ordenPosterior->FechaProg;
-            $ordenPosterior->FechaProg = $fechaProgTemp;
+            $orden->Status = $nuevoStatus;
 
-            $orden->save();
-            $ordenPosterior->save();
+            // Si se cancela, eliminar prioridad y recalcular todas las demás
+            if ($nuevoStatus === 'Cancelado') {
+                $orden->Prioridad = null;
+                $orden->save();
+
+                // Recalcular prioridades de todas las órdenes activas
+                $this->recalcularPrioridades();
+            }
+            // Si se reactiva desde cancelado, asignar nueva prioridad al final
+            elseif ($statusAnterior === 'Cancelado' && in_array($nuevoStatus, ['Programado', 'En Proceso'])) {
+                $maxPrioridad = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso'])
+                    ->whereNotNull('MaquinaEng')
+                    ->where('MaquinaEng', '!=', '')
+                    ->whereNotNull('Prioridad')
+                    ->max('Prioridad') ?? 0;
+
+                $orden->Prioridad = $maxPrioridad + 1;
+                $orden->save();
+            } else {
+                $orden->save();
+            }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Prioridad actualizada correctamente',
+                'message' => 'Status actualizado correctamente',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: ' . $e->getMessage(),
@@ -377,9 +589,192 @@ class ProgramarEngomadoController extends Controller
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'error' => 'Error al bajar prioridad: ' . $e->getMessage(),
+                'error' => 'Error al actualizar status: ' . $e->getMessage(),
             ], 500);
         }
     }
-}
 
+    /**
+     * Obtener todas las órdenes sin agrupar por tabla
+     * Solo órdenes con status "En Proceso", "Programado" o "Cancelado"
+     * Si no tienen prioridad, se asignan automáticamente
+     *
+     * @return JsonResponse
+     */
+    public function getTodasOrdenes(): JsonResponse
+    {
+        try {
+            // Intentar cargar con Prioridad
+            $tienePrioridad = false;
+            try {
+                $ordenes = EngProgramaEngomado::select([
+                    'Id',
+                    'Folio',
+                    'RizoPie as tipo',
+                    'Cuenta',
+                    'Calibre',
+                    'Metros',
+                    'MaquinaEng',
+                    'Status',
+                    'Prioridad',
+                    'FechaProg',
+                ])
+                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereNotNull('MaquinaEng')
+                ->where('MaquinaEng', '!=', '')
+                ->get();
+
+                $tienePrioridad = true;
+            } catch (\Exception $e) {
+                // Si falla, cargar sin Prioridad
+                $ordenes = EngProgramaEngomado::select([
+                    'Id',
+                    'Folio',
+                    'RizoPie as tipo',
+                    'Cuenta',
+                    'Calibre',
+                    'Metros',
+                    'MaquinaEng',
+                    'Status',
+                    'FechaProg',
+                ])
+                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereNotNull('MaquinaEng')
+                ->where('MaquinaEng', '!=', '')
+                ->get();
+            }
+
+            // Inicializar prioridades si no existen
+            if ($tienePrioridad) {
+                $ordenesSinPrioridad = $ordenes->filter(function ($orden) {
+                    return empty($orden->Prioridad);
+                });
+
+                if ($ordenesSinPrioridad->count() > 0) {
+                    try {
+                        $maxPrioridad = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso'])
+                            ->whereNotNull('Prioridad')
+                            ->max('Prioridad') ?? 0;
+
+                        foreach ($ordenesSinPrioridad as $orden) {
+                            $maxPrioridad++;
+                            DB::connection('sqlsrv')
+                                ->table('EngProgramaEngomado')
+                                ->where('Id', $orden->Id)
+                                ->update(['Prioridad' => $maxPrioridad]);
+                        }
+
+                        // Recargar las órdenes con Prioridad
+                        $ordenes = EngProgramaEngomado::select([
+                            'Id',
+                            'Folio',
+                            'RizoPie as tipo',
+                            'Cuenta',
+                            'Calibre',
+                            'Metros',
+                            'MaquinaEng',
+                            'Status',
+                            'Prioridad',
+                            'FechaProg',
+                        ])
+                        ->whereIn('Status', ['Programado', 'En Proceso'])
+                        ->whereNotNull('MaquinaEng')
+                        ->where('MaquinaEng', '!=', '')
+                        ->get();
+                    } catch (\Exception $e) {
+                        $tienePrioridad = false;
+                    }
+                }
+            }
+
+            // Ordenar por Prioridad si existe, sino por FechaProg
+            if ($tienePrioridad) {
+                $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
+                    return isset($orden->Prioridad) && !empty($orden->Prioridad) ? $orden->Prioridad : 999999;
+                })->values();
+            } else {
+                $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
+                    return $orden->FechaProg ? strtotime($orden->FechaProg) : 999999999;
+                })->values();
+            }
+
+            // Convertir a array con formato para el frontend
+            $ordenesArray = $ordenesOrdenadas->map(function ($orden, $index) use ($tienePrioridad) {
+                return [
+                    'id' => $orden->Id,
+                    'folio' => $orden->Folio,
+                    'tipo' => $orden->tipo,
+                    'cuenta' => $orden->Cuenta,
+                    'calibre' => $orden->Calibre,
+                    'metros' => $orden->Metros,
+                    'tabla' => $orden->MaquinaEng ?? '',
+                    'status' => $orden->Status ?? null,
+                    'prioridad' => ($tienePrioridad && isset($orden->Prioridad)) ? ($orden->Prioridad ?? ($index + 1)) : ($index + 1),
+                    'fecha_prog' => $orden->FechaProg ? $orden->FechaProg->format('Y-m-d') : null,
+                ];
+            })->toArray();
+
+            return response()->json([
+                'success' => true,
+                'data' => $ordenesArray,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al obtener órdenes: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar prioridades en lote
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function actualizarPrioridades(Request $request): JsonResponse
+    {
+        try {
+            if (!$this->usuarioPuedeEditar()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No autorizado',
+                ], 403);
+            }
+
+            $request->validate([
+                'prioridades' => 'required|array',
+                'prioridades.*.id' => 'required|integer|exists:EngProgramaEngomado,Id',
+                'prioridades.*.prioridad' => 'required|integer|min:1',
+            ]);
+
+            DB::beginTransaction();
+
+            foreach ($request->prioridades as $item) {
+                $orden = EngProgramaEngomado::findOrFail($item['id']);
+                $orden->Prioridad = $item['prioridad'];
+                $orden->save();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Prioridades actualizadas correctamente',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de validación: ' . $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al actualizar prioridades: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+}

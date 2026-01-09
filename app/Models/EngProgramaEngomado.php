@@ -43,6 +43,8 @@ class EngProgramaEngomado extends Model
         'CveEmpl',
         'NomEmpl',
         'LoteProveedor',
+        'Prioridad',
+        'Observaciones',
     ];
 
     protected $casts = [
@@ -56,6 +58,8 @@ class EngProgramaEngomado extends Model
         'AnchoBalonas' => 'integer',
         'MetrajeTelas' => 'float',
         'Cuentados' => 'integer',
+        'Prioridad' => 'integer',
+        'Observaciones' => 'string',
     ];
 
     /**

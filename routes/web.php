@@ -916,6 +916,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
         Route::post('/programar-urdido/intercambiar-prioridad', [ProgramarUrdidoController::class, 'intercambiarPrioridad'])->name('programar.urdido.intercambiar.prioridad');
         Route::post('/programar-urdido/actualizar-prioridades', [ProgramarUrdidoController::class, 'actualizarPrioridades'])->name('programar.urdido.actualizar.prioridades');
         Route::post('/programar-urdido/guardar-observaciones', [ProgramarUrdidoController::class, 'guardarObservaciones'])->name('programar.urdido.guardar.observaciones');
+        Route::post('/programar-urdido/actualizar-status', [ProgramarUrdidoController::class, 'actualizarStatus'])->name('programar.urdido.actualizar.status');
 
         // Catálogos de Urdido
         Route::get('/catalogos-julios', [CatalogosUrdidoController::class, 'catalogosJulios'])->name('catalogos.julios');
@@ -940,8 +941,11 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
         Route::get('/programar-engomado', [ProgramarEngomadoController::class, 'index'])->name('programar.engomado');
         Route::get('/programar-engomado/ordenes', [ProgramarEngomadoController::class, 'getOrdenes'])->name('programar.engomado.ordenes');
         Route::get('/programar-engomado/verificar-en-proceso', [ProgramarEngomadoController::class, 'verificarOrdenEnProceso'])->name('programar.engomado.verificar.en.proceso');
-        Route::post('/programar-engomado/subir-prioridad', [ProgramarEngomadoController::class, 'subirPrioridad'])->name('programar.engomado.subir.prioridad');
-        Route::post('/programar-engomado/bajar-prioridad', [ProgramarEngomadoController::class, 'bajarPrioridad'])->name('programar.engomado.bajar.prioridad');
+        Route::post('/programar-engomado/intercambiar-prioridad', [ProgramarEngomadoController::class, 'intercambiarPrioridad'])->name('programar.engomado.intercambiar.prioridad');
+        Route::post('/programar-engomado/guardar-observaciones', [ProgramarEngomadoController::class, 'guardarObservaciones'])->name('programar.engomado.guardar.observaciones');
+        Route::get('/programar-engomado/todas-ordenes', [ProgramarEngomadoController::class, 'getTodasOrdenes'])->name('programar.engomado.todas.ordenes');
+        Route::post('/programar-engomado/actualizar-prioridades', [ProgramarEngomadoController::class, 'actualizarPrioridades'])->name('programar.engomado.actualizar.prioridades');
+        Route::post('/programar-engomado/actualizar-status', [ProgramarEngomadoController::class, 'actualizarStatus'])->name('programar.engomado.actualizar.status');
 
         // Módulo Producción Engomado
         Route::get('/modulo-produccion-engomado', [ModuloProduccionEngomadoController::class, 'index'])->name('modulo.produccion.engomado');

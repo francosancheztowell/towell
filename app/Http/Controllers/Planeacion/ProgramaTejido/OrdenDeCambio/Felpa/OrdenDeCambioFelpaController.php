@@ -1168,8 +1168,8 @@ class OrdenDeCambioFelpaController extends Controller
         // Metros de rollo y toallas por rollo
         // Usar datos de ReqProgramaTejido (NO de ReqModelosCodificados)
         $largo        = $registro->LargoToalla ?? $registro->AnchoToalla ?? $registro->LargoCrudo ?? '';
-        // Repeticiones y NoMarbetes se calcularán desde las fórmulas del Excel, no desde BD
-        $repeticiones = ''; // Se calculará desde fórmula AX
+        // Repeticiones se toma desde BD
+        $repeticiones = $registro->Repeticiones ?? '';
         $tiras        = $registro->NoTiras ?? 2;
 
         $mtsRollo = '';
@@ -1190,6 +1190,17 @@ class OrdenDeCambioFelpaController extends Controller
             }
         }
 
+        $noMarbetes = '';
+        $cantidadProducir = $registro->SaldoPedido ?? null;
+        if (!empty($cantidadProducir) && !empty($tiras) && !empty($repeticiones)) {
+            $repNum = (float) $repeticiones;
+            $tirasNum = (float) $tiras;
+            $cantidadNum = (float) $cantidadProducir;
+            if ($repNum > 0 && $tirasNum > 0) {
+                $noMarbetes = (string) floor($cantidadNum / $tirasNum / $repNum);
+            }
+        }
+
         return [
             'orden_numero'         => $registro->NoProduccion ?? '',
             'fecha_orden'          => $fechaOrden,
@@ -1207,7 +1218,7 @@ class OrdenDeCambioFelpaController extends Controller
             'clave'                => $modeloCodificado?->Clave ?? '',
             'cantidad_producir'    => $registro->SaldoPedido ?? '',
             'peine'                => $modeloCodificado?->Peine ?? $registro->Peine ?? '',
-            'ancho'                => ($modeloCodificado?->AnchoToalla ?? $registro->Ancho) ? (($modeloCodificado?->AnchoToalla ?? $registro->Ancho) . ' Cms.') : '',
+            'ancho'                => ($modeloCodificado?->AnchoToalla ?? $registro->Ancho) ? (string) ($modeloCodificado?->AnchoToalla ?? $registro->Ancho) : '',
             'largo'                => $modeloCodificado?->LargoToalla ?? $registro->LargoToalla ?? '',
             'p_crudo'              => $modeloCodificado?->PesoCrudo ?? $registro->PesoCrudo ?? '',
             'luchaje'              => $modeloCodificado?->Luchaje ?? $registro->Luchaje ?? '',
@@ -1240,8 +1251,8 @@ class OrdenDeCambioFelpaController extends Controller
             'med_inicio_rizo_cenefa' => $modeloCodificado?->MedIniRizoCenefa ?? '',
             'rasurada'             => $registro->Rasurado ?? 'NO',
             'tiras'                => $tiras,
-            'repeticiones'         => $repeticiones, // Se calculará desde fórmula AX después
-            'no_marbetes'          => '', // Se calculará desde fórmula AY después
+            'repeticiones'         => $repeticiones,
+            'no_marbetes'          => $noMarbetes,
             'cambio_repaso'        => $modeloCodificado?->CambioRepaso ?? $registro->CambioHilo ?? 'NO',
             'vendedor'             => $modeloCodificado?->Vendedor ?? '',
             'no_orden'             => $registro->NoProduccion ?? '',
@@ -1616,7 +1627,7 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->BomName = $registro->BomName ?? null;
             $catCodificado->CreaProd = $registro->CreaProd ?? 1;
             $catCodificado->HiloAX = $registro->HiloAX ?? null;
-            $catCodificado->ActualizaLmat = $registro->ActualizaLmat ?? 1;
+            $catCodificado->ActualizaLmat = $registro->ActualizaLmat ?? 0;
 
             // Campos de auditoría
             $usuario = Auth::check() && Auth::user() ? Auth::user()->name : 'Sistema';
@@ -1760,17 +1771,7 @@ class OrdenDeCambioFelpaController extends Controller
         ];
 
         foreach ($mapeo as $columna => $campo) {
-            // AX y AY deben llenarse con fórmulas, no con valores directos
-            if ($columna === 'AX') {
-                // AX = Repeticiones p/corte: TRUNCAR((41.5/S)/AW*1000)
-                $formulaAX = '=IFERROR(TRUNC((41.5/S' . $fila . ')/AW' . $fila . '*1000,0),0)';
-                $worksheet->setCellValue($columna . $fila, $formulaAX);
-            } elseif ($columna === 'AY') {
-                // AY = No. De Marbetes: TRUNCAR(O/AW/AX)
-                $formulaAY = '=IFERROR(TRUNC(O' . $fila . '/AW' . $fila . '/AX' . $fila . ',0),0)';
-                $worksheet->setCellValue($columna . $fila, $formulaAY);
-            } else {
-                // Para las demás columnas, establecer valores directos
+            // Establecer valores directos desde BD
             $valor = $datos[$campo] ?? '';
             // Para peso_rollo, asegurar que sea numérico
             if ($campo === 'peso_rollo') {
@@ -1784,7 +1785,6 @@ class OrdenDeCambioFelpaController extends Controller
                 }
             }
             $worksheet->setCellValue($columna . $fila, $valor);
-            }
 
             $style = $worksheet->getStyle($columna . $fila);
             $style->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);

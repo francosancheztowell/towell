@@ -56,6 +56,10 @@ class LiberarOrdenesController extends Controller
                 'VelocidadSTD',
                 'FibraRizo',
                 'CalibrePie2',
+                'PesoCrudo',
+                'NoTiras',
+                'LargoCrudo',
+                'ItemId',
                 'CalendarioId',
                 'TamanoClave',
                 'InventSizeId',
@@ -72,11 +76,21 @@ class LiberarOrdenesController extends Controller
                 'FechaInicio',
                 'FechaFinal',
                 'Prioridad',
+                'PesoGRM2',
                 'TipoPedido',
                 'EntregaProduc',
                 'EntregaPT',
                 'EntregaCte',
-                'PTvsCte'
+                'PTvsCte',
+                'MtsRollo',
+                'PzasRollo',
+                'TotalRollos',
+                'TotalPzas',
+                'Repeticiones',
+                'CombinaTram',
+                'BomId',
+                'BomName',
+                'HiloAX'
             ])
             ->where(function($query) {
                 $query->whereNull('NoProduccion')
@@ -169,25 +183,54 @@ class LiberarOrdenesController extends Controller
                     // Formar prioridad: "CHECAR + NombreProducto"
                     $prioridadFormada = 'SALDAR ' . $nombreProductoAnterior;
                     $registro->PrioridadAnterior = $prioridadFormada;
-
-                    Log::info('Prioridad formada para registro desde BD', [
-                        'id' => $idActual,
-                        'no_telar_id' => $noTelarId,
-                        'salon_tejido_id' => $salonTejidoId,
-                        'fecha_inicio' => $fechaInicio,
-                        'id_anterior' => $registroAnterior->Id ?? null,
-                        'nombre_producto_anterior' => $nombreProductoAnterior,
-                        'prioridad_formada' => $prioridadFormada,
-                    ]);
                 } else {
                     $registro->PrioridadAnterior = '';
-                    Log::info('No se encontró registro anterior en BD', [
-                        'id' => $idActual,
-                        'no_telar_id' => $noTelarId,
-                        'salon_tejido_id' => $salonTejidoId,
-                        'fecha_inicio' => $fechaInicio,
-                    ]);
                 }
+            });
+
+            // Calcular campos en la carga para mostrarlos en la vista
+            $registros->each(function ($registro) {
+                $pCrudo = $registro->PesoCrudo ?? null;
+                $tiras = $registro->NoTiras ?? null;
+                $repeticiones = null;
+                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
+                    $repeticiones = floor(((41.5 / (float)$pCrudo) / (float)$tiras) * 1000);
+                }
+
+                $cantidadProducir = $registro->SaldoPedido ?? null;
+                $noMarbetes = null;
+                if ($cantidadProducir && $tiras && $repeticiones !== null &&
+                    is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
+                    $tiras > 0 && $repeticiones > 0) {
+                    $noMarbetes = floor((float)$cantidadProducir / (float)$tiras / (float)$repeticiones);
+                }
+
+                $largo = $registro->LargoCrudo ?? null;
+                $mtsRollo = null;
+                if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
+                    $largoNum = is_numeric($largo) ? (float)$largo : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
+                    if ($largoNum > 0 && $repeticiones > 0) {
+                        $mtsRollo = round($largoNum * $repeticiones / 100, 2);
+                    }
+                }
+
+                $pzasRollo = null;
+                if ($repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
+                    $pzasRollo = round($repeticiones * $tiras, 0);
+                }
+
+                $totalRollos = $noMarbetes;
+                $totalPzas = null;
+                if ($totalRollos !== null && $pzasRollo !== null && is_numeric($totalRollos) && is_numeric($pzasRollo)) {
+                    $totalPzas = round((float)$totalRollos * (float)$pzasRollo, 0);
+                }
+
+                $registro->Repeticiones = $repeticiones;
+                $registro->MtsRollo = $mtsRollo;
+                $registro->PzasRollo = $pzasRollo;
+                $registro->TotalRollos = $totalRollos;
+                $registro->TotalPzas = $totalPzas;
+                $registro->Densidad = $registro->PesoGRM2 ?? null;
             });
 
             return view('modulos.programa-tejido.liberar-ordenes.index', compact('registros', 'dias'));
@@ -301,12 +344,19 @@ class LiberarOrdenesController extends Controller
                     $pzasRollo = round($repeticiones * $tiras, 0);
                 }
 
+                // Calcular TotalRollos y TotalPzas
+                $totalRollos = $noMarbetes;
+                $totalPzas = null;
+                if ($totalRollos !== null && $pzasRollo !== null && is_numeric($totalRollos) && is_numeric($pzasRollo)) {
+                    $totalPzas = round((float) $totalRollos * (float) $pzasRollo, 0);
+                }
+
                 // Actualizar campos calculados
                 $registro->Repeticiones = $repeticiones;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
-                $registro->TotalRollos = null; // No disponible
-                $registro->TotalPzas = null; // No disponible
+                $registro->TotalRollos = $totalRollos;
+                $registro->TotalPzas = $totalPzas;
                 $registro->CombinaTram = $registro->CombinaTram ?? null;
                 $registro->BomId = $registro->BomId ?? null;
                 $registro->BomName = $registro->BomName ?? null;
@@ -314,10 +364,12 @@ class LiberarOrdenesController extends Controller
                 $registro->EficienciaSTD = $registro->EficienciaSTD ?? null;
                 $registro->Densidad = $registro->PesoGRM2 ?? null;
                 $registro->HiloAX = $registro->HiloAX ?? null;
-                $registro->ActualizaLmat = $registro->ActualizaLmat ?? 1;
+                $registro->ActualizaLmat = $registro->ActualizaLmat ?? 0;
 
                 // Campos de auditoría
-                $usuario = Auth::check() && Auth::user() ? Auth::user()->name : 'Sistema';
+                $usuario = Auth::check() && Auth::user()
+                    ? (Auth::user()->nombre ?? Auth::user()->numero_empleado ?? 'Sistema')
+                    : 'Sistema';
                 $fechaActual = now();
                 $registro->setAttribute('FechaCreacion', $fechaActual);
                 $registro->HoraCreacion = $fechaActual->format('H:i:s');
