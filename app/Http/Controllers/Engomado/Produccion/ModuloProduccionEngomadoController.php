@@ -18,6 +18,53 @@ use Illuminate\Support\Facades\Auth;
 class ModuloProduccionEngomadoController extends Controller
 {
     /**
+     * Extraer numero de tabla del campo MaquinaEng.
+     *
+     * @param string|null $maquinaEng
+     * @return int|null
+     */
+    private function extractTablaNumber(?string $maquinaEng): ?int
+    {
+        if (empty($maquinaEng)) {
+            return null;
+        }
+
+        $maquinaEng = trim($maquinaEng);
+
+        if (preg_match('/west\s*point\s*(\d+)/i', $maquinaEng, $matches)) {
+            $numero = (int) $matches[1];
+            if ($numero === 2) return 1;
+            if ($numero === 3) return 2;
+            return null;
+        }
+
+        if (preg_match('/tabla\s*(\d+)/i', $maquinaEng, $matches)) {
+            $numero = (int) $matches[1];
+            return ($numero >= 1 && $numero <= 2) ? $numero : null;
+        }
+
+        if (preg_match('/izquierda/i', $maquinaEng)) {
+            return 1;
+        }
+
+        if (preg_match('/derecha/i', $maquinaEng)) {
+            return 2;
+        }
+
+        if (preg_match('/(\d+)\s*$/i', $maquinaEng, $matches)) {
+            $numero = (int) $matches[1];
+            return ($numero >= 1 && $numero <= 2) ? $numero : null;
+        }
+
+        if (preg_match('/^(\d+)$/', $maquinaEng, $matches)) {
+            $numero = (int) $matches[1];
+            return ($numero >= 1 && $numero <= 2) ? $numero : null;
+        }
+
+        return null;
+    }
+
+    /**
      * Mostrar la vista de producción de engomado con los datos de la orden seleccionada
      *
      * @param Request $request
@@ -75,16 +122,31 @@ class ModuloProduccionEngomadoController extends Controller
                 ->with('error', 'Orden no encontrada');
         }
 
-        // Actualizar el status a "En Proceso" cuando se carga la página de producción
+        // Actualizar el status a "En Proceso" cuando se carga la p?gina de producci?n
         if ($orden->Status !== 'En Proceso') {
-            // Validar que no haya otra orden con status "En Proceso"
-            $ordenesEnProceso = EngProgramaEngomado::where('Status', 'En Proceso')
-                ->where('Id', '!=', $orden->Id)
-                ->count();
+            // Validar que no haya mas de 2 ordenes con status "En Proceso" en la misma tabla
+            $tablaActual = $this->extractTablaNumber($orden->MaquinaEng);
+            $limitePorTabla = 2;
 
-            if ($ordenesEnProceso > 0) {
+            if ($tablaActual !== null) {
+                $ordenesEnProceso = EngProgramaEngomado::where('Status', 'En Proceso')
+                    ->whereNotNull('MaquinaEng')
+                    ->where('Id', '!=', $orden->Id)
+                    ->get()
+                    ->filter(function ($item) use ($tablaActual) {
+                        return $this->extractTablaNumber($item->MaquinaEng) === $tablaActual;
+                    })
+                    ->count();
+
+                if ($ordenesEnProceso >= $limitePorTabla) {
+                    $nombreTabla = $tablaActual === 1 ? 'West Point 2' : 'West Point 3';
+
+                    return redirect()->route('engomado.programar.engomado')
+                        ->with('error', "Ya existen {$limitePorTabla} ordenes con status \"En Proceso\" en {$nombreTabla}. No se puede cargar otra orden hasta finalizar alguna de las actuales.");
+                }
+            } else {
                 return redirect()->route('engomado.programar.engomado')
-                    ->with('error', 'Ya existe una orden con status "En Proceso". No se puede cargar otra orden hasta finalizar la actual.');
+                    ->with('error', 'No se pudo determinar la tabla de la maquina. No se puede cargar la orden.');
             }
 
             try {

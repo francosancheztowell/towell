@@ -39,8 +39,10 @@
             ['field' => 'EficienciaSTD', 'label' => 'Ef Std'],
             ['field' => 'VelocidadSTD', 'label' => 'Velocidad'],
             ['field' => 'FibraRizo', 'label' => 'Hilo'],
-            ['field' => 'CalibrePie2', 'label' => 'CalibrePie'],
+            ['field' => 'CalibrePie2', 'label' => 'Calibre Pie'],
+            ['field' => 'ItemId', 'label' => 'Clave AX'],
             ['field' => 'NombreProducto', 'label' => 'Producto'],
+            ['field' => 'InventSizeId', 'label' => 'Tamaño AX'],
             ['field' => 'TotalPedido', 'label' => 'Pedido'],
             ['field' => 'NoProduccion', 'label' => 'Producción'],
             ['field' => 'SaldoPedido', 'label' => 'Saldos'],
@@ -57,6 +59,15 @@
             ['field' => 'EntregaPT', 'label' => 'Fecha Compromiso'],
             ['field' => 'EntregaCte', 'label' => 'Entrega'],
             ['field' => 'PTvsCte', 'label' => 'Dif vs Compromiso'],
+            ['field' => 'MtsRollo', 'label' => 'Metros x Rollo'],
+            ['field' => 'PzasRollo', 'label' => 'Pzas x Rollo'],
+            ['field' => 'TotalRollos', 'label' => 'Total Rollos'],
+            ['field' => 'TotalPzas', 'label' => 'Total Pzas'],
+            ['field' => 'Repeticiones', 'label' => 'Repeticiones'],
+            ['field' => 'CombinaTrama', 'label' => 'Comb Trama'],
+            ['field' => 'BomId', 'label' => 'L.Mat'],
+            ['field' => 'BomName', 'label' => 'Nombre L.Mat'],
+            ['field' => 'HiloAX', 'label' => 'Hilo AX'],
         ];
 
         $formatValue = function($registro, $field) {
@@ -72,16 +83,6 @@
                 $prioridad = !empty($prioridadAnterior) ? $prioridadAnterior : $prioridadActual;
                 $id = $registro->Id ?? '';
 
-                // Log para debug (solo en desarrollo)
-                if (config('app.debug')) {
-                    \Log::info('Generando input de prioridad', [
-                        'id' => $id,
-                        'prioridad_anterior' => $prioridadAnterior,
-                        'prioridad_actual' => $prioridadActual,
-                        'prioridad_final' => $prioridad,
-                    ]);
-                }
-
                 return '<input type="text"
                               class="prioridad-input w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               value="' . htmlspecialchars($prioridad, ENT_QUOTES, 'UTF-8') . '"
@@ -89,6 +90,30 @@
                               data-prioridad-anterior="' . htmlspecialchars($prioridadAnterior, ENT_QUOTES, 'UTF-8') . '"
                               placeholder="Prioridad"
                               style="min-width: 280px;">';
+            }
+
+            if ($field === 'BomId') {
+                $id = $registro->Id ?? '';
+                $valor = $registro->BomId ?? '';
+                return '<input type="text"
+                              class="bom-id-input w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value="' . htmlspecialchars($valor, ENT_QUOTES, 'UTF-8') . '"
+                              data-id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"
+                              placeholder="L.Mat"
+                              maxlength="20"
+                              style="min-width: 200px;">';
+            }
+
+            if ($field === 'BomName') {
+                $id = $registro->Id ?? '';
+                $valor = $registro->BomName ?? '';
+                return '<input type="text"
+                              class="bom-name-input w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value="' . htmlspecialchars($valor, ENT_QUOTES, 'UTF-8') . '"
+                              data-id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"
+                              placeholder="Nombre L.Mat"
+                              maxlength="60"
+                              style="min-width: 240px;">';
             }
 
             // Columna INN (Programado) - Usar el valor calculado del controlador
@@ -172,6 +197,10 @@
                 } catch (\Exception $e) {
                     return '';
                 }
+            }
+
+            if ($field === 'ItemId') {
+                return (string) $value;
             }
 
             // Números con formato
