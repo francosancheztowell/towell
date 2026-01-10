@@ -64,6 +64,8 @@
             ['field' => 'TotalRollos', 'label' => 'Total Rollos'],
             ['field' => 'TotalPzas', 'label' => 'Total Pzas'],
             ['field' => 'Repeticiones', 'label' => 'Repeticiones'],
+            ['field' => 'SaldoMarbete', 'label' => 'No Marbetes'],
+            ['field' => 'Densidad', 'label' => 'Densidad'],
             ['field' => 'CombinaTrama', 'label' => 'Comb Trama'],
             ['field' => 'BomId', 'label' => 'L.Mat'],
             ['field' => 'BomName', 'label' => 'Nombre L.Mat'],
@@ -84,36 +86,42 @@
                 $id = $registro->Id ?? '';
 
                 return '<input type="text"
-                              class="prioridad-input w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value="' . htmlspecialchars($prioridad, ENT_QUOTES, 'UTF-8') . '"
-                              data-id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"
-                              data-prioridad-anterior="' . htmlspecialchars($prioridadAnterior, ENT_QUOTES, 'UTF-8') . '"
-                              placeholder="Prioridad"
-                              style="min-width: 280px;">';
+                        class="prioridad-input w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value="' . htmlspecialchars($prioridad, ENT_QUOTES, 'UTF-8') . '"
+                        data-id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"
+                        data-prioridad-anterior="' . htmlspecialchars($prioridadAnterior, ENT_QUOTES, 'UTF-8') . '"
+                        placeholder="Prioridad"
+                        style="min-width: 280px;">';
             }
 
             if ($field === 'BomId') {
-                $id = $registro->Id ?? '';
-                $valor = $registro->BomId ?? '';
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $value = htmlspecialchars((string) ($registro->BomId ?? ''), ENT_QUOTES, 'UTF-8');
+
                 return '<input type="text"
-                              class="bom-id-input w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value="' . htmlspecialchars($valor, ENT_QUOTES, 'UTF-8') . '"
-                              data-id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"
-                              placeholder="L.Mat"
-                              maxlength="20"
-                              style="min-width: 200px;">';
+                              id="bom-id-input-' . $rowId . '"
+                              class="bom-id-input w-full min-w-[640px] px-2 py-1 text-sm border border-gray-300 rounded"
+                            value="' . $value . '"
+                            data-row-id="' . $rowId . '"
+                            list="bom-id-options-' . $rowId . '"
+                            placeholder="L.Mat">'
+                    . '<datalist id="bom-id-options-' . $rowId . '"></datalist>';
             }
 
             if ($field === 'BomName') {
-                $id = $registro->Id ?? '';
-                $valor = $registro->BomName ?? '';
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $value = htmlspecialchars((string) ($registro->BomName ?? ''), ENT_QUOTES, 'UTF-8');
+
                 return '<input type="text"
-                              class="bom-name-input w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value="' . htmlspecialchars($valor, ENT_QUOTES, 'UTF-8') . '"
-                              data-id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"
-                              placeholder="Nombre L.Mat"
-                              maxlength="60"
-                              style="min-width: 240px;">';
+                              id="bom-name-input-' . $rowId . '"
+                              class="bom-name-input w-full min-w-[1040px] px-2 py-1 text-sm border border-gray-300 rounded"
+                              value="' . $value . '"
+                              data-row-id="' . $rowId . '"
+                              list="bom-name-options-' . $rowId . '"
+                              placeholder="Nombre L.Mat">'
+                     . '<datalist id="bom-name-options-' . $rowId . '"></datalist>';
             }
 
             // Columna INN (Programado) - Usar el valor calculado del controlador
@@ -236,7 +244,15 @@
                                     style="position: sticky; top: 0; background-color: #3b82f6; min-width: {{ $col['field'] === 'prioridad' ? '300px' : '80px' }}; z-index: 10;"
                                     data-index="{{ $index }}"
                                     data-field="{{ $col['field'] }}">
-                                    {{ $col['label'] }}
+                                    @if($col['field'] === 'select')
+                                        <input type="checkbox"
+                                            id="selectAllCheckbox"
+                                            class="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 mx-auto block"
+                                            onclick="toggleSeleccionarTodo()"
+                                            aria-label="Seleccionar todo">
+                                    @else
+                                        {{ $col['label'] }}
+                                    @endif
                                 </th>
                                 @endforeach
                             </tr>
@@ -272,6 +288,8 @@
 <script>
 const liberarOrdenesUrl = '{{ route('programa-tejido.liberar-ordenes.procesar') }}';
 const redirectAfterLiberar = '{{ route('catalogos.req-programa-tejido') }}';
+const tipoHiloUrl = '{{ route('programa-tejido.liberar-ordenes.tipo-hilo') }}';
+const bomAutocompleteUrl = '{{ route('programa-tejido.liberar-ordenes.bom') }}';
 
 // Variables globales para columnas
 let pinnedColumns = [];
@@ -279,8 +297,6 @@ let hiddenColumns = [];
 let filtersActive = false;
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOMContentLoaded - Iniciando relleno de prioridades');
-
     // Marcar todos los checkboxes por defecto
     const checkboxes = document.querySelectorAll('.row-checkbox');
     checkboxes.forEach(checkbox => {
@@ -289,34 +305,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Rellenar automáticamente los inputs de prioridad con el valor del registro anterior
     const prioridadInputs = document.querySelectorAll('.prioridad-input');
-    console.log('Inputs de prioridad encontrados:', prioridadInputs.length);
-
     prioridadInputs.forEach((input, index) => {
         const prioridadAnterior = input.getAttribute('data-prioridad-anterior') || '';
         const valorActual = input.value.trim();
-        const id = input.getAttribute('data-id');
-
-        console.log(`Input ${index}:`, {
-            id: id,
-            valorActual: valorActual,
-            prioridadAnterior: prioridadAnterior,
-            tieneValor: !!valorActual,
-            tienePrioridadAnterior: !!prioridadAnterior
-        });
 
         // Si el input está vacío, intentar rellenarlo
         if (!valorActual) {
             // Primero intentar con data-prioridad-anterior
             if (prioridadAnterior) {
                 input.value = prioridadAnterior;
-                console.log(`Input ${index} rellenado con prioridad anterior:`, prioridadAnterior);
             }
             // Si no hay prioridad anterior y no es el primero, buscar el valor del input anterior
             else if (index > 0) {
                 const inputAnterior = prioridadInputs[index - 1];
                 if (inputAnterior && inputAnterior.value.trim()) {
                     input.value = inputAnterior.value.trim();
-                    console.log(`Input ${index} rellenado con valor del input anterior:`, inputAnterior.value.trim());
                 }
             }
         }
@@ -325,8 +328,276 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicializar posiciones de columnas fijadas
     updatePinnedColumnsPositions();
 
-    console.log('DOMContentLoaded - Finalizado relleno de prioridades');
+    // Rellenar automáticamente el campo Hilo AX al cargar
+    autoFillAllHiloAX();
+
+    // Rellenar automáticamente los campos L.Mat y Nombre L.Mat al cargar
+    autoFillAllBomFields();
+
+    // Habilitar autocompletado para L.Mat y Nombre L.Mat
+    setupBomAutocomplete();
 });
+
+function autoFillAllHiloAX() {
+    const rows = document.querySelectorAll('.row-data');
+
+    const itemIdsSet = new Set();
+    const cellsByItemId = new Map();
+
+    rows.forEach((row) => {
+        const itemIdCell = row.querySelector('[data-column="ItemId"]');
+        const hiloAXCell = row.querySelector('[data-column="HiloAX"]');
+
+        if (!itemIdCell || !hiloAXCell) return;
+
+        const itemId = (itemIdCell.textContent || '').trim();
+        const currentHiloAX = (hiloAXCell.textContent || '').trim();
+
+        if (!currentHiloAX && itemId) {
+            itemIdsSet.add(itemId);
+            if (!cellsByItemId.has(itemId)) {
+                cellsByItemId.set(itemId, []);
+            }
+            cellsByItemId.get(itemId).push(hiloAXCell);
+        }
+    });
+
+    if (itemIdsSet.size === 0) {
+        return;
+    }
+
+    const itemIdsArray = Array.from(itemIdsSet);
+    const url = `${tipoHiloUrl}?itemIds=${encodeURIComponent(itemIdsArray.join(','))}`;
+
+    fetch(url, { headers: { 'Accept': 'application/json' } })
+        .then(res => res.json())
+        .then(payload => {
+            if (!payload || !payload.success || !payload.data) {
+                return;
+            }
+
+            const data = payload.data;
+            itemIdsArray.forEach(itemId => {
+                if (data[itemId]) {
+                    const cells = cellsByItemId.get(itemId) || [];
+                    cells.forEach(cell => {
+                        cell.textContent = data[itemId];
+                    });
+                }
+            });
+        })
+        .catch(() => {});
+}
+
+function autoFillAllBomFields() {
+    const rows = document.querySelectorAll('.row-data');
+
+    const combinations = [];
+    const cellsByKey = new Map();
+
+    rows.forEach((row) => {
+        const itemIdCell = row.querySelector('[data-column="ItemId"]');
+        const inventSizeIdCell = row.querySelector('[data-column="InventSizeId"]');
+        const bomIdInput = row.querySelector('.bom-id-input');
+        const bomNameInput = row.querySelector('.bom-name-input');
+
+        if (!itemIdCell || !inventSizeIdCell || !bomIdInput || !bomNameInput) return;
+
+        const itemId = (itemIdCell.textContent || '').trim();
+        const inventSizeId = (inventSizeIdCell.textContent || '').trim();
+        const currentBomId = (bomIdInput.value || '').trim();
+
+        if (!currentBomId && itemId && inventSizeId) {
+            const cacheKey = `${itemId}|${inventSizeId}`;
+
+            if (!cellsByKey.has(cacheKey)) {
+                cellsByKey.set(cacheKey, []);
+                combinations.push(`${itemId}:${inventSizeId}`);
+            }
+            cellsByKey.get(cacheKey).push({ bomIdInput, bomNameInput });
+        }
+    });
+
+    if (combinations.length === 0) {
+        return;
+    }
+
+    // UNA SOLA petición con todas las combinaciones
+    const url = `${bomAutocompleteUrl}?combinations=${encodeURIComponent(combinations.join(','))}`;
+
+    fetch(url, { headers: { 'Accept': 'application/json' } })
+        .then(res => res.json())
+        .then(payload => {
+            if (!payload || !payload.success || !payload.data) {
+                return;
+            }
+
+            const data = payload.data || {};
+
+            Object.keys(data).forEach(cacheKey => {
+                const options = data[cacheKey] || [];
+
+                if (options.length === 1) {
+                    const option = options[0];
+                    const cells = cellsByKey.get(cacheKey) || [];
+
+                    cells.forEach(({ bomIdInput, bomNameInput }) => {
+                        bomIdInput.value = option.bomId || '';
+                        bomNameInput.value = option.bomName || '';
+                    });
+                }
+            });
+        })
+        .catch(() => {});
+}
+
+const bomOptionsByRow = new Map();
+
+function setupBomAutocomplete() {
+    const rows = document.querySelectorAll('.row-data');
+
+    rows.forEach(row => {
+        const bomIdInput = row.querySelector('.bom-id-input');
+        const bomNameInput = row.querySelector('.bom-name-input');
+
+        if (!bomIdInput || !bomNameInput) return;
+
+        const itemId = (row.querySelector('[data-column="ItemId"]')?.textContent || '').trim();
+        const inventSizeId = (row.querySelector('[data-column="InventSizeId"]')?.textContent || '').trim();
+        const rowId = row.getAttribute('data-id') || bomIdInput.dataset.rowId || '';
+
+        bomIdInput.dataset.itemId = itemId;
+        bomIdInput.dataset.inventSizeId = inventSizeId;
+        bomNameInput.dataset.itemId = itemId;
+        bomNameInput.dataset.inventSizeId = inventSizeId;
+
+        const debouncedFetch = debounce(async (sourceInput) => {
+            const term = (sourceInput.value || '').trim();
+            if (!term) {
+                return;
+            }
+
+            const options = await fetchBomOptions(sourceInput.dataset.itemId, sourceInput.dataset.inventSizeId, term, true);
+            bomOptionsByRow.set(rowId, options);
+            updateBomDatalists(rowId, options);
+
+            if (options.length === 1) {
+                applyBomOption(row, options[0]);
+            }
+        }, 300);
+
+        bomIdInput.addEventListener('input', () => debouncedFetch(bomIdInput));
+        bomNameInput.addEventListener('input', () => debouncedFetch(bomNameInput));
+
+        bomIdInput.addEventListener('change', () => syncBomFromInput(row, 'bomId'));
+        bomNameInput.addEventListener('change', () => syncBomFromInput(row, 'bomName'));
+    });
+}
+
+function debounce(fn, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn.apply(this, args), wait);
+    };
+}
+
+async function fetchBomOptions(itemId, inventSizeId, term, allowFallback) {
+    const params = new URLSearchParams();
+
+    if (itemId) params.set('itemId', itemId);
+    if (inventSizeId) params.set('inventSizeId', inventSizeId);
+    if (term) params.set('term', term);
+    if (allowFallback) params.set('fallback', '1');
+
+    const url = `${bomAutocompleteUrl}?${params.toString()}`;
+
+    try {
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        const payload = await res.json();
+        if (!payload || !payload.success || !payload.data) {
+            return [];
+        }
+        return payload.data;
+    } catch {
+        return [];
+    }
+}
+
+function updateBomDatalists(rowId, options) {
+    const bomIdList = document.getElementById(`bom-id-options-${rowId}`);
+    const bomNameList = document.getElementById(`bom-name-options-${rowId}`);
+
+    if (bomIdList) {
+        bomIdList.innerHTML = '';
+        options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option.bomId || '';
+            opt.label = option.bomName || '';
+            bomIdList.appendChild(opt);
+        });
+    }
+
+    if (bomNameList) {
+        bomNameList.innerHTML = '';
+        options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option.bomName || '';
+            opt.label = option.bomId || '';
+            bomNameList.appendChild(opt);
+        });
+    }
+}
+
+function syncBomFromInput(row, sourceKey) {
+    const bomIdInput = row.querySelector('.bom-id-input');
+    const bomNameInput = row.querySelector('.bom-name-input');
+    const rowId = row.getAttribute('data-id') || bomIdInput?.dataset.rowId || '';
+    const options = bomOptionsByRow.get(rowId) || [];
+    if (!options.length) return;
+
+    if (!bomIdInput || !bomNameInput) return;
+
+    if (sourceKey === 'bomId') {
+        const value = (bomIdInput.value || '').trim();
+        const match = options.find(option => (option.bomId || '') === value);
+        if (match) {
+            bomNameInput.value = match.bomName || '';
+        }
+    }
+
+    if (sourceKey === 'bomName') {
+        const value = (bomNameInput.value || '').trim();
+        const match = options.find(option => (option.bomName || '') === value);
+        if (match) {
+            bomIdInput.value = match.bomId || '';
+        }
+    }
+}
+
+function applyBomOption(row, option) {
+    const bomIdInput = row.querySelector('.bom-id-input');
+    const bomNameInput = row.querySelector('.bom-name-input');
+
+    if (!bomIdInput || !bomNameInput) return;
+
+    bomIdInput.value = option.bomId || '';
+    bomNameInput.value = option.bomName || '';
+}
+
+function toggleSeleccionarTodo() {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    if (!checkboxes.length) {
+        return;
+    }
+
+    const todosSeleccionados = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => {
+        cb.checked = !todosSeleccionados;
+    });
+}
+
+
 
 // Funciones para fijar columnas
 function openPinColumnsModal() {
@@ -728,7 +999,7 @@ function applyFilters() {
         text: `${liberarOrdenesFilters.length} filtro(s) activo(s)`,
         toast: true,
         position: 'top-end',
-        timer: 2000,
+        timer: 1000,
         showConfirmButton: false
     });
 }
@@ -738,9 +1009,41 @@ function obtenerRegistrosSeleccionados() {
     return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => {
         const row = cb.closest('tr');
         const prioridadInput = row ? row.querySelector('.prioridad-input') : null;
+
+        // Capturar campos desde las celdas de la tabla
+        const getCellValue = (columnName) => {
+            const cell = row ? row.querySelector(`[data-column="${columnName}"]`) : null;
+            if (!cell) return null;
+            const input = cell.querySelector('input');
+            if (input) {
+                const value = input.value ? input.value.trim() : '';
+                return value === '' ? null : value;
+            }
+            const text = cell.textContent ? cell.textContent.trim() : '';
+            return text === '' ? null : text;
+        };
+
+        // Capturar valores numéricos (remover comas de formato)
+        const getNumericValue = (columnName) => {
+            const value = getCellValue(columnName);
+            if (!value) return null;
+            const cleaned = value.replace(/,/g, '');
+            return cleaned === '' ? null : cleaned;
+        };
+
         return {
             id: cb.getAttribute('data-id'),
-            prioridad: prioridadInput ? prioridadInput.value.trim() : ''
+            prioridad: prioridadInput ? prioridadInput.value.trim() : '',
+            bomId: getCellValue('BomId'),
+            bomName: getCellValue('BomName'),
+            hiloAX: getCellValue('HiloAX'),
+            mtsRollo: getNumericValue('MtsRollo'),
+            pzasRollo: getNumericValue('PzasRollo'),
+            totalRollos: getNumericValue('TotalRollos'),
+            totalPzas: getNumericValue('TotalPzas'),
+            repeticiones: getNumericValue('Repeticiones'),
+            saldoMarbete: getNumericValue('SaldoMarbete'),
+            combinaTram: getCellValue('CombinaTrama')
         };
     });
 }
@@ -864,6 +1167,33 @@ tbody td.pinned-column {
 .valor-negativo {
     color: #dc2626;
     font-weight: bold;
+}
+
+/* Ocultar el icono del datalist */
+.bom-id-input::-webkit-calendar-picker-indicator,
+.bom-name-input::-webkit-calendar-picker-indicator {
+    display: none !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.bom-id-input::-webkit-list-button,
+.bom-name-input::-webkit-list-button {
+    display: none !important;
+}
+
+.bom-id-input::-webkit-input-placeholder,
+.bom-name-input::-webkit-input-placeholder {
+    color: #9ca3af;
+}
+
+/* Asegurar que el datalist se muestre automáticamente */
+.bom-id-input:focus,
+.bom-name-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
 }
 </style>
 @endsection

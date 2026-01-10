@@ -2,19 +2,21 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
+use App\Helpers\AuditoriaHelper;
 use App\Helpers\FolioHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
+use App\Models\catcodificados\CatCodificados;
+use App\Models\Planeacion\Catalogos\ReqPesosRollosTejido;
 use App\Models\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-
 class LiberarOrdenesController extends Controller
 {
     /**
@@ -27,7 +29,6 @@ class LiberarOrdenesController extends Controller
         try {
             // Obtener el rango de días del parámetro o de la sesión
             $dias = $request->input('dias');
-
             if ($dias !== null) {
                 // Validar y guardar en sesión
                 $dias = floatval($dias);
@@ -41,63 +42,16 @@ class LiberarOrdenesController extends Controller
                 // Obtener de la sesión o usar valor por defecto
                 $dias = session('liberar_ordenes_dias', 10.999);
             }
-            // Obtener registros que NO tienen orden de producción (NoProduccion es null o vacío)
-            // Solo los campos que se muestran en la tabla
-            $registros = ReqProgramaTejido::select([
-                'Id',
-                'CuentaRizo',
-                'SalonTejidoId',
-                'NoTelarId',
-                'Ultimo',
-                'CambioHilo',
-                'Maquina',
-                'Ancho',
-                'EficienciaSTD',
-                'VelocidadSTD',
-                'FibraRizo',
-                'CalibrePie2',
-                'PesoCrudo',
-                'NoTiras',
-                'LargoCrudo',
-                'ItemId',
-                'CalendarioId',
-                'TamanoClave',
-                'InventSizeId',
-                'NoExisteBase',
-                'NombreProducto',
-                'TotalPedido',
-                'SaldoPedido',
-                'ProgramarProd',
-                'NoProduccion',
-                'Programado',
-                'NombreProyecto',
-                'AplicacionId',
-                'Observaciones',
-                'FechaInicio',
-                'FechaFinal',
-                'Prioridad',
-                'PesoGRM2',
-                'TipoPedido',
-                'EntregaProduc',
-                'EntregaPT',
-                'EntregaCte',
-                'PTvsCte',
-                'MtsRollo',
-                'PzasRollo',
-                'TotalRollos',
-                'TotalPzas',
-                'Repeticiones',
-                'CombinaTram',
-                'BomId',
-                'BomName',
-                'HiloAX'
-            ])
-            ->where(function($query) {
-                $query->whereNull('NoProduccion')
-                      ->orWhere('NoProduccion', '');
-            })
-            ->ordenado()
-            ->get();
+            // Obtener registros que NO tienen orden de producción
+            $registros = ReqProgramaTejido::query()
+                ->where(function($query) {
+                    $query->whereNull('NoProduccion')
+                          ->orWhere('NoProduccion', '');
+                })
+                ->orderBy('SalonTejidoId')
+                ->orderBy('NoTelarId')
+                ->orderBy('FechaInicio')
+                ->get();
 
             // Aplicar fórmula INN: =SI(FechaInicio <= (HOY()+dias),HOY(),"")
             $hoy = Carbon::now()->startOfDay();
@@ -193,44 +147,103 @@ class LiberarOrdenesController extends Controller
                 $pCrudo = $registro->PesoCrudo ?? null;
                 $tiras = $registro->NoTiras ?? null;
                 $repeticiones = null;
-                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
-                    $repeticiones = floor(((41.5 / (float)$pCrudo) / (float)$tiras) * 1000);
+                if (isset($registro->Repeticiones) && is_numeric($registro->Repeticiones)) {
+                    $repeticiones = (int) $registro->Repeticiones;
+                } elseif ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
+                    // Obtener peso rollo desde BD (buscar FEL primero, luego DEF, default 41.5)
+                    $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
+                    $repeticiones = floor((($pesoRollo / (float)$pCrudo) / (float)$tiras) * 1000);
                 }
 
-                $cantidadProducir = $registro->SaldoPedido ?? null;
-                $noMarbetes = null;
-                if ($cantidadProducir && $tiras && $repeticiones !== null &&
-                    is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
-                    $tiras > 0 && $repeticiones > 0) {
-                    $noMarbetes = floor((float)$cantidadProducir / (float)$tiras / (float)$repeticiones);
+                $saldoMarbeteInt = 0;
+                if (isset($registro->SaldoMarbete) && is_numeric($registro->SaldoMarbete)) {
+                    $saldoMarbeteInt = (int) $registro->SaldoMarbete;
+                } else {
+                    $cantidadProducir = $registro->SaldoPedido ?? null;
+                    $saldoMarbete = 0;
+                    if ($cantidadProducir !== null && $tiras && $repeticiones !== null &&
+                        is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
+                        $tiras > 0 && $repeticiones > 0) {
+                        $saldoMarbete = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
+                    }
+                    if (is_numeric($saldoMarbete)) {
+                        $saldoFloat = (float) $saldoMarbete;
+                        $entero = (int) floor($saldoFloat);
+                        $decimal = abs($saldoFloat - $entero);
+                        $saldoMarbeteInt = $decimal >= 0.5 ? (int) ceil($saldoFloat) : $entero;
+                    }
                 }
-
-                $largo = $registro->LargoCrudo ?? null;
+                // MtsRollo: fórmula = medida de largo * repeticiones (convertir cm a metros)
                 $mtsRollo = null;
-                if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
-                    $largoNum = is_numeric($largo) ? (float)$largo : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
-                    if ($largoNum > 0 && $repeticiones > 0) {
-                        $mtsRollo = round($largoNum * $repeticiones / 100, 2);
+                if (isset($registro->MtsRollo) && is_numeric($registro->MtsRollo)) {
+                    $mtsRollo = (float) $registro->MtsRollo;
+                } else {
+                    $largo = $registro->LargoCrudo ?? null;
+                    if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
+                        $largoNum = is_numeric($largo) ? (float)$largo : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
+                        if ($largoNum > 0 && $repeticiones > 0) {
+                            // Fórmula: metros = (medida de largo * repeticiones) / 100 (convertir cm a metros)
+                            $mtsRollo = round(($largoNum * $repeticiones) / 100, 2);
+                        }
                     }
                 }
 
                 $pzasRollo = null;
-                if ($repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
-                    $pzasRollo = round($repeticiones * $tiras, 0);
+                if (isset($registro->PzasRollo) && is_numeric($registro->PzasRollo)) {
+                    $pzasRollo = (float) $registro->PzasRollo;
+                } else {
+                    if ($repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
+                        $pzasRollo = round($repeticiones * $tiras, 0);
+                    }
                 }
 
-                $totalRollos = $noMarbetes;
+                $totalRollos = null;
+                if (isset($registro->TotalRollos) && is_numeric($registro->TotalRollos)) {
+                    $totalRollos = (float) $registro->TotalRollos;
+                } else {
+                    $totalRollos = $saldoMarbeteInt;
+                }
+
                 $totalPzas = null;
-                if ($totalRollos !== null && $pzasRollo !== null && is_numeric($totalRollos) && is_numeric($pzasRollo)) {
-                    $totalPzas = round((float)$totalRollos * (float)$pzasRollo, 0);
+                if (isset($registro->TotalPzas) && is_numeric($registro->TotalPzas)) {
+                    $totalPzas = (float) $registro->TotalPzas;
+                } else {
+                    if ($totalRollos !== null && $pzasRollo !== null && is_numeric($totalRollos) && is_numeric($pzasRollo)) {
+                        $totalPzas = round((float)$totalRollos * (float)$pzasRollo, 0);
+                    }
                 }
 
                 $registro->Repeticiones = $repeticiones;
+                $registro->SaldoMarbete = $saldoMarbeteInt;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
                 $registro->TotalRollos = $totalRollos;
                 $registro->TotalPzas = $totalPzas;
-                $registro->Densidad = $registro->PesoGRM2 ?? null;
+
+                // Densidad: fórmula = peso / (ancho * largo) / 1 kg m2
+                $densidad = $registro->PesoGRM2 ?? null;
+                if ($densidad === null) {
+                    $peso = $registro->PesoCrudo ?? null;
+                    $ancho = $registro->Ancho ?? null;
+                    $largo = $registro->LargoCrudo ?? null;
+
+                    if ($peso !== null && $ancho !== null && $largo !== null &&
+                        is_numeric($peso) && is_numeric($ancho) && is_numeric($largo) &&
+                        $ancho > 0 && $largo > 0) {
+                        // Convertir largo de cm a metros
+                        $largoMetros = is_numeric($largo)
+                            ? (float)$largo / 100
+                            : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo) / 100;
+
+                        $area = $ancho * $largoMetros; // área en m2
+                        if ($area > 0) {
+                            // PesoCrudo está en gramos, convertir a kg: peso / 1000
+                            $pesoKg = (float)$peso / 1000;
+                            $densidad = round($pesoKg / $area, 2);
+                        }
+                    }
+                }
+                $registro->Densidad = $densidad;
             });
 
             return view('modulos.programa-tejido.liberar-ordenes.index', compact('registros', 'dias'));
@@ -254,6 +267,16 @@ class LiberarOrdenesController extends Controller
             'registros' => 'required|array|min:1',
             'registros.*.id' => 'required|integer|exists:ReqProgramaTejido,Id',
             'registros.*.prioridad' => 'nullable|string|max:100',
+            'registros.*.bomId' => 'nullable|string|max:20',
+            'registros.*.bomName' => 'nullable|string|max:60',
+            'registros.*.hiloAX' => 'nullable|string|max:30',
+            'registros.*.mtsRollo' => 'nullable|numeric',
+            'registros.*.pzasRollo' => 'nullable|numeric',
+            'registros.*.totalRollos' => 'nullable|numeric',
+            'registros.*.totalPzas' => 'nullable|numeric',
+            'registros.*.repeticiones' => 'nullable|numeric',
+            'registros.*.saldoMarbete' => 'nullable|numeric',
+            'registros.*.combinaTram' => 'nullable|string|max:60',
         ], [
             'registros.required' => 'Debes seleccionar al menos un registro.',
             'registros.*.id.exists' => 'Uno de los registros seleccionados no existe.',
@@ -291,188 +314,191 @@ class LiberarOrdenesController extends Controller
                     continue;
                 }
 
-                // Generar folio único
+                // Generar folio único y configurar valores básicos
                 $folio = FolioHelper::obtenerSiguienteFolio('Planeacion', 5);
+                $programado = $this->calcularFechaProgramada($registro, $hoy, $fechaFormula);
 
-                $programado = null;
-                if ($registro->FechaInicio) {
-                    $fechaInicio = $registro->FechaInicio instanceof Carbon
-                        ? $registro->FechaInicio->copy()->startOfDay()
-                        : Carbon::parse($registro->FechaInicio)->startOfDay();
-
-                    if ($fechaInicio->lte($fechaFormula)) {
-                        $programado = $hoy->copy();
-                    }
-                }
-
+                // Configurar valores básicos del registro
                 $registro->Prioridad = $prioridad !== '' ? $prioridad : null;
+                $registro->NoProduccion = $folio;
                 if ($programado) {
                     $registro->Programado = $programado;
                 }
-                $registro->NoProduccion = $folio;
 
-                // Calcular Repeticiones: TRUNCAR((41.5/PesoCrudo)/NoTiras*1000)
+                // Calcular campos de producción
                 $pCrudo = $registro->PesoCrudo ?? null;
                 $tiras = $registro->NoTiras ?? null;
-                $repeticiones = null;
-                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
-                    $repeticiones = floor(((41.5 / (float)$pCrudo) / (float)$tiras) * 1000);
+
+                // Repeticiones: usar del request, existente o calcular
+                $repeticiones = $item['repeticiones'] ?? $registro->Repeticiones;
+                if ($repeticiones === null && $pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
+                    // Obtener peso rollo desde BD (buscar FEL primero, luego DEF, default 41.5)
+                    $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
+                    $repeticiones = floor((($pesoRollo / (float)$pCrudo) / (float)$tiras) * 1000);
                 }
 
-                // Calcular NoMarbetes: TRUNCAR(SaldoPedido/NoTiras/Repeticiones)
-                $cantidadProducir = $registro->SaldoPedido ?? null;
-                $noMarbetes = null;
-                if ($cantidadProducir && $tiras && $repeticiones !== null &&
-                    is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
-                    $tiras > 0 && $repeticiones > 0) {
-                    $noMarbetes = floor((float)$cantidadProducir / (float)$tiras / (float)$repeticiones);
-                }
-
-                // Calcular MtsRollo: (LargoCrudo * Repeticiones) / 100
-                $largo = $registro->LargoCrudo ?? null;
-                $mtsRollo = null;
-                if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
-                    $largoNum = is_numeric($largo) ? (float)$largo : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
-                    if ($largoNum > 0 && $repeticiones > 0) {
-                        $mtsRollo = round($largoNum * $repeticiones / 100, 2);
+                // SaldoMarbete: usar del request, existente o calcular
+                $saldoMarbeteInt = $item['saldoMarbete'] ?? $registro->SaldoMarbete;
+                if ($saldoMarbeteInt === null) {
+                    $cantidadProducir = $registro->SaldoPedido ?? null;
+                    $saldoMarbeteCalc = 0;
+                    if ($cantidadProducir !== null && $tiras && $repeticiones !== null &&
+                        is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
+                        $tiras > 0 && $repeticiones > 0) {
+                        $saldoMarbeteCalc = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
+                    }
+                    if (is_numeric($saldoMarbeteCalc)) {
+                        $saldoFloat = (float) $saldoMarbeteCalc;
+                        $entero = (int) floor($saldoFloat);
+                        $decimal = abs($saldoFloat - $entero);
+                        $saldoMarbeteInt = $decimal >= 0.5 ? (int) ceil($saldoFloat) : $entero;
                     }
                 }
 
-                // Calcular PzasRollo: Repeticiones * NoTiras
-                $pzasRollo = null;
-                if ($repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
+                // MtsRollo: usar del request, existente o calcular
+                $mtsRollo = $item['mtsRollo'] ?? $registro->MtsRollo;
+                if ($mtsRollo === null) {
+                    $largo = $registro->LargoCrudo ?? null;
+                    if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
+                        $largoNum = is_numeric($largo)
+                            ? (float)$largo
+                            : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
+                        if ($largoNum > 0 && $repeticiones > 0) {
+                            // Fórmula: metros = (medida de largo * repeticiones) / 100 (convertir cm a metros)
+                            $mtsRollo = round(($largoNum * $repeticiones) / 100, 2);
+                        }
+                    }
+                }
+
+                // PzasRollo: usar del request, existente o calcular
+                $pzasRollo = $item['pzasRollo'] ?? $registro->PzasRollo;
+                if ($pzasRollo === null && $repeticiones !== null && $tiras &&
+                    is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
                     $pzasRollo = round($repeticiones * $tiras, 0);
                 }
 
-                // Calcular TotalRollos y TotalPzas
-                $totalRollos = $noMarbetes;
-                $totalPzas = null;
-                if ($totalRollos !== null && $pzasRollo !== null && is_numeric($totalRollos) && is_numeric($pzasRollo)) {
+                // TotalRollos: usar del request, existente o usar saldoMarbeteInt
+                $totalRollos = $item['totalRollos'] ?? $registro->TotalRollos ?? $saldoMarbeteInt;
+
+                // TotalPzas: usar del request, existente o calcular
+                $totalPzas = $item['totalPzas'] ?? $registro->TotalPzas;
+                if ($totalPzas === null && $totalRollos !== null && $pzasRollo !== null &&
+                    is_numeric($totalRollos) && is_numeric($pzasRollo)) {
                     $totalPzas = round((float) $totalRollos * (float) $pzasRollo, 0);
                 }
 
-                // Actualizar campos calculados
+                // Asignar campos calculados
                 $registro->Repeticiones = $repeticiones;
+                $registro->SaldoMarbete = $saldoMarbeteInt ?? 0;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
                 $registro->TotalRollos = $totalRollos;
                 $registro->TotalPzas = $totalPzas;
-                $registro->CombinaTram = $registro->CombinaTram ?? null;
-                $registro->BomId = $registro->BomId ?? null;
-                $registro->BomName = $registro->BomName ?? null;
+
+                // Aplicar valores del request con lógica de fallback
+                // Campos de texto
+                $camposTexto = ['CombinaTram', 'BomId', 'BomName', 'HiloAX'];
+                foreach ($camposTexto as $campo) {
+                    $key = lcfirst($campo);
+                    $valor = $item[$key] ?? null;
+                    if ($valor !== null && $valor !== '') {
+                        $registro->$campo = trim((string) $valor);
+                    } elseif (empty($registro->$campo)) {
+                        $registro->$campo = null;
+                    }
+                }
+
+                // Campos numéricos
+                if (isset($item['mtsRollo']) && $item['mtsRollo'] !== null && $item['mtsRollo'] !== '') {
+                    $registro->MtsRollo = (float) $item['mtsRollo'];
+                }
+                if (isset($item['pzasRollo']) && $item['pzasRollo'] !== null && $item['pzasRollo'] !== '') {
+                    $registro->PzasRollo = (float) $item['pzasRollo'];
+                }
+                if (isset($item['totalRollos']) && $item['totalRollos'] !== null && $item['totalRollos'] !== '') {
+                    $registro->TotalRollos = (float) $item['totalRollos'];
+                }
+                if (isset($item['totalPzas']) && $item['totalPzas'] !== null && $item['totalPzas'] !== '') {
+                    $registro->TotalPzas = (float) $item['totalPzas'];
+                }
+
+                // Asegurar que BomName se guarde correctamente si hay BomId pero no BomName
+                // Solo buscar en BD si el usuario NO ingresó manualmente el BomName
+                $bomNameIngresadoManual = isset($item['bomName']) && $item['bomName'] !== null && $item['bomName'] !== '';
+
+                if (empty($registro->BomName) && !empty($registro->BomId) && !$bomNameIngresadoManual) {
+                    $itemId = $registro->ItemId ?? null;
+                    $inventSizeId = $registro->InventSizeId ?? null;
+
+                    try {
+                        if ($itemId && $inventSizeId) {
+                            $itemIdWithSuffix = $itemId . '-1';
+                            $result = DB::connection('sqlsrv_ti')
+                                ->table('BOMTABLE as BT')
+                                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
+                                ->select('BT.NAME as bomName')
+                                ->where('BT.BOMID', $registro->BomId)
+                                ->where('BV.ITEMID', $itemIdWithSuffix)
+                                ->where('BT.TWINVENTSIZEID', $inventSizeId)
+                                ->where('BT.TwSalon', 'SalonTejido')
+                                ->first();
+                        } else {
+                            $result = DB::connection('sqlsrv_ti')
+                                ->table('BOMTABLE as BT')
+                                ->select('BT.NAME as bomName')
+                                ->where('BT.BOMID', $registro->BomId)
+                                ->where('BT.TwSalon', 'SalonTejido')
+                                ->first();
+                        }
+
+                        if ($result && !empty($result->bomName)) {
+                            $registro->BomName = trim($result->bomName);
+                        }
+                    } catch (\Exception $e) {
+                        // Silenciar error, simplemente no se actualiza el BomName
+                    }
+                }
+
+                // Configurar campos adicionales
                 $registro->CreaProd = $registro->CreaProd ?? 1;
                 $registro->EficienciaSTD = $registro->EficienciaSTD ?? null;
-                $registro->Densidad = $registro->PesoGRM2 ?? null;
-                $registro->HiloAX = $registro->HiloAX ?? null;
+
+                // Densidad: fórmula = peso / (ancho * largo) / 1 kg m2
+                $densidad = $registro->PesoGRM2 ?? null;
+                if ($densidad === null) {
+                    $peso = $registro->PesoCrudo ?? null;
+                    $ancho = $registro->Ancho ?? null;
+                    $largo = $registro->LargoCrudo ?? null;
+
+                    if ($peso !== null && $ancho !== null && $largo !== null &&
+                        is_numeric($peso) && is_numeric($ancho) && is_numeric($largo) &&
+                        $ancho > 0 && $largo > 0) {
+                        // Convertir largo de cm a metros
+                        $largoMetros = is_numeric($largo)
+                            ? (float)$largo / 100
+                            : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo) / 100;
+
+                        $area = $ancho * $largoMetros; // área en m2
+                        if ($area > 0) {
+                            // PesoCrudo está en gramos, convertir a kg: peso / 1000
+                            $pesoKg = (float)$peso / 1000;
+                            $densidad = round($pesoKg / $area, 2);
+                        }
+                    }
+                }
+                $registro->Densidad = $densidad;
                 $registro->ActualizaLmat = $registro->ActualizaLmat ?? 0;
 
-                // Campos de auditoría
-                $usuario = Auth::check() && Auth::user()
-                    ? (Auth::user()->nombre ?? Auth::user()->numero_empleado ?? 'Sistema')
-                    : 'Sistema';
-                $fechaActual = now();
-                $registro->setAttribute('FechaCreacion', $fechaActual);
-                $registro->HoraCreacion = $fechaActual->format('H:i:s');
-                $registro->UsuarioCrea = $usuario;
-                $registro->setAttribute('FechaModificacion', $fechaActual);
-                $registro->HoraModificacion = $fechaActual->format('H:i:s');
-                $registro->UsuarioModifica = $usuario;
+                // Campos de auditoría usando el helper
+                AuditoriaHelper::aplicarCamposAuditoria($registro);
 
                 $registro->save();
 
-                // Recargar el modelo sin relaciones para evitar errores
-                $registroActualizado = ReqProgramaTejido::select([
-                    'Id',
-                    'CuentaRizo',
-                    'SalonTejidoId',
-                    'NoTelarId',
-                    'Ultimo',
-                    'CambioHilo',
-                    'Maquina',
-                    'Ancho',
-                    'EficienciaSTD',
-                    'VelocidadSTD',
-                    'FibraRizo',
-                    'CalibrePie2',
-                    'CalendarioId',
-                    'TamanoClave',
-                    'InventSizeId',
-                    'NoExisteBase',
-                    'NombreProducto',
-                    'SaldoPedido',
-                    'ProgramarProd',
-                    'NoProduccion',
-                    'Programado',
-                    'NombreProyecto',
-                    'AplicacionId',
-                    'Observaciones',
-                    'FechaFinal',
-                    'Prioridad',
-                    // Campos de color y combinaciones necesarios para CatCodificados
-                    'CodColorTrama',
-                    'ColorTrama',
-                    'FibraTrama',
-                    'CalibreTrama',
-                    'PesoCrudo',
-                    'Luchaje',
-                    'Peine',
-                    'NoTiras',
-                    'ItemId',
+                // Actualizar CatCodificados con los mismos campos
+                $this->actualizarCatCodificados($registro);
 
-                    'FlogsId',
-                    'LargoCrudo',
-                    'Rasurado',
-                    'MedidaPlano',
-
-                    'CalibreRizo',
-                    'CalibreRizo2',
-                    'CalibrePie',
-                    'CuentaPie',
-                    'FibraPie',
-                    'CalibreComb1',
-                    'CalibreComb12',
-                    'FibraComb1',
-                    'CodColorComb1',
-                    'NombreCC1',
-                    'PasadasComb1',
-                    'CalibreComb2',
-                    'CalibreComb22',
-                    'FibraComb2',
-                    'CodColorComb2',
-                    'NombreCC2',
-                    'PasadasComb2',
-                    'CalibreComb3',
-                    'CalibreComb32',
-                    'FibraComb3',
-                    'CodColorComb3',
-                    'NombreCC3',
-                    'PasadasComb3',
-                    'CalibreComb4',
-                    'CalibreComb42',
-                    'FibraComb4',
-                    'CodColorComb4',
-                    'NombreCC4',
-                    'PasadasComb4',
-                    'CalibreComb5',
-                    'CalibreComb52',
-                    'FibraComb5',
-                    'CodColorComb5',
-                    'NombreCC5',
-                    'PasadasComb5',
-                    'PasadasTrama',
-                    'TotalPedido',
-                    'Produccion',
-                    'SaldoMarbete',
-                    'OrdCompartida',
-                    'OrdCompartidaLider',
-                    'CombinaTram',
-                    'BomId',
-                    'BomName',
-                    'CreaProd',
-                    'HiloAX',
-                    'ActualizaLmat',
-                    'PesoGRM2',
-                ])->find($id);
+                // Recargar el registro con los campos necesarios para la orden de cambio
+                $registroActualizado = ReqProgramaTejido::find($id);
 
                 if ($registroActualizado) {
                     $actualizados->push($registroActualizado);
@@ -520,6 +546,214 @@ class LiberarOrdenesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al liberar las órdenes: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+
+    /**
+     * Obtiene L.Mat (BOM) y Nombre Mat (BomName) para una o múltiples combinaciones
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function obtenerBomYNombre(Request $request)
+    {
+        $combinationsParam = trim((string) $request->query('combinations', ''));
+        $itemId = trim((string) $request->query('itemId', ''));
+        $inventSizeId = trim((string) $request->query('inventSizeId', ''));
+        $term = trim((string) $request->query('term', ''));
+        $allowFallback = filter_var($request->query('fallback', false), FILTER_VALIDATE_BOOLEAN);
+
+        try {
+            // Si viene 'combinations', buscar múltiples combinaciones
+            if ($combinationsParam !== '') {
+                $combinations = array_filter(array_map('trim', explode(',', $combinationsParam)));
+
+                if (empty($combinations)) {
+                    return response()->json([
+                        'success' => true,
+                        'data' => [],
+                    ]);
+                }
+
+                // Parsear combinaciones: "itemId1:inventSizeId1,itemId2:inventSizeId2,..."
+                $pairs = [];
+                foreach ($combinations as $combo) {
+                    $parts = explode(':', $combo);
+                    if (count($parts) === 2) {
+                        $itemIdCombo = trim($parts[0]);
+                        $inventSizeIdCombo = trim($parts[1]);
+                        $pairs[] = [
+                            'itemIdWithSuffix' => $itemIdCombo . '-1',
+                            'inventSizeId' => $inventSizeIdCombo,
+                        ];
+                    }
+                }
+
+                if (empty($pairs)) {
+                    return response()->json([
+                        'success' => true,
+                        'data' => [],
+                    ]);
+                }
+
+                // Consulta única optimizada para múltiples combinaciones
+                $results = DB::connection('sqlsrv_ti')
+                    ->table('BOMTABLE as BT')
+                    ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
+                    ->select('BV.ITEMID', 'BT.TWINVENTSIZEID', 'BT.BOMID as bomId', 'BT.NAME as bomName')
+                    ->where(function($query) use ($pairs) {
+                        foreach ($pairs as $pair) {
+                            $query->orWhere(function($q) use ($pair) {
+                                $q->where('BV.ITEMID', $pair['itemIdWithSuffix'])
+                                  ->where('BT.TWINVENTSIZEID', $pair['inventSizeId']);
+                            });
+                        }
+                    })
+                    ->orderBy('BT.BOMID')
+                    ->get();
+
+                // Agrupar resultados por combinación (solo el primero si hay múltiples)
+                $map = [];
+                foreach ($results as $result) {
+                    $itemIdOriginal = str_replace('-1', '', $result->ITEMID);
+                    $key = $itemIdOriginal . '|' . $result->TWINVENTSIZEID;
+
+                    if (!isset($map[$key])) {
+                        $map[$key] = [
+                            [
+                                'bomId' => $result->bomId,
+                                'bomName' => $result->bomName
+                            ]
+                        ];
+                    }
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $map,
+                ]);
+            }
+
+            // Búsqueda individual (autocompletado)
+            if ($itemId === '' || $inventSizeId === '') {
+                if ($allowFallback && $term !== '') {
+                    return response()->json([
+                        'success' => true,
+                        'data' => $this->queryBomFallback($term),
+                    ]);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            $itemIdWithSuffix = $itemId . '-1';
+            $query = DB::connection('sqlsrv_ti')
+                ->table('BOMTABLE as BT')
+                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
+                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
+                ->where('BV.ITEMID', $itemIdWithSuffix)
+                ->where('BT.TWINVENTSIZEID', $inventSizeId);
+
+            if ($term !== '') {
+                $query->where(function ($q) use ($term) {
+                    $q->where('BT.BOMID', 'like', '%' . $term . '%')
+                      ->orWhere('BT.NAME', 'like', '%' . $term . '%');
+                });
+            }
+
+            $results = $query->orderBy('BT.BOMID')->limit(20)->get();
+            if ($results->isEmpty() && $allowFallback && $term !== '') {
+                $results = $this->queryBomFallback($term);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $results,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener BOM y Nombre', [
+                'combinations' => $combinationsParam,
+                'item_id' => $itemId,
+                'invent_size_id' => $inventSizeId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar L.Mat.',
+            ], 500);
+        }
+    }
+
+    private function queryBomFallback(string $term)
+    {
+        $query = DB::connection('sqlsrv_ti')
+            ->table('BOMTABLE as BT')
+            ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
+            ->where('BT.ITEMGROUPID', 'LIKE', '%CRUDO%');
+
+        if ($term !== '') {
+            $query->where(function ($q) use ($term) {
+                $q->where('BT.BOMID', 'like', '%' . $term . '%')
+                  ->orWhere('BT.NAME', 'like', '%' . $term . '%');
+            });
+        }
+
+        return $query->orderBy('BT.BOMID')->limit(20)->get();
+    }
+
+    /**
+     * Obtiene el tipo de hilo (TwTipoHiloId) para uno o múltiples items
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function obtenerTipoHilo(Request $request)
+    {
+        $itemIdsParam = trim((string) $request->query('itemIds', ''));
+
+        if ($itemIdsParam === '') {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        try {
+            $itemIds = array_filter(array_map('trim', explode(',', $itemIdsParam)));
+            $itemIdsWithSuffix = array_map(fn($id) => $id . '-1', $itemIds);
+
+            $results = DB::connection('sqlsrv_ti')
+                ->table('INVENTTABLE')
+                ->select('ITEMID', 'TwTipoHiloId')
+                ->whereIn('ITEMID', $itemIdsWithSuffix)
+                ->get();
+
+            $map = [];
+            foreach ($results as $result) {
+                $itemIdOriginal = str_replace('-1', '', $result->ITEMID);
+                $map[$itemIdOriginal] = $result->TwTipoHiloId ?? null;
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $map,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener TipoHilo', [
+                'item_ids' => $itemIdsParam,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener Tipo Hilo.',
             ], 500);
         }
     }
@@ -600,4 +834,210 @@ class LiberarOrdenesController extends Controller
         $writer->save('php://output');
         return ob_get_clean();
     }
+
+    /**
+     * Actualiza CatCodificados con los campos de ReqProgramaTejido después de liberar
+     */
+    private function actualizarCatCodificados(ReqProgramaTejido $registro): void
+    {
+        try {
+            $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
+            $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
+
+            if (empty($noProduccion)) {
+                return;
+            }
+
+            $modelo = new CatCodificados();
+            $table = $modelo->getTable();
+            $columns = Schema::getColumnListing($table);
+
+
+            $query = CatCodificados::query();
+            $hasKeyFilter = false;
+
+            if (in_array('OrdenTejido', $columns, true)) {
+                $query->where('OrdenTejido', $noProduccion);
+                $hasKeyFilter = true;
+            } elseif (in_array('NumOrden', $columns, true)) {
+                $query->where('NumOrden', $noProduccion);
+                $hasKeyFilter = true;
+            }
+
+            if (in_array('TelarId', $columns, true)) {
+                $query->where('TelarId', $noTelarId);
+            } elseif (in_array('NoTelarId', $columns, true)) {
+                $query->where('NoTelarId', $noTelarId);
+            }
+
+            if (!$hasKeyFilter) {
+                $query->where('NoProduccion', $noProduccion);
+            }
+
+            $registroCodificado = $query->first();
+
+            if (!$registroCodificado) {
+                return;
+            }
+
+
+
+            // Campos a actualizar desde ReqProgramaTejido
+            // Convertir valores null a 0 para campos numéricos si es necesario
+            $payload = [
+                'BomId' => $registro->BomId,
+                'BomName' => $registro->BomName,
+                'HiloAX' => $registro->HiloAX,
+                'MtsRollo' => $registro->MtsRollo,
+                'PzasRollo' => $registro->PzasRollo,
+                'TotalRollos' => $registro->TotalRollos,
+                'TotalPzas' => $registro->TotalPzas,
+                'Repeticiones' => $registro->Repeticiones !== null ? (int)$registro->Repeticiones : null,
+                'NoMarbete' => $registro->SaldoMarbete !== null ? (float)$registro->SaldoMarbete : null, // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
+                'CombinaTram' => $registro->CombinaTram,
+                'Densidad' => $registro->Densidad !== null ? (float)$registro->Densidad : null,
+                'CreaProd' => $registro->CreaProd ?? 1,
+                'ActualizaLmat' => $registro->ActualizaLmat ?? 0,
+            ];
+
+            $updated = false;
+
+            // Asignar todos los campos del payload, EXCEPTO TotalRollos y TotalPzas que se manejarán después
+            foreach ($payload as $column => $value) {
+                // Saltar TotalRollos y TotalPzas, se manejarán después
+                if ($column === 'TotalRollos' || $column === 'TotalPzas') {
+                    continue;
+                }
+
+                if (!in_array($column, $columns, true)) {
+                    continue;
+                }
+
+                // Asignar siempre, sin comparación (para asegurar que se actualicen)
+                $registroCodificado->setAttribute($column, $value);
+                $updated = true;
+            }
+
+            // FORZAR asignación de TotalRollos y TotalPzas SIEMPRE (incluso si son null)
+            // Estos campos deben guardarse exactamente como están en ReqProgramaTejido
+            $valorTotalRollos = $registro->TotalRollos !== null ? (float)$registro->TotalRollos : null;
+            $valorTotalPzas = $registro->TotalPzas !== null ? (float)$registro->TotalPzas : null;
+
+            if (in_array('TotalRollos', $columns, true)) {
+                $registroCodificado->TotalRollos = $valorTotalRollos;
+                $updated = true;
+            }
+            if (in_array('TotalPzas', $columns, true)) {
+                $registroCodificado->TotalPzas = $valorTotalPzas;
+                $updated = true;
+            }
+
+            // Aplicar campos de auditoría: primero creación si no existen, luego modificación
+            // Usar false para aplicar ambos (creación y modificación)
+            AuditoriaHelper::aplicarCamposAuditoria($registroCodificado, false);
+
+            // Forzar UsuarioCrea si no existe y la columna existe
+            if (in_array('UsuarioCrea', $columns, true)) {
+                $usuarioActual = trim((string)($registroCodificado->UsuarioCrea ?? ''));
+                if (empty($usuarioActual)) {
+                    $usuario = AuditoriaHelper::obtenerUsuarioActual();
+                    $registroCodificado->UsuarioCrea = $usuario;
+                    $updated = true;
+                }
+            }
+
+            // Verificar valores antes de guardar
+            $valoresAntesGuardar = [
+                'TotalRollos' => $registroCodificado->TotalRollos,
+                'TotalPzas' => $registroCodificado->TotalPzas,
+                'UsuarioCrea' => $registroCodificado->UsuarioCrea,
+                'is_dirty' => $registroCodificado->isDirty(),
+                'dirty_attributes' => $registroCodificado->getDirty(),
+            ];
+
+
+            if ($updated || $registroCodificado->isDirty()) {
+                try {
+                    // Guardar usando fill() para asegurar que se guarden todos los cambios
+                    $registroCodificado->save();
+
+                    // Recargar desde BD para verificar
+                    $registroCodificado->refresh();
+
+                    } catch (\Exception $e) {
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+    }
+
+    /**
+     * Obtiene el peso del rollo desde la tabla ReqPesosRolloTejido
+     * Busca primero por tamaño FEL si el registro tiene FEL en InventSizeId
+     * Si no encuentra, busca por tamaño DEF (default)
+     * Si no encuentra nada, retorna null (para usar 41.5 como default)
+     *
+     * @param ReqProgramaTejido $registro
+     * @return float|null
+     */
+    private function obtenerPesoRollo(ReqProgramaTejido $registro): ?float
+    {
+        try {
+            $itemId = trim((string)($registro->ItemId ?? ''));
+            $inventSizeId = trim((string)($registro->InventSizeId ?? ''));
+
+            if (empty($itemId)) {
+                return null;
+            }
+
+            // Si el registro tiene FEL en InventSizeId, buscar por FEL primero
+            $buscarFel = !empty($inventSizeId) && (stripos($inventSizeId, 'FEL') !== false);
+
+            if ($buscarFel) {
+                $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
+                    ->where('InventSizeId', 'FEL')
+                    ->first();
+
+                if ($pesoRollo && $pesoRollo->PesoRollo !== null) {
+                    return (float) $pesoRollo->PesoRollo;
+                }
+            }
+
+            // Si no se encontró FEL, buscar por DEF (default)
+            $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
+                ->where('InventSizeId', 'DEF')
+                ->first();
+
+            if ($pesoRollo && $pesoRollo->PesoRollo !== null) {
+                return (float) $pesoRollo->PesoRollo;
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Calcula la fecha programada basada en la fórmula INN
+     *
+     * @param ReqProgramaTejido $registro
+     * @param Carbon $hoy
+     * @param Carbon $fechaFormula
+     * @return Carbon|null
+     */
+    private function calcularFechaProgramada(ReqProgramaTejido $registro, Carbon $hoy, Carbon $fechaFormula): ?Carbon
+    {
+        if (!$registro->FechaInicio) {
+            return null;
+        }
+
+        $fechaInicio = $registro->FechaInicio instanceof Carbon
+            ? $registro->FechaInicio->copy()->startOfDay()
+            : Carbon::parse($registro->FechaInicio)->startOfDay();
+
+        return $fechaInicio->lte($fechaFormula) ? $hoy->copy() : null;
+    }
+
+
 }

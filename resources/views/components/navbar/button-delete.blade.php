@@ -35,7 +35,7 @@
     'moduleId' => null,
     'checkPermission' => null,
     'icon' => 'fa-trash',
-    'iconColor' => 'text-white',
+    'iconColor' => 'text-red-500',
     'hoverBg' => '',
     'bg' => '',
     'text' => null,

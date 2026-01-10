@@ -80,5 +80,131 @@ class CatalogosUrdidoController extends Controller
             ])->with('error', 'Error al cargar los datos: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Crear una nueva máquina
+     */
+    public function storeMaquina(Request $request)
+    {
+        try {
+            $request->validate([
+                'MaquinaId' => 'required|string|max:50|unique:URDCatalogoMaquinas,MaquinaId',
+                'Nombre' => 'nullable|string|max:100',
+                'Departamento' => 'nullable|string|max:50',
+            ]);
+
+            URDCatalogoMaquina::create([
+                'MaquinaId' => $request->MaquinaId,
+                'Nombre' => $request->Nombre,
+                'Departamento' => $request->Departamento,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Máquina creada exitosamente'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al crear máquina', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear la máquina: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar una máquina existente
+     */
+    public function updateMaquina(Request $request, $maquinaId)
+    {
+        try {
+            $maquina = URDCatalogoMaquina::where('MaquinaId', $maquinaId)->firstOrFail();
+
+            $rules = [
+                'MaquinaId' => 'required|string|max:50',
+                'Nombre' => 'nullable|string|max:100',
+                'Departamento' => 'nullable|string|max:50',
+            ];
+
+            // Si el MaquinaId cambió, validar que no exista
+            if ($request->MaquinaId !== $maquinaId) {
+                $rules['MaquinaId'] .= '|unique:URDCatalogoMaquinas,MaquinaId';
+            }
+
+            $request->validate($rules);
+
+            // Si el ID cambió, necesitamos eliminar el registro anterior y crear uno nuevo
+            if ($request->MaquinaId !== $maquinaId) {
+                $maquina->delete();
+                URDCatalogoMaquina::create([
+                    'MaquinaId' => $request->MaquinaId,
+                    'Nombre' => $request->Nombre,
+                    'Departamento' => $request->Departamento,
+                ]);
+            } else {
+                $maquina->update([
+                    'Nombre' => $request->Nombre,
+                    'Departamento' => $request->Departamento,
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Máquina actualizada exitosamente'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar máquina', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar la máquina: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar una máquina
+     */
+    public function destroyMaquina($maquinaId)
+    {
+        try {
+            $maquina = URDCatalogoMaquina::where('MaquinaId', $maquinaId)->firstOrFail();
+            $maquina->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Máquina eliminada exitosamente'
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La máquina no fue encontrada'
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar máquina', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar la máquina: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
 
