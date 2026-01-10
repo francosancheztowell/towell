@@ -695,7 +695,8 @@ class LiberarOrdenesController extends Controller
     {
         $query = DB::connection('sqlsrv_ti')
             ->table('BOMTABLE as BT')
-            ->select('BT.BOMID as bomId', 'BT.NAME as bomName');
+            ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
+            ->where('BT.ITEMGROUPID', 'LIKE', '%CRUDO%');
 
         if ($term !== '') {
             $query->where(function ($q) use ($term) {
@@ -840,19 +841,10 @@ class LiberarOrdenesController extends Controller
     private function actualizarCatCodificados(ReqProgramaTejido $registro): void
     {
         try {
-            Log::info('=== INICIO actualizarCatCodificados ===', [
-                'registro_id' => $registro->Id ?? 'null',
-                'no_produccion' => $registro->NoProduccion ?? 'null',
-                'no_telar_id' => $registro->NoTelarId ?? 'null',
-                'total_rollos' => $registro->TotalRollos ?? 'null',
-                'total_pzas' => $registro->TotalPzas ?? 'null',
-            ]);
-
             $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
             $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
 
             if (empty($noProduccion)) {
-                Log::warning('NoProduccion vacío, saliendo de actualizarCatCodificados');
                 return;
             }
 
@@ -860,12 +852,6 @@ class LiberarOrdenesController extends Controller
             $table = $modelo->getTable();
             $columns = Schema::getColumnListing($table);
 
-            Log::info('Columnas disponibles en CatCodificados', [
-                'total_columnas' => count($columns),
-                'tiene_totalrollos' => in_array('TotalRollos', $columns, true),
-                'tiene_totalpzas' => in_array('TotalPzas', $columns, true),
-                'tiene_usuariocrea' => in_array('UsuarioCrea', $columns, true),
-            ]);
 
             $query = CatCodificados::query();
             $hasKeyFilter = false;
@@ -873,42 +859,28 @@ class LiberarOrdenesController extends Controller
             if (in_array('OrdenTejido', $columns, true)) {
                 $query->where('OrdenTejido', $noProduccion);
                 $hasKeyFilter = true;
-                Log::info('Buscando por OrdenTejido', ['valor' => $noProduccion]);
             } elseif (in_array('NumOrden', $columns, true)) {
                 $query->where('NumOrden', $noProduccion);
                 $hasKeyFilter = true;
-                Log::info('Buscando por NumOrden', ['valor' => $noProduccion]);
             }
 
             if (in_array('TelarId', $columns, true)) {
                 $query->where('TelarId', $noTelarId);
-                Log::info('Filtrando por TelarId', ['valor' => $noTelarId]);
             } elseif (in_array('NoTelarId', $columns, true)) {
                 $query->where('NoTelarId', $noTelarId);
-                Log::info('Filtrando por NoTelarId', ['valor' => $noTelarId]);
             }
 
             if (!$hasKeyFilter) {
                 $query->where('NoProduccion', $noProduccion);
-                Log::info('Buscando por NoProduccion', ['valor' => $noProduccion]);
             }
 
             $registroCodificado = $query->first();
 
             if (!$registroCodificado) {
-                Log::warning('NO se encontró registro en CatCodificados', [
-                    'no_produccion' => $noProduccion,
-                    'no_telar_id' => $noTelarId,
-                    'sql' => $query->toSql(),
-                    'bindings' => $query->getBindings(),
-                ]);
                 return;
             }
 
-            Log::info('Registro encontrado en CatCodificados', [
-                'id' => $registroCodificado->Id,
-                'no_produccion' => $noProduccion,
-            ]);
+
 
             // Campos a actualizar desde ReqProgramaTejido
             // Convertir valores null a 0 para campos numéricos si es necesario
@@ -951,13 +923,6 @@ class LiberarOrdenesController extends Controller
             $valorTotalRollos = $registro->TotalRollos !== null ? (float)$registro->TotalRollos : null;
             $valorTotalPzas = $registro->TotalPzas !== null ? (float)$registro->TotalPzas : null;
 
-            Log::info('Valores desde ReqProgramaTejido', [
-                'total_rollos_original' => $registro->TotalRollos,
-                'total_pzas_original' => $registro->TotalPzas,
-                'total_rollos_convertido' => $valorTotalRollos,
-                'total_pzas_convertido' => $valorTotalPzas,
-            ]);
-
             if (in_array('TotalRollos', $columns, true)) {
                 $registroCodificado->TotalRollos = $valorTotalRollos;
                 $updated = true;
@@ -978,7 +943,6 @@ class LiberarOrdenesController extends Controller
                     $usuario = AuditoriaHelper::obtenerUsuarioActual();
                     $registroCodificado->UsuarioCrea = $usuario;
                     $updated = true;
-                    Log::info('UsuarioCrea asignado', ['usuario' => $usuario]);
                 }
             }
 
@@ -991,11 +955,6 @@ class LiberarOrdenesController extends Controller
                 'dirty_attributes' => $registroCodificado->getDirty(),
             ];
 
-            Log::info('Antes de guardar CatCodificados', [
-                'no_produccion' => $noProduccion,
-                'updated' => $updated,
-                'valores' => $valoresAntesGuardar,
-            ]);
 
             if ($updated || $registroCodificado->isDirty()) {
                 try {
@@ -1005,45 +964,11 @@ class LiberarOrdenesController extends Controller
                     // Recargar desde BD para verificar
                     $registroCodificado->refresh();
 
-                    $valoresDespuesGuardar = [
-                        'TotalRollos' => $registroCodificado->TotalRollos,
-                        'TotalPzas' => $registroCodificado->TotalPzas,
-                        'UsuarioCrea' => $registroCodificado->UsuarioCrea,
-                    ];
-
-                    Log::info('CatCodificados actualizado correctamente', [
-                        'no_produccion' => $noProduccion,
-                        'antes' => $valoresAntesGuardar,
-                        'despues' => $valoresDespuesGuardar,
-                    ]);
-                } catch (\Exception $e) {
-                    Log::error('Error al guardar CatCodificados', [
-                        'no_produccion' => $noProduccion,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString(),
-                        'dirty_attributes' => $registroCodificado->getDirty(),
-                        'valores_antes' => $valoresAntesGuardar,
-                    ]);
+                    } catch (\Exception $e) {
                 }
-            } else {
-                Log::warning('No se guardó CatCodificados - no hay cambios', [
-                    'no_produccion' => $noProduccion,
-                    'updated' => $updated,
-                    'is_dirty' => $registroCodificado->isDirty(),
-                ]);
             }
         } catch (\Throwable $e) {
-            Log::error('EXCEPCIÓN en actualizarCatCodificados', [
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-                'registro_id' => $registro->Id ?? 'null',
-                'no_produccion' => $registro->NoProduccion ?? 'null',
-            ]);
         }
-
-        Log::info('=== FIN actualizarCatCodificados ===');
     }
 
     /**
