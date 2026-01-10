@@ -115,16 +115,6 @@
                 <input type="hidden" name="Status" value="Creado">
                 
                 <div class="grid grid-cols-2 gap-3 mb-4">
-                    {{-- <div class="col-span-2 bg-blue-50 border-2 border-blue-300 rounded-lg p-3">
-                        <label class="block text-sm font-semibold text-blue-800 mb-1">
-                            <i class="fa-solid fa-hashtag mr-1"></i>
-                            No. Folio
-                        </label>
-                        <div class="text-2xl font-bold text-blue-600">
-                            {{ $folioSugerido ?: 'Generando...' }}
-                        </div>
-                        {{-- <p class="text-xs text-blue-600 mt-1">Este folio se asignará automáticamente al crear el registro</p>
-                    </div> --}}
                     <div class="col-span-2">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Fecha *</label>
                         <input type="date" name="Fecha" value="{{ date('Y-m-d') }}" required readonly class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
