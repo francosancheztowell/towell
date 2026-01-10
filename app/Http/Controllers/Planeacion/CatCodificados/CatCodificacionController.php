@@ -18,55 +18,12 @@ use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
 class CatCodificacionController extends Controller
 {
     /**
-     * Columnas usadas en vista y API (una sola fuente de verdad)
-     * (YA CON NOMBRES NUEVOS)
-     */
-    private const COLUMNS = [
-        'Id',
-
-        'OrdenTejido', 'FechaTejido', 'FechaCumplimiento', 'Departamento', 'TelarId', 'Prioridad', 'Nombre',
-        'ClaveModelo', 'ItemId', 'InventSizeId', 'Tolerancia', 'CodigoDibujo', 'FechaCompromiso', 'FlogsId',
-        'NombreProyecto',
-
-        'Clave', 'Cantidad', 'Peine', 'Ancho', 'Largo', 'P_crudo', 'Luchaje', 'Tra', 'CalibreTrama2',
-        'CodColorTrama', 'ColorTrama', 'FibraId',
-
-        'DobladilloId', 'MedidaPlano', 'TipoRizo', 'AlturaRizo', 'Obs', 'VelocidadSTD',
-
-        'CalibreRizo', 'CalibreRizo2', 'CuentaRizo', 'FibraRizo',
-        'CalibrePie', 'CalibrePie2', 'CuentaPie', 'FibraPie',
-
-        'Comb1', 'Obs1', 'Comb2', 'Obs2', 'Comb3', 'Obs3', 'Comb4', 'Obs4',
-        'MedidaCenefa', 'MedIniRizoCenefa', 'Razurada',
-
-        'NoTiras', 'Repeticiones', 'NoMarbete', 'CambioRepaso',
-        'Vendedor', 'NoOrden', 'Obs5',
-
-        'TramaAnchoPeine', 'LogLuchaTotal',
-
-        'CalTramaFondoC1', 'CalTramaFondoC12', 'FibraTramaFondoC1', 'PasadasTramaFondoC1',
-
-        'CalibreComb1', 'CalibreComb12', 'FibraComb1', 'CodColorC1', 'NomColorC1', 'PasadasComb1',
-        'CalibreComb2', 'CalibreComb22', 'FibraComb2', 'CodColorC2', 'NomColorC2', 'PasadasComb2',
-        'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorC3', 'NomColorC3', 'PasadasComb3',
-        'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorC4', 'NomColorC4', 'PasadasComb4',
-        'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5', 'PasadasComb5',
-
-        'Total',
-
-        'JulioRizo', 'JulioPie', 'EfiInicial', 'EfiFinal', 'DesperdicioTrama',
-
-        'RespInicio', 'HrInicio', 'HrTermino', 'MinutosCambio', 'PesoMuestra', 'RegAlinacion',
-        'Supervisor', 'OBSParaPro', 'CantidadProducir_2', 'Tejidas', 'pzaXrollo',
-        'MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'CombinaTram', 'BomId', 'BomName', 'CreaProd',
-    ];
-
-    /**
      * Mostrar la vista principal del catálogo de codificación.
      */
     public function index()
     {
         try {
+            $columnas = CatCodificados::COLUMNS;
             $total = Cache::remember(
                 'catcodificacion_total',
                 300,
@@ -74,7 +31,7 @@ class CatCodificacionController extends Controller
             );
 
             return view('catcodificacion.index', [
-                'columnas'       => self::COLUMNS,
+                'columnas'       => $columnas,
                 'totalRegistros' => $total,
                 'apiUrl'         => '/planeacion/codificacion/api/all-fast',
             ]);
@@ -84,7 +41,7 @@ class CatCodificacionController extends Controller
             ]);
 
             return view('catcodificacion.index', [
-                'columnas'       => self::COLUMNS,
+                'columnas'       => CatCodificados::COLUMNS,
                 'totalRegistros' => 0,
                 'apiUrl'         => '/planeacion/codificacion/api/all-fast',
                 'error'          => 'Error al cargar: ' . $e->getMessage(),
@@ -159,8 +116,8 @@ class CatCodificacionController extends Controller
     public function getAllFast(Request $request): JsonResponse
     {
         try {
-            $columnas = self::COLUMNS;
-            $table    = 'CatCodificados'; // Evitar instanciar modelo
+            $columnas = CatCodificados::COLUMNS;
+            $table    = (new CatCodificados())->getTable();
             $idFilter = $request->filled('id') ? (int) $request->input('id') : null;
             $skipCache = $request->boolean('nocache', false);
 
@@ -221,8 +178,8 @@ class CatCodificacionController extends Controller
             );
 
             $data = $estimatedCount > 1000
-                ? $this->fetchWithCursor($query, $columnas)
-                : $this->fetchWithGet($query, $columnas);
+                ? $this->fetchWithCursor($query)
+                : $this->fetchWithGet($query);
 
             $response = [
                 's' => true,             // success
@@ -252,7 +209,7 @@ class CatCodificacionController extends Controller
     /**
      * Fetch usando get() - más rápido para datasets pequeños (<1000 registros)
      */
-    private function fetchWithGet($query, array $columnas): array
+    private function fetchWithGet($query): array
     {
         $data = $query->get();
 
@@ -268,7 +225,7 @@ class CatCodificacionController extends Controller
     /**
      * Fetch usando cursor() - más eficiente en memoria para datasets grandes
      */
-    private function fetchWithCursor($query, array $columnas): array
+    private function fetchWithCursor($query): array
     {
         $result = [];
 

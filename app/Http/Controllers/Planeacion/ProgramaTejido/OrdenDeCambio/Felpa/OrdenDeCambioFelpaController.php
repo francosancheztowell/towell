@@ -11,9 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Shared\Drawing as SharedDrawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -57,13 +55,10 @@ class OrdenDeCambioFelpaController extends Controller
                     $repeticionesCalculada = (string) floor(((41.5 / (float)$pCrudo) / (float)$tiras) * 1000);
                 }
 
-                // AY = TRUNCAR(O/AW/AX) donde O es cantidad_producir, AW es tiras, AX es repeticiones
-                $cantidadProducir = $datosRegistro['cantidad_producir'] ?? $registro->SaldoPedido ?? null;
-                $noMarbetesCalculado = '';
-                if ($cantidadProducir && $tiras && $repeticionesCalculada &&
-                    is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticionesCalculada) &&
-                    $tiras > 0 && $repeticionesCalculada > 0) {
-                    $noMarbetesCalculado = (string) floor((float)$cantidadProducir / (float)$tiras / (float)$repeticionesCalculada);
+                // AY se toma directo del campo ya guardado (SaldoMarbete)
+                $noMarbetesCalculado = '0';
+                if (isset($registro->SaldoMarbete) && is_numeric($registro->SaldoMarbete)) {
+                    $noMarbetesCalculado = (string) (int) $registro->SaldoMarbete;
                 }
 
                 // Actualizar datosRegistro con los valores calculados
@@ -136,10 +131,10 @@ class OrdenDeCambioFelpaController extends Controller
 
                 $tipoFormato = $this->determinarTipoFormatoDesdeBD($registroBD);
 
-                // Crear hoja nueva copiando la plantilla
-                $nuevaHoja = $spreadsheet->createSheet();
+                // Crear hoja nueva copiando la plantilla (mantiene estilos e imágenes)
+                $nuevaHoja = $hojaPlantilla->copy();
                 $nuevaHoja->setTitle('TEMP_' . ($indice + 1));
-                $this->copiarHoja($hojaPlantilla, $nuevaHoja);
+                $spreadsheet->addSheet($nuevaHoja);
 
                 // Nombrar hoja
                 $nombreHoja = $this->generarNombreHoja($tipoFormato, (string)($datos['orden_numero'] ?? ''), $indice + 1);
@@ -230,9 +225,9 @@ class OrdenDeCambioFelpaController extends Controller
 
                 $tipoFormato = $this->determinarTipoFormato($datos);
 
-                $nuevaHoja = $spreadsheet->createSheet();
+                $nuevaHoja = $hojaPlantilla->copy();
                 $nuevaHoja->setTitle('TEMP_' . ($indice + 1));
-                $this->copiarHoja($hojaPlantilla, $nuevaHoja);
+                $spreadsheet->addSheet($nuevaHoja);
 
                 $nombreHoja = $this->generarNombreHoja($tipoFormato, (string)($datos['orden_numero'] ?? ''), $indice + 1);
                 $nuevaHoja->setTitle($nombreHoja);
@@ -321,6 +316,9 @@ class OrdenDeCambioFelpaController extends Controller
         $this->establecerFormulaCelda($sheet, 'J10', '=REGISTRO!I' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'K10', '=REGISTRO!I' . $filaRegistro);
 
+        // Calidad (M10)
+        $this->establecerFormulaCelda($sheet, 'M10', '=REGISTRO!CT' . $filaRegistro);
+
         // Clave sistema
         foreach (['D10', 'E10', 'F10', 'G10'] as $celda) {
             $this->establecerFormulaCelda($sheet, $celda, '=REGISTRO!H' . $filaRegistro);
@@ -406,30 +404,11 @@ class OrdenDeCambioFelpaController extends Controller
         $this->establecerFormulaCelda($sheet, 'S2', '=REGISTRO!S' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'AW2', '=REGISTRO!AW' . $filaRegistro);
 
-        // AX2 y AY5 usan directamente REGISTRO!AX y REGISTRO!AY que tienen fórmulas calculadas
-        $formulaAX2 = '=REGISTRO!AX' . $filaRegistro;
-        $formulaAY5 = '=REGISTRO!AY' . $filaRegistro;
-
-        // Forzar inserción de fórmulas AX2 y AY5
-        try {
-            $cellAX2 = $sheet->getCell('AX2');
-            $estiloAX2 = $cellAX2->getStyle();
-            $estiloDataAX2 = $estiloAX2->exportArray();
-            $cellAX2->setValueExplicit($formulaAX2, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_FORMULA);
-            $estiloAX2->applyFromArray($estiloDataAX2);
-        } catch (\Exception $e) {
-            $this->establecerFormulaCelda($sheet, 'AX2', $formulaAX2);
-        }
-
-        try {
-            $cellAY5 = $sheet->getCell('AY5');
-            $estiloAY5 = $cellAY5->getStyle();
-            $estiloDataAY5 = $estiloAY5->exportArray();
-            $cellAY5->setValueExplicit($formulaAY5, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_FORMULA);
-            $estiloAY5->applyFromArray($estiloDataAY5);
-        } catch (\Exception $e) {
-            $this->establecerFormulaCelda($sheet, 'AY5', $formulaAY5);
-        }
+        // AX2 y AY5 ahora se llenan con valores directos desde BD (sin formulas)
+        $repeticionesValor = $datos['repeticiones'] ?? '';
+        $noMarbetesValor = $datos['no_marbetes'] ?? '';
+        $sheet->setCellValue('AX2', $repeticionesValor);
+        $sheet->setCellValue('AY5', $noMarbetesValor);
 
         // Plano de dobladillo (fórmulas)
         $this->establecerPlanoDobladilloFormulas($sheet, $filaRegistro);
@@ -528,152 +507,6 @@ class OrdenDeCambioFelpaController extends Controller
         return $nombreFinal;
     }
 
-    /**
-     * Copiar contenido de una hoja a otra (valores, estilos, merges, imágenes, protección).
-     */
-    protected function copiarHoja(Worksheet $hojaOrigen, Worksheet $hojaDestino): void
-    {
-        $highestRow    = $hojaOrigen->getHighestRow();
-        $highestColumn = $hojaOrigen->getHighestColumn();
-
-        for ($row = 1; $row <= $highestRow; $row++) {
-            for ($col = 'A'; $col <= $highestColumn; $col++) {
-                $cell       = $hojaOrigen->getCell($col . $row);
-                $value      = $cell->getValue();
-                $styleArray = $cell->getStyle()->exportArray();
-
-                $destCell = $hojaDestino->getCell($col . $row);
-
-                $destCell->setValue($value);
-
-                $destCell->getStyle()->applyFromArray($styleArray);
-            }
-        }
-
-        // Dimensiones de filas
-        foreach ($hojaOrigen->getRowDimensions() as $row => $dimension) {
-            $hojaDestino->getRowDimension($row)->setRowHeight($dimension->getRowHeight());
-        }
-
-        // Dimensiones de columnas
-        foreach ($hojaOrigen->getColumnDimensions() as $col => $dimension) {
-            $hojaDestino->getColumnDimension($col)->setWidth($dimension->getWidth());
-        }
-
-        // Celdas combinadas
-        foreach ($hojaOrigen->getMergeCells() as $mergeCell) {
-            $hojaDestino->mergeCells($mergeCell);
-        }
-
-        // Imagen: reinsertar desde archivo para evitar degradacion al guardar.
-        $this->insertarImagenEnHoja($hojaDestino, __DIR__ . '/image.png', 'B52', 'I52');
-
-        // Protección
-        try {
-            if ($hojaOrigen->getProtection()->getSheet()) {
-                $hojaDestino->getProtection()->setSheet(true);
-                $hojaDestino->getProtection()->setPassword($hojaOrigen->getProtection()->getPassword());
-            }
-        } catch (\Exception $e) {
-            // Ignorar
-        }
-    }
-
-    /**
-     * Insertar imagen PNG en un rango de celdas.
-     */
-    protected function insertarImagenEnHoja(Worksheet $sheet, string $path, string $celdaInicio, string $celdaFin): void
-    {
-        if (!file_exists($path)) {
-            Log::warning('No se encontró la imagen para insertar', [
-                'path' => $path,
-            ]);
-            return;
-        }
-
-        [$colInicio, $filaInicio] = $this->separarCelda($celdaInicio);
-        [$colFin, $filaFin]       = $this->separarCelda($celdaFin);
-
-        $anchoPx = $this->calcularAnchoRangoColumnas($sheet, $colInicio, $colFin);
-        $altoPx  = $this->calcularAltoRangoFilas($sheet, $filaInicio, $filaFin);
-
-        $drawing = new Drawing();
-        $drawing->setPath($path);
-        $drawing->setCoordinates($celdaInicio);
-        $drawing->setResizeProportional(false);
-        if ($anchoPx > 0) {
-            $drawing->setWidth($anchoPx);
-        }
-        if ($altoPx > 0) {
-            $drawing->setHeight($altoPx);
-        }
-        $drawing->setWorksheet($sheet);
-    }
-
-    /**
-     * Separar celda (ej. B52) en [col, fila].
-     *
-     * @return array{0: string, 1: int}
-     */
-    protected function separarCelda(string $celda): array
-    {
-        if (!preg_match('/^([A-Z]+)(\d+)$/', strtoupper($celda), $match)) {
-            return ['A', 1];
-        }
-
-        return [$match[1], (int) $match[2]];
-    }
-
-    /**
-     * Calcular el ancho total de un rango de columnas en pixeles.
-     */
-    protected function calcularAnchoRangoColumnas(Worksheet $sheet, string $colInicio, string $colFin): int
-    {
-        $anchoPx = 0;
-        $defaultFont = $sheet->getParent()->getDefaultStyle()->getFont();
-        for ($col = $colInicio; $col !== $this->siguienteColumna($colFin); $col++) {
-            $width = $sheet->getColumnDimension($col)->getWidth();
-            if ($width <= 0) {
-                $width = $sheet->getDefaultColumnDimension()->getWidth();
-            }
-            if ($width <= 0) {
-                $width = 8.43;
-            }
-            $anchoPx += SharedDrawing::cellDimensionToPixels($width, $defaultFont);
-        }
-
-        return (int) round($anchoPx);
-    }
-
-    /**
-     * Calcular el alto total de un rango de filas en pixeles.
-     */
-    protected function calcularAltoRangoFilas(Worksheet $sheet, int $filaInicio, int $filaFin): int
-    {
-        $altoPx = 0;
-        for ($row = $filaInicio; $row <= $filaFin; $row++) {
-            $height = $sheet->getRowDimension($row)->getRowHeight();
-            if ($height <= 0) {
-                $height = $sheet->getDefaultRowDimension()->getRowHeight();
-            }
-            if ($height <= 0) {
-                $height = 15.0;
-            }
-            $altoPx += SharedDrawing::pointsToPixels($height);
-        }
-
-        return (int) round($altoPx);
-    }
-
-    /**
-     * Obtener la siguiente columna (ej. A -> B, Z -> AA).
-     */
-    protected function siguienteColumna(string $columna): string
-    {
-        $col = strtoupper($columna);
-        $col++;
-        return $col;
-    }
 
     /**
      * Leer datos de una fila de REGISTRO.
@@ -786,7 +619,7 @@ class OrdenDeCambioFelpaController extends Controller
                 ?: $this->obtenerValorCelda($worksheet, $filaAUsar, 'N'),
             'descripcion'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'M'),
             'rs_bata_nov'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'M'),
-            'calidad'              => '',
+            'calidad'              => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CT'),
             'plano_tipo'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'X'),
             'plano_largo'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'Y'),
             'plano_rizo'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AD'),
@@ -1006,6 +839,7 @@ class OrdenDeCambioFelpaController extends Controller
             'CQ' => 'PASADAS (total)',
             'CR' => 'FOLIO CODIFICACION',
             'CS' => 'Peso Rollo',
+            'CT' => 'Calidad',
         ];
 
         foreach ($encabezados as $columna => $titulo) {
@@ -1190,15 +1024,9 @@ class OrdenDeCambioFelpaController extends Controller
             }
         }
 
-        $noMarbetes = '';
-        $cantidadProducir = $registro->SaldoPedido ?? null;
-        if (!empty($cantidadProducir) && !empty($tiras) && !empty($repeticiones)) {
-            $repNum = (float) $repeticiones;
-            $tirasNum = (float) $tiras;
-            $cantidadNum = (float) $cantidadProducir;
-            if ($repNum > 0 && $tirasNum > 0) {
-                $noMarbetes = (string) floor($cantidadNum / $tirasNum / $repNum);
-            }
+        $noMarbetes = '0';
+        if (isset($registro->SaldoMarbete) && is_numeric($registro->SaldoMarbete)) {
+            $noMarbetes = (string) (int) $registro->SaldoMarbete;
         }
 
         return [
@@ -1298,6 +1126,7 @@ class OrdenDeCambioFelpaController extends Controller
             'pasadastotal'         => $modeloCodificado?->PASADAS ?? '',
             'folio_codificacion'   => $registro->NoProduccion ?? '',
             'peso_rollo'           => $this->obtenerPesoRolloDesdeBD($registro) ?? 0,
+            'calidad'              => $registro->CategoriaCalidad ?? $registro->CatCalidad ?? '',
             'hora_impresion'       => $horaActual,
             'mts_rollo'            => $mtsRollo,
             'programa_corte_rollo' => $mtsRollo,
@@ -1448,8 +1277,19 @@ class OrdenDeCambioFelpaController extends Controller
             // Obtener modelo codificado para campos que no están en ReqProgramaTejido
             $modeloCodificado = $this->obtenerModeloCodificado($registro);
 
-            // Siempre crear nuevo registro, sin verificar duplicados
-            $catCodificado = new CatCodificados();
+            // Buscar registro existente primero
+            $noProduccion = $registro->NoProduccion ?? '';
+            $noTelarId = $registro->NoTelarId ?? '';
+
+            $catCodificado = CatCodificados::query()
+                ->where('OrdenTejido', $noProduccion)
+                ->where('TelarId', $noTelarId)
+                ->first();
+
+            // Si no existe, crear nuevo registro
+            if (!$catCodificado) {
+                $catCodificado = new CatCodificados();
+            }
 
             // Mapear datos desde ReqProgramaTejido y datosRegistro a CatCodificados
             $catCodificado->OrdenTejido = $registro->NoProduccion ?? null;
@@ -1617,11 +1457,13 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->OrdCompartida = $registro->OrdCompartida ?? null;
             $catCodificado->OrdCompartidaLider = $registro->OrdCompartidaLider ?? null;
 
-            // Campos de rollos desde datosRegistro
-            $catCodificado->MtsRollo = isset($datosRegistro['mts_rollo']) && is_numeric($datosRegistro['mts_rollo']) ? (float) $datosRegistro['mts_rollo'] : null;
-            $catCodificado->PzasRollo = isset($datosRegistro['toallas_rollo']) && is_numeric($datosRegistro['toallas_rollo']) ? (float) $datosRegistro['toallas_rollo'] : null;
-            $catCodificado->TotalRollos = null; // No disponible
-            $catCodificado->TotalPzas = null; // No disponible
+            // Campos de rollos - usar valores de ReqProgramaTejido si están disponibles, sino de datosRegistro
+            $catCodificado->MtsRollo = $registro->MtsRollo ?? (isset($datosRegistro['mts_rollo']) && is_numeric($datosRegistro['mts_rollo']) ? (float) $datosRegistro['mts_rollo'] : null);
+            $catCodificado->PzasRollo = $registro->PzasRollo ?? (isset($datosRegistro['toallas_rollo']) && is_numeric($datosRegistro['toallas_rollo']) ? (float) $datosRegistro['toallas_rollo'] : null);
+            $catCodificado->TotalRollos = $registro->TotalRollos !== null ? (float)$registro->TotalRollos : null;
+            $catCodificado->TotalPzas = $registro->TotalPzas !== null ? (float)$registro->TotalPzas : null;
+            $catCodificado->Repeticiones = $registro->Repeticiones ?? null;
+            $catCodificado->NoMarbete = $registro->SaldoMarbete ?? null; // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
             $catCodificado->CombinaTram = $registro->CombinaTram ?? null;
             $catCodificado->BomId = $registro->BomId ?? null;
             $catCodificado->BomName = $registro->BomName ?? null;
@@ -1629,12 +1471,25 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->HiloAX = $registro->HiloAX ?? null;
             $catCodificado->ActualizaLmat = $registro->ActualizaLmat ?? 0;
 
+            // Densidad: usar del registro si está disponible, sino calcular o usar PesoGRM2
+            $catCodificado->Densidad = $registro->Densidad ?? null;
+
             // Campos de auditoría
-            $usuario = Auth::check() && Auth::user() ? Auth::user()->name : 'Sistema';
+            $usuario = Auth::check() && Auth::user() ? (Auth::user()->nombre ?? Auth::user()->numero_empleado ?? 'Sistema') : 'Sistema';
             $fechaActual = now();
-            $catCodificado->setAttribute('FechaCreacion', $fechaActual);
-            $catCodificado->HoraCreacion = $fechaActual->format('H:i:s');
-            $catCodificado->UsuarioCrea = $usuario;
+
+            // Si es un registro nuevo, establecer campos de creación
+            $esNuevo = !$catCodificado->exists;
+            if ($esNuevo) {
+                $catCodificado->setAttribute('FechaCreacion', $fechaActual);
+                $catCodificado->HoraCreacion = $fechaActual->format('H:i:s');
+                $catCodificado->UsuarioCrea = $usuario;
+            } elseif (empty($catCodificado->UsuarioCrea)) {
+                // Si el registro existe pero no tiene UsuarioCrea, asignarlo
+                $catCodificado->UsuarioCrea = $usuario;
+            }
+
+            // Siempre actualizar campos de modificación
             $catCodificado->setAttribute('FechaModificacion', $fechaActual);
             $catCodificado->HoraModificacion = $fechaActual->format('H:i:s');
             $catCodificado->UsuarioModifica = $usuario;
@@ -1768,6 +1623,7 @@ class OrdenDeCambioFelpaController extends Controller
             'CQ' => 'pasadastotal',
             'CR' => 'folio_codificacion',
             'CS' => 'peso_rollo',
+            'CT' => 'calidad',
         ];
 
         foreach ($mapeo as $columna => $campo) {
