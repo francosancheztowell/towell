@@ -206,5 +206,122 @@ class CatalogosUrdidoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Crear un nuevo julio
+     */
+    public function storeJulio(Request $request)
+    {
+        try {
+            $request->validate([
+                'NoJulio' => 'required|string|max:50|unique:UrdCatJulios,NoJulio',
+                'Tara' => 'nullable|numeric|min:0',
+                'Departamento' => 'nullable|string|max:50',
+            ]);
+
+            UrdCatJulios::create([
+                'NoJulio' => $request->NoJulio,
+                'Tara' => $request->Tara ?? 0,
+                'Departamento' => $request->Departamento,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Julio creado exitosamente'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al crear julio', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear el julio: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar un julio existente
+     */
+    public function updateJulio(Request $request, $id)
+    {
+        try {
+            $julio = UrdCatJulios::findOrFail($id);
+
+            $rules = [
+                'NoJulio' => 'required|string|max:50',
+                'Tara' => 'nullable|numeric|min:0',
+                'Departamento' => 'nullable|string|max:50',
+            ];
+
+            // Si el NoJulio cambió, validar que no exista
+            if ($request->NoJulio !== $julio->NoJulio) {
+                $rules['NoJulio'] .= '|unique:UrdCatJulios,NoJulio';
+            }
+
+            $request->validate($rules);
+
+            $julio->update([
+                'NoJulio' => $request->NoJulio,
+                'Tara' => $request->Tara ?? 0,
+                'Departamento' => $request->Departamento,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Julio actualizado exitosamente'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar julio', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el julio: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar un julio
+     */
+    public function destroyJulio($id)
+    {
+        try {
+            $julio = UrdCatJulios::findOrFail($id);
+            $julio->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Julio eliminado exitosamente'
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El julio no fue encontrado'
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar julio', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar el julio: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
 
