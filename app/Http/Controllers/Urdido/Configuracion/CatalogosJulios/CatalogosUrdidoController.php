@@ -252,7 +252,9 @@ class CatalogosUrdidoController extends Controller
     public function updateJulio(Request $request, $id)
     {
         try {
-            $julio = UrdCatJulios::findOrFail($id);
+            $julio = UrdCatJulios::where('Id', $id)
+                ->orWhere('NoJulio', $id)
+                ->firstOrFail();
 
             $rules = [
                 'NoJulio' => 'required|string|max:50',
@@ -300,7 +302,9 @@ class CatalogosUrdidoController extends Controller
     public function destroyJulio($id)
     {
         try {
-            $julio = UrdCatJulios::findOrFail($id);
+            $julio = UrdCatJulios::where('Id', $id)
+                ->orWhere('NoJulio', $id)
+                ->firstOrFail();
             $julio->delete();
 
             return response()->json([
@@ -324,4 +328,3 @@ class CatalogosUrdidoController extends Controller
         }
     }
 }
-

@@ -44,7 +44,7 @@
                             data-no-julio="{{ $julio->NoJulio }}"
                             data-tara="{{ $julio->Tara ?? 0 }}"
                             data-departamento="{{ $julio->Departamento ?? '' }}"
-                            data-id="{{ $julio->Id }}">
+                            data-id="{{ $julio->Id ?? $julio->NoJulio }}">
                             <td class="py-2 px-4">{{ $julio->NoJulio }}</td>
                             <td class="py-2 px-4">{{ number_format($julio->Tara ?? 0, 2) }}</td>
                             <td class="py-2 px-4">
@@ -99,7 +99,7 @@
         }
 
         return {
-            id: (selectedRow.dataset.id || '').trim(),
+            id: (selectedRow.dataset.id || selectedRow.dataset.noJulio || '').trim(),
             noJulio: selectedRow.dataset.noJulio || '',
             tara: selectedRow.dataset.tara || '',
             departamento: selectedRow.dataset.departamento || ''
@@ -123,7 +123,7 @@
         
         // Seleccionar nueva fila
         selectedRow = row;
-        currentJulioId = (row.dataset.id || '').trim() || null;
+        currentJulioId = (row.dataset.id || row.dataset.noJulio || '').trim() || null;
         row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-500');
         if (currentJulioId) {
             enableButtons();
@@ -149,6 +149,10 @@
             btnDelete.classList.remove('opacity-50', 'cursor-not-allowed');
             btnDelete.classList.add('cursor-pointer');
         }
+
+        if (typeof window.actualizarBotonesAccionJulios === 'function') {
+            window.actualizarBotonesAccionJulios(true);
+        }
     }
 
     // Deshabilitar botones del navbar
@@ -167,6 +171,10 @@
             btnDelete.setAttribute('disabled', 'disabled');
             btnDelete.classList.add('opacity-50', 'cursor-not-allowed');
             btnDelete.classList.remove('cursor-pointer');
+        }
+
+        if (typeof window.actualizarBotonesAccionJulios === 'function') {
+            window.actualizarBotonesAccionJulios(false);
         }
     }
 
@@ -205,6 +213,10 @@
         openJulioModal('create');
     }
 
+    window.agregarJulios = function() {
+        openCreateModal();
+    }
+
     // Abrir modal de edición
     window.openEditModal = function(julioId) {
         const data = getSelectedJulioData() || {};
@@ -232,6 +244,14 @@
         }
 
         confirmDeleteJulio(resolvedId);
+    }
+
+    window.editarJulios = function() {
+        editSelected();
+    }
+
+    window.eliminarJulios = function() {
+        deleteSelected();
     }
 
     function openJulioModal(mode, data = {}) {
