@@ -922,6 +922,9 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
 
         // Catálogos de Urdido
         Route::get('/catalogos-julios', [CatalogosUrdidoController::class, 'catalogosJulios'])->name('catalogos.julios');
+        Route::post('/catalogos-julios', [CatalogosUrdidoController::class, 'storeJulio'])->name('catalogos.julios.store');
+        Route::put('/catalogos-julios/{id}', [CatalogosUrdidoController::class, 'updateJulio'])->name('catalogos.julios.update');
+        Route::delete('/catalogos-julios/{id}', [CatalogosUrdidoController::class, 'destroyJulio'])->name('catalogos.julios.destroy');
         Route::get('/catalogo-maquinas', [CatalogosUrdidoController::class, 'catalogoMaquinas'])->name('catalogo.maquinas');
         Route::post('/catalogo-maquinas', [CatalogosUrdidoController::class, 'storeMaquina'])->name('catalogo.maquinas.store');
         Route::put('/catalogo-maquinas/{maquinaId}', [CatalogosUrdidoController::class, 'updateMaquina'])->name('catalogo.maquinas.update');
