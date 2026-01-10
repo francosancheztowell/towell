@@ -65,6 +65,7 @@
             ['field' => 'TotalPzas', 'label' => 'Total Pzas'],
             ['field' => 'Repeticiones', 'label' => 'Repeticiones'],
             ['field' => 'SaldoMarbete', 'label' => 'No Marbetes'],
+            ['field' => 'Densidad', 'label' => 'Densidad'],
             ['field' => 'CombinaTrama', 'label' => 'Comb Trama'],
             ['field' => 'BomId', 'label' => 'L.Mat'],
             ['field' => 'BomName', 'label' => 'Nombre L.Mat'],
@@ -85,20 +86,42 @@
                 $id = $registro->Id ?? '';
 
                 return '<input type="text"
-                              class="prioridad-input w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value="' . htmlspecialchars($prioridad, ENT_QUOTES, 'UTF-8') . '"
-                              data-id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"
-                              data-prioridad-anterior="' . htmlspecialchars($prioridadAnterior, ENT_QUOTES, 'UTF-8') . '"
-                              placeholder="Prioridad"
-                              style="min-width: 280px;">';
+                        class="prioridad-input w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value="' . htmlspecialchars($prioridad, ENT_QUOTES, 'UTF-8') . '"
+                        data-id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"
+                        data-prioridad-anterior="' . htmlspecialchars($prioridadAnterior, ENT_QUOTES, 'UTF-8') . '"
+                        placeholder="Prioridad"
+                        style="min-width: 280px;">';
             }
 
             if ($field === 'BomId') {
-                return (string) ($registro->BomId ?? '');
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $value = htmlspecialchars((string) ($registro->BomId ?? ''), ENT_QUOTES, 'UTF-8');
+
+                return '<input type="text"
+                              id="bom-id-input-' . $rowId . '"
+                              class="bom-id-input w-full min-w-[640px] px-2 py-1 text-sm border border-gray-300 rounded"
+                            value="' . $value . '"
+                            data-row-id="' . $rowId . '"
+                            list="bom-id-options-' . $rowId . '"
+                            placeholder="L.Mat">'
+                    . '<datalist id="bom-id-options-' . $rowId . '"></datalist>';
             }
 
             if ($field === 'BomName') {
-                return (string) ($registro->BomName ?? '');
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $value = htmlspecialchars((string) ($registro->BomName ?? ''), ENT_QUOTES, 'UTF-8');
+
+                return '<input type="text"
+                              id="bom-name-input-' . $rowId . '"
+                              class="bom-name-input w-full min-w-[1040px] px-2 py-1 text-sm border border-gray-300 rounded"
+                              value="' . $value . '"
+                              data-row-id="' . $rowId . '"
+                              list="bom-name-options-' . $rowId . '"
+                              placeholder="Nombre L.Mat">'
+                     . '<datalist id="bom-name-options-' . $rowId . '"></datalist>';
             }
 
             // Columna INN (Programado) - Usar el valor calculado del controlador
@@ -310,6 +333,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Rellenar automáticamente los campos L.Mat y Nombre L.Mat al cargar
     autoFillAllBomFields();
+
+    // Habilitar autocompletado para L.Mat y Nombre L.Mat
+    setupBomAutocomplete();
 });
 
 function autoFillAllHiloAX() {
@@ -372,14 +398,14 @@ function autoFillAllBomFields() {
     rows.forEach((row) => {
         const itemIdCell = row.querySelector('[data-column="ItemId"]');
         const inventSizeIdCell = row.querySelector('[data-column="InventSizeId"]');
-        const bomIdCell = row.querySelector('[data-column="BomId"]');
-        const bomNameCell = row.querySelector('[data-column="BomName"]');
+        const bomIdInput = row.querySelector('.bom-id-input');
+        const bomNameInput = row.querySelector('.bom-name-input');
 
-        if (!itemIdCell || !inventSizeIdCell || !bomIdCell || !bomNameCell) return;
+        if (!itemIdCell || !inventSizeIdCell || !bomIdInput || !bomNameInput) return;
 
         const itemId = (itemIdCell.textContent || '').trim();
         const inventSizeId = (inventSizeIdCell.textContent || '').trim();
-        const currentBomId = (bomIdCell.textContent || '').trim();
+        const currentBomId = (bomIdInput.value || '').trim();
 
         if (!currentBomId && itemId && inventSizeId) {
             const cacheKey = `${itemId}|${inventSizeId}`;
@@ -388,7 +414,7 @@ function autoFillAllBomFields() {
                 cellsByKey.set(cacheKey, []);
                 combinations.push(`${itemId}:${inventSizeId}`);
             }
-            cellsByKey.get(cacheKey).push({ bomIdCell, bomNameCell });
+            cellsByKey.get(cacheKey).push({ bomIdInput, bomNameInput });
         }
     });
 
@@ -415,14 +441,148 @@ function autoFillAllBomFields() {
                     const option = options[0];
                     const cells = cellsByKey.get(cacheKey) || [];
 
-                    cells.forEach(({ bomIdCell, bomNameCell }) => {
-                        bomIdCell.textContent = option.bomId || '';
-                        bomNameCell.textContent = option.bomName || '';
+                    cells.forEach(({ bomIdInput, bomNameInput }) => {
+                        bomIdInput.value = option.bomId || '';
+                        bomNameInput.value = option.bomName || '';
                     });
                 }
             });
         })
         .catch(() => {});
+}
+
+const bomOptionsByRow = new Map();
+
+function setupBomAutocomplete() {
+    const rows = document.querySelectorAll('.row-data');
+
+    rows.forEach(row => {
+        const bomIdInput = row.querySelector('.bom-id-input');
+        const bomNameInput = row.querySelector('.bom-name-input');
+
+        if (!bomIdInput || !bomNameInput) return;
+
+        const itemId = (row.querySelector('[data-column="ItemId"]')?.textContent || '').trim();
+        const inventSizeId = (row.querySelector('[data-column="InventSizeId"]')?.textContent || '').trim();
+        const rowId = row.getAttribute('data-id') || bomIdInput.dataset.rowId || '';
+
+        bomIdInput.dataset.itemId = itemId;
+        bomIdInput.dataset.inventSizeId = inventSizeId;
+        bomNameInput.dataset.itemId = itemId;
+        bomNameInput.dataset.inventSizeId = inventSizeId;
+
+        const debouncedFetch = debounce(async (sourceInput) => {
+            const term = (sourceInput.value || '').trim();
+            if (!term) {
+                return;
+            }
+
+            const options = await fetchBomOptions(sourceInput.dataset.itemId, sourceInput.dataset.inventSizeId, term, true);
+            bomOptionsByRow.set(rowId, options);
+            updateBomDatalists(rowId, options);
+
+            if (options.length === 1) {
+                applyBomOption(row, options[0]);
+            }
+        }, 300);
+
+        bomIdInput.addEventListener('input', () => debouncedFetch(bomIdInput));
+        bomNameInput.addEventListener('input', () => debouncedFetch(bomNameInput));
+
+        bomIdInput.addEventListener('change', () => syncBomFromInput(row, 'bomId'));
+        bomNameInput.addEventListener('change', () => syncBomFromInput(row, 'bomName'));
+    });
+}
+
+function debounce(fn, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn.apply(this, args), wait);
+    };
+}
+
+async function fetchBomOptions(itemId, inventSizeId, term, allowFallback) {
+    const params = new URLSearchParams();
+
+    if (itemId) params.set('itemId', itemId);
+    if (inventSizeId) params.set('inventSizeId', inventSizeId);
+    if (term) params.set('term', term);
+    if (allowFallback) params.set('fallback', '1');
+
+    const url = `${bomAutocompleteUrl}?${params.toString()}`;
+
+    try {
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        const payload = await res.json();
+        if (!payload || !payload.success || !payload.data) {
+            return [];
+        }
+        return payload.data;
+    } catch {
+        return [];
+    }
+}
+
+function updateBomDatalists(rowId, options) {
+    const bomIdList = document.getElementById(`bom-id-options-${rowId}`);
+    const bomNameList = document.getElementById(`bom-name-options-${rowId}`);
+
+    if (bomIdList) {
+        bomIdList.innerHTML = '';
+        options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option.bomId || '';
+            opt.label = option.bomName || '';
+            bomIdList.appendChild(opt);
+        });
+    }
+
+    if (bomNameList) {
+        bomNameList.innerHTML = '';
+        options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option.bomName || '';
+            opt.label = option.bomId || '';
+            bomNameList.appendChild(opt);
+        });
+    }
+}
+
+function syncBomFromInput(row, sourceKey) {
+    const bomIdInput = row.querySelector('.bom-id-input');
+    const bomNameInput = row.querySelector('.bom-name-input');
+    const rowId = row.getAttribute('data-id') || bomIdInput?.dataset.rowId || '';
+    const options = bomOptionsByRow.get(rowId) || [];
+    if (!options.length) return;
+
+    if (!bomIdInput || !bomNameInput) return;
+
+    if (sourceKey === 'bomId') {
+        const value = (bomIdInput.value || '').trim();
+        const match = options.find(option => (option.bomId || '') === value);
+        if (match) {
+            bomNameInput.value = match.bomName || '';
+        }
+    }
+
+    if (sourceKey === 'bomName') {
+        const value = (bomNameInput.value || '').trim();
+        const match = options.find(option => (option.bomName || '') === value);
+        if (match) {
+            bomIdInput.value = match.bomId || '';
+        }
+    }
+}
+
+function applyBomOption(row, option) {
+    const bomIdInput = row.querySelector('.bom-id-input');
+    const bomNameInput = row.querySelector('.bom-name-input');
+
+    if (!bomIdInput || !bomNameInput) return;
+
+    bomIdInput.value = option.bomId || '';
+    bomNameInput.value = option.bomName || '';
 }
 
 function toggleSeleccionarTodo() {
@@ -839,7 +999,7 @@ function applyFilters() {
         text: `${liberarOrdenesFilters.length} filtro(s) activo(s)`,
         toast: true,
         position: 'top-end',
-        timer: 2000,
+        timer: 1000,
         showConfirmButton: false
     });
 }
@@ -854,6 +1014,11 @@ function obtenerRegistrosSeleccionados() {
         const getCellValue = (columnName) => {
             const cell = row ? row.querySelector(`[data-column="${columnName}"]`) : null;
             if (!cell) return null;
+            const input = cell.querySelector('input');
+            if (input) {
+                const value = input.value ? input.value.trim() : '';
+                return value === '' ? null : value;
+            }
             const text = cell.textContent ? cell.textContent.trim() : '';
             return text === '' ? null : text;
         };

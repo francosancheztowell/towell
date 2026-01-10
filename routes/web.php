@@ -691,7 +691,7 @@ Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 
 // Liberar órdenes
 Route::get('/planeacion/programa-tejido/liberar-ordenes', [LiberarOrdenesController::class, 'index'])->name('programa-tejido.liberar-ordenes');
 Route::post('/planeacion/programa-tejido/liberar-ordenes/procesar', [LiberarOrdenesController::class, 'liberar'])->name('programa-tejido.liberar-ordenes.procesar');
-Route::get('/planeacion/programa-tejido/liberar-ordenes/bom-sugerencias', [LiberarOrdenesController::class, 'buscarBom'])->name('programa-tejido.liberar-ordenes.bom');
+Route::get('/planeacion/programa-tejido/liberar-ordenes/bom-sugerencias', [LiberarOrdenesController::class, 'obtenerBomYNombre'])->name('programa-tejido.liberar-ordenes.bom');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/tipo-hilo', [LiberarOrdenesController::class, 'obtenerTipoHilo'])->name('programa-tejido.liberar-ordenes.tipo-hilo');
 
 // Descargar programa

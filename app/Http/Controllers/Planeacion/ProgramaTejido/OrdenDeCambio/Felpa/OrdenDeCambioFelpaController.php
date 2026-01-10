@@ -1277,8 +1277,19 @@ class OrdenDeCambioFelpaController extends Controller
             // Obtener modelo codificado para campos que no están en ReqProgramaTejido
             $modeloCodificado = $this->obtenerModeloCodificado($registro);
 
-            // Siempre crear nuevo registro, sin verificar duplicados
-            $catCodificado = new CatCodificados();
+            // Buscar registro existente primero
+            $noProduccion = $registro->NoProduccion ?? '';
+            $noTelarId = $registro->NoTelarId ?? '';
+
+            $catCodificado = CatCodificados::query()
+                ->where('OrdenTejido', $noProduccion)
+                ->where('TelarId', $noTelarId)
+                ->first();
+
+            // Si no existe, crear nuevo registro
+            if (!$catCodificado) {
+                $catCodificado = new CatCodificados();
+            }
 
             // Mapear datos desde ReqProgramaTejido y datosRegistro a CatCodificados
             $catCodificado->OrdenTejido = $registro->NoProduccion ?? null;
@@ -1446,11 +1457,13 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->OrdCompartida = $registro->OrdCompartida ?? null;
             $catCodificado->OrdCompartidaLider = $registro->OrdCompartidaLider ?? null;
 
-            // Campos de rollos desde datosRegistro
-            $catCodificado->MtsRollo = isset($datosRegistro['mts_rollo']) && is_numeric($datosRegistro['mts_rollo']) ? (float) $datosRegistro['mts_rollo'] : null;
-            $catCodificado->PzasRollo = isset($datosRegistro['toallas_rollo']) && is_numeric($datosRegistro['toallas_rollo']) ? (float) $datosRegistro['toallas_rollo'] : null;
-            $catCodificado->TotalRollos = null; // No disponible
-            $catCodificado->TotalPzas = null; // No disponible
+            // Campos de rollos - usar valores de ReqProgramaTejido si están disponibles, sino de datosRegistro
+            $catCodificado->MtsRollo = $registro->MtsRollo ?? (isset($datosRegistro['mts_rollo']) && is_numeric($datosRegistro['mts_rollo']) ? (float) $datosRegistro['mts_rollo'] : null);
+            $catCodificado->PzasRollo = $registro->PzasRollo ?? (isset($datosRegistro['toallas_rollo']) && is_numeric($datosRegistro['toallas_rollo']) ? (float) $datosRegistro['toallas_rollo'] : null);
+            $catCodificado->TotalRollos = $registro->TotalRollos !== null ? (float)$registro->TotalRollos : null;
+            $catCodificado->TotalPzas = $registro->TotalPzas !== null ? (float)$registro->TotalPzas : null;
+            $catCodificado->Repeticiones = $registro->Repeticiones ?? null;
+            $catCodificado->NoMarbete = $registro->SaldoMarbete ?? null; // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
             $catCodificado->CombinaTram = $registro->CombinaTram ?? null;
             $catCodificado->BomId = $registro->BomId ?? null;
             $catCodificado->BomName = $registro->BomName ?? null;
@@ -1458,12 +1471,25 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->HiloAX = $registro->HiloAX ?? null;
             $catCodificado->ActualizaLmat = $registro->ActualizaLmat ?? 0;
 
+            // Densidad: usar del registro si está disponible, sino calcular o usar PesoGRM2
+            $catCodificado->Densidad = $registro->Densidad ?? null;
+
             // Campos de auditoría
-            $usuario = Auth::check() && Auth::user() ? Auth::user()->name : 'Sistema';
+            $usuario = Auth::check() && Auth::user() ? (Auth::user()->nombre ?? Auth::user()->numero_empleado ?? 'Sistema') : 'Sistema';
             $fechaActual = now();
-            $catCodificado->setAttribute('FechaCreacion', $fechaActual);
-            $catCodificado->HoraCreacion = $fechaActual->format('H:i:s');
-            $catCodificado->UsuarioCrea = $usuario;
+
+            // Si es un registro nuevo, establecer campos de creación
+            $esNuevo = !$catCodificado->exists;
+            if ($esNuevo) {
+                $catCodificado->setAttribute('FechaCreacion', $fechaActual);
+                $catCodificado->HoraCreacion = $fechaActual->format('H:i:s');
+                $catCodificado->UsuarioCrea = $usuario;
+            } elseif (empty($catCodificado->UsuarioCrea)) {
+                // Si el registro existe pero no tiene UsuarioCrea, asignarlo
+                $catCodificado->UsuarioCrea = $usuario;
+            }
+
+            // Siempre actualizar campos de modificación
             $catCodificado->setAttribute('FechaModificacion', $fechaActual);
             $catCodificado->HoraModificacion = $fechaActual->format('H:i:s');
             $catCodificado->UsuarioModifica = $usuario;
