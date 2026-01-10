@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 use App\Helpers\FolioHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
+use App\Models\catcodificados\CatCodificados;
 use App\Models\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -287,6 +289,16 @@ class LiberarOrdenesController extends Controller
             'registros' => 'required|array|min:1',
             'registros.*.id' => 'required|integer|exists:ReqProgramaTejido,Id',
             'registros.*.prioridad' => 'nullable|string|max:100',
+            'registros.*.bomId' => 'nullable|string|max:20',
+            'registros.*.bomName' => 'nullable|string|max:60',
+            'registros.*.hiloAX' => 'nullable|string|max:30',
+            'registros.*.mtsRollo' => 'nullable|numeric',
+            'registros.*.pzasRollo' => 'nullable|numeric',
+            'registros.*.totalRollos' => 'nullable|numeric',
+            'registros.*.totalPzas' => 'nullable|numeric',
+            'registros.*.repeticiones' => 'nullable|numeric',
+            'registros.*.saldoMarbete' => 'nullable|numeric',
+            'registros.*.combinaTram' => 'nullable|string|max:60',
         ], [
             'registros.required' => 'Debes seleccionar al menos un registro.',
             'registros.*.id.exists' => 'Uno de los registros seleccionados no existe.',
@@ -324,6 +336,31 @@ class LiberarOrdenesController extends Controller
                     continue;
                 }
 
+                // Capturar valores del request (vienen del frontend)
+                // Solo usar valores del request si no son NULL/vacíos, sino usar valores existentes o calcular
+                $bomIdRequest = isset($item['bomId']) && $item['bomId'] !== null ? trim((string) $item['bomId']) : null;
+                $bomNameRequest = isset($item['bomName']) && $item['bomName'] !== null ? trim((string) $item['bomName']) : null;
+                $hiloAXRequest = isset($item['hiloAX']) && $item['hiloAX'] !== null ? trim((string) $item['hiloAX']) : null;
+                $combinaTramRequest = isset($item['combinaTram']) && $item['combinaTram'] !== null ? trim((string) $item['combinaTram']) : null;
+                $mtsRolloRequest = isset($item['mtsRollo']) && $item['mtsRollo'] !== null && $item['mtsRollo'] !== ''
+                    ? (float) $item['mtsRollo']
+                    : null;
+                $pzasRolloRequest = isset($item['pzasRollo']) && $item['pzasRollo'] !== null && $item['pzasRollo'] !== ''
+                    ? (float) $item['pzasRollo']
+                    : null;
+                $totalRollosRequest = isset($item['totalRollos']) && $item['totalRollos'] !== null && $item['totalRollos'] !== ''
+                    ? (float) $item['totalRollos']
+                    : null;
+                $totalPzasRequest = isset($item['totalPzas']) && $item['totalPzas'] !== null && $item['totalPzas'] !== ''
+                    ? (float) $item['totalPzas']
+                    : null;
+                $repeticionesRequest = isset($item['repeticiones']) && $item['repeticiones'] !== null && $item['repeticiones'] !== ''
+                    ? (int) $item['repeticiones']
+                    : null;
+                $saldoMarbeteRequest = isset($item['saldoMarbete']) && $item['saldoMarbete'] !== null && $item['saldoMarbete'] !== ''
+                    ? (int) $item['saldoMarbete']
+                    : null;
+
                 // Generar folio único
                 $folio = FolioHelper::obtenerSiguienteFolio('Planeacion', 5);
 
@@ -344,51 +381,91 @@ class LiberarOrdenesController extends Controller
                 }
                 $registro->NoProduccion = $folio;
 
-                // Calcular Repeticiones: TRUNCAR((41.5/PesoCrudo)/NoTiras*1000)
+                // Usar valores del request si están disponibles, sino usar valores existentes o calcular
                 $pCrudo = $registro->PesoCrudo ?? null;
                 $tiras = $registro->NoTiras ?? null;
-                $repeticiones = null;
-                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
-                    $repeticiones = floor(((41.5 / (float)$pCrudo) / (float)$tiras) * 1000);
-                }
 
-                // Calcular NoMarbetes: TRUNCAR(SaldoPedido/NoTiras/Repeticiones)
-                $cantidadProducir = $registro->SaldoPedido ?? null;
-                $saldoMarbete = 0;
-                if ($cantidadProducir !== null && $tiras && $repeticiones !== null &&
-                    is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
-                    $tiras > 0 && $repeticiones > 0) {
-                    $saldoMarbete = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
-                }
-                $saldoMarbeteInt = 0;
-                if (is_numeric($saldoMarbete)) {
-                    $saldoFloat = (float) $saldoMarbete;
-                    $entero = (int) floor($saldoFloat);
-                    $decimal = abs($saldoFloat - $entero);
-                    $saldoMarbeteInt = $decimal >= 0.5 ? (int) ceil($saldoFloat) : $entero;
-                }
-
-                // Calcular MtsRollo: (LargoCrudo * Repeticiones) / 100
-                $largo = $registro->LargoCrudo ?? null;
-                $mtsRollo = null;
-                if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
-                    $largoNum = is_numeric($largo) ? (float)$largo : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
-                    if ($largoNum > 0 && $repeticiones > 0) {
-                        $mtsRollo = round($largoNum * $repeticiones / 100, 2);
+                // Repeticiones: usar del request si está disponible, sino calcular o usar existente
+                $repeticiones = $repeticionesRequest;
+                if ($repeticiones === null) {
+                    // Intentar usar valor existente
+                    $repeticiones = $registro->Repeticiones;
+                    // Si no existe, calcular
+                    if ($repeticiones === null && $pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
+                        $repeticiones = floor(((41.5 / (float)$pCrudo) / (float)$tiras) * 1000);
                     }
                 }
 
-                // Calcular PzasRollo: Repeticiones * NoTiras
-                $pzasRollo = null;
-                if ($repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
-                    $pzasRollo = round($repeticiones * $tiras, 0);
+                // SaldoMarbete: usar del request si está disponible, sino calcular o usar existente
+                $saldoMarbeteInt = $saldoMarbeteRequest;
+                if ($saldoMarbeteInt === null) {
+                    // Intentar usar valor existente
+                    $saldoMarbeteInt = $registro->SaldoMarbete;
+                    // Si no existe, calcular
+                    if ($saldoMarbeteInt === null) {
+                        $cantidadProducir = $registro->SaldoPedido ?? null;
+                        $saldoMarbeteCalc = 0;
+                        if ($cantidadProducir !== null && $tiras && $repeticiones !== null &&
+                            is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
+                            $tiras > 0 && $repeticiones > 0) {
+                            $saldoMarbeteCalc = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
+                        }
+                        if (is_numeric($saldoMarbeteCalc)) {
+                            $saldoFloat = (float) $saldoMarbeteCalc;
+                            $entero = (int) floor($saldoFloat);
+                            $decimal = abs($saldoFloat - $entero);
+                            $saldoMarbeteInt = $decimal >= 0.5 ? (int) ceil($saldoFloat) : $entero;
+                        }
+                    }
                 }
 
-                // Calcular TotalRollos y TotalPzas
-                $totalRollos = $saldoMarbeteInt;
-                $totalPzas = null;
-                if ($totalRollos !== null && $pzasRollo !== null && is_numeric($totalRollos) && is_numeric($pzasRollo)) {
-                    $totalPzas = round((float) $totalRollos * (float) $pzasRollo, 0);
+                // MtsRollo: usar del request si está disponible, sino calcular o usar existente
+                $mtsRollo = $mtsRolloRequest;
+                if ($mtsRollo === null) {
+                    // Intentar usar valor existente
+                    $mtsRollo = $registro->MtsRollo;
+                    // Si no existe, calcular
+                    if ($mtsRollo === null) {
+                        $largo = $registro->LargoCrudo ?? null;
+                        if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
+                            $largoNum = is_numeric($largo) ? (float)$largo : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
+                            if ($largoNum > 0 && $repeticiones > 0) {
+                                $mtsRollo = round($largoNum * $repeticiones / 100, 2);
+                            }
+                        }
+                    }
+                }
+
+                // PzasRollo: usar del request si está disponible, sino calcular o usar existente
+                $pzasRollo = $pzasRolloRequest;
+                if ($pzasRollo === null) {
+                    // Intentar usar valor existente
+                    $pzasRollo = $registro->PzasRollo;
+                    // Si no existe, calcular
+                    if ($pzasRollo === null && $repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
+                        $pzasRollo = round($repeticiones * $tiras, 0);
+                    }
+                }
+
+                // TotalRollos y TotalPzas: usar del request si está disponible, sino calcular o usar existente
+                $totalRollos = $totalRollosRequest;
+                if ($totalRollos === null) {
+                    // Intentar usar valor existente
+                    $totalRollos = $registro->TotalRollos;
+                    // Si no existe, usar saldoMarbeteInt
+                    if ($totalRollos === null) {
+                        $totalRollos = $saldoMarbeteInt;
+                    }
+                }
+
+                $totalPzas = $totalPzasRequest;
+                if ($totalPzas === null) {
+                    // Intentar usar valor existente
+                    $totalPzas = $registro->TotalPzas;
+                    // Si no existe, calcular
+                    if ($totalPzas === null && $totalRollos !== null && $pzasRollo !== null && is_numeric($totalRollos) && is_numeric($pzasRollo)) {
+                        $totalPzas = round((float) $totalRollos * (float) $pzasRollo, 0);
+                    }
                 }
 
                 // Actualizar campos calculados
@@ -398,14 +475,30 @@ class LiberarOrdenesController extends Controller
                 $registro->PzasRollo = $pzasRollo;
                 $registro->TotalRollos = $totalRollos;
                 $registro->TotalPzas = $totalPzas;
-                $registro->CombinaTram = $registro->CombinaTram ?? null;
-                $registro->BomId = $registro->BomId ?? null;
-                $registro->BomName = $registro->BomName ?? null;
+                // Usar valores del request si están disponibles, sino mantener el valor existente
+                $registro->CombinaTram = ($combinaTramRequest !== null && $combinaTramRequest !== '') ? $combinaTramRequest : ($registro->CombinaTram ?? null);
+                $registro->BomId = ($bomIdRequest !== null && $bomIdRequest !== '') ? $bomIdRequest : ($registro->BomId ?? null);
+                $registro->BomName = ($bomNameRequest !== null && $bomNameRequest !== '') ? $bomNameRequest : ($registro->BomName ?? null);
                 $registro->CreaProd = $registro->CreaProd ?? 1;
                 $registro->EficienciaSTD = $registro->EficienciaSTD ?? null;
                 $registro->Densidad = $registro->PesoGRM2 ?? null;
-                $registro->HiloAX = $registro->HiloAX ?? null;
+                $registro->HiloAX = ($hiloAXRequest !== null && $hiloAXRequest !== '') ? $hiloAXRequest : ($registro->HiloAX ?? null);
                 $registro->ActualizaLmat = $registro->ActualizaLmat ?? 0;
+
+                // Log para debug
+                Log::info('Valores antes de guardar ReqProgramaTejido', [
+                    'id' => $registro->Id,
+                    'bomId' => $registro->BomId,
+                    'bomName' => $registro->BomName,
+                    'hiloAX' => $registro->HiloAX,
+                    'mtsRollo' => $registro->MtsRollo,
+                    'pzasRollo' => $registro->PzasRollo,
+                    'totalRollos' => $registro->TotalRollos,
+                    'totalPzas' => $registro->TotalPzas,
+                    'repeticiones' => $registro->Repeticiones,
+                    'saldoMarbete' => $registro->SaldoMarbete,
+                    'noProduccion' => $registro->NoProduccion,
+                ]);
 
                 // Campos de auditoría
                 $usuario = Auth::check() && Auth::user()
@@ -420,6 +513,12 @@ class LiberarOrdenesController extends Controller
                 $registro->UsuarioModifica = $usuario;
 
                 $registro->save();
+
+                // Recargar el registro para asegurar que tenemos los valores actualizados
+                $registro->refresh();
+
+                // Actualizar CatCodificados con los mismos campos
+                $this->actualizarCatCodificados($registro);
 
                 // Recargar el modelo sin relaciones para evitar errores
                 $registroActualizado = ReqProgramaTejido::select([
@@ -596,6 +695,7 @@ class LiberarOrdenesController extends Controller
                 ->table('BOMTABLE as BT')
                 ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
                 ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
+
                 ->where('BV.ITEMID', $itemIdWithSuffix)
                 ->where('BT.INVENTSIZEID', $inventSizeId);
 
@@ -832,5 +932,123 @@ class LiberarOrdenesController extends Controller
         ob_start();
         $writer->save('php://output');
         return ob_get_clean();
+    }
+
+    /**
+     * Actualiza CatCodificados con los campos de ReqProgramaTejido después de liberar
+     */
+    private function actualizarCatCodificados(ReqProgramaTejido $registro): void
+    {
+        try {
+            $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
+            $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
+
+            if ($noProduccion === '' || $noTelarId === '') {
+                return;
+            }
+
+            $modelo = new CatCodificados();
+            $table = $modelo->getTable();
+            $columns = Schema::getColumnListing($table);
+
+            $query = CatCodificados::query();
+            $hasKeyFilter = false;
+
+            if (in_array('OrdenTejido', $columns, true)) {
+                $query->where('OrdenTejido', $noProduccion);
+                $hasKeyFilter = true;
+            } elseif (in_array('NumOrden', $columns, true)) {
+                $query->where('NumOrden', $noProduccion);
+                $hasKeyFilter = true;
+            }
+
+            if (in_array('TelarId', $columns, true)) {
+                $query->where('TelarId', $noTelarId);
+            } elseif (in_array('NoTelarId', $columns, true)) {
+                $query->where('NoTelarId', $noTelarId);
+            }
+
+            if (!$hasKeyFilter) {
+                $query->where('NoProduccion', $noProduccion);
+            }
+
+            $registroCodificado = $query->first();
+
+            if (!$registroCodificado) {
+                return;
+            }
+
+            // Obtener usuario para campos de auditoría
+            $usuario = Auth::check() && Auth::user()
+                ? (Auth::user()->nombre ?? Auth::user()->numero_empleado ?? 'Sistema')
+                : 'Sistema';
+            $fechaActual = now();
+
+            // Campos a actualizar desde ReqProgramaTejido
+            $payload = [
+                'BomId' => $registro->BomId,
+                'BomName' => $registro->BomName,
+                'HiloAX' => $registro->HiloAX,
+                'MtsRollo' => $registro->MtsRollo,
+                'PzasRollo' => $registro->PzasRollo,
+                'TotalRollos' => $registro->TotalRollos,
+                'TotalPzas' => $registro->TotalPzas,
+                'Repeticiones' => $registro->Repeticiones,
+                'NoMarbete' => $registro->SaldoMarbete, // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
+                'CombinaTram' => $registro->CombinaTram,
+                'Densidad' => $registro->Densidad,
+                'CreaProd' => $registro->CreaProd ?? 1,
+                'ActualizaLmat' => $registro->ActualizaLmat ?? 0,
+                // Campos de auditoría
+                'FechaModificacion' => $fechaActual,
+                'HoraModificacion' => $fechaActual->format('H:i:s'),
+                'UsuarioModifica' => $usuario,
+            ];
+
+            $updated = false;
+            foreach ($payload as $column => $value) {
+                if (!in_array($column, $columns, true)) {
+                    Log::warning('Campo no existe en CatCodificados', [
+                        'campo' => $column,
+                        'no_produccion' => $noProduccion,
+                    ]);
+                    continue;
+                }
+
+                // Actualizar siempre para sincronizar correctamente
+                $registroCodificado->setAttribute($column, $value);
+                $updated = true;
+            }
+
+            // También actualizar FechaCreacion y UsuarioCrea si no existen
+            if (in_array('FechaCreacion', $columns, true) && !$registroCodificado->FechaCreacion) {
+                $registroCodificado->setAttribute('FechaCreacion', $fechaActual);
+                $updated = true;
+            }
+            if (in_array('HoraCreacion', $columns, true) && !$registroCodificado->HoraCreacion) {
+                $registroCodificado->setAttribute('HoraCreacion', $fechaActual->format('H:i:s'));
+                $updated = true;
+            }
+            if (in_array('UsuarioCrea', $columns, true) && !$registroCodificado->UsuarioCrea) {
+                $registroCodificado->setAttribute('UsuarioCrea', $usuario);
+                $updated = true;
+            }
+
+            if ($updated || $registroCodificado->isDirty()) {
+                $registroCodificado->save();
+                Log::info('CatCodificados actualizado', [
+                    'no_produccion' => $noProduccion,
+                    'no_telar_id' => $noTelarId,
+                    'payload' => $payload,
+                    'usuario' => $usuario,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar CatCodificados desde ReqProgramaTejido', [
+                'no_produccion' => $registro->NoProduccion ?? null,
+                'no_telar_id' => $registro->NoTelarId ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

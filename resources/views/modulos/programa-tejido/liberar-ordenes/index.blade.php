@@ -849,9 +849,36 @@ function obtenerRegistrosSeleccionados() {
     return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => {
         const row = cb.closest('tr');
         const prioridadInput = row ? row.querySelector('.prioridad-input') : null;
+
+        // Capturar campos desde las celdas de la tabla
+        const getCellValue = (columnName) => {
+            const cell = row ? row.querySelector(`[data-column="${columnName}"]`) : null;
+            if (!cell) return null;
+            const text = cell.textContent ? cell.textContent.trim() : '';
+            return text === '' ? null : text;
+        };
+
+        // Capturar valores numéricos (remover comas de formato)
+        const getNumericValue = (columnName) => {
+            const value = getCellValue(columnName);
+            if (!value) return null;
+            const cleaned = value.replace(/,/g, '');
+            return cleaned === '' ? null : cleaned;
+        };
+
         return {
             id: cb.getAttribute('data-id'),
-            prioridad: prioridadInput ? prioridadInput.value.trim() : ''
+            prioridad: prioridadInput ? prioridadInput.value.trim() : '',
+            bomId: getCellValue('BomId'),
+            bomName: getCellValue('BomName'),
+            hiloAX: getCellValue('HiloAX'),
+            mtsRollo: getNumericValue('MtsRollo'),
+            pzasRollo: getNumericValue('PzasRollo'),
+            totalRollos: getNumericValue('TotalRollos'),
+            totalPzas: getNumericValue('TotalPzas'),
+            repeticiones: getNumericValue('Repeticiones'),
+            saldoMarbete: getNumericValue('SaldoMarbete'),
+            combinaTram: getCellValue('CombinaTrama')
         };
     });
 }
