@@ -101,7 +101,7 @@
 
                 return '<input type="text"
                               id="bom-id-input-' . $rowId . '"
-                              class="bom-id-input w-full min-w-[640px] px-2 py-1 text-sm border border-gray-300 rounded"
+                              class="bom-id-input w-full min-w-[100px] px-3 py-2 text-sm border border-gray-300 rounded"
                             value="' . $value . '"
                             data-row-id="' . $rowId . '"
                             list="bom-id-options-' . $rowId . '"
@@ -116,7 +116,7 @@
 
                 return '<input type="text"
                               id="bom-name-input-' . $rowId . '"
-                              class="bom-name-input w-full min-w-[1040px] px-2 py-1 text-sm border border-gray-300 rounded"
+                              class="bom-name-input w-full min-w-[150px] px-3 py-2 text-sm border border-gray-300 rounded"
                               value="' . $value . '"
                               data-row-id="' . $rowId . '"
                               list="bom-name-options-' . $rowId . '"
@@ -304,7 +304,6 @@ const redirectAfterLiberar = '{{ route('catalogos.req-programa-tejido') }}';
 const tipoHiloUrl = '{{ route('programa-tejido.liberar-ordenes.tipo-hilo') }}';
 const bomAutocompleteUrl = '{{ route('programa-tejido.liberar-ordenes.bom') }}';
 const codigoDibujoUrl = '{{ route('programa-tejido.liberar-ordenes.codigo-dibujo') }}';
-const hiloAXModelosUrl = '{{ route('programa-tejido.liberar-ordenes.hilo-ax-modelos') }}';
 
 // Variables globales para columnas
 // Columnas fijadas por defecto: Maq (índice 2), Hilo (índice 6), Producto (índice 9)
@@ -375,33 +374,19 @@ document.addEventListener('DOMContentLoaded', function() {
 function autoFillAllHiloAX() {
     const rows = document.querySelectorAll('.row-data');
 
-    const combinations = [];
-    const rowsByKey = new Map();
     const itemIdsSet = new Set();
     const rowsByItemId = new Map();
 
     rows.forEach((row) => {
         const itemIdCell = row.querySelector('[data-column="ItemId"]');
-        const inventSizeIdCell = row.querySelector('[data-column="InventSizeId"]');
         const hiloAXCell = row.querySelector('[data-column="HiloAX"]');
 
-        if (!itemIdCell || !inventSizeIdCell || !hiloAXCell) return;
+        if (!itemIdCell || !hiloAXCell) return;
 
         const itemId = (itemIdCell.textContent || '').trim();
-        const inventSizeId = (inventSizeIdCell.textContent || '').trim();
         const currentHiloAX = (hiloAXCell.textContent || '').trim();
 
-        if (!currentHiloAX && itemId && inventSizeId) {
-            const cacheKey = `${itemId}|${inventSizeId}`;
-
-            if (!rowsByKey.has(cacheKey)) {
-                rowsByKey.set(cacheKey, []);
-                combinations.push(`${itemId}:${inventSizeId}`);
-            }
-            rowsByKey.get(cacheKey).push(row);
-        }
-
-        // También preparar para consulta a INVENTTABLE si no se encuentra en ReqModelosCodificados
+        // Solo procesar si no tiene valor y tiene itemId
         if (!currentHiloAX && itemId) {
             itemIdsSet.add(itemId);
             if (!rowsByItemId.has(itemId)) {
@@ -411,68 +396,31 @@ function autoFillAllHiloAX() {
         }
     });
 
-    if (combinations.length === 0) {
+    if (itemIdsSet.size === 0) {
         return;
     }
 
-    // PRIMERO: Intentar obtener desde ReqModelosCodificados
-    const urlModelos = `${hiloAXModelosUrl}?combinations=${encodeURIComponent(combinations.join(','))}`;
+    // Consultar INVENTTABLE para obtener TwTipoHiloId (TipoHilo)
+    const itemIdsArray = Array.from(itemIdsSet);
+    const urlInvent = `${tipoHiloUrl}?itemIds=${encodeURIComponent(itemIdsArray.join(','))}`;
 
-    fetch(urlModelos, { headers: { 'Accept': 'application/json' } })
+    fetch(urlInvent, { headers: { 'Accept': 'application/json' } })
         .then(res => res.json())
         .then(payload => {
-            const encontradosEnModelos = new Set();
+            if (!payload || !payload.success || !payload.data) {
+                return;
+            }
 
-            if (payload && payload.success && payload.data) {
-                const data = payload.data || {};
-
-                Object.keys(data).forEach(cacheKey => {
-                    const hiloAX = data[cacheKey];
-                    const rows = rowsByKey.get(cacheKey) || [];
-
+            const data = payload.data;
+            itemIdsArray.forEach(itemId => {
+                if (data[itemId]) {
+                    const rows = rowsByItemId.get(itemId) || [];
                     rows.forEach(row => {
-                        encontradosEnModelos.add(row);
-                        const hiloAXCell = row.querySelector('[data-column="HiloAX"]');
-
-                        if (hiloAXCell && hiloAX && hiloAX.trim() !== '') {
-                            // Convertir a select y rellenar
-                            convertirHiloAXaSelect(row, hiloAX);
-                        }
+                        // Convertir a select y rellenar con el valor de INVENTTABLE
+                        convertirHiloAXaSelect(row, data[itemId]);
                     });
-                });
-            }
-
-            // SEGUNDO: Para los que NO se encontraron en ReqModelosCodificados, buscar en INVENTTABLE
-            const rowsNoEncontradas = [];
-            rowsByItemId.forEach((rows, itemId) => {
-                rows.forEach(row => {
-                    if (!encontradosEnModelos.has(row)) {
-                        rowsNoEncontradas.push({ row, itemId });
-                    }
-                });
+                }
             });
-
-            if (rowsNoEncontradas.length > 0) {
-                const itemIdsArray = Array.from(new Set(rowsNoEncontradas.map(r => r.itemId)));
-                const urlInvent = `${tipoHiloUrl}?itemIds=${encodeURIComponent(itemIdsArray.join(','))}`;
-
-                fetch(urlInvent, { headers: { 'Accept': 'application/json' } })
-                    .then(res => res.json())
-                    .then(payload => {
-                        if (!payload || !payload.success || !payload.data) {
-                            return;
-                        }
-
-                        const data = payload.data;
-                        rowsNoEncontradas.forEach(({ row, itemId }) => {
-                            if (data[itemId]) {
-                                // Convertir a select y rellenar con el valor de INVENTTABLE
-                                convertirHiloAXaSelect(row, data[itemId]);
-                            }
-                        });
-                    })
-                    .catch(() => {});
-            }
         })
         .catch(() => {});
 }
@@ -1454,6 +1402,17 @@ td[data-column="HiloAX"] {
 th[data-field="HiloAX"] {
     min-width: 220px !important;
     width: 220px !important;
+}
+
+/* Estilos para los inputs de L.Mat */
+.bom-id-input {
+    min-width: 100px !important;
+    width: 100% !important;
+}
+
+.bom-name-input {
+    min-width: 150px !important;
+    width: 100% !important;
 }
 </style>
 @endsection

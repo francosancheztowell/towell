@@ -222,27 +222,24 @@ class LiberarOrdenesController extends Controller
                 $registro->TotalRollos = $totalRollos;
                 $registro->TotalPzas = $totalPzas;
 
-                // Densidad: fórmula = peso / (ancho * largo) / 1 kg m2
-                $densidad = $registro->PesoGRM2 ?? null;
-                if ($densidad === null) {
-                    $peso = $registro->PesoCrudo ?? null;
-                    $ancho = $registro->Ancho ?? null;
-                    $largo = $registro->LargoCrudo ?? null;
+                // Densidad: fórmula = peso_crudo / ((ancho * largo) / 10)
+                $densidad = null;
+                $peso = $registro->PesoCrudo ?? null;
+                $ancho = $registro->Ancho ?? null;
+                $largo = $registro->LargoCrudo ?? null;
 
-                    if ($peso !== null && $ancho !== null && $largo !== null &&
-                        is_numeric($peso) && is_numeric($ancho) && is_numeric($largo) &&
-                        $ancho > 0 && $largo > 0) {
-                        // Convertir largo de cm a metros
-                        $largoMetros = is_numeric($largo)
-                            ? (float)$largo / 100
-                            : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo) / 100;
+                if ($peso !== null && $ancho !== null && $largo !== null &&
+                    is_numeric($peso) && is_numeric($ancho) && is_numeric($largo) &&
+                    $ancho > 0 && $largo > 0) {
+                    // Limpiar largo si tiene texto (ej: "50 Cms.")
+                    $largoLimpio = is_numeric($largo)
+                        ? (float)$largo
+                        : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
 
-                        $area = $ancho * $largoMetros; // área en m2
-                        if ($area > 0) {
-                            // PesoCrudo está en gramos, convertir a kg: peso / 1000
-                            $pesoKg = (float)$peso / 1000;
-                            $densidad = round($pesoKg / $area, 2);
-                        }
+                    // Fórmula: densidad = peso_crudo / ((ancho * largo) / 10)
+                    $denominador = ($ancho * $largoLimpio) / 10;
+                    if ($denominador > 0) {
+                        $densidad = round((float)$peso / $denominador, 4);
                     }
                 }
                 $registro->Densidad = $densidad;
@@ -484,27 +481,24 @@ class LiberarOrdenesController extends Controller
                 $registro->CreaProd = $registro->CreaProd ?? 1;
                 $registro->EficienciaSTD = $registro->EficienciaSTD ?? null;
 
-                // Densidad: fórmula = peso / (ancho * largo) / 1 kg m2
-                $densidad = $registro->PesoGRM2 ?? null;
-                if ($densidad === null) {
-                    $peso = $registro->PesoCrudo ?? null;
-                    $ancho = $registro->Ancho ?? null;
-                    $largo = $registro->LargoCrudo ?? null;
+                // Densidad: fórmula = peso_crudo / ((ancho * largo) / 10)
+                $densidad = null;
+                $peso = $registro->PesoCrudo ?? null;
+                $ancho = $registro->Ancho ?? null;
+                $largo = $registro->LargoCrudo ?? null;
 
-                    if ($peso !== null && $ancho !== null && $largo !== null &&
-                        is_numeric($peso) && is_numeric($ancho) && is_numeric($largo) &&
-                        $ancho > 0 && $largo > 0) {
-                        // Convertir largo de cm a metros
-                        $largoMetros = is_numeric($largo)
-                            ? (float)$largo / 100
-                            : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo) / 100;
+                if ($peso !== null && $ancho !== null && $largo !== null &&
+                    is_numeric($peso) && is_numeric($ancho) && is_numeric($largo) &&
+                    $ancho > 0 && $largo > 0) {
+                    // Limpiar largo si tiene texto (ej: "50 Cms.")
+                    $largoLimpio = is_numeric($largo)
+                        ? (float)$largo
+                        : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
 
-                        $area = $ancho * $largoMetros; // área en m2
-                        if ($area > 0) {
-                            // PesoCrudo está en gramos, convertir a kg: peso / 1000
-                            $pesoKg = (float)$peso / 1000;
-                            $densidad = round($pesoKg / $area, 2);
-                        }
+                    // Fórmula: densidad = peso_crudo / ((ancho * largo) / 10)
+                    $denominador = ($ancho * $largoLimpio) / 10;
+                    if ($denominador > 0) {
+                        $densidad = round((float)$peso / $denominador, 4);
                     }
                 }
                 $registro->Densidad = $densidad;
@@ -1072,97 +1066,6 @@ class LiberarOrdenesController extends Controller
             : Carbon::parse($registro->FechaInicio)->startOfDay();
 
         return $fechaInicio->lte($fechaFormula) ? $hoy->copy() : null;
-    }
-
-    /**
-     * Obtiene HiloAX desde ReqModelosCodificados para uno o múltiples items usando ItemId e InventSizeId
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function obtenerHiloAXDesdeModelos(Request $request)
-    {
-        $combinationsParam = trim((string) $request->query('combinations', ''));
-
-        if ($combinationsParam === '') {
-            return response()->json([
-                'success' => true,
-                'data' => [],
-            ]);
-        }
-
-        try {
-            $combinations = array_filter(array_map('trim', explode(',', $combinationsParam)));
-
-            if (empty($combinations)) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                ]);
-            }
-
-            // Parsear combinaciones: "itemId1:inventSizeId1,itemId2:inventSizeId2,..."
-            $pairs = [];
-            foreach ($combinations as $combo) {
-                $parts = explode(':', $combo);
-                if (count($parts) === 2) {
-                    $itemId = trim($parts[0]);
-                    $inventSizeId = trim($parts[1]);
-                    if (!empty($itemId) && !empty($inventSizeId)) {
-                        $pairs[] = [
-                            'itemId' => $itemId,
-                            'inventSizeId' => $inventSizeId,
-                        ];
-                    }
-                }
-            }
-
-            if (empty($pairs)) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                ]);
-            }
-
-            // Consulta única optimizada para múltiples combinaciones
-            $query = ReqModelosCodificados::query()
-                ->select('ItemId', 'InventSizeId', 'HiloAX');
-
-            $query->where(function($q) use ($pairs) {
-                foreach ($pairs as $pair) {
-                    $q->orWhere(function($subQ) use ($pair) {
-                        $subQ->where('ItemId', $pair['itemId'])
-                             ->where('InventSizeId', $pair['inventSizeId']);
-                    });
-                }
-            });
-
-            $results = $query->get();
-
-            // Crear mapa por combinación ItemId|InventSizeId
-            $map = [];
-            foreach ($results as $result) {
-                $key = $result->ItemId . '|' . $result->InventSizeId;
-                if (!isset($map[$key]) && !empty($result->HiloAX)) {
-                    $map[$key] = $result->HiloAX;
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $map,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error al obtener HiloAX desde ReqModelosCodificados', [
-                'combinations' => $combinationsParam,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener HiloAX.',
-            ], 500);
-        }
     }
 
     /**
