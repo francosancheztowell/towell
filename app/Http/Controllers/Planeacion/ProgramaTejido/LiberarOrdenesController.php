@@ -222,27 +222,24 @@ class LiberarOrdenesController extends Controller
                 $registro->TotalRollos = $totalRollos;
                 $registro->TotalPzas = $totalPzas;
 
-                // Densidad: fórmula = peso / (ancho * largo) / 1 kg m2
-                $densidad = $registro->PesoGRM2 ?? null;
-                if ($densidad === null) {
-                    $peso = $registro->PesoCrudo ?? null;
-                    $ancho = $registro->Ancho ?? null;
-                    $largo = $registro->LargoCrudo ?? null;
+                // Densidad: fórmula = peso_crudo / ((ancho * largo) / 10)
+                $densidad = null;
+                $peso = $registro->PesoCrudo ?? null;
+                $ancho = $registro->Ancho ?? null;
+                $largo = $registro->LargoCrudo ?? null;
 
-                    if ($peso !== null && $ancho !== null && $largo !== null &&
-                        is_numeric($peso) && is_numeric($ancho) && is_numeric($largo) &&
-                        $ancho > 0 && $largo > 0) {
-                        // Convertir largo de cm a metros
-                        $largoMetros = is_numeric($largo)
-                            ? (float)$largo / 100
-                            : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo) / 100;
+                if ($peso !== null && $ancho !== null && $largo !== null &&
+                    is_numeric($peso) && is_numeric($ancho) && is_numeric($largo) &&
+                    $ancho > 0 && $largo > 0) {
+                    // Limpiar largo si tiene texto (ej: "50 Cms.")
+                    $largoLimpio = is_numeric($largo)
+                        ? (float)$largo
+                        : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
 
-                        $area = $ancho * $largoMetros; // área en m2
-                        if ($area > 0) {
-                            // PesoCrudo está en gramos, convertir a kg: peso / 1000
-                            $pesoKg = (float)$peso / 1000;
-                            $densidad = round($pesoKg / $area, 2);
-                        }
+                    // Fórmula: densidad = peso_crudo / ((ancho * largo) / 10)
+                    $denominador = ($ancho * $largoLimpio) / 10;
+                    if ($denominador > 0) {
+                        $densidad = round((float)$peso / $denominador, 4);
                     }
                 }
                 $registro->Densidad = $densidad;
@@ -297,6 +294,7 @@ class LiberarOrdenesController extends Controller
             'registros.*.totalPzas' => 'nullable|numeric',
             'registros.*.repeticiones' => 'nullable|numeric',
             'registros.*.saldoMarbete' => 'nullable|numeric',
+            'registros.*.densidad' => 'nullable|numeric',
             'registros.*.combinaTram' => 'nullable|string|max:60',
         ], [
             'registros.required' => 'Debes seleccionar al menos un registro.',
@@ -484,9 +482,12 @@ class LiberarOrdenesController extends Controller
                 $registro->CreaProd = $registro->CreaProd ?? 1;
                 $registro->EficienciaSTD = $registro->EficienciaSTD ?? null;
 
-                // Densidad: fórmula = peso / (ancho * largo) / 1 kg m2
-                $densidad = $registro->PesoGRM2 ?? null;
-                if ($densidad === null) {
+                // Densidad: usar del request si viene, sino calcular
+                if (isset($item['densidad']) && $item['densidad'] !== null && $item['densidad'] !== '') {
+                    $registro->Densidad = round((float) $item['densidad'], 4);
+                } else {
+                    // Densidad: fórmula = peso_crudo / ((ancho * largo) / 10)
+                    $densidad = null;
                     $peso = $registro->PesoCrudo ?? null;
                     $ancho = $registro->Ancho ?? null;
                     $largo = $registro->LargoCrudo ?? null;
@@ -494,20 +495,19 @@ class LiberarOrdenesController extends Controller
                     if ($peso !== null && $ancho !== null && $largo !== null &&
                         is_numeric($peso) && is_numeric($ancho) && is_numeric($largo) &&
                         $ancho > 0 && $largo > 0) {
-                        // Convertir largo de cm a metros
-                        $largoMetros = is_numeric($largo)
-                            ? (float)$largo / 100
-                            : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo) / 100;
+                        // Limpiar largo si tiene texto (ej: "50 Cms.")
+                        $largoLimpio = is_numeric($largo)
+                            ? (float)$largo
+                            : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
 
-                        $area = $ancho * $largoMetros; // área en m2
-                        if ($area > 0) {
-                            // PesoCrudo está en gramos, convertir a kg: peso / 1000
-                            $pesoKg = (float)$peso / 1000;
-                            $densidad = round($pesoKg / $area, 2);
+                        // Fórmula: densidad = peso_crudo / ((ancho * largo) / 10)
+                        $denominador = ($ancho * $largoLimpio) / 10;
+                        if ($denominador > 0) {
+                            $densidad = round((float)$peso / $denominador, 4);
                         }
                     }
+                    $registro->Densidad = $densidad;
                 }
-                $registro->Densidad = $densidad;
                 $registro->ActualizaLmat = $registro->ActualizaLmat ?? 0;
 
                 // Campos de auditoría usando el helper
@@ -584,6 +584,7 @@ class LiberarOrdenesController extends Controller
         $combinationsParam = trim((string) $request->query('combinations', ''));
         $itemId = trim((string) $request->query('itemId', ''));
         $inventSizeId = trim((string) $request->query('inventSizeId', ''));
+        $salonTejidoId = trim((string) $request->query('salonTejidoId', ''));
         $term = trim((string) $request->query('term', ''));
         $allowFallback = filter_var($request->query('fallback', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -663,7 +664,7 @@ class LiberarOrdenesController extends Controller
                 if ($allowFallback && $term !== '') {
                     return response()->json([
                         'success' => true,
-                        'data' => $this->queryBomFallback($term),
+                        'data' => $this->queryBomFallback($term, $inventSizeId, $salonTejidoId),
                     ]);
                 }
 
@@ -690,7 +691,7 @@ class LiberarOrdenesController extends Controller
 
             $results = $query->orderBy('BT.BOMID')->limit(20)->get();
             if ($results->isEmpty() && $allowFallback && $term !== '') {
-                $results = $this->queryBomFallback($term);
+                $results = $this->queryBomFallback($term, $inventSizeId, $salonTejidoId);
             }
 
             return response()->json([
@@ -712,12 +713,22 @@ class LiberarOrdenesController extends Controller
         }
     }
 
-    private function queryBomFallback(string $term)
+    private function queryBomFallback(string $term, ?string $inventSizeId = null, ?string $salonTejidoId = null)
     {
         $query = DB::connection('sqlsrv_ti')
             ->table('BOMTABLE as BT')
             ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
             ->where('BT.ITEMGROUPID', 'LIKE', '%CRUDO%');
+
+        // Filtrar por tamaño si está disponible
+        if ($inventSizeId !== null && $inventSizeId !== '') {
+            $query->where('BT.TWINVENTSIZEID', $inventSizeId);
+        }
+
+        // Filtrar por salón si está disponible
+        if ($salonTejidoId !== null && $salonTejidoId !== '') {
+            $query->where('BT.TwSalon', $salonTejidoId);
+        }
 
         if ($term !== '') {
             $query->where(function ($q) use ($term) {
@@ -854,6 +865,181 @@ class LiberarOrdenesController extends Controller
         ob_start();
         $writer->save('php://output');
         return ob_get_clean();
+    }
+
+    /**
+     * Guarda un campo editable desde la vista de liberar órdenes
+     * Actualiza tanto ReqProgramaTejido como CatCodificados
+     */
+    public function guardarCamposEditables(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'id' => 'required|integer|exists:ReqProgramaTejido,Id',
+                'field' => 'required|string|in:MtsRollo,PzasRollo,TotalRollos,TotalPzas,Repeticiones,SaldoMarbete,Densidad,CombinaTrama',
+                'value' => 'nullable',
+            ]);
+
+            $id = (int) $data['id'];
+            $field = $data['field'];
+            $value = $data['value'];
+
+            DB::beginTransaction();
+
+            try {
+                /** @var ReqProgramaTejido|null $registro */
+                $registro = ReqProgramaTejido::lockForUpdate()->find($id);
+                if (!$registro) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Registro no encontrado.',
+                    ], 404);
+                }
+
+                // Validar y convertir el valor según el tipo de campo
+                if ($field === 'CombinaTrama') {
+                    // Campo string
+                    $registro->CombinaTram = $value !== null ? trim((string)$value) : null;
+                } elseif ($field === 'SaldoMarbete') {
+                    // SaldoMarbete es entero
+                    $registro->SaldoMarbete = $value !== null ? (int)$value : null;
+                } elseif ($field === 'Repeticiones') {
+                    // Repeticiones es entero
+                    $registro->Repeticiones = $value !== null ? (int)$value : null;
+                } elseif ($field === 'Densidad') {
+                    // Densidad es float con 4 decimales
+                    $registro->Densidad = $value !== null ? round((float)$value, 4) : null;
+                } else {
+                    // MtsRollo, PzasRollo, TotalRollos, TotalPzas son float
+                    $registro->{$field} = $value !== null ? (float)$value : null;
+                }
+
+                $registro->save();
+
+                // Actualizar CatCodificados si existe
+                $this->actualizarCatCodificadosCampo($registro, $field, $value);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Campo actualizado correctamente.',
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Error al guardar campo editable', [
+                    'id' => $id,
+                    'field' => $field,
+                    'value' => $value,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al guardar el campo: ' . $e->getMessage(),
+                ], 500);
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos inválidos.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error general al guardar campo editable', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error inesperado al guardar el campo.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualiza un campo específico en CatCodificados basado en ReqProgramaTejido
+     */
+    private function actualizarCatCodificadosCampo(ReqProgramaTejido $registro, string $field, $value): void
+    {
+        try {
+            $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
+            $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
+
+            // Si no hay NoProduccion, no podemos actualizar CatCodificados
+            if (empty($noProduccion)) {
+                return;
+            }
+
+            $modelo = new CatCodificados();
+            $table = $modelo->getTable();
+            $columns = Schema::getColumnListing($table);
+
+            $query = CatCodificados::query();
+            $hasKeyFilter = false;
+
+            if (in_array('OrdenTejido', $columns, true)) {
+                $query->where('OrdenTejido', $noProduccion);
+                $hasKeyFilter = true;
+            } elseif (in_array('NumOrden', $columns, true)) {
+                $query->where('NumOrden', $noProduccion);
+                $hasKeyFilter = true;
+            }
+
+            if (in_array('TelarId', $columns, true)) {
+                $query->where('TelarId', $noTelarId);
+            } elseif (in_array('NoTelarId', $columns, true)) {
+                $query->where('NoTelarId', $noTelarId);
+            }
+
+            if (!$hasKeyFilter) {
+                $query->where('NoProduccion', $noProduccion);
+            }
+
+            $registroCodificado = $query->first();
+
+            if (!$registroCodificado) {
+                return;
+            }
+
+            // Mapear el campo de ReqProgramaTejido a CatCodificados
+            $campoCatCodificados = null;
+            if ($field === 'SaldoMarbete') {
+                $campoCatCodificados = 'NoMarbete';
+            } elseif ($field === 'CombinaTrama') {
+                $campoCatCodificados = 'CombinaTram';
+            } else {
+                $campoCatCodificados = $field;
+            }
+
+            // Verificar que el campo existe en CatCodificados
+            if (!in_array($campoCatCodificados, $columns, true)) {
+                return;
+            }
+
+            // Asignar el valor según el tipo de campo
+            if ($campoCatCodificados === 'NoMarbete') {
+                $registroCodificado->NoMarbete = $value !== null ? (float)$value : null;
+            } elseif ($campoCatCodificados === 'Repeticiones') {
+                $registroCodificado->Repeticiones = $value !== null ? (int)$value : null;
+            } elseif ($campoCatCodificados === 'Densidad') {
+                $registroCodificado->Densidad = $value !== null ? round((float)$value, 4) : null;
+            } elseif ($campoCatCodificados === 'CombinaTram') {
+                $registroCodificado->CombinaTram = $value !== null ? trim((string)$value) : null;
+            } else {
+                // MtsRollo, PzasRollo, TotalRollos, TotalPzas
+                $registroCodificado->{$campoCatCodificados} = $value !== null ? (float)$value : null;
+            }
+
+            $registroCodificado->save();
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar CatCodificados campo editable', [
+                'no_produccion' => $registro->NoProduccion ?? null,
+                'field' => $field,
+                'error' => $e->getMessage(),
+            ]);
+            // No lanzar excepción para no interrumpir el guardado en ReqProgramaTejido
+        }
     }
 
     /**
@@ -1072,97 +1258,6 @@ class LiberarOrdenesController extends Controller
             : Carbon::parse($registro->FechaInicio)->startOfDay();
 
         return $fechaInicio->lte($fechaFormula) ? $hoy->copy() : null;
-    }
-
-    /**
-     * Obtiene HiloAX desde ReqModelosCodificados para uno o múltiples items usando ItemId e InventSizeId
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function obtenerHiloAXDesdeModelos(Request $request)
-    {
-        $combinationsParam = trim((string) $request->query('combinations', ''));
-
-        if ($combinationsParam === '') {
-            return response()->json([
-                'success' => true,
-                'data' => [],
-            ]);
-        }
-
-        try {
-            $combinations = array_filter(array_map('trim', explode(',', $combinationsParam)));
-
-            if (empty($combinations)) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                ]);
-            }
-
-            // Parsear combinaciones: "itemId1:inventSizeId1,itemId2:inventSizeId2,..."
-            $pairs = [];
-            foreach ($combinations as $combo) {
-                $parts = explode(':', $combo);
-                if (count($parts) === 2) {
-                    $itemId = trim($parts[0]);
-                    $inventSizeId = trim($parts[1]);
-                    if (!empty($itemId) && !empty($inventSizeId)) {
-                        $pairs[] = [
-                            'itemId' => $itemId,
-                            'inventSizeId' => $inventSizeId,
-                        ];
-                    }
-                }
-            }
-
-            if (empty($pairs)) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                ]);
-            }
-
-            // Consulta única optimizada para múltiples combinaciones
-            $query = ReqModelosCodificados::query()
-                ->select('ItemId', 'InventSizeId', 'HiloAX');
-
-            $query->where(function($q) use ($pairs) {
-                foreach ($pairs as $pair) {
-                    $q->orWhere(function($subQ) use ($pair) {
-                        $subQ->where('ItemId', $pair['itemId'])
-                             ->where('InventSizeId', $pair['inventSizeId']);
-                    });
-                }
-            });
-
-            $results = $query->get();
-
-            // Crear mapa por combinación ItemId|InventSizeId
-            $map = [];
-            foreach ($results as $result) {
-                $key = $result->ItemId . '|' . $result->InventSizeId;
-                if (!isset($map[$key]) && !empty($result->HiloAX)) {
-                    $map[$key] = $result->HiloAX;
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $map,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error al obtener HiloAX desde ReqModelosCodificados', [
-                'combinations' => $combinationsParam,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener HiloAX.',
-            ], 500);
-        }
     }
 
     /**

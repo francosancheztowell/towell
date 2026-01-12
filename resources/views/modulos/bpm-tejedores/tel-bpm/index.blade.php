@@ -129,14 +129,14 @@
                 </h3>
                 <div class="grid md:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">No. Operador</label>
-                        <input type="text" name="CveEmplRec" readonly class="w-full rounded-lg border px-3 py-2 bg-slate-50"
-                               value="{{ $operadorUsuario->numero_empleado ?? '' }}">
-                    </div>
-                    <div>
                         <label class="block text-sm font-medium mb-1">Nombre</label>
                         <input type="text" name="NombreEmplRec" readonly class="w-full rounded-lg border px-3 py-2 bg-slate-50"
                                value="{{ $operadorUsuario->nombreEmpl ?? '' }}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">No. Operador</label>
+                        <input type="text" name="CveEmplRec" readonly class="w-full rounded-lg border px-3 py-2 bg-slate-50"
+                               value="{{ $operadorUsuario->numero_empleado ?? '' }}">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Turno</label>
@@ -153,8 +153,8 @@
                 </h3>
                 <div class="grid md:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">No. Operador <span class="text-red-600">*</span></label>
-                        <select name="CveEmplEnt" id="sel-entrega" class="w-full rounded-lg border px-3 py-2 @error('CveEmplEnt') border-red-500 @enderror" required>
+                        <label class="block text-sm font-medium mb-1">Nombre <span class="text-red-600">*</span></label>
+                        <select name="CveEmplEnt" id="sel-entrega" class="w-full rounded-lg border px-3 py-2 @error('CveEmplEnt') border-red-500 @enderror @error('NombreEmplEnt') border-red-500 @enderror" required>
                             <option value="">Seleccione…</option>
                             @php 
                                 $noRecibe = $operadorUsuario->numero_empleado ?? ''; 
@@ -164,16 +164,17 @@
                             @endphp
                             @foreach($operadoresUnicos as $op)
                                 <option value="{{ $op->numero_empleado }}" data-nombre="{{ $op->nombreEmpl }}" data-turno="{{ $op->Turno }}"
-                                    {{ old('CveEmplEnt') == $op->numero_empleado ? 'selected' : '' }}>{{ $op->numero_empleado }}</option>
+                                    {{ old('CveEmplEnt') == $op->numero_empleado ? 'selected' : '' }}>{{ $op->nombreEmpl }}</option>
                             @endforeach
                         </select>
                         @error('CveEmplEnt')<div class="text-red-600 text-xs mt-1">{{ $message }}</div>@enderror
+                        @error('NombreEmplEnt')<div class="text-red-600 text-xs mt-1">{{ $message }}</div>@enderror
+                        <input type="hidden" name="NombreEmplEnt" id="inp-nombre-ent" value="{{ old('NombreEmplEnt') }}">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Nombre <span class="text-red-600">*</span></label>
-                        <input type="text" name="NombreEmplEnt" id="inp-nombre-ent" maxlength="150" value="{{ old('NombreEmplEnt') }}"
-                               class="w-full rounded-lg border px-3 py-2 bg-slate-50 @error('NombreEmplEnt') border-red-500 @enderror" required readonly>
-                        @error('NombreEmplEnt')<div class="text-red-600 text-xs mt-1">{{ $message }}</div>@enderror
+                        <label class="block text-sm font-medium mb-1">No. Operador <span class="text-red-600">*</span></label>
+                        <input type="text" name="CveEmplEntTxt" id="inp-cve-ent" maxlength="30" value="{{ old('CveEmplEnt') }}"
+                               class="w-full rounded-lg border px-3 py-2 bg-slate-50" required readonly>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Turno <span class="text-red-600">*</span></label>
@@ -318,6 +319,7 @@
     // Autocompletar entrega según selección y validar distinto a recibe
     const selEntrega   = qs('#sel-entrega');
     const inpNomEnt    = qs('#inp-nombre-ent');
+    const inpCveEnt    = qs('#inp-cve-ent');
     const inpTurnoEnt  = qs('#inp-turno-ent');
     selEntrega?.addEventListener('change', ()=>{
         const opt = selEntrega.options[selEntrega.selectedIndex];
@@ -333,10 +335,12 @@
             });
             selEntrega.value = '';
             inpNomEnt.value = '';
+            inpCveEnt.value = '';
             inpTurnoEnt.value = '';
             return;
         }
         inpNomEnt.value = nom;
+        inpCveEnt.value = selEntrega.value || '';
         inpTurnoEnt.value = tur;
     });
 

@@ -695,9 +695,9 @@ Route::get('/planeacion/programa-tejido/liberar-ordenes', [LiberarOrdenesControl
 Route::post('/planeacion/programa-tejido/liberar-ordenes/procesar', [LiberarOrdenesController::class, 'liberar'])->name('programa-tejido.liberar-ordenes.procesar');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/bom-sugerencias', [LiberarOrdenesController::class, 'obtenerBomYNombre'])->name('programa-tejido.liberar-ordenes.bom');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/tipo-hilo', [LiberarOrdenesController::class, 'obtenerTipoHilo'])->name('programa-tejido.liberar-ordenes.tipo-hilo');
-Route::get('/planeacion/programa-tejido/liberar-ordenes/hilo-ax-modelos', [LiberarOrdenesController::class, 'obtenerHiloAXDesdeModelos'])->name('programa-tejido.liberar-ordenes.hilo-ax-modelos');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/codigo-dibujo', [LiberarOrdenesController::class, 'obtenerCodigoDibujo'])->name('programa-tejido.liberar-ordenes.codigo-dibujo');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/opciones-hilos', [LiberarOrdenesController::class, 'obtenerOpcionesHilos'])->name('programa-tejido.liberar-ordenes.opciones-hilos');
+Route::post('/planeacion/programa-tejido/liberar-ordenes/guardar-campos', [LiberarOrdenesController::class, 'guardarCamposEditables'])->name('programa-tejido.liberar-ordenes.guardar-campos');
 
 // Ruta para reimpresión de órdenes (recibe ID de CatCodificados)
 Route::get('/planeacion/programa-tejido/reimprimir-ordenes/{id}', [ReimprimirOrdenesController::class, 'reimprimir'])->name('planeacion.programa-tejido.reimprimir-ordenes');

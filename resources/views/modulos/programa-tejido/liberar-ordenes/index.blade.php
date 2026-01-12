@@ -99,14 +99,17 @@
                 $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
                 $value = htmlspecialchars((string) ($registro->BomId ?? ''), ENT_QUOTES, 'UTF-8');
 
-                return '<input type="text"
-                              id="bom-id-input-' . $rowId . '"
-                              class="bom-id-input w-full min-w-[640px] px-2 py-1 text-sm border border-gray-300 rounded"
-                            value="' . $value . '"
-                            data-row-id="' . $rowId . '"
-                            list="bom-id-options-' . $rowId . '"
-                            placeholder="L.Mat">'
-                    . '<datalist id="bom-id-options-' . $rowId . '"></datalist>';
+                return '<div class="relative">
+                            <input type="text"
+                                  id="bom-id-input-' . $rowId . '"
+                                  class="bom-id-input w-full min-w-[100px] px-3 py-2 text-sm border border-gray-300 rounded"
+                                value="' . $value . '"
+                                data-row-id="' . $rowId . '"
+                                list="bom-id-options-' . $rowId . '"
+                                placeholder="L.Mat">
+                            <datalist id="bom-id-options-' . $rowId . '"></datalist>
+                            <div id="bom-id-message-' . $rowId . '" class="bom-no-results-message hidden text-xs text-red-500 mt-1"></div>
+                        </div>';
             }
 
             if ($field === 'BomName') {
@@ -114,14 +117,17 @@
                 $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
                 $value = htmlspecialchars((string) ($registro->BomName ?? ''), ENT_QUOTES, 'UTF-8');
 
-                return '<input type="text"
-                              id="bom-name-input-' . $rowId . '"
-                              class="bom-name-input w-full min-w-[1040px] px-2 py-1 text-sm border border-gray-300 rounded"
-                              value="' . $value . '"
-                              data-row-id="' . $rowId . '"
-                              list="bom-name-options-' . $rowId . '"
-                              placeholder="Nombre L.Mat">'
-                     . '<datalist id="bom-name-options-' . $rowId . '"></datalist>';
+                return '<div class="relative">
+                            <input type="text"
+                                id="bom-name-input-' . $rowId . '"
+                                class="bom-name-input w-full min-w-[150px] px-3 py-2 text-sm border border-gray-300 rounded"
+                                value="' . $value . '"
+                                data-row-id="' . $rowId . '"
+                                list="bom-name-options-' . $rowId . '"
+                                placeholder="Nombre L.Mat">
+                            <datalist id="bom-name-options-' . $rowId . '"></datalist>
+                            <div id="bom-name-message-' . $rowId . '" class="bom-no-results-message hidden text-xs text-red-500 mt-1"></div>
+                        </div>';
             }
 
             // Columna INN (Programado) - Usar el valor calculado del controlador
@@ -140,6 +146,46 @@
                 $value = $registro->{$field} ?? null;
                 // Inicialmente mostrar como texto, JavaScript lo convertirá a select si es necesario
                 return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
+            }
+
+            // Campos editables: MtsRollo, PzasRollo, TotalRollos, TotalPzas, Repeticiones, SaldoMarbete, Densidad
+            $camposNumericosEditables = ['MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'Repeticiones', 'SaldoMarbete', 'Densidad'];
+            if (in_array($field, $camposNumericosEditables, true)) {
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $value = $registro->{$field} ?? null;
+                $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, $field === 'Densidad' ? 4 : 0, '.', '') : '') : '';
+
+                // Clase adicional para densidad y TotalPzas para hacerlos más anchos
+                $claseAdicional = '';
+                if ($field === 'Densidad') {
+                    $claseAdicional = 'densidad-input';
+                } elseif ($field === 'TotalPzas') {
+                    $claseAdicional = 'total-pzas-input';
+                }
+
+                return '<input type="number"
+                              step="' . ($field === 'Densidad' ? '0.0001' : '1') . '"
+                              class="editable-field ' . $claseAdicional . ' w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '"
+                              data-field="' . htmlspecialchars($field, ENT_QUOTES, 'UTF-8') . '"
+                              data-row-id="' . $rowId . '"
+                              data-original-value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '">';
+            }
+
+            // Campo CombinaTrama (string editable)
+            if ($field === 'CombinaTrama') {
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $value = $registro->{$field} ?? null;
+                $valueFormatted = $value !== null ? htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') : '';
+
+                return '<input type="text"
+                              class="editable-field w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value="' . $valueFormatted . '"
+                              data-field="' . htmlspecialchars($field, ENT_QUOTES, 'UTF-8') . '"
+                              data-row-id="' . $rowId . '"
+                              data-original-value="' . $valueFormatted . '">';
             }
 
             $value = $registro->{$field} ?? null;
@@ -304,7 +350,7 @@ const redirectAfterLiberar = '{{ route('catalogos.req-programa-tejido') }}';
 const tipoHiloUrl = '{{ route('programa-tejido.liberar-ordenes.tipo-hilo') }}';
 const bomAutocompleteUrl = '{{ route('programa-tejido.liberar-ordenes.bom') }}';
 const codigoDibujoUrl = '{{ route('programa-tejido.liberar-ordenes.codigo-dibujo') }}';
-const hiloAXModelosUrl = '{{ route('programa-tejido.liberar-ordenes.hilo-ax-modelos') }}';
+const guardarCamposEditablesUrl = '{{ route('programa-tejido.liberar-ordenes.guardar-campos') }}';
 
 // Variables globales para columnas
 // Columnas fijadas por defecto: Maq (índice 2), Hilo (índice 6), Producto (índice 9)
@@ -359,6 +405,54 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePinnedColumnsPositions();
     });
 
+    // Event listeners para campos editables
+    // IMPORTANTE: Ningún campo se guarda automáticamente, solo se guardan al presionar "Liberar"
+    const editableFields = document.querySelectorAll('.editable-field');
+    editableFields.forEach(field => {
+        const fieldName = field.getAttribute('data-field');
+
+        // Event listeners para TotalRollos - calcular TotalPzas automáticamente (sin guardar)
+        if (fieldName === 'TotalRollos') {
+            field.addEventListener('input', function() {
+                calcularTotalPzas(this);
+            });
+            field.addEventListener('blur', function() {
+                calcularTotalPzas(this);
+                // No guardar automáticamente
+            });
+        }
+        // PzasRollo - calcular TotalPzas automáticamente (sin guardar)
+        else if (fieldName === 'PzasRollo') {
+            field.addEventListener('input', function() {
+                calcularTotalPzas(this);
+            });
+            field.addEventListener('blur', function() {
+                calcularTotalPzas(this);
+                // No guardar automáticamente
+            });
+        }
+        // Event listeners para Densidad y Repeticiones - calcular uno cuando cambia el otro (sin guardar)
+        else if (fieldName === 'Densidad') {
+            field.addEventListener('input', function() {
+                calcularRepeticionesDesdeDensidad(this);
+            });
+            field.addEventListener('blur', function() {
+                calcularRepeticionesDesdeDensidad(this);
+                // No guardar automáticamente
+            });
+        }
+        else if (fieldName === 'Repeticiones') {
+            field.addEventListener('input', function() {
+                calcularDensidadDesdeRepeticiones(this);
+            });
+            field.addEventListener('blur', function() {
+                calcularDensidadDesdeRepeticiones(this);
+                // No guardar automáticamente
+            });
+        }
+        // Los demás campos no tienen cálculos automáticos ni guardado automático
+    });
+
     // Rellenar automáticamente el campo Hilo AX al cargar
     autoFillAllHiloAX();
 
@@ -375,33 +469,19 @@ document.addEventListener('DOMContentLoaded', function() {
 function autoFillAllHiloAX() {
     const rows = document.querySelectorAll('.row-data');
 
-    const combinations = [];
-    const rowsByKey = new Map();
     const itemIdsSet = new Set();
     const rowsByItemId = new Map();
 
     rows.forEach((row) => {
         const itemIdCell = row.querySelector('[data-column="ItemId"]');
-        const inventSizeIdCell = row.querySelector('[data-column="InventSizeId"]');
         const hiloAXCell = row.querySelector('[data-column="HiloAX"]');
 
-        if (!itemIdCell || !inventSizeIdCell || !hiloAXCell) return;
+        if (!itemIdCell || !hiloAXCell) return;
 
         const itemId = (itemIdCell.textContent || '').trim();
-        const inventSizeId = (inventSizeIdCell.textContent || '').trim();
         const currentHiloAX = (hiloAXCell.textContent || '').trim();
 
-        if (!currentHiloAX && itemId && inventSizeId) {
-            const cacheKey = `${itemId}|${inventSizeId}`;
-
-            if (!rowsByKey.has(cacheKey)) {
-                rowsByKey.set(cacheKey, []);
-                combinations.push(`${itemId}:${inventSizeId}`);
-            }
-            rowsByKey.get(cacheKey).push(row);
-        }
-
-        // También preparar para consulta a INVENTTABLE si no se encuentra en ReqModelosCodificados
+        // Solo procesar si no tiene valor y tiene itemId
         if (!currentHiloAX && itemId) {
             itemIdsSet.add(itemId);
             if (!rowsByItemId.has(itemId)) {
@@ -411,68 +491,31 @@ function autoFillAllHiloAX() {
         }
     });
 
-    if (combinations.length === 0) {
+    if (itemIdsSet.size === 0) {
         return;
     }
 
-    // PRIMERO: Intentar obtener desde ReqModelosCodificados
-    const urlModelos = `${hiloAXModelosUrl}?combinations=${encodeURIComponent(combinations.join(','))}`;
+    // Consultar INVENTTABLE para obtener TwTipoHiloId (TipoHilo)
+    const itemIdsArray = Array.from(itemIdsSet);
+    const urlInvent = `${tipoHiloUrl}?itemIds=${encodeURIComponent(itemIdsArray.join(','))}`;
 
-    fetch(urlModelos, { headers: { 'Accept': 'application/json' } })
+    fetch(urlInvent, { headers: { 'Accept': 'application/json' } })
         .then(res => res.json())
         .then(payload => {
-            const encontradosEnModelos = new Set();
+            if (!payload || !payload.success || !payload.data) {
+                return;
+            }
 
-            if (payload && payload.success && payload.data) {
-                const data = payload.data || {};
-
-                Object.keys(data).forEach(cacheKey => {
-                    const hiloAX = data[cacheKey];
-                    const rows = rowsByKey.get(cacheKey) || [];
-
+            const data = payload.data;
+            itemIdsArray.forEach(itemId => {
+                if (data[itemId]) {
+                    const rows = rowsByItemId.get(itemId) || [];
                     rows.forEach(row => {
-                        encontradosEnModelos.add(row);
-                        const hiloAXCell = row.querySelector('[data-column="HiloAX"]');
-
-                        if (hiloAXCell && hiloAX && hiloAX.trim() !== '') {
-                            // Convertir a select y rellenar
-                            convertirHiloAXaSelect(row, hiloAX);
-                        }
+                        // Convertir a select y rellenar con el valor de INVENTTABLE
+                        convertirHiloAXaSelect(row, data[itemId]);
                     });
-                });
-            }
-
-            // SEGUNDO: Para los que NO se encontraron en ReqModelosCodificados, buscar en INVENTTABLE
-            const rowsNoEncontradas = [];
-            rowsByItemId.forEach((rows, itemId) => {
-                rows.forEach(row => {
-                    if (!encontradosEnModelos.has(row)) {
-                        rowsNoEncontradas.push({ row, itemId });
-                    }
-                });
+                }
             });
-
-            if (rowsNoEncontradas.length > 0) {
-                const itemIdsArray = Array.from(new Set(rowsNoEncontradas.map(r => r.itemId)));
-                const urlInvent = `${tipoHiloUrl}?itemIds=${encodeURIComponent(itemIdsArray.join(','))}`;
-
-                fetch(urlInvent, { headers: { 'Accept': 'application/json' } })
-                    .then(res => res.json())
-                    .then(payload => {
-                        if (!payload || !payload.success || !payload.data) {
-                            return;
-                        }
-
-                        const data = payload.data;
-                        rowsNoEncontradas.forEach(({ row, itemId }) => {
-                            if (data[itemId]) {
-                                // Convertir a select y rellenar con el valor de INVENTTABLE
-                                convertirHiloAXaSelect(row, data[itemId]);
-                            }
-                        });
-                    })
-                    .catch(() => {});
-            }
         })
         .catch(() => {});
 }
@@ -677,6 +720,11 @@ function setupBomAutocomplete() {
         const debouncedFetch = debounce(async (sourceInput) => {
             const term = (sourceInput.value || '').trim();
             if (!term) {
+                // Si el término está vacío, ocultar mensajes
+                const bomIdMessage = document.getElementById(`bom-id-message-${rowId}`);
+                const bomNameMessage = document.getElementById(`bom-name-message-${rowId}`);
+                if (bomIdMessage) bomIdMessage.classList.add('hidden');
+                if (bomNameMessage) bomNameMessage.classList.add('hidden');
                 return;
             }
 
@@ -730,25 +778,51 @@ async function fetchBomOptions(itemId, inventSizeId, term, allowFallback) {
 function updateBomDatalists(rowId, options) {
     const bomIdList = document.getElementById(`bom-id-options-${rowId}`);
     const bomNameList = document.getElementById(`bom-name-options-${rowId}`);
+    const bomIdMessage = document.getElementById(`bom-id-message-${rowId}`);
+    const bomNameMessage = document.getElementById(`bom-name-message-${rowId}`);
 
     if (bomIdList) {
         bomIdList.innerHTML = '';
-        options.forEach(option => {
-            const opt = document.createElement('option');
-            opt.value = option.bomId || '';
-            opt.label = option.bomName || '';
-            bomIdList.appendChild(opt);
-        });
+        if (options.length === 0) {
+            // Mostrar mensaje "sin resultados" debajo del input
+            if (bomIdMessage) {
+                bomIdMessage.textContent = 'sin resultados';
+                bomIdMessage.classList.remove('hidden');
+            }
+        } else {
+            // Ocultar mensaje si hay resultados
+            if (bomIdMessage) {
+                bomIdMessage.classList.add('hidden');
+            }
+            options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option.bomId || '';
+                opt.label = option.bomName || '';
+                bomIdList.appendChild(opt);
+            });
+        }
     }
 
     if (bomNameList) {
         bomNameList.innerHTML = '';
-        options.forEach(option => {
-            const opt = document.createElement('option');
-            opt.value = option.bomName || '';
-            opt.label = option.bomId || '';
-            bomNameList.appendChild(opt);
-        });
+        if (options.length === 0) {
+            // Mostrar mensaje "sin resultados" debajo del input
+            if (bomNameMessage) {
+                bomNameMessage.textContent = 'sin resultados';
+                bomNameMessage.classList.remove('hidden');
+            }
+        } else {
+            // Ocultar mensaje si hay resultados
+            if (bomNameMessage) {
+                bomNameMessage.classList.add('hidden');
+            }
+            options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option.bomName || '';
+                opt.label = option.bomId || '';
+                bomNameList.appendChild(opt);
+            });
+        }
     }
 }
 
@@ -1282,6 +1356,7 @@ function obtenerRegistrosSeleccionados() {
             totalPzas: getNumericValue('TotalPzas'),
             repeticiones: getNumericValue('Repeticiones'),
             saldoMarbete: getNumericValue('SaldoMarbete'),
+            densidad: getNumericValue('Densidad'),
             combinaTram: getCellValue('CombinaTrama')
         };
     });
@@ -1374,6 +1449,216 @@ function liberarOrdenes() {
 }
 
 // Los checkboxes no cambian el estilo visual de las filas
+
+// Función para guardar un campo editable
+function guardarCampoEditable(input) {
+    const rowId = input.getAttribute('data-row-id');
+    const field = input.getAttribute('data-field');
+    const originalValue = input.getAttribute('data-original-value');
+    const newValue = input.value.trim();
+
+    // Si el valor no cambió, no hacer nada
+    if (newValue === originalValue) {
+        return;
+    }
+
+    // Validar que rowId existe
+    if (!rowId) {
+        console.error('No se encontró el ID del registro');
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    // Preparar el valor según el tipo de campo
+    let valueToSend = newValue;
+    if (field !== 'CombinaTrama') {
+        // Campos numéricos
+        if (newValue === '') {
+            valueToSend = null;
+        } else {
+            const numValue = parseFloat(newValue);
+            if (isNaN(numValue)) {
+                // Si no es un número válido, restaurar el valor original
+                input.value = originalValue;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Valor inválido',
+                    text: 'Por favor ingresa un número válido.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                return;
+            }
+            valueToSend = numValue;
+        }
+    }
+
+    // Mostrar indicador de guardado
+    input.style.borderColor = '#fbbf24'; // Amarillo mientras guarda
+    input.disabled = true;
+
+    fetch(guardarCamposEditablesUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+        },
+        body: JSON.stringify({
+            id: parseInt(rowId),
+            field: field,
+            value: valueToSend
+        }),
+    })
+    .then(async response => {
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Error al guardar el campo.');
+        }
+        return data;
+    })
+    .then(data => {
+        // Actualizar el valor original guardado
+        input.setAttribute('data-original-value', newValue);
+        input.style.borderColor = '#10b981'; // Verde cuando se guarda correctamente
+        setTimeout(() => {
+            input.style.borderColor = '#d1d5db'; // Volver al color normal
+        }, 1000);
+    })
+    .catch(error => {
+        console.error('Error al guardar:', error);
+        // Restaurar el valor original en caso de error
+        input.value = originalValue;
+        input.style.borderColor = '#ef4444'; // Rojo en caso de error
+        Swal.fire({
+            icon: 'error',
+            title: 'Error al guardar',
+            text: error.message || 'No se pudo guardar el cambio.',
+            timer: 3000,
+            showConfirmButton: false
+        });
+        setTimeout(() => {
+            input.style.borderColor = '#d1d5db'; // Volver al color normal
+        }, 2000);
+    })
+    .finally(() => {
+        input.disabled = false;
+    });
+}
+
+// Función para calcular TotalPzas automáticamente cuando cambian TotalRollos o PzasRollo
+function calcularTotalPzas(changedInput) {
+    const rowId = changedInput.getAttribute('data-row-id');
+    if (!rowId) return;
+
+    // Buscar la fila que contiene este input
+    const row = changedInput.closest('.row-data');
+    if (!row) return;
+
+    // Obtener los valores de TotalRollos y PzasRollo de la misma fila
+    const totalRollosInput = row.querySelector('input[data-field="TotalRollos"]');
+    const pzasRolloInput = row.querySelector('input[data-field="PzasRollo"]');
+    const totalPzasInput = row.querySelector('input[data-field="TotalPzas"]');
+
+    if (!totalRollosInput || !pzasRolloInput || !totalPzasInput) return;
+
+    const totalRollos = parseFloat(totalRollosInput.value) || 0;
+    const pzasRollo = parseFloat(pzasRolloInput.value) || 0;
+
+    // Calcular TotalPzas = TotalRollos * PzasRollo
+    const totalPzas = totalRollos * pzasRollo;
+
+    // Actualizar el valor de TotalPzas
+    if (totalPzas > 0) {
+        const newTotalPzas = Math.round(totalPzas);
+        const oldValue = totalPzasInput.getAttribute('data-original-value') || '';
+
+        totalPzasInput.value = newTotalPzas;
+        // Actualizar el valor original guardado (pero NO guardar en BD hasta que se presione "Liberar")
+        totalPzasInput.setAttribute('data-original-value', newTotalPzas.toString());
+    } else {
+        totalPzasInput.value = '';
+        totalPzasInput.setAttribute('data-original-value', '');
+    }
+}
+
+// Función para calcular Repeticiones cuando cambia Densidad
+function calcularRepeticionesDesdeDensidad(changedInput) {
+    const row = changedInput.closest('.row-data');
+    if (!row) return;
+
+    const densidadInput = row.querySelector('input[data-field="Densidad"]');
+    const repeticionesInput = row.querySelector('input[data-field="Repeticiones"]');
+
+    if (!densidadInput || !repeticionesInput) return;
+
+    const densidad = parseFloat(densidadInput.value) || 0;
+    if (densidad <= 0) return;
+
+    // Obtener valores necesarios de la tabla
+    const anchoCell = row.querySelector('[data-column="Ancho"]');
+    const largoCrudoCell = row.querySelector('[data-column="LargoCrudo"]');
+    const noTirasCell = row.querySelector('[data-column="NoTiras"]');
+
+    // Si no están disponibles en la tabla, no podemos calcular
+    if (!anchoCell || !largoCrudoCell || !noTirasCell) return;
+
+    const ancho = parseFloat(anchoCell.textContent.replace(/,/g, '')) || 0;
+    const largoText = largoCrudoCell.textContent.trim();
+    const largo = parseFloat(largoText.replace(/[^\d.]/g, '')) || 0;
+    const noTiras = parseFloat(noTirasCell.textContent.replace(/,/g, '')) || 0;
+
+    if (ancho <= 0 || largo <= 0 || noTiras <= 0) return;
+
+    // Calcular PesoCrudo desde Densidad: PesoCrudo = Densidad * ((ancho * largo) / 10)
+    const pesoCrudo = densidad * ((ancho * largo) / 10);
+
+    // Para calcular Repeticiones necesitamos pesoRollo que no está en la tabla
+    // Por ahora, no podemos calcular Repeticiones desde Densidad sin pesoRollo
+    // El backend lo calculará cuando se liberen las órdenes
+}
+
+// Función para calcular Densidad cuando cambia Repeticiones
+function calcularDensidadDesdeRepeticiones(changedInput) {
+    const row = changedInput.closest('.row-data');
+    if (!row) return;
+
+    const repeticionesInput = row.querySelector('input[data-field="Repeticiones"]');
+    const densidadInput = row.querySelector('input[data-field="Densidad"]');
+
+    if (!repeticionesInput || !densidadInput) return;
+
+    const repeticiones = parseFloat(repeticionesInput.value) || 0;
+    if (repeticiones <= 0) return;
+
+    // Obtener valores necesarios de la tabla
+    const anchoCell = row.querySelector('[data-column="Ancho"]');
+    const largoCrudoCell = row.querySelector('[data-column="LargoCrudo"]');
+    const pesoCrudoCell = row.querySelector('[data-column="PesoCrudo"]');
+
+    // Si no están disponibles en la tabla, no podemos calcular
+    if (!anchoCell || !largoCrudoCell || !pesoCrudoCell) return;
+
+    const ancho = parseFloat(anchoCell.textContent.replace(/,/g, '')) || 0;
+    const largoText = largoCrudoCell.textContent.trim();
+    const largo = parseFloat(largoText.replace(/[^\d.]/g, '')) || 0;
+    const pesoCrudo = parseFloat(pesoCrudoCell.textContent.replace(/,/g, '')) || 0;
+
+    if (ancho <= 0 || largo <= 0 || pesoCrudo <= 0) return;
+
+    // Calcular Densidad: densidad = peso_crudo / ((ancho * largo) / 10)
+    const denominador = (ancho * largo) / 10;
+    if (denominador > 0) {
+        const densidad = pesoCrudo / denominador;
+        const newDensidad = Math.round(densidad * 10000) / 10000; // 4 decimales
+        const oldValue = densidadInput.getAttribute('data-original-value') || '';
+
+        densidadInput.value = newDensidad;
+        // Actualizar el valor original guardado (pero NO guardar en BD hasta que se presione "Liberar")
+        densidadInput.setAttribute('data-original-value', newDensidad.toString());
+    }
+}
 </script>
 
 <style>
@@ -1454,6 +1739,29 @@ td[data-column="HiloAX"] {
 th[data-field="HiloAX"] {
     min-width: 220px !important;
     width: 220px !important;
+}
+
+/* Estilos para los inputs de L.Mat */
+.bom-id-input {
+    min-width: 100px !important;
+    width: 100% !important;
+}
+
+.bom-name-input {
+    min-width: 150px !important;
+    width: 100% !important;
+}
+
+/* Estilos para el input de densidad */
+.densidad-input {
+    min-width: 150px !important;
+    width: 100% !important;
+}
+
+/* Estilos para el input de Total Pzas - más ancho para 5 dígitos */
+.total-pzas-input {
+    min-width: 80px !important;
+    width: 100% !important;
 }
 </style>
 @endsection
