@@ -21,7 +21,8 @@ class SYSUsuario extends Model
         'correo',
         'contrasenia',
         'enviarMensaje',
-        'foto'
+        'foto',
+        'puesto'
     ];
 
     protected $casts = [
