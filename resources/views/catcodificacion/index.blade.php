@@ -934,9 +934,9 @@
                     return;
                 }
 
-                // Verificar que tenga CreaProd = 1
-                const creaProd = registroSeleccionado.CreaProd;
-                const puedeReimprimir = creaProd === 1 || creaProd === true || creaProd === '1' || creaProd === 'true';
+                // Verificar que tenga UsuarioCrea (indica que el registro fue creado)
+                const usuarioCrea = registroSeleccionado.UsuarioCrea;
+                const puedeReimprimir = usuarioCrea !== null && usuarioCrea !== undefined && usuarioCrea !== '';
 
                 btnReimprimir.disabled = !puedeReimprimir || !registroSeleccionado.Id;
             }
@@ -956,12 +956,12 @@
                     return;
                 }
 
-                // Verificar que tenga CreaProd = 1
-                const creaProd = registroSeleccionado.CreaProd;
-                const puedeReimprimir = creaProd === 1 || creaProd === true || creaProd === '1' || creaProd === 'true';
+                // Verificar que tenga UsuarioCrea (indica que el registro fue creado)
+                const usuarioCrea = registroSeleccionado.UsuarioCrea;
+                const puedeReimprimir = usuarioCrea !== null && usuarioCrea !== undefined && usuarioCrea !== '';
 
                 if (!puedeReimprimir) {
-                    showToast('Este registro no puede ser reimpreso porque CreaProd no está activado', 'warning');
+                    showToast('Este registro no puede ser reimpreso porque no tiene un usuario de creación asignado', 'warning');
                     return;
                 }
 

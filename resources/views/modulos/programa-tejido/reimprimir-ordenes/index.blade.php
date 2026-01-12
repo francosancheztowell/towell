@@ -116,7 +116,7 @@
     // Buscar órdenes
     async function buscarOrdenes() {
         const busqueda = elementos.buscarInput.value.trim();
-        
+
         if (!busqueda) {
             elementos.listaOrdenes.innerHTML = `
                 <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">

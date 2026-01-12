@@ -35,6 +35,46 @@ class ProgramarEngomadoController extends Controller
     }
 
     /**
+     * Mostrar ordenes finalizadas para reimpresion
+     */
+    public function reimpresionFinalizadas(Request $request)
+    {
+        $busqueda = trim((string) $request->query('q', ''));
+
+        $query = EngProgramaEngomado::select([
+            'Id',
+            'Folio',
+            'RizoPie',
+            'Cuenta',
+            'Calibre',
+            'Metros',
+            'MaquinaEng',
+            'FechaProg',
+            'Status',
+        ])
+        ->where('Status', 'Finalizado');
+
+        if ($busqueda !== '') {
+            $query->where(function ($sub) use ($busqueda) {
+                $sub->where('Folio', 'like', "%{$busqueda}%")
+                    ->orWhere('Cuenta', 'like', "%{$busqueda}%")
+                    ->orWhere('MaquinaEng', 'like', "%{$busqueda}%");
+            });
+        }
+
+        $ordenes = $query
+            ->orderBy('FechaProg', 'desc')
+            ->orderBy('Id', 'desc')
+            ->limit(200)
+            ->get();
+
+        return view('modulos.engomado.reimpresion-engomado', [
+            'ordenes' => $ordenes,
+            'busqueda' => $busqueda,
+        ]);
+    }
+
+    /**
      * Extraer número de tabla del campo MaquinaEng
      * Busca patrones como "WestPoint 2", "West Point 2", "Tabla 1", "Izquierda", "Derecha", "1", "2", etc.
      *

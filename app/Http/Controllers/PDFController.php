@@ -44,6 +44,13 @@ class PDFController extends Controller
                 ], 404);
             }
 
+            if (strtolower($tipo) === 'engomado' && ($orden->Status ?? '') !== 'Finalizado') {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'Solo se pueden reimprimir ordenes con status Finalizado.',
+                ], 422);
+            }
+
             // 2) Si es urdido, obtener también los datos de engomado para el footer
             $ordenEngomado = null;
             if (strtolower($tipo) === 'urdido' && $orden->Folio) {
@@ -63,7 +70,11 @@ class PDFController extends Controller
             $logoBase64 = $this->cargarLogoBase64();
 
             // 6) Renderizar vista Blade a HTML
-            $html = view('pdf.orden-urdido-engomado', [
+            $vistaPdf = strtolower($tipo) === 'engomado'
+                ? 'pdf.engomadopdf'
+                : 'pdf.orden-urdido-engomado';
+
+            $html = view($vistaPdf, [
                 'orden'              => $orden,
                 'ordenEngomado'      => $ordenEngomado, // Datos de engomado para urdido
                 'registrosProduccion'=> $registrosProduccion,

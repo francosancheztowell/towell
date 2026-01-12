@@ -15,7 +15,7 @@ class ReimprimirOrdenesController extends Controller
 {
     /**
      * Reimprime una orden específica por ID de CatCodificados
-     * Solo reimprime si el registro tiene CreaProd = 1
+     * Solo reimprime si el registro tiene UsuarioCrea (indica que fue creado)
      */
     public function reimprimir($id)
     {
@@ -30,11 +30,11 @@ class ReimprimirOrdenesController extends Controller
                 ], 404);
             }
 
-            // Verificar que tenga CreaProd = 1
-            if (!$catCodificado->CreaProd || $catCodificado->CreaProd != 1) {
+            // Verificar que tenga UsuarioCrea (indica que el registro fue creado)
+            if (empty($catCodificado->UsuarioCrea) || $catCodificado->UsuarioCrea === null) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Este registro no puede ser reimpreso porque CreaProd no está activado.',
+                    'message' => 'Este registro no puede ser reimpreso porque no tiene un usuario de creación asignado.',
                 ], 403);
             }
 

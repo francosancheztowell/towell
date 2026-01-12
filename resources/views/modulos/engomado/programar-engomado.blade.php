@@ -22,6 +22,15 @@
             text="Editar Prioridad"
             bg="bg-purple-600"
         />
+        <x-navbar.button-create
+            onclick="window.location.href='{{ route('engomado.reimpresion.finalizadas') }}'"
+            title="Reimpresion"
+            icon="fa-print"
+            iconColor="text-white"
+            hoverBg="hover:bg-green-600"
+            text="Reimpresion"
+            bg="bg-green-500"
+        />
     </div>
 @endsection
 
@@ -222,7 +231,7 @@
                 const baseClasses = isSelected
                     ? 'w-full h-9 px-2 border-0 bg-blue-500 text-white flex items-center'
                     : 'w-full h-9 px-2 border-0 bg-transparent text-gray-900 flex items-center';
-                
+
                 return `
                     <div class="${baseClasses}">
                         ${statusActual || '-'}

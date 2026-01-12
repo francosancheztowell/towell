@@ -958,6 +958,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
     // Módulo Engomado
     Route::prefix('engomado')->name('engomado.')->group(function () {
         Route::get('/programar-engomado', [ProgramarEngomadoController::class, 'index'])->name('programar.engomado');
+        Route::get('/reimpresion-engomado', [ProgramarEngomadoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');
         Route::get('/programar-engomado/ordenes', [ProgramarEngomadoController::class, 'getOrdenes'])->name('programar.engomado.ordenes');
         Route::get('/programar-engomado/verificar-en-proceso', [ProgramarEngomadoController::class, 'verificarOrdenEnProceso'])->name('programar.engomado.verificar.en.proceso');
         Route::post('/programar-engomado/intercambiar-prioridad', [ProgramarEngomadoController::class, 'intercambiarPrioridad'])->name('programar.engomado.intercambiar.prioridad');
