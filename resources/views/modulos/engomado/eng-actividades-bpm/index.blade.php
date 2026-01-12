@@ -9,7 +9,7 @@ Actividades BPM Engomado
     <div class="flex items-center gap-2">
 
         <!-- Botón Agregar -->
-        <button onclick="openModal('createModal')" class="p-2 rounded-lg transition hover:bg-green-100" title="Nueva Actividad">
+        <button type="button" onclick="openActividadModal('createModal')" class="p-2 rounded-lg transition hover:bg-green-100" title="Nueva Actividad">
             <i class="fa-solid fa-plus text-green-600 text-lg"></i>
         </button>
 
@@ -149,7 +149,7 @@ Actividades BPM Engomado
                 <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
                     <button 
                         type="button" 
-                        onclick="closeModal('createModal')" 
+                        onclick="closeActividadModal('createModal')" 
                         class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
                         <i class="fa-solid fa-times mr-1"></i> Cancelar
                     </button>
@@ -208,7 +208,7 @@ Actividades BPM Engomado
                 <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
                     <button 
                         type="button" 
-                        onclick="closeModal('editModal')" 
+                        onclick="closeActividadModal('editModal')" 
                         class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
                         <i class="fa-solid fa-times mr-1"></i> Cancelar
                     </button>
@@ -328,13 +328,13 @@ Actividades BPM Engomado
     }
 
     // Abrir modal
-    function openModal(modalId) {
+    function openActividadModal(modalId) {
         document.getElementById(modalId).classList.remove('hidden');
         document.body.style.overflow = 'hidden';
     }
 
     // Cerrar modal
-    function closeModal(modalId) {
+    function closeActividadModal(modalId) {
         document.getElementById(modalId).classList.add('hidden');
         document.body.style.overflow = 'auto';
     }
@@ -344,7 +344,7 @@ Actividades BPM Engomado
         document.getElementById('editOrden').value = orden || '';
         document.getElementById('editActividad').value = actividad || '';
         document.getElementById('editForm').action = updateUrl.replace('PLACEHOLDER', encodeURIComponent(key));
-        openModal('editModal');
+        openActividadModal('editModal');
     }
 
     // Abrir modal de edición directamente (desde botón de fila)
@@ -380,15 +380,15 @@ Actividades BPM Engomado
     // Cerrar modal al hacer clic fuera
     window.onclick = function(event) {
         if (event.target.id === 'createModal' || event.target.id === 'editModal') {
-            closeModal(event.target.id);
+            closeActividadModal(event.target.id);
         }
     }
 
     // Cerrar modal con tecla ESC
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
-            closeModal('createModal');
-            closeModal('editModal');
+            closeActividadModal('createModal');
+            closeActividadModal('editModal');
         }
     });
 

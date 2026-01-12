@@ -933,7 +933,13 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
 
         // Catálogos de Urdido
         Route::get('/catalogos-julios', [CatalogosUrdidoController::class, 'catalogosJulios'])->name('catalogos.julios');
+        Route::post('/catalogos-julios', [CatalogosUrdidoController::class, 'storeJulio'])->name('catalogos.julios.store');
+        Route::put('/catalogos-julios/{id}', [CatalogosUrdidoController::class, 'updateJulio'])->name('catalogos.julios.update');
+        Route::delete('/catalogos-julios/{id}', [CatalogosUrdidoController::class, 'destroyJulio'])->name('catalogos.julios.destroy');
         Route::get('/catalogo-maquinas', [CatalogosUrdidoController::class, 'catalogoMaquinas'])->name('catalogo.maquinas');
+        Route::post('/catalogo-maquinas', [CatalogosUrdidoController::class, 'storeMaquina'])->name('catalogo.maquinas.store');
+        Route::put('/catalogo-maquinas/{maquinaId}', [CatalogosUrdidoController::class, 'updateMaquina'])->name('catalogo.maquinas.update');
+        Route::delete('/catalogo-maquinas/{maquinaId}', [CatalogosUrdidoController::class, 'destroyMaquina'])->name('catalogo.maquinas.destroy');
         Route::get('/modulo-produccion-urdido', [ModuloProduccionUrdidoController::class, 'index'])->name('modulo.produccion.urdido');
         Route::get('/modulo-produccion-urdido/catalogos-julios', [ModuloProduccionUrdidoController::class, 'getCatalogosJulios'])->name('modulo.produccion.urdido.catalogos.julios');
         Route::get('/modulo-produccion-urdido/hilos-by-julio', [ModuloProduccionUrdidoController::class, 'getHilosByJulio'])->name('modulo.produccion.urdido.hilos.by.julio');
