@@ -391,8 +391,8 @@ class ModuloService
             // Tejedores » Configurar
             'Telares x Operador' => '/tel-telares-operador',
             'Catalogo Desarrolladores' => 'catalogo-desarrolladores',
-            'ActividadesBPM' => '/tel-actividades-bpm',
-            'Actividades BPM' => '/tel-actividades-bpm',
+            'Actividades Tejedores' => '/tel-actividades-bpm',
+            // 'Actividades BPM' => '/tel-actividades-bpm',
 
             // Módulos de Urdido
             'Programa Urdido' => '/urdido/programar-urdido',

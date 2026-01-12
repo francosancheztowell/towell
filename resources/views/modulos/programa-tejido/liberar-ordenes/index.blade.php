@@ -30,6 +30,9 @@
 <div class="w-full" style="height: calc(100vh - 70px); display: flex; flex-direction: column;">
     <div class="bg-white shadow overflow-hidden w-full h-full rounded-lg flex flex-col" style="flex: 1; min-height: 0;">
         @php
+        // Opciones de hilos para el select (pasadas desde el controlador)
+        $hilosOptions = $hilosOptions ?? [];
+
         // Columnas según la lista del usuario
         $columns = [
             ['field' => 'select', 'label' => 'Seleccionar'],
@@ -42,16 +45,13 @@
             ['field' => 'CalibrePie2', 'label' => 'Calibre Pie'],
             ['field' => 'ItemId', 'label' => 'Clave AX'],
             ['field' => 'NombreProducto', 'label' => 'Producto'],
+            ['field' => 'CodigoDibujo', 'label' => 'Codigo Dibujo'],
             ['field' => 'InventSizeId', 'label' => 'Tamaño AX'],
             ['field' => 'TotalPedido', 'label' => 'Pedido'],
-            ['field' => 'NoProduccion', 'label' => 'Producción'],
-            ['field' => 'SaldoPedido', 'label' => 'Saldos'],
             ['field' => 'ProgramarProd', 'label' => 'Day Shedulling'],
-            ['field' => 'NoProduccion', 'label' => 'Orden Prod'],
             ['field' => 'Programado', 'label' => 'INN'],
             ['field' => 'NombreProyecto', 'label' => 'Descripción'],
             ['field' => 'AplicacionId', 'label' => 'Aplic'],
-            ['field' => 'Observaciones', 'label' => 'Obs'],
             ['field' => 'TipoPedido', 'label' => 'Tipo Ped'],
             ['field' => 'FechaInicio', 'label' => 'Inicio'],
             ['field' => 'FechaFinal', 'label' => 'Fin'],
@@ -72,7 +72,7 @@
             ['field' => 'HiloAX', 'label' => 'Hilo AX'],
         ];
 
-        $formatValue = function($registro, $field) {
+        $formatValue = function($registro, $field) use ($hilosOptions) {
             if ($field === 'select') {
                 $checked = 'checked'; // Todos marcados por defecto
                 return '<input type="checkbox" class="row-checkbox w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 mx-auto block" data-id="' . ($registro->Id ?? '') . '" ' . $checked . '>';
@@ -135,6 +135,13 @@
                 return '';
             }
 
+            // Campo HiloAX - inicialmente como texto, se convertirá a select si hay CodigoDibujo
+            if ($field === 'HiloAX') {
+                $value = $registro->{$field} ?? null;
+                // Inicialmente mostrar como texto, JavaScript lo convertirá a select si es necesario
+                return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
+            }
+
             $value = $registro->{$field} ?? null;
             if ($value === null || $value === '') return '';
 
@@ -149,15 +156,21 @@
                 $valorFloat = (float)$value;
                 $parteEntera = (int)$valorFloat;
                 $parteDecimal = abs($valorFloat - $parteEntera);
+                $valorFormateado = '';
                 if ($parteDecimal > 0.50) {
                     if ($valorFloat >= 0) {
-                        return (string)(int)ceil($valorFloat);
+                        $valorFormateado = (string)(int)ceil($valorFloat);
                     } else {
-                        return (string)(int)floor($valorFloat);
+                        $valorFormateado = (string)(int)floor($valorFloat);
                     }
                 } else {
-                    return (string)$parteEntera;
+                    $valorFormateado = (string)$parteEntera;
                 }
+                // Si es negativo, aplicar clase CSS para mostrarlo en rojo
+                if ($valorFloat < 0) {
+                    return '<span class="valor-negativo">' . htmlspecialchars($valorFormateado, ENT_QUOTES, 'UTF-8') . '</span>';
+                }
+                return $valorFormateado;
             }
 
             // Formato de fechas (día-mes-año abreviado)
@@ -241,7 +254,7 @@
                             <tr>
                                 @foreach($columns as $index => $col)
                                 <th class="px-2 py-2 text-left text-sm font-semibold text-white whitespace-nowrap column-{{ $index }}"
-                                    style="position: sticky; top: 0; background-color: #3b82f6; min-width: {{ $col['field'] === 'prioridad' ? '300px' : '80px' }}; z-index: 10;"
+                                    style="position: sticky; top: 0; background-color: #3b82f6; min-width: {{ $col['field'] === 'prioridad' ? '300px' : ($col['field'] === 'HiloAX' ? '220px' : '80px') }}; z-index: 10;"
                                     data-index="{{ $index }}"
                                     data-field="{{ $col['field'] }}">
                                     @if($col['field'] === 'select')
@@ -290,9 +303,12 @@ const liberarOrdenesUrl = '{{ route('programa-tejido.liberar-ordenes.procesar') 
 const redirectAfterLiberar = '{{ route('catalogos.req-programa-tejido') }}';
 const tipoHiloUrl = '{{ route('programa-tejido.liberar-ordenes.tipo-hilo') }}';
 const bomAutocompleteUrl = '{{ route('programa-tejido.liberar-ordenes.bom') }}';
+const codigoDibujoUrl = '{{ route('programa-tejido.liberar-ordenes.codigo-dibujo') }}';
+const hiloAXModelosUrl = '{{ route('programa-tejido.liberar-ordenes.hilo-ax-modelos') }}';
 
 // Variables globales para columnas
-let pinnedColumns = [];
+// Columnas fijadas por defecto: Maq (índice 2), Hilo (índice 6), Producto (índice 9)
+let pinnedColumns = [2, 6, 9];
 let hiddenColumns = [];
 let filtersActive = false;
 
@@ -301,7 +317,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const checkboxes = document.querySelectorAll('.row-checkbox');
     checkboxes.forEach(checkbox => {
         checkbox.checked = true;
+        // Agregar listener para actualizar el checkbox del encabezado
+        checkbox.addEventListener('change', updateSelectAllCheckbox);
     });
+
+    // Marcar el checkbox del encabezado ya que todos están seleccionados
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = true;
+    }
 
     // Rellenar automáticamente los inputs de prioridad con el valor del registro anterior
     const prioridadInputs = document.querySelectorAll('.prioridad-input');
@@ -325,14 +349,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Inicializar posiciones de columnas fijadas
-    updatePinnedColumnsPositions();
+    // Inicializar posiciones de columnas fijadas (con delay para asegurar que la tabla esté renderizada)
+    setTimeout(() => {
+        updatePinnedColumnsPositions();
+    }, 100);
+
+    // Recalcular posiciones cuando cambie el tamaño de la ventana
+    window.addEventListener('resize', () => {
+        updatePinnedColumnsPositions();
+    });
 
     // Rellenar automáticamente el campo Hilo AX al cargar
     autoFillAllHiloAX();
 
     // Rellenar automáticamente los campos L.Mat y Nombre L.Mat al cargar
     autoFillAllBomFields();
+
+    // Rellenar automáticamente el campo Codigo Dibujo al cargar
+    autoFillAllCodigoDibujo();
 
     // Habilitar autocompletado para L.Mat y Nombre L.Mat
     setupBomAutocomplete();
@@ -341,50 +375,104 @@ document.addEventListener('DOMContentLoaded', function() {
 function autoFillAllHiloAX() {
     const rows = document.querySelectorAll('.row-data');
 
+    const combinations = [];
+    const rowsByKey = new Map();
     const itemIdsSet = new Set();
-    const cellsByItemId = new Map();
+    const rowsByItemId = new Map();
 
     rows.forEach((row) => {
         const itemIdCell = row.querySelector('[data-column="ItemId"]');
+        const inventSizeIdCell = row.querySelector('[data-column="InventSizeId"]');
         const hiloAXCell = row.querySelector('[data-column="HiloAX"]');
 
-        if (!itemIdCell || !hiloAXCell) return;
+        if (!itemIdCell || !inventSizeIdCell || !hiloAXCell) return;
 
         const itemId = (itemIdCell.textContent || '').trim();
+        const inventSizeId = (inventSizeIdCell.textContent || '').trim();
         const currentHiloAX = (hiloAXCell.textContent || '').trim();
 
+        if (!currentHiloAX && itemId && inventSizeId) {
+            const cacheKey = `${itemId}|${inventSizeId}`;
+
+            if (!rowsByKey.has(cacheKey)) {
+                rowsByKey.set(cacheKey, []);
+                combinations.push(`${itemId}:${inventSizeId}`);
+            }
+            rowsByKey.get(cacheKey).push(row);
+        }
+
+        // También preparar para consulta a INVENTTABLE si no se encuentra en ReqModelosCodificados
         if (!currentHiloAX && itemId) {
             itemIdsSet.add(itemId);
-            if (!cellsByItemId.has(itemId)) {
-                cellsByItemId.set(itemId, []);
+            if (!rowsByItemId.has(itemId)) {
+                rowsByItemId.set(itemId, []);
             }
-            cellsByItemId.get(itemId).push(hiloAXCell);
+            rowsByItemId.get(itemId).push(row);
         }
     });
 
-    if (itemIdsSet.size === 0) {
+    if (combinations.length === 0) {
         return;
     }
 
-    const itemIdsArray = Array.from(itemIdsSet);
-    const url = `${tipoHiloUrl}?itemIds=${encodeURIComponent(itemIdsArray.join(','))}`;
+    // PRIMERO: Intentar obtener desde ReqModelosCodificados
+    const urlModelos = `${hiloAXModelosUrl}?combinations=${encodeURIComponent(combinations.join(','))}`;
 
-    fetch(url, { headers: { 'Accept': 'application/json' } })
+    fetch(urlModelos, { headers: { 'Accept': 'application/json' } })
         .then(res => res.json())
         .then(payload => {
-            if (!payload || !payload.success || !payload.data) {
-                return;
+            const encontradosEnModelos = new Set();
+
+            if (payload && payload.success && payload.data) {
+                const data = payload.data || {};
+
+                Object.keys(data).forEach(cacheKey => {
+                    const hiloAX = data[cacheKey];
+                    const rows = rowsByKey.get(cacheKey) || [];
+
+                    rows.forEach(row => {
+                        encontradosEnModelos.add(row);
+                        const hiloAXCell = row.querySelector('[data-column="HiloAX"]');
+
+                        if (hiloAXCell && hiloAX && hiloAX.trim() !== '') {
+                            // Convertir a select y rellenar
+                            convertirHiloAXaSelect(row, hiloAX);
+                        }
+                    });
+                });
             }
 
-            const data = payload.data;
-            itemIdsArray.forEach(itemId => {
-                if (data[itemId]) {
-                    const cells = cellsByItemId.get(itemId) || [];
-                    cells.forEach(cell => {
-                        cell.textContent = data[itemId];
-                    });
-                }
+            // SEGUNDO: Para los que NO se encontraron en ReqModelosCodificados, buscar en INVENTTABLE
+            const rowsNoEncontradas = [];
+            rowsByItemId.forEach((rows, itemId) => {
+                rows.forEach(row => {
+                    if (!encontradosEnModelos.has(row)) {
+                        rowsNoEncontradas.push({ row, itemId });
+                    }
+                });
             });
+
+            if (rowsNoEncontradas.length > 0) {
+                const itemIdsArray = Array.from(new Set(rowsNoEncontradas.map(r => r.itemId)));
+                const urlInvent = `${tipoHiloUrl}?itemIds=${encodeURIComponent(itemIdsArray.join(','))}`;
+
+                fetch(urlInvent, { headers: { 'Accept': 'application/json' } })
+                    .then(res => res.json())
+                    .then(payload => {
+                        if (!payload || !payload.success || !payload.data) {
+                            return;
+                        }
+
+                        const data = payload.data;
+                        rowsNoEncontradas.forEach(({ row, itemId }) => {
+                            if (data[itemId]) {
+                                // Convertir a select y rellenar con el valor de INVENTTABLE
+                                convertirHiloAXaSelect(row, data[itemId]);
+                            }
+                        });
+                    })
+                    .catch(() => {});
+            }
         })
         .catch(() => {});
 }
@@ -449,6 +537,121 @@ function autoFillAllBomFields() {
             });
         })
         .catch(() => {});
+}
+
+function autoFillAllCodigoDibujo() {
+    const rows = document.querySelectorAll('.row-data');
+
+    const combinations = [];
+    const cellsByKey = new Map();
+    const rowsByKey = new Map();
+
+    rows.forEach((row) => {
+        const itemIdCell = row.querySelector('[data-column="ItemId"]');
+        const inventSizeIdCell = row.querySelector('[data-column="InventSizeId"]');
+        const codigoDibujoCell = row.querySelector('[data-column="CodigoDibujo"]');
+
+        if (!itemIdCell || !inventSizeIdCell || !codigoDibujoCell) return;
+
+        const itemId = (itemIdCell.textContent || '').trim();
+        const inventSizeId = (inventSizeIdCell.textContent || '').trim();
+        const currentCodigoDibujo = (codigoDibujoCell.textContent || '').trim();
+
+        if (!currentCodigoDibujo && itemId && inventSizeId) {
+            const cacheKey = `${itemId}|${inventSizeId}`;
+
+            if (!cellsByKey.has(cacheKey)) {
+                cellsByKey.set(cacheKey, []);
+                rowsByKey.set(cacheKey, []);
+                combinations.push(`${itemId}:${inventSizeId}`);
+            }
+            cellsByKey.get(cacheKey).push(codigoDibujoCell);
+            rowsByKey.get(cacheKey).push(row);
+        }
+    });
+
+    if (combinations.length === 0) {
+        return;
+    }
+
+    // UNA SOLA petición con todas las combinaciones
+    const url = `${codigoDibujoUrl}?combinations=${encodeURIComponent(combinations.join(','))}`;
+
+    fetch(url, { headers: { 'Accept': 'application/json' } })
+        .then(res => res.json())
+        .then(payload => {
+            if (!payload || !payload.success || !payload.data) {
+                return;
+            }
+
+            const data = payload.data || {};
+
+            Object.keys(data).forEach(cacheKey => {
+                const codigoDibujo = data[cacheKey];
+                const cells = cellsByKey.get(cacheKey) || [];
+
+                cells.forEach(cell => {
+                    cell.textContent = codigoDibujo || '';
+                });
+            });
+        })
+        .catch(() => {});
+}
+
+function convertirHiloAXaSelect(row, valorHiloAX = null) {
+    const hiloAXCell = row.querySelector('[data-column="HiloAX"]');
+    if (!hiloAXCell) return;
+
+    // Verificar si ya es un select
+    if (hiloAXCell.querySelector('select')) {
+        // Si ya es select y se pasó un valor, actualizarlo
+        if (valorHiloAX !== null) {
+            const select = hiloAXCell.querySelector('select');
+            if (select) {
+                select.value = valorHiloAX;
+            }
+        }
+        return;
+    }
+
+    const currentValue = valorHiloAX !== null ? valorHiloAX : (hiloAXCell.textContent || '').trim();
+    const rowId = row.getAttribute('data-id') || '';
+    const hilosOptions = @json($hilosOptions ?? []);
+
+    let optionsHtml = '<option value="">Seleccionar...</option>';
+    if (hilosOptions && hilosOptions.length > 0) {
+        hilosOptions.forEach(hilo => {
+            const hiloValue = String(hilo || '').trim();
+            const selected = (currentValue && currentValue === hiloValue) ? 'selected' : '';
+            optionsHtml += `<option value="${hiloValue}" ${selected}>${hiloValue}</option>`;
+        });
+    }
+
+    const select = document.createElement('select');
+    select.className = 'hilo-ax-select w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
+    select.style.minWidth = '200px';
+    select.style.width = '100%';
+    select.setAttribute('data-row-id', rowId);
+    select.setAttribute('data-id', rowId);
+    select.innerHTML = optionsHtml;
+
+    hiloAXCell.innerHTML = '';
+    hiloAXCell.appendChild(select);
+
+    // Asegurar que el select tenga el valor seleccionado correctamente después de agregarlo al DOM
+    setTimeout(() => {
+        if (currentValue && currentValue.trim() !== '') {
+            select.value = currentValue.trim();
+            // Si el valor no está en las opciones, agregarlo
+            if (!Array.from(select.options).some(opt => opt.value === currentValue.trim())) {
+                const option = document.createElement('option');
+                option.value = currentValue.trim();
+                option.textContent = currentValue.trim();
+                option.selected = true;
+                select.appendChild(option);
+            }
+        }
+    }, 0);
 }
 
 const bomOptionsByRow = new Map();
@@ -587,14 +790,34 @@ function applyBomOption(row, option) {
 
 function toggleSeleccionarTodo() {
     const checkboxes = document.querySelectorAll('.row-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     if (!checkboxes.length) {
         return;
     }
 
     const todosSeleccionados = Array.from(checkboxes).every(cb => cb.checked);
+    const nuevoEstado = !todosSeleccionados;
+
     checkboxes.forEach(cb => {
-        cb.checked = !todosSeleccionados;
+        cb.checked = nuevoEstado;
     });
+
+    // Actualizar el checkbox del encabezado
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = nuevoEstado;
+    }
+}
+
+function updateSelectAllCheckbox() {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+    if (!checkboxes.length || !selectAllCheckbox) {
+        return;
+    }
+
+    const todosSeleccionados = Array.from(checkboxes).every(cb => cb.checked);
+    selectAllCheckbox.checked = todosSeleccionados;
 }
 
 
@@ -691,6 +914,10 @@ function updatePinnedColumnsPositions() {
         thead.style.zIndex = '10';
     }
 
+    // Calcular altura del thead para fijar celdas del tbody debajo del encabezado
+    const theadElement = document.querySelector('#mainTable thead');
+    const theadHeight = theadElement ? theadElement.offsetHeight : 0;
+
     // Aplicar estilos a columnas fijadas (solo las que no están ocultas)
     let left = 0;
     pinnedColumns.forEach((idx) => {
@@ -713,6 +940,7 @@ function updatePinnedColumnsPositions() {
             } else {
                 el.style.backgroundColor = '#fffbeb';
                 el.style.zIndex = '10';
+                el.style.top = theadHeight + 'px';
             }
         });
         left += width;
@@ -1014,11 +1242,22 @@ function obtenerRegistrosSeleccionados() {
         const getCellValue = (columnName) => {
             const cell = row ? row.querySelector(`[data-column="${columnName}"]`) : null;
             if (!cell) return null;
+
+            // Buscar select primero (para HiloAX)
+            const select = cell.querySelector('select');
+            if (select) {
+                const value = select.value ? select.value.trim() : '';
+                return value === '' ? null : value;
+            }
+
+            // Buscar input
             const input = cell.querySelector('input');
             if (input) {
                 const value = input.value ? input.value.trim() : '';
                 return value === '' ? null : value;
             }
+
+            // Si no hay input ni select, usar textContent
             const text = cell.textContent ? cell.textContent.trim() : '';
             return text === '' ? null : text;
         };
@@ -1162,6 +1401,7 @@ tbody td.pinned-column {
     position: sticky !important;
     background-color: #fffbeb !important;
     z-index: 10 !important;
+    /* El top se establece dinámicamente en JavaScript según la altura del thead */
 }
 
 .valor-negativo {
@@ -1194,6 +1434,26 @@ tbody td.pinned-column {
     outline: none;
     border-color: #3b82f6;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+/* Estilos para el select de HiloAX */
+.hilo-ax-select {
+    min-width: 200px !important;
+    width: 100% !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
+}
+
+/* Asegurar que la columna HiloAX tenga suficiente espacio */
+td[data-column="HiloAX"] {
+    min-width: 220px;
+    width: 220px;
+}
+
+th[data-field="HiloAX"] {
+    min-width: 220px !important;
+    width: 220px !important;
 }
 </style>
 @endsection
