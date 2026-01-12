@@ -36,6 +36,46 @@ class ProgramarUrdidoController extends Controller
     }
 
     /**
+     * Mostrar ordenes finalizadas para reimpresion
+     */
+    public function reimpresionFinalizadas(Request $request)
+    {
+        $busqueda = trim((string) $request->query('q', ''));
+
+        $query = UrdProgramaUrdido::select([
+            'Id',
+            'Folio',
+            'RizoPie',
+            'Cuenta',
+            'Calibre',
+            'Metros',
+            'MaquinaId',
+            'FechaProg',
+            'Status',
+        ])
+        ->where('Status', 'Finalizado');
+
+        if ($busqueda !== '') {
+            $query->where(function ($sub) use ($busqueda) {
+                $sub->where('Folio', 'like', "%{$busqueda}%")
+                    ->orWhere('Cuenta', 'like', "%{$busqueda}%")
+                    ->orWhere('MaquinaId', 'like', "%{$busqueda}%");
+            });
+        }
+
+        $ordenes = $query
+            ->orderBy('FechaProg', 'desc')
+            ->orderBy('Id', 'desc')
+            ->limit(200)
+            ->get();
+
+        return view('modulos.urdido.reimpresion-urdido', [
+            'ordenes' => $ordenes,
+            'busqueda' => $busqueda,
+        ]);
+    }
+
+    /**
      * Extraer número de MC Coy del campo MaquinaId
      *
      * @param string|null $maquinaId

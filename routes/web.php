@@ -927,6 +927,7 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
         Route::post('/programar-urdido/actualizar-prioridades', [ProgramarUrdidoController::class, 'actualizarPrioridades'])->name('programar.urdido.actualizar.prioridades');
         Route::post('/programar-urdido/guardar-observaciones', [ProgramarUrdidoController::class, 'guardarObservaciones'])->name('programar.urdido.guardar.observaciones');
         Route::post('/programar-urdido/actualizar-status', [ProgramarUrdidoController::class, 'actualizarStatus'])->name('programar.urdido.actualizar.status');
+        Route::get('/reimpresion-urdido', [ProgramarUrdidoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');
 
         // Editar Órdenes Programadas
         Route::get('/editar-ordenes-programadas', [EditarOrdenesProgramadasController::class, 'index'])->name('editar.ordenes.programadas');

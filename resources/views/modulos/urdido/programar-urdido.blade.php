@@ -4,6 +4,7 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
+
         <x-navbar.button-create
              onclick="return irProduccion(event)"
             title="Cargar Información"
@@ -32,6 +33,15 @@
             hoverBg="hover:bg-purple-600"
             text="Editar Prioridad"
             bg="bg-purple-600"
+        />
+        <x-navbar.button-create
+            onclick="window.location.href='{{ route('urdido.reimpresion.finalizadas') }}'"
+            title="Reimpresion"
+            icon="fa-print"
+            iconColor="text-white"
+            hoverBg="hover:bg-green-600"
+            text="Reimpresion"
+            bg="bg-green-500"
         />
     </div>
 @endsection
