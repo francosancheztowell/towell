@@ -99,14 +99,17 @@
                 $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
                 $value = htmlspecialchars((string) ($registro->BomId ?? ''), ENT_QUOTES, 'UTF-8');
 
-                return '<input type="text"
-                              id="bom-id-input-' . $rowId . '"
-                              class="bom-id-input w-full min-w-[100px] px-3 py-2 text-sm border border-gray-300 rounded"
-                            value="' . $value . '"
-                            data-row-id="' . $rowId . '"
-                            list="bom-id-options-' . $rowId . '"
-                            placeholder="L.Mat">'
-                    . '<datalist id="bom-id-options-' . $rowId . '"></datalist>';
+                return '<div class="relative">
+                            <input type="text"
+                                  id="bom-id-input-' . $rowId . '"
+                                  class="bom-id-input w-full min-w-[100px] px-3 py-2 text-sm border border-gray-300 rounded"
+                                value="' . $value . '"
+                                data-row-id="' . $rowId . '"
+                                list="bom-id-options-' . $rowId . '"
+                                placeholder="L.Mat">
+                            <datalist id="bom-id-options-' . $rowId . '"></datalist>
+                            <div id="bom-id-message-' . $rowId . '" class="bom-no-results-message hidden text-xs text-red-500 mt-1"></div>
+                        </div>';
             }
 
             if ($field === 'BomName') {
@@ -114,14 +117,17 @@
                 $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
                 $value = htmlspecialchars((string) ($registro->BomName ?? ''), ENT_QUOTES, 'UTF-8');
 
-                return '<input type="text"
-                              id="bom-name-input-' . $rowId . '"
-                              class="bom-name-input w-full min-w-[150px] px-3 py-2 text-sm border border-gray-300 rounded"
-                              value="' . $value . '"
-                              data-row-id="' . $rowId . '"
-                              list="bom-name-options-' . $rowId . '"
-                              placeholder="Nombre L.Mat">'
-                     . '<datalist id="bom-name-options-' . $rowId . '"></datalist>';
+                return '<div class="relative">
+                            <input type="text"
+                                  id="bom-name-input-' . $rowId . '"
+                                  class="bom-name-input w-full min-w-[150px] px-3 py-2 text-sm border border-gray-300 rounded"
+                                  value="' . $value . '"
+                                  data-row-id="' . $rowId . '"
+                                  list="bom-name-options-' . $rowId . '"
+                                  placeholder="Nombre L.Mat">
+                            <datalist id="bom-name-options-' . $rowId . '"></datalist>
+                            <div id="bom-name-message-' . $rowId . '" class="bom-no-results-message hidden text-xs text-red-500 mt-1"></div>
+                        </div>';
             }
 
             // Columna INN (Programado) - Usar el valor calculado del controlador
@@ -675,6 +681,11 @@ function setupBomAutocomplete() {
         const debouncedFetch = debounce(async (sourceInput) => {
             const term = (sourceInput.value || '').trim();
             if (!term) {
+                // Si el término está vacío, ocultar mensajes
+                const bomIdMessage = document.getElementById(`bom-id-message-${rowId}`);
+                const bomNameMessage = document.getElementById(`bom-name-message-${rowId}`);
+                if (bomIdMessage) bomIdMessage.classList.add('hidden');
+                if (bomNameMessage) bomNameMessage.classList.add('hidden');
                 return;
             }
 
@@ -728,25 +739,51 @@ async function fetchBomOptions(itemId, inventSizeId, term, allowFallback) {
 function updateBomDatalists(rowId, options) {
     const bomIdList = document.getElementById(`bom-id-options-${rowId}`);
     const bomNameList = document.getElementById(`bom-name-options-${rowId}`);
+    const bomIdMessage = document.getElementById(`bom-id-message-${rowId}`);
+    const bomNameMessage = document.getElementById(`bom-name-message-${rowId}`);
 
     if (bomIdList) {
         bomIdList.innerHTML = '';
-        options.forEach(option => {
-            const opt = document.createElement('option');
-            opt.value = option.bomId || '';
-            opt.label = option.bomName || '';
-            bomIdList.appendChild(opt);
-        });
+        if (options.length === 0) {
+            // Mostrar mensaje "sin resultados" debajo del input
+            if (bomIdMessage) {
+                bomIdMessage.textContent = 'sin resultados';
+                bomIdMessage.classList.remove('hidden');
+            }
+        } else {
+            // Ocultar mensaje si hay resultados
+            if (bomIdMessage) {
+                bomIdMessage.classList.add('hidden');
+            }
+            options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option.bomId || '';
+                opt.label = option.bomName || '';
+                bomIdList.appendChild(opt);
+            });
+        }
     }
 
     if (bomNameList) {
         bomNameList.innerHTML = '';
-        options.forEach(option => {
-            const opt = document.createElement('option');
-            opt.value = option.bomName || '';
-            opt.label = option.bomId || '';
-            bomNameList.appendChild(opt);
-        });
+        if (options.length === 0) {
+            // Mostrar mensaje "sin resultados" debajo del input
+            if (bomNameMessage) {
+                bomNameMessage.textContent = 'sin resultados';
+                bomNameMessage.classList.remove('hidden');
+            }
+        } else {
+            // Ocultar mensaje si hay resultados
+            if (bomNameMessage) {
+                bomNameMessage.classList.add('hidden');
+            }
+            options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option.bomName || '';
+                opt.label = option.bomId || '';
+                bomNameList.appendChild(opt);
+            });
+        }
     }
 }
 
