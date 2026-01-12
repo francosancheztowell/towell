@@ -542,9 +542,9 @@ Route::middleware(['auth'])->group(function () {
     ->parameters(['tel-bpm' => 'folio'])   // PK string
     ->names('tel-bpm');                    // tel-bpm.index, tel-bpm.store, etc.
 
-Route::patch('tel-bpm/{folio}/terminar',  [TelBpmController::class, 'finish'])->name('tel-bpm.finish');
-Route::patch('tel-bpm/{folio}/autorizar', [TelBpmController::class, 'authorizeDoc'])->name('tel-bpm.authorize');
-Route::patch('tel-bpm/{folio}/rechazar',  [TelBpmController::class, 'reject'])->name('tel-bpm.reject');
+Route::patch('tel-bpm/{folio}/terminar',  [TelBpmLineController::class, 'finish'])->name('tel-bpm.finish');
+Route::patch('tel-bpm/{folio}/autorizar', [TelBpmLineController::class, 'authorizeDoc'])->name('tel-bpm.authorize');
+Route::patch('tel-bpm/{folio}/rechazar',  [TelBpmLineController::class, 'reject'])->name('tel-bpm.reject');
 
 Route::get ('tel-bpm/{folio}/lineas',           [TelBpmLineController::class, 'index'])->name('tel-bpm-line.index');
 Route::post('tel-bpm/{folio}/lineas/toggle',    [TelBpmLineController::class, 'toggle'])->name('tel-bpm-line.toggle');
