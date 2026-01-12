@@ -8,6 +8,7 @@ use App\Models\UrdJuliosOrden;
 use App\Models\EngProduccionEngomado;
 use App\Models\UrdCatJulios;
 use App\Models\SYSUsuario;
+use App\Models\UrdProgramaUrdido;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -122,6 +123,13 @@ class ModuloProduccionEngomadoController extends Controller
                 ->with('error', 'Orden no encontrada');
         }
 
+        // Verificar que la orden de urdido esté finalizada antes de permitir poner en proceso
+        $urdido = UrdProgramaUrdido::where('Folio', $orden->Folio)->first();
+        if (!$urdido || $urdido->Status !== 'Finalizado') {
+            return redirect()->route('engomado.programar.engomado')
+                ->with('error', "No se puede cargar la orden. La orden de urdido debe tener status 'Finalizado' antes de poder ponerla en proceso en engomado.");
+        }
+
         // Actualizar el status a "En Proceso" cuando se carga la p?gina de producci?n
         if ($orden->Status !== 'En Proceso') {
             // Validar que no haya mas de 2 ordenes con status "En Proceso" en la misma tabla
@@ -205,10 +213,25 @@ class ModuloProduccionEngomadoController extends Controller
                 // Calcular cuántos registros faltan
                 $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
 
+                // Obtener datos del usuario actual para asignar automáticamente
+                $usuarioActual = Auth::user();
+                $nombreUsuario = $usuarioActual ? ($usuarioActual->nombre ?? null) : null;
+                $claveUsuario = $usuarioActual ? ($usuarioActual->numero_empleado ?? null) : null;
+                $turnoUsuario = $usuarioActual ? ($usuarioActual->turno ?? null) : null;
+
+                // Si no tiene turno asignado, usar TurnoHelper para obtener el turno actual
+                if (!$turnoUsuario) {
+                    $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
+                }
+
+                // Obtener metros de la orden (asignar el total completo a cada registro)
+                $metrosOrden = $orden->Metros ?? 0;
+
                 // Crear los registros faltantes
                 $registrosACrear = [];
                 for ($i = 0; $i < $registrosFaltantes; $i++) {
-                    $registrosACrear[] = [
+                    // Preparar datos del registro
+                    $registroData = [
                         'Folio' => $orden->Folio,
                         'NoJulio' => null, // NoJulio debe ser null al crear los registros
                         'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
@@ -217,12 +240,41 @@ class ModuloProduccionEngomadoController extends Controller
                         'Canoa3' => null,
                         'Tambor' => null,
                     ];
+
+                    // Solo agregar campos de oficial si tienen valores
+                    if (!empty($claveUsuario)) {
+                        $registroData['CveEmpl1'] = $claveUsuario;
+                    }
+                    if (!empty($nombreUsuario)) {
+                        $registroData['NomEmpl1'] = $nombreUsuario;
+                    }
+                    if ($metrosOrden > 0) {
+                        $registroData['Metros1'] = round($metrosOrden, 2);
+                    }
+                    if (!empty($turnoUsuario)) {
+                        $registroData['Turno1'] = (int)$turnoUsuario;
+                    }
+
+                    $registrosACrear[] = $registroData;
                 }
 
                 // Crear todos los registros en lote si hay alguno
                 if (count($registrosACrear) > 0) {
-                    foreach ($registrosACrear as $registroData) {
-                        EngProduccionEngomado::create($registroData);
+                    foreach ($registrosACrear as $index => $registroData) {
+                        // Log antes de crear
+                        Log::info("Creando registro {$index} (Engomado)", [
+                            'datos' => $registroData
+                        ]);
+
+                        $registroCreado = EngProduccionEngomado::create($registroData);
+
+                        // Log después de crear para verificar que se guardó correctamente
+                        Log::info("Registro creado con ID: {$registroCreado->Id} (Engomado)", [
+                            'CveEmpl1' => $registroCreado->CveEmpl1,
+                            'NomEmpl1' => $registroCreado->NomEmpl1,
+                            'Metros1' => $registroCreado->Metros1,
+                            'Turno1' => $registroCreado->Turno1,
+                        ]);
                     }
 
                     Log::info('Registros creados en EngProduccionEngomado', [

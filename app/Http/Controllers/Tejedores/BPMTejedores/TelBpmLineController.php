@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\TelBpmModel;
 use App\Models\TelBpmLineModel;
 use App\Models\TelActividadesBPM;
+use App\Models\SYSUsuario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class TelBpmLineController extends Controller
 {
     private const EST_CREADO = 'Creado';
+    private const EST_TERM   = 'Terminado';
+    private const EST_AUTO   = 'Autorizado';
 
     /** Vista de edición del checklist por Folio */
     public function index(string $folio)
@@ -228,6 +231,84 @@ class TelBpmLineController extends Controller
         } catch (\Throwable $e) {
             return response()->json(['ok' => false, 'msg' => $e->getMessage()], 500);
         }
+    }
+
+    /* ==================== Acciones de Estado ==================== */
+
+    /** Terminar (de Creado → Terminado) */
+    public function finish(string $folio)
+    {
+        $item = TelBpmModel::findOrFail($folio);
+
+        if ($item->Status !== self::EST_CREADO) {
+            return back()->with('error', 'Sólo puedes terminar un folio en estado Creado.');
+        }
+
+        $item->update(['Status' => self::EST_TERM]);
+        return redirect()->route('tel-bpm.index')->with('success', 'Folio marcado como Terminado.');
+    }
+
+    /** Autorizar (de Terminado → Autorizado) */
+    public function authorizeDoc(string $folio)
+    {
+        $item = TelBpmModel::findOrFail($folio);
+
+        if ($item->Status !== self::EST_TERM) {
+            return back()->with('error', 'Sólo puedes autorizar un folio Terminado.');
+        }
+
+        // Tomar datos del usuario actual de forma robusta
+        $u = auth()->user();
+        $code = null;
+        $name = null;
+        if ($u) {
+            $code = $u->cve
+                ?? $u->numero_empleado
+                ?? $u->idusuario
+                ?? $u->id
+                ?? null;
+            $name = $u->name
+                ?? $u->nombre
+                ?? $u->Nombre
+                ?? null;
+        }
+
+        // Validar que el usuario sea Supervisor para autorizar
+        $numeroEmpleado = $u->numero_empleado ?? $u->cve ?? null;
+        if ($numeroEmpleado) {
+            $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
+            if (!$sysUsuario || strtolower(trim($sysUsuario->puesto ?? '')) !== 'supervisor') {
+                return back()->with('error', 'No tienes permisos para autorizar. Solo los supervisores pueden realizar esta acción.');
+            }
+        } else {
+            return back()->with('error', 'No se pudo identificar el usuario para validar permisos de autorización.');
+        }
+
+        $item->update([
+            'Status'          => self::EST_AUTO,
+            'CveEmplAutoriza' => $code !== null ? (string)$code : '',
+            'NomEmplAutoriza' => $name !== null ? (string)$name : '',
+        ]);
+
+        return redirect()->route('tel-bpm.index')->with('success', 'Folio Autorizado.');
+    }
+
+    /** Rechazar (de Terminado → Creado) */
+    public function reject(string $folio)
+    {
+        $item = TelBpmModel::findOrFail($folio);
+
+        if ($item->Status !== self::EST_TERM) {
+            return back()->with('error', 'Sólo puedes rechazar un folio Terminado.');
+        }
+
+        $item->update([
+            'Status'          => self::EST_CREADO,
+            'CveEmplAutoriza' => null,
+            'NomEmplAutoriza' => null,
+        ]);
+
+        return redirect()->route('tel-bpm.index')->with('success', 'Folio regresó a estado Creado.');
     }
 
     /* ==================== Helpers ==================== */

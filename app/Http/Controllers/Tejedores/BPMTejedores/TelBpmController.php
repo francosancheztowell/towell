@@ -85,7 +85,6 @@ class TelBpmController extends Controller
             'status'  => $status,
             'turnoActual' => $turnoActual,
             'fechaActual' => $fechaActual,
-            'turnoActual' => $turnoActual,
             'operadorUsuario' => $operadorUsuario,
             'usuarioEsOperador' => $usuarioEsOperador,
             'operadoresEntrega' => $operadoresEntrega,
@@ -171,7 +170,7 @@ class TelBpmController extends Controller
             'Status'           => self::EST_CREADO,
         ]);
 
-        // (Opcional) Inicializar catálogo de actividades como “plantilla”
+        // (Opcional) Inicializar catálogo de actividades como "plantilla"
         // No creo líneas aquí, se crearán on-demand al ir marcando (toggle/bulk).
         // Si quieres pre-generarlas, dímelo y lo agregamos.
 
@@ -201,90 +200,18 @@ class TelBpmController extends Controller
         return back()->with('success', 'Encabezado actualizado.');
     }
 
-    /** Eliminar (sólo ‘Creado’) */
+    /** Eliminar (sólo 'Creado') */
     public function destroy(string $folio)
     {
         $this->checkPerm('eliminar');
 
         $item = TelBpmModel::findOrFail($folio);
         if ($item->Status !== self::EST_CREADO) {
-            return back()->with('error', 'No se puede eliminar si no está en estado Creado.');
+            return back()->with('error', "No se puede eliminar el folio {$folio} en estado \"{$item->Status}\". Solo se pueden eliminar folios en estado \"Creado\".");
         }
 
         $item->delete(); // ON DELETE CASCADE eliminará sus líneas
         return redirect()->route('tel-bpm.index')->with('success', "Folio $folio eliminado.");
-    }
-
-    /** Terminar (de Creado → Terminado) */
-    public function finish(string $folio)
-    {
-        $this->checkPerm('registrar'); // o el permiso que uses para “terminar”
-
-        $item = TelBpmModel::findOrFail($folio);
-
-        if ($item->Status !== self::EST_CREADO) {
-            return back()->with('error', 'Sólo puedes terminar un folio en estado Creado.');
-        }
-
-        $item->update(['Status' => self::EST_TERM]);
-        return redirect()->route('tel-bpm.index')->with('success', 'Folio marcado como Terminado.');
-    }
-
-    /** Autorizar (de Terminado → Autorizado) */
-    public function authorizeDoc(string $folio)
-    {
-        $this->checkPerm('registrar'); // o permiso “autorizar”
-
-        $item = TelBpmModel::findOrFail($folio);
-
-        if ($item->Status !== self::EST_TERM) {
-            return back()->with('error', 'Sólo puedes autorizar un folio Terminado.');
-        }
-
-        // Tomar datos del usuario actual de forma robusta
-        $u = auth()->user();
-        $code = null;
-        $name = null;
-        if ($u) {
-            // Posibles campos usados en diferentes módulos
-            $code = $u->cve
-                ?? $u->numero_empleado
-                ?? $u->idusuario
-                ?? $u->id
-                ?? null;
-            $name = $u->name
-                ?? $u->nombre
-                ?? $u->Nombre
-                ?? null;
-        }
-
-        $item->update([
-            'Status'          => self::EST_AUTO,
-            'CveEmplAutoriza' => $code !== null ? (string)$code : '',
-            'NomEmplAutoriza' => $name !== null ? (string)$name : '',
-        ]);
-
-        return redirect()->route('tel-bpm.index')->with('success', 'Folio Autorizado.');
-    }
-
-    /** Rechazar (de Terminado → Creado) */
-    public function reject(string $folio)
-    {
-        $this->checkPerm('registrar'); // o permiso “rechazar”
-
-        $item = TelBpmModel::findOrFail($folio);
-
-        if ($item->Status !== self::EST_TERM) {
-            return back()->with('error', 'Sólo puedes rechazar un folio Terminado.');
-        }
-
-        $item->update([
-            'Status'          => self::EST_CREADO,
-            'CveEmplAutoriza' => null,
-            'NomEmplAutoriza' => null,
-        ]);
-
-        return redirect()->route('tel-bpm.index')->with('success', 'Folio regresó a estado Creado.');
     }
 
     /* ===================== Helpers ===================== */

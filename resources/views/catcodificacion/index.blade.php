@@ -5,6 +5,15 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-buttons.catalog-actions route="codificacion" :showFilters="true" />
+        <button
+            id="btn-reimprimir-seleccionado"
+            onclick="reimprimirOrdenSeleccionada()"
+            class="inline-flex items-center gap-1 px-3 py-1 rounded border border-gray-300 bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            disabled
+        >
+            <i class="fas fa-print"></i>
+            <span>Reimprimir Orden</span>
+        </button>
     </div>
 @endsection
 
@@ -371,6 +380,7 @@
 
                     renderPage();
                     updateFilterCount();
+                    actualizarEstadoBotonReimprimir();
 
                     setLoading(false);
                 } catch (error) {
@@ -452,6 +462,7 @@
                                 td.classList.remove('text-white');
                                 td.classList.add('text-gray-700');
                             });
+                            actualizarEstadoBotonReimprimir();
                         } else {
                             // Deseleccionar fila anterior si existe
                             const prevSelected = tbody.querySelector('tr.bg-blue-500');
@@ -472,6 +483,7 @@
                                 td.classList.remove('text-gray-700');
                                 td.classList.add('text-white');
                             });
+                            actualizarEstadoBotonReimprimir();
                         }
                     });
 
@@ -490,6 +502,7 @@
                 tbody.innerHTML = '';
                 tbody.appendChild(fragment);
                 updatePagination();
+                actualizarEstadoBotonReimprimir();
             }
 
             function updatePagination() {
@@ -555,6 +568,7 @@
                 state.selectedRowIndex = null; // Limpiar selección al filtrar
                 renderPage();
                 updateFilterCount();
+                actualizarEstadoBotonReimprimir();
             }
 
             function updateFilterCount() {
@@ -903,6 +917,115 @@
             });
 
             // =========================
+            //   ACTUALIZAR ESTADO BOTÓN REIMPRIMIR
+            // =========================
+            function actualizarEstadoBotonReimprimir() {
+                const btnReimprimir = document.getElementById('btn-reimprimir-seleccionado');
+                if (!btnReimprimir) return;
+
+                if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
+                    btnReimprimir.disabled = true;
+                    return;
+                }
+
+                const registroSeleccionado = state.filtered[state.selectedRowIndex];
+                if (!registroSeleccionado) {
+                    btnReimprimir.disabled = true;
+                    return;
+                }
+
+                // Verificar que tenga UsuarioCrea (indica que el registro fue creado)
+                const usuarioCrea = registroSeleccionado.UsuarioCrea;
+                const puedeReimprimir = usuarioCrea !== null && usuarioCrea !== undefined && usuarioCrea !== '';
+
+                btnReimprimir.disabled = !puedeReimprimir || !registroSeleccionado.Id;
+            }
+
+            // =========================
+            //   REIMPRIMIR ORDEN SELECCIONADA
+            // =========================
+            function reimprimirOrdenSeleccionada() {
+                if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
+                    showToast('Debes seleccionar un registro primero', 'warning');
+                    return;
+                }
+
+                const registroSeleccionado = state.filtered[state.selectedRowIndex];
+                if (!registroSeleccionado || !registroSeleccionado.Id) {
+                    showToast('No se pudo obtener el ID del registro seleccionado', 'error');
+                    return;
+                }
+
+                // Verificar que tenga UsuarioCrea (indica que el registro fue creado)
+                const usuarioCrea = registroSeleccionado.UsuarioCrea;
+                const puedeReimprimir = usuarioCrea !== null && usuarioCrea !== undefined && usuarioCrea !== '';
+
+                if (!puedeReimprimir) {
+                    showToast('Este registro no puede ser reimpreso porque no tiene un usuario de creación asignado', 'warning');
+                    return;
+                }
+
+                reimprimirOrden(registroSeleccionado.Id);
+            }
+
+            // =========================
+            //   REIMPRIMIR ORDEN POR ID
+            // =========================
+            async function reimprimirOrden(id) {
+                if (!id) {
+                    showToast('ID de orden no válido', 'error');
+                    return;
+                }
+
+                try {
+                    // Mostrar loading
+                    Swal.fire({
+                        title: 'Generando orden de cambio...',
+                        text: 'Por favor espera',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    // Llamar a la ruta de reimpresión
+                    const url = `/planeacion/programa-tejido/reimprimir-ordenes/${id}`;
+
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        }
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+                    }
+
+                    // Obtener el blob del Excel
+                    const blob = await response.blob();
+
+                    // Crear URL temporal y descargar
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    a.download = `REIMPRESION_ORDEN_${id}_${new Date().toISOString().slice(0,10)}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(downloadUrl);
+
+                    Swal.close();
+                    showToast('Orden reimpresa correctamente', 'success');
+                } catch (error) {
+                    Swal.close();
+                    showToast(error.message || 'Error al reimprimir la orden', 'error');
+                    console.error('Error al reimprimir orden:', error);
+                }
+            }
+
+            // =========================
             //   EXPOSE GLOBAL
             // =========================
             window.subirExcelCatCodificacion   = subirExcelCatCodificacion;
@@ -912,6 +1035,8 @@
             window.limpiarFiltrosCodificacion  = limpiarFiltrosCodificacion;
             window.removeFilterFromModal       = removeFilterFromModal;
             window.loadData                    = loadData;
+            window.reimprimirOrden              = reimprimirOrden;
+            window.reimprimirOrdenSeleccionada  = reimprimirOrdenSeleccionada;
         })();
     </script>
 @endsection

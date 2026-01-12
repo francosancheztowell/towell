@@ -13,7 +13,8 @@
             text="Cargar"
             bg="bg-blue-500"
         />
-        <x-navbar.button-create
+        <x-navbar.button-edit
+            id="btnEditarOrdenes"
             onclick="editarOrdenes()"
             title="Editar Órdenes"
             icon="fa-pen-to-square"
@@ -21,6 +22,7 @@
             hoverBg="hover:bg-yellow-600"
             text="Editar"
             bg="bg-yellow-600"
+            module="Reservar y Programar"
         />
         <x-navbar.button-create
             onclick="abrirModalEditarPrioridad()"
@@ -133,12 +135,7 @@
         </div>
     </div>
 
-    @php
-        $usuario = auth()->user();
-        $area = $usuario ? strtolower($usuario->area ?? '') : '';
-        $puesto = $usuario ? strtolower($usuario->puesto ?? '') : '';
-        $puedeEditar = $area === 'urdido' && str_contains($puesto, 'supervisor');
-    @endphp
+
 
     <script>
         (() => {
@@ -157,7 +154,10 @@
             };
 
             const csrfToken = '{{ csrf_token() }}';
-            const canEdit = {{ $puedeEditar ? 'true' : 'false' }};
+            // El componente button-edit ya verifica permisos con module="Reservar y Programar"
+            // Solo renderiza el botón si el usuario tiene permisos (modificar, módulo 51)
+            // Verificar si el botón existe en el DOM después de que se renderice
+            let canEdit = false;
 
             const state = {
                 ordenes: {},            // { 1: [..], 2: [..], 3: [..], 4: [..] }
@@ -1116,10 +1116,31 @@
             };
 
             // ==========================
+            // Editar Ordenes
+            // ==========================
+            const editarOrdenes = () => {
+                if (!state.ordenSeleccionada) {
+                    showToast('warning', 'Seleccione una orden para editar');
+                    return;
+                }
+
+                // Verificar que la orden NO esté en proceso
+                if (state.ordenSeleccionada.status === 'En Proceso') {
+                    showError('No se pueden editar órdenes con status "En Proceso"', 'Orden en Proceso');
+                    return;
+                }
+
+                // Redirigir a la vista de edición
+                const url = '{{ route('urdido.editar.ordenes.programadas') }}?orden_id=' + state.ordenSeleccionada.id;
+                window.location.href = url;
+            };
+
+            // ==========================
             // API pública (para onclick del Blade)
             // ==========================
             window.cargarOrdenes = cargarOrdenes;
             window.irProduccion = irProduccion;
+            window.editarOrdenes = editarOrdenes;
             window.guardarObservaciones = guardarObservaciones;
             window.actualizarStatus = actualizarStatus;
             window.abrirModalEditarPrioridad = abrirModalEditarPrioridad;
@@ -1130,6 +1151,10 @@
             // Init
             // ==========================
             document.addEventListener('DOMContentLoaded', () => {
+                // Verificar si el botón de editar existe (el componente solo lo renderiza si hay permisos)
+                const btnEditar = document.getElementById('btnEditarOrdenes');
+                canEdit = btnEditar !== null && btnEditar !== undefined;
+
                 setButtonsEnabled(false);
                 setupRowClickDelegates();
                 cargarOrdenes();

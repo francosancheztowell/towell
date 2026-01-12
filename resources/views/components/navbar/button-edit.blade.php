@@ -68,6 +68,12 @@
             }
         }
     }
+
+    // Si tiene permisos y se proporcionó module/moduleId, habilitar el botón automáticamente
+    // El disabled solo se aplica si el usuario no tiene permisos o si se pasa explícitamente
+    if ($hasPermission && ($moduleId || $module)) {
+        $disabled = false;
+    }
 @endphp
 
 @php

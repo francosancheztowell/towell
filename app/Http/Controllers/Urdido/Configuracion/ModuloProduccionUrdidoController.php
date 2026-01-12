@@ -131,12 +131,7 @@ class ModuloProduccionUrdidoController extends Controller
                 $orden->Status = 'En Proceso';
                 $orden->save();
 
-                Log::info('Status actualizado a "En Proceso"', [
-                    'folio' => $orden->Folio,
-                    'orden_id' => $orden->Id,
-                    'status_anterior' => $statusAnterior,
-                    'status_nuevo' => 'En Proceso',
-                ]);
+
             } catch (\Throwable $e) {
                 Log::error('Error al actualizar status a "En Proceso"', [
                     'folio' => $orden->Folio,
@@ -198,6 +193,22 @@ class ModuloProduccionUrdidoController extends Controller
                 // Calcular cuántos registros faltan
                 $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
 
+                // Obtener datos del usuario actual para asignar automáticamente
+                $usuarioActual = Auth::user();
+                $nombreUsuario = $usuarioActual ? ($usuarioActual->nombre ?? null) : null;
+                $claveUsuario = $usuarioActual ? ($usuarioActual->numero_empleado ?? null) : null;
+                $turnoUsuario = $usuarioActual ? ($usuarioActual->turno ?? null) : null;
+
+                // Si no tiene turno asignado, usar TurnoHelper para obtener el turno actual
+                if (!$turnoUsuario) {
+                    $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
+                }
+
+                // Obtener metros de la orden (asignar el total completo a cada registro)
+                $metrosOrden = $orden->Metros ?? 0;
+
+
+
                 // Crear los registros faltantes, distribuyendo los Hilos de los julios
                 // Iterar por los julios y crear N registros para cada uno (donde N = valor de Julios)
                 $indiceRegistro = 0;
@@ -209,13 +220,30 @@ class ModuloProduccionUrdidoController extends Controller
                         // Crear N registros para este julio (donde N = numeroJulio)
                         // Pero solo crear los que faltan
                         for ($i = 0; $i < $numeroJulio && $indiceRegistro < $registrosFaltantes; $i++) {
-                            $registrosACrear[] = [
+                            // Preparar datos del registro
+                            $registroData = [
                                 'Folio' => $orden->Folio,
                                 'TipoAtado' => $orden->TipoAtado ?? null,
                                 'NoJulio' => null, // NoJulio debe ser null al crear los registros
                                 'Hilos' => $hilos, // Rellenar Hilos desde UrdJuliosOrden
                                 'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
                             ];
+
+                            // Solo agregar campos de oficial si tienen valores
+                            if (!empty($claveUsuario)) {
+                                $registroData['CveEmpl1'] = $claveUsuario;
+                            }
+                            if (!empty($nombreUsuario)) {
+                                $registroData['NomEmpl1'] = $nombreUsuario;
+                            }
+                            if ($metrosOrden > 0) {
+                                $registroData['Metros1'] = round($metrosOrden, 2);
+                            }
+                            if (!empty($turnoUsuario)) {
+                                $registroData['Turno1'] = (int)$turnoUsuario;
+                            }
+
+                            $registrosACrear[] = $registroData;
                             $indiceRegistro++;
                         }
                     }
@@ -223,18 +251,14 @@ class ModuloProduccionUrdidoController extends Controller
 
                 // Crear todos los registros en lote si hay alguno
                 if (count($registrosACrear) > 0) {
-                    foreach ($registrosACrear as $registroData) {
-                        UrdProduccionUrdido::create($registroData);
-                    }
+                    foreach ($registrosACrear as $index => $registroData) {
 
-                    Log::info('Registros creados en UrdProduccionUrdido', [
-                        'folio' => $orden->Folio,
-                        'creados' => count($registrosACrear),
-                        'total_requerido' => $totalRegistros,
-                        'detalle' => array_map(function($r) {
-                            return ['NoJulio' => $r['NoJulio'] ?? 'null', 'Hilos' => $r['Hilos']];
-                        }, $registrosACrear),
-                    ]);
+
+                        $registroCreado = UrdProduccionUrdido::create($registroData);
+
+                                        }
+
+
                 }
             } catch (\Throwable $e) {
                 Log::error('Error al crear registros en UrdProduccionUrdido', [
@@ -251,14 +275,7 @@ class ModuloProduccionUrdidoController extends Controller
         }
 
         // Debug temporal - remover después
-        Log::info('ModuloProduccionUrdido - Debug', [
-            'folio' => $orden->Folio,
-            'julios_count' => $julios->count(),
-            'julios_data' => $julios->map(function($j) {
-                return ['Julios' => $j->Julios, 'Hilos' => $j->Hilos];
-            })->toArray(),
-            'totalRegistros' => $totalRegistros
-        ]);
+
 
         // Obtener información de engomado si existe
         $engomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
@@ -1001,13 +1018,6 @@ class ModuloProduccionUrdidoController extends Controller
             // Cambiar el status a "Finalizado"
             $orden->Status = 'Finalizado';
             $orden->save();
-
-            Log::info('Orden de urdido finalizada', [
-                'folio' => $orden->Folio,
-                'orden_id' => $orden->Id,
-                'status_anterior' => 'En Proceso',
-                'status_nuevo' => 'Finalizado',
-            ]);
 
             return response()->json([
                 'success' => true,

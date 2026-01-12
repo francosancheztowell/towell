@@ -35,6 +35,7 @@ class CatCodificados extends Model
         'OrdCompartidaLider', 'MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'CombinaTram', 'BomId',
         'BomName', 'CreaProd', 'EficienciaSTD', 'Densidad', 'HiloAX', 'ActualizaLmat', 'FechaCreacion',
         'HoraCreacion', 'UsuarioCrea', 'FechaModificacion', 'HoraModificacion', 'UsuarioModifica',
+        'CategoriaCalidad', 'CustName',
     ];
 
     protected $fillable = self::COLUMNS;
@@ -69,5 +70,7 @@ class CatCodificados extends Model
         'FechaModificacion' => 'date', // DATE en SQL Server
         'HoraModificacion' => 'string', // TIME en SQL Server
         'UsuarioModifica' => 'string', // VARCHAR(50) en SQL Server
+        'CategoriaCalidad' => 'string', // VARCHAR(50) en SQL Server
+        'CustName' => 'string', // NVARCHAR(150) en SQL Server
     ];
 }
