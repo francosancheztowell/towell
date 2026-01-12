@@ -142,6 +142,41 @@
                 return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
             }
 
+            // Campos editables: MtsRollo, PzasRollo, TotalRollos, TotalPzas, Repeticiones, SaldoMarbete, Densidad
+            $camposNumericosEditables = ['MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'Repeticiones', 'SaldoMarbete', 'Densidad'];
+            if (in_array($field, $camposNumericosEditables, true)) {
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $value = $registro->{$field} ?? null;
+                $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, $field === 'Densidad' ? 4 : 0, '.', '') : '') : '';
+
+                // Clase adicional para densidad para hacerlo más ancho
+                $claseAdicional = $field === 'Densidad' ? 'densidad-input' : '';
+
+                return '<input type="number"
+                              step="' . ($field === 'Densidad' ? '0.0001' : '1') . '"
+                              class="editable-field ' . $claseAdicional . ' w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '"
+                              data-field="' . htmlspecialchars($field, ENT_QUOTES, 'UTF-8') . '"
+                              data-row-id="' . $rowId . '"
+                              data-original-value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '">';
+            }
+
+            // Campo CombinaTrama (string editable)
+            if ($field === 'CombinaTrama') {
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $value = $registro->{$field} ?? null;
+                $valueFormatted = $value !== null ? htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') : '';
+
+                return '<input type="text"
+                              class="editable-field w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value="' . $valueFormatted . '"
+                              data-field="' . htmlspecialchars($field, ENT_QUOTES, 'UTF-8') . '"
+                              data-row-id="' . $rowId . '"
+                              data-original-value="' . $valueFormatted . '">';
+            }
+
             $value = $registro->{$field} ?? null;
             if ($value === null || $value === '') return '';
 
@@ -304,6 +339,7 @@ const redirectAfterLiberar = '{{ route('catalogos.req-programa-tejido') }}';
 const tipoHiloUrl = '{{ route('programa-tejido.liberar-ordenes.tipo-hilo') }}';
 const bomAutocompleteUrl = '{{ route('programa-tejido.liberar-ordenes.bom') }}';
 const codigoDibujoUrl = '{{ route('programa-tejido.liberar-ordenes.codigo-dibujo') }}';
+const guardarCamposEditablesUrl = '{{ route('programa-tejido.liberar-ordenes.guardar-campos') }}';
 
 // Variables globales para columnas
 // Columnas fijadas por defecto: Maq (índice 2), Hilo (índice 6), Producto (índice 9)
@@ -356,6 +392,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Recalcular posiciones cuando cambie el tamaño de la ventana
     window.addEventListener('resize', () => {
         updatePinnedColumnsPositions();
+    });
+
+    // Event listeners para campos editables
+    const editableFields = document.querySelectorAll('.editable-field');
+    editableFields.forEach(field => {
+        // Guardar cuando el usuario presione Enter o pierda el foco
+        field.addEventListener('blur', function() {
+            guardarCampoEditable(this);
+        });
+        field.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                this.blur(); // Esto disparará el evento blur que guardará el campo
+            }
+        });
     });
 
     // Rellenar automáticamente el campo Hilo AX al cargar
@@ -1322,6 +1372,103 @@ function liberarOrdenes() {
 }
 
 // Los checkboxes no cambian el estilo visual de las filas
+
+// Función para guardar un campo editable
+function guardarCampoEditable(input) {
+    const rowId = input.getAttribute('data-row-id');
+    const field = input.getAttribute('data-field');
+    const originalValue = input.getAttribute('data-original-value');
+    const newValue = input.value.trim();
+
+    // Si el valor no cambió, no hacer nada
+    if (newValue === originalValue) {
+        return;
+    }
+
+    // Validar que rowId existe
+    if (!rowId) {
+        console.error('No se encontró el ID del registro');
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    // Preparar el valor según el tipo de campo
+    let valueToSend = newValue;
+    if (field !== 'CombinaTrama') {
+        // Campos numéricos
+        if (newValue === '') {
+            valueToSend = null;
+        } else {
+            const numValue = parseFloat(newValue);
+            if (isNaN(numValue)) {
+                // Si no es un número válido, restaurar el valor original
+                input.value = originalValue;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Valor inválido',
+                    text: 'Por favor ingresa un número válido.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                return;
+            }
+            valueToSend = numValue;
+        }
+    }
+
+    // Mostrar indicador de guardado
+    input.style.borderColor = '#fbbf24'; // Amarillo mientras guarda
+    input.disabled = true;
+
+    fetch(guardarCamposEditablesUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+        },
+        body: JSON.stringify({
+            id: parseInt(rowId),
+            field: field,
+            value: valueToSend
+        }),
+    })
+    .then(async response => {
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Error al guardar el campo.');
+        }
+        return data;
+    })
+    .then(data => {
+        // Actualizar el valor original guardado
+        input.setAttribute('data-original-value', newValue);
+        input.style.borderColor = '#10b981'; // Verde cuando se guarda correctamente
+        setTimeout(() => {
+            input.style.borderColor = '#d1d5db'; // Volver al color normal
+        }, 1000);
+    })
+    .catch(error => {
+        console.error('Error al guardar:', error);
+        // Restaurar el valor original en caso de error
+        input.value = originalValue;
+        input.style.borderColor = '#ef4444'; // Rojo en caso de error
+        Swal.fire({
+            icon: 'error',
+            title: 'Error al guardar',
+            text: error.message || 'No se pudo guardar el cambio.',
+            timer: 3000,
+            showConfirmButton: false
+        });
+        setTimeout(() => {
+            input.style.borderColor = '#d1d5db'; // Volver al color normal
+        }, 2000);
+    })
+    .finally(() => {
+        input.disabled = false;
+    });
+}
 </script>
 
 <style>
@@ -1411,6 +1558,12 @@ th[data-field="HiloAX"] {
 }
 
 .bom-name-input {
+    min-width: 150px !important;
+    width: 100% !important;
+}
+
+/* Estilos para el input de densidad */
+.densidad-input {
     min-width: 150px !important;
     width: 100% !important;
 }

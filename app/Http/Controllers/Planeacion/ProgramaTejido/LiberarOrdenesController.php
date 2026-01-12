@@ -578,6 +578,7 @@ class LiberarOrdenesController extends Controller
         $combinationsParam = trim((string) $request->query('combinations', ''));
         $itemId = trim((string) $request->query('itemId', ''));
         $inventSizeId = trim((string) $request->query('inventSizeId', ''));
+        $salonTejidoId = trim((string) $request->query('salonTejidoId', ''));
         $term = trim((string) $request->query('term', ''));
         $allowFallback = filter_var($request->query('fallback', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -657,7 +658,7 @@ class LiberarOrdenesController extends Controller
                 if ($allowFallback && $term !== '') {
                     return response()->json([
                         'success' => true,
-                        'data' => $this->queryBomFallback($term),
+                        'data' => $this->queryBomFallback($term, $inventSizeId, $salonTejidoId),
                     ]);
                 }
 
@@ -684,7 +685,7 @@ class LiberarOrdenesController extends Controller
 
             $results = $query->orderBy('BT.BOMID')->limit(20)->get();
             if ($results->isEmpty() && $allowFallback && $term !== '') {
-                $results = $this->queryBomFallback($term);
+                $results = $this->queryBomFallback($term, $inventSizeId, $salonTejidoId);
             }
 
             return response()->json([
@@ -706,12 +707,22 @@ class LiberarOrdenesController extends Controller
         }
     }
 
-    private function queryBomFallback(string $term)
+    private function queryBomFallback(string $term, ?string $inventSizeId = null, ?string $salonTejidoId = null)
     {
         $query = DB::connection('sqlsrv_ti')
             ->table('BOMTABLE as BT')
             ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
             ->where('BT.ITEMGROUPID', 'LIKE', '%CRUDO%');
+
+        // Filtrar por tamaño si está disponible
+        if ($inventSizeId !== null && $inventSizeId !== '') {
+            $query->where('BT.TWINVENTSIZEID', $inventSizeId);
+        }
+
+        // Filtrar por salón si está disponible
+        if ($salonTejidoId !== null && $salonTejidoId !== '') {
+            $query->where('BT.TwSalon', $salonTejidoId);
+        }
 
         if ($term !== '') {
             $query->where(function ($q) use ($term) {
@@ -848,6 +859,181 @@ class LiberarOrdenesController extends Controller
         ob_start();
         $writer->save('php://output');
         return ob_get_clean();
+    }
+
+    /**
+     * Guarda un campo editable desde la vista de liberar órdenes
+     * Actualiza tanto ReqProgramaTejido como CatCodificados
+     */
+    public function guardarCamposEditables(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'id' => 'required|integer|exists:ReqProgramaTejido,Id',
+                'field' => 'required|string|in:MtsRollo,PzasRollo,TotalRollos,TotalPzas,Repeticiones,SaldoMarbete,Densidad,CombinaTrama',
+                'value' => 'nullable',
+            ]);
+
+            $id = (int) $data['id'];
+            $field = $data['field'];
+            $value = $data['value'];
+
+            DB::beginTransaction();
+
+            try {
+                /** @var ReqProgramaTejido|null $registro */
+                $registro = ReqProgramaTejido::lockForUpdate()->find($id);
+                if (!$registro) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Registro no encontrado.',
+                    ], 404);
+                }
+
+                // Validar y convertir el valor según el tipo de campo
+                if ($field === 'CombinaTrama') {
+                    // Campo string
+                    $registro->CombinaTram = $value !== null ? trim((string)$value) : null;
+                } elseif ($field === 'SaldoMarbete') {
+                    // SaldoMarbete es entero
+                    $registro->SaldoMarbete = $value !== null ? (int)$value : null;
+                } elseif ($field === 'Repeticiones') {
+                    // Repeticiones es entero
+                    $registro->Repeticiones = $value !== null ? (int)$value : null;
+                } elseif ($field === 'Densidad') {
+                    // Densidad es float con 4 decimales
+                    $registro->Densidad = $value !== null ? round((float)$value, 4) : null;
+                } else {
+                    // MtsRollo, PzasRollo, TotalRollos, TotalPzas son float
+                    $registro->{$field} = $value !== null ? (float)$value : null;
+                }
+
+                $registro->save();
+
+                // Actualizar CatCodificados si existe
+                $this->actualizarCatCodificadosCampo($registro, $field, $value);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Campo actualizado correctamente.',
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Error al guardar campo editable', [
+                    'id' => $id,
+                    'field' => $field,
+                    'value' => $value,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al guardar el campo: ' . $e->getMessage(),
+                ], 500);
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos inválidos.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error general al guardar campo editable', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error inesperado al guardar el campo.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualiza un campo específico en CatCodificados basado en ReqProgramaTejido
+     */
+    private function actualizarCatCodificadosCampo(ReqProgramaTejido $registro, string $field, $value): void
+    {
+        try {
+            $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
+            $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
+
+            // Si no hay NoProduccion, no podemos actualizar CatCodificados
+            if (empty($noProduccion)) {
+                return;
+            }
+
+            $modelo = new CatCodificados();
+            $table = $modelo->getTable();
+            $columns = Schema::getColumnListing($table);
+
+            $query = CatCodificados::query();
+            $hasKeyFilter = false;
+
+            if (in_array('OrdenTejido', $columns, true)) {
+                $query->where('OrdenTejido', $noProduccion);
+                $hasKeyFilter = true;
+            } elseif (in_array('NumOrden', $columns, true)) {
+                $query->where('NumOrden', $noProduccion);
+                $hasKeyFilter = true;
+            }
+
+            if (in_array('TelarId', $columns, true)) {
+                $query->where('TelarId', $noTelarId);
+            } elseif (in_array('NoTelarId', $columns, true)) {
+                $query->where('NoTelarId', $noTelarId);
+            }
+
+            if (!$hasKeyFilter) {
+                $query->where('NoProduccion', $noProduccion);
+            }
+
+            $registroCodificado = $query->first();
+
+            if (!$registroCodificado) {
+                return;
+            }
+
+            // Mapear el campo de ReqProgramaTejido a CatCodificados
+            $campoCatCodificados = null;
+            if ($field === 'SaldoMarbete') {
+                $campoCatCodificados = 'NoMarbete';
+            } elseif ($field === 'CombinaTrama') {
+                $campoCatCodificados = 'CombinaTram';
+            } else {
+                $campoCatCodificados = $field;
+            }
+
+            // Verificar que el campo existe en CatCodificados
+            if (!in_array($campoCatCodificados, $columns, true)) {
+                return;
+            }
+
+            // Asignar el valor según el tipo de campo
+            if ($campoCatCodificados === 'NoMarbete') {
+                $registroCodificado->NoMarbete = $value !== null ? (float)$value : null;
+            } elseif ($campoCatCodificados === 'Repeticiones') {
+                $registroCodificado->Repeticiones = $value !== null ? (int)$value : null;
+            } elseif ($campoCatCodificados === 'Densidad') {
+                $registroCodificado->Densidad = $value !== null ? round((float)$value, 4) : null;
+            } elseif ($campoCatCodificados === 'CombinaTram') {
+                $registroCodificado->CombinaTram = $value !== null ? trim((string)$value) : null;
+            } else {
+                // MtsRollo, PzasRollo, TotalRollos, TotalPzas
+                $registroCodificado->{$campoCatCodificados} = $value !== null ? (float)$value : null;
+            }
+
+            $registroCodificado->save();
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar CatCodificados campo editable', [
+                'no_produccion' => $registro->NoProduccion ?? null,
+                'field' => $field,
+                'error' => $e->getMessage(),
+            ]);
+            // No lanzar excepción para no interrumpir el guardado en ReqProgramaTejido
+        }
     }
 
     /**
