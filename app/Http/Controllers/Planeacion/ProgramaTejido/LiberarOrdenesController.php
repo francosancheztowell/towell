@@ -294,6 +294,7 @@ class LiberarOrdenesController extends Controller
             'registros.*.totalPzas' => 'nullable|numeric',
             'registros.*.repeticiones' => 'nullable|numeric',
             'registros.*.saldoMarbete' => 'nullable|numeric',
+            'registros.*.densidad' => 'nullable|numeric',
             'registros.*.combinaTram' => 'nullable|string|max:60',
         ], [
             'registros.required' => 'Debes seleccionar al menos un registro.',
@@ -481,27 +482,32 @@ class LiberarOrdenesController extends Controller
                 $registro->CreaProd = $registro->CreaProd ?? 1;
                 $registro->EficienciaSTD = $registro->EficienciaSTD ?? null;
 
-                // Densidad: fórmula = peso_crudo / ((ancho * largo) / 10)
-                $densidad = null;
-                $peso = $registro->PesoCrudo ?? null;
-                $ancho = $registro->Ancho ?? null;
-                $largo = $registro->LargoCrudo ?? null;
+                // Densidad: usar del request si viene, sino calcular
+                if (isset($item['densidad']) && $item['densidad'] !== null && $item['densidad'] !== '') {
+                    $registro->Densidad = round((float) $item['densidad'], 4);
+                } else {
+                    // Densidad: fórmula = peso_crudo / ((ancho * largo) / 10)
+                    $densidad = null;
+                    $peso = $registro->PesoCrudo ?? null;
+                    $ancho = $registro->Ancho ?? null;
+                    $largo = $registro->LargoCrudo ?? null;
 
-                if ($peso !== null && $ancho !== null && $largo !== null &&
-                    is_numeric($peso) && is_numeric($ancho) && is_numeric($largo) &&
-                    $ancho > 0 && $largo > 0) {
-                    // Limpiar largo si tiene texto (ej: "50 Cms.")
-                    $largoLimpio = is_numeric($largo)
-                        ? (float)$largo
-                        : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
+                    if ($peso !== null && $ancho !== null && $largo !== null &&
+                        is_numeric($peso) && is_numeric($ancho) && is_numeric($largo) &&
+                        $ancho > 0 && $largo > 0) {
+                        // Limpiar largo si tiene texto (ej: "50 Cms.")
+                        $largoLimpio = is_numeric($largo)
+                            ? (float)$largo
+                            : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
 
-                    // Fórmula: densidad = peso_crudo / ((ancho * largo) / 10)
-                    $denominador = ($ancho * $largoLimpio) / 10;
-                    if ($denominador > 0) {
-                        $densidad = round((float)$peso / $denominador, 4);
+                        // Fórmula: densidad = peso_crudo / ((ancho * largo) / 10)
+                        $denominador = ($ancho * $largoLimpio) / 10;
+                        if ($denominador > 0) {
+                            $densidad = round((float)$peso / $denominador, 4);
+                        }
                     }
+                    $registro->Densidad = $densidad;
                 }
-                $registro->Densidad = $densidad;
                 $registro->ActualizaLmat = $registro->ActualizaLmat ?? 0;
 
                 // Campos de auditoría usando el helper

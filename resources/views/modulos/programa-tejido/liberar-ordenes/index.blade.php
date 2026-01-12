@@ -119,12 +119,12 @@
 
                 return '<div class="relative">
                             <input type="text"
-                                  id="bom-name-input-' . $rowId . '"
-                                  class="bom-name-input w-full min-w-[150px] px-3 py-2 text-sm border border-gray-300 rounded"
-                                  value="' . $value . '"
-                                  data-row-id="' . $rowId . '"
-                                  list="bom-name-options-' . $rowId . '"
-                                  placeholder="Nombre L.Mat">
+                                id="bom-name-input-' . $rowId . '"
+                                class="bom-name-input w-full min-w-[150px] px-3 py-2 text-sm border border-gray-300 rounded"
+                                value="' . $value . '"
+                                data-row-id="' . $rowId . '"
+                                list="bom-name-options-' . $rowId . '"
+                                placeholder="Nombre L.Mat">
                             <datalist id="bom-name-options-' . $rowId . '"></datalist>
                             <div id="bom-name-message-' . $rowId . '" class="bom-no-results-message hidden text-xs text-red-500 mt-1"></div>
                         </div>';
@@ -156,8 +156,13 @@
                 $value = $registro->{$field} ?? null;
                 $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, $field === 'Densidad' ? 4 : 0, '.', '') : '') : '';
 
-                // Clase adicional para densidad para hacerlo más ancho
-                $claseAdicional = $field === 'Densidad' ? 'densidad-input' : '';
+                // Clase adicional para densidad y TotalPzas para hacerlos más anchos
+                $claseAdicional = '';
+                if ($field === 'Densidad') {
+                    $claseAdicional = 'densidad-input';
+                } elseif ($field === 'TotalPzas') {
+                    $claseAdicional = 'total-pzas-input';
+                }
 
                 return '<input type="number"
                               step="' . ($field === 'Densidad' ? '0.0001' : '1') . '"
@@ -401,17 +406,51 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Event listeners para campos editables
+    // IMPORTANTE: Ningún campo se guarda automáticamente, solo se guardan al presionar "Liberar"
     const editableFields = document.querySelectorAll('.editable-field');
     editableFields.forEach(field => {
-        // Guardar cuando el usuario presione Enter o pierda el foco
-        field.addEventListener('blur', function() {
-            guardarCampoEditable(this);
-        });
-        field.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                this.blur(); // Esto disparará el evento blur que guardará el campo
-            }
-        });
+        const fieldName = field.getAttribute('data-field');
+
+        // Event listeners para TotalRollos - calcular TotalPzas automáticamente (sin guardar)
+        if (fieldName === 'TotalRollos') {
+            field.addEventListener('input', function() {
+                calcularTotalPzas(this);
+            });
+            field.addEventListener('blur', function() {
+                calcularTotalPzas(this);
+                // No guardar automáticamente
+            });
+        }
+        // PzasRollo - calcular TotalPzas automáticamente (sin guardar)
+        else if (fieldName === 'PzasRollo') {
+            field.addEventListener('input', function() {
+                calcularTotalPzas(this);
+            });
+            field.addEventListener('blur', function() {
+                calcularTotalPzas(this);
+                // No guardar automáticamente
+            });
+        }
+        // Event listeners para Densidad y Repeticiones - calcular uno cuando cambia el otro (sin guardar)
+        else if (fieldName === 'Densidad') {
+            field.addEventListener('input', function() {
+                calcularRepeticionesDesdeDensidad(this);
+            });
+            field.addEventListener('blur', function() {
+                calcularRepeticionesDesdeDensidad(this);
+                // No guardar automáticamente
+            });
+        }
+        else if (fieldName === 'Repeticiones') {
+            field.addEventListener('input', function() {
+                calcularDensidadDesdeRepeticiones(this);
+            });
+            field.addEventListener('blur', function() {
+                calcularDensidadDesdeRepeticiones(this);
+                // No guardar automáticamente
+            });
+        }
+        // Los demás campos no tienen cálculos automáticos ni guardado automático
     });
 
     // Rellenar automáticamente el campo Hilo AX al cargar
@@ -1317,6 +1356,7 @@ function obtenerRegistrosSeleccionados() {
             totalPzas: getNumericValue('TotalPzas'),
             repeticiones: getNumericValue('Repeticiones'),
             saldoMarbete: getNumericValue('SaldoMarbete'),
+            densidad: getNumericValue('Densidad'),
             combinaTram: getCellValue('CombinaTrama')
         };
     });
@@ -1506,6 +1546,119 @@ function guardarCampoEditable(input) {
         input.disabled = false;
     });
 }
+
+// Función para calcular TotalPzas automáticamente cuando cambian TotalRollos o PzasRollo
+function calcularTotalPzas(changedInput) {
+    const rowId = changedInput.getAttribute('data-row-id');
+    if (!rowId) return;
+
+    // Buscar la fila que contiene este input
+    const row = changedInput.closest('.row-data');
+    if (!row) return;
+
+    // Obtener los valores de TotalRollos y PzasRollo de la misma fila
+    const totalRollosInput = row.querySelector('input[data-field="TotalRollos"]');
+    const pzasRolloInput = row.querySelector('input[data-field="PzasRollo"]');
+    const totalPzasInput = row.querySelector('input[data-field="TotalPzas"]');
+
+    if (!totalRollosInput || !pzasRolloInput || !totalPzasInput) return;
+
+    const totalRollos = parseFloat(totalRollosInput.value) || 0;
+    const pzasRollo = parseFloat(pzasRolloInput.value) || 0;
+
+    // Calcular TotalPzas = TotalRollos * PzasRollo
+    const totalPzas = totalRollos * pzasRollo;
+
+    // Actualizar el valor de TotalPzas
+    if (totalPzas > 0) {
+        const newTotalPzas = Math.round(totalPzas);
+        const oldValue = totalPzasInput.getAttribute('data-original-value') || '';
+
+        totalPzasInput.value = newTotalPzas;
+        // Actualizar el valor original guardado (pero NO guardar en BD hasta que se presione "Liberar")
+        totalPzasInput.setAttribute('data-original-value', newTotalPzas.toString());
+    } else {
+        totalPzasInput.value = '';
+        totalPzasInput.setAttribute('data-original-value', '');
+    }
+}
+
+// Función para calcular Repeticiones cuando cambia Densidad
+function calcularRepeticionesDesdeDensidad(changedInput) {
+    const row = changedInput.closest('.row-data');
+    if (!row) return;
+
+    const densidadInput = row.querySelector('input[data-field="Densidad"]');
+    const repeticionesInput = row.querySelector('input[data-field="Repeticiones"]');
+
+    if (!densidadInput || !repeticionesInput) return;
+
+    const densidad = parseFloat(densidadInput.value) || 0;
+    if (densidad <= 0) return;
+
+    // Obtener valores necesarios de la tabla
+    const anchoCell = row.querySelector('[data-column="Ancho"]');
+    const largoCrudoCell = row.querySelector('[data-column="LargoCrudo"]');
+    const noTirasCell = row.querySelector('[data-column="NoTiras"]');
+
+    // Si no están disponibles en la tabla, no podemos calcular
+    if (!anchoCell || !largoCrudoCell || !noTirasCell) return;
+
+    const ancho = parseFloat(anchoCell.textContent.replace(/,/g, '')) || 0;
+    const largoText = largoCrudoCell.textContent.trim();
+    const largo = parseFloat(largoText.replace(/[^\d.]/g, '')) || 0;
+    const noTiras = parseFloat(noTirasCell.textContent.replace(/,/g, '')) || 0;
+
+    if (ancho <= 0 || largo <= 0 || noTiras <= 0) return;
+
+    // Calcular PesoCrudo desde Densidad: PesoCrudo = Densidad * ((ancho * largo) / 10)
+    const pesoCrudo = densidad * ((ancho * largo) / 10);
+
+    // Para calcular Repeticiones necesitamos pesoRollo que no está en la tabla
+    // Por ahora, no podemos calcular Repeticiones desde Densidad sin pesoRollo
+    // El backend lo calculará cuando se liberen las órdenes
+}
+
+// Función para calcular Densidad cuando cambia Repeticiones
+function calcularDensidadDesdeRepeticiones(changedInput) {
+    const row = changedInput.closest('.row-data');
+    if (!row) return;
+
+    const repeticionesInput = row.querySelector('input[data-field="Repeticiones"]');
+    const densidadInput = row.querySelector('input[data-field="Densidad"]');
+
+    if (!repeticionesInput || !densidadInput) return;
+
+    const repeticiones = parseFloat(repeticionesInput.value) || 0;
+    if (repeticiones <= 0) return;
+
+    // Obtener valores necesarios de la tabla
+    const anchoCell = row.querySelector('[data-column="Ancho"]');
+    const largoCrudoCell = row.querySelector('[data-column="LargoCrudo"]');
+    const pesoCrudoCell = row.querySelector('[data-column="PesoCrudo"]');
+
+    // Si no están disponibles en la tabla, no podemos calcular
+    if (!anchoCell || !largoCrudoCell || !pesoCrudoCell) return;
+
+    const ancho = parseFloat(anchoCell.textContent.replace(/,/g, '')) || 0;
+    const largoText = largoCrudoCell.textContent.trim();
+    const largo = parseFloat(largoText.replace(/[^\d.]/g, '')) || 0;
+    const pesoCrudo = parseFloat(pesoCrudoCell.textContent.replace(/,/g, '')) || 0;
+
+    if (ancho <= 0 || largo <= 0 || pesoCrudo <= 0) return;
+
+    // Calcular Densidad: densidad = peso_crudo / ((ancho * largo) / 10)
+    const denominador = (ancho * largo) / 10;
+    if (denominador > 0) {
+        const densidad = pesoCrudo / denominador;
+        const newDensidad = Math.round(densidad * 10000) / 10000; // 4 decimales
+        const oldValue = densidadInput.getAttribute('data-original-value') || '';
+
+        densidadInput.value = newDensidad;
+        // Actualizar el valor original guardado (pero NO guardar en BD hasta que se presione "Liberar")
+        densidadInput.setAttribute('data-original-value', newDensidad.toString());
+    }
+}
 </script>
 
 <style>
@@ -1602,6 +1755,12 @@ th[data-field="HiloAX"] {
 /* Estilos para el input de densidad */
 .densidad-input {
     min-width: 150px !important;
+    width: 100% !important;
+}
+
+/* Estilos para el input de Total Pzas - más ancho para 5 dígitos */
+.total-pzas-input {
+    min-width: 80px !important;
     width: 100% !important;
 }
 </style>
