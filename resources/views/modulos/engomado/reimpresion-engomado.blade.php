@@ -34,7 +34,7 @@
                             </td>
                             <td class="px-2 py-2 text-center">
                                 <a
-                                    href="{{ route('engomado.modulo.produccion.engomado.pdf') }}?orden_id={{ $orden->Id }}&tipo=engomado"
+                                    href="{{ route('engomado.modulo.produccion.engomado.pdf') }}?orden_id={{ $orden->Id }}&tipo=engomado&reimpresion=1"
                                     target="_blank"
                                     class="inline-flex items-center px-2 py-1 text-md bg-red-600 text-white rounded hover:bg-red-700"
                                 >

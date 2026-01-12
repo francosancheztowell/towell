@@ -28,6 +28,12 @@
             font-size: 16pt;
             font-weight: bold;
         }
+        .reimpresion {
+            color: #c00000;
+            font-size: 9pt;
+            font-weight: bold;
+            margin-top: 2px;
+        }
         .row {
             display: block;
             margin-bottom: 4px;
@@ -129,9 +135,9 @@
             display: table-cell;
             vertical-align: top;
         }
-        .triple-left { width: 45%; }
-        .triple-middle { width: 35%; text-align: left; }
-        .triple-right { width: 20%; text-align: right; }
+        .triple-left { width: 24%; }
+        .triple-middle { width: 32%; text-align: left; }
+        .triple-right { width: 40%; text-align: left; padding-left: 8px; }
         .triple-row table th,
         .triple-row table td {
             padding-top: 7px;
@@ -212,6 +218,9 @@
     </div>
     <div class="header-cell header-right">
         <span class="folio">No. {{ $ordenNo }}</span>
+        @if(!empty($esReimpresion))
+            <div class="reimpresion">REIMPRESIÓN</div>
+        @endif
     </div>
 </div>
 
@@ -343,8 +352,6 @@
     <div class="triple-cell triple-left">
         <span class="group label">Destino:</span>
         <span class="group">{{ $destino }}</span>
-        <span class="group label">Merma:</span>
-        <span class="group line line-md"></span>
     </div>
     <div class="triple-cell triple-middle">
         <table style="width: 100%; display: inline-table;">
@@ -364,7 +371,10 @@
             </tbody>
         </table>
     </div>
-    <div class="triple-cell triple-right"></div>
+    <div class="triple-cell triple-right">
+        <span class="group label">Merma:</span>
+        <span class="group line line-md"></span>
+    </div>
 </div>
 
 <div class="row" style="margin-top: 6px;">

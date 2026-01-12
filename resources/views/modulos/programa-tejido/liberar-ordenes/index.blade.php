@@ -44,14 +44,10 @@
             ['field' => 'NombreProducto', 'label' => 'Producto'],
             ['field' => 'InventSizeId', 'label' => 'Tamaño AX'],
             ['field' => 'TotalPedido', 'label' => 'Pedido'],
-            ['field' => 'NoProduccion', 'label' => 'Producción'],
-            ['field' => 'SaldoPedido', 'label' => 'Saldos'],
             ['field' => 'ProgramarProd', 'label' => 'Day Shedulling'],
-            ['field' => 'NoProduccion', 'label' => 'Orden Prod'],
             ['field' => 'Programado', 'label' => 'INN'],
             ['field' => 'NombreProyecto', 'label' => 'Descripción'],
             ['field' => 'AplicacionId', 'label' => 'Aplic'],
-            ['field' => 'Observaciones', 'label' => 'Obs'],
             ['field' => 'TipoPedido', 'label' => 'Tipo Ped'],
             ['field' => 'FechaInicio', 'label' => 'Inicio'],
             ['field' => 'FechaFinal', 'label' => 'Fin'],
@@ -149,15 +145,21 @@
                 $valorFloat = (float)$value;
                 $parteEntera = (int)$valorFloat;
                 $parteDecimal = abs($valorFloat - $parteEntera);
+                $valorFormateado = '';
                 if ($parteDecimal > 0.50) {
                     if ($valorFloat >= 0) {
-                        return (string)(int)ceil($valorFloat);
+                        $valorFormateado = (string)(int)ceil($valorFloat);
                     } else {
-                        return (string)(int)floor($valorFloat);
+                        $valorFormateado = (string)(int)floor($valorFloat);
                     }
                 } else {
-                    return (string)$parteEntera;
+                    $valorFormateado = (string)$parteEntera;
                 }
+                // Si es negativo, aplicar clase CSS para mostrarlo en rojo
+                if ($valorFloat < 0) {
+                    return '<span class="valor-negativo">' . htmlspecialchars($valorFormateado, ENT_QUOTES, 'UTF-8') . '</span>';
+                }
+                return $valorFormateado;
             }
 
             // Formato de fechas (día-mes-año abreviado)
@@ -292,7 +294,8 @@ const tipoHiloUrl = '{{ route('programa-tejido.liberar-ordenes.tipo-hilo') }}';
 const bomAutocompleteUrl = '{{ route('programa-tejido.liberar-ordenes.bom') }}';
 
 // Variables globales para columnas
-let pinnedColumns = [];
+// Columnas fijadas por defecto: Maq (índice 2), Hilo (índice 6), Producto (índice 9)
+let pinnedColumns = [2, 6, 9];
 let hiddenColumns = [];
 let filtersActive = false;
 
@@ -325,8 +328,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Inicializar posiciones de columnas fijadas
-    updatePinnedColumnsPositions();
+    // Inicializar posiciones de columnas fijadas (con delay para asegurar que la tabla esté renderizada)
+    setTimeout(() => {
+        updatePinnedColumnsPositions();
+    }, 100);
+
+    // Recalcular posiciones cuando cambie el tamaño de la ventana
+    window.addEventListener('resize', () => {
+        updatePinnedColumnsPositions();
+    });
 
     // Rellenar automáticamente el campo Hilo AX al cargar
     autoFillAllHiloAX();
@@ -691,6 +701,10 @@ function updatePinnedColumnsPositions() {
         thead.style.zIndex = '10';
     }
 
+    // Calcular altura del thead para fijar celdas del tbody debajo del encabezado
+    const theadElement = document.querySelector('#mainTable thead');
+    const theadHeight = theadElement ? theadElement.offsetHeight : 0;
+
     // Aplicar estilos a columnas fijadas (solo las que no están ocultas)
     let left = 0;
     pinnedColumns.forEach((idx) => {
@@ -713,6 +727,7 @@ function updatePinnedColumnsPositions() {
             } else {
                 el.style.backgroundColor = '#fffbeb';
                 el.style.zIndex = '10';
+                el.style.top = theadHeight + 'px';
             }
         });
         left += width;
@@ -1162,6 +1177,7 @@ tbody td.pinned-column {
     position: sticky !important;
     background-color: #fffbeb !important;
     z-index: 10 !important;
+    /* El top se establece dinámicamente en JavaScript según la altura del thead */
 }
 
 .valor-negativo {

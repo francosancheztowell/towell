@@ -68,6 +68,7 @@ class PDFController extends Controller
 
             // 5) Logo en base64 (sin usar GD, solo leyendo el archivo)
             $logoBase64 = $this->cargarLogoBase64();
+            $esReimpresion = $request->boolean('reimpresion');
 
             // 6) Renderizar vista Blade a HTML
             $vistaPdf = strtolower($tipo) === 'engomado'
@@ -81,6 +82,7 @@ class PDFController extends Controller
                 'julios'             => $julios,
                 'tipo'               => $tipo,
                 'logoBase64'         => $logoBase64,
+                'esReimpresion'      => $esReimpresion,
             ])->render();
 
             // 6) Configurar DomPDF
