@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Models\catcodificados\CatCodificados;
 use App\Models\Planeacion\Catalogos\ReqPesosRollosTejido;
+use App\Models\ReqMatrizHilos;
+use App\Models\ReqModelosCodificados;
 use App\Models\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -246,7 +248,26 @@ class LiberarOrdenesController extends Controller
                 $registro->Densidad = $densidad;
             });
 
-            return view('modulos.programa-tejido.liberar-ordenes.index', compact('registros', 'dias'));
+            // Obtener opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId)
+            $hilosOptions = DB::connection('sqlsrv_ti')
+                ->table('INVENTTABLE')
+                ->select('TwTipoHiloId')
+                ->whereNotNull('TwTipoHiloId')
+                ->where('TwTipoHiloId', '!=', '')
+                ->distinct()
+                ->pluck('TwTipoHiloId')
+                ->filter(function($value) {
+                    return !empty(trim((string)$value));
+                })
+                ->map(function($value) {
+                    return trim((string)$value);
+                })
+                ->unique()
+                ->sort()
+                ->values()
+                ->toArray();
+
+            return view('modulos.programa-tejido.liberar-ordenes.index', compact('registros', 'dias', 'hilosOptions'));
         } catch (\Throwable $e) {
 
             return view('modulos.programa-tejido.liberar-ordenes.index', [
@@ -709,7 +730,7 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * Obtiene el tipo de hilo (TwTipoHiloId) para uno o múltiples items
+     * Obtiene el tipo de hilo (TipoHilo) desde INVENTTABLE para uno o múltiples items
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -1053,5 +1074,223 @@ class LiberarOrdenesController extends Controller
         return $fechaInicio->lte($fechaFormula) ? $hoy->copy() : null;
     }
 
+    /**
+     * Obtiene HiloAX desde ReqModelosCodificados para uno o múltiples items usando ItemId e InventSizeId
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function obtenerHiloAXDesdeModelos(Request $request)
+    {
+        $combinationsParam = trim((string) $request->query('combinations', ''));
+
+        if ($combinationsParam === '') {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        try {
+            $combinations = array_filter(array_map('trim', explode(',', $combinationsParam)));
+
+            if (empty($combinations)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            // Parsear combinaciones: "itemId1:inventSizeId1,itemId2:inventSizeId2,..."
+            $pairs = [];
+            foreach ($combinations as $combo) {
+                $parts = explode(':', $combo);
+                if (count($parts) === 2) {
+                    $itemId = trim($parts[0]);
+                    $inventSizeId = trim($parts[1]);
+                    if (!empty($itemId) && !empty($inventSizeId)) {
+                        $pairs[] = [
+                            'itemId' => $itemId,
+                            'inventSizeId' => $inventSizeId,
+                        ];
+                    }
+                }
+            }
+
+            if (empty($pairs)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            // Consulta única optimizada para múltiples combinaciones
+            $query = ReqModelosCodificados::query()
+                ->select('ItemId', 'InventSizeId', 'HiloAX');
+
+            $query->where(function($q) use ($pairs) {
+                foreach ($pairs as $pair) {
+                    $q->orWhere(function($subQ) use ($pair) {
+                        $subQ->where('ItemId', $pair['itemId'])
+                             ->where('InventSizeId', $pair['inventSizeId']);
+                    });
+                }
+            });
+
+            $results = $query->get();
+
+            // Crear mapa por combinación ItemId|InventSizeId
+            $map = [];
+            foreach ($results as $result) {
+                $key = $result->ItemId . '|' . $result->InventSizeId;
+                if (!isset($map[$key]) && !empty($result->HiloAX)) {
+                    $map[$key] = $result->HiloAX;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $map,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener HiloAX desde ReqModelosCodificados', [
+                'combinations' => $combinationsParam,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener HiloAX.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtiene el código de dibujo (CodigoDibujo) desde ReqModelosCodificados
+     * para uno o múltiples items usando ItemId e InventSizeId
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function obtenerCodigoDibujo(Request $request)
+    {
+        $combinationsParam = trim((string) $request->query('combinations', ''));
+
+        if ($combinationsParam === '') {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        try {
+            $combinations = array_filter(array_map('trim', explode(',', $combinationsParam)));
+
+            if (empty($combinations)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            // Parsear combinaciones: "itemId1:inventSizeId1,itemId2:inventSizeId2,..."
+            $pairs = [];
+            foreach ($combinations as $combo) {
+                $parts = explode(':', $combo);
+                if (count($parts) === 2) {
+                    $itemId = trim($parts[0]);
+                    $inventSizeId = trim($parts[1]);
+                    if (!empty($itemId) && !empty($inventSizeId)) {
+                        $pairs[] = [
+                            'itemId' => $itemId,
+                            'inventSizeId' => $inventSizeId,
+                        ];
+                    }
+                }
+            }
+
+            if (empty($pairs)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            // Consulta única optimizada para múltiples combinaciones
+            $query = ReqModelosCodificados::query()
+                ->select('ItemId', 'InventSizeId', 'CodigoDibujo');
+
+            $query->where(function($q) use ($pairs) {
+                foreach ($pairs as $pair) {
+                    $q->orWhere(function($subQ) use ($pair) {
+                        $subQ->where('ItemId', $pair['itemId'])
+                             ->where('InventSizeId', $pair['inventSizeId']);
+                    });
+                }
+            });
+
+            $results = $query->get();
+
+            // Crear mapa por combinación ItemId|InventSizeId
+            $map = [];
+            foreach ($results as $result) {
+                $key = $result->ItemId . '|' . $result->InventSizeId;
+                if (!isset($map[$key]) && !empty($result->CodigoDibujo)) {
+                    $map[$key] = $result->CodigoDibujo;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $map,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener Código de Dibujo.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtiene las opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId)
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function obtenerOpcionesHilos()
+    {
+        try {
+            $hilos = DB::connection('sqlsrv_ti')
+                ->table('TwTipoHilo')
+                ->select('TipoHilo')
+                ->where('TipoHilo', '!=', '')
+                ->distinct()
+                ->pluck('TipoHilo')
+                ->filter(function($value) {
+                    return !empty(trim((string)$value));
+                })
+                ->map(function($value) {
+                    return trim((string)$value);
+                })
+                ->unique()
+                ->sort()
+                ->values()
+                ->toArray();
+
+            return response()->json([
+                'success' => true,
+                'data' => $hilos,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener opciones de hilos', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener opciones de hilos.',
+            ], 500);
+        }
+    }
 
 }
