@@ -19,7 +19,7 @@ class TelActividadesBPMController extends Controller
 
         $items = TelActividadesBPM::query()
             ->when($q !== '', fn($qry) => $qry->where('Actividad', 'like', "%{$q}%"))
-            ->orderBy('Orden', 'desc')
+            ->orderBy('Orden', 'asc')
             ->get();
 
         return view('modulos.tel-actividades-bpm.index', compact('items', 'q'));
