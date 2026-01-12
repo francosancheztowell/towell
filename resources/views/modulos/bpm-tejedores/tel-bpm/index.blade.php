@@ -373,7 +373,16 @@
 
     btnDeleteTop?.addEventListener('click', ()=>{
         if (!selected) return Swal.fire('Selecciona un folio','Debes seleccionar un folio para eliminar','info');
-        if (selected.dataset.status !== 'Creado') return Swal.fire('No permitido','Sólo se puede eliminar en estado Creado','warning');
+        const status = selected.dataset.status;
+        if (status !== 'Creado') {
+            return Swal.fire({
+                icon: 'error',
+                title: 'Eliminación no permitida',
+                text: `No se puede eliminar un folio en estado "${status}". Solo se pueden eliminar folios en estado "Creado".`,
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#3085d6'
+            });
+        }
         const folio = selected.dataset.folio;
         Swal.fire({
             title: '¿Eliminar?',
