@@ -31,6 +31,7 @@ use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\InvTelasReservadasCont
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ReservarProgramarController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ProgramarUrdEngController;
 use App\Http\Controllers\Urdido\ProgramaUrdido\ProgramarUrdidoController;
+use App\Http\Controllers\Urdido\ProgramaUrdido\EditarOrdenesProgramadasController;
 use App\Http\Controllers\Engomado\ProgramaEngomado\ProgramarEngomadoController;
 use App\Http\Controllers\Engomado\Produccion\ModuloProduccionEngomadoController;
 use App\Http\Controllers\Urdido\Configuracion\ModuloProduccionUrdidoController;
@@ -65,6 +66,7 @@ use App\Http\Controllers\Engomado\BPMEngomado\EngBpmLineController;
 use App\Http\Controllers\ComprasEspecialesController;
 use App\Http\Controllers\PronosticosController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
+use App\Http\Controllers\Planeacion\ProgramaTejido\ReimprimirOrdenesController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\DescargarProgramaController;
 use App\Http\Controllers\Simulaciones\SimulacionComprasEspecialesController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoLineController;
@@ -694,6 +696,9 @@ Route::post('/planeacion/programa-tejido/liberar-ordenes/procesar', [LiberarOrde
 Route::get('/planeacion/programa-tejido/liberar-ordenes/bom-sugerencias', [LiberarOrdenesController::class, 'obtenerBomYNombre'])->name('programa-tejido.liberar-ordenes.bom');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/tipo-hilo', [LiberarOrdenesController::class, 'obtenerTipoHilo'])->name('programa-tejido.liberar-ordenes.tipo-hilo');
 
+// Ruta para reimpresión de órdenes (recibe ID de CatCodificados)
+Route::get('/planeacion/programa-tejido/reimprimir-ordenes/{id}', [ReimprimirOrdenesController::class, 'reimprimir'])->name('planeacion.programa-tejido.reimprimir-ordenes');
+
 // Descargar programa
 Route::post('/planeacion/programa-tejido/descargar-programa', [DescargarProgramaController::class, 'descargar'])->name('programa-tejido.descargar-programa');
 
@@ -920,6 +925,12 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
         Route::post('/programar-urdido/guardar-observaciones', [ProgramarUrdidoController::class, 'guardarObservaciones'])->name('programar.urdido.guardar.observaciones');
         Route::post('/programar-urdido/actualizar-status', [ProgramarUrdidoController::class, 'actualizarStatus'])->name('programar.urdido.actualizar.status');
 
+        // Editar Órdenes Programadas
+        Route::get('/editar-ordenes-programadas', [EditarOrdenesProgramadasController::class, 'index'])->name('editar.ordenes.programadas');
+        Route::post('/editar-ordenes-programadas/actualizar', [EditarOrdenesProgramadasController::class, 'actualizar'])->name('editar.ordenes.programadas.actualizar');
+        Route::get('/editar-ordenes-programadas/obtener-orden', [EditarOrdenesProgramadasController::class, 'obtenerOrden'])->name('editar.ordenes.programadas.obtener.orden');
+        Route::post('/editar-ordenes-programadas/actualizar-julios', [EditarOrdenesProgramadasController::class, 'actualizarJulios'])->name('editar.ordenes.programadas.actualizar.julios');
+
         // Catálogos de Urdido
         Route::get('/catalogos-julios', [CatalogosUrdidoController::class, 'catalogosJulios'])->name('catalogos.julios');
         Route::get('/catalogo-maquinas', [CatalogosUrdidoController::class, 'catalogoMaquinas'])->name('catalogo.maquinas');
@@ -947,7 +958,6 @@ Route::prefix('simulacion')->name('simulacion.')->group(function () {
         Route::post('/programar-engomado/guardar-observaciones', [ProgramarEngomadoController::class, 'guardarObservaciones'])->name('programar.engomado.guardar.observaciones');
         Route::get('/programar-engomado/todas-ordenes', [ProgramarEngomadoController::class, 'getTodasOrdenes'])->name('programar.engomado.todas.ordenes');
         Route::post('/programar-engomado/actualizar-prioridades', [ProgramarEngomadoController::class, 'actualizarPrioridades'])->name('programar.engomado.actualizar.prioridades');
-        Route::post('/programar-engomado/actualizar-status', [ProgramarEngomadoController::class, 'actualizarStatus'])->name('programar.engomado.actualizar.status');
 
         // Módulo Producción Engomado
         Route::get('/modulo-produccion-engomado', [ModuloProduccionEngomadoController::class, 'index'])->name('modulo.produccion.engomado');

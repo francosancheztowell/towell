@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 
 class ProgramarEngomadoController extends Controller
@@ -270,6 +269,7 @@ class ProgramarEngomadoController extends Controller
      * Verificar si hay órdenes con status "En Proceso" por tabla (máquina)
      * Retorna true si hay 2 o más órdenes con status "En Proceso" en la misma tabla
      * (excluyendo la orden actual si se proporciona)
+     * También verifica que la orden de urdido esté finalizada antes de permitir poner en proceso
      *
      * @param Request $request
      * @return JsonResponse
@@ -279,6 +279,23 @@ class ProgramarEngomadoController extends Controller
         try {
             $ordenIdExcluir = $request->query('excluir_id');
             $maquinaEng = $request->query('maquina_eng');
+            $folio = $request->query('folio');
+
+            // Verificar primero si la orden de urdido está finalizada
+            if (!empty($folio)) {
+                $urdido = UrdProgramaUrdido::where('Folio', $folio)->first();
+                if ($urdido && $urdido->Status !== 'Finalizado') {
+                    return response()->json([
+                        'success' => true,
+                        'tieneOrdenEnProceso' => true,
+                        'cantidad' => 0,
+                        'limite' => 2,
+                        'tabla' => '',
+                        'mensaje' => "No se puede cargar la orden. La orden de urdido debe tener status 'Finalizado' antes de poder ponerla en proceso en engomado.",
+                        'urdidoNoFinalizado' => true,
+                    ]);
+                }
+            }
 
             // Si no se proporciona maquina_eng, permitir (no bloquear)
             // Esto permite que funcione aunque no se pueda determinar la máquina
@@ -451,148 +468,7 @@ class ProgramarEngomadoController extends Controller
         }
     }
 
-    /**
-     * Recalcular prioridades consecutivas para todas las órdenes activas
-     * Excluye órdenes canceladas
-     */
-    private function recalcularPrioridades(): void
-    {
-        try {
-            // Obtener todas las órdenes activas
-            $ordenes = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso'])
-                ->whereNotNull('MaquinaEng')
-                ->where('MaquinaEng', '!=', '')
-                ->get();
 
-            // Ordenar: primero por prioridad (las que tienen), luego por FechaProg
-            $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
-                $prioridad = isset($orden->Prioridad) && !empty($orden->Prioridad) ? $orden->Prioridad : 999999;
-                $fecha = $orden->FechaProg ? strtotime($orden->FechaProg) : 999999999;
-                return [$prioridad, $fecha];
-            })->values();
-
-            DB::beginTransaction();
-
-            // Asignar prioridades consecutivas empezando desde 1
-            foreach ($ordenesOrdenadas as $index => $orden) {
-                $nuevaPrioridad = $index + 1;
-                DB::connection('sqlsrv')
-                    ->table('EngProgramaEngomado')
-                    ->where('Id', $orden->Id)
-                    ->update(['Prioridad' => $nuevaPrioridad]);
-            }
-
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('Error al recalcular prioridades: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Actualizar el status de una orden
-     * Si se cancela, se elimina la prioridad y se recalculan todas las demás
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function actualizarStatus(Request $request): JsonResponse
-    {
-        try {
-            if (!$this->usuarioPuedeEditar()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No autorizado',
-                ], 403);
-            }
-
-            $request->validate([
-                'id' => 'required|integer|exists:EngProgramaEngomado,Id',
-                'status' => ['required', 'string', Rule::in(['Programado', 'En Proceso', 'Cancelado'])],
-            ]);
-
-            $orden = EngProgramaEngomado::findOrFail($request->id);
-            $nuevoStatus = $request->status;
-            $statusAnterior = $orden->Status;
-
-            if ($orden->Status === $nuevoStatus) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Status sin cambios',
-                ]);
-            }
-
-            if ($nuevoStatus === 'En Proceso') {
-                $tabla = $this->extractTablaNumber($orden->MaquinaEng);
-                $limitePorTabla = 2;
-
-                if ($tabla !== null) {
-                    $cantidadEnProceso = EngProgramaEngomado::where('Status', 'En Proceso')
-                        ->whereNotNull('MaquinaEng')
-                        ->where('Id', '!=', $orden->Id)
-                        ->get()
-                        ->filter(function ($item) use ($tabla) {
-                            return $this->extractTablaNumber($item->MaquinaEng) === $tabla;
-                        })
-                        ->count();
-
-                    if ($cantidadEnProceso >= $limitePorTabla) {
-                        $nombreTabla = $tabla === 1 ? 'West Point 2' : 'West Point 3';
-
-                        return response()->json([
-                            'success' => false,
-                            'error' => "Ya existen {$limitePorTabla} ordenes en proceso en {$nombreTabla}.",
-                        ], 422);
-                    }
-                }
-            }
-
-            DB::beginTransaction();
-
-            $orden->Status = $nuevoStatus;
-
-            // Si se cancela, eliminar prioridad y recalcular todas las demás
-            if ($nuevoStatus === 'Cancelado') {
-                $orden->Prioridad = null;
-                $orden->save();
-
-                // Recalcular prioridades de todas las órdenes activas
-                $this->recalcularPrioridades();
-            }
-            // Si se reactiva desde cancelado, asignar nueva prioridad al final
-            elseif ($statusAnterior === 'Cancelado' && in_array($nuevoStatus, ['Programado', 'En Proceso'])) {
-                $maxPrioridad = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso'])
-                    ->whereNotNull('MaquinaEng')
-                    ->where('MaquinaEng', '!=', '')
-                    ->whereNotNull('Prioridad')
-                    ->max('Prioridad') ?? 0;
-
-                $orden->Prioridad = $maxPrioridad + 1;
-                $orden->save();
-            } else {
-                $orden->save();
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Status actualizado correctamente',
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación: ' . $e->getMessage(),
-            ], 422);
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar status: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
 
     /**
      * Obtener todas las órdenes sin agrupar por tabla

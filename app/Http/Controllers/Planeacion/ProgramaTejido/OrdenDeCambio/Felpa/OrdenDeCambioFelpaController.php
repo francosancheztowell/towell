@@ -1470,6 +1470,7 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->CreaProd = $registro->CreaProd ?? 1;
             $catCodificado->HiloAX = $registro->HiloAX ?? null;
             $catCodificado->ActualizaLmat = $registro->ActualizaLmat ?? 0;
+            $catCodificado->CategoriaCalidad = $registro->CategoriaCalidad ?? null;
 
             // Densidad: usar del registro si está disponible, sino calcular o usar PesoGRM2
             $catCodificado->Densidad = $registro->Densidad ?? null;

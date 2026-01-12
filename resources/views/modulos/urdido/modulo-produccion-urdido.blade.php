@@ -238,7 +238,8 @@
                                         }
                                     }
                                     $tieneOficiales = count($oficiales) > 0;
-                                    $turnoInicial = '';
+                                    // Obtener turno del primer oficial si existe
+                                    $turnoInicial = $tieneOficiales && isset($oficiales[0]['turno']) ? (string)$oficiales[0]['turno'] : '';
                                 @endphp
 
                                 <tr class="hover:bg-gray-50" data-registro-id="{{ $registroId }}">
@@ -744,8 +745,11 @@
                     // Inicializar valor anterior del oficial en cada fila y actualizar turno
                     tablaBody.querySelectorAll('tr').forEach(row => {
                         const oficialSelect = row.querySelector('.oficial-select');
-                        if (oficialSelect && oficialSelect.value) {
-                            oficialSelect.setAttribute('data-oficial-anterior', oficialSelect.value);
+                        if (oficialSelect) {
+                            // Si hay un oficial seleccionado, establecer el valor anterior
+                            if (oficialSelect.value) {
+                                oficialSelect.setAttribute('data-oficial-anterior', oficialSelect.value);
+                            }
 
                             // Actualizar turno automáticamente si hay un oficial seleccionado
                             const selectedOption = oficialSelect.options[oficialSelect.selectedIndex];

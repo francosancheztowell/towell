@@ -898,6 +898,7 @@ class LiberarOrdenesController extends Controller
                 'Densidad' => $registro->Densidad !== null ? (float)$registro->Densidad : null,
                 'CreaProd' => $registro->CreaProd ?? 1,
                 'ActualizaLmat' => $registro->ActualizaLmat ?? 0,
+                'CategoriaCalidad' => $registro->CategoriaCalidad,
             ];
 
             $updated = false;
@@ -929,6 +930,12 @@ class LiberarOrdenesController extends Controller
             }
             if (in_array('TotalPzas', $columns, true)) {
                 $registroCodificado->TotalPzas = $valorTotalPzas;
+                $updated = true;
+            }
+
+            // FORZAR asignación de CategoriaCalidad SIEMPRE (incluso si es null)
+            if (in_array('CategoriaCalidad', $columns, true)) {
+                $registroCodificado->CategoriaCalidad = $registro->CategoriaCalidad;
                 $updated = true;
             }
 
