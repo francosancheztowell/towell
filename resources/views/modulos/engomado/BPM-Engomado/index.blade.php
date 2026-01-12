@@ -48,12 +48,12 @@
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Folio</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Status</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Fecha</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">No Entrega</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Entrega</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Turno Entrega</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">No Recibe</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Recibe</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Turno Recibe</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">No Entrega</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Entrega</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Turno Entrega</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Cve Autoriza</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Autoriza</th>
                 </tr>
@@ -72,12 +72,12 @@
                             </span>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $item->Fecha ? $item->Fecha->format('d/m/Y H:i') : '' }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->CveEmplEnt }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->NombreEmplEnt }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-center">{{ $item->TurnoEntrega }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $item->CveEmplRec }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $item->NombreEmplRec }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-center">{{ $item->TurnoRecibe }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->CveEmplEnt }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->NombreEmplEnt }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-center">{{ $item->TurnoEntrega }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $item->CveEmplAutoriza }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $item->NomEmplAutoriza }}</td>
                     </tr>

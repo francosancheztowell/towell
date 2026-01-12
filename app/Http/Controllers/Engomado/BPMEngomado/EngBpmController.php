@@ -17,7 +17,9 @@ class EngBpmController extends Controller
     {
         try {
             $items = EngBpmModel::orderBy('Id', 'desc')->get();
-            $usuarios = SYSUsuario::orderBy('nombre', 'asc')->get();
+            $usuarios = SYSUsuario::where('area', 'Engomado')
+                ->orderBy('nombre', 'asc')
+                ->get();
             $maquinas = URDCatalogoMaquina::where('Departamento', 'Engomado')
                 ->orderBy('Nombre', 'asc')
                 ->get();
