@@ -171,6 +171,21 @@
         Swal.fire({ icon, title, toast:true, position:'top-end', timer:2000, showConfirmButton:false });
     }
 
+    // Mostrar mensajes de sesión (success/error) al cargar la página
+    @if(session('success'))
+        toast('success', @json(session('success')));
+    @endif
+    
+    @if(session('error'))
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: @json(session('error')),
+            confirmButtonText: 'Aceptar',
+            confirmButtonColor: '#3085d6'
+        });
+    @endif
+
     // Tri-estado por celda: vacío → ✓ → ✗ → vacío (guarda sólo el folio actual)
     document.querySelectorAll('.cell-btn').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
