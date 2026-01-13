@@ -17,7 +17,7 @@ class UrdBpmController extends Controller
     {
         try {
             $items = UrdBpmModel::orderBy('Id', 'desc')->get();
-            $usuarios = SYSUsuario::orderBy('nombre', 'asc')->get();
+            $usuarios = SYSUsuario::where('area', 'Urdido')->whereNotNull('numero_empleado')->orderBy('nombre','asc')->get();
             $maquinas = URDCatalogoMaquina::where('Departamento', 'Urdido')
                 ->orderBy('Nombre', 'asc')
                 ->get();

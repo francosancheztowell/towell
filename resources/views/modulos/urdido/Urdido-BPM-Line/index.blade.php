@@ -67,14 +67,14 @@
                 <span class="text-base font-semibold">{{ $header->Fecha ? $header->Fecha->format('d/m/Y H:i') : '' }}</span>
             </div>
             <div class="flex items-baseline gap-1 px-4">
-                <span class="text-sm text-gray-500 font-medium uppercase">Entrega:</span>
-                <span class="text-base font-semibold">{{ $header->NombreEmplEnt }}</span>
-                <span class="text-sm text-gray-600">(Turno {{ $header->TurnoEntrega }})</span>
-            </div>
-            <div class="flex items-baseline gap-1 px-4">
                 <span class="text-sm text-gray-500 font-medium uppercase">Recibe:</span>
                 <span class="text-base font-semibold">{{ $header->NombreEmplRec }}</span>
                 <span class="text-sm text-gray-600">(Turno {{ $header->TurnoRecibe }})</span>
+            </div>
+            <div class="flex items-baseline gap-1 px-4">
+                <span class="text-sm text-gray-500 font-medium uppercase">Entrega:</span>
+                <span class="text-base font-semibold">{{ $header->NombreEmplEnt }}</span>
+                <span class="text-sm text-gray-600">(Turno {{ $header->TurnoEntrega }})</span>
             </div>
             <div class="flex items-baseline gap-1 px-4">
                 <span class="text-sm text-gray-500 font-medium uppercase">Autoriza:</span>
