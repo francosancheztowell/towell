@@ -53,7 +53,23 @@ class UrdBpmLineController extends Controller
         $lineas = UrdBpmLineModel::where('Folio', $folio)
             ->pluck('Valor', 'Actividad');
 
-        return view('modulos.urdido.Urdido-BPM-Line.index', compact('header', 'actividades', 'lineas', 'nombreMaquina'));
+        // Determinar si el usuario actual es Supervisor (para habilitar acciones de autorización en la vista)
+        $esSupervisor = false;
+        try {
+            $u = Auth::user();
+            if ($u) {
+                $num = $u->numero_empleado ?? $u->cve ?? null;
+                if ($num) {
+                    $sysU = \App\Models\SYSUsuario::where('numero_empleado', $num)->first();
+                    $puesto = strtolower(trim((string)($sysU->puesto ?? '')));
+                    $esSupervisor = ($puesto === 'supervisor');
+                }
+            }
+        } catch (\Throwable $e) {
+            $esSupervisor = false;
+        }
+
+        return view('modulos.urdido.Urdido-BPM-Line.index', compact('header', 'actividades', 'lineas', 'nombreMaquina', 'esSupervisor'));
     }
 
     public function toggleActividad(Request $request, string $folio)
@@ -115,15 +131,32 @@ class UrdBpmLineController extends Controller
         if ($header->Status !== 'Terminado') {
             return redirect()->back()->with('error', 'Solo se puede autorizar un registro Terminado');
         }
+        // Validar que el usuario actual tenga puesto de Supervisor
+        $u = Auth::user();
+        if (!$u) {
+            return redirect()->back()->with('error', 'Usuario no autenticado.');
+        }
 
-        // Obtener información del usuario actual que autoriza
-        $usuario = Auth::user();
-        $usuarioDb = \App\Models\SYSUsuario::where('idusuario', $usuario->idusuario)->first();
+        // Intentar identificar por número de empleado o clave
+        $numeroEmpleado = $u->numero_empleado ?? $u->cve ?? null;
+        $sysUsuario = null;
+        if ($numeroEmpleado) {
+            $sysUsuario = \App\Models\SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
+        }
+        // Fallback por idusuario si no se encontró por número de empleado
+        if (!$sysUsuario && isset($u->idusuario)) {
+            $sysUsuario = \App\Models\SYSUsuario::where('idusuario', $u->idusuario)->first();
+        }
 
+        if (!$sysUsuario || strtolower(trim((string)($sysUsuario->puesto ?? ''))) !== 'supervisor') {
+            return redirect()->back()->with('error', 'No tienes permisos para autorizar. Solo los supervisores pueden realizar esta acción.');
+        }
+
+        // Autorizar y registrar quién autorizó
         $header->update([
             'Status' => 'Autorizado',
-            'CveEmplAutoriza' => $usuarioDb->numero_empleado ?? null,
-            'NombreEmplAutoriza' => $usuarioDb->nombre ?? null
+            'CveEmplAutoriza' => (string)($sysUsuario->numero_empleado ?? ''),
+            'NombreEmplAutoriza' => (string)($sysUsuario->nombre ?? ''),
         ]);
 
         return redirect()->back()->with('success', 'Registro Autorizado exitosamente');
