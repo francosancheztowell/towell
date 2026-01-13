@@ -144,6 +144,71 @@
     </div>
   </div>
 
+  <!-- ====== Modal Notificar Cortado de Rollo ====== -->
+  <div id="modalCortadoRollos" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 my-8">
+      <!-- Header del Modal -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <h2 class="text-xl font-bold text-gray-800">Notificar Cortado de Rollo</h2>
+        <button type="button" id="closeModalCortado" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Body del Modal -->
+      <div class="p-6">
+        <!-- Select de Telar del Usuario -->
+        <div class="mb-6">
+          <label for="selectTelarCortado" class="block text-sm font-medium text-gray-700 mb-2">
+            Seleccionar Telar
+          </label>
+          <select id="selectTelarCortado" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <option value="">-- Seleccione un telar --</option>
+          </select>
+        </div>
+
+        <!-- Tabla de Datos de Producción -->
+        <div id="tablaProduccionCortadoContainer" class="mb-6" style="display: none;">
+          <h3 class="text-lg font-semibold text-gray-800 mb-3">Seleccionar Marbetes a Liberar</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border border-gray-300 rounded-lg">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Cuantas</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Marbete</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Artículo</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Tamaño</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Orden</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Telar</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Piezas</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Salón</th>
+                </tr>
+              </thead>
+              <tbody id="tablaProduccionCortadoBody" class="divide-y divide-gray-200">
+                <!-- Los datos se cargarán dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Mensaje de carga o error -->
+        <div id="mensajeEstadoCortado" class="text-center text-gray-500 mb-4" style="display: none;"></div>
+      </div>
+
+      <!-- Footer del Modal -->
+      <div class="flex justify-end gap-2 p-6 border-t border-gray-200">
+        <button type="button" id="closeModalCortadoBtn" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+          Cerrar
+        </button>
+        <button type="button" id="btnNotificarCortado" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors" style="display: none;">
+          Notificar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ====== Polyfill CSS.escape (debe estar ANTES de los scripts) ====== -->
   <script>
     (function () {
@@ -377,6 +442,53 @@
       document.getElementById('detallesTelar').classList.remove('hidden');
     }
 
+    // Funciones para modal de cortado de rollo
+    async function abrirModalCortadoRollos() {
+      await cargarTelaresCortadoRollos();
+      document.getElementById('modalCortadoRollos').style.display = 'flex';
+    }
+
+    function cerrarModalCortadoRollos() {
+      document.getElementById('modalCortadoRollos').style.display = 'none';
+      const select = document.getElementById('selectTelarCortado');
+      if (select) select.value = '';
+      const tabla = document.getElementById('tablaProduccionCortadoBody');
+      if (tabla) tabla.innerHTML = '';
+      const container = document.getElementById('tablaProduccionCortadoContainer');
+      if (container) container.style.display = 'none';
+      const mensaje = document.getElementById('mensajeEstadoCortado');
+      if (mensaje) mensaje.style.display = 'none';
+      const btn = document.getElementById('btnNotificarCortado');
+      if (btn) btn.style.display = 'none';
+    }
+
+    async function cargarTelaresCortadoRollos() {
+      const select = document.getElementById('selectTelarCortado');
+      if (!select) return;
+
+      select.innerHTML = '<option value="">-- Seleccione un telar --</option>';
+
+      try {
+        const response = await fetch('{{ route('notificar.mont.rollos') }}?listado=1', {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await response.json();
+
+        if (!data.telares || data.telares.length === 0) {
+          return;
+        }
+
+        data.telares.forEach(telar => {
+          const option = document.createElement('option');
+          option.value = telar;
+          option.textContent = `Telar ${telar}`;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error al cargar telares de rollo:', error);
+      }
+    }
+
     // Event listeners
     document.addEventListener('DOMContentLoaded', function() {
       // Cerrar modal al hacer clic fuera
@@ -396,6 +508,221 @@
         radio.addEventListener('change', function() {
           buscarDetallesTelar();
         });
+      });
+
+      // Modal cortado de rollo
+      const modalCortado = document.getElementById('modalCortadoRollos');
+      const closeModalCortado = document.getElementById('closeModalCortado');
+      const closeModalCortadoBtn = document.getElementById('closeModalCortadoBtn');
+      const selectTelarCortado = document.getElementById('selectTelarCortado');
+      const tablaCortadoContainer = document.getElementById('tablaProduccionCortadoContainer');
+      const tablaCortadoBody = document.getElementById('tablaProduccionCortadoBody');
+      const mensajeCortado = document.getElementById('mensajeEstadoCortado');
+      const btnNotificarCortado = document.getElementById('btnNotificarCortado');
+
+      let ordenCortadoActual = null;
+      let datosCortado = [];
+
+      function mostrarMensajeCortado(mensaje, tipo) {
+        mensajeCortado.textContent = mensaje;
+        mensajeCortado.className = `text-center mb-4 ${tipo === 'error' ? 'text-red-600' : tipo === 'info' ? 'text-blue-600' : 'text-gray-500'}`;
+        mensajeCortado.style.display = 'block';
+        tablaCortadoContainer.style.display = 'none';
+        btnNotificarCortado.style.display = 'none';
+      }
+
+      function renderizarTablaCortado(datos) {
+        tablaCortadoBody.innerHTML = '';
+
+        datos.forEach((dato, index) => {
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-blue-50 cursor-pointer transition-colors';
+          row.dataset.marbete = JSON.stringify(dato);
+          row.dataset.index = index;
+
+          row.innerHTML = `
+            <td class="px-4 py-2 text-sm text-gray-900">${dato.CUANTAS || 'N/A'}</td>
+            <td class="px-4 py-2 text-sm text-gray-900">${dato.PurchBarCode || 'N/A'}</td>
+            <td class="px-4 py-2 text-sm text-gray-900">${dato.ItemId || 'N/A'}</td>
+            <td class="px-4 py-2 text-sm text-gray-900">${dato.InventSizeId || 'N/A'}</td>
+            <td class="px-4 py-2 text-sm text-gray-900">${dato.InventBatchId || 'N/A'}</td>
+            <td class="px-4 py-2 text-sm text-gray-900">${dato.WMSLocationId || 'N/A'}</td>
+            <td class="px-4 py-2 text-sm text-gray-900">${dato.QtySched || 'N/A'}</td>
+            <td class="px-4 py-2 text-sm text-gray-900">${dato.Salon || 'N/A'}</td>
+          `;
+
+          row.addEventListener('click', function() {
+            document.querySelectorAll('#tablaProduccionCortadoBody tr').forEach(r => {
+              r.classList.remove('bg-blue-200', 'selected');
+            });
+
+            this.classList.add('bg-blue-200', 'selected');
+          });
+
+          tablaCortadoBody.appendChild(row);
+        });
+      }
+
+      closeModalCortado?.addEventListener('click', cerrarModalCortadoRollos);
+      closeModalCortadoBtn?.addEventListener('click', cerrarModalCortadoRollos);
+
+      modalCortado?.addEventListener('click', function(event) {
+        if (event.target === this) {
+          cerrarModalCortadoRollos();
+        }
+      });
+
+      selectTelarCortado?.addEventListener('change', async function() {
+        const noTelar = this.value;
+
+        if (!noTelar) {
+          tablaCortadoContainer.style.display = 'none';
+          btnNotificarCortado.style.display = 'none';
+          return;
+        }
+
+        mostrarMensajeCortado('Buscando orden de producción...', 'info');
+
+        try {
+          const responseOrden = await fetch(`{{ route('notificar.mont.rollos.orden.produccion') }}?no_telar=${encodeURIComponent(noTelar)}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            }
+          });
+
+          const dataOrden = await responseOrden.json();
+
+          if (!dataOrden.success) {
+            mostrarMensajeCortado(dataOrden.error || 'No se encontró orden activa', 'error');
+            console.log('Debug orden:', dataOrden.debug);
+            return;
+          }
+
+          ordenCortadoActual = dataOrden.orden;
+          mostrarMensajeCortado('Cargando datos de producción desde TOW_PRO...', 'info');
+
+          const responseDatos = await fetch(`{{ route('notificar.mont.rollos.datos.produccion') }}?no_produccion=${encodeURIComponent(ordenCortadoActual.NoProduccion)}&no_telar=${encodeURIComponent(noTelar)}&salon=${encodeURIComponent(ordenCortadoActual.SalonTejidoId || '')}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            }
+          });
+
+          const dataDatos = await responseDatos.json();
+
+          if (!dataDatos.success || dataDatos.datos.length === 0) {
+            let mensajeError = dataDatos.error || 'No se encontraron datos de producción';
+            if (dataDatos.mensaje) {
+              mensajeError += '\n' + dataDatos.mensaje;
+            }
+            mostrarMensajeCortado(mensajeError, 'error');
+            console.log('Debug validación:', dataDatos.debug);
+            return;
+          }
+
+          datosCortado = dataDatos.datos;
+          renderizarTablaCortado(datosCortado);
+
+          mensajeCortado.style.display = 'none';
+          tablaCortadoContainer.style.display = 'block';
+          btnNotificarCortado.style.display = 'inline-block';
+        } catch (error) {
+          console.error('Error:', error);
+          mostrarMensajeCortado('Error al cargar los datos: ' + error.message, 'error');
+        }
+      });
+
+      btnNotificarCortado?.addEventListener('click', async function() {
+        const filaSeleccionada = document.querySelector('#tablaProduccionCortadoBody tr.selected');
+
+        if (!filaSeleccionada) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Selección requerida',
+            text: 'Debe seleccionar un marbete de la tabla',
+            confirmButtonColor: '#3b82f6'
+          });
+          return;
+        }
+
+        const marbete = JSON.parse(filaSeleccionada.dataset.marbete);
+        const marbetesSeleccionados = [marbete];
+
+        const confirmacion = await Swal.fire({
+          icon: 'question',
+          title: '¿Confirmar liberación?',
+          text: `¿Está seguro de liberar el marbete ${marbete.PurchBarCode}?`,
+          showCancelButton: true,
+          confirmButtonColor: '#3b82f6',
+          cancelButtonColor: '#6b7280',
+          confirmButtonText: 'Sí, liberar',
+          cancelButtonText: 'Cancelar'
+        });
+
+        if (!confirmacion.isConfirmed) {
+          return;
+        }
+
+        try {
+          mostrarMensajeCortado('Insertando marbetes en TelMarbeteLiberado...', 'info');
+
+          Swal.fire({
+            title: 'Procesando...',
+            text: 'Liberando marbete',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+          const response = await fetch('{{ route('notificar.mont.rollos.insertar') }}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+              marbetes: marbetesSeleccionados
+            })
+          });
+
+          const data = await response.json();
+
+          if (!data.success) {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.error || 'No se pudieron insertar los marbetes',
+              confirmButtonColor: '#ef4444'
+            });
+            mostrarMensajeCortado('Error al insertar: ' + (data.error || 'Error desconocido'), 'error');
+            return;
+          }
+
+          await Swal.fire({
+            icon: 'success',
+            title: '¡Marbete liberado!',
+            text: data.mensaje,
+            confirmButtonColor: '#22c55e',
+            timer: 2000,
+            timerProgressBar: true
+          });
+
+          cerrarModalCortadoRollos();
+        } catch (error) {
+          console.error('Error:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error de conexión',
+            text: 'Error al insertar marbetes: ' + error.message,
+            confirmButtonColor: '#ef4444'
+          });
+        }
       });
     });
   </script>
