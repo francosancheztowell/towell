@@ -27,13 +27,19 @@
                     Autorizar
                 </button>
             @endif
-            <form action="{{ route('urd-bpm-line.rechazar', $header->Folio) }}" method="POST" class="inline">
-                @csrf
-                @method('PATCH')
-                <button type="submit" class="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+            @if(!empty($esSupervisor) && $esSupervisor)
+                <form action="{{ route('urd-bpm-line.rechazar', $header->Folio) }}" method="POST" class="inline">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                        Rechazar
+                    </button>
+                </form>
+            @else
+                <button type="button" class="px-3 py-1.5 text-sm bg-red-300 text-white rounded-lg cursor-not-allowed" title="Solo un supervisor puede rechazar" disabled>
                     Rechazar
                 </button>
-            </form>
+            @endif
         @endif
     </div>
 @endsection

@@ -85,6 +85,22 @@ class TelBpmLineController extends Controller
             ->where('NoTelarId', 'COMENT')
             ->value('comentarios') ?? '';
 
+        // Determinar si el usuario actual es Supervisor
+        $esSupervisor = false;
+        try {
+            $u = \Illuminate\Support\Facades\Auth::user();
+            if ($u) {
+                $num = $u->numero_empleado ?? $u->cve ?? null;
+                if ($num) {
+                    $sysU = SYSUsuario::where('numero_empleado', $num)->first();
+                    $puesto = strtolower(trim((string)($sysU->puesto ?? '')));
+                    $esSupervisor = ($puesto === 'supervisor');
+                }
+            }
+        } catch (\Throwable $e) {
+            $esSupervisor = false;
+        }
+
         return view('modulos.bpm-tejedores.tel-bpm-line.index', [
             'folio'       => $folio,
             'header'      => $header,
@@ -93,6 +109,7 @@ class TelBpmLineController extends Controller
             'telares'     => $telares,
             'salonPorTelar' => $salonPorTelar,
             'comentarios' => $comentarios,
+            'esSupervisor' => $esSupervisor,
         ]);
     }
 
@@ -258,7 +275,7 @@ class TelBpmLineController extends Controller
         }
 
         // Tomar datos del usuario actual de forma robusta
-        $u = auth()->user();
+        $u = \Illuminate\Support\Facades\Auth::user();
         $code = null;
         $name = null;
         if ($u) {
@@ -300,6 +317,21 @@ class TelBpmLineController extends Controller
 
         if ($item->Status !== self::EST_TERM) {
             return back()->with('error', 'Sólo puedes rechazar un folio Terminado.');
+        }
+
+        // Validar que el usuario sea Supervisor para rechazar
+        $u = \Illuminate\Support\Facades\Auth::user();
+        if (!$u) {
+            return back()->with('error', 'Usuario no autenticado.');
+        }
+        $numeroEmpleado = $u->numero_empleado ?? $u->cve ?? null;
+        if ($numeroEmpleado) {
+            $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
+            if (!$sysUsuario || strtolower(trim($sysUsuario->puesto ?? '')) !== 'supervisor') {
+                return back()->with('error', 'No tienes permisos para rechazar. Solo los supervisores pueden realizar esta acción.');
+            }
+        } else {
+            return back()->with('error', 'No se pudo identificar el usuario para validar permisos de rechazo.');
         }
 
         $item->update([

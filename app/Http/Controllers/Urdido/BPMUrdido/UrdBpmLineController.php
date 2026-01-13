@@ -170,6 +170,25 @@ class UrdBpmLineController extends Controller
             return redirect()->back()->with('error', 'Solo se puede rechazar un registro Terminado');
         }
 
+        // Validar que el usuario actual tenga puesto de Supervisor
+        $u = Auth::user();
+        if (!$u) {
+            return redirect()->back()->with('error', 'Usuario no autenticado.');
+        }
+
+        $numeroEmpleado = $u->numero_empleado ?? $u->cve ?? null;
+        $sysUsuario = null;
+        if ($numeroEmpleado) {
+            $sysUsuario = \App\Models\SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
+        }
+        if (!$sysUsuario && isset($u->idusuario)) {
+            $sysUsuario = \App\Models\SYSUsuario::where('idusuario', $u->idusuario)->first();
+        }
+
+        if (!$sysUsuario || strtolower(trim((string)($sysUsuario->puesto ?? ''))) !== 'supervisor') {
+            return redirect()->back()->with('error', 'No tienes permisos para rechazar. Solo los supervisores pueden realizar esta acción.');
+        }
+
         $header->update(['Status' => 'Creado']);
 
         return redirect()->back()->with('success', 'Registro rechazado, regresado a estado Creado');
