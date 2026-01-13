@@ -454,6 +454,12 @@ Route::middleware(['auth'])->group(function () {
             ->name('produccion.reenconado.store');
         Route::post('/produccion-reenconado/generar-folio', [ProduccionReenconadoCabezuelaController::class, 'generarFolio'])
             ->name('produccion.reenconado.generar-folio');
+        Route::get('/produccion-reenconado/calibres', [ProduccionReenconadoCabezuelaController::class, 'getCalibres'])
+            ->name('produccion.reenconado.calibres');
+        Route::get('/produccion-reenconado/fibras', [ProduccionReenconadoCabezuelaController::class, 'getFibras'])
+            ->name('produccion.reenconado.fibras');
+        Route::get('/produccion-reenconado/colores', [ProduccionReenconadoCabezuelaController::class, 'getColores'])
+            ->name('produccion.reenconado.colores');
         Route::put('/produccion-reenconado/{folio}', [ProduccionReenconadoCabezuelaController::class, 'update'])
             ->name('produccion.reenconado.update');
         Route::delete('/produccion-reenconado/{folio}', [ProduccionReenconadoCabezuelaController::class, 'destroy'])

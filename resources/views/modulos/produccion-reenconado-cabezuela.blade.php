@@ -80,7 +80,7 @@
                         data-turno="{{ $r->Turno }}"
                         data-numero-empleado="{{ $r->numero_empleado }}"
                         data-nombreempl="{{ $r->nombreEmpl }}"
-                        data-calibre="{{ is_null($r->Calibre) ? '' : number_format($r->Calibre, 2, '.', '') }}"
+                        data-calibre="{{ $r->Calibre ?? '' }}"
                         data-fibratrama="{{ $r->FibraTrama }}"
                         data-codcolor="{{ $r->CodColor }}"
                         data-color="{{ $r->Color }}"
@@ -93,7 +93,7 @@
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}</td>
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Turno }}</td>
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->nombreEmpl }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Calibre) ? '' : number_format($r->Calibre, 2) }}</td>
+                        <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Calibre }}</td>
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->FibraTrama }}</td>
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->CodColor }}</td>
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Color }}</td>
@@ -170,19 +170,25 @@
 
                 <div class="col-span-6 md:col-span-3">
                     <label class="block text-sm font-medium text-gray-700 ">Calibre</label>
-                    <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Calibre">
+                    <select class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Calibre">
+                        <option value="">Cargando...</option>
+                    </select>
                 </div>
                 <div class="col-span-6 md:col-span-3">
                     <label class="block text-sm font-medium text-gray-700 ">Fibra</label>
-                    <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_FibraTrama">
+                    <select class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_FibraTrama" disabled>
+                        <option value="">Selecciona calibre</option>
+                    </select>
                 </div>
                 <div class="col-span-6 md:col-span-3">
                     <label class="block text-sm font-medium text-gray-700 ">Cód. Color</label>
-                    <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_CodColor">
+                    <select class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_CodColor" disabled>
+                        <option value="">Selecciona calibre</option>
+                    </select>
                 </div>
                 <div class="col-span-6 md:col-span-3">
                     <label class="block text-sm font-medium text-gray-700 ">Nombre del Color</label>
-                    <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Color">
+                    <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50" id="f_Color" readonly>
                 </div>
 
                 <div class="col-span-12 ">
@@ -251,12 +257,28 @@
         modalBackdrop: document.getElementById('modalNuevo').querySelector('[data-close="1"]'),
         modalCancelBtn: document.getElementById('btn-cancelar-modal'),
         modalTitle: document.getElementById('modal-title'),
-        obsEl: document.getElementById('f_Obs')
+        obsEl: document.getElementById('f_Obs'),
+        calibreEl: document.getElementById('f_Calibre'),
+        fibraEl: document.getElementById('f_FibraTrama'),
+        codColorEl: document.getElementById('f_CodColor'),
+        colorEl: document.getElementById('f_Color')
     };
 
     const state = {
         selectedRow: null,
         mode: 'create'
+    };
+
+    const apiRoutes = {
+        calibres: "{{ route('tejido.produccion.reenconado.calibres') }}",
+        fibras: "{{ route('tejido.produccion.reenconado.fibras') }}",
+        colores: "{{ route('tejido.produccion.reenconado.colores') }}"
+    };
+
+    const cache = {
+        calibres: null,
+        fibras: new Map(),
+        colores: new Map()
     };
 
     const formatNumber = (v, d = 2) => (v === null || v === undefined || v === '') ? '' : Number(v).toFixed(d);
@@ -266,6 +288,43 @@
     const setFieldValue = (id, value) => {
         const field = document.getElementById(id);
         if (field) field.value = value || '';
+    };
+
+    const setSelectOptions = (select, options, placeholder, selectedValue = '') => {
+        if (!select) return;
+        select.innerHTML = '';
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = placeholder;
+        select.appendChild(placeholderOption);
+
+        options.forEach((opt) => {
+            const option = document.createElement('option');
+            if (typeof opt === 'string') {
+                option.value = opt;
+                option.textContent = opt;
+            } else {
+                option.value = opt.value;
+                option.textContent = opt.label;
+                if (opt.name) option.dataset.name = opt.name;
+            }
+            select.appendChild(option);
+        });
+
+        select.value = selectedValue || '';
+        select.disabled = options.length === 0;
+    };
+
+    const ensureOption = (select, value, label, name = '') => {
+        if (!select || !value) return;
+        const exists = Array.from(select.options).some(opt => opt.value === value);
+        if (!exists) {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label || value;
+            if (name) option.dataset.name = name;
+            select.appendChild(option);
+        }
     };
 
     const getRecordData = () => ({
@@ -308,7 +367,7 @@
         cells[1].textContent = data.Date ?? '';
         cells[2].textContent = data.Turno ?? '';
         cells[3].textContent = data.nombreEmpl ?? '';
-        cells[4].textContent = formatNumber(data.Calibre);
+        cells[4].textContent = data.Calibre ?? '';
         cells[5].textContent = data.FibraTrama ?? '';
         cells[6].textContent = data.CodColor ?? '';
         cells[7].textContent = data.Color ?? '';
@@ -323,7 +382,7 @@
         row.dataset.turno = data.Turno ?? '';
         row.dataset.numeroEmpleado = data.numero_empleado ?? '';
         row.dataset.nombreempl = data.nombreEmpl ?? '';
-        row.dataset.calibre = formatNumber(data.Calibre, 2);
+        row.dataset.calibre = data.Calibre ?? '';
         row.dataset.fibratrama = data.FibraTrama ?? '';
         row.dataset.codcolor = data.CodColor ?? '';
         row.dataset.color = data.Color ?? '';
@@ -354,7 +413,7 @@
             <td class="text-center whitespace-nowrap px-4 py-3">${r.Date ?? ''}</td>
             <td class="text-center whitespace-nowrap px-4 py-3">${r.Turno ?? ''}</td>
             <td class="text-center whitespace-nowrap px-4 py-3">${r.nombreEmpl ?? ''}</td>
-            <td class="text-center whitespace-nowrap px-4 py-3">${formatNumber(r.Calibre)}</td>
+            <td class="text-center whitespace-nowrap px-4 py-3">${r.Calibre ?? ''}</td>
             <td class="text-center whitespace-nowrap px-4 py-3">${r.FibraTrama ?? ''}</td>
             <td class="text-center whitespace-nowrap px-4 py-3">${r.CodColor ?? ''}</td>
             <td class="text-center whitespace-nowrap px-4 py-3">${r.Color ?? ''}</td>
@@ -383,6 +442,96 @@
         if (tiempoActual >= 390 && tiempoActual < 870) return 1;
         if (tiempoActual >= 870 && tiempoActual < 1350) return 2;
         return 3;
+    };
+
+    const getCalibres = async () => {
+        if (cache.calibres) return cache.calibres;
+        setSelectOptions(DOM.calibreEl, [], 'Cargando...');
+        try {
+            const { data } = await axios.get(apiRoutes.calibres);
+            const items = (data?.data || []).map(i => i.ItemId).filter(Boolean);
+            cache.calibres = items;
+            return items;
+        } catch (e) {
+            toastr.error('No se pudieron cargar calibres');
+            return [];
+        }
+    };
+
+    const getFibras = async (itemId) => {
+        if (cache.fibras.has(itemId)) return cache.fibras.get(itemId);
+        try {
+            const { data } = await axios.get(apiRoutes.fibras, { params: { itemId } });
+            const items = (data?.data || []).map(i => i.ConfigId).filter(Boolean);
+            cache.fibras.set(itemId, items);
+            return items;
+        } catch (e) {
+            toastr.error('No se pudieron cargar fibras');
+            return [];
+        }
+    };
+
+    const getColores = async (itemId) => {
+        if (cache.colores.has(itemId)) return cache.colores.get(itemId);
+        try {
+            const { data } = await axios.get(apiRoutes.colores, { params: { itemId } });
+            const items = (data?.data || []).map(c => ({
+                value: c.InventColorId,
+                label: `${c.InventColorId} - ${c.Name}`,
+                name: c.Name
+            })).filter(c => c.value);
+            cache.colores.set(itemId, items);
+            return items;
+        } catch (e) {
+            toastr.error('No se pudieron cargar colores');
+            return [];
+        }
+    };
+
+    const resetDependents = () => {
+        setSelectOptions(DOM.fibraEl, [], 'Selecciona calibre');
+        setSelectOptions(DOM.codColorEl, [], 'Selecciona calibre');
+        setFieldValue('f_Color', '');
+    };
+
+    const loadDependents = async (itemId, selections = {}) => {
+        if (!itemId) {
+            resetDependents();
+            return;
+        }
+        setSelectOptions(DOM.fibraEl, [], 'Cargando...');
+        setSelectOptions(DOM.codColorEl, [], 'Cargando...');
+
+        const [fibras, colores] = await Promise.all([
+            getFibras(itemId),
+            getColores(itemId)
+        ]);
+
+        setSelectOptions(DOM.fibraEl, fibras, 'Selecciona fibra', selections.fibra || '');
+        setSelectOptions(DOM.codColorEl, colores, 'Selecciona color', selections.codColor || '');
+
+        if (selections.fibra) {
+            ensureOption(DOM.fibraEl, selections.fibra, selections.fibra);
+            DOM.fibraEl.value = selections.fibra;
+        }
+
+        if (selections.codColor) {
+            ensureOption(DOM.codColorEl, selections.codColor, selections.codColor, selections.colorName);
+            DOM.codColorEl.value = selections.codColor;
+        }
+
+        const selected = DOM.codColorEl.selectedOptions?.[0];
+        setFieldValue('f_Color', selected?.dataset?.name || selections.colorName || '');
+    };
+
+    const initMaterialSelectors = async (selections = {}) => {
+        const calibres = await getCalibres();
+        setSelectOptions(DOM.calibreEl, calibres, 'Selecciona calibre', selections.calibre || '');
+        if (selections.calibre) {
+            ensureOption(DOM.calibreEl, selections.calibre, selections.calibre);
+            DOM.calibreEl.value = selections.calibre;
+        }
+        await loadDependents(selections.calibre, selections);
     };
 
     const validateRecord = (record) => {
@@ -486,6 +635,8 @@
         }
         showModal();
         DOM.modalTitle.innerHTML = '<i class="fa fa-plus-circle mr-2"></i>Nuevo Registro de Producción';
+        resetDependents();
+        await initMaterialSelectors();
 
         try {
             const url = `{{ route('tejido.produccion.reenconado.generar-folio') }}`;
@@ -508,7 +659,7 @@
         }
     };
 
-    const initEditar = () => {
+    const initEditar = async () => {
         if (!state.selectedRow) {
             toastr.info('Selecciona un registro');
             return;
@@ -516,6 +667,12 @@
         state.mode = 'edit';
         showModal();
         loadRecordToModal(state.selectedRow);
+        await initMaterialSelectors({
+            calibre: state.selectedRow.dataset.calibre || '',
+            fibra: state.selectedRow.dataset.fibratrama || '',
+            codColor: state.selectedRow.dataset.codcolor || '',
+            colorName: state.selectedRow.dataset.color || ''
+        });
         DOM.modalTitle.innerHTML = `<i class="fa fa-edit mr-2"></i>Editar Registro · Folio ${state.selectedRow.dataset.folio || ''}`;
     };
 
@@ -570,6 +727,15 @@
     DOM.saveBtn.addEventListener('click', guardar);
     DOM.modalBackdrop.addEventListener('click', hideModal);
     DOM.modalCancelBtn.addEventListener('click', hideModal);
+    DOM.calibreEl.addEventListener('change', async (e) => {
+        const itemId = e.target.value;
+        resetDependents();
+        await loadDependents(itemId);
+    });
+    DOM.codColorEl.addEventListener('change', (e) => {
+        const selected = e.target.selectedOptions?.[0];
+        setFieldValue('f_Color', selected?.dataset?.name || '');
+    });
 
     if (DOM.obsEl) {
         DOM.obsEl.addEventListener('keydown', (e) => {
