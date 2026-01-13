@@ -105,7 +105,7 @@ class NotificarMontRollosController extends Controller
 
             // Probar conexión a TOW_PRO
             try {
-                $testConexion = DB::connection('sqlsrv_tow_pro')->select('SELECT @@VERSION as version');
+                $testConexion = DB::connection('sqlsrv_ti')->select('SELECT @@VERSION as version');
                 $conexionTowPro = 'OK - ' . ($testConexion[0]->version ?? 'Conectado');
             } catch (\Exception $e) {
                 $conexionTowPro = 'ERROR: ' . $e->getMessage();
@@ -157,7 +157,7 @@ class NotificarMontRollosController extends Controller
             }
 
             // Consultar TOW_PRO con el INNER JOIN correcto
-            $datosProduccion = DB::connection('sqlsrv_tow_pro')
+            $datosProduccion = DB::connection('sqlsrv_ti')
                 ->table('ProdTable as P')
                 ->join('InventDim as I', 'P.InventDimId', '=', 'I.InventDimId')
                 ->select(

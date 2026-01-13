@@ -23,6 +23,72 @@ class ProduccionReenconadoCabezuelaController extends Controller
         return view('modulos.produccion-reenconado-cabezuela', compact('registros'));
     }
 
+    public function getCalibres()
+    {
+        try {
+            $items = DB::connection('sqlsrv_ti')
+                ->table('InventTable')
+                ->select('ItemId')
+                ->where('ItemGroupId', 'HILO DIREC')
+                ->where('DATAAREAID', 'PRO')
+                ->orderBy('ItemId')
+                ->distinct()
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $items]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo calibres', ['exception' => $e]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function getFibras(Request $request)
+    {
+        $itemId = $request->query('itemId');
+        if (!$itemId) {
+            return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
+        }
+
+        try {
+            $fibras = DB::connection('sqlsrv_ti')
+                ->table('ConfigTable')
+                ->select('ConfigId')
+                ->where('ItemId', $itemId)
+                ->where('DATAAREAID', 'PRO')
+                ->orderBy('ConfigId')
+                ->distinct()
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $fibras]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo fibras', ['exception' => $e, 'itemId' => $itemId]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function getColores(Request $request)
+    {
+        $itemId = $request->query('itemId');
+        if (!$itemId) {
+            return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
+        }
+
+        try {
+            $colores = DB::connection('sqlsrv_ti')
+                ->table('InventColor')
+                ->select('InventColorId', 'Name')
+                ->where('ItemId', $itemId)
+                ->where('DATAAREAID', 'PRO')
+                ->orderBy('InventColorId')
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $colores]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo colores', ['exception' => $e, 'itemId' => $itemId]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function store(Request $request)
     {
         // 1) Guardado desde modal (un registro)
@@ -57,7 +123,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 'Turno'           => isset($data['Turno']) ? (int)$data['Turno'] : null,
                 'numero_empleado' => $data['numero_empleado']  ?? null,
                 'nombreEmpl'      => $data['nombreEmpl']       ?? null,
-                'Calibre'         => isset($data['Calibre']) ? (float)$data['Calibre'] : null,
+                'Calibre'         => $data['Calibre']         ?? null,
                 'FibraTrama'      => $data['FibraTrama']       ?? null,
                 'CodColor'        => $data['CodColor']         ?? null,
                 'Color'           => $data['Color']            ?? null,
@@ -78,7 +144,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 'Turno'            => ['required','integer','min:1','max:3'],
                 'numero_empleado'  => ['required','string','max:30'],
                 'nombreEmpl'       => ['required','string','max:150'],
-                'Calibre'          => ['nullable','numeric'],
+                'Calibre'          => ['nullable','string','max:20'],
                 'FibraTrama'       => ['nullable','string','max:30'],
                 'CodColor'         => ['nullable','string','max:10'],
                 'Color'            => ['nullable','string','max:60'],
@@ -170,7 +236,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 'Turno'           => isset($row['Turno']) ? (int)$row['Turno'] : null,
                 'numero_empleado' => $row['numero_empleado']  ?? null,
                 'nombreEmpl'      => $row['nombreEmpl']       ?? null,
-                'Calibre'         => isset($row['Calibre']) ? (float)$row['Calibre'] : null,
+                'Calibre'         => $row['Calibre']         ?? null,
                 'FibraTrama'      => $row['FibraTrama']       ?? null,
                 'CodColor'        => $row['CodColor']         ?? null,
                 'Color'           => $row['Color']            ?? null,
@@ -254,7 +320,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
             'Turno'            => ['required','integer','min:1','max:3'],
             'numero_empleado'  => ['required','string','max:30'],
             'nombreEmpl'       => ['required','string','max:150'],
-            'Calibre'          => ['nullable','numeric'],
+            'Calibre'          => ['nullable','string','max:20'],
             'FibraTrama'       => ['nullable','string','max:30'],
             'CodColor'         => ['nullable','string','max:10'],
             'Color'            => ['nullable','string','max:60'],
@@ -285,7 +351,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
             'Turno'           => isset($data['Turno']) ? (int)$data['Turno'] : null,
             'numero_empleado' => $data['numero_empleado']  ?? null,
             'nombreEmpl'      => $data['nombreEmpl']       ?? null,
-            'Calibre'         => isset($data['Calibre']) ? (float)$data['Calibre'] : null,
+            'Calibre'         => $data['Calibre']         ?? null,
             'FibraTrama'      => $data['FibraTrama']       ?? null,
             'CodColor'        => $data['CodColor']         ?? null,
             'Color'           => $data['Color']            ?? null,

@@ -169,7 +169,7 @@ class EngProduccionFormulacionController extends Controller
             }
 
             // Consultar TOW_PRO: BOMVersion + Bom + InventTable + InventDim con filtros especificados
-            $componentes = DB::connection('sqlsrv_tow_pro')
+            $componentes = DB::connection('sqlsrv_ti')
                 ->table('BOMVersion as BV')
                 ->join('Bom as B', 'B.BomId', '=', 'BV.BomId')
                 ->join('InventTable as IT', 'IT.ItemId', '=', 'B.ItemId')
