@@ -213,6 +213,9 @@
     @if($isUrdido)
         <div class="folio-top-right">
             No. FOLIO: {{ $orden->Folio ?? '-' }}
+            @if(!empty($esReimpresion))
+                <div style="font-size: 7pt; color: #dc2626; font-weight: bold; margin-top: 2px;">REIMPRESIÓN</div>
+            @endif
         </div>
     @endif
     <div class="header-title mb-4">

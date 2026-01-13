@@ -44,11 +44,19 @@ class PDFController extends Controller
                 ], 404);
             }
 
-            if (strtolower($tipo) === 'engomado' && ($orden->Status ?? '') !== 'Finalizado') {
-                return response()->json([
-                    'success' => false,
-                    'error'   => 'Solo se pueden reimprimir ordenes con status Finalizado.',
-                ], 422);
+            if ($request->boolean('reimpresion')) {
+                if (strtolower($tipo) === 'engomado' && ($orden->Status ?? '') !== 'Finalizado') {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'Solo se pueden reimprimir ordenes con status Finalizado.',
+                    ], 422);
+                }
+                if (strtolower($tipo) === 'urdido' && ($orden->Status ?? '') !== 'Finalizado') {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'Solo se pueden reimprimir ordenes con status Finalizado.',
+                    ], 422);
+                }
             }
 
             // 2) Si es urdido, obtener también los datos de engomado para el footer
