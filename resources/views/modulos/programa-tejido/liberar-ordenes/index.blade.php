@@ -169,7 +169,7 @@
                               class="editable-field ' . $claseAdicional . ' w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '"
                               data-field="' . htmlspecialchars($field, ENT_QUOTES, 'UTF-8') . '"
-                              data-row-id="' . $rowId . '"
+                              data-row-id="' . htmlspecialchars($rowId, ENT_QUOTES, 'UTF-8') . '"
                               data-original-value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '">';
             }
 
