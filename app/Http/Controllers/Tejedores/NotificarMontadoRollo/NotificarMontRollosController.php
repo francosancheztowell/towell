@@ -31,6 +31,21 @@ class NotificarMontRollosController extends Controller
 
         // Si es una petición AJAX
         if ($request->ajax() || $request->wantsJson()) {
+            if ($request->has('listado')) {
+                $tipoFiltro = $request->query('tipo');
+
+                $query = TejInventarioTelares::select('no_telar', 'tipo')
+                    ->distinct()
+                    ->orderBy('no_telar')
+                    ->whereIn('no_telar', $telaresOperador);
+
+                if ($tipoFiltro && in_array($tipoFiltro, ['rizo', 'pie'])) {
+                    $query->where('tipo', $tipoFiltro);
+                }
+
+                return response()->json(['telares' => $query->get()]);
+            }
+
             // Si se solicita detalle de un telar específico con tipo
             if ($request->has('no_telar') && $request->has('tipo')) {
                 $detalles = TejInventarioTelares::where('no_telar', $request->no_telar)

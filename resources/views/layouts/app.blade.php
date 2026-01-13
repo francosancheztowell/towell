@@ -144,6 +144,67 @@
     </div>
   </div>
 
+  <!-- ====== Modal Notificar Cortado de Rollo ====== -->
+  <div id="modalCortadoRollos" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+      <!-- Header del Modal -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <h2 class="text-xl font-bold text-gray-800">Notificar Cortado de Rollo</h2>
+        <button type="button" onclick="cerrarModalCortadoRollos()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Body del Modal -->
+      <div class="p-6">
+        <!-- Filtros de Tipo -->
+        <div class="mb-6 flex gap-4">
+          <label class="inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="checkCortadoRizo" class="form-checkbox h-5 w-5 text-blue-600 rounded">
+            <span class="ml-2 text-gray-700 font-medium">Rizo</span>
+          </label>
+
+          <label class="inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="checkCortadoPie" class="form-checkbox h-5 w-5 text-blue-600 rounded">
+            <span class="ml-2 text-gray-700 font-medium">Pie</span>
+          </label>
+        </div>
+
+        <!-- Tabla de Telares -->
+        <div class="overflow-x-auto max-h-96">
+          <table class="min-w-full bg-white border border-gray-300 rounded-lg">
+            <thead class="bg-gray-100 sticky top-0">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">
+                  Telar
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">
+                  Tipo
+                </th>
+              </tr>
+            </thead>
+            <tbody id="tablaTelaresCortado" class="divide-y divide-gray-200">
+              <tr>
+                <td colspan="2" class="px-6 py-4 text-center text-sm text-gray-500">
+                  Cargando telares...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Footer del Modal -->
+      <div class="flex justify-end p-6 border-t border-gray-200">
+        <button type="button" onclick="cerrarModalCortadoRollos()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ====== Polyfill CSS.escape (debe estar ANTES de los scripts) ====== -->
   <script>
     (function () {
@@ -377,6 +438,89 @@
       document.getElementById('detallesTelar').classList.remove('hidden');
     }
 
+    // Funciones para modal de cortado de rollo
+    async function abrirModalCortadoRollos() {
+      await cargarTelaresCortadoRollos();
+      document.getElementById('modalCortadoRollos').style.display = 'flex';
+    }
+
+    function cerrarModalCortadoRollos() {
+      document.getElementById('modalCortadoRollos').style.display = 'none';
+      const tbody = document.getElementById('tablaTelaresCortado');
+      if (tbody) {
+        tbody.innerHTML = '';
+      }
+      const checkRizo = document.getElementById('checkCortadoRizo');
+      const checkPie = document.getElementById('checkCortadoPie');
+      if (checkRizo) checkRizo.checked = false;
+      if (checkPie) checkPie.checked = false;
+    }
+
+    async function cargarTelaresCortadoRollos(tipo = null) {
+      const tbody = document.getElementById('tablaTelaresCortado');
+      if (!tbody) return;
+
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="2" class="px-6 py-4 text-center text-sm text-gray-500">
+            Cargando telares...
+          </td>
+        </tr>
+      `;
+
+      const baseUrl = '{{ route('notificar.mont.rollos') }}';
+      const url = `${baseUrl}?listado=1${tipo ? `&tipo=${encodeURIComponent(tipo)}` : ''}`;
+
+      try {
+        const response = await fetch(url, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await response.json();
+
+        tbody.innerHTML = '';
+
+        if (!data.telares || data.telares.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="2" class="px-6 py-4 text-center text-sm text-gray-500">
+                No hay telares asignados o no coinciden con el filtro seleccionado
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        data.telares.forEach(telar => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-gray-50';
+
+          const tdTelar = document.createElement('td');
+          tdTelar.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-900';
+          tdTelar.textContent = telar.no_telar;
+
+          const tdTipo = document.createElement('td');
+          tdTipo.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-900';
+          const span = document.createElement('span');
+          span.className = `px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${telar.tipo === 'rizo' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`;
+          span.textContent = telar.tipo ? telar.tipo.charAt(0).toUpperCase() + telar.tipo.slice(1) : '';
+          tdTipo.appendChild(span);
+
+          tr.appendChild(tdTelar);
+          tr.appendChild(tdTipo);
+          tbody.appendChild(tr);
+        });
+      } catch (error) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="2" class="px-6 py-4 text-center text-sm text-red-600">
+              Error al cargar telares
+            </td>
+          </tr>
+        `;
+        console.error('Error al cargar telares de rollo:', error);
+      }
+    }
+
     // Event listeners
     document.addEventListener('DOMContentLoaded', function() {
       // Cerrar modal al hacer clic fuera
@@ -396,6 +540,34 @@
         radio.addEventListener('change', function() {
           buscarDetallesTelar();
         });
+      });
+
+      // Cerrar modal de cortado de rollo al hacer clic fuera
+      document.getElementById('modalCortadoRollos')?.addEventListener('click', function(event) {
+        if (event.target === this) {
+          cerrarModalCortadoRollos();
+        }
+      });
+
+      // Filtros para modal de cortado de rollo
+      document.getElementById('checkCortadoRizo')?.addEventListener('change', function() {
+        const checkPie = document.getElementById('checkCortadoPie');
+        if (this.checked) {
+          if (checkPie) checkPie.checked = false;
+          cargarTelaresCortadoRollos('rizo');
+        } else {
+          cargarTelaresCortadoRollos(null);
+        }
+      });
+
+      document.getElementById('checkCortadoPie')?.addEventListener('change', function() {
+        const checkRizo = document.getElementById('checkCortadoRizo');
+        if (this.checked) {
+          if (checkRizo) checkRizo.checked = false;
+          cargarTelaresCortadoRollos('pie');
+        } else {
+          cargarTelaresCortadoRollos(null);
+        }
       });
     });
   </script>

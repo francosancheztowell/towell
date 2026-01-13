@@ -56,10 +56,14 @@
                 
                 // Verificar si es el módulo de Notificar Montado de Julio
                 $esNotificarMontado = in_array($modulo['nombre'], ['Notificar Montado de Julio', 'Notificar Montado de Julio (Tej.)']);
+                $esNotificarCortado = in_array($modulo['nombre'], ['Notificar Cortado de rollo', 'Notificar Cortado de Rollo', 'Notificar Cortado de Rollo (Tej.)']);
             @endphp
             
             @if($esNotificarMontado)
                 <a href="javascript:void(0)" onclick="abrirModalTelares()"
+                   class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
+            @elseif($esNotificarCortado)
+                <a href="javascript:void(0)" onclick="abrirModalCortadoRollos()"
                    class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
             @else
                 <a href="{{ isset($modulo['ruta_tipo']) && $modulo['ruta_tipo'] === 'route' ? route($modulo['ruta'], $modulo['params'] ?? []) : url($modulo['ruta']) }}"
