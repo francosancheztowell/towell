@@ -32,7 +32,9 @@ class TelTelaresOperadorController extends Controller
             ->get();
 
         $telares = ReqTelares::obtenerTodos();
-        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
+        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')
+            ->orderByRaw('TRY_CAST(numero_empleado AS INT) ASC')
+            ->get();
         return view('modulos.tel-telares-operador.index', compact('items', 'q', 'telares','usuarios'));
     }
 
@@ -42,7 +44,9 @@ class TelTelaresOperadorController extends Controller
     public function create()
     {
         $telares = ReqTelares::obtenerTodos();
-        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
+        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')
+            ->orderByRaw('TRY_CAST(numero_empleado AS INT) ASC')
+            ->get();
         return view('modulos.tel-telares-operador.create', compact('telares','usuarios'));
     }
 
@@ -56,6 +60,15 @@ class TelTelaresOperadorController extends Controller
             'NoTelarId'       => ['required', 'string', 'max:10'],
             'SalonTejidoId'   => ['required', 'string', 'max:10'],
         ]);
+
+        // Validación: no permitir asignar el mismo telar al mismo usuario más de una vez
+        $yaExiste = TelTelaresOperador::query()
+            ->where('numero_empleado', $data['numero_empleado'])
+            ->where('NoTelarId', $data['NoTelarId'])
+            ->exists();
+        if ($yaExiste) {
+            return back()->withErrors('Este operador ya tiene asignado el telar seleccionado.')->withInput();
+        }
 
         $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
         $payload = [
@@ -80,7 +93,9 @@ class TelTelaresOperadorController extends Controller
     public function edit(TelTelaresOperador $telTelaresOperador)
     {
         $telares = ReqTelares::obtenerTodos();
-        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')->orderBy('numero_empleado')->get();
+        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')
+            ->orderByRaw('TRY_CAST(numero_empleado AS INT) ASC')
+            ->get();
         return view('modulos.tel-telares-operador.edit', [
             'item' => $telTelaresOperador,
             'telares' => $telares,
