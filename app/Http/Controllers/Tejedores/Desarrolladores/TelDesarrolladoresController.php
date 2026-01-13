@@ -251,71 +251,71 @@ class TelDesarrolladoresController extends Controller
         }
     }
 
-	    public function formularioDesarrollador(Request $request, $telarId, $noProduccion)
-	    {
-	        $datosProduccion = ReqProgramaTejido::where('NoTelarId', $telarId)
-	            ->where('NoProduccion', $noProduccion)
-	            ->first();
+    public function formularioDesarrollador(Request $request, $telarId, $noProduccion)
+    {
+        $datosProduccion = ReqProgramaTejido::where('NoTelarId', $telarId)
+            ->where('NoProduccion', $noProduccion)
+            ->first();
 
-	        return view('modulos.desarrolladores.formulario', compact('datosProduccion', 'telarId', 'noProduccion'));
-	    }
+        return view('modulos.desarrolladores.formulario', compact('datosProduccion', 'telarId', 'noProduccion'));
+    }
 
-	    private function normalizeCodigoDibujo(?string $value): string
-	    {
-	        $normalized = Str::of((string) ($value ?? ''))
-	            ->trim()
-	            ->upper()
-	            ->replaceMatches('/\s+/', '')
-	            ->replaceMatches('/\.(?:JC5|JCS)$/i', '')
-	            ->toString();
+    private function normalizeCodigoDibujo(?string $value): string
+    {
+        $normalized = Str::of((string) ($value ?? ''))
+            ->trim()
+            ->upper()
+            ->replaceMatches('/\s+/', '')
+            ->replaceMatches('/\.(?:JC5|JCS)$/i', '')
+            ->toString();
 
-	        return $normalized === '' ? '' : ($normalized . '.JCS');
-	    }
+        return $normalized === '' ? '' : ($normalized . '.JCS');
+    }
 
-	    private function buildDetallePayloadFromOrden($ordenData): array
-	    {
-	        if (!$ordenData) {
-	            return [];
-	        }
+    private function buildDetallePayloadFromOrden($ordenData): array
+    {
+        if (!$ordenData) {
+            return [];
+        }
 
-	        $colorTrama = data_get($ordenData, 'ColorTrama');
-	        $fibraTrama = data_get($ordenData, 'FibraTrama');
+        $colorTrama = data_get($ordenData, 'ColorTrama');
+        $fibraTrama = data_get($ordenData, 'FibraTrama');
 
-	        // Si ColorTrama está vacío, usar FibraTrama
-	        if (empty($colorTrama)) {
-	            $colorTrama = $fibraTrama;
-	        }
+        // Si ColorTrama está vacío, usar FibraTrama
+        if (empty($colorTrama)) {
+            $colorTrama = $fibraTrama;
+        }
 
-	        $payload = [
-	            'Tra' => data_get($ordenData, 'CalibreTrama'),
-	            'CalibreTrama2' => data_get($ordenData, 'CalibreTrama2'),
-	            'CodColorTrama' => data_get($ordenData, 'CodColorTrama'),
-	            'ColorTrama' => $colorTrama,
-	            'FibraId' => $fibraTrama,
-	            'CalTramaFondoC1' => data_get($ordenData, 'CalibreTrama'),
-	            'CalTramaFondoC12' => data_get($ordenData, 'CalibreTrama2'),
-	            'FibraTramaFondoC1' => $fibraTrama,
-	        ];
+        $payload = [
+            'Tra' => data_get($ordenData, 'CalibreTrama'),
+            'CalibreTrama2' => data_get($ordenData, 'CalibreTrama2'),
+            'CodColorTrama' => data_get($ordenData, 'CodColorTrama'),
+            'ColorTrama' => $colorTrama,
+            'FibraId' => $fibraTrama,
+            'CalTramaFondoC1' => data_get($ordenData, 'CalibreTrama'),
+            'CalTramaFondoC12' => data_get($ordenData, 'CalibreTrama2'),
+            'FibraTramaFondoC1' => $fibraTrama,
+        ];
 
-	        for ($i = 1; $i <= 5; $i++) {
-	            $nombreKey = $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}";
-	            $nombreColor = data_get($ordenData, $nombreKey);
-	            $fibraComb = data_get($ordenData, "FibraComb{$i}");
+        for ($i = 1; $i <= 5; $i++) {
+            $nombreKey = $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}";
+            $nombreColor = data_get($ordenData, $nombreKey);
+            $fibraComb = data_get($ordenData, "FibraComb{$i}");
 
-	            // Si NomColorC está vacío, usar FibraComb
-	            if (empty($nombreColor)) {
-	                $nombreColor = $fibraComb;
-	            }
+            // Si NomColorC está vacío, usar FibraComb
+            if (empty($nombreColor)) {
+                $nombreColor = $fibraComb;
+            }
 
-	            $payload["CalibreComb{$i}"] = data_get($ordenData, "CalibreComb{$i}");
-	            $payload["CalibreComb{$i}2"] = data_get($ordenData, "CalibreComb{$i}2");
-	            $payload["FibraComb{$i}"] = $fibraComb;
-	            $payload["CodColorC{$i}"] = data_get($ordenData, "CodColorComb{$i}");
-	            $payload["NomColorC{$i}"] = $nombreColor;
-	        }
+            $payload["CalibreComb{$i}"] = data_get($ordenData, "CalibreComb{$i}");
+            $payload["CalibreComb{$i}2"] = data_get($ordenData, "CalibreComb{$i}2");
+            $payload["FibraComb{$i}"] = $fibraComb;
+            $payload["CodColorC{$i}"] = data_get($ordenData, "CodColorComb{$i}");
+            $payload["NomColorC{$i}"] = $nombreColor;
+        }
 
-	        return $payload;
-	    }
+        return $payload;
+    }
 
         private function calcularMinutosCambio(?string $horaInicio, ?string $horaFinal): ?int
         {
@@ -550,10 +550,6 @@ class TelDesarrolladoresController extends Controller
                                         $lider->saveQuietly();
                                         $this->actualizarReqModelosDesdePrograma($lider);
                                     } else {
-                                        Log::warning('No se encontró OrdCompartidaLider para transferir saldo', [
-                                            'registro_id' => $registroEnProceso->Id,
-                                            'ord_compartida' => $ordCompartida,
-                                        ]);
                                     }
                                 }
                             }

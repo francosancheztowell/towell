@@ -7,14 +7,13 @@
 @endsection
 
 @section('content')
-    <div class="container">
     @if ($noResults ?? false)
         <div class="alert alert-warning text-center">No se encontraron resultados con la información proporcionada.</div>
-        @endif
+    @endif
 
-    <div class="bg-white overflow-hidden shadow-sm rounded-lg">
-        <div class="overflow-y-auto h-[640px] scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
-            <table class="min-w-full text-sm">
+    <div class="bg-white overflow-hidden w-full">
+        <div class="overflow-y-auto h-[640px]  scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 w-full">
+            <table class="w-full text-sm">
                 <thead class="sticky top-0 bg-blue-500 border-b-2 text-white z-20">
                     <tr>
                         <th class="py-1 px-2 font-bold  tracking-wider text-center">Salón</th>
@@ -35,16 +34,15 @@
                             data-nombre="{{ $t->Nombre }}"
                             data-grupo="{{ $t->Grupo ?? '' }}"
                             data-id="{{ $uid }}">
-                            <td class="py-2 px-4 border-b">{{ $t->SalonTejidoId }}</td>
-                            <td class="py-2 px-4 border-b">{{ $t->NoTelarId }}</td>
-                            <td class="py-2 px-4 border-b">{{ $t->Nombre }}</td>
-                            <td class="py-2 px-4 border-b">{{ $t->Grupo ?? 'N/A' }}</td>
+                            <td class="py-2 px-4">{{ $t->SalonTejidoId }}</td>
+                            <td class="py-2 px-4">{{ $t->NoTelarId }}</td>
+                            <td class="py-2 px-4">{{ $t->Nombre }}</td>
+                            <td class="py-2 px-4">{{ $t->Grupo ?? 'N/A' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         </div>
-    </div>
     </div>
 
 
