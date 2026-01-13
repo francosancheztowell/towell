@@ -460,6 +460,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 return false;
             }
+
+            // Validación: no permitir asignar el mismo telar al mismo usuario más de una vez
+            const numeroEmpleado = empSel.value.trim();
+            const noTelar = telarSel.value.trim();
+            let existeDuplicado = false;
+            document.querySelectorAll('.row-selectable').forEach(row => {
+                const num = (row.dataset.numero || '').trim();
+                const tel = (row.dataset.telar || '').trim();
+                if (num === numeroEmpleado && tel === noTelar) {
+                    existeDuplicado = true;
+                }
+            });
+            if (existeDuplicado) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Asignación duplicada',
+                    text: 'Este operador ya tiene asignado el telar seleccionado.'
+                });
+                return false;
+            }
         });
     }
 });

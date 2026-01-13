@@ -14,20 +14,32 @@
                 </button>
             </form>
         @elseif($header->Status === 'Terminado')
-            <form action="{{ route('urd-bpm-line.autorizar', $header->Folio) }}" method="POST" class="inline">
-                @csrf
-                @method('PATCH')
-                <button type="submit" class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            @if(!empty($esSupervisor) && $esSupervisor)
+                <form action="{{ route('urd-bpm-line.autorizar', $header->Folio) }}" method="POST" class="inline">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Autorizar
+                    </button>
+                </form>
+            @else
+                <button type="button" class="px-3 py-1.5 text-sm bg-blue-300 text-white rounded-lg cursor-not-allowed" title="Solo un supervisor puede autorizar" disabled>
                     Autorizar
                 </button>
-            </form>
-            <form action="{{ route('urd-bpm-line.rechazar', $header->Folio) }}" method="POST" class="inline">
-                @csrf
-                @method('PATCH')
-                <button type="submit" class="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+            @endif
+            @if(!empty($esSupervisor) && $esSupervisor)
+                <form action="{{ route('urd-bpm-line.rechazar', $header->Folio) }}" method="POST" class="inline">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                        Rechazar
+                    </button>
+                </form>
+            @else
+                <button type="button" class="px-3 py-1.5 text-sm bg-red-300 text-white rounded-lg cursor-not-allowed" title="Solo un supervisor puede rechazar" disabled>
                     Rechazar
                 </button>
-            </form>
+            @endif
         @endif
     </div>
 @endsection
@@ -67,14 +79,14 @@
                 <span class="text-base font-semibold">{{ $header->Fecha ? $header->Fecha->format('d/m/Y H:i') : '' }}</span>
             </div>
             <div class="flex items-baseline gap-1 px-4">
-                <span class="text-sm text-gray-500 font-medium uppercase">Entrega:</span>
-                <span class="text-base font-semibold">{{ $header->NombreEmplEnt }}</span>
-                <span class="text-sm text-gray-600">(Turno {{ $header->TurnoEntrega }})</span>
-            </div>
-            <div class="flex items-baseline gap-1 px-4">
                 <span class="text-sm text-gray-500 font-medium uppercase">Recibe:</span>
                 <span class="text-base font-semibold">{{ $header->NombreEmplRec }}</span>
                 <span class="text-sm text-gray-600">(Turno {{ $header->TurnoRecibe }})</span>
+            </div>
+            <div class="flex items-baseline gap-1 px-4">
+                <span class="text-sm text-gray-500 font-medium uppercase">Entrega:</span>
+                <span class="text-base font-semibold">{{ $header->NombreEmplEnt }}</span>
+                <span class="text-sm text-gray-600">(Turno {{ $header->TurnoEntrega }})</span>
             </div>
             <div class="flex items-baseline gap-1 px-4">
                 <span class="text-sm text-gray-500 font-medium uppercase">Autoriza:</span>

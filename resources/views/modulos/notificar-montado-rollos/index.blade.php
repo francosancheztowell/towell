@@ -3,11 +3,11 @@
 @section('page-title', 'Notificar Montado de Rollos')
 
 @section('content')
-<div class="container mx-auto px-4 py-2">
+{{-- <div class="container mx-auto px-4 py-2">
     <div class="bg-white rounded-lg shadow-md p-6">
         <h1 class="text-2xl font-bold text-gray-800 mb-6">Notificar Montado de Rollos</h1>
     </div>
-</div>
+</div> --}}
 
 <!-- Modal de Telares -->
 <div id="modalTelares" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">

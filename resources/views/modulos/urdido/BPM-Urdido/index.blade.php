@@ -123,7 +123,7 @@
                 </div>
 
                 <!-- Sección: Quien Entrega -->
-                <div class="mb-3">
+                {{-- <div class="mb-3">
                     <h4 class="text-sm font-semibold text-blue-700 mb-2">Quien Entrega</h4>
                     <div class="grid grid-cols-3 gap-2">
                         <div>
@@ -139,7 +139,7 @@
                             <input type="text" id="create_TurnoEntrega" name="TurnoEntrega" value="{{ auth()->user()->turno ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
                     </div>
-                </div>
+                </div> --}}
 
                     <!-- Sección: Quien Recibe (autollenado con usuario actual) -->
                     <div class="mb-3">
