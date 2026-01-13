@@ -68,16 +68,6 @@
 
             if ($moduleParam) {
                 $hasPermission = function_exists('userCan') ? userCan('registrar', $moduleParam) : true;
-
-                // Debug temporal: log para verificar permisos
-                if (function_exists('logger') && !$hasPermission) {
-                    \Log::info('Button-report: Sin permiso registrar', [
-                        'moduleParam' => $moduleParam,
-                        'user_id' => auth()->id(),
-                        'module' => $module,
-                        'moduleId' => $moduleId
-                    ]);
-                }
             } else {
                 // Si no se encontró el módulo, permitir por defecto para no bloquear
                 $hasPermission = true;

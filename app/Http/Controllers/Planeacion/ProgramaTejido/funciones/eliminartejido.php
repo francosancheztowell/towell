@@ -81,7 +81,6 @@ class EliminarTejido
                 if ($r = ReqProgramaTejido::find($idAct)) $observer->saved($r);
             }
 
-            Log::info('destroy OK', ['id'=>$id,'salon'=>$salon,'telar'=>$telar,'n'=>count($detalles)]);
             return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente','cascaded_records'=>count($detalles),'detalles'=>$detalles]);
 
         } catch (\Throwable $e) {
@@ -392,16 +391,6 @@ class EliminarTejido
 
             // Re-habilitar observer
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
-
-            Log::info('eliminar con OrdCompartida OK', [
-                'id' => $registro->Id,
-                'salon' => $salon,
-                'telar' => $telar,
-                'ord_compartida' => $ordCompartida,
-                'es_lider' => $esLider,
-                'telares_afectados' => count($telaresAfectados),
-                'registros_regenerados' => count($idsRegenerados)
-            ]);
 
             return response()->json([
                 'success' => true,

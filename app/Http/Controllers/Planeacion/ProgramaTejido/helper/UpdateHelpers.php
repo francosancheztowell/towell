@@ -105,12 +105,6 @@ class UpdateHelpers
         }
 
         $nueva = $data['cantidad'];
-        Log::info('Actualizando cantidad', [
-            'Id'=>$r->Id,
-            'SaldoPedido'=>$r->SaldoPedido,
-            'Produccion'=>$r->Produccion,
-            'nueva'=>$nueva
-        ]);
 
         if (!is_null($r->SaldoPedido)) {
             $r->SaldoPedido = $nueva;
@@ -162,7 +156,6 @@ class UpdateHelpers
         if (array_key_exists('calibre_c3',$d))     $r->CalibreComb32 = $d['calibre_c3'];
         if (array_key_exists('calibre_c4',$d)) {
             $r->CalibreComb42 = $d['calibre_c4'];
-            Log::info('Actualizando Calibre C4',['Id'=>$r->Id,'CalibreComb42'=>$d['calibre_c4']]);
         }
         if (array_key_exists('calibre_c5',$d))     $r->CalibreComb52 = $d['calibre_c5'];
 
@@ -187,13 +180,11 @@ class UpdateHelpers
     {
         $prev = $r->getOriginal('FlogsId');
         $r->FlogsId = $flog ?: null;
-        Log::info('UPDATE FlogsId', ['Id'=>$r->Id,'prev'=>$prev,'nuevo'=>$r->FlogsId]);
 
         // Si se limpia el Flog, también limpiar TipoPedido; si no, derivarlo
         if ($r->FlogsId && strlen($r->FlogsId) >= 2) {
             $pref = strtoupper(substr($r->FlogsId,0,2));
             $r->TipoPedido = $pref;
-            Log::info('TipoPedido desde FlogsId', ['Id'=>$r->Id,'prefijo'=>$pref]);
         } else {
             $r->TipoPedido = null;
         }

@@ -162,18 +162,7 @@ class ModuloProduccionEngomadoController extends Controller
                 $orden->Status = 'En Proceso';
                 $orden->save();
 
-                Log::info('Status actualizado a "En Proceso" (Engomado)', [
-                    'folio' => $orden->Folio,
-                    'orden_id' => $orden->Id,
-                    'status_anterior' => $statusAnterior,
-                    'status_nuevo' => 'En Proceso',
-                ]);
             } catch (\Throwable $e) {
-                Log::error('Error al actualizar status a "En Proceso" (Engomado)', [
-                    'folio' => $orden->Folio,
-                    'orden_id' => $orden->Id,
-                    'error' => $e->getMessage(),
-                ]);
             }
         }
 
@@ -261,35 +250,11 @@ class ModuloProduccionEngomadoController extends Controller
                 // Crear todos los registros en lote si hay alguno
                 if (count($registrosACrear) > 0) {
                     foreach ($registrosACrear as $index => $registroData) {
-                        // Log antes de crear
-                        Log::info("Creando registro {$index} (Engomado)", [
-                            'datos' => $registroData
-                        ]);
-
                         $registroCreado = EngProduccionEngomado::create($registroData);
 
-                        // Log después de crear para verificar que se guardó correctamente
-                        Log::info("Registro creado con ID: {$registroCreado->Id} (Engomado)", [
-                            'CveEmpl1' => $registroCreado->CveEmpl1,
-                            'NomEmpl1' => $registroCreado->NomEmpl1,
-                            'Metros1' => $registroCreado->Metros1,
-                            'Turno1' => $registroCreado->Turno1,
-                        ]);
                     }
-
-                    Log::info('Registros creados en EngProduccionEngomado', [
-                        'folio' => $orden->Folio,
-                        'creados' => count($registrosACrear),
-                        'total_requerido' => $totalRegistros,
-                        'no_telas' => $orden->NoTelas,
-                    ]);
                 }
             } catch (\Throwable $e) {
-                Log::error('Error al crear registros en EngProduccionEngomado', [
-                    'folio' => $orden->Folio,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
             }
 
             // Recargar los registros después de crear los faltantes
@@ -671,11 +636,6 @@ class ModuloProduccionEngomadoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar fecha (Engomado)', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al actualizar fecha: ' . $e->getMessage(),
@@ -742,11 +702,6 @@ class ModuloProduccionEngomadoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar NoJulio y Tara (Engomado)', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al actualizar No. Julio y Tara: ' . $e->getMessage(),
@@ -810,11 +765,6 @@ class ModuloProduccionEngomadoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar KgBruto (Engomado)', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al actualizar Kg. Bruto: ' . $e->getMessage(),
@@ -977,13 +927,6 @@ class ModuloProduccionEngomadoController extends Controller
             $orden->Status = 'Finalizado';
             $orden->save();
 
-            Log::info('Orden de engomado finalizada', [
-                'folio' => $orden->Folio,
-                'orden_id' => $orden->Id,
-                'status_anterior' => 'En Proceso',
-                'status_nuevo' => 'Finalizado',
-            ]);
-
             return response()->json([
                 'success' => true,
                 'message' => 'Orden finalizada correctamente',
@@ -1000,11 +943,6 @@ class ModuloProduccionEngomadoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al finalizar orden de engomado', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al finalizar la orden: ' . $e->getMessage(),

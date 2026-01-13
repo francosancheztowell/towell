@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\SYSRoles;
 use App\Models\SYSUsuariosRoles;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class PermissionService
 {
@@ -25,14 +24,14 @@ class PermissionService
             $permisosGuardados = [];
             foreach ($modulos as $modulo) {
                 $prefijo = "modulo_{$modulo->idrol}_";
-                
+
                 // Verificar si el checkbox fue marcado (has() retorna true si existe en el request)
                 $acceso = isset($permisos[$prefijo . 'acceso']) ? 1 : 0;
                 $crear = isset($permisos[$prefijo . 'crear']) ? 1 : 0;
                 $modificar = isset($permisos[$prefijo . 'modificar']) ? 1 : 0;
                 $eliminar = isset($permisos[$prefijo . 'eliminar']) ? 1 : 0;
                 $registrar = $crear; // Usar mismo valor que crear
-                
+
                 $permiso = SYSUsuariosRoles::create([
                     'idusuario' => $idusuario,
                     'idrol' => $modulo->idrol,
@@ -49,17 +48,8 @@ class PermissionService
 
             DB::commit();
 
-            Log::info('Permisos guardados exitosamente', [
-                'usuario_id' => $idusuario,
-                'total_permisos' => count($permisosGuardados)
-            ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al guardar permisos', [
-                'usuario_id' => $idusuario,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             throw $e;
         }
     }

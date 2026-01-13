@@ -31,13 +31,6 @@ class QueryHelpers
                 ->where('Densidad', $densidad)
                 ->value($campo);
 
-            Log::info("get{$campo}Std", [
-                'fibraId' => $fibraId,
-                'noTelar' => $noTelar,
-                'densidad' => $densidad,
-                'valor' => $valor,
-            ]);
-
             return response()->json([
                 $responseKey => $valor,
                 'densidad' => $densidad,

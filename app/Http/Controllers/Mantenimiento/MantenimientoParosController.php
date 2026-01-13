@@ -308,12 +308,6 @@ class MantenimientoParosController extends Controller
             // Guardar en la base de datos
             $paro = ManFallasParos::create($data);
 
-            Log::info('Paro/falla guardado correctamente', [
-                'folio' => $folio,
-                'usuario' => $usuario->numero_empleado,
-                'paro_id' => $paro->Id,
-            ]);
-
             // Si el checkbox "Notificar a Supervisor" está marcado, enviar mensaje a Telegram
             $notificarSupervisor = $request->boolean('notificar_supervisor', false);
             if ($notificarSupervisor) {
@@ -403,28 +397,9 @@ class MantenimientoParosController extends Controller
             if ($response->successful()) {
                 $data = $response->json();
                 if ($data['ok'] ?? false) {
-                    Log::info('Notificación enviada a Telegram exitosamente', [
-                        'folio' => $paro->Folio,
-                        'chat_id' => $chatId
-                    ]);
-                } else {
-                    Log::error('Error en respuesta de Telegram', [
-                        'response' => $data,
-                        'folio' => $paro->Folio
-                    ]);
                 }
-            } else {
-                Log::error('Error al enviar notificación a Telegram', [
-                    'status' => $response->status(),
-                    'response' => $response->json(),
-                    'folio' => $paro->Folio
-                ]);
             }
         } catch (\Exception $e) {
-            Log::error('Excepción al enviar notificación a Telegram', [
-                'error' => $e->getMessage(),
-                'folio' => $paro->Folio ?? 'N/A'
-            ]);
         }
     }
 
@@ -624,12 +599,6 @@ class MantenimientoParosController extends Controller
             if ($enviarTelegram) {
                 $this->enviarNotificacionTelegramCierre($paro, $usuario);
             }
-
-            Log::info('Paro finalizado correctamente', [
-                'paro_id' => $id,
-                'folio' => $paro->Folio,
-                'usuario' => $usuario->numero_empleado ?? null,
-            ]);
 
             return response()->json([
                 'success' => true,

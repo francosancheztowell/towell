@@ -188,16 +188,9 @@ class ModulosController extends Controller
                 $data['imagen'] = null;
             }
 
-            Log::info('Datos a crear módulo:', $data);
 
             // Crear el módulo
             $modulo = SYSRoles::create($data);
-
-            Log::info('Módulo creado exitosamente', [
-                'idrol' => $modulo->idrol,
-                'orden' => $modulo->orden,
-                'modulo' => $modulo->modulo
-            ]);
 
             // Actualizar permisos en SYSUsuariosRoles para el nuevo módulo
             $permisosActualizados = $this->actualizarPermisosNuevoModulo($modulo);
@@ -234,20 +227,8 @@ class ModulosController extends Controller
     public function edit($id)
     {
         try {
-            Log::info('Edit method called', [
-                'id' => $id,
-                'user_id' => Auth::id(),
-                'user_authenticated' => Auth::check(),
-                'user' => Auth::user()
-            ]);
 
             $modulo = SYSRoles::findOrFail($id);
-
-            Log::info('Module found for edit', [
-                'module_id' => $modulo->idrol,
-                'module_name' => $modulo->modulo,
-                'module_orden' => $modulo->orden
-            ]);
 
             // Obtener módulos principales para usar como dependencias
             $modulosPrincipales = SYSRoles::where('Nivel', 1)
@@ -256,22 +237,9 @@ class ModulosController extends Controller
                 ->orderBy('orden')
                 ->get();
 
-            Log::info('Edit view data prepared', [
-                'module' => $modulo->toArray(),
-                'modulos_principales_count' => $modulosPrincipales->count()
-            ]);
-
             return view('modulos.gestion-modulos.edit', compact('modulo', 'modulosPrincipales'));
 
         } catch (\Exception $e) {
-            Log::error('Error in edit method', [
-                'id' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => Auth::id(),
-                'user_authenticated' => Auth::check()
-            ]);
-
             return redirect()->route('configuracion.utileria.modulos')
                 ->with('error', 'Error al cargar el módulo para editar: ' . $e->getMessage());
         }
@@ -283,12 +251,6 @@ class ModulosController extends Controller
     public function editSimple($id)
     {
         try {
-            Log::info('EditSimple method called', [
-                'id' => $id,
-                'user_id' => Auth::id(),
-                'user_authenticated' => Auth::check()
-            ]);
-
             $modulo = SYSRoles::findOrFail($id);
 
             // Obtener módulos principales para usar como dependencias
@@ -297,11 +259,6 @@ class ModulosController extends Controller
                 ->where('idrol', '!=', $modulo->idrol) // Excluir el módulo actual
                 ->orderBy('orden')
                 ->get();
-
-            Log::info('EditSimple view data prepared', [
-                'module' => $modulo->toArray(),
-                'modulos_principales_count' => $modulosPrincipales->count()
-            ]);
 
             return view('modulos.gestion-modulos.edit-simple', compact('modulo', 'modulosPrincipales'));
 
@@ -325,17 +282,8 @@ class ModulosController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            Log::info('Update method called', [
-                'id' => $id,
-                'user_id' => Auth::id(),
-                'user_authenticated' => Auth::check(),
-                'request_data' => $request->all()
-            ]);
 
             $modulo = SYSRoles::findOrFail($id);
-
-            Log::info('Update request recibido:', $request->all());
-            Log::info('Módulo a actualizar:', ['id' => $modulo->idrol, 'modulo' => $modulo->modulo]);
 
             $validator = Validator::make($request->all(), [
                 'orden' => 'required|string|max:50',
@@ -385,7 +333,6 @@ class ModulosController extends Controller
                 $data['imagen'] = $nombreImagen;
             }
 
-            Log::info('Datos a actualizar:', $data);
             $modulo->update($data);
 
             // Limpiar caché de módulos para todos los usuarios
@@ -425,7 +372,6 @@ class ModulosController extends Controller
 
             // Eliminar registros relacionados en SYSUsuariosRoles
             SYSUsuariosRoles::where('idrol', $modulo->idrol)->delete();
-            Log::info("Registros de permisos eliminados para el módulo {$modulo->idrol}");
 
             $modulo->delete();
 
@@ -571,10 +517,7 @@ class ModulosController extends Controller
             $campo = $request->input('campo');
             $valor = $request->input('valor');
 
-            Log::info("TogglePermiso - Módulo ID: {$modulo->idrol}, Campo: {$campo}, Valor: {$valor}");
-
             if (!$campo || !in_array($campo, ['crear', 'modificar', 'eliminar', 'reigstrar'])) {
-                Log::warning("TogglePermiso - Campo inválido: {$campo}");
                 return response()->json([
                     'success' => false,
                     'message' => 'Campo inválido: ' . $campo
@@ -584,16 +527,12 @@ class ModulosController extends Controller
             // Convertir valor a boolean
             $valorBool = (bool) $valor;
 
-            Log::info("TogglePermiso - Actualizando campo '{$campo}' a " . ($valorBool ? 'true' : 'false') . " para módulo {$modulo->idrol}");
-
             // Actualizar el campo específico
             $modulo->$campo = $valorBool;
             $modulo->save();
 
             $estado = $valorBool ? 'activado' : 'desactivado';
             $nombreCampo = ucfirst($campo);
-
-            Log::info("TogglePermiso - Guardado exitoso para módulo {$modulo->idrol}");
 
             return response()->json([
                 'success' => true,
@@ -603,7 +542,6 @@ class ModulosController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error("TogglePermiso - Error al cambiar permiso: " . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cambiar el permiso: ' . $e->getMessage()
@@ -656,8 +594,6 @@ class ModulosController extends Controller
                 }
             }
 
-            Log::info("Permisos actualizados para {$registrosActualizados} usuarios del módulo {$modulo->idrol}");
-
             return $registrosActualizados;
         } catch (\Exception $e) {
             Log::error('Error al actualizar permisos del nuevo módulo: ' . $e->getMessage());
@@ -675,9 +611,7 @@ class ModulosController extends Controller
             foreach ($usuarios as $usuario) {
                 $this->moduloService->limpiarCacheUsuario($usuario->idusuario);
             }
-            Log::info('Caché de módulos limpiado para todos los usuarios');
         } catch (\Exception $e) {
-            Log::error('Error al limpiar caché de módulos: ' . $e->getMessage());
         }
     }
 }

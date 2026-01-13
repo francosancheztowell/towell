@@ -6,7 +6,6 @@ use App\Repositories\UsuarioRepository;
 use App\Services\PermissionService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class UsuarioService
@@ -42,7 +41,6 @@ class UsuarioService
             $this->permissionService->guardarPermisos($permisos, $usuario->idusuario);
         }
 
-        Log::info('Usuario creado exitosamente', ['usuario_id' => $usuario->idusuario]);
 
         return $usuario;
     }
@@ -73,7 +71,6 @@ class UsuarioService
         }
 
         if ($actualizado) {
-            Log::info('Usuario actualizado exitosamente', ['usuario_id' => $id]);
         }
 
         return $actualizado;
@@ -91,7 +88,6 @@ class UsuarioService
         $eliminado = $this->usuarioRepository->delete($id);
 
         if ($eliminado) {
-            Log::info('Usuario eliminado exitosamente', ['usuario_id' => $id]);
         }
 
         return $eliminado;

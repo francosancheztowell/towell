@@ -157,22 +157,13 @@ class NuevoRequerimientoController extends Controller
 
             $providedFolio = trim((string)$request->input('folio', ''));
 
-            Log::info('GuardarRequerimientos inicio', [
-                'providedFolio' => $providedFolio,
-                'turno' => $turno,
-                'fecha' => $fecha,
-            ]);
+
 
             $folio = $this->resolverFolio($providedFolio, $turno, $fecha);
 
-            Log::info('Folio resuelto', ['folio' => $folio]);
 
             $consumos = $request->input('consumos', []);
             $consumos = is_array($consumos) ? $consumos : [];
-
-            Log::info('GuardarRequerimientos payload', [
-                'folio' => $folio, 'provided' => $providedFolio, 'count' => count($consumos),
-            ]);
 
             foreach ($consumos as $i => $consumo) {
                 $this->upsertConsumoNormalizado($folio, $consumo, $i);
@@ -395,7 +386,7 @@ class NuevoRequerimientoController extends Controller
                 'Nombre_Producto' => $map['Nombre_Producto'] ?? null,
                 'Saldos'          => $map['Saldos']          ?? null,
                 'Produccion'      => $map['Produccion']      ?? null,
-                // Trae el query completo: fecha y hr, Carbon lo transforma a un DateString 
+                // Trae el query completo: fecha y hr, Carbon lo transforma a un DateString
                 'Inicio_Tejido'   => !empty($map['FechaInicio']) ? Carbon::parse($map['FechaInicio']) ->toDateString() : null,
                 'Fin_Tejido'      => !empty($map['FechaFinal']) ? Carbon::parse($map['FechaFinal']) ->toDateString() : null,
 
@@ -494,7 +485,6 @@ class NuevoRequerimientoController extends Controller
     private function resolverFolio(string $providedFolio, string $turno, string $fecha): string
     {
         if ($providedFolio !== '') {
-            Log::info('Resolviendo folio existente', ['providedFolio' => $providedFolio]);
             $registro = TejTrama::query()->where('Folio', $providedFolio)->lockForUpdate()->first();
             if (!$registro) abort(404, 'El folio indicado no existe');
 
@@ -504,21 +494,17 @@ class NuevoRequerimientoController extends Controller
                 'nombreEmpl'      => $usuario->nombre ?? '',
             ]);
 
-            Log::info('Folio existente actualizado', ['folio' => $registro->Folio]);
             return $registro->Folio;
         }
 
         // Reusar “En Proceso” si ya existe
         $enProceso = TejTrama::query()->where('Status', 'En Proceso')->lockForUpdate()->first();
         if ($enProceso) {
-            Log::info('Reutilizando folio en proceso', ['folio' => $enProceso->Folio]);
             return $enProceso->Folio;
         }
 
         // Crear nuevo
-        Log::info('Generando nuevo folio');
         $folio = $this->generarFolioSecuencial();
-        Log::info('Folio generado', ['folio' => $folio]);
 
         $usuario = Auth::user();
 
@@ -529,12 +515,6 @@ class NuevoRequerimientoController extends Controller
             'Turno'           => $turno,
             'numero_empleado' => $usuario->numero_empleado ?? '',
             'nombreEmpl'      => $usuario->nombre ?? '',
-        ]);
-
-        Log::info('TejTrama creado', [
-            'folio' => $folio,
-            'fecha' => $fecha,
-            'turno' => $turno,
         ]);
 
         return $folio;

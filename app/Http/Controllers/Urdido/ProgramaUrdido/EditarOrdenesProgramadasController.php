@@ -221,11 +221,6 @@ class EditarOrdenesProgramadasController extends Controller
                     $engomado->$campoEngomado = $valor;
                     $engomado->save();
 
-                    Log::info('Campo sincronizado con EngProgramaEngomado', [
-                        'folio' => $orden->Folio,
-                        'campo' => $campo,
-                        'valor' => $valor,
-                    ]);
                 }
 
                 // Campos especiales que también se sincronizan con nombres diferentes

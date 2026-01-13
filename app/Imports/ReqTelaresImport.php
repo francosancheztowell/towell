@@ -102,19 +102,11 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
         try {
             $this->rowCounter++;
 
-            // Log para debugging
-            Log::info("Procesando fila {$this->rowCounter}", [
-                'row_keys' => array_keys($row),
-                'row_values' => array_values($row),
-                'raw_row' => $row
-            ]);
-
             // Normalizar claves de encabezado para búsqueda robusta
             $row = $this->normalizeRowKeys($row);
 
             // Saltar filas que son encabezados repetidos dentro del cuerpo
             if ($this->looksLikeHeaderRow($row)) {
-                Log::info('Saltando fila que parece encabezado', ['row' => array_keys($row)]);
                 $this->skippedRows++;
                 return null;
             }
@@ -126,13 +118,6 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
 
             // Generar nombre automáticamente basado en el salón y número de telar
             $nombre = $this->generarNombre($salon, $telar);
-
-            Log::info("Datos extraídos fila {$this->rowCounter}", [
-                'salon' => $salon,
-                'telar' => $telar,
-                'nombre_generado' => $nombre,
-                'grupo' => $grupo
-            ]);
 
             // Validar que los campos requeridos no estén vacíos
             if (empty($salon) || empty($telar)) {
@@ -154,7 +139,6 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
                 ]);
                 $this->processedRows++;
                 $this->updatedRows++;
-                Log::info("Telar existente actualizado: {$salon} - {$telar}");
                 return null; // No crear nuevo modelo, solo actualizar
             } else {
                 // Crear nuevo registro
@@ -167,19 +151,11 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
 
                 $this->processedRows++;
                 $this->createdRows++;
-                Log::info("Nuevo telar creado: {$salon} - {$telar}");
                 return $modelo;
             }
 
         } catch (\Exception $e) {
             // Log the error but continue processing
-            Log::error('Error importing row: ' . $e->getMessage(), [
-                'row' => $row,
-                'row_counter' => $this->rowCounter,
-                'error_line' => $e->getLine(),
-                'error_file' => $e->getFile()
-            ]);
-
             $this->errores[] = "Fila {$this->rowCounter}: Error al procesar - " . $e->getMessage();
             $this->skippedRows++;
             return null; // Skip this row

@@ -39,40 +39,26 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
                 return null;
             }
 
-            Log::info("========== FILA {$this->rowCounter} INICIADA ==========");
-            Log::info("Datos crudos de la fila: " . json_encode($row));
-
             // Normalizar claves
             $row = $this->normalizeRowKeys($row);
-
-            Log::info("Claves normalizadas: " . json_encode(array_keys($row)));
-            Log::info("Valores normalizados: " . json_encode($row));
 
             // Detectar sección actual por los valores de encabezado
             $this->detectarSeccion($row);
 
-            Log::info("Sección actual: " . ($this->seccionActual ?? 'NINGUNA'));
-
             // Si no hemos detectado sección aún, saltamos
             if ($this->seccionActual === null) {
-                Log::debug("Saltando fila {$this->rowCounter} - sección no identificada");
                 return null;
             }
 
             // Procesar según la sección
             if ($this->seccionActual === 'calendarios') {
-                Log::info("Procesando como CALENDARIO");
                 $resultado = $this->procesarCalendario($row);
-                Log::info("Resultado procesamiento calendario: " . ($resultado ? 'CREADO' : 'SALTADO'));
                 return $resultado;
             } elseif ($this->seccionActual === 'lineas') {
-                Log::info("Procesando como LÍNEA");
                 $resultado = $this->procesarLinea($row);
-                Log::info("Resultado procesamiento línea: " . ($resultado ? 'CREADO' : 'SALTADO'));
                 return $resultado;
             }
 
-            Log::warning("Fila {$this->rowCounter}: No se procesó por sección desconocida");
             return null;
 
         } catch (\Exception $e) {
@@ -93,15 +79,12 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
     {
         return [
             BeforeImport::class => function(BeforeImport $event) {
-                Log::info("🧹 Limpiando datos existentes de calendarios antes de importar...");
 
                 // Limpiar todas las líneas de calendario
                 $deletedLines = ReqCalendarioLine::truncate();
-                Log::info("🗑️ Eliminadas todas las líneas de calendario existentes");
 
                 // Limpiar todas las tablas de calendario
                 $deletedTabs = ReqCalendarioTab::truncate();
-                Log::info("🗑️ Eliminadas todas las tablas de calendario existentes");
             }
         ];
     }
@@ -135,7 +118,6 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
 
     private function detectarSeccion($row)
     {
-        Log::info("--- DETECTANDO SECCIÓN ---");
 
         // Buscar indicadores de sección
         $hasNoCalendario = $this->getValue($row, ['No Calendario', 'nocalendario', 'calendario']) !== null;
@@ -143,39 +125,22 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
         $hasInicio = $this->getValue($row, ['Inicio', 'inicio', 'fechainicio','Inicio (fecha Hora)']) !== null;
         $hasFin = $this->getValue($row, ['Fin', 'fin', 'fechafin','Fin (Fecha Hora)']) !== null;
 
-        Log::info("Indicadores encontrados:", [
-            'hasNoCalendario' => $hasNoCalendario,
-            'hasNombre' => $hasNombre,
-            'hasInicio' => $hasInicio,
-            'hasFin' => $hasFin
-        ]);
-
         if ($hasNoCalendario && $hasNombre && !$hasInicio && !$hasFin) {
-            Log::info("✓✓✓ SECCIÓN CALENDARIOS DETECTADA en fila {$this->rowCounter}");
             $this->seccionActual = 'calendarios';
         } elseif ($hasNoCalendario && $hasInicio && $hasFin) {
-            Log::info("✓✓✓ SECCIÓN LÍNEAS DETECTADA en fila {$this->rowCounter}");
             $this->seccionActual = 'lineas';
         } else {
-            Log::debug("No coincide con ninguna sección en fila {$this->rowCounter}");
         }
     }
 
     private function procesarCalendario($row)
     {
-        Log::info(">>> PROCESANDO CALENDARIO <<<");
 
         // Si es encabezado repetido, saltar
         $calendarioId = $this->getValue($row, ['No Calendario']);
         $nombre = $this->getValue($row, ['Nombre']);
 
-        Log::info("Valores extraídos:", [
-            'calendarioId' => $calendarioId,
-            'nombre' => $nombre
-        ]);
-
         if (empty($calendarioId) || empty($nombre)) {
-            Log::warning("Fila {$this->rowCounter}: Datos incompletos - Saltando");
             return null;
         }
 
@@ -183,13 +148,7 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
         $calendarioId = substr($calendarioId, 0, 20);
         $nombre = substr($nombre, 0, 255);
 
-        Log::info("Valores después de truncar:", [
-            'calendarioId' => $calendarioId,
-            'nombre' => $nombre
-        ]);
-
         try {
-            Log::info("Intentando guardar calendario: {$calendarioId}");
 
             ReqCalendarioTab::updateOrCreate(
                 ['CalendarioId' => $calendarioId],
@@ -198,13 +157,9 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
 
             $this->calendariosProcesados++;
             $this->calendariosCreados++;
-            Log::info("✓✓✓ Calendario GUARDADO EXITOSAMENTE: {$calendarioId}");
 
             return null;
         } catch (\Exception $e) {
-            Log::error("✗✗✗ ERROR al guardar calendario fila {$this->rowCounter}: {$e->getMessage()}", [
-                'exception' => $e->getTraceAsString()
-            ]);
             $this->errores[] = "Fila {$this->rowCounter}: Error al guardar calendario: {$e->getMessage()}";
             return null;
         }
@@ -212,7 +167,6 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
 
     private function procesarLinea($row)
     {
-        Log::info(">>> PROCESANDO LÍNEA <<<");
 
         $calendarioId = $this->getValue($row, ['No Calendario', 'nocalendario']);
         $fechaInicio = $this->getValue($row, ['Inicio', 'inicio', 'fechainicio', 'inicio (fecha hora)']);
@@ -220,16 +174,7 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
         $horas = $this->getValue($row, ['Horas', 'horas', 'horasturno']);
         $turno = $this->getValue($row, ['Turno', 'turno']);
 
-        Log::info("Valores extraídos de línea:", [
-            'calendarioId' => $calendarioId,
-            'fechaInicio' => $fechaInicio,
-            'fechaFin' => $fechaFin,
-            'horas' => $horas,
-            'turno' => $turno
-        ]);
-
         if (empty($calendarioId) || empty($fechaInicio) || empty($fechaFin)) {
-            Log::warning("Fila {$this->rowCounter}: Datos incompletos en línea - Saltando");
             return null;
         }
 
@@ -237,27 +182,18 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
             // Truncar CalendarioId
             $calendarioId = substr($calendarioId, 0, 20);
 
-            Log::info("Parseando fechas...");
             // Parsear fechas
             $fechaInicioFormato = $this->parseDatetime($fechaInicio);
             $fechaFinFormato = $this->parseDatetime($fechaFin);
 
-            Log::info("Fechas parseadas:", [
-                'fechaInicioFormato' => $fechaInicioFormato,
-                'fechaFinFormato' => $fechaFinFormato
-            ]);
-
             if ($fechaInicioFormato === null || $fechaFinFormato === null) {
                 $this->errores[] = "Fila {$this->rowCounter}: No se pudieron parsear las fechas";
-                Log::error("✗✗✗ Fila {$this->rowCounter}: Fechas no válidas");
                 return null;
             }
 
             // Convertir valores
             $horas = !empty($horas) ? (float)$horas : 0;
             $turno = !empty($turno) ? (int)$turno : 0;
-
-            Log::info("Intentando guardar línea: Cal={$calendarioId}, Turno={$turno}");
 
             ReqCalendarioLine::create([
                 'CalendarioId' => $calendarioId,
@@ -269,13 +205,9 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
 
             $this->lineasProcesadas++;
             $this->lineasCreadas++;
-            Log::info("✓✓✓ Línea GUARDADA EXITOSAMENTE: {$calendarioId} turno {$turno}");
 
             return null;
         } catch (\Exception $e) {
-            Log::error("✗✗✗ ERROR al guardar línea fila {$this->rowCounter}: {$e->getMessage()}", [
-                'exception' => $e->getTraceAsString()
-            ]);
             $this->errores[] = "Fila {$this->rowCounter}: Error al guardar línea: {$e->getMessage()}";
             return null;
         }
@@ -327,7 +259,6 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
             }
         }
 
-        Log::warning("No se pudo parsear la fecha: {$value}");
         return null;
     }
 

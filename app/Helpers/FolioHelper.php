@@ -89,10 +89,6 @@ class FolioHelper
     {
         try {
             DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', $modulo)->update(['consecutivo' => $nuevoConsecutivo]);
-            Log::info('Consecutivo reiniciado', [
-                'modulo' => $modulo,
-                'nuevo_consecutivo' => $nuevoConsecutivo,
-            ]);
             return true;
         } catch (\Throwable $e) {
             Log::error('Error al reiniciar consecutivo', [

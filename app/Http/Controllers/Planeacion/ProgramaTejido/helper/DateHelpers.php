@@ -283,7 +283,6 @@ class DateHelpers
                 foreach ($modelos as $m) {
                     $observer->saved($m);
                 }
-                Log::info('cascadeFechas: Líneas regeneradas', ['ids_actualizados' => count($idsActualizados)]);
             }
 
             return $detalles;

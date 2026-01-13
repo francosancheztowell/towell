@@ -29,7 +29,6 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
 
             // Saltar encabezados repetidos
             if ($this->looksLikeHeaderRow($row)) {
-                Log::info('Saltando fila que parece encabezado', ['row' => array_keys($row)]);
                 $this->skippedRows++;
                 return null;
             }
@@ -40,14 +39,6 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
             $fibra = $this->parseString($this->getValue($row, ['Fibra', 'FibraId', 'fibraid']), 60);
             $velocidad = $this->parseFloat($this->getValue($row, ['RPM', 'rpm', 'Velocidad', 'velocidad']));
             $densidad = $this->parseString($this->getValue($row, ['Densidad', 'densidad']), 10);
-
-            Log::info("Datos extraídos fila {$this->rowCounter}", [
-                'salon' => $salon,
-                'telar' => $telar,
-                'fibra' => $fibra,
-                'velocidad' => $velocidad,
-                'densidad' => $densidad
-            ]);
 
             // Validar que los campos requeridos no estén vacíos
             if (empty($telar) || empty($fibra) || is_null($velocidad)) {
@@ -67,7 +58,6 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
 
             $this->processedRows++;
             $this->createdRows++;
-            Log::info("Nueva velocidad creada: {$telar} - {$fibra} - {$velocidad} RPM");
             return $modelo;
 
         } catch (\Exception $e) {

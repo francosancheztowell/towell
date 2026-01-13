@@ -462,6 +462,7 @@ class ModuloService
             // Catálogos de Engomado (nivel 3)
             'Actividades BPM Engomado' => '/engomado/configuracion/actividades-bpm',
             'Actividades Engomado' => '/engomado/configuracion/actividades-bpm',
+            'Catálogo de Núcleos' => '/engomado/configuracion/catalogos-nucleos',
 
         ];
 

@@ -563,21 +563,12 @@ class MarcasController extends Controller
             }
 
             $pdfSizeKB = strlen($pdfContent) / 1024;
-            Log::info('PDF generado exitosamente', [
-                'fecha' => $fechaNorm,
-                'size_kb' => round($pdfSizeKB, 2),
-                'filename' => $filename,
-            ]);
 
             // Enviar el PDF a Telegram (no bloquea la descarga si falla)
             // Hacer esto en background para no afectar la descarga del usuario
             try {
                 $this->enviarReporteMarcasPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
             } catch (\Throwable $e) {
-                Log::error('Error al enviar PDF a Telegram (no bloquea descarga)', [
-                    'error' => $e->getMessage(),
-                    'fecha' => $fechaNorm,
-                ]);
                 // No lanzamos la excepción para que el usuario pueda descargar el PDF
             }
 
@@ -585,9 +576,6 @@ class MarcasController extends Controller
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
         } catch (\Exception $e) {
-            Log::error('Error al generar PDF de marcas finales', [
-                'error' => $e->getMessage(),
-            ]);
             return response()->json(['error' => 'Error al generar PDF: ' . $e->getMessage()], 500);
         }
     }
@@ -641,12 +629,6 @@ class MarcasController extends Controller
             $url = "https://api.telegram.org/bot{$botToken}/sendDocument";
 
             // Log de envío (para debugging)
-            Log::info('Intentando enviar PDF a Telegram', [
-                'fecha' => $fecha,
-                'filename' => $filename,
-                'size_kb' => round(strlen($pdfContent) / 1024, 2),
-                'chat_id' => $chatId,
-            ]);
 
             $response = Http::timeout(30) // Aumentar timeout a 30 segundos
                 ->attach('document', $pdfContent, $filename)
@@ -658,37 +640,11 @@ class MarcasController extends Controller
             if ($response->successful()) {
                 $data = $response->json();
                 if ($data['ok'] ?? false) {
-                    Log::info('PDF de marcas finales enviado exitosamente a Telegram', [
-                        'fecha' => $fecha,
-                        'chat_id' => $chatId,
-                        'filename' => $filename,
-                        'message_id' => $data['result']['message_id'] ?? null,
-                    ]);
                 } else {
-                    Log::error('Telegram respondió con ok=false al enviar PDF', [
-                        'response' => $data,
-                        'fecha' => $fecha,
-                        'filename' => $filename,
-                        'error_code' => $data['error_code'] ?? null,
-                        'description' => $data['description'] ?? null,
-                    ]);
                 }
             } else {
-                Log::error('Error HTTP al enviar PDF a Telegram', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                    'fecha' => $fecha,
-                    'filename' => $filename,
-                    'headers' => $response->headers(),
-                ]);
             }
         } catch (\Throwable $e) {
-            Log::error('Excepción al enviar PDF de marcas finales a Telegram', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'fecha' => $fecha,
-                'filename' => $filename,
-            ]);
         }
     }
 

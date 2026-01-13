@@ -77,13 +77,6 @@ class UrdBpmLineController extends Controller
         $actividad = $request->input('actividad');
         $valor = $request->input('valor'); // 0, 1 o 2
 
-        Log::info('toggleActividad llamado', [
-            'folio' => $folio,
-            'actividad' => $actividad,
-            'valor' => $valor,
-            'tipo_valor' => gettype($valor)
-        ]);
-
         $header = UrdBpmModel::where('Folio', $folio)->firstOrFail();
 
         // Solo permitir cambios si está en estado "Creado"
@@ -96,17 +89,10 @@ class UrdBpmLineController extends Controller
         }
 
         // Actualizar el valor (0 = vacío, 1 = palomita, 2 = tache)
-        Log::info('Intentando actualizar', [
-            'folio' => $folio,
-            'actividad' => $actividad,
-            'valorNuevo' => $valor
-        ]);
 
         $affected = UrdBpmLineModel::where('Folio', $folio)
             ->where('Actividad', $actividad)
             ->update(['Valor' => $valor]);
-
-        Log::info('Update ejecutado', ['rows_affected' => $affected]);
 
         return response()->json(['success' => true, 'affected' => $affected]);
     }

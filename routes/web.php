@@ -63,6 +63,7 @@ use App\Http\Controllers\Engomado\CapturaFormulas\EngProduccionFormulacionContro
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatMatrizHilos\MatrizHilosController;
 use App\Http\Controllers\Engomado\Configuracion\ActividadesBPMEngomado\EngActividadesBpmController;
 use App\Http\Controllers\Engomado\BPMEngomado\EngBpmLineController;
+use App\Http\Controllers\UrdEngomado\UrdEngNucleosController;
 use App\Http\Controllers\ComprasEspecialesController;
 use App\Http\Controllers\PronosticosController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
@@ -326,6 +327,11 @@ Route::middleware(['auth'])->group(function () {
         return redirect()->route('eng-actividades-bpm.index');
     })->name('engomado.configuracion.actividades-bpm');
 
+    // Catálogo de Núcleos Engomado - Redirigir al CRUD
+    Route::get('/engomado/configuracion/catalogos-nucleos', function() {
+        return redirect()->route('urd-eng-nucleos.index');
+    })->name('engomado.configuracion.catalogos-nucleos');
+
     // Ruta genérica para compatibilidad (solo para otros IDs no especificados arriba)
     Route::get('/submodulos-nivel3/{moduloPadre}', [UsuarioController::class, 'showSubModulosNivel3'])->name('submodulos.nivel3');
 
@@ -506,6 +512,11 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('eng-actividades-bpm', EngActividadesBpmController::class)
         ->parameters(['eng-actividades-bpm' => 'engActividadesBpm'])
         ->names('eng-actividades-bpm');
+
+    // Catálogo de Núcleos Urd/Eng
+    Route::resource('urd-eng-nucleos', UrdEngNucleosController::class)
+        ->parameters(['urd-eng-nucleos' => 'urdEngNucleo'])
+        ->names('urd-eng-nucleos');
 
     // BPM Urdido
     Route::resource('urd-bpm', UrdBpmController::class)

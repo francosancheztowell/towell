@@ -29,20 +29,11 @@ class PronosticosController extends Controller
     public function get(Request $request)
     {
         try {
-            Log::info('GET /pronosticos - Inicio', [
-                'query' => $request->query(),
-            ]);
 
             $meses = $this->parseMeses($request);
-            Log::info('GET /pronosticos - Meses', ['meses' => $meses]);
 
             // Obtener datos directamente desde las consultas (sin guardar en ReqPronosticos)
             [$batas, $otros] = $this->service->obtenerPronosticos($meses);
-
-            Log::info('GET /pronosticos - OK', [
-                'batas' => count($batas),
-                'otros' => count($otros),
-            ]);
 
             return response()->json([
                 'otros' => $otros,
@@ -56,11 +47,6 @@ class PronosticosController extends Controller
             ], 422);
 
         } catch (\Throwable $e) {
-            Log::error('GET /pronosticos - Error', [
-                'message' => $e->getMessage(),
-                'file'    => $e->getFile(),
-                'line'    => $e->getLine(),
-            ]);
             return response()->json([
                 'message' => 'Ocurrió un error al obtener los pronósticos.',
             ], 500);
@@ -98,10 +84,6 @@ class PronosticosController extends Controller
      */
     public function nuevo(Request $request)
     {
-        Log::info('PronosticosController.nuevo - Método llamado', [
-            'url' => $request->fullUrl(),
-            'query' => $request->query(),
-        ]);
 
         $prefill = [
             'idflog'          => $request->query('idflog') ?? $request->query('IDFLOG'),
@@ -116,11 +98,6 @@ class PronosticosController extends Controller
             'nombreproyecto'  => $request->query('nombreproyecto') ?? $request->query('NOMBREPROYECTO'),
             'categoriacalidad'=> $request->query('categoriacalidad') ?? $request->query('CATEGORIACALIDAD'),
         ];
-
-        Log::info('PronosticosController.nuevo - Retornando vista', [
-            'vista' => 'modulos.programa-tejido.programatejidoform.pronosticos',
-            'prefill' => $prefill,
-        ]);
 
         return view('modulos.programa-tejido.programatejidoform.pronosticos', compact('prefill'));
     }

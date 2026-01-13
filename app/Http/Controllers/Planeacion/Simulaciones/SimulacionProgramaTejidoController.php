@@ -146,12 +146,6 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
             $registro->NombreProyecto = $data['nombre_proyecto'] ?: null;
         }
 
-        // Log Ãºtil
-        Log::info('UPDATE payload', [
-            'Id' => $registro->Id,
-            'keys' => array_keys($data),
-        ]);
-
         // 10) Detectar cambio real de FechaFinal para cascada
         $fechaFinalCambiada = false;
         if (array_key_exists('fecha_fin', $data) && !empty($data['fecha_fin'])) {
@@ -287,7 +281,6 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
                 $nuevo->UpdatedAt = now();
                 $nuevo->save();
 
-                Log::info('ProgramaTejido.store - guardado', $nuevo->getAttributes());
                 $creados[] = $nuevo;
             }
 
@@ -478,7 +471,6 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
                 ->where('Densidad',$densidad)
                 ->value('Eficiencia');
 
-            Log::info('getEficienciaStd', compact('fibraId','noTelar','densidad','ef'));
             return response()->json(['eficiencia' => $ef, 'densidad' => $densidad, 'calibre_trama' => $calTra]);
         } catch (\Throwable $e) {
             Log::error('getEficienciaStd error', ['msg' => $e->getMessage()]);
@@ -503,10 +495,8 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
                 ->where('Densidad',$densidad)
                 ->value('Velocidad');
 
-            Log::info('getVelocidadStd', compact('fibraId','noTelar','densidad','vel'));
             return response()->json(['velocidad' => $vel, 'densidad' => $densidad, 'calibre_trama' => $calTra]);
         } catch (\Throwable $e) {
-            Log::error('getVelocidadStd error', ['msg' => $e->getMessage()]);
             return response()->json(['error' => 'Error al obtener velocidad estÃ¡ndar'], 500);
         }
     }
@@ -773,7 +763,6 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
             //     if ($r = SimulacionProgramaTejido::find($idAct)) $observer->saved($r);
             // }
 
-            Log::info('destroy OK', ['id'=>$id,'salon'=>$salon,'telar'=>$telar,'esUltimo'=>$esUltimo,'n'=>count($detalles)]);
             return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente','cascaded_records'=>count($detalles),'detalles'=>$detalles]);
 
         } catch (\Throwable $e) {
@@ -829,7 +818,6 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
             //     if ($r = SimulacionProgramaTejido::find($idAct)) $observer->saved($r);
             // }
 
-            Log::info('moverPrioridad OK', ['id'=>$registro->Id,'dir'=>$direccion,'n'=>count($detalles)]);
             return ['success'=>true,'detalles'=>$detalles];
 
         } catch (\Throwable $e) {
@@ -962,7 +950,6 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
         if (!array_key_exists('cantidad', $data)) return;
 
         $nueva = $data['cantidad'];
-        Log::info('Actualizando cantidad', ['Id'=>$r->Id,'SaldoPedido'=>$r->SaldoPedido,'Produccion'=>$r->Produccion,'nueva'=>$nueva]);
 
         if (!is_null($r->SaldoPedido))       $r->SaldoPedido = $nueva;
         elseif (!is_null($r->Produccion))    $r->Produccion  = $nueva;
@@ -1009,7 +996,7 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
         if (array_key_exists('calibre_c1',$d))     $r->CalibreComb12 = $d['calibre_c1'];
         if (array_key_exists('calibre_c2',$d))     $r->CalibreComb22 = $d['calibre_c2'];
         if (array_key_exists('calibre_c3',$d))     $r->CalibreComb32 = $d['calibre_c3'];
-        if (array_key_exists('calibre_c4',$d))     { $r->CalibreComb42 = $d['calibre_c4']; Log::info('Actualizando Calibre C4',['Id'=>$r->Id,'CalibreComb42'=>$d['calibre_c4']]);}
+        if (array_key_exists('calibre_c4',$d))     { $r->CalibreComb42 = $d['calibre_c4'];}
         if (array_key_exists('calibre_c5',$d))     $r->CalibreComb52 = $d['calibre_c5'];
 
         // Fibras
@@ -1034,12 +1021,10 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
         if ($flog !== null) {
             $prev = $r->getOriginal('FlogsId');
             $r->FlogsId = $flog ?: null;
-            Log::info('UPDATE FlogsId', ['Id'=>$r->Id,'prev'=>$prev,'nuevo'=>$r->FlogsId]);
 
             if ($flog && strlen($flog) >= 2) {
                 $pref = strtoupper(substr($flog,0,2));
                 $r->TipoPedido = $pref;
-                Log::info('TipoPedido desde FlogsId', ['Id'=>$r->Id,'prefijo'=>$pref]);
             }
         }
     }
@@ -1119,10 +1104,8 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
             if ($anterior && $anterior->FibraRizo !== null && $anterior->FibraRizo !== '' && $anterior->FibraRizo !== $nuevoHilo) {
                 $anterior->CambioHilo = 1;
                 $anterior->save();
-                Log::info('CambioHilo marcado', ['salon'=>$salon,'telar'=>$noTelarId,'ant'=>$anterior->FibraRizo,'nuevo'=>$nuevoHilo]);
             }
         } catch (\Throwable $e) {
-            Log::warning('marcarCambioHiloAnterior error', ['msg'=>$e->getMessage()]);
         }
     }
 
@@ -1210,7 +1193,6 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
                 $nuevo->NombreCPie = StringTruncator::truncate('NombreCPie', (string)$modeloCod->NombreCPie);
             }
         } catch (\Throwable $e) {
-            Log::warning('Fallback ReqModelosCodificados', ['msg'=>$e->getMessage()]);
         }
     }
 

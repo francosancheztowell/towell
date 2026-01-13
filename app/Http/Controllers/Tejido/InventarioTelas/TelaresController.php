@@ -132,11 +132,6 @@ class TelaresController extends Controller
             ->select('NoTelarId', 'EnProceso', 'NoProduccion', 'NombreProducto', 'SalonTejidoId')
             ->get();
 
-        Log::info('DEBUG - Registros ITEMA/SMIT', [
-            'count'     => $todosRegistrosItema->count(),
-            'registros' => $todosRegistrosItema->toArray()
-        ]);
-
         // Tomar la secuencia desde la tabla
         $telaresOrdenados = $this->getSecuenciaTelares(['ITEMA', 'SMIT']); // pluck NoTelar por Secuencia
         $telaresOrdenados = array_map('intval', $telaresOrdenados);
