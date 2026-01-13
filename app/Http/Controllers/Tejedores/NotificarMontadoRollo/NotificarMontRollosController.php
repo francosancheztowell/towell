@@ -43,7 +43,10 @@ class NotificarMontRollosController extends Controller
                     $query->where('tipo', $tipoFiltro);
                 }
 
-                return response()->json(['telares' => $query->get()]);
+                return response()->json([
+                    'telares' => $telaresUsuario->pluck('NoTelarId')->values(),
+                    'telaresDetalle' => $query->get()
+                ]);
             }
 
             // Si se solicita detalle de un telar específico con tipo
