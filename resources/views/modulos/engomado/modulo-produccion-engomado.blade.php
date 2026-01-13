@@ -627,14 +627,31 @@
 
                 closeAllQuantityEditors();
 
-                if (!editContainer || !editBtn) return;
+                if (!editContainer || !editBtn || !quantityDisplay) return;
 
                 const wasHidden = editContainer.classList.contains('hidden');
+
+                // Asegurar que el valor siempre esté visible en el display
+                let currentValue = quantityDisplay.textContent.trim();
+                if (!currentValue || currentValue === '') {
+                    quantityDisplay.textContent = '0';
+                    currentValue = '0';
+                }
+
                 editContainer.classList.toggle('hidden');
                 editBtn.classList.toggle('hidden');
 
+                // Asegurar que el botón siempre sea visible cuando el editor está oculto
+                if (!wasHidden) {
+                    // Si se está cerrando el editor, mostrar el botón
+                    editBtn.classList.remove('hidden');
+                    editBtn.style.display = '';
+                } else {
+                    // Si se está abriendo el editor, ocultar el botón
+                    editBtn.classList.add('hidden');
+                }
+
                 if (wasHidden && quantityDisplay) {
-                    let currentValue = quantityDisplay.textContent.trim();
                     const fieldName = quantityDisplay.getAttribute('data-field');
 
                     // Si es Canoa1 o Canoa2 y el valor es 0 o está vacío, mostrar 80 como seleccionado en el scroll
@@ -673,9 +690,21 @@
                 document.querySelectorAll('.quantity-edit-container').forEach(container => {
                     if (!container.classList.contains('hidden')) {
                         const row = container.closest('tr');
-                        const editBtn = row ? row.querySelector('.edit-quantity-btn') : null;
+                        const cell = container.closest('td');
+                        const editBtn = cell ? cell.querySelector('.edit-quantity-btn') : null;
+                        const quantityDisplay = cell ? cell.querySelector('.quantity-display') : null;
+
+                        // Asegurar que el valor se mantenga visible
+                        if (quantityDisplay && quantityDisplay.textContent.trim() === '') {
+                            // Si el valor está vacío, establecer un valor por defecto de 0
+                            quantityDisplay.textContent = '0';
+                        }
+
                         container.classList.add('hidden');
-                        if (editBtn) editBtn.classList.remove('hidden');
+                        if (editBtn) {
+                            editBtn.classList.remove('hidden');
+                            editBtn.style.display = ''; // Asegurar que el botón sea visible
+                        }
                     }
                 });
             }
@@ -1541,7 +1570,10 @@
                 document.addEventListener('click', function (event) {
                     const isInsideEditor = event.target.closest('.quantity-edit-container');
                     const isEditButton   = event.target.closest('.edit-quantity-btn');
-                    if (!isInsideEditor && !isEditButton) {
+                    const isNumberOption = event.target.closest('.number-option');
+
+                    // No cerrar si se está haciendo clic dentro del editor, en el botón o en una opción de número
+                    if (!isInsideEditor && !isEditButton && !isNumberOption) {
                         closeAllQuantityEditors();
                     }
                 });
@@ -1570,6 +1602,9 @@
 
                     const quantityDisplay = cell.querySelector('.quantity-display');
                     if (quantityDisplay) {
+                        // Asegurar que siempre haya un valor visible
+                        quantityDisplay.textContent = selectedValue || '0';
+
                         const fieldName = quantityDisplay.getAttribute('data-field');
                         const registroId = row ? row.getAttribute('data-registro-id') : null;
                         if (!registroId || !fieldName || !campoMap[fieldName]) return;
@@ -1590,8 +1625,13 @@
 
                     const editContainer = cell.querySelector('.quantity-edit-container');
                     const editBtn = cell.querySelector('.edit-quantity-btn');
-                    if (editContainer) editContainer.classList.add('hidden');
-                    if (editBtn) editBtn.classList.remove('hidden');
+                    if (editContainer) {
+                        editContainer.classList.add('hidden');
+                    }
+                    if (editBtn) {
+                        editBtn.classList.remove('hidden');
+                        editBtn.style.display = ''; // Asegurar que el botón sea visible
+                    }
                 });
 
                 // Click en botón de fecha (abre datepicker nativo)

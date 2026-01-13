@@ -154,7 +154,16 @@
                 $rowId = $registro->Id ?? uniqid('row_');
                 $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
                 $value = $registro->{$field} ?? null;
-                $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, $field === 'Densidad' ? 4 : 0, '.', '') : '') : '';
+
+                // Formatear según el campo: Densidad (4 decimales), MtsRollo (decimales sin límite), otros (0 decimales)
+                if ($field === 'Densidad') {
+                    $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 4, '.', '') : '') : '';
+                } elseif ($field === 'MtsRollo') {
+                    // MtsRollo se mantiene como decimal sin redondear
+                    $valueFormatted = $value !== null ? (is_numeric($value) ? (string)(float)$value : '') : '';
+                } else {
+                    $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 0, '.', '') : '') : '';
+                }
 
                 // Clase adicional para densidad y TotalPzas para hacerlos más anchos
                 $claseAdicional = '';
@@ -164,8 +173,16 @@
                     $claseAdicional = 'total-pzas-input';
                 }
 
+                // Determinar el step según el campo
+                $step = '1';
+                if ($field === 'Densidad') {
+                    $step = '0.0001';
+                } elseif ($field === 'MtsRollo') {
+                    $step = '0.01'; // Permitir decimales en MtsRollo
+                }
+
                 return '<input type="number"
-                              step="' . ($field === 'Densidad' ? '0.0001' : '1') . '"
+                              step="' . $step . '"
                               class="editable-field ' . $claseAdicional . ' w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '"
                               data-field="' . htmlspecialchars($field, ENT_QUOTES, 'UTF-8') . '"
@@ -353,8 +370,8 @@ const codigoDibujoUrl = '{{ route('programa-tejido.liberar-ordenes.codigo-dibujo
 const guardarCamposEditablesUrl = '{{ route('programa-tejido.liberar-ordenes.guardar-campos') }}';
 
 // Variables globales para columnas
-// Columnas fijadas por defecto: Maq (índice 2), Hilo (índice 6), Producto (índice 9)
-let pinnedColumns = [2, 6, 9];
+// Columnas fijadas por defecto: Maq (índice 2), Hilo (índice 6), Producto (índice 9), Pedido (índice 12)
+let pinnedColumns = [2, 6, 9, 12];
 let hiddenColumns = [];
 let filtersActive = false;
 

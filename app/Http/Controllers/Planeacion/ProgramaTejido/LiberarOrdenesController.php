@@ -150,16 +150,16 @@ class LiberarOrdenesController extends Controller
                 $tiras = $registro->NoTiras ?? null;
                 $repeticiones = null;
                 if (isset($registro->Repeticiones) && is_numeric($registro->Repeticiones)) {
-                    $repeticiones = (int) $registro->Repeticiones;
+                    $repeticiones = (int) ceil((float)$registro->Repeticiones);
                 } elseif ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
                     // Obtener peso rollo desde BD (buscar FEL primero, luego DEF, default 41.5)
                     $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
-                    $repeticiones = floor((($pesoRollo / (float)$pCrudo) / (float)$tiras) * 1000);
+                    $repeticiones = (int) ceil((($pesoRollo / (float)$pCrudo) / (float)$tiras) * 1000);
                 }
 
                 $saldoMarbeteInt = 0;
                 if (isset($registro->SaldoMarbete) && is_numeric($registro->SaldoMarbete)) {
-                    $saldoMarbeteInt = (int) $registro->SaldoMarbete;
+                    $saldoMarbeteInt = (int) ceil((float)$registro->SaldoMarbete);
                 } else {
                     $cantidadProducir = $registro->SaldoPedido ?? null;
                     $saldoMarbete = 0;
@@ -169,13 +169,11 @@ class LiberarOrdenesController extends Controller
                         $saldoMarbete = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
                     }
                     if (is_numeric($saldoMarbete)) {
-                        $saldoFloat = (float) $saldoMarbete;
-                        $entero = (int) floor($saldoFloat);
-                        $decimal = abs($saldoFloat - $entero);
-                        $saldoMarbeteInt = $decimal >= 0.5 ? (int) ceil($saldoFloat) : $entero;
+                        $saldoMarbeteInt = (int) ceil((float)$saldoMarbete);
                     }
                 }
                 // MtsRollo: fórmula = medida de largo * repeticiones (convertir cm a metros)
+                // MtsRollo se mantiene como decimal sin redondear
                 $mtsRollo = null;
                 if (isset($registro->MtsRollo) && is_numeric($registro->MtsRollo)) {
                     $mtsRollo = (float) $registro->MtsRollo;
@@ -185,7 +183,8 @@ class LiberarOrdenesController extends Controller
                         $largoNum = is_numeric($largo) ? (float)$largo : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
                         if ($largoNum > 0 && $repeticiones > 0) {
                             // Fórmula: metros = (medida de largo * repeticiones) / 100 (convertir cm a metros)
-                            $mtsRollo = round(($largoNum * $repeticiones) / 100, 2);
+                            // Sin redondear para mantener todos los decimales
+                            $mtsRollo = (float)(($largoNum * $repeticiones) / 100);
                         }
                     }
                 }
@@ -200,10 +199,24 @@ class LiberarOrdenesController extends Controller
                 }
 
                 $totalRollos = null;
-                if (isset($registro->TotalRollos) && is_numeric($registro->TotalRollos)) {
-                    $totalRollos = (float) $registro->TotalRollos;
+                // Nueva fórmula: TotalRollos = ceil(totalPedido / pzasRollo)
+                // Esto calcula cuántos rollos se necesitan para cumplir el pedido
+                $totalPedido = $registro->SaldoPedido ?? null;
+
+                // Siempre intentar calcular con la fórmula si hay datos disponibles
+                if ($pzasRollo !== null && $totalPedido !== null &&
+                    is_numeric($pzasRollo) && is_numeric($totalPedido) &&
+                    $pzasRollo > 0 && $totalPedido > 0) {
+                    // Calcular con la nueva fórmula: totalPedido / pzasRollo
+                    $totalRollos = (float) ceil((float)$totalPedido / (float)$pzasRollo);
                 } else {
-                    $totalRollos = $saldoMarbeteInt;
+                    // Si no se puede calcular, usar el valor existente o fallback
+                    if (isset($registro->TotalRollos) && is_numeric($registro->TotalRollos) && $registro->TotalRollos > 0) {
+                        $totalRollos = (float) ceil((float)$registro->TotalRollos);
+                    } else {
+                        // Fallback a saldoMarbeteInt si no hay datos
+                        $totalRollos = $saldoMarbeteInt > 0 ? (float) $saldoMarbeteInt : null;
+                    }
                 }
 
                 $totalPzas = null;
@@ -350,15 +363,19 @@ class LiberarOrdenesController extends Controller
 
                 // Repeticiones: usar del request, existente o calcular
                 $repeticiones = $item['repeticiones'] ?? $registro->Repeticiones;
-                if ($repeticiones === null && $pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
+                if ($repeticiones !== null && is_numeric($repeticiones)) {
+                    $repeticiones = (int) ceil((float)$repeticiones);
+                } elseif ($repeticiones === null && $pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
                     // Obtener peso rollo desde BD (buscar FEL primero, luego DEF, default 41.5)
                     $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
-                    $repeticiones = floor((($pesoRollo / (float)$pCrudo) / (float)$tiras) * 1000);
+                    $repeticiones = (int) ceil((($pesoRollo / (float)$pCrudo) / (float)$tiras) * 1000);
                 }
 
                 // SaldoMarbete: usar del request, existente o calcular
                 $saldoMarbeteInt = $item['saldoMarbete'] ?? $registro->SaldoMarbete;
-                if ($saldoMarbeteInt === null) {
+                if ($saldoMarbeteInt !== null && is_numeric($saldoMarbeteInt)) {
+                    $saldoMarbeteInt = (int) ceil((float)$saldoMarbeteInt);
+                } elseif ($saldoMarbeteInt === null) {
                     $cantidadProducir = $registro->SaldoPedido ?? null;
                     $saldoMarbeteCalc = 0;
                     if ($cantidadProducir !== null && $tiras && $repeticiones !== null &&
@@ -367,14 +384,12 @@ class LiberarOrdenesController extends Controller
                         $saldoMarbeteCalc = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
                     }
                     if (is_numeric($saldoMarbeteCalc)) {
-                        $saldoFloat = (float) $saldoMarbeteCalc;
-                        $entero = (int) floor($saldoFloat);
-                        $decimal = abs($saldoFloat - $entero);
-                        $saldoMarbeteInt = $decimal >= 0.5 ? (int) ceil($saldoFloat) : $entero;
+                        $saldoMarbeteInt = (int) ceil((float)$saldoMarbeteCalc);
                     }
                 }
 
                 // MtsRollo: usar del request, existente o calcular
+                // MtsRollo se mantiene como decimal sin redondear
                 $mtsRollo = $item['mtsRollo'] ?? $registro->MtsRollo;
                 if ($mtsRollo === null) {
                     $largo = $registro->LargoCrudo ?? null;
@@ -384,7 +399,8 @@ class LiberarOrdenesController extends Controller
                             : (float)str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string)$largo);
                         if ($largoNum > 0 && $repeticiones > 0) {
                             // Fórmula: metros = (medida de largo * repeticiones) / 100 (convertir cm a metros)
-                            $mtsRollo = round(($largoNum * $repeticiones) / 100, 2);
+                            // Sin redondear para mantener todos los decimales
+                            $mtsRollo = (float)(($largoNum * $repeticiones) / 100);
                         }
                     }
                 }
@@ -396,8 +412,28 @@ class LiberarOrdenesController extends Controller
                     $pzasRollo = round($repeticiones * $tiras, 0);
                 }
 
-                // TotalRollos: usar del request, existente o usar saldoMarbeteInt
-                $totalRollos = $item['totalRollos'] ?? $registro->TotalRollos ?? $saldoMarbeteInt;
+                // TotalRollos: priorizar valor del request, sino calcular con nueva fórmula
+                $totalRollos = $item['totalRollos'] ?? null;
+                if ($totalRollos !== null && is_numeric($totalRollos) && $totalRollos > 0) {
+                    // Si viene del request, usar ese valor redondeado hacia arriba
+                    $totalRollos = (float) ceil((float)$totalRollos);
+                } else {
+                    // Nueva fórmula: TotalRollos = ceil(totalPedido / pzasRollo)
+                    // Esto calcula cuántos rollos se necesitan para cumplir el pedido
+                    $totalPedido = $registro->SaldoPedido ?? null;
+                    if ($pzasRollo !== null && $totalPedido !== null &&
+                        is_numeric($pzasRollo) && is_numeric($totalPedido) &&
+                        $pzasRollo > 0 && $totalPedido > 0) {
+                        // Calcular con la nueva fórmula: totalPedido / pzasRollo
+                        $totalRollos = (float) ceil((float)$totalPedido / (float)$pzasRollo);
+                    } elseif (isset($registro->TotalRollos) && is_numeric($registro->TotalRollos) && $registro->TotalRollos > 0) {
+                        // Si no se puede calcular, usar el valor existente redondeado hacia arriba
+                        $totalRollos = (float) ceil((float)$registro->TotalRollos);
+                    } else {
+                        // Fallback a saldoMarbeteInt
+                        $totalRollos = $saldoMarbeteInt > 0 ? (float) $saldoMarbeteInt : null;
+                    }
+                }
 
                 // TotalPzas: usar del request, existente o calcular
                 $totalPzas = $item['totalPzas'] ?? $registro->TotalPzas;
@@ -901,16 +937,19 @@ class LiberarOrdenesController extends Controller
                     // Campo string
                     $registro->CombinaTram = $value !== null ? trim((string)$value) : null;
                 } elseif ($field === 'SaldoMarbete') {
-                    // SaldoMarbete es entero
-                    $registro->SaldoMarbete = $value !== null ? (int)$value : null;
+                    // SaldoMarbete es entero, redondear hacia arriba si hay decimal
+                    $registro->SaldoMarbete = $value !== null ? (int)ceil((float)$value) : null;
                 } elseif ($field === 'Repeticiones') {
-                    // Repeticiones es entero
-                    $registro->Repeticiones = $value !== null ? (int)$value : null;
+                    // Repeticiones es entero, redondear hacia arriba si hay decimal
+                    $registro->Repeticiones = $value !== null ? (int)ceil((float)$value) : null;
                 } elseif ($field === 'Densidad') {
                     // Densidad es float con 4 decimales
                     $registro->Densidad = $value !== null ? round((float)$value, 4) : null;
+                } elseif ($field === 'TotalRollos') {
+                    // TotalRollos es float, redondear hacia arriba si hay decimal
+                    $registro->TotalRollos = $value !== null ? (float)ceil((float)$value) : null;
                 } else {
-                    // MtsRollo, PzasRollo, TotalRollos, TotalPzas son float
+                    // MtsRollo, PzasRollo, TotalPzas son float
                     $registro->{$field} = $value !== null ? (float)$value : null;
                 }
 
@@ -1019,15 +1058,20 @@ class LiberarOrdenesController extends Controller
 
             // Asignar el valor según el tipo de campo
             if ($campoCatCodificados === 'NoMarbete') {
-                $registroCodificado->NoMarbete = $value !== null ? (float)$value : null;
+                // NoMarbete (SaldoMarbete), redondear hacia arriba si hay decimal
+                $registroCodificado->NoMarbete = $value !== null ? (float)ceil((float)$value) : null;
             } elseif ($campoCatCodificados === 'Repeticiones') {
-                $registroCodificado->Repeticiones = $value !== null ? (int)$value : null;
+                // Repeticiones, redondear hacia arriba si hay decimal
+                $registroCodificado->Repeticiones = $value !== null ? (int)ceil((float)$value) : null;
             } elseif ($campoCatCodificados === 'Densidad') {
                 $registroCodificado->Densidad = $value !== null ? round((float)$value, 4) : null;
             } elseif ($campoCatCodificados === 'CombinaTram') {
                 $registroCodificado->CombinaTram = $value !== null ? trim((string)$value) : null;
+            } elseif ($campoCatCodificados === 'TotalRollos') {
+                // TotalRollos, redondear hacia arriba si hay decimal
+                $registroCodificado->TotalRollos = $value !== null ? (float)ceil((float)$value) : null;
             } else {
-                // MtsRollo, PzasRollo, TotalRollos, TotalPzas
+                // MtsRollo, PzasRollo, TotalPzas
                 $registroCodificado->{$campoCatCodificados} = $value !== null ? (float)$value : null;
             }
 
@@ -1091,16 +1135,17 @@ class LiberarOrdenesController extends Controller
 
             // Campos a actualizar desde ReqProgramaTejido
             // Convertir valores null a 0 para campos numéricos si es necesario
+            // Aplicar ceil() a Repeticiones, SaldoMarbete y TotalRollos
             $payload = [
                 'BomId' => $registro->BomId,
                 'BomName' => $registro->BomName,
                 'HiloAX' => $registro->HiloAX,
                 'MtsRollo' => $registro->MtsRollo,
                 'PzasRollo' => $registro->PzasRollo,
-                'TotalRollos' => $registro->TotalRollos,
+                'TotalRollos' => $registro->TotalRollos !== null ? (float)ceil((float)$registro->TotalRollos) : null,
                 'TotalPzas' => $registro->TotalPzas,
-                'Repeticiones' => $registro->Repeticiones !== null ? (int)$registro->Repeticiones : null,
-                'NoMarbete' => $registro->SaldoMarbete !== null ? (float)$registro->SaldoMarbete : null, // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
+                'Repeticiones' => $registro->Repeticiones !== null ? (int)ceil((float)$registro->Repeticiones) : null,
+                'NoMarbete' => $registro->SaldoMarbete !== null ? (float)ceil((float)$registro->SaldoMarbete) : null, // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
                 'CombinaTram' => $registro->CombinaTram,
                 'Densidad' => $registro->Densidad !== null ? (float)$registro->Densidad : null,
                 'CreaProd' => $registro->CreaProd ?? 1,
@@ -1128,8 +1173,8 @@ class LiberarOrdenesController extends Controller
             }
 
             // FORZAR asignación de TotalRollos y TotalPzas SIEMPRE (incluso si son null)
-            // Estos campos deben guardarse exactamente como están en ReqProgramaTejido
-            $valorTotalRollos = $registro->TotalRollos !== null ? (float)$registro->TotalRollos : null;
+            // Aplicar ceil() a TotalRollos si hay decimal
+            $valorTotalRollos = $registro->TotalRollos !== null ? (float)ceil((float)$registro->TotalRollos) : null;
             $valorTotalPzas = $registro->TotalPzas !== null ? (float)$registro->TotalPzas : null;
 
             if (in_array('TotalRollos', $columns, true)) {
