@@ -4,8 +4,8 @@ namespace App\Observers;
 
 use App\Models\Simulaciones\SimulacionProgramaTejido;
 use App\Models\Simulaciones\SimulacionProgramaTejidoLine;
-use App\Models\ReqAplicaciones;
-use App\Models\ReqMatrizHilos;
+use App\Models\Planeacion\ReqAplicaciones;
+use App\Models\Planeacion\ReqMatrizHilos;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\Log;

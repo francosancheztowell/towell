@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\SYSRoles;
+use App\Models\Sistema\SYSRoles;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 

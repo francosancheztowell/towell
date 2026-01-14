@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Urdido\Configuracion\CatalogosJulios;
 
 use App\Http\Controllers\Controller;
-use App\Models\UrdCatJulios;
-use App\Models\URDCatalogoMaquina;
+use App\Models\Urdido\UrdCatJulios;
+use App\Models\Urdido\URDCatalogoMaquina;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 

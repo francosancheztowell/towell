@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\ModelosCodificados;
 
 use App\Http\Controllers\Controller;
-use App\Models\ReqModelosCodificados;
+use App\Models\Planeacion\ReqModelosCodificados;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Planeacion\CatCodificados;
 
 use App\Http\Controllers\Controller;
 use App\Imports\CatCodificadosImport;
-use App\Models\catcodificados\CatCodificados;
+use App\Models\Planeacion\Catalogos\CatCodificados;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;

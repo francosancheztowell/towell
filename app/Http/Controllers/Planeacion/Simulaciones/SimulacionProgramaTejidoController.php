@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Simulaciones;
 
 use App\Helpers\StringTruncator;
-use App\Models\ReqModelosCodificados;
-use App\Models\ReqProgramaTejido;
-use App\Models\ReqProgramaTejidoLine;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejidoLine;
 use App\Models\Simulaciones\SimulacionProgramaTejido;
 use App\Models\Simulaciones\SimulacionProgramaTejidoLine;
 use Illuminate\Http\Request;
@@ -579,7 +579,7 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
     public function getHilosOptions()
     {
         try {
-            $op = \App\Models\ReqMatrizHilos::query()
+            $op = \App\Models\Planeacion\ReqMatrizHilos::query()
                 ->whereNotNull('Hilo')
                 ->where('Hilo','!=','')
                 ->distinct()
@@ -623,8 +623,8 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
 
             $densidad = (isset($modelo->Tra) && $modelo->Tra > 40) ? 'Alta' : 'Normal';
 
-            $velocidad = \App\Models\CatalagoVelocidad::where('telar',$telar)->where('tipo_hilo',$hilo)->where('densidad',$densidad)->value('velocidad');
-            $eficiencia = \App\Models\CatalagoEficiencia::where('telar',$telar)->where('tipo_hilo',$hilo)->where('densidad',$densidad)->value('eficiencia');
+            $velocidad = \App\Models\Planeacion\Catalogos\CatalagoVelocidad::where('telar',$telar)->where('tipo_hilo',$hilo)->where('densidad',$densidad)->value('velocidad');
+            $eficiencia = \App\Models\Planeacion\Catalogos\CatalagoEficiencia::where('telar',$telar)->where('tipo_hilo',$hilo)->where('densidad',$densidad)->value('eficiencia');
 
             if (!$velocidad || !$eficiencia) return response()->json(['error'=>true,'message'=>'No se encontraron datos de velocidad o eficiencia para el telar y hilo seleccionados.'],404);
 

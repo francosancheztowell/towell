@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
+
 require __DIR__ . '/public.php';
 
 Route::middleware(['auth'])->group(function () {

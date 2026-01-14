@@ -2,7 +2,8 @@
 
 namespace App\Providers;
 
-use App\Models\ReqProgramaTejido;
+//use Illuminate\Support\ServiceProvider;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use Illuminate\Support\ServiceProvider;
 

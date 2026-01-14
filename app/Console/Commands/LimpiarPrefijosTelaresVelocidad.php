@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Models\ReqVelocidadStd;
+use App\Models\Planeacion\ReqVelocidadStd;
 use Illuminate\Support\Facades\DB;
 
 class LimpiarPrefijosTelaresVelocidad extends Command

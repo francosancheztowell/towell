@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Helpers\StringTruncator;
-use App\Models\ReqAplicaciones;
-use App\Models\ReqModelosCodificados;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqAplicaciones;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EliminarTejido;
@@ -443,7 +443,7 @@ class ProgramaTejidoController extends Controller
     public function getCalendarioLineas($calendarioId)
     {
         try {
-            $lineas = \App\Models\ReqCalendarioLine::where('CalendarioId', $calendarioId)
+            $lineas = \App\Models\Planeacion\ReqCalendarioLine::where('CalendarioId', $calendarioId)
                 ->orderBy('FechaInicio')
                 ->get()
                 ->map(function ($linea) {
@@ -640,7 +640,7 @@ class ProgramaTejidoController extends Controller
     public function getHilosOptions()
     {
         try {
-            $op = \App\Models\ReqMatrizHilos::query()
+            $op = \App\Models\Planeacion\ReqMatrizHilos::query()
                 ->whereNotNull('Hilo')
                 ->where('Hilo', '!=', '')
                 ->distinct()

@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
 
-use App\Models\ReqEficienciaStd;
-use App\Models\ReqModelosCodificados;
-use App\Models\ReqProgramaTejido;
-use App\Models\ReqVelocidadStd;
+use App\Models\Planeacion\ReqEficienciaStd;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqVelocidadStd;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;

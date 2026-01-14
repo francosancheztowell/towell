@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\SYSRoles;
-use App\Models\SYSUsuario;
-use App\Models\SYSUsuariosRoles;
+use App\Models\Sistema\SYSRoles;
+use App\Models\Sistema\SYSUsuario;
+use App\Models\Sistema\SYSUsuariosRoles;
 use App\Services\ModuloService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;

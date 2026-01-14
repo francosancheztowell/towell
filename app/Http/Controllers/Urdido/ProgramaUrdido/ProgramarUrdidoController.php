@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
 use App\Http\Controllers\Controller;
-use App\Models\UrdProgramaUrdido;
-use App\Models\EngProgramaEngomado;
-use App\Models\UrdProduccionUrdido;
+use App\Models\Urdido\UrdProgramaUrdido;
+use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Urdido\UrdProduccionUrdido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -737,8 +737,8 @@ class ProgramarUrdidoController extends Controller
 
                         // Eliminar registros de producción de engomado cuando se cancela
                         try {
-                            $registrosEliminados = \App\Models\EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
 
+                            $registrosEliminados = \App\Models\Engomado\EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
                         } catch (\Throwable $e) {
                             // No lanzar excepción, solo registrar el error
                         }

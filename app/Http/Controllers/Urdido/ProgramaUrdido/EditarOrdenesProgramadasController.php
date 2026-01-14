@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
 use App\Http\Controllers\Controller;
-use App\Models\UrdProgramaUrdido;
-use App\Models\EngProgramaEngomado;
-use App\Models\URDCatalogoMaquina;
-use App\Models\ReqMatrizHilos;
-use App\Models\UrdJuliosOrden;
+use App\Models\Urdido\UrdProgramaUrdido;
+use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Urdido\URDCatalogoMaquina;
+use App\Models\Planeacion\ReqMatrizHilos;
+use App\Models\Urdido\UrdJuliosOrden;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;

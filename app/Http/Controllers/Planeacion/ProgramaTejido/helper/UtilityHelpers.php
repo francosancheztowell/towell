@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
 
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 

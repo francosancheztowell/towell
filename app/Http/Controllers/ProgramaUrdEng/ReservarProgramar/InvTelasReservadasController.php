@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
-use App\Models\InvTelasReservadas;
+use App\Models\Inventario\InvTelasReservadas;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

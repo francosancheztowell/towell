@@ -7,10 +7,9 @@ use App\Repositories\UsuarioRepository;
 use App\Services\ModuloService;
 use App\Services\UsuarioService;
 use App\Services\PermissionService;
-use App\Models\SYSRoles;
-use App\Models\SysDepartamentos;
-use App\Models\SYSUsuariosRoles;
-use App\Models\Usuario;
+use App\Models\Sistema\SYSRoles;
+use App\Models\Sistema\SysDepartamentos;
+use App\Models\Sistema\SYSUsuariosRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -47,7 +46,7 @@ class UsuarioController extends Controller
                 if (($m['nivel'] ?? null) === 1) {
                     $nombreModulo = $m['nombre'] ?? '';
                     $rutaModulo = $m['ruta'] ?? '';
-                    
+
                     // 1. Precargar el módulo principal en caché (para buscarModuloPrincipal)
                     if (!empty($nombreModulo)) {
                         $this->moduloService->buscarModuloPrincipal($nombreModulo);
@@ -58,7 +57,7 @@ class UsuarioController extends Controller
                             $this->moduloService->buscarModuloPrincipal($slugRuta);
                         }
                     }
-                    
+
                     // 2. Precargar submódulos por nombre del módulo (ej: "Planeación")
                     if (!empty($nombreModulo)) {
                         $this->moduloService->getSubmodulosPorModuloPrincipal(
@@ -66,7 +65,7 @@ class UsuarioController extends Controller
                             $usuarioActual->idusuario
                         );
                     }
-                    
+
                     // 3. También precargar por ruta (por si el nombre tiene acentos/caracteres especiales)
                     // Ej: /planeacion -> "planeacion"
                     if (!empty($rutaModulo) && $rutaModulo !== $nombreModulo) {
@@ -411,10 +410,10 @@ class UsuarioController extends Controller
     public function showSubModulos(string $moduloPrincipal)
     {
         $usuarioActual = Auth::user();
-        
+
         // Intentar buscar el módulo principal de múltiples formas
         $moduloPadre = $this->moduloService->buscarModuloPrincipal($moduloPrincipal);
-        
+
         // Si no encuentra por nombre/ruta, intentar buscar por orden si es numérico
         if (!$moduloPadre && is_numeric($moduloPrincipal)) {
             $moduloPadre = SYSRoles::where('Nivel', 1)
@@ -422,7 +421,7 @@ class UsuarioController extends Controller
                 ->where('orden', $moduloPrincipal)
                 ->first();
         }
-        
+
         // Si aún no encuentra, intentar buscar por ruta exacta de la URL
         if (!$moduloPadre) {
             $rutaBuscada = '/' . ltrim($moduloPrincipal, '/');
@@ -538,13 +537,13 @@ class UsuarioController extends Controller
     {
         try {
             $rutaActual = $request->input('ruta', $request->path());
-            
+
             // Normalizar ruta
             $rutaActual = '/' . ltrim($rutaActual, '/');
-            
+
             // Buscar módulo por ruta exacta primero
             $modulo = \App\Models\SYSRoles::where('Ruta', $rutaActual)->first();
-            
+
             // Si no encuentra, buscar por coincidencia (la ruta más específica que coincida)
             if (!$modulo) {
                 $modulo = \App\Models\SYSRoles::where('Ruta', 'LIKE', $rutaActual . '%')
@@ -553,7 +552,7 @@ class UsuarioController extends Controller
                     ->orderBy('Nivel', 'desc')
                     ->first();
             }
-            
+
             // Si aún no encuentra, intentar buscar por partes de la ruta
             if (!$modulo) {
                 $partes = array_filter(explode('/', trim($rutaActual, '/')));
@@ -565,14 +564,14 @@ class UsuarioController extends Controller
                         ->first();
                 }
             }
-            
+
             if (!$modulo) {
                 return response()->json([
                     'success' => false,
                     'rutaPadre' => '/produccionProceso'
                 ]);
             }
-            
+
             // Si es nivel 1, ir a produccionProceso
             if ($modulo->Nivel == 1) {
                 return response()->json([
@@ -580,11 +579,11 @@ class UsuarioController extends Controller
                     'rutaPadre' => '/produccionProceso'
                 ]);
             }
-            
+
             // Si tiene dependencia, buscar el módulo padre
             if ($modulo->Dependencia) {
                 $moduloPadre = \App\Models\SYSRoles::where('orden', $modulo->Dependencia)->first();
-                
+
                 if ($moduloPadre && $moduloPadre->Ruta) {
                     return response()->json([
                         'success' => true,
@@ -592,19 +591,19 @@ class UsuarioController extends Controller
                     ]);
                 }
             }
-            
+
             // Fallback
             return response()->json([
                 'success' => false,
                 'rutaPadre' => '/produccionProceso'
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Error al obtener módulo padre', [
                 'error' => $e->getMessage(),
                 'ruta' => $request->input('ruta')
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'rutaPadre' => '/produccionProceso'

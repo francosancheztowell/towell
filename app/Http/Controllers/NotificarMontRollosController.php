@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\TelTelaresOperador;
-use App\Models\TejInventarioTelares;
-use App\Models\TelMarbeteLiberadoModel;
+use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Tejido\TejInventarioTelares;
+use App\Models\Tejedores\TelMarbeteLiberadoModel;
 use Carbon\Carbon;
 
 class NotificarMontRollosController extends Controller
