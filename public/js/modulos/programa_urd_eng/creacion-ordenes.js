@@ -733,6 +733,23 @@
         } catch(e){ /* noop */ }
     }
 
+    async function cargarNucleos() {
+        try {
+            const data = await fetchJSON(config.routes.nucleos);
+            const list = (data && data.success && Array.isArray(data.data)) ? data.data : [];
+            const select = qs('#inputNucleo'); if (!select) return;
+            select.innerHTML = '<option value="">Seleccione</option>';
+            list.forEach(it => {
+                const opt = document.createElement('option');
+                opt.value = it.value || it.nombre || '';
+                opt.textContent = it.text || it.nombre || '';
+                select.appendChild(opt);
+            });
+        } catch(e){ 
+            console.error('Error al cargar núcleos:', e);
+        }
+    }
+
     /* =================== Metraje de Telas =================== */
     function actualizarMetrajeTelas() {
         if (!filaSeleccionadaId || !gruposData[filaSeleccionadaId]) return;
@@ -768,6 +785,7 @@
             initAutocompleteBOMUrdido();
             initAutocompleteBOMEngomado();
             cargarMaquinasEngomado();
+            cargarNucleos();
 
             const inputNoTelas = qs('#inputNoTelas');
             if (inputNoTelas) {

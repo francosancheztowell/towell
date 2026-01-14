@@ -4,6 +4,7 @@ use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\InvTelasReservadasCont
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ProgramarUrdEngController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\RequerimientoController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ReservarProgramarController;
+use App\Http\Controllers\UrdEngomado\UrdEngNucleosController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +37,7 @@ Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () 
     Route::get('/materiales-engomado', [ReservarProgramarController::class, 'getMaterialesEngomado'])->name('materiales.engomado');
     Route::get('/anchos-balona', [ReservarProgramarController::class, 'getAnchosBalona'])->name('anchos.balona');
     Route::get('/maquinas-engomado', [ReservarProgramarController::class, 'getMaquinasEngomado'])->name('maquinas.engomado');
+    Route::get('/nucleos', [UrdEngNucleosController::class, 'getNucleos'])->name('nucleos');
     Route::post('/crear-ordenes', [ProgramarUrdEngController::class, 'crearOrdenes'])->name('crear.ordenes');
 });
 

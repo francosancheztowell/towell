@@ -119,4 +119,38 @@ class UrdEngNucleosController extends Controller
     {
         return redirect()->route('urd-eng-nucleos.index');
     }
+
+    /**
+     * API: Obtener lista de núcleos para select
+     */
+    public function getNucleos()
+    {
+        try {
+            $nucleos = UrdEngNucleos::select('Id', 'Salon', 'Nombre')
+                ->orderBy('Salon')
+                ->orderBy('Nombre')
+                ->get()
+                ->map(function($item) {
+                    return [
+                        'id' => $item->Id,
+                        'salon' => $item->Salon,
+                        'nombre' => $item->Nombre,
+                        'value' => $item->Nombre, // Valor para el select
+                        'text' => $item->Nombre,  // Texto para mostrar
+                    ];
+                })
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $nucleos,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al obtener núcleos: ' . $e->getMessage(),
+                'data' => [],
+            ], 500);
+        }
+    }
 }

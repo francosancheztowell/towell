@@ -21,7 +21,7 @@
   <meta name="images-base" content="{{ asset('images') }}">
 </head>
 
-<body class="bg-white h-screen overflow-hidden font-inter -mt-6 p-0">
+<body class="bg-white h-screen overflow-hidden font-inter  p-0">
   <div class="h-screen flex overflow-hidden">
     <!-- Panel izquierdo - Branding -->
     <div class="hidden lg:flex lg:w-2/5 relative overflow-hidden bg-blue-600">
