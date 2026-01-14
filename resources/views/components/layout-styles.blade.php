@@ -117,7 +117,7 @@
     <!-- Estilos para layout simple -->
     <style>
         body {
-            background: linear-gradient(135deg, #099ff6, #c2e7ff, #0857be);
+            background: linear-gradient(135deg, #099ff6, #c2e7ff, #034395);
             background-size: 300% 300%;
             animation: gradientAnimation 5s ease infinite;
             position: relative;

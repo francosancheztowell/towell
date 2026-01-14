@@ -291,19 +291,16 @@ const uiInlineEditableFields = {
   // ====== Editar SOLO la celda clickeada ======
   window.enableInlineEditForCell = async function enableInlineEditForCell(cell) {
     if (!cell) {
-      console.log('enableInlineEditForCell: cell es null');
       return;
     }
 
     const row = cell.closest('.selectable-row');
     if (!row) {
-      console.log('enableInlineEditForCell: no se encontró row');
       return;
     }
 
     const rowId = row.getAttribute('data-id');
     if (!rowId) {
-      console.log('enableInlineEditForCell: no se encontró rowId');
       return;
     }
 
@@ -318,22 +315,18 @@ const uiInlineEditableFields = {
 
     const columnName = cell.getAttribute('data-column');
     if (!columnName) {
-      console.log('enableInlineEditForCell: no se encontró columnName');
       return;
     }
 
     if (!uiInlineEditableFields[columnName]) {
-      console.log('enableInlineEditForCell: campo no editable:', columnName);
       return;
     }
 
     // si ya está editando esa celda
     if (cell.querySelector('.inline-edit-input')) {
-      console.log('enableInlineEditForCell: ya hay un input en esta celda');
       return;
     }
 
-    console.log('enableInlineEditForCell: activando edición para', columnName, 'en fila', rowId);
 
     const cfg = uiInlineEditableFields[columnName];
     const currentValue = getCellValue(cell);
@@ -750,7 +743,6 @@ const uiInlineEditableFields = {
       // Detener propagación SOLO si es una celda editable
       e.stopPropagation();
 
-      console.log('Activando edición para:', col, 'en modo inline:', inlineEditMode);
       if (window.enableInlineEditForCell) {
         window.enableInlineEditForCell(cell);
       }

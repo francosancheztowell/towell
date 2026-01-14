@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Tejido\InventarioTelas;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class TelaresController extends Controller
 {
