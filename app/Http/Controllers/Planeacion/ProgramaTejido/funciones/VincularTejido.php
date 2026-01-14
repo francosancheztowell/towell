@@ -414,10 +414,7 @@ class VincularTejido
 
         // Si llegamos aquí, algo está mal (muchos gaps en la secuencia)
         // Usar el máximo + 1 de todas formas y loggear advertencia
-        LogFacade::warning('VincularTejido: No se encontró OrdCompartida disponible después de múltiples intentos', [
-            'max_ord_compartida' => $maxOrdCompartida,
-            'candidato_final' => $candidato,
-        ]);
+
 
         return $candidato;
     }

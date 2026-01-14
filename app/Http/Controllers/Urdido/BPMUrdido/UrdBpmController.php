@@ -8,7 +8,6 @@ use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Helpers\FolioHelper;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class UrdBpmController extends Controller

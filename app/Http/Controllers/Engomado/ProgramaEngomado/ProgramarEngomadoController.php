@@ -7,7 +7,6 @@ use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProgramaUrdido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 

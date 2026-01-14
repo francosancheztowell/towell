@@ -19,7 +19,7 @@ use App\Helpers\FolioHelper;
 use App\Models\Inventario\InvSecuenciaCorteEf;
 use App\Models\Tejido\TejEficienciaLine;
 use App\Models\Tejido\TejEficiencia;
-
+use App\Models\Planeacion\ReqProgramaTejido;
 class CortesEficienciaController extends Controller
 {
     /**
@@ -575,7 +575,7 @@ class CortesEficienciaController extends Controller
                 ->toArray();
 
             // Obtener datos de ReqProgramaTejido para telares en proceso
-            $telares = \App\Models\Planeacion\ReqProgramaTejido::whereIn('NoTelarId', $telaresOrden)
+            $telares = ReqProgramaTejido::whereIn('NoTelarId', $telaresOrden)
                 ->where('EnProceso', 1)
                 ->select('NoTelarId', 'VelocidadSTD', 'EficienciaSTD')
                 ->get()
@@ -594,7 +594,7 @@ class CortesEficienciaController extends Controller
                 ]);
 
                 $telares = collect($telaresOrden)->map(function ($telarId) {
-                    $ultimoRegistro = \App\Models\Planeacion\ReqProgramaTejido::where('NoTelarId', $telarId)
+                    $ultimoRegistro = ReqProgramaTejido::where('NoTelarId', $telarId)
                         ->orderBy('Id', 'desc')
                         ->select('NoTelarId', 'VelocidadSTD', 'EficienciaSTD')
                         ->first();
