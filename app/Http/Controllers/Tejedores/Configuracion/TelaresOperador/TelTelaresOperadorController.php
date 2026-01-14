@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Tejedores\Configuracion\TelaresOperador;
 
 use App\Http\Controllers\Controller;
-use App\Models\TelTelaresOperador;
-use App\Models\ReqTelares;
-use App\Models\SYSUsuario;
+use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Planeacion\ReqTelares;
+use App\Models\Sistema\SYSUsuario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 

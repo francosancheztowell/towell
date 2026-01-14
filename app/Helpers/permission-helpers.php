@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\SYSUsuariosRoles;
-use App\Models\SYSRoles;
+use App\Models\Sistema\SYSUsuariosRoles;
+use App\Models\Sistema\SYSRoles;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 

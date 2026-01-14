@@ -3,11 +3,11 @@ namespace App\Http\Controllers\Tejedores\Desarrolladores;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\TelDesarrolladoresHelper;
-use App\Models\TelTelaresOperador;
-use App\Models\catDesarrolladoresModel;
-use App\Models\catcodificados\CatCodificados;
-use App\Models\ReqModelosCodificados;
-use App\Models\UrdCatJulios;
+use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Tejedores\catDesarrolladoresModel;
+use App\Models\Planeacion\Catalogos\CatCodificados;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Urdido\UrdCatJulios;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejido;
 
 class TelDesarrolladoresController extends Controller
 {

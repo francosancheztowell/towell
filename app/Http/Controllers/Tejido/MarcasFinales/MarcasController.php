@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Tejido\MarcasFinales;
 
 use App\Http\Controllers\Controller;
-use App\Models\TejMarcas;
-use App\Models\TejMarcasLine;
-use App\Models\ReqProgramaTejido;
+use App\Models\Tejido\TejMarcas;
+use App\Models\Tejido\TejMarcasLine;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Tejedores\BPMTejedores;
 
 use App\Http\Controllers\Controller;
-use App\Models\TelBpmModel;
-use App\Models\SSYSFoliosSecuencia;
-use App\Models\TelTelaresOperador;
+use App\Models\Tejedores\TelBpmModel;
+use App\Models\Sistema\SSYSFoliosSecuencia;
+use App\Models\Tejedores\TelTelaresOperador;
 use App\Helpers\TurnoHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

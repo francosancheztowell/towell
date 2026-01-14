@@ -4,13 +4,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
-use App\Models\TejInventarioTelares;
-use App\Models\InvTelasReservadas;
-use App\Models\ReqProgramaTejido;
+use App\Models\Tejido\TejInventarioTelares;
+use App\Models\Inventario\InvTelasReservadas;
+use App\Models\Planeacion\ReqProgramaTejido;
 
-use App\Models\URDCatalogoMaquina;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\InvTelasReservadasController;
-use App\Models\EngAnchoBalonaCuenta;
+use App\Models\Engomado\EngAnchoBalonaCuenta;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

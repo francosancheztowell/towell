@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Models\ReqEficienciaStd;
+use App\Models\Planeacion\ReqEficienciaStd;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;

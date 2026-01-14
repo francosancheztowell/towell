@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa;
 
 use App\Http\Controllers\Controller;
-use App\Models\ReqProgramaTejido;
-use App\Models\ReqModelosCodificados;
-use App\Models\catcodificados\CatCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Catalogos\ReqPesosRollosTejido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

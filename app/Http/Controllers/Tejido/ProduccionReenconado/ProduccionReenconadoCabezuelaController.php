@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use App\Models\TejProduccionReenconado;
+use App\Models\Tejido\TejProduccionReenconado;
 use Illuminate\Support\Facades\Auth;
 use App\Helpers\FolioHelper;
 use App\Helpers\TurnoHelper;

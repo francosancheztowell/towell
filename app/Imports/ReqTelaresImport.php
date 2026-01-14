@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Models\ReqTelares;
+use App\Models\Planeacion\ReqTelares;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;

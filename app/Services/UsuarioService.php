@@ -18,7 +18,7 @@ class UsuarioService
     /**
      * Crear usuario
      */
-    public function create(array $data, ?UploadedFile $foto = null, array $permisos = []): \App\Models\Usuario
+    public function create(array $data, ?UploadedFile $foto = null, array $permisos = []): \App\Models\Sistema\Usuario
     {
         // Procesar foto
         if ($foto) {
@@ -82,7 +82,7 @@ class UsuarioService
     public function delete(int $id): bool
     {
         // Eliminar permisos primero
-        \App\Models\SYSUsuariosRoles::porUsuario($id)->delete();
+        \App\Models\Sistema\SYSUsuariosRoles::porUsuario($id)->delete();
 
         // Eliminar usuario
         $eliminado = $this->usuarioRepository->delete($id);

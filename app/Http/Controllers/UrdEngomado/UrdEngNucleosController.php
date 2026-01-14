@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\UrdEngomado;
 
 use App\Http\Controllers\Controller;
-use App\Models\urdengomado\UrdEngNucleos;
+use App\Models\UrdEngomado\UrdEngNucleos;
 use Illuminate\Http\Request;
 
 class UrdEngNucleosController extends Controller

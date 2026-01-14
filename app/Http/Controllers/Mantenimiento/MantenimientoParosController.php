@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Mantenimiento;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\FolioHelper;
-use App\Models\CatParosFallas;
-use App\Models\CatTipoFalla;
-use App\Models\ManFallasParos;
-use App\Models\ManOperadoresMantenimiento;
-use App\Models\TelTelaresOperador;
-use App\Models\URDCatalogoMaquina;
+use App\Models\Mantenimiento\CatParosFallas;
+use App\Models\Mantenimiento\CatTipoFalla;
+use App\Models\Mantenimiento\ManFallasParos;
+use App\Models\Mantenimiento\ManOperadoresMantenimiento;
+use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Urdido\URDCatalogoMaquina;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

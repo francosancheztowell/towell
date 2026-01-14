@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Engomado\BPMEngomado;
 
 use App\Http\Controllers\Controller;
-use App\Models\EngBpmModel;
-use App\Models\SYSUsuario;
-use App\Models\URDCatalogoMaquina;
+use App\Models\Engomado\EngBpmModel;
+use App\Models\Sistema\SYSUsuario;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Helpers\FolioHelper;
 use Carbon\Carbon;
 use Illuminate\Http\Request;

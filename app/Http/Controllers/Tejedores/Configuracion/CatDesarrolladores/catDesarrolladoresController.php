@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Tejedores\Configuracion\CatDesarrolladores;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\catDesarrolladoresModel;
+use App\Models\Tejedores\catDesarrolladoresModel;
 
 class catDesarrolladoresController extends Controller
 {
