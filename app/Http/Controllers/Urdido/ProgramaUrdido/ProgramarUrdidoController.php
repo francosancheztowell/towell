@@ -746,18 +746,8 @@ class ProgramarUrdidoController extends Controller
 
                         // Eliminar registros de producción de engomado cuando se cancela
                         try {
-<<<<<<< Updated upstream
-                            $registrosEliminados = \App\Models\EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
-                            
-                            Log::info('Registros de producción de engomado eliminados por cancelación de orden', [
-                                'folio' => $orden->Folio,
-                                'orden_engomado_id' => $ordenEngomado->Id,
-                                'registros_eliminados' => $registrosEliminados,
-                            ]);
-=======
-                            $registrosEliminados = \App\Models\Engomado\EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
 
->>>>>>> Stashed changes
+                            $registrosEliminados = \App\Models\Engomado\EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
                         } catch (\Throwable $e) {
                             Log::error('Error al eliminar registros de producción de engomado al cancelar orden', [
                                 'folio' => $orden->Folio,
