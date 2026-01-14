@@ -29,7 +29,7 @@ class TejProduccionReenconado extends Model
         'Turno'            => 'integer',
         'numero_empleado'  => 'string',
         'nombreEmpl'       => 'string',
-        'Calibre'          => 'string',
+        'Calibre'          => 'float',
         'FibraTrama'       => 'string',
         'CodColor'         => 'string',
         'Color'            => 'string',
@@ -39,6 +39,6 @@ class TejProduccionReenconado extends Model
         'Eficiencia'       => 'float',
         'Obs'              => 'string',
         'status'           => 'string',
-        'capacidad'        => 'integer',
+        'capacidad'        => 'float',
     ];
 }
