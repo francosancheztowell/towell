@@ -46,6 +46,14 @@ class SimulacionProgramaTejidoController extends \App\Http\Controllers\Controlle
         }
     }
 
+    public function altaPronosticos(Request $request)
+    {
+        $mesActual = now()->format('Y-m');
+        $meses = $request->has('meses') ? $request->get('meses') : [$mesActual];
+
+        return view('modulos.simulacion.alta-pronosticos', compact('mesActual', 'meses'));
+    }
+
     /* ======================================
      |  SHOW / EDIT
      |======================================*/

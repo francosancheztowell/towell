@@ -35,7 +35,8 @@ class SYSRoles extends Model
         'reigstrar', // Mantiene el nombre original
         'imagen',
         'Dependencia',
-        'Nivel'
+        'Nivel',
+        'Ruta'
     ];
 
     protected $casts = [

@@ -192,14 +192,7 @@ class MatrizHilosCatalog extends CatalogBase {
             }
         }
 
-        console.log('MatrizHilosCatalog.getRowId:', {
-            id,
-            row,
-            hasDataId: !!row.getAttribute('data-id'),
-            dataIdValue: row.getAttribute('data-id'),
-            datasetId: row.dataset.id,
-            onclick: row.getAttribute('onclick')
-        });
+
         return id;
     }
 

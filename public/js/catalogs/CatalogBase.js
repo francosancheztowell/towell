@@ -130,7 +130,6 @@ class CatalogBase {
         // Obtener el ID de la fila si no se proporcionó
         const rowId = id || this.getRowId(row) || uniqueId;
 
-        console.log('selectRow llamado:', { rowId, id, uniqueId, row, getRowIdResult: this.getRowId(row) });
 
         // Guardar estado
         this.state.selectedRow = row;
@@ -142,12 +141,6 @@ class CatalogBase {
             row.dataset.selectedId = rowId;
             row.setAttribute('data-selected-id', rowId);
         }
-
-        console.log('Estado guardado:', {
-            selectedRow: !!this.state.selectedRow,
-            selectedId: this.state.selectedId,
-            selectedKey: this.state.selectedKey
-        });
 
         this.enableButtons();
         this.onRowSelected(row, this.state.selectedId);
@@ -272,7 +265,6 @@ class CatalogBase {
                 const selectedRow = tbody.querySelector('tr.bg-blue-500');
                 if (selectedRow) {
                     const id = this.getRowId(selectedRow);
-                    console.log('Fila seleccionada encontrada visualmente:', { id, row: selectedRow });
                     if (id) {
                         this.state.selectedRow = selectedRow;
                         this.state.selectedId = id;
@@ -283,7 +275,6 @@ class CatalogBase {
                     if (rows.length > 0) {
                         const row = rows[0];
                         const id = row.dataset.selectedId || this.getRowId(row);
-                        console.log('Fila encontrada por data-selected-id:', { id, row });
                         if (id) {
                             this.state.selectedRow = row;
                             this.state.selectedId = id;
@@ -292,12 +283,6 @@ class CatalogBase {
                 }
             }
         }
-
-        console.log('Estado antes de editar:', {
-            selectedRow: !!this.state.selectedRow,
-            selectedId: this.state.selectedId,
-            config: this.config
-        });
 
         if (!this.state.selectedRow || !this.state.selectedId) {
             this.showToast('Por favor selecciona un registro para editar', 'warning');
@@ -346,7 +331,6 @@ class CatalogBase {
                 const selectedRow = tbody.querySelector('tr.bg-blue-500');
                 if (selectedRow) {
                     const id = this.getRowId(selectedRow);
-                    console.log('Fila seleccionada encontrada visualmente:', { id, row: selectedRow });
                     if (id) {
                         this.state.selectedRow = selectedRow;
                         this.state.selectedId = id;
@@ -357,7 +341,6 @@ class CatalogBase {
                     if (rows.length > 0) {
                         const row = rows[0];
                         const id = row.dataset.selectedId || this.getRowId(row);
-                        console.log('Fila encontrada por data-selected-id:', { id, row });
                         if (id) {
                             this.state.selectedRow = row;
                             this.state.selectedId = id;
@@ -366,12 +349,6 @@ class CatalogBase {
                 }
             }
         }
-
-        console.log('Estado antes de eliminar:', {
-            selectedRow: !!this.state.selectedRow,
-            selectedId: this.state.selectedId,
-            config: this.config
-        });
 
         if (!this.state.selectedRow || !this.state.selectedId) {
             this.showToast('Por favor selecciona un registro para eliminar', 'warning');

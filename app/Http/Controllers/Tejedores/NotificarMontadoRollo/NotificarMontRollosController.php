@@ -86,6 +86,53 @@ class NotificarMontRollosController extends Controller
         return view('modulos.tejedores.notificar-mont-rollos.index', compact('telares', 'tipo', 'telaresUsuario', 'telarSeleccionado'));
     }
 
+    public function telares(Request $request)
+    {
+        $user = Auth::user();
+
+        $telaresUsuario = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
+            ->select('NoTelarId')
+            ->orderBy('NoTelarId')
+            ->get();
+
+        $telaresOperador = $telaresUsuario->pluck('NoTelarId')->toArray();
+
+        $telares = TejInventarioTelares::select('no_telar', 'tipo')
+            ->distinct()
+            ->whereIn('no_telar', $telaresOperador)
+            ->orderBy('no_telar')
+            ->get();
+
+        return response()->json([
+            'telares' => $telares
+        ]);
+    }
+
+    public function detalle(Request $request)
+    {
+        $user = Auth::user();
+        $noTelar = $request->query('no_telar');
+
+        if (!$noTelar) {
+            return response()->json(['error' => 'No se proporciono el numero de telar'], 400);
+        }
+
+        $telaresOperador = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
+            ->pluck('NoTelarId')
+            ->toArray();
+
+        $detalles = TejInventarioTelares::where('no_telar', $noTelar)
+            ->whereIn('no_telar', $telaresOperador)
+            ->select('id', 'no_telar', 'cuenta', 'calibre', 'tipo', 'tipo_atado', 'no_orden', 'no_rollo', 'metros', 'horaParo')
+            ->first();
+
+        if (!$detalles) {
+            return response()->json(['error' => 'Telar no encontrado'], 404);
+        }
+
+        return response()->json(['detalles' => $detalles]);
+    }
+
     public function notificar(Request $request)
     {
         try {

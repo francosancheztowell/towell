@@ -28,7 +28,6 @@ window.CalendarioManager = {
         try {
             const fechaFinal = await this._sumarHorasConLineasReales(fecha, horas, tipoCalendario);
             if (fechaFinal) {
-                console.log(`✅ Fecha final calculada usando líneas reales del calendario: ${tipoCalendario}`);
                 return fechaFinal;
             }
         } catch (error) {
@@ -245,14 +244,6 @@ window.CalendarioManager = {
         const horasRestantes = Math.floor(horas % 24);
         const minutosRestantes = Math.round((horas - Math.floor(horas)) * 60);
 
-        console.log('🔍 _sumarHorasTej2 DEBUG:', {
-            fechaInicio: fechaOriginal.toISOString(),
-            horasTotales: horas,
-            diasCompletos: diasCompletos,
-            horasRestantes: horasRestantes,
-            minutosRestantes: minutosRestantes
-        });
-
         // 1. Sumar días completos (24h cada uno), saltando domingos
         let domingosEvitados = 0;
         for (let i = 0; i < diasCompletos; i++) {
@@ -264,7 +255,6 @@ window.CalendarioManager = {
             }
         }
 
-        console.log('  → Después de sumar días:', nuevaFecha.toISOString(), `(evitó ${domingosEvitados} domingos)`);
 
         // 2. Sumar horas restantes, saltando domingos si caemos en uno
         let domingosPorHoras = 0;
@@ -279,7 +269,6 @@ window.CalendarioManager = {
         }
 
         if (horasRestantes > 0) {
-            console.log('  → Después de sumar horas:', nuevaFecha.toISOString(), `(evitó ${domingosPorHoras} domingos)`);
         }
 
         // 3. Sumar minutos restantes, saltando domingos si caemos en uno
@@ -295,10 +284,7 @@ window.CalendarioManager = {
         }
 
         if (minutosRestantes > 0) {
-            console.log('  → Después de sumar minutos:', nuevaFecha.toISOString(), `(evitó ${domingosPorMinutos} domingos)`);
         }
-
-        console.log('✅ Fecha final Tej2:', nuevaFecha.toISOString());
 
         return nuevaFecha;
     },

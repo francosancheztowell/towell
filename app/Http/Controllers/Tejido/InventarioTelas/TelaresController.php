@@ -184,6 +184,47 @@ class TelaresController extends Controller
     }
 
     /**
+     * Inventario de telares Karl Mayer (vista)
+     * Ordenado por la tabla InvSecuenciaTelares
+     */
+    public function inventarioKarlMayer()
+    {
+        $telaresOrdenados = $this->getSecuenciaTelares(['KARL MAYER']);
+        $datosTelaresCompletos = [];
+
+        foreach ($telaresOrdenados as $numeroTelar) {
+            $salones = ['KARL MAYER'];
+            $candidatos = [$numeroTelar];
+
+            $telarEnProceso = $this->fetchTelarEnProceso($salones, $candidatos);
+            $ordenSig = null;
+
+            if ($telarEnProceso && $telarEnProceso->en_proceso) {
+                $ordenSig = $this->fetchSiguienteOrden(
+                    $salones,
+                    $numeroTelar,
+                    $telarEnProceso->Inicio_Tejido,
+                    $telarEnProceso->ProgramaId ?? null
+                );
+            } else {
+                $telarEnProceso = $this->objTelarVacio($numeroTelar);
+                $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
+            }
+
+            $datosTelaresCompletos[$numeroTelar] = [
+                'telarData' => $telarEnProceso,
+                'ordenSig'  => $ordenSig
+            ];
+        }
+
+        return view('modulos/tejido/inventario-telas/inventario-telas', [
+            'telares'               => $telaresOrdenados,
+            'datosTelaresCompletos' => $datosTelaresCompletos,
+            'tipoInventario'        => 'karl-mayer'
+        ]);
+    }
+
+    /**
      * API: Proceso actual de un telar
      */
     public function procesoActual($telarId)

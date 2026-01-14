@@ -21,6 +21,11 @@ class RequerimientoController extends Controller
         return view('requerimiento.index', compact('requerimientos'));
     }
 
+    public function ultimosRequerimientos()
+    {
+        return response()->json([]);
+    }
+
     public function store(Request $request)
     {
         $folioBase = $this->generarFolioUnico2(); // ahora generaremos el folio desde que el usuario marca un checkbox en la info del telar

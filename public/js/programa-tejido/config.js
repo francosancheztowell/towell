@@ -1,10 +1,8 @@
 /**
  * Configuración global para el módulo de Programa de Tejido
  */
-// Detectar si estamos en simulación
-const isSimulacion = window.location.pathname.includes('/simulacion');
-const basePath = isSimulacion ? '/simulacion' : '/planeacion/programa-tejido';
-const apiBasePath = isSimulacion ? '/simulacion' : '/programa-tejido';
+const basePath = '/planeacion/programa-tejido';
+const apiBasePath = '/programa-tejido';
 
 window.ProgramaTejidoConfig = {
     // URLs de API

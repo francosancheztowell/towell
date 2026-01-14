@@ -291,7 +291,6 @@
                     const clave_ax = fila.getAttribute('data-clave-ax');
                     const tamanio_ax = fila.getAttribute('data-tamanio-ax');
                     const concatena = fila.getAttribute('data-CONCATENA');
-                    console.log('ID:', concatena);
 
                     // Aquí puedes hacer más cosas con los datos si necesitas
                 });

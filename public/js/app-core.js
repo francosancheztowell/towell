@@ -198,10 +198,10 @@
             NavStack.clear();
         }
 
-        // Botón atrás
+        // Botón atrás - Lógica jerárquica basada en módulos
         const btnBack = document.getElementById("btn-back");
         if (btnBack && !btnBack.disabled) {
-            btnBack.addEventListener("click", (e) => {
+            btnBack.addEventListener("click", async (e) => {
                 e.preventDefault();
 
                 // Comportamiento custom si existe
@@ -210,8 +210,30 @@
                     return;
                 }
 
+                // Obtener ruta del módulo padre desde la API
+                try {
+                    const currentPath = window.location.pathname;
+                    const response = await fetch(`/api/modulo-padre?ruta=${encodeURIComponent(currentPath)}`, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && data.rutaPadre) {
+                            window.location.replace(data.rutaPadre);
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Error al obtener módulo padre, usando fallback:', error);
+                }
+
+                // Fallback: usar stack de navegación
                 const prevUrl = NavStack.pop();
-                // Usar location.replace para no agregar entrada al historial
                 window.location.replace(prevUrl);
             });
         }

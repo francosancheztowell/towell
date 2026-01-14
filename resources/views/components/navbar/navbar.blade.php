@@ -3,7 +3,7 @@
 @endphp
 
 <!-- NAVBAR -->
-<nav class="bg-white sticky top-0 z-50">
+<nav class="bg-white fixed top-0 left-0 right-0 z-50">
     <div class="w-full mx-auto px-0 md:px-2 py-2">
         <!-- Contenedor principal: 3 zonas (izquierda, centro, derecha) bien definidas -->
         <div class="flex items-center gap-2">
@@ -17,7 +17,7 @@
                 </button>
 
                         <a href="{{ route('produccion.index') }}" class="flex items-center">
-                            <img src="{{ asset('images/fondosTowell/logo.png') }}" alt="Logo Towell" class="h-10 md:h-12">
+                            <img src="{{ asset('images/fondosTowell/logo.png') }}" alt="Logo Towell" fetchpriority="high" class="h-10 md:h-12">
                         </a>
                         </div>
 
@@ -54,7 +54,7 @@
                 </a>
               @endif
 
-              @if(request()->routeIs('catalogos.req-programa-tejido') || (request()->is('planeacion/programa-tejido') && !request()->is('*programa-tejido/*/editar') && !request()->is('*programa-tejido/nuevo*')))
+              @if(request()->routeIs('catalogos.req-programa-tejido') || request()->is('planeacion/programa-tejido'))
                 <div class="flex items-center gap-1">
 
                   <!-- Controles de columnas -->
@@ -102,49 +102,7 @@
                         iconColor="text-white"
                         hoverBg="hover:bg-stone-600"
                         class="text-sm" />
-                        <!-- Crear por el momento esto se va a Ocultar -->
-                        <!--
-                      <div class="relative">
-                        <x-navbar.button-create
-                          id="layoutBtnAddMenu"
-                          onclick="document.getElementById('layoutAddMenu').classList.toggle('hidden')"
-                          title="Agregar"
-                          module="Programa Tejido"
-                          icon="fa-plus"
-                          bg="bg-green-600"
-                          iconColor="text-white"
-                          hoverBg="hover:bg-green-700"
-                          class="text-sm" />
-                        <div id="layoutAddMenu" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 origin-top-right transform transition ease-out duration-150 scale-95 opacity-0 z-50">
-                          <div class="py-1">
-                            <button type="button" id="menuNuevoRegistro" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                              <i class="fa-solid fa-file-circle-plus text-gray-500"></i>
-                              Nuevo registro
-                            </button>
-                            <a href="{{ route('programa-tejido.altas-especiales') }}" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                              <i class="fa-solid fa-layer-group text-blue-600"></i>
-                              Alta C.E.
-                            </a>
-                            <button type="button" id="menuAltaPronosticos" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                              <i class="fa-solid fa-chart-line text-green-600"></i>
-                              Alta de pronósticos
-                            </button>
-                          </div>
-                        </div>
-                    </div>
-                -->
-                    <!-- Editar por el momento esto se va a Ocultar -->
-                        <!--
-                            <x-navbar.button-edit
-                        id="layoutBtnEditar"
-                        onclick="const selected = document.querySelectorAll('.selectable-row')[selectedRowIndex]; const id = selected ? selected.getAttribute('data-id') : null; if(id) window.location.href = `/planeacion/programa-tejido/${encodeURIComponent(id)}/editar`;"
-                        title="Editar"
-                        module="Programa Tejido"
-                        iconColor="text-white"
-                        hoverBg="hover:bg-yellow-600"
-                        bg="bg-yellow-500"
-                            class="text-sm" />
-                        -->
+
                       <x-navbar.button-delete
                         id="layoutBtnEliminar"
                         onclick="const selected = document.querySelectorAll('.selectable-row')[selectedRowIndex]; const id = selected ? selected.getAttribute('data-id') : null; if(id) eliminarRegistro(id);"
@@ -180,7 +138,7 @@
                     <button type="button" id="btnVincularExistentes" onclick="vincularRegistrosExistentes()" class="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed" title="Vincular registros existentes - Click para activar modo selección múltiple" aria-label="Vincular registros existentes">
                       <i class="fa-solid fa-link text-sm"></i>
                     </button>
-                    <a href="{{ route('submodulos.nivel3', '104') }}" class="w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors" title="Catálogos" aria-label="Catálogos">
+                    <a href="{{ route('planeacion.catalogos.index') }}" class="w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors" title="Catálogos" aria-label="Catálogos">
                       <i class="fa-solid fa-database text-sm"></i>
                     </a>
                     <!-- Botón Actualizar con Dropdown -->

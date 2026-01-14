@@ -15,12 +15,13 @@
 
   <style>
     .font-inter{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+    html, body { margin: 0; padding: 0; }
   </style>
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="images-base" content="{{ asset('images') }}">
 </head>
 
-<body class="bg-white h-screen overflow-hidden font-inter">
+<body class="bg-white h-screen overflow-hidden font-inter -mt-6 p-0">
   <div class="h-screen flex overflow-hidden">
     <!-- Panel izquierdo - Branding -->
     <div class="hidden lg:flex lg:w-2/5 relative overflow-hidden bg-blue-600">
@@ -37,7 +38,7 @@
           </div>
         </div>
         <div class="mt-auto text-sm text-center text-white/70">
-          <p>© 2025 Towell. Todos los derechos reservados.</p>
+          <p>© 2026 Towell. Todos los derechos reservados.</p>
         </div>
       </div>
     </div>
@@ -92,7 +93,7 @@
   </div>
 
   <!-- Modal de QR -->
-  <div id="qr-modal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 hidden">
+  <div id="qr-modal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
     <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
       <div class="text-center">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Escáner QR</h3>
