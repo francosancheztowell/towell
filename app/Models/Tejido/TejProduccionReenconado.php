@@ -29,7 +29,7 @@ class TejProduccionReenconado extends Model
         'Turno'            => 'integer',
         'numero_empleado'  => 'string',
         'nombreEmpl'       => 'string',
-        'Calibre'          => 'float',
+        'Calibre'          => 'string',
         'FibraTrama'       => 'string',
         'CodColor'         => 'string',
         'Color'            => 'string',
