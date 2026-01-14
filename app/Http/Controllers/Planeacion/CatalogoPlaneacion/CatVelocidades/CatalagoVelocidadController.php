@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatVelocidades;
 
-use App\Models\ReqVelocidadStd;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqVelocidadStd;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Imports\ReqVelocidadStdImport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;

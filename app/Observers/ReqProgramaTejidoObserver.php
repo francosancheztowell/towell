@@ -2,10 +2,10 @@
 
 namespace App\Observers;
 
-use App\Models\ReqProgramaTejido;
-use App\Models\ReqProgramaTejidoLine;
-use App\Models\ReqAplicaciones;
-use App\Models\ReqMatrizHilos;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejidoLine;
+use App\Models\Planeacion\ReqAplicaciones;
+use App\Models\Planeacion\ReqMatrizHilos;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;

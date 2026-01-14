@@ -51,7 +51,7 @@ use App\Http\Controllers\Tejido\MarcasFinales\MarcasController;
 use App\Http\Controllers\Tejedores\NotificarMontadoJulios\NotificarMontadoJulioController;
 use App\Http\Controllers\Tejedores\NotificarMontadoRollo\NotificarMontRollosController;
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresController;
-use App\Models\SYSRoles;
+use App\Models\Sistema\SYSRoles;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ReqProgramaTejidoLineController;
@@ -71,7 +71,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\DescargarProgramaController;
 use App\Http\Controllers\Simulaciones\SimulacionComprasEspecialesController;
 use App\Http\Controllers\Simulaciones\SimulacionProgramaTejidoLineController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
-use App\Models\Usuario;
+use App\Models\Sistema\Usuario;
 //Rutas de login, con logout, no protegidas por middleware
 
 // Rutas de autenticación

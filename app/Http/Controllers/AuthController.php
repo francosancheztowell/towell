@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Http\Requests\LoginRequest;  // Asegúrate de importar el FormRequest
 use Illuminate\Support\Facades\Auth;
-use App\Models\Usuario;
+use App\Models\Sistema\Usuario;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller

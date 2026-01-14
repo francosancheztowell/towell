@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Urdido\Configuracion\ActividadesBPMUrdido;
 
 use App\Http\Controllers\Controller;
-use App\Models\UrdActividadesBpmModel;
+use App\Models\Urdido\UrdActividadesBpmModel;
 use Illuminate\Http\Request;
 
 class UrdActividadesBpmController extends Controller

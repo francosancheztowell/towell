@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
-use App\Models\TejTrama;
-use App\Models\TejTramaConsumos;
+use App\Models\Tejido\TejTrama;
+use App\Models\Tejido\TejTramaConsumos;
 
 class ConsultarRequerimientoController extends Controller
 {

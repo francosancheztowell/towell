@@ -2,7 +2,7 @@
 
 namespace App\Helpers;
 
-use App\Models\SSYSFoliosSecuencia;
+use App\Models\Sistema\SSYSFoliosSecuencia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 

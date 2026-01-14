@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Engomado\CapturaFormulas;
 
 use App\Http\Controllers\Controller;
-use App\Models\EngProduccionFormulacionModel;
-use App\Models\EngFormulacionLineModel;
-use App\Models\SYSUsuario;
-use App\Models\URDCatalogoMaquina;
-use App\Models\EngProgramaEngomado;
+use App\Models\Engomado\EngProduccionFormulacionModel;
+use App\Models\Engomado\EngFormulacionLineModel;
+use App\Models\Sistema\SYSUsuario;
+use App\Models\Urdido\URDCatalogoMaquina;
+use App\Models\Engomado\EngProgramaEngomado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;

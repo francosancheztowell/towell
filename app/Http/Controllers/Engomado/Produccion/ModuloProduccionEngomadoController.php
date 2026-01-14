@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Engomado\Produccion;
 
 use App\Http\Controllers\Controller;
-use App\Models\EngProgramaEngomado;
-use App\Models\UrdJuliosOrden;
-use App\Models\EngProduccionEngomado;
-use App\Models\UrdCatJulios;
-use App\Models\SYSUsuario;
-use App\Models\UrdProgramaUrdido;
+use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Urdido\UrdJuliosOrden;
+use App\Models\Engomado\EngProduccionEngomado;
+use App\Models\Urdido\UrdCatJulios;
+use App\Models\Sistema\SYSUsuario;
+use App\Models\Urdido\UrdProgramaUrdido;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;

@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Models\ReqEficienciaStd;
+use App\Models\Planeacion\ReqEficienciaStd;
 use Illuminate\Support\Facades\DB;
 
 class LimpiarPrefijosTelares extends Command

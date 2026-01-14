@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tejedores;
 
 use App\Http\Controllers\Controller;
-use App\Models\TejInventarioTelares;
+use App\Models\Tejido\TejInventarioTelares;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;

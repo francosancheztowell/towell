@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatEficiencias;
 
-use App\Models\ReqEficienciaStd;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqEficienciaStd;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Imports\ReqEficienciaStdImport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;

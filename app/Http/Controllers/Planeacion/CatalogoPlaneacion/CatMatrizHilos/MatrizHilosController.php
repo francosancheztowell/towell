@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatMatrizHilos;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\ReqMatrizHilos;
-use App\Models\ReqProgramaTejido;
-use App\Models\ReqProgramaTejidoLine;
+use App\Models\Planeacion\ReqMatrizHilos;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejidoLine;
 use Illuminate\Support\Facades\Log;
 
 class MatrizHilosController extends Controller

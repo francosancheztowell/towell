@@ -3,7 +3,7 @@
 
 namespace App\Imports;
 
-use App\Models\ReqAplicaciones;
+use App\Models\Planeacion\ReqAplicaciones;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;

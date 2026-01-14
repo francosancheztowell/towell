@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
 
-use App\Models\ReqCalendarioLine;
-use App\Models\ReqModelosCodificados;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqCalendarioLine;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;

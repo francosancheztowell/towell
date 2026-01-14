@@ -57,7 +57,7 @@
                 $moduleParam = $moduleId;
             } elseif ($module) {
                 try {
-                    $rol = \App\Models\SYSRoles::where('modulo', $module)->first();
+                    $rol = \App\Models\Sistema\SYSRoles::where('modulo', $module)->first();
                     $moduleParam = $rol ? $rol->idrol : $module; // Fallback al nombre si no se encuentra
                 } catch (\Exception $e) {
                     $moduleParam = $module; // Fallback al nombre en caso de error

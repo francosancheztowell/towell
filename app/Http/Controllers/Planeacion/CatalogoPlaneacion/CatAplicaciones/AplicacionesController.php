@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatAplicaciones;
 
-use App\Models\ReqAplicaciones;
-use App\Models\ReqProgramaTejido;
-use App\Models\ReqProgramaTejidoLine;
+use App\Models\Planeacion\ReqAplicaciones;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejidoLine;
 use App\Imports\ReqAplicacionesImport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;

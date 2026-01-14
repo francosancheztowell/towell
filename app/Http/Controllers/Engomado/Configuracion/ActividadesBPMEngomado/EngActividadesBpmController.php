@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Engomado\Configuracion\ActividadesBPMEngomado;
 
 use App\Http\Controllers\Controller;
-use App\Models\EngActividadesBpmModel;
+use App\Models\Engomado\EngActividadesBpmModel;
 use Illuminate\Http\Request;
 
 class EngActividadesBpmController extends Controller

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
-use App\Models\ReqProgramaTejidoLine;
+use App\Models\Planeacion\ReqProgramaTejidoLine;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;

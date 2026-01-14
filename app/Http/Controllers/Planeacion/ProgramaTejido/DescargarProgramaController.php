@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
-use App\Models\ReqProgramaTejidoLine;
+use App\Models\Planeacion\ReqProgramaTejidoLine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;

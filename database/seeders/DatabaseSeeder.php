@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\TipoMovimientos;
-use App\Models\User;
+use App\Models\Sistema\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 

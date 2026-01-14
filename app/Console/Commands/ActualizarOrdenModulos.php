@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Models\SYSRoles;
+use App\Models\Sistema\SYSRoles;
 use Illuminate\Support\Facades\DB;
 
 class ActualizarOrdenModulos extends Command

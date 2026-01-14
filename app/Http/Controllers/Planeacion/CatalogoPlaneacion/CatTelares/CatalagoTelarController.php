@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatTelares;
 
 use App\Http\Controllers\Controller;
-use App\Models\ReqTelares;
+use App\Models\Planeacion\ReqTelares;
 use App\Imports\ReqTelaresImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Atadores\Catalogos\Actividades;
 
 use App\Http\Controllers\Controller;
-use App\Models\AtaActividadesModel;
+use App\Models\Atadores\AtaActividadesModel;
 use Illuminate\Http\Request;
 
 class AtaActividadesController extends Controller

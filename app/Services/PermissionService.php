@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\SYSRoles;
-use App\Models\SYSUsuariosRoles;
+use App\Models\Sistema\SYSRoles;
+use App\Models\Sistema\SYSUsuariosRoles;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 

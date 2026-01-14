@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Tejedores\BPMTejedores;
 
 use App\Http\Controllers\Controller;
-use App\Models\TelBpmModel;
-use App\Models\TelBpmLineModel;
-use App\Models\TelActividadesBPM;
-use App\Models\SYSUsuario;
+use App\Models\Tejedores\TelBpmModel;
+use App\Models\Tejedores\TelBpmLineModel;
+use App\Models\Tejedores\TelActividadesBPM;
+use App\Models\Sistema\SYSUsuario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -34,7 +34,7 @@ class TelBpmLineController extends Controller
         $telares = collect();
         $salonPorTelar = [];
         try {
-            $asignados = \App\Models\TelTelaresOperador::query()
+            $asignados = \App\Models\Tejedores\TelTelaresOperador::query()
                 ->where('numero_empleado', (string)$header->CveEmplRec)
                 ->get(['NoTelarId','SalonTejidoId']);
             $telares = $asignados->pluck('NoTelarId')->filter()->unique()->values();

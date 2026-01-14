@@ -2,7 +2,7 @@
 
 namespace App\Repositories;
 
-use App\Models\Usuario;
+use App\Models\Sistema\Usuario;
 use Illuminate\Support\Collection;
 
 class UsuarioRepository

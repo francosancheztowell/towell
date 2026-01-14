@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Engomado\BPMEngomado;
 
 use App\Http\Controllers\Controller;
-use App\Models\EngBpmModel;
-use App\Models\EngActividadesBpmModel;
-use App\Models\EngBpmLineModel;
+use App\Models\Engomado\EngBpmModel;
+use App\Models\Engomado\EngActividadesBpmModel;
+use App\Models\Engomado\EngBpmLineModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -45,7 +45,7 @@ class EngBpmLineController extends Controller
         // Obtener nombre de máquina desde URDCatalogoMaquina
         $nombreMaquina = 'Máquina';
         if ($maquinaId) {
-            $maquina = \App\Models\URDCatalogoMaquina::where('MaquinaId', $maquinaId)->first();
+            $maquina = \App\Models\Urdido\URDCatalogoMaquina::where('MaquinaId', $maquinaId)->first();
             $nombreMaquina = $maquina->Nombre ?? $maquinaId;
         }
 
@@ -118,7 +118,7 @@ class EngBpmLineController extends Controller
 
         // Obtener información del usuario actual que autoriza
         $usuario = Auth::user();
-        $usuarioDb = \App\Models\SYSUsuario::where('idusuario', $usuario->idusuario)->first();
+        $usuarioDb = \App\Models\Sistema\SYSUsuario::where('idusuario', $usuario->idusuario)->first();
 
         $header->update([
             'Status' => 'Autorizado',

@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\ReqCalendarioTab;
-use App\Models\ReqCalendarioLine;
-use App\Models\ReqProgramaTejido;
-use App\Models\ReqModelosCodificados;
+use App\Models\Planeacion\ReqCalendarioTab;
+use App\Models\Planeacion\ReqCalendarioLine;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqModelosCodificados;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;

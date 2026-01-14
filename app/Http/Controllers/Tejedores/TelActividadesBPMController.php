@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tejedores;
 
 use App\Http\Controllers\Controller;
-use App\Models\TelActividadesBPM;
+use App\Models\Tejedores\TelActividadesBPM;
 use Illuminate\Http\Request;
 
 class TelActividadesBPMController extends Controller

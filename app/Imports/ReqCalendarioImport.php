@@ -2,8 +2,8 @@
 
 namespace App\Imports;
 
-use App\Models\ReqCalendarioTab;
-use App\Models\ReqCalendarioLine;
+use App\Models\Planeacion\ReqCalendarioTab;
+use App\Models\Planeacion\ReqCalendarioLine;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;

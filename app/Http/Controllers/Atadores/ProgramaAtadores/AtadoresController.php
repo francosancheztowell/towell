@@ -7,14 +7,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
-use App\Models\TejInventarioTelares;
-use App\Models\AtaMontadoTelasModel;
-use App\Models\AtaMontadoMaquinasModel;
-use App\Models\AtaMontadoActividadesModel;
-use App\Models\AtaMaquinasModel;
-use App\Models\AtaActividadesModel;
-use App\Models\AtaComentariosModel;
-use App\Models\TejHistorialInventarioTelaresModel;
+use App\Models\Tejido\TejInventarioTelares;
+use App\Models\Atadores\AtaMontadoTelasModel;
+use App\Models\Atadores\AtaMontadoMaquinasModel;
+use App\Models\Atadores\AtaMontadoActividadesModel;
+use App\Models\Atadores\AtaMaquinasModel;
+use App\Models\Atadores\AtaActividadesModel;
+use App\Models\Atadores\AtaComentariosModel;
+use App\Models\Tejido\TejHistorialInventarioTelaresModel;
 
 class AtadoresController extends Controller
 {

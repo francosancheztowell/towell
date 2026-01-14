@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 

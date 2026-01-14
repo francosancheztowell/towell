@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
 
 use App\Helpers\StringTruncator;
-use App\Models\ReqModelosCodificados;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
