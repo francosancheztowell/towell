@@ -39,6 +39,6 @@ class TejProduccionReenconado extends Model
         'Eficiencia'       => 'float',
         'Obs'              => 'string',
         'status'           => 'string',
-        'capacidad'        => 'integer',
+        'capacidad'        => 'float',
     ];
 }
