@@ -53,7 +53,7 @@ class TelDesarrolladoresController extends Controller
             ->get();
     }
 
-    public function obtenerProducciones(Request $request, $telarId)
+    public function obtenerProducciones($telarId)
     {
         try {
             $producciones = ReqProgramaTejido::where('NoTelarId', $telarId)
@@ -157,7 +157,7 @@ class TelDesarrolladoresController extends Controller
 
 
 
-    public function obtenerCodigoDibujo(Request $request, $salonTejidoId, $tamanoClave)
+    public function obtenerCodigoDibujo($salonTejidoId, $tamanoClave)
     {
         try {
             $codigoDibujo = ReqModelosCodificados::query()
@@ -179,11 +179,6 @@ class TelDesarrolladoresController extends Controller
                 'codigoDibujo' => $codigoDibujo
             ]);
         } catch (Exception $e) {
-            Log::error('Error al obtener CodigoDibujo: ' . $e->getMessage(), [
-                'salonTejidoId' => $salonTejidoId,
-                'tamanoClave' => $tamanoClave,
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener CodigoDibujo'
@@ -239,11 +234,6 @@ class TelDesarrolladoresController extends Controller
                 'registro' => $registro,
             ]);
         } catch (Exception $e) {
-            Log::error('Error al obtener datos de CatCodificados: ' . $e->getMessage(), [
-                'telarId' => $telarId,
-                'noProduccion' => $noProduccion,
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener la información'
@@ -403,7 +393,7 @@ class TelDesarrolladoresController extends Controller
             }
         }
 
-        private function moverRegistroConReprogramar(ReqProgramaTejido $registro, $todosLosRegistros, string $reprogramar, string $salonTejido, string $noTelarId): array
+        private function moverRegistroConReprogramar(ReqProgramaTejido $registro, $todosLosRegistros, string $reprogramar): array
         {
             $idsAfectados = [];
 
@@ -463,10 +453,6 @@ class TelDesarrolladoresController extends Controller
                 $registro->save();
 
             } catch (Exception $e) {
-                Log::error('Error al mover registro con Reprogramar: ' . $e->getMessage(), [
-                    'id' => $registro->Id ?? null,
-                    'reprogramar' => $reprogramar,
-                ]);
             }
 
             return $idsAfectados;
@@ -515,7 +501,7 @@ class TelDesarrolladoresController extends Controller
                                 ->lockForUpdate()
                                 ->get();
 
-                            $idsMovidos = $this->moverRegistroConReprogramar($registroEnProceso, $todosLosRegistros, $reprogramar, $salonTejido, $noTelarId);
+                            $idsMovidos = $this->moverRegistroConReprogramar($registroEnProceso, $todosLosRegistros, $reprogramar);
                             $idsAfectados = array_merge($idsAfectados, $idsMovidos);
                         } else {
                             // Si no tiene Reprogramar, aplicar lógica actual (actualizar CatCodificados y eliminar)
@@ -610,13 +596,43 @@ class TelDesarrolladoresController extends Controller
                         DB::table('ReqProgramaTejido')->where('Id', $idU)->update($dataU);
                         $idsAfectados[] = (int) $idU;
                     }
+
+                    // Validar y actualizar OrdCompartidaLider si el nuevo registro tiene OrdCompartida
+                    $registroActualizadoRecargado = ReqProgramaTejido::query()
+                        ->where('Id', $registroActualizado->Id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($registroActualizadoRecargado) {
+                        $ordCompartidaRaw = trim((string) ($registroActualizadoRecargado->OrdCompartida ?? ''));
+                        $ordCompartida = $ordCompartidaRaw !== '' ? (int) $ordCompartidaRaw : null;
+
+                        if ($ordCompartida && $ordCompartida > 0) {
+                            // Buscar todos los registros con la misma OrdCompartida
+                            $registrosCompartidos = ReqProgramaTejido::query()
+                                ->where('OrdCompartida', $ordCompartida)
+                                ->whereNotNull('FechaInicio')
+                                ->orderBy('FechaInicio', 'asc')
+                                ->lockForUpdate()
+                                ->get();
+
+                            if ($registrosCompartidos->isNotEmpty()) {
+                                // El primero (con FechaInicio más antigua) será el líder
+                                $nuevoLider = $registrosCompartidos->first();
+
+                                // Poner null en todos los registros de la orden compartida
+                                ReqProgramaTejido::query()
+                                    ->where('OrdCompartida', $ordCompartida)
+                                    ->update(['OrdCompartidaLider' => null]);
+
+                                // Asignar OrdCompartidaLider = 1 al registro con FechaInicio más antigua
+                                $nuevoLider->OrdCompartidaLider = 1;
+                                $nuevoLider->saveQuietly();
+                            }
+                        }
+                    }
                 });
             } catch (Exception $e) {
-                Log::error('Error al mover registro en proceso: ' . $e->getMessage(), [
-                    'salonTejidoId' => $salonTejido,
-                    'noTelarId' => $noTelarId,
-                    'registroId' => $registroActualizado->Id,
-                ]);
             } finally {
                 if ($dispatcher) {
                     ReqProgramaTejido::setEventDispatcher($dispatcher);
@@ -914,7 +930,6 @@ class TelDesarrolladoresController extends Controller
             }
             return back()->withErrors($e->errors())->withInput();
         } catch (Exception $e) {
-            Log::error('Error al guardar datos de desarrollador: ' . $e->getMessage());
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
