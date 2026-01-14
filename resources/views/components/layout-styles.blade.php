@@ -79,10 +79,10 @@
                 @media all and (display-mode: fullscreen),
                        all and (display-mode: standalone) {
                     body {
-                        padding-top: env(safe-area-inset-top);
-                        padding-bottom: env(safe-area-inset-bottom);
-                        padding-left: env(safe-area-inset-left);
-                        padding-right: env(safe-area-inset-right);
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
                     }
                 }
             }

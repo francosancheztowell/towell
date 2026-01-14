@@ -7,14 +7,14 @@ use App\Repositories\UsuarioRepository;
 use App\Services\ModuloService;
 use App\Services\UsuarioService;
 use App\Services\PermissionService;
-use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SysDepartamentos;
+use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SYSUsuariosRoles;
+use App\Models\Sistema\Usuario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
 class UsuarioController extends Controller
 {
     public function __construct(
@@ -441,7 +441,7 @@ class UsuarioController extends Controller
         }
 
         // Verificar que el usuario tenga acceso a este módulo
-        $tieneAcceso = \App\Models\SYSUsuariosRoles::where('idusuario', $usuarioActual->idusuario)
+        $tieneAcceso = SYSUsuariosRoles::where('idusuario', $usuarioActual->idusuario)
             ->where('idrol', $moduloPadre->idrol)
             ->where('acceso', true)
             ->exists();
@@ -542,11 +542,11 @@ class UsuarioController extends Controller
             $rutaActual = '/' . ltrim($rutaActual, '/');
 
             // Buscar módulo por ruta exacta primero
-            $modulo = \App\Models\SYSRoles::where('Ruta', $rutaActual)->first();
+            $modulo = SYSRoles::where('Ruta', $rutaActual)->first();
 
             // Si no encuentra, buscar por coincidencia (la ruta más específica que coincida)
             if (!$modulo) {
-                $modulo = \App\Models\SYSRoles::where('Ruta', 'LIKE', $rutaActual . '%')
+                $modulo = SYSRoles::where('Ruta', 'LIKE', $rutaActual . '%')
                     ->orderByRaw("CASE WHEN Ruta = ? THEN 0 ELSE 1 END", [$rutaActual])
                     ->orderByRaw('LENGTH(Ruta) DESC')
                     ->orderBy('Nivel', 'desc')
@@ -558,7 +558,7 @@ class UsuarioController extends Controller
                 $partes = array_filter(explode('/', trim($rutaActual, '/')));
                 if (count($partes) > 0) {
                     $ultimaParte = end($partes);
-                    $modulo = \App\Models\SYSRoles::where('Ruta', 'LIKE', '%' . $ultimaParte . '%')
+                    $modulo = SYSRoles::where('Ruta', 'LIKE', '%' . $ultimaParte . '%')
                         ->orderByRaw('LENGTH(Ruta) DESC')
                         ->orderBy('Nivel', 'desc')
                         ->first();
@@ -582,7 +582,7 @@ class UsuarioController extends Controller
 
             // Si tiene dependencia, buscar el módulo padre
             if ($modulo->Dependencia) {
-                $moduloPadre = \App\Models\SYSRoles::where('orden', $modulo->Dependencia)->first();
+                $moduloPadre = SYSRoles::where('orden', $modulo->Dependencia)->first();
 
                 if ($moduloPadre && $moduloPadre->Ruta) {
                     return response()->json([
@@ -599,7 +599,7 @@ class UsuarioController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Error al obtener módulo padre', [
+            Log::error('Error al obtener módulo padre', [
                 'error' => $e->getMessage(),
                 'ruta' => $request->input('ruta')
             ]);
