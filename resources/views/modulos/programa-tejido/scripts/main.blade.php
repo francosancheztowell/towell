@@ -1083,9 +1083,70 @@
         .then(data => {
           PT.loader.hide();
           if (data.success) {
-            sessionStorage.setItem('priorityChangeMessage', 'Registro eliminado correctamente');
-            sessionStorage.setItem('priorityChangeType', 'success');
-            window.location.href = '/planeacion/programa-tejido';
+            // Buscar la fila por su data-id
+            const tb = tbodyEl();
+            const rowToDelete = tb ? tb.querySelector(`tr.selectable-row[data-id="${id}"]`) : null;
+
+            if (rowToDelete) {
+              // Verificar si la fila eliminada está seleccionada antes de eliminarla
+              const selectedRowId = window.selectedRowIndex !== null && window.selectedRowIndex !== undefined && window.selectedRowIndex >= 0
+                ? (window.allRows && window.allRows[window.selectedRowIndex]
+                    ? window.allRows[window.selectedRowIndex].getAttribute('data-id')
+                    : null)
+                : null;
+
+              const isSelected = selectedRowId === id;
+
+              // Eliminar la fila del DOM
+              rowToDelete.remove();
+
+              // Actualizar window.allRows removiendo la fila eliminada
+              if (window.allRows && Array.isArray(window.allRows)) {
+                window.allRows = window.allRows.filter(row => {
+                  const rowId = row.getAttribute('data-id');
+                  return rowId !== id && row !== rowToDelete;
+                });
+              }
+
+              // Limpiar la selección si la fila eliminada estaba seleccionada
+              if (isSelected) {
+                window.selectedRowIndex = null;
+
+                // También limpiar cualquier referencia visual de selección
+                if (tb) {
+                  const selectedRows = tb.querySelectorAll('.selectable-row.selected, .selectable-row.bg-blue-200');
+                  selectedRows.forEach(row => {
+                    row.classList.remove('selected', 'bg-blue-200');
+                  });
+                }
+              }
+
+              // Limpiar de selectedRowsIds si existe
+              if (window.selectedRowsIds && typeof window.selectedRowsIds.delete === 'function') {
+                window.selectedRowsIds.delete(id);
+              }
+
+              // Actualizar refreshAllRows para sincronizar el estado (esto también actualizará window.allRows)
+              if (typeof refreshAllRows === 'function') {
+                refreshAllRows();
+              }
+
+              // Actualizar los totales después de actualizar las filas
+              if (typeof window.updateTotales === 'function') {
+                window.updateTotales();
+              }
+
+              // Mostrar mensaje de éxito
+              toast('Registro eliminado correctamente', 'success');
+            } else {
+              // Si no se encuentra la fila en el DOM, mostrar mensaje de éxito de todos modos
+              toast('Registro eliminado correctamente', 'success');
+
+              // Actualizar window.allRows por si acaso
+              if (typeof refreshAllRows === 'function') {
+                refreshAllRows();
+              }
+            }
           } else {
             toast(data.message || 'No se pudo eliminar el registro', 'error');
           }
