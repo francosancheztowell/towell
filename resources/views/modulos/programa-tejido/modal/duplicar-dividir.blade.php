@@ -6,6 +6,44 @@
 @include('modulos.programa-tejido.modal._duplicar-vincular')
 @include('modulos.programa-tejido.modal._dividir')
 
+const TELAR_VALUE_SEP = '::';
+function buildTelarValue(salon, telar) {
+	const s = (salon || '').trim();
+	const t = (telar || '').trim();
+	if (!s) return t;
+	return `${s}${TELAR_VALUE_SEP}${t}`;
+}
+function parseTelarValue(value) {
+	const raw = (value || '').trim();
+	if (!raw.includes(TELAR_VALUE_SEP)) {
+		return { salon: '', telar: raw };
+	}
+	const [salon, telar] = raw.split(TELAR_VALUE_SEP);
+	return { salon: (salon || '').trim(), telar: (telar || '').trim() };
+}
+window.buildTelarValue = buildTelarValue;
+window.parseTelarValue = parseTelarValue;
+const detallesBalanceoCache = new Map();
+const descripcionFlogCache = new Map(); // ⚡ Caché para descripciones de flogs
+
+async function obtenerDetalleBalanceo(registroId) {
+	if (!registroId) return null;
+	if (detallesBalanceoCache.has(registroId)) {
+		return detallesBalanceoCache.get(registroId);
+	}
+	try {
+		const resp = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo`, {
+			headers: { 'Accept': 'application/json' }
+		});
+		if (!resp.ok) return null;
+		const data = await resp.json();
+		detallesBalanceoCache.set(registroId, data);
+		return data;
+	} catch (err) {
+		return null;
+	}
+}
+
 // ===== Función principal para duplicar y dividir telar =====
 async function duplicarTelar(row) {
 	const telar = getRowTelar(row);
@@ -40,29 +78,21 @@ async function duplicarTelar(row) {
 	let saldoBackend = '';
 	let produccionBackend = '';
 	if (registroId) {
-		try {
-			const resp = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo`, {
-				headers: { 'Accept': 'application/json' }
-			});
-			if (resp.ok) {
-				const data = await resp.json();
-				if (data?.registro?.OrdCompartida !== undefined && data.registro.OrdCompartida !== null) {
-					ordCompartida = String(data.registro.OrdCompartida).trim();
-				}
-				if (data?.registro?.AplicacionId !== undefined && data.registro.AplicacionId !== null) {
-					aplicacionBackend = String(data.registro.AplicacionId).trim();
-				}
-				if (data?.registro?.TotalPedido !== undefined && data.registro.TotalPedido !== null) {
-					pedidoBackend = String(data.registro.TotalPedido).trim();
-				}
-				if (data?.registro?.SaldoPedido !== undefined && data.registro.SaldoPedido !== null) {
-					saldoBackend = String(data.registro.SaldoPedido).trim();
-				}
-				if (data?.registro?.Produccion !== undefined && data.registro.Produccion !== null) {
-					produccionBackend = String(data.registro.Produccion).trim();
-				}
-			}
-		} catch (err) {
+		const data = await obtenerDetalleBalanceo(registroId);
+		if (data?.registro?.OrdCompartida !== undefined && data.registro.OrdCompartida !== null) {
+			ordCompartida = String(data.registro.OrdCompartida).trim();
+		}
+		if (data?.registro?.AplicacionId !== undefined && data.registro.AplicacionId !== null) {
+			aplicacionBackend = String(data.registro.AplicacionId).trim();
+		}
+		if (data?.registro?.TotalPedido !== undefined && data.registro.TotalPedido !== null) {
+			pedidoBackend = String(data.registro.TotalPedido).trim();
+		}
+		if (data?.registro?.SaldoPedido !== undefined && data.registro.SaldoPedido !== null) {
+			saldoBackend = String(data.registro.SaldoPedido).trim();
+		}
+		if (data?.registro?.Produccion !== undefined && data.registro.Produccion !== null) {
+			produccionBackend = String(data.registro.Produccion).trim();
 		}
 	}
 
@@ -80,7 +110,7 @@ async function duplicarTelar(row) {
 	// Modal con formato de tabla
 	const resultado = await Swal.fire({
 		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido: pedidoFinal, saldo: saldoFinal, produccion: produccionFinal, flog, ordCompartida, aplicacion: aplicacionFinal, registroId, descripcion }),
-		width: '980px',
+		width: '95%',
 		showCancelButton: true,
 		confirmButtonText: 'Aceptar',
 		cancelButtonText: 'Cancelar',
@@ -91,6 +121,8 @@ async function duplicarTelar(row) {
 			cancelButton: 'ml-2 inline-flex justify-center px-4 py-2 text-sm font-semibold rounded-md text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300'
 		},
 		didOpen: () => {
+			const popup = Swal.getPopup();
+			if (popup) popup.style.maxWidth = '1800px';
 			initModalDuplicar(telar, hilo, ordCompartida, registroId);
 		},
 		preConfirm: () => {
@@ -203,6 +235,12 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 	// Determinar si ya está dividido (tiene OrdCompartida)
 	const ordNum = Number(ordCompartida);
 	const yaDividido = Number.isFinite(ordNum) && ordNum !== 0;
+	const claveModeloReadonly = yaDividido ? 'readonly' : '';
+	const claveModeloClass = yaDividido
+		? 'w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed'
+		: 'w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500';
+	const flogReadonly = '';
+	const flogClass = 'w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500';
 
 	return `
 		<div class="text-left">
@@ -218,80 +256,24 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 			</div>
 			` : ''}
 
-			<table class="w-full border-collapse">
-				<tbody>
-					<tr class="border-b border-gray-200">
-						<td colspan="2" class="py-3">
-							<div class="grid grid-cols-3 gap-4">
-								<div class="relative">
-									<label class="block mb-1 text-sm font-medium text-gray-700">Clave Modelo</label>
-									<input type="text" id="swal-claveModelo" value="${claveModelo}" data-salon="${salon}"
-										placeholder="Escriba para buscar..."
-										class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-									<div id="swal-claveModelo-suggestions" class="absolute z-50 w-full bg-white border border-gray-300 rounded-b shadow-lg hidden max-h-40 overflow-y-auto"></div>
-								</div>
-								<div>
-									<label class="block mb-1 text-sm font-medium text-gray-700">Cod. Artículo</label>
-									<input type="text" id="swal-codArticulo" value="${codArticulo}" readonly
-										class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-sm">
-								</div>
-								<div>
-									<label class="block mb-1 text-sm font-medium text-gray-700">Producto</label>
-									<input type="text" id="swal-producto" value="${producto}" readonly
-										class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-sm">
-								</div>
-							</div>
-						</td>
-					</tr>
-					<tr class="border-b border-gray-200">
-						<td colspan="2" class="py-3">
-							<div class="grid grid-cols-3 gap-4">
-								<div>
-									<label class="block mb-1 text-sm font-medium text-gray-700">Hilo</label>
-									<select id="swal-hilo" data-hilo-actual="${hilo}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-										${hilo ? `<option value="${hilo}" selected>${hilo}</option>` : '<option value="">Seleccionar...</option>'}
-									</select>
-								</div>
-								<div>
-									<label class="block mb-1 text-sm font-medium text-gray-700">Pedido Total</label>
-									<input type="text" id="swal-pedido" value="${pedido}"
-										class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-								</div>
-								<div class="relative">
-									<label class="block mb-1 text-sm font-medium text-gray-700">Flog</label>
-									<input type="text" id="swal-flog" value="${flog}" placeholder="Escriba para buscar..."
-										class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-									<div id="swal-flog-suggestions" class="absolute z-50 w-full bg-white border border-gray-300 rounded-b shadow-lg hidden max-h-40 overflow-y-auto"></div>
-								</div>
-							</div>
-						</td>
-					</tr>
-					<tr class="border-b border-gray-200">
-						<td colspan="2" class="py-1">
-							<div class="grid grid-cols-3 gap-4">
-								<div>
-									<label class="block mb-1 text-sm font-medium text-gray-700">Salón</label>
-									<select id="swal-salon" data-salon-actual="${salon}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-										${salon ? `<option value="${salon}" selected>${salon}</option>` : '<option value="">Seleccionar...</option>'}
-									</select>
-								</div>
-								<div>
-									<label class="block mb-1 text-sm font-medium text-gray-700">Aplicación</label>
-									<select id="swal-aplicacion" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-										<option value="">Seleccionar...</option>
-									</select>
-								</div>
-								<div>
-									<label class="block mb-1 text-sm font-medium text-gray-700">Descripción</label>
-									<input type="text" id="swal-descripcion" value="${descripcion || ''}"
-										placeholder="Descripción del proyecto..."
-										class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-								</div>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
+			<!-- Campos ocultos para Clave Modelo, Cod. Artículo, Producto, Pedido Total, Salón, Flog, Descripción y Hilo (se usan en la tabla inferior) -->
+			<input type="text" id="swal-claveModelo" value="${claveModelo}" data-salon="${salon}" class="hidden">
+			<input type="text" id="swal-codArticulo" value="${codArticulo}" class="hidden">
+			<input type="text" id="swal-producto" value="${producto}" class="hidden">
+			<input type="text" id="swal-pedido" value="${pedido}" class="hidden">
+			<select id="swal-salon" data-salon-actual="${salon}" class="hidden">
+				${salon ? `<option value="${salon}" selected>${salon}</option>` : '<option value="">Seleccionar...</option>'}
+			</select>
+			<input type="text" id="swal-flog" value="${flog}" class="hidden">
+			<textarea id="swal-descripcion" class="hidden">${descripcion || ''}</textarea>
+			<select id="swal-hilo" data-hilo-actual="${hilo}" class="hidden">
+				${hilo ? `<option value="${hilo}" selected>${hilo}</option>` : '<option value="">Seleccionar...</option>'}
+			</select>
+			<select id="swal-aplicacion" class="hidden">
+				${aplicacion ? `<option value="${aplicacion}" selected>${aplicacion}</option>` : '<option value="">Seleccionar...</option>'}
+			</select>
+			<div id="swal-claveModelo-suggestions" class="absolute z-50 w-full bg-white border border-gray-300 rounded-b shadow-lg hidden max-h-40 overflow-y-auto"></div>
+			<div id="swal-flog-suggestions" class="absolute w-full bg-white border border-gray-300 rounded-b shadow-lg hidden" style="max-height: 500px; overflow-y: auto; z-index: 99999;"></div>
 
 			<!-- Campos ocultos para datos adicionales del codificado -->
 			<input type="hidden" id="swal-custname" value="">
@@ -299,39 +281,52 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 			<input type="hidden" id="swal-aplicacion-original" value="${aplicacion}">
 
 			<!-- Switch Dividir/Duplicar (pill reactivo: Duplicar azul, Dividir verde) -->
-			<div class="my-4 flex items-center justify-center gap-4">
-				<!-- radio buttons ocultos para estado lógico de los 2 modos -->
-				<input type="radio" id="modo-duplicar" name="modo-switch" class="hidden" checked>
-				<input type="radio" id="modo-dividir" name="modo-switch" class="hidden">
-				<!-- checkbox manteniendo compatibilidad con lógica existente -->
-				<input type="checkbox" id="switch-modo" class="hidden" checked>
+			<div class="my-4 flex items-center justify-between gap-4">
+				<!-- Espaciador izquierdo para centrar -->
+				<div class="flex-1"></div>
 
-				<div class="inline-flex items-center rounded-full px-1 py-1 text-xs font-medium shadow-sm gap-1">
-					<button
-						type="button"
-						id="pill-duplicar"
-						class="px-4 py-1 rounded-full transition-all duration-200 bg-blue-500 text-white shadow-md opacity-100">
-						Duplicar
-					</button>
-					<button
-						type="button"
-						id="pill-dividir"
-						class="px-4 py-1 rounded-full transition-all duration-200 bg-white text-gray-700 shadow-sm opacity-80">
-						Dividir
-					</button>
+				<!-- Contenedor central con switches -->
+				<div class="flex items-center justify-center gap-4">
+					<!-- radio buttons ocultos para estado lógico de los 2 modos -->
+					<input type="radio" id="modo-duplicar" name="modo-switch" class="hidden" checked>
+					<input type="radio" id="modo-dividir" name="modo-switch" class="hidden">
+					<!-- checkbox manteniendo compatibilidad con lógica existente -->
+					<input type="checkbox" id="switch-modo" class="hidden" checked>
+
+					<div class="inline-flex items-center rounded-full px-1 py-1 text-base font-medium shadow-sm gap-1">
+						<button
+							type="button"
+							id="pill-duplicar"
+							class="px-6 py-2 rounded-full transition-all duration-200 bg-blue-500 text-white shadow-md opacity-100">
+							Duplicar
+						</button>
+						<button
+							type="button"
+							id="pill-dividir"
+							class="px-6 py-2 rounded-full transition-all duration-200 bg-white text-gray-700 shadow-sm opacity-80">
+							Dividir
+						</button>
+					</div>
+
+					<!-- Checkbox Vincular (solo visible en modo Duplicar) -->
+					<div id="checkbox-vincular-container" class="flex items-center gap-2">
+						<input type="checkbox" id="checkbox-vincular" class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
+						<label for="checkbox-vincular" class="text-sm text-gray-700 cursor-pointer">
+							Vincular
+						</label>
+					</div>
+
+					<div id="modo-descripcion" class="hidden">
+						<span id="desc-duplicar">Copia el registro al telar destino</span>
+						<span id="desc-dividir" class="hidden">Divide la cantidad entre los telares</span>
+					</div>
 				</div>
 
-				<!-- Checkbox Vincular (solo visible en modo Duplicar) -->
-				<div id="checkbox-vincular-container" class="flex items-center gap-2">
-					<input type="checkbox" id="checkbox-vincular" class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
-					<label for="checkbox-vincular" class="text-sm text-gray-700 cursor-pointer">
-						Vincular
-					</label>
-				</div>
-
-				<div id="modo-descripcion" class="hidden">
-					<span id="desc-duplicar">Copia el registro al telar destino</span>
-					<span id="desc-dividir" class="hidden">Divide la cantidad entre los telares</span>
+				<!-- Botón para agregar fila alineado a la derecha -->
+				<div class="flex-1 flex justify-end">
+					<button type="button" id="btn-add-telar-row" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium" title="Añadir fila">
+						<i class="fas fa-plus-circle mr-2"></i>Añadir Fila
+					</button>
 				</div>
 			</div>
 
@@ -344,11 +339,15 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 			<input type="hidden" id="registro-id-original" value="${registroId}">
 
 			<!-- Tabla de salones, telares y cantidades -->
-			<div class="border border-gray-300 rounded-lg overflow-hidden">
-				<table class="w-full border-collapse">
+			<div class="border border-gray-300 rounded-lg overflow-visible" style="overflow: visible;">
+				<table class="w-full border-collapse" style="overflow: visible;">
 					<thead class="bg-gray-100">
 						<tr>
-							<th id="th-salon" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">Salón</th>
+							<th id="th-clave-modelo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Clave Modelo</th>
+							<th id="th-producto" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Producto</th>
+							<th id="th-flogs" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="min-width: 200px;">Flogs</th>
+							<th id="th-descripcion" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="min-width: 250px;">Descripcion</th>
+							<th id="th-aplicacion" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Aplicación</th>
 							<th id="th-telar" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Telar</th>
 							<th id="th-pedido-tempo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Pedido</th>
 							<th id="th-porcentaje-segundos" class="py-2 px-3 text-xs font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">% Segundas</th>
@@ -356,49 +355,68 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 							<th id="th-saldo-total" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">Saldo Total</th>
 							<th id="th-saldo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">Saldos</th>
 							<th id="th-obs" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Obs</th>
-							<th class="py-2 px-2 text-center border-b border-gray-300 w-10">
-								<button type="button" id="btn-add-telar-row" class="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Añadir fila">
-									<i class="fas fa-plus-circle text-lg"></i>
-								</button>
-							</th>
+							<th id="th-acciones" class="py-2 px-2 text-center border-b border-gray-300 w-16 hidden font-normal">Líder</th>
 						</tr>
 					</thead>
 					<tbody id="telar-pedido-body">
 						<tr class="telar-row" id="fila-principal">
-							<td class="p-2 border-r border-gray-200 salon-cell hidden">
-								<input type="hidden" name="salon-destino[]" value="${salon}">
+							<td class="p-2 border-r border-gray-200 clave-modelo-cell">
+								<input type="text" value="${claveModelo || ''}" ${claveModeloReadonly}
+									class="${claveModeloClass}">
+							</td>
+							<td class="p-2 border-r border-gray-200 producto-cell">
+								<textarea rows="2" readonly
+									class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${producto || ''}</textarea>
+							</td>
+							<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 200px; position: relative;">
+								<textarea rows="2" ${flogReadonly}
+									class="${flogClass} resize-none">${flog || ''}</textarea>
+							</td>
+							<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 250px;">
+								<textarea rows="2"
+									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none">${descripcion || ''}</textarea>
+							</td>
+							<td class="p-2 border-r border-gray-200 aplicacion-cell">
+								<select name="aplicacion-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+									<option value="">Seleccionar...</option>
+								</select>
 							</td>
 							<td class="p-2 border-r border-gray-200">
 								<select name="telar-destino[]" data-telar-actual="${telar}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
-									${telar ? `<option value="${telar}" selected>${telar}</option>` : '<option value="">Seleccionar...</option>'}
+									${telar ? `<option value="${buildTelarValue(salon, telar)}" selected>${telar}</option>` : '<option value="">Seleccionar...</option>'}
 								</select>
 							</td>
 							<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
 								<input type="number" name="pedido-tempo-destino[]" value="${pedido}" step="0.01" min="0"
-									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+									class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 							</td>
 						<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
 							<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0"
 								placeholder="0.00"
-								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+								class="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 						</td>
 						<td class="p-2 border-r border-gray-200 produccion-cell hidden">
 								<input type="hidden" name="pedido-destino[]" value="${pedido}">
 						</td>
 							<td class="p-2 border-r border-gray-200 saldo-total-cell hidden">
 								<input type="text" value="${saldo || ''}" readonly
-									class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+									class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 							</td>
 							<td class="p-2 border-r border-gray-200 saldo-cell">
 								<input type="number" name="saldo-destino[]" value="${pedido || ''}" step="0.01" min="0"
-									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+									class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 							</td>
 						<td class="p-2 border-r border-gray-200">
-							<input type="text" name="observaciones-destino[]" value=""
+							<textarea rows="2" name="observaciones-destino[]"
 								placeholder="Observaciones..."
-								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-						</td>
-							<td class="p-2 text-center w-10"></td>
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"></textarea>
+							</td>
+				<td class="p-2 text-center acciones-cell">
+					<button type="button" class="btn-remove-row px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors" title="Eliminar fila">
+						<i class="fas fa-times"></i>
+					</button>
+				</td>
+						<input type="hidden" name="salon-destino[]" value="${salon}">
 						</tr>
 					</tbody>
 				</table>
@@ -430,6 +448,10 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const telarActual = telar || '';
 	const confirmButton = Swal.getConfirmButton();
 
+	if (!tbody || !selectHilo || !selectSalon || !selectAplicacion) {
+		return;
+	}
+
 	// Datos de OrdCompartida
 	const ordCompartidaActualLocal = ordCompartidaParam || document.getElementById('ord-compartida-original')?.value || '';
 	const registroIdActual = registroIdParam || document.getElementById('registro-id-original')?.value || '';
@@ -440,9 +462,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	let salonesDisponibles = [];
 	let sugerenciasClaveModelo = [];
 	let sugerenciasFlog = [];
-	let todasOpcionesFlog = [];
+	let todasOpcionesFlog = []; // Mantener para compatibilidad
+	let todasOpcionesFlogGeneral = []; // Todos los flogs disponibles para búsqueda libre (sin filtros)
 	let debounceTimer = null;
 	let debounceTimerFlog = null;
+	let suppressClaveAutocomplete = false;
 	let salonActualLocal = salonActual;
 
 	// Hacer telaresDisponibles y salonesDisponibles globales para que estén disponibles en otras funciones
@@ -551,8 +575,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		const modoActual = getModoActual();
 		const esDuplicar = modoActual === 'duplicar';
 		const telarInputs = document.querySelectorAll('[name="telar-destino[]"]');
-		const salonInputs = document.querySelectorAll('[name="salon-destino[]"]');
 		const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
+		const filas = document.querySelectorAll('#telar-pedido-body tr');
 
 		let firstComplete = false;
 		let hasAnyFilled = false;
@@ -561,6 +585,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		telarInputs.forEach((input, idx) => {
 			const telarVal = input.value.trim();
 			const pedidoVal = (pedidoInputs[idx]?.value || '').trim();
+			const fila = filas[idx];
+			const salonInputFila = fila?.querySelector('input[name="salon-destino[]"]');
+			const salonVal = (salonInputFila?.value || '').trim();
 
 			if (esDuplicar) {
 				if (idx === 0 && telarVal !== '' && pedidoVal !== '') {
@@ -576,8 +603,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					}
 					hasAnyFilled = telarVal !== '';
 				} else {
-					const salonVal = (salonInputs[idx]?.value || '').trim();
-					if (telarVal === '' || pedidoVal === '' || salonVal === '') {
+					if (telarVal === '' || pedidoVal === '') {
 						allDestinationsValid = false;
 					}
 					if (telarVal !== '' || pedidoVal !== '') {
@@ -606,6 +632,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		const thProduccion = document.getElementById('th-produccion');
 		const thSaldoTotal = document.getElementById('th-saldo-total');
 		const thSaldo = document.getElementById('th-saldo');
+		const thAcciones = document.getElementById('th-acciones');
 
 		if (esDuplicar) {
 			// Modo duplicar: telar, pedido, %segundas, saldos
@@ -621,6 +648,19 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				thSaldo.classList.remove('hidden');
 				thSaldo.textContent = 'Saldos';
 			}
+			// ⚡ FIX: Mostrar columna de acciones solo para filas agregadas (no la fila principal)
+			const filasAgregadas = document.querySelectorAll('tr.telar-row:not(#fila-principal)');
+			if (filasAgregadas.length > 0) {
+				// Si hay filas agregadas, mostrar la columna de acciones
+				if (thAcciones) thAcciones.classList.remove('hidden');
+				document.querySelectorAll('tr.telar-row:not(#fila-principal) .acciones-cell').forEach((cell) => cell.classList.remove('hidden'));
+			} else {
+				// Si no hay filas agregadas, ocultar la columna de acciones
+				if (thAcciones) thAcciones.classList.add('hidden');
+				document.querySelectorAll('.acciones-cell').forEach((cell) => cell.classList.add('hidden'));
+			}
+			// La fila principal siempre tiene la columna de acciones oculta
+			document.querySelectorAll('tr#fila-principal .acciones-cell').forEach((cell) => cell.classList.add('hidden'));
 
 			document.querySelectorAll('.salon-cell').forEach((cell) => cell.classList.add('hidden'));
 			document.querySelectorAll('.pedido-tempo-cell').forEach((cell) => cell.classList.remove('hidden'));
@@ -628,14 +668,17 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			document.querySelectorAll('.produccion-cell').forEach((cell) => cell.classList.add('hidden'));
 			document.querySelectorAll('.saldo-total-cell').forEach((cell) => cell.classList.add('hidden'));
 			document.querySelectorAll('.saldo-cell').forEach((cell) => cell.classList.remove('hidden'));
+			// ⚡ FIX: Mostrar columna de acciones solo para filas agregadas (no la fila principal)
+			document.querySelectorAll('tr.telar-row:not(#fila-principal) .acciones-cell').forEach((cell) => cell.classList.remove('hidden'));
+			document.querySelectorAll('tr#fila-principal .acciones-cell').forEach((cell) => cell.classList.add('hidden'));
 		} else {
-			// Modo dividir: salon, telar, pedido, produccion, saldo total (sin %segundas, sin saldos)
+			// Modo dividir: salon, telar, pedido, %segundas, produccion, saldo total
 			if (thSalon) thSalon.classList.remove('hidden');
 			if (thPedidoTempo) {
 				thPedidoTempo.classList.remove('hidden');
 				thPedidoTempo.textContent = 'Pedido';
 			}
-			if (thPorcentajeSegundos) thPorcentajeSegundos.classList.add('hidden');
+			if (thPorcentajeSegundos) thPorcentajeSegundos.classList.remove('hidden');
 			if (thProduccion) {
 				thProduccion.classList.remove('hidden');
 				thProduccion.textContent = 'Produccion';
@@ -647,13 +690,15 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			if (thSaldo) {
 				thSaldo.classList.add('hidden');
 			}
+			if (thAcciones) thAcciones.classList.remove('hidden');
 
 			document.querySelectorAll('.salon-cell').forEach((cell) => cell.classList.remove('hidden'));
 			document.querySelectorAll('.pedido-tempo-cell').forEach((cell) => cell.classList.remove('hidden'));
-			document.querySelectorAll('.porcentaje-segundos-cell').forEach((cell) => cell.classList.add('hidden'));
+			document.querySelectorAll('.porcentaje-segundos-cell').forEach((cell) => cell.classList.remove('hidden'));
 			document.querySelectorAll('.produccion-cell').forEach((cell) => cell.classList.remove('hidden'));
 			document.querySelectorAll('.saldo-total-cell').forEach((cell) => cell.classList.remove('hidden'));
 			document.querySelectorAll('.saldo-cell').forEach((cell) => cell.classList.add('hidden'));
+			document.querySelectorAll('.acciones-cell').forEach((cell) => cell.classList.remove('hidden'));
 
 			// Deshabilitar inputs de pedido SOLO en filas existentes (no en las nuevas)
 			document.querySelectorAll('tr.telar-row[data-es-existente="true"] input[name="pedido-tempo-destino[]"]').forEach((input) => {
@@ -701,6 +746,40 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	window.aplicarVisibilidadColumnas = aplicarVisibilidadColumnas;
 	window.calcularSaldoDuplicar = calcularSaldoDuplicar;
 
+function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicacionOptionsHTML, ringClass, editableClaveModelo, editableFlog }) {
+		const readonlyClass = 'w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed';
+		const editableClass = `w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 ${ringClass}`;
+		const selectClass = `w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 ${ringClass}`;
+		const claveClass = editableClaveModelo
+			? `w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 ${ringClass}`
+			: readonlyClass;
+		const claveReadonly = editableClaveModelo ? '' : 'readonly';
+		const flogClass = editableFlog
+			? `w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 ${ringClass}`
+			: readonlyClass;
+		const flogReadonly = editableFlog ? '' : 'readonly';
+
+		return `
+		<td class="p-2 border-r border-gray-200 clave-modelo-cell">
+			<input type="text" value="${claveModelo || ''}" ${claveReadonly} class="${claveClass}">
+		</td>
+			<td class="p-2 border-r border-gray-200 producto-cell">
+				<textarea rows="2" readonly class="${readonlyClass} resize-none">${producto || ''}</textarea>
+		</td>
+		<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 200px; position: relative;">
+			<textarea rows="2" ${flogReadonly} class="${flogClass} resize-none">${flog || ''}</textarea>
+		</td>
+			<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 250px;">
+				<textarea rows="2" class="${editableClass} resize-none">${descripcion || ''}</textarea>
+			</td>
+			<td class="p-2 border-r border-gray-200 aplicacion-cell">
+				<select name="aplicacion-destino[]" class="${selectClass}">
+					${aplicacionOptionsHTML}
+				</select>
+			</td>
+		`;
+	}
+
 	// Función para reconstruir la tabla según el modo
 	async function reconstruirTablaSegunModo(esDuplicar) {
 		const filasAdicionales = tbody.querySelectorAll('tr:not(#fila-principal)');
@@ -713,10 +792,6 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		if (resumenCantidades) {
 			resumenCantidades.classList.toggle('hidden', esDuplicar);
 		}
-		const thSalon = document.getElementById('th-salon');
-		if (thSalon) {
-			thSalon.classList.toggle('hidden', esDuplicar);
-		}
 		const thSaldoTotal = document.getElementById('th-saldo-total');
 		if (thSaldoTotal) {
 			thSaldoTotal.classList.remove('hidden');
@@ -726,69 +801,128 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		const pedidoOriginal = document.getElementById('pedido-original')?.value || '';
 		const saldoOriginal = document.getElementById('saldo-original')?.value || '';
 		const produccionOriginal = document.getElementById('produccion-original')?.value || '';
+		const claveModelo = document.getElementById('swal-claveModelo')?.value || '';
+		const producto = document.getElementById('swal-producto')?.value || '';
+		const flog = document.getElementById('swal-flog')?.value || '';
+		const descripcion = document.getElementById('swal-descripcion')?.value || '';
+		const aplicacion = document.getElementById('swal-aplicacion')?.value || '';
+
+		// Obtener opciones de aplicación disponibles
+		let aplicacionOptionsHTML = '<option value="">Seleccionar...</option>';
+		const selectAplicacionGlobal = document.getElementById('swal-aplicacion');
+		if (selectAplicacionGlobal && selectAplicacionGlobal.options) {
+			Array.from(selectAplicacionGlobal.options).forEach(option => {
+				if (option.value) {
+					aplicacionOptionsHTML += `<option value="${option.value}"${option.value === aplicacion ? ' selected' : ''}>${option.textContent}</option>`;
+				}
+			});
+		}
 
 		const thTelar = document.getElementById('th-telar');
 		const thPedidoTempo = document.getElementById('th-pedido-tempo');
+		const baseCells = buildBaseInfoCells({
+			claveModelo,
+			producto,
+			flog,
+			descripcion,
+			aplicacionOptionsHTML,
+			ringClass: esDuplicar ? 'focus:ring-blue-500' : 'focus:ring-green-500',
+			editableClaveModelo: esDuplicar,
+			editableFlog: esDuplicar
+		});
 
 		if (esDuplicar) {
 			if (thTelar) thTelar.textContent = 'Telar';
 			if (thPedidoTempo) thPedidoTempo.textContent = 'Pedido';
 
 			filaPrincipal.innerHTML = `
-				<td class="p-2 border-r border-gray-200 salon-cell hidden">
-					<input type="hidden" name="salon-destino[]" value="${selectSalon?.value || salonActualLocal || ''}">
-				</td>
+				${baseCells}
 				<td class="p-2 border-r border-gray-200">
 					<select name="telar-destino[]" data-telar-actual="${telarOriginal}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
-						${telarOriginal ? `<option value="${telarOriginal}" selected>${telarOriginal}</option>` : '<option value="">Seleccionar...</option>'}
+						${telarOriginal ? `<option value="${buildTelarValue(salonActualLocal || salonActual, telarOriginal)}" selected>${telarOriginal}</option>` : '<option value="">Seleccionar...</option>'}
 					</select>
 				</td>
 				<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
 					<input type="number" name="pedido-tempo-destino[]" value="${pedidoOriginal}" step="0.01" min="0"
-						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+						class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
 				<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
 					<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0"
 						placeholder="0.00"
-						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+						class="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
 				<td class="p-2 border-r border-gray-200 produccion-cell hidden">
 					<input type="hidden" name="pedido-destino[]" value="${pedidoOriginal}">
 				</td>
 				<td class="p-2 border-r border-gray-200 saldo-total-cell hidden">
 					<input type="text" value="${saldoOriginal}" readonly
-						class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+						class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 				</td>
 				<td class="p-2 border-r border-gray-200 saldo-cell">
 					<input type="number" name="saldo-destino[]" value="${pedidoOriginal || ''}" step="0.01" min="0"
-						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+						class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
-				<td class="p-2 border-r border-gray-200">
-					<input type="text" name="observaciones-destino[]" value=""
-						placeholder="Observaciones..."
-						class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+						<td class="p-2 border-r border-gray-200">
+							<textarea rows="2" name="observaciones-destino[]"
+								placeholder="Observaciones..."
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"></textarea>
+							</td>
+				<td class="p-2 text-center acciones-cell">
+					<button type="button" class="btn-remove-row px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors" title="Eliminar fila">
+						<i class="fas fa-times"></i>
+					</button>
 				</td>
-				<td class="p-2 text-center w-10"></td>
+				<input type="hidden" name="salon-destino[]" value="${selectSalon?.value || salonActualLocal || ''}">
 			`;
 
 			const selectTelar = filaPrincipal.querySelector('select[name="telar-destino[]"]');
 			if (selectTelar && telaresDisponibles.length > 0) {
-		selectTelar.innerHTML = '<option value="">Seleccionar...</option>';
+				selectTelar.innerHTML = '<option value="">Seleccionar...</option>';
 				telaresDisponibles.forEach(t => {
-			const option = document.createElement('option');
-			option.value = t;
-			option.textContent = t;
-					if (t == telarOriginal) option.selected = true;
-			selectTelar.appendChild(option);
-		});
-	}
+					const option = document.createElement('option');
+					const isObj = t && typeof t === 'object';
+					const optionValue = isObj ? (t.value || t.telar || '') : t;
+					// Solo mostrar el número del telar, sin el salón
+					const optionLabel = isObj ? (t.telar || t.value || '') : t;
+					const optionSalon = isObj ? (t.salon || '') : '';
+					option.value = optionValue;
+					option.textContent = optionLabel;
+					if (optionSalon) option.dataset.salon = optionSalon;
+					// Comparar con telarOriginal usando el valor o el telar del objeto
+					const telarComparar = isObj ? (t.telar || t.value) : t;
+					if (telarComparar == telarOriginal || optionValue == telarOriginal) {
+						option.selected = true;
+					}
+					selectTelar.appendChild(option);
+				});
+			}
 
 			const telarSelect = filaPrincipal.querySelector('select[name="telar-destino[]"]');
 			const pedidoInput = filaPrincipal.querySelector('input[name="pedido-destino[]"]');
 			if (telarSelect) telarSelect.addEventListener('change', recomputeState);
+			if (telarSelect) {
+				telarSelect.addEventListener('change', () => {
+					const hiddenSalon = filaPrincipal.querySelector('input[name="salon-destino[]"]');
+					if (!hiddenSalon) return;
+					const parsed = parseTelarValue(telarSelect.value);
+					if (parsed.salon) hiddenSalon.value = parsed.salon;
+				});
+			}
 			if (pedidoInput) pedidoInput.addEventListener('input', recomputeState);
 
 			agregarListenersCalculoAutomatico(filaPrincipal);
+
+			// ⚡ FIX: Agregar event listener para el botón de eliminar si existe
+			const btnRemoveFilaPrincipal = filaPrincipal.querySelector('.btn-remove-row');
+			if (btnRemoveFilaPrincipal) {
+				btnRemoveFilaPrincipal.addEventListener('click', () => {
+					// No permitir eliminar la fila principal
+					console.warn('No se puede eliminar la fila principal');
+				});
+			}
+
+			// ⚡ FIX: Bindear el textarea de descripción para sincronización bidireccional
+			bindDescripcionEditableInput();
 
 			// Calcular saldo inicial en modo duplicar
 			if (typeof calcularSaldoDuplicar === 'function') {
@@ -805,10 +939,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				}
 			} else {
 				filaPrincipal.innerHTML = `
-					<td class="p-2 border-r border-gray-200 salon-cell">
-						<input type="text" name="salon-destino[]" value="${selectSalon?.value || salonActualLocal || ''}" readonly
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
-					</td>
+					${baseCells}
 					<td class="p-2 border-r border-gray-200">
 						<div class="flex items-center gap-2">
 							<input type="text" name="telar-destino[]" value="${telarOriginal}" readonly
@@ -818,29 +949,35 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					</td>
 					<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
 						<input type="number" name="pedido-tempo-destino[]" value="${pedidoOriginal}" data-pedido-total="true" step="0.01" min="0" readonly
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
-					<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell hidden">
-						<input type="hidden" name="porcentaje-segundos-destino[]" value="0">
+					<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
+						<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0" readonly
+							class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
 					<td class="p-2 border-r border-gray-200 produccion-cell">
 						<input type="text" value="${produccionOriginal || ''}" readonly
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 						<input type="hidden" name="pedido-destino[]" value="${pedidoOriginal}">
 					</td>
 					<td class="p-2 border-r border-gray-200 saldo-total-cell">
 						<input type="text" value="${saldoOriginal}" readonly
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
 					<td class="p-2 border-r border-gray-200">
-						<input type="text" name="observaciones-destino[]" value=""
+						<textarea rows="2" name="observaciones-destino[]"
 							placeholder="Observaciones..."
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"></textarea>
 					</td>
-					<td class="p-2 text-center w-10">
-						<i class="fas fa-lock text-gray-400" title="Telar origen"></i>
+					<td class="p-2 text-center acciones-cell">
+						<div class="w-3 h-3 rounded-full bg-green-500 mx-auto" title="Líder"></div>
 					</td>
 				`;
+				const hiddenSalon = document.createElement('input');
+				hiddenSalon.type = 'hidden';
+				hiddenSalon.name = 'salon-destino[]';
+				hiddenSalon.value = selectSalon?.value || salonActualLocal || '';
+				filaPrincipal.appendChild(hiddenSalon);
 
 				if (typeof agregarFilaDividir === 'function') {
 					agregarFilaDividir();
@@ -861,7 +998,10 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		}
 
 		aplicarVisibilidadColumnas(esDuplicar);
-				recomputeState();
+		bindClaveModeloEditableInput();
+		bindFlogEditableInput();
+		bindDescripcionEditableInput();
+		recomputeState();
 	}
 
 	// Función para actualizar el estilo del switch y reconstruir la tabla
@@ -927,6 +1067,10 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 	// Autocompletado de Clave Modelo
 	function buscarClaveModelo(busqueda) {
+		if (suppressClaveAutocomplete) {
+			suppressClaveAutocomplete = false;
+			return;
+		}
 		const salonParaBuscar = selectSalon?.value || salonActual;
 		if (!salonParaBuscar || busqueda.length < 1) {
 			containerSugerencias.classList.add('hidden');
@@ -971,6 +1115,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	}
 
 	function seleccionarClaveModelo(clave) {
+		clearTimeout(debounceTimer);
+		suppressClaveAutocomplete = true;
 		inputClaveModelo.value = clave;
 		containerSugerencias.classList.add('hidden');
 		cargarDatosRelacionados(clave);
@@ -994,55 +1140,232 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 					inputCodArticulo.value = data.datos.ItemId || '';
 					inputProducto.value = data.datos.Nombre || data.datos.NombreProducto || '';
 
-					if (inputFlog && data.datos.FlogsId) {
-						inputFlog.value = data.datos.FlogsId;
-					}
-
-					if (inputDescripcion) inputDescripcion.value = data.datos.NombreProyecto || '';
+					// NO usar FlogsId ni NombreProyecto de ReqModelosCodificados
+					// El flog y descripción se cargarán desde TI_PRO usando ItemId e InventSizeId
 					if (inputCustname) inputCustname.value = data.datos.CustName || '';
 					if (inputInventSizeId) inputInventSizeId.value = data.datos.InventSizeId || '';
 
 					inputCodArticulo.dispatchEvent(new Event('input', { bubbles: true }));
 					inputProducto.dispatchEvent(new Event('input', { bubbles: true }));
+
+					const itemId = data.datos.ItemId || '';
+					const inventSizeId = data.datos.InventSizeId || '';
+					if (itemId && inventSizeId) {
+						const params = new URLSearchParams();
+						params.append('item_id', itemId);
+						params.append('invent_size_id', inventSizeId);
+
+						fetch('/programa-tejido/flog-by-item?' + params.toString(), {
+							headers: { 'Accept': 'application/json' }
+						})
+							.then(r => {
+								return r.json();
+							})
+							.then(info => {
+
+								// Autocompletar flog y descripción desde TI_PRO
+								// Si no se obtiene, dejar en blanco (el usuario puede escribir libremente)
+								if (info?.idflog) {
+									if (inputFlog) inputFlog.value = info.idflog;
+
+									// La descripción debe ser: NAMEPROYECT (IDFLOG)
+									if (inputDescripcion) {
+										if (info?.nombreProyecto) {
+											const descripcionCompleta = `${info.nombreProyecto} (${info.idflog})`;
+											inputDescripcion.value = descripcionCompleta;
+										} else {
+											// Si no hay nombreProyecto, usar solo el idflog entre paréntesis
+											inputDescripcion.value = `(${info.idflog})`;
+										}
+										inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
+									}
+								} else {
+									if (inputFlog) inputFlog.value = '';
+									if (inputDescripcion) inputDescripcion.value = '';
+								}
+							})
+							.catch((error) => {
+								console.error('[cargarDatosRelacionados] Error al buscar flog desde TI_PRO:', error);
+								// Si hay error, dejar en blanco para que el usuario pueda escribir libremente
+								if (inputFlog) inputFlog.value = '';
+								if (inputDescripcion) inputDescripcion.value = '';
+							});
+					} else {
+						// Si no hay itemId o inventSizeId, dejar en blanco
+						if (inputFlog) inputFlog.value = '';
+						if (inputDescripcion) inputDescripcion.value = '';
+					}
 				}
+				actualizarTelaresPorClaveModelo(tamanoClave);
 			})
 			.catch(() => {});
 	}
 
-	// Autocompletado de Flog
-	async function cargarOpcionesFlog(search = '') {
+	function esSalonJacquardOSmit(salon) {
+		const val = (salon || '').toUpperCase();
+		return val.includes('JAC') || val.includes('SMI') || val.includes('SMIT');
+	}
+
+	function normalizarClaveModelo(valor) {
+		return String(valor || '').trim().toUpperCase();
+	}
+
+	async function existeClaveEnSalon(salon, claveModelo) {
+		const params = new URLSearchParams();
+		params.append('salon_tejido_id', salon);
+		params.append('search', claveModelo);
+
 		try {
-			if (!search && sugerenciasFlog && sugerenciasFlog.length > 0) {
-				mostrarSugerenciasFlog(sugerenciasFlog);
+			const res = await fetch('/programa-tejido/tamano-clave-by-salon?' + params);
+			if (!res.ok) return false;
+			const opciones = await res.json();
+			if (!Array.isArray(opciones)) return false;
+			const claveNorm = normalizarClaveModelo(claveModelo);
+			return opciones.some(op => normalizarClaveModelo(op) === claveNorm);
+		} catch (error) {
+			return false;
+		}
+	}
+
+	function actualizarHiddenSalonPorTelar() {
+		const filas = document.querySelectorAll('#telar-pedido-body tr');
+		filas.forEach(fila => {
+			const telarSelect = fila.querySelector('select[name="telar-destino[]"]');
+			const salonInput = fila.querySelector('input[name="salon-destino[]"]');
+			if (!telarSelect || !salonInput) return;
+			const parsed = typeof window.parseTelarValue === 'function'
+				? window.parseTelarValue(telarSelect.value)
+				: { salon: '' };
+			if (parsed.salon) {
+				salonInput.value = parsed.salon;
+			}
+		});
+	}
+
+	async function actualizarTelaresPorClaveModelo(claveModelo) {
+
+		if (!claveModelo || !Array.isArray(salonesDisponibles) || salonesDisponibles.length === 0) {
+			return;
+		}
+
+		// Buscar en TODOS los salones disponibles, no solo JACQUARD y SMIT
+		const candidatos = salonesDisponibles;
+
+		if (candidatos.length === 0) {
+			return;
+		}
+
+		const claveNorm = normalizarClaveModelo(claveModelo);
+
+		// Verificar en qué salones existe la clave modelo
+		const checks = await Promise.all(candidatos.map(salon => existeClaveEnSalon(salon, claveNorm)));
+
+		const salonesMatch = candidatos.filter((salon, idx) => checks[idx]);
+
+		if (salonesMatch.length === 0) {
+			return;
+		}
+
+		// Si solo hay un salón, preseleccionarlo
+		if (salonesMatch.length === 1 && selectSalon) {
+			selectSalon.value = salonesMatch[0];
+			salonActualLocal = selectSalon.value;
+		}
+
+		// Cargar telares de todos los salones donde existe la clave
+		const telas = await Promise.all(
+			salonesMatch.map(salon =>
+				fetch('/programa-tejido/telares-by-salon?salon_tejido_id=' + encodeURIComponent(salon), {
+					headers: { 'Accept': 'application/json' }
+				}).then(r => r.json()).catch(() => [])
+			)
+		);
+
+
+		const merged = [];
+		salonesMatch.forEach((salon, idx) => {
+			const lista = Array.isArray(telas[idx]) ? telas[idx] : [];
+			lista.forEach(telar => {
+				merged.push({
+					salon,
+					telar,
+					value: buildTelarValue(salon, telar),
+					label: telar
+				});
+			});
+		});
+
+		telaresDisponibles = merged;
+		window.telaresDisponibles = merged;
+
+
+		if (typeof actualizarSelectsTelares === 'function') {
+			actualizarSelectsTelares(true);
+		}
+		actualizarHiddenSalonPorTelar();
+
+	}
+
+	// Autocompletado de Flog - Funciona independientemente de la clave modelo
+	// Permite búsqueda libre de CUALQUIER flog sin restricciones
+	async function cargarOpcionesFlog(search = '') {
+
+		try {
+			// SIEMPRE cargar todos los flogs disponibles (búsqueda libre, sin depender de clave modelo)
+			// Solo cargar del servidor si no los tenemos en caché
+			if (todasOpcionesFlogGeneral.length === 0) {
+				const response = await fetch('/programa-tejido/flogs-id-from-twflogs', {
+					headers: {
+						'Accept': 'application/json',
+						'X-CSRF-TOKEN': getCsrfToken()
+					}
+				});
+
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+
+				const opciones = await response.json();
+				const opcionesArray = Array.isArray(opciones) ? opciones : [];
+				todasOpcionesFlogGeneral = opcionesArray.filter(f => f && String(f).trim()).map(f => String(f).trim());
+			} else {
+			}
+
+			// Verificar que tenemos flogs disponibles
+			if (todasOpcionesFlogGeneral.length === 0) {
+				if (containerSugerenciasFlog) {
+					containerSugerenciasFlog.classList.add('hidden');
+				}
 				return;
 			}
 
-			const response = await fetch('/programa-tejido/flogs-id-from-twflogs', {
-				headers: {
-					'Accept': 'application/json',
-					'X-CSRF-TOKEN': getCsrfToken()
-				}
-			});
+			// Filtrar según la búsqueda del usuario (BÚSQUEDA LIBRE - sin filtros de clave modelo o tamaño)
+			if (search && search.length >= 1) {
+				const searchLower = search.toLowerCase().trim();
 
-			const opciones = await response.json();
-			const opcionesArray = Array.isArray(opciones) ? opciones : [];
+				// SIEMPRE filtrar en TODOS los flogs generales (búsqueda libre, sin filtros)
+				const flogsFiltrados = todasOpcionesFlogGeneral.filter(opcion => {
+					const opcionStr = String(opcion || '').toLowerCase().trim();
+					return opcionStr && opcionStr.includes(searchLower);
+				});
 
-			if (!search) {
-				todasOpcionesFlog = opcionesArray;
+				// Convertir a formato de objetos para mostrar
+				sugerenciasFlog = flogsFiltrados.map(id => ({ idflog: String(id), nombreProyecto: '' }));
+
+			} else if (!search || search.length === 0) {
+				// Si no hay búsqueda, mostrar todos los disponibles (búsqueda libre)
+				sugerenciasFlog = todasOpcionesFlogGeneral.map(id => ({ idflog: String(id), nombreProyecto: '' }));
 			}
 
-			let opcionesFiltradas = opcionesArray;
-			if (search && search.length >= 2) {
-				const searchLower = search.toLowerCase();
-				const opcionesBase = todasOpcionesFlog.length > 0 ? todasOpcionesFlog : opcionesArray;
-				opcionesFiltradas = opcionesBase.filter(opcion =>
-					opcion && String(opcion).toLowerCase().includes(searchLower)
-				);
-			}
 
-			sugerenciasFlog = opcionesFiltradas;
-			mostrarSugerenciasFlog(opcionesFiltradas);
+		// ⚡ DEBUG: Log para verificar cuántas sugerencias se encontraron
+		console.log('[cargarOpcionesFlog] ⚡ Total sugerencias encontradas:', sugerenciasFlog.length);
+		console.log('[cargarOpcionesFlog] ⚡ Primeras 10 sugerencias:', sugerenciasFlog.slice(0, 10));
+
+		// SIEMPRE mostrar las sugerencias (incluso si hay 0, para mostrar "No se encontraron coincidencias")
+		mostrarSugerenciasFlog(sugerenciasFlog);
 		} catch (error) {
+			console.error('[cargarOpcionesFlog] Error:', error);
 			if (containerSugerenciasFlog) {
 				containerSugerenciasFlog.classList.add('hidden');
 			}
@@ -1050,52 +1373,316 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	}
 
 	function mostrarSugerenciasFlog(sugerencias) {
-		if (!containerSugerenciasFlog) return;
+		if (!containerSugerenciasFlog) {
+			return;
+		}
+
+		if (!inputFlog) {
+			return;
+		}
+
 		containerSugerenciasFlog.innerHTML = '';
 
-		if (sugerencias.length === 0) {
+		// ⚡ FIX: Buscar el textarea visible en la fila principal de la tabla, no el input oculto
+		const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+		const flogCell = filaPrincipal ? filaPrincipal.querySelector('.flogs-cell') : null;
+
+		if (flogCell) {
+			// Asegurar que la celda tenga position relative y overflow visible
+			flogCell.style.position = 'relative';
+			flogCell.style.overflow = 'visible';
+			flogCell.style.zIndex = '1';
+
+			// Si el contenedor no está dentro de la celda, moverlo
+			if (!flogCell.contains(containerSugerenciasFlog)) {
+				flogCell.appendChild(containerSugerenciasFlog);
+			}
+
+			// Buscar el textarea visible dentro de la celda
+			const flogTextarea = flogCell.querySelector('textarea') || flogCell.querySelector('input');
+
+			if (flogTextarea) {
+				// Obtener la posición del textarea relativa a la celda
+				const textareaRect = flogTextarea.getBoundingClientRect();
+				const cellRect = flogCell.getBoundingClientRect();
+
+				// ⚡ FIX: Posicionar el contenedor arriba del textarea usando coordenadas absolutas
+				containerSugerenciasFlog.style.position = 'absolute';
+				containerSugerenciasFlog.style.bottom = '100%'; // Posicionar arriba del textarea
+				containerSugerenciasFlog.style.top = 'auto';
+				containerSugerenciasFlog.style.left = '0';
+				containerSugerenciasFlog.style.right = 'auto';
+				containerSugerenciasFlog.style.marginBottom = '2px'; // Pequeño espacio entre el contenedor y el textarea
+				containerSugerenciasFlog.style.width = Math.max(flogTextarea.offsetWidth, 300) + 'px'; // Mínimo 300px de ancho
+				containerSugerenciasFlog.style.zIndex = '99999'; // ⚡ Z-index muy alto para estar por encima de todo (incluido SweetAlert)
+				containerSugerenciasFlog.style.maxHeight = '500px'; // ⚡ Aumentado para mostrar más registros (3 o más)
+				containerSugerenciasFlog.style.overflowY = 'auto';
+				containerSugerenciasFlog.style.overflowX = 'hidden';
+				containerSugerenciasFlog.style.backgroundColor = 'white';
+				containerSugerenciasFlog.style.border = '1px solid #d1d5db';
+				containerSugerenciasFlog.style.borderRadius = '0.375rem';
+				containerSugerenciasFlog.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+				containerSugerenciasFlog.style.display = 'block';
+				containerSugerenciasFlog.style.visibility = 'visible';
+				containerSugerenciasFlog.style.opacity = '1';
+				containerSugerenciasFlog.style.pointerEvents = 'auto';
+				containerSugerenciasFlog.classList.remove('hidden');
+
+				// ⚡ DEBUG: Log para verificar posicionamiento
+				console.log('[mostrarSugerenciasFlog] ⚡ Contenedor posicionado en flogCell:', {
+					cellPosition: flogCell.style.position,
+					containerPosition: containerSugerenciasFlog.style.position,
+					containerZIndex: containerSugerenciasFlog.style.zIndex,
+					containerBottom: containerSugerenciasFlog.style.bottom,
+					containerWidth: containerSugerenciasFlog.style.width,
+					containerMaxHeight: containerSugerenciasFlog.style.maxHeight
+				});
+			}
+		} else {
+			// ⚡ FIX: Si no se encuentra la celda, posicionar el contenedor de forma fija relativo al viewport
+			console.warn('[mostrarSugerenciasFlog] ⚠️ No se encontró flogCell, usando posicionamiento alternativo');
+			containerSugerenciasFlog.style.position = 'fixed';
+			containerSugerenciasFlog.style.zIndex = '99999';
+			containerSugerenciasFlog.style.maxHeight = '500px';
+			containerSugerenciasFlog.style.overflowY = 'auto';
+			containerSugerenciasFlog.style.backgroundColor = 'white';
+			containerSugerenciasFlog.style.border = '1px solid #d1d5db';
+			containerSugerenciasFlog.style.borderRadius = '0.375rem';
+			containerSugerenciasFlog.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+			containerSugerenciasFlog.style.display = 'block';
+			containerSugerenciasFlog.style.visibility = 'visible';
+			containerSugerenciasFlog.style.opacity = '1';
+			containerSugerenciasFlog.style.pointerEvents = 'auto';
+			containerSugerenciasFlog.classList.remove('hidden');
+		}
+
+		if (!sugerencias || sugerencias.length === 0) {
 			const div = document.createElement('div');
 			div.className = 'px-3 py-2 text-gray-500 text-xs italic';
 			div.textContent = 'No se encontraron coincidencias';
 			containerSugerenciasFlog.appendChild(div);
 			containerSugerenciasFlog.classList.remove('hidden');
+			containerSugerenciasFlog.style.display = 'block';
+			containerSugerenciasFlog.style.visibility = 'visible';
 			return;
 		}
 
-		sugerencias.forEach(sugerencia => {
+		// ⚡ DEBUG: Log para verificar cuántas sugerencias se van a mostrar
+		console.log('[mostrarSugerenciasFlog] ⚡ Mostrando', sugerencias.length, 'sugerencias');
+
+		// Si las sugerencias son objetos con idflog y nombreProyecto
+		const esArrayObjetos = Array.isArray(sugerencias) && sugerencias.length > 0 && typeof sugerencias[0] === 'object' && sugerencias[0] !== null && sugerencias[0].idflog;
+
+		// ⚡ FIX: Asegurar que se muestren TODAS las sugerencias, sin límite
+		sugerencias.forEach((sugerencia, index) => {
 			const div = document.createElement('div');
 			div.className = 'px-3 py-2 hover:bg-blue-100 cursor-pointer text-sm';
-			div.textContent = sugerencia;
-			div.addEventListener('click', () => {
-				if (inputFlog) {
-					inputFlog.value = sugerencia;
+
+			if (esArrayObjetos) {
+				// Mostrar idflog y descripción
+				div.innerHTML = `
+					<div class="font-medium">${sugerencia.idflog || ''}</div>
+					<div class="text-xs text-gray-600">${sugerencia.nombreProyecto || ''}</div>
+				`;
+				// ⚡ FIX: Usar mousedown en vez de click para evitar que el blur oculte antes del click
+				div.addEventListener('mousedown', (e) => {
+					e.preventDefault(); // Prevenir que el input pierda el foco
+					e.stopPropagation();
+
+					const flogValue = sugerencia.idflog || '';
+
+					// ⚡ FIX: Actualizar tanto el input oculto como el textarea visible
+					if (inputFlog) {
+						inputFlog.value = flogValue;
+						inputFlog.dispatchEvent(new Event('input', { bubbles: true }));
+					}
+
+					// Actualizar el textarea visible en la fila principal
+					const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+					const flogTextarea = filaPrincipal ? filaPrincipal.querySelector('.flogs-cell textarea') : null;
+					if (flogTextarea) {
+						flogTextarea.value = flogValue;
+						flogTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+					}
+
+					// ⚡ FIX: Ocultar sugerencias inmediatamente después de seleccionar
 					containerSugerenciasFlog.classList.add('hidden');
-					cargarDescripcionPorFlog(sugerencia);
-				}
-			});
+					containerSugerenciasFlog.style.display = 'none';
+
+					// ⚡ FIX: SIEMPRE hacer el get para cargar la descripción automáticamente
+					// No es necesario presionar Enter, se carga automáticamente al hacer click
+					if (flogValue) {
+						cargarDescripcionPorFlog(flogValue).then(() => {
+							// Sincronizar todas las columnas después de cargar la descripción
+							if (typeof actualizarColumnasInformacion === 'function') {
+								actualizarColumnasInformacion();
+							}
+						}).catch(() => {
+							// Si hay error, al menos sincronizar las columnas
+							if (typeof actualizarColumnasInformacion === 'function') {
+								actualizarColumnasInformacion();
+							}
+						});
+					}
+				});
+			} else {
+				// Comportamiento anterior: solo string
+				const flogValue = String(sugerencia || '').trim();
+				if (!flogValue) return; // Saltar si está vacío
+
+				div.textContent = flogValue;
+				// ⚡ FIX: Usar mousedown en vez de click para evitar que el blur oculte antes del click
+				div.addEventListener('mousedown', (e) => {
+					e.preventDefault(); // Prevenir que el input pierda el foco
+					e.stopPropagation();
+
+					// ⚡ FIX: Actualizar tanto el input oculto como el textarea visible
+					if (inputFlog) {
+						inputFlog.value = flogValue;
+						inputFlog.dispatchEvent(new Event('input', { bubbles: true }));
+					}
+
+					// Actualizar el textarea visible en la fila principal
+					const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+					const flogTextarea = filaPrincipal ? filaPrincipal.querySelector('.flogs-cell textarea') : null;
+					if (flogTextarea) {
+						flogTextarea.value = flogValue;
+						flogTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+					}
+
+					// ⚡ FIX: Ocultar sugerencias inmediatamente después de seleccionar
+					containerSugerenciasFlog.classList.add('hidden');
+					containerSugerenciasFlog.style.display = 'none';
+
+					// ⚡ FIX: SIEMPRE hacer el get para cargar la descripción automáticamente
+					cargarDescripcionPorFlog(flogValue).then(() => {
+						// Sincronizar todas las columnas después de cargar la descripción
+						if (typeof actualizarColumnasInformacion === 'function') {
+							actualizarColumnasInformacion();
+						}
+					});
+				});
+			}
+
 			containerSugerenciasFlog.appendChild(div);
 		});
 
+		// ⚡ FIX: Asegurar que el contenedor sea visible y tenga el tamaño correcto
 		containerSugerenciasFlog.classList.remove('hidden');
+		containerSugerenciasFlog.style.display = 'block';
+		containerSugerenciasFlog.style.visibility = 'visible';
+		containerSugerenciasFlog.style.opacity = '1';
+		containerSugerenciasFlog.style.pointerEvents = 'auto';
+
+		// ⚡ FIX: Asegurar que los elementos padre no tengan overflow hidden que corte el autocompletado
+		const tablaContainer = flogCell?.closest('.border.border-gray-300');
+		if (tablaContainer) {
+			tablaContainer.style.overflow = 'visible';
+		}
+		const tbody = flogCell?.closest('tbody');
+		if (tbody) {
+			tbody.style.overflow = 'visible';
+		}
+		const table = flogCell?.closest('table');
+		if (table) {
+			table.style.overflow = 'visible';
+		}
+
+		// ⚡ DEBUG: Verificar que el contenedor esté visible
+		console.log('[mostrarSugerenciasFlog] ⚡ Contenedor visible:', containerSugerenciasFlog.style.display, '| Hidden class:', containerSugerenciasFlog.classList.contains('hidden'));
+		console.log('[mostrarSugerenciasFlog] ⚡ Total elementos agregados:', containerSugerenciasFlog.children.length);
+		console.log('[mostrarSugerenciasFlog] ⚡ Z-index:', containerSugerenciasFlog.style.zIndex);
+	}
+
+	// Nueva función para mostrar sugerencias con descripción (usada cuando se carga desde clave modelo)
+	function mostrarSugerenciasFlogConDescripcion(sugerencias) {
+		mostrarSugerenciasFlog(sugerencias);
 	}
 
 	async function cargarDescripcionPorFlog(flog) {
-		if (!flog || flog.trim() === '') return;
+		if (!flog || flog.trim() === '') {
+			return Promise.resolve();
+		}
+
+		const flogKey = String(flog).trim();
+
+		// ⚡ OPTIMIZACIÓN: Verificar caché primero para respuesta instantánea
+		if (descripcionFlogCache.has(flogKey)) {
+			const cachedData = descripcionFlogCache.get(flogKey);
+			const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+
+			if (inputDescripcion && flog) {
+				let descripcionCompleta = '';
+				if (cachedData.nombreProyecto) {
+					descripcionCompleta = `${cachedData.nombreProyecto} (${flog})`;
+				} else {
+					descripcionCompleta = `(${flog})`;
+				}
+
+				// Actualizar el input oculto
+				inputDescripcion.value = descripcionCompleta;
+				inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
+
+				// Actualizar también el textarea visible de descripción
+				const descripcionTextarea = filaPrincipal ? filaPrincipal.querySelector('.descripcion-cell textarea') : null;
+				if (descripcionTextarea) {
+					descripcionTextarea.value = descripcionCompleta;
+				}
+			}
+
+			return Promise.resolve(cachedData);
+		}
 
 		try {
+			// ⚡ OPTIMIZACIÓN: Usar AbortController para cancelar si hay múltiples requests
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout de 5 segundos
+
 			const response = await fetch(`/programa-tejido/descripcion-by-idflog/${encodeURIComponent(flog)}`, {
 				headers: {
 					'Accept': 'application/json',
 					'X-CSRF-TOKEN': getCsrfToken()
-				}
+				},
+				signal: controller.signal
 			});
 
+			clearTimeout(timeoutId);
 			const data = await response.json();
-			if (inputDescripcion && data.nombreProyecto) {
-				inputDescripcion.value = data.nombreProyecto;
+
+			// ⚡ OPTIMIZACIÓN: Guardar en caché para próximas búsquedas
+			descripcionFlogCache.set(flogKey, data);
+
+			// La descripción debe ser: NAMEPROYECT (IDFLOG)
+			const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+
+			if (inputDescripcion && flog) {
+				let descripcionCompleta = '';
+				if (data.nombreProyecto) {
+					descripcionCompleta = `${data.nombreProyecto} (${flog})`;
+				} else {
+					// Si no hay nombreProyecto, usar solo el flog entre paréntesis
+					descripcionCompleta = `(${flog})`;
+				}
+
+				// Actualizar el input oculto
+				inputDescripcion.value = descripcionCompleta;
 				inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
+
+				// Actualizar también el textarea visible de descripción
+				const descripcionTextarea = filaPrincipal ? filaPrincipal.querySelector('.descripcion-cell textarea') : null;
+				if (descripcionTextarea) {
+					descripcionTextarea.value = descripcionCompleta;
+				}
 			}
+
+			return Promise.resolve(data);
 		} catch (error) {
+			if (error.name === 'AbortError') {
+				console.warn('[cargarDescripcionPorFlog] Request cancelado por timeout');
+			} else {
+				console.error('[cargarDescripcionPorFlog] Error al cargar descripción:', error);
+			}
+			return Promise.reject(error);
 		}
 	}
 
@@ -1116,32 +1703,32 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		}
 	}
 
-	function validarClaveModeloEnSalon(salon, claveModelo) {
+	async function validarClaveModeloEnSalon(salon, claveModelo) {
 		if (!salon || !claveModelo) {
 			ocultarAlertaClaveModelo();
 			return;
 		}
 
-		const params = new URLSearchParams();
-		params.append('salon_tejido_id', salon);
-		params.append('search', claveModelo);
+		const existeEnSalon = await existeClaveEnSalon(salon, claveModelo);
+		if (existeEnSalon) {
+			ocultarAlertaClaveModelo();
+			cargarDatosRelacionados(claveModelo);
+			return;
+		}
 
-		fetch('/programa-tejido/tamano-clave-by-salon?' + params)
-			.then(r => r.json())
-			.then(opciones => {
-				const existe = Array.isArray(opciones) && opciones.some(op => op === claveModelo);
-				if (!existe) {
-					mostrarAlertaClaveModelo(`La clave modelo "${claveModelo}" no se encuentra en los codificados del salón "${salon}".`);
-					inputClaveModelo.value = '';
-					inputCodArticulo.value = '';
-					inputProducto.value = '';
-				} else {
-					ocultarAlertaClaveModelo();
-					cargarDatosRelacionados(claveModelo);
-				}
-			})
-			.catch(() => {
-			});
+		const candidatos = (salonesDisponibles || []).filter(esSalonJacquardOSmit).filter(s => s !== salon);
+		const checks = await Promise.all(candidatos.map(s => existeClaveEnSalon(s, claveModelo)));
+		const salonesMatch = candidatos.filter((s, idx) => checks[idx]);
+		if (salonesMatch.length > 0) {
+			ocultarAlertaClaveModelo();
+			actualizarTelaresPorClaveModelo(claveModelo);
+			return;
+		}
+
+		mostrarAlertaClaveModelo(`La clave modelo "${claveModelo}" no se encuentra en los codificados de Jacquard o SMIT.`);
+		inputClaveModelo.value = '';
+		inputCodArticulo.value = '';
+		inputProducto.value = '';
 	}
 
 	// Event listeners
@@ -1225,8 +1812,17 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		}
 
 		// Procesar telares
-		telaresDisponibles = Array.isArray(dataTelares) ? dataTelares : [];
-		window.telaresDisponibles = telaresDisponibles; // Actualizar global
+		{
+			const baseSalon = selectSalon.value || salonActualLocal || salonActual;
+			const lista = Array.isArray(dataTelares) ? dataTelares : [];
+			telaresDisponibles = lista.map(t => ({
+				salon: baseSalon,
+				telar: t,
+				value: buildTelarValue(baseSalon, t),
+				label: t // Solo mostrar el número del telar, sin el salón
+			}));
+			window.telaresDisponibles = telaresDisponibles; // Actualizar global
+		}
 		if (typeof actualizarSelectsTelares === 'function') {
 			actualizarSelectsTelares(true);
 		}
@@ -1234,6 +1830,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		// Procesar aplicaciones
 		if (dataAplicaciones && (Array.isArray(dataAplicaciones) ? dataAplicaciones.length > 0 : true)) {
 			const aplicacionesArray = Array.isArray(dataAplicaciones) ? dataAplicaciones : [];
+			window.aplicacionesDisponibles = aplicacionesArray;
 			selectAplicacion.innerHTML = '<option value="">Seleccionar...</option>';
 			aplicacionesArray.forEach(item => {
 				const option = document.createElement('option');
@@ -1248,9 +1845,6 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				const optionNA = document.createElement('option');
 				optionNA.value = 'NA';
 				optionNA.textContent = 'NA';
-				if (!aplicacionOriginal && !selectAplicacion.value) {
-					optionNA.selected = true;
-				}
 				selectAplicacion.appendChild(optionNA);
 			}
 			if (aplicacionOriginal && !selectAplicacion.value) {
@@ -1261,7 +1855,14 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			}
 			if (!selectAplicacion.value) {
 				const optNa = Array.from(selectAplicacion.options).find(o => o.value === 'NA');
-				if (optNa) optNa.selected = true;
+				if (optNa) {
+					optNa.selected = true;
+				} else {
+					const firstOption = Array.from(selectAplicacion.options).find(o => o.value);
+					if (firstOption) {
+						firstOption.selected = true;
+					}
+				}
 			}
 		}
 
@@ -1283,6 +1884,177 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 		actualizarEstiloSwitch();
 		recomputeState();
+
+		// ⚡ OPTIMIZACIÓN: Cargar datos iniciales en paralelo si existen valores
+		// (Después de que salones, hilos, telares y aplicaciones ya estén cargados)
+		const claveModeloInicial = inputClaveModelo?.value?.trim() || '';
+		const flogInicial = inputFlog?.value?.trim() || '';
+		const salonInicial = selectSalon?.value || salonActualLocal || salonActual || '';
+
+		// Array de promesas para cargar en paralelo
+		const promesasCargaInicial = [];
+
+		// 1. Cargar datos relacionados de la clave modelo (si existe) y luego buscar flog en TI_PRO
+		if (claveModeloInicial && salonInicial) {
+			const paramsDatos = new URLSearchParams();
+			paramsDatos.append('salon_tejido_id', salonInicial);
+			paramsDatos.append('tamano_clave', claveModeloInicial);
+
+			promesasCargaInicial.push(
+				fetch('/programa-tejido/datos-relacionados?' + paramsDatos.toString(), {
+					method: 'GET',
+					headers: { 'Accept': 'application/json' }
+				})
+					.then(r => r.json())
+					.then(data => {
+						if (data.datos) {
+							const itemId = data.datos.ItemId || '';
+							const inventSizeId = data.datos.InventSizeId || '';
+
+							// Llenar campos básicos
+							if (inputCodArticulo && !inputCodArticulo.value) inputCodArticulo.value = itemId;
+							if (inputProducto && !inputProducto.value) inputProducto.value = data.datos.Nombre || data.datos.NombreProducto || '';
+							if (inputCustname && !inputCustname.value) inputCustname.value = data.datos.CustName || '';
+							if (inputInventSizeId && !inputInventSizeId.value) inputInventSizeId.value = inventSizeId;
+
+							// ⚡ BUSCAR FLOG DIRECTAMENTE EN TI_PRO usando ItemId e InventSizeId
+							if (itemId && inventSizeId) {
+
+								const paramsFlog = new URLSearchParams();
+								paramsFlog.append('item_id', itemId);
+								paramsFlog.append('invent_size_id', inventSizeId);
+
+								return fetch('/programa-tejido/flog-by-item?' + paramsFlog.toString(), {
+									headers: { 'Accept': 'application/json' }
+								})
+									.then(r => r.json())
+									.then(flogData => {
+
+										// Autocompletar flog y descripción desde TI_PRO
+										// Si no se obtiene, dejar en blanco (el usuario puede escribir libremente)
+										if (flogData?.idflog) {
+											if (inputFlog) inputFlog.value = flogData.idflog;
+										} else {
+											if (inputFlog) inputFlog.value = '';
+										}
+
+										// La descripción debe ser: NAMEPROYECT (IDFLOG)
+										if (flogData?.nombreProyecto && flogData?.idflog) {
+											const descripcionCompleta = `${flogData.nombreProyecto} (${flogData.idflog})`;
+											if (inputDescripcion) {
+												inputDescripcion.value = descripcionCompleta;
+												inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
+											}
+										} else if (flogData?.nombreProyecto) {
+											// Si solo hay nombreProyecto sin idflog, usar solo el nombre
+											if (inputDescripcion) {
+												inputDescripcion.value = flogData.nombreProyecto;
+												inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
+											}
+										} else {
+											if (inputDescripcion) inputDescripcion.value = '';
+										}
+
+										return { datos: data.datos, flog: flogData };
+									})
+									.catch(err => {
+										console.error('[initModalDuplicar] Error cargando flog desde TI_PRO:', err);
+										// Si hay error, dejar en blanco para que el usuario pueda escribir libremente
+										if (inputFlog) inputFlog.value = '';
+										if (inputDescripcion) inputDescripcion.value = '';
+										return { datos: data.datos, flog: null };
+									});
+							} else {
+								// Si no hay itemId o inventSizeId, dejar en blanco
+								if (inputFlog) inputFlog.value = '';
+								if (inputDescripcion) inputDescripcion.value = '';
+							}
+
+							return { datos: data.datos, flog: null };
+						}
+						return null;
+					})
+					.catch(err => {
+						console.error('[initModalDuplicar] Error cargando datos relacionados:', err);
+						return null;
+					})
+			);
+		}
+
+		// 3. Cargar telares relacionados con la clave modelo (si existe)
+		// IMPORTANTE: Esto se hace DESPUÉS de que salonesDisponibles esté cargado
+		if (claveModeloInicial && salonesDisponibles && salonesDisponibles.length > 0) {
+			promesasCargaInicial.push(
+				Promise.resolve(actualizarTelaresPorClaveModelo(claveModeloInicial))
+					.catch(err => {
+						console.error('[initModalDuplicar] Error cargando telares relacionados:', err);
+					})
+			);
+		}
+
+		// 4. Cargar todos los flogs generales (para busqueda libre) solo si no hay cache
+		if (todasOpcionesFlogGeneral.length === 0) {
+			promesasCargaInicial.push(
+				fetch('/programa-tejido/flogs-id-from-twflogs', {
+					headers: {
+						'Accept': 'application/json',
+						'X-CSRF-TOKEN': getCsrfToken()
+					}
+				})
+					.then(r => r.json())
+					.then(data => {
+						if (Array.isArray(data)) {
+							todasOpcionesFlogGeneral = data.filter(f => f && String(f).trim()).map(f => String(f).trim());
+						} else {
+							todasOpcionesFlogGeneral = [];
+						}
+						return data;
+					})
+					.catch(err => {
+						console.error('[initModalDuplicar] Error cargando flogs generales:', err);
+						todasOpcionesFlogGeneral = [];
+						return [];
+					})
+			);
+		}
+
+		// 5. Si hay flog inicial, cargar su descripción
+		if (flogInicial && inputDescripcion && !inputDescripcion.value) {
+			promesasCargaInicial.push(
+				fetch(`/programa-tejido/descripcion-by-idflog/${encodeURIComponent(flogInicial)}`, {
+					headers: {
+						'Accept': 'application/json',
+						'X-CSRF-TOKEN': getCsrfToken()
+					}
+				})
+					.then(r => r.json())
+					.then(data => {
+						// La descripción debe ser: NAMEPROYECT (IDFLOG)
+						if (inputDescripcion && flogInicial) {
+							if (data?.nombreProyecto) {
+								const descripcionCompleta = `${data.nombreProyecto} (${flogInicial})`;
+								inputDescripcion.value = descripcionCompleta;
+							} else {
+								// Si no hay nombreProyecto, usar solo el flogInicial entre paréntesis
+								inputDescripcion.value = `(${flogInicial})`;
+							}
+							inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
+						}
+						return data;
+					})
+					.catch(err => {
+						return null;
+					})
+			);
+		}
+
+		// Ejecutar todas las cargas en paralelo
+		if (promesasCargaInicial.length > 0) {
+			Promise.all(promesasCargaInicial)
+				.catch(err => {
+					console.error('[initModalDuplicar] Error en cargas iniciales:', err);
+				});
+		}
 	});
 
 	// Event listeners para autocompletado de Clave Modelo
@@ -1316,27 +2088,68 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	}
 
 	// Event listeners para autocompletado de Flog
+
+	// Inicializar el contenedor de sugerencias de flogs
+	if (containerSugerenciasFlog && inputFlog) {
+		// Asegurar que el contenedor tenga las clases CSS correctas
+		containerSugerenciasFlog.className = 'absolute bg-white border border-gray-300 rounded-b shadow-lg hidden';
+		containerSugerenciasFlog.style.maxHeight = '500px';
+		containerSugerenciasFlog.style.overflowY = 'auto';
+		containerSugerenciasFlog.style.zIndex = '99999'; // ⚡ Z-index muy alto para estar por encima de todo (incluido SweetAlert)
+
+		// ⚡ FIX: Buscar la celda de flogs en la fila principal de la tabla
+		const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+		const flogCell = filaPrincipal ? filaPrincipal.querySelector('.flogs-cell') : null;
+
+		if (flogCell) {
+			// Asegurar que la celda tenga position relative y overflow visible
+			flogCell.style.position = 'relative';
+			flogCell.style.overflow = 'visible';
+
+			if (!flogCell.contains(containerSugerenciasFlog)) {
+				flogCell.appendChild(containerSugerenciasFlog);
+			}
+
+			// Configurar estilos iniciales del contenedor
+			containerSugerenciasFlog.style.position = 'absolute';
+			containerSugerenciasFlog.style.zIndex = '99999'; // ⚡ Aumentado para estar por encima de todo
+			containerSugerenciasFlog.style.display = 'none'; // Oculto inicialmente
+		}
+	}
+
 	if (inputFlog && containerSugerenciasFlog) {
+
+		// Event listener para cuando el usuario escribe (búsqueda libre)
 		inputFlog.addEventListener('input', (e) => {
 			clearTimeout(debounceTimerFlog);
-			const valor = e.target.value;
-			if (valor.length >= 2) {
-				debounceTimerFlog = setTimeout(() => cargarOpcionesFlog(valor), 300);
+			const valor = e.target.value.trim();
+
+			if (valor.length >= 1) {
+				// Reducir debounce para que aparezcan más rápido las sugerencias
+				debounceTimerFlog = setTimeout(() => {
+					cargarOpcionesFlog(valor);
+				}, 100); // Reducido a 100ms para respuesta más rápida
 			} else {
 				containerSugerenciasFlog.classList.add('hidden');
 			}
 		});
 
 		inputFlog.addEventListener('focus', async () => {
-			if (sugerenciasFlog && sugerenciasFlog.length > 0) {
-				mostrarSugerenciasFlog(sugerenciasFlog);
-				} else {
-				await cargarOpcionesFlog('');
-			}
+			// SIEMPRE cargar todos los flogs disponibles (búsqueda libre)
+			// Si hay flogs desde clave modelo, se mostrarán primero, pero también se mostrarán todos los demás
+			await cargarOpcionesFlog('');
 		});
 
-		inputFlog.addEventListener('blur', () => {
-			setTimeout(() => containerSugerenciasFlog.classList.add('hidden'), 200);
+		inputFlog.addEventListener('blur', (e) => {
+			// ⚡ FIX: Verificar si el click fue en el contenedor de sugerencias antes de ocultar
+			setTimeout(() => {
+				// Solo ocultar si el nuevo elemento activo no está dentro del contenedor de sugerencias
+				const activeElement = document.activeElement;
+				if (!containerSugerenciasFlog.contains(activeElement)) {
+					containerSugerenciasFlog.classList.add('hidden');
+					containerSugerenciasFlog.style.display = 'none';
+				}
+			}, 200);
 		});
 
 		inputFlog.addEventListener('keydown', (e) => {
@@ -1348,6 +2161,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				}
 			}
 		});
+
+	} else {
 	}
 
 	// Event listener para cambio de salón
@@ -1379,6 +2194,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 		if (typeof agregarFilaDuplicar === 'function') {
 			agregarFilaDuplicar();
+			// ⚡ FIX: Mostrar columna de acciones después de agregar una fila
+			const thAcciones = document.getElementById('th-acciones');
+			if (thAcciones) thAcciones.classList.remove('hidden');
 		}
 		recomputeState();
 	});
@@ -1414,6 +2232,170 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			if (switchModo) switchModo.checked = false;
 			actualizarEstiloSwitch();
 		});
+	}
+
+	// Función para actualizar las columnas de información en todas las filas
+	function actualizarColumnasInformacion() {
+		const claveModelo = document.getElementById('swal-claveModelo')?.value || '';
+		const producto = document.getElementById('swal-producto')?.value || '';
+		const flog = document.getElementById('swal-flog')?.value || '';
+		const descripcion = document.getElementById('swal-descripcion')?.value || '';
+
+		// Actualizar todas las filas de la tabla
+		const filas = document.querySelectorAll('#telar-pedido-body tr.telar-row');
+		filas.forEach(fila => {
+			const claveModeloInput = fila.querySelector('.clave-modelo-cell input');
+			const productoInput = fila.querySelector('.producto-cell textarea') || fila.querySelector('.producto-cell input');
+			const flogsInput = fila.querySelector('.flogs-cell textarea') || fila.querySelector('.flogs-cell input');
+			const descripcionInput = fila.querySelector('.descripcion-cell textarea') || fila.querySelector('.descripcion-cell input');
+
+			if (claveModeloInput) claveModeloInput.value = claveModelo;
+			if (productoInput) productoInput.value = producto;
+			if (flogsInput) flogsInput.value = flog;
+			if (descripcionInput) descripcionInput.value = descripcion;
+		});
+	}
+
+	// ⚡ FIX: Función para sincronizar descripción desde la tabla hacia el input oculto
+	function bindDescripcionEditableInput() {
+		const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+		const descripcionTextarea = filaPrincipal ? filaPrincipal.querySelector('.descripcion-cell textarea') : null;
+		const inputDescripcion = document.getElementById('swal-descripcion');
+
+		if (!descripcionTextarea || !inputDescripcion) return;
+
+		// Evitar múltiples bindings
+		if (descripcionTextarea.dataset.ptDescripcionBound === '1') return;
+		descripcionTextarea.dataset.ptDescripcionBound = '1';
+
+		// Sincronizar desde el textarea visible hacia el input oculto y actualizar todas las filas
+		descripcionTextarea.addEventListener('input', (e) => {
+			if (inputDescripcion) {
+				inputDescripcion.value = e.target.value;
+				inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
+				// Actualizar todas las filas con la nueva descripción
+				if (typeof actualizarColumnasInformacion === 'function') {
+					actualizarColumnasInformacion();
+				}
+			}
+		});
+
+		descripcionTextarea.addEventListener('change', (e) => {
+			if (inputDescripcion) {
+				inputDescripcion.value = e.target.value;
+				inputDescripcion.dispatchEvent(new Event('change', { bubbles: true }));
+				// Actualizar todas las filas con la nueva descripción
+				if (typeof actualizarColumnasInformacion === 'function') {
+					actualizarColumnasInformacion();
+				}
+			}
+		});
+	}
+
+	function bindClaveModeloEditableInput() {
+		const claveModeloInput = document.querySelector('#telar-pedido-body tr#fila-principal .clave-modelo-cell input');
+		if (!claveModeloInput || !inputClaveModelo) return;
+		if (getModoActual() !== 'duplicar') return;
+		if (claveModeloInput.dataset.ptClaveBound === '1') return;
+		claveModeloInput.dataset.ptClaveBound = '1';
+
+		const syncClave = () => {
+			inputClaveModelo.value = claveModeloInput.value;
+			inputClaveModelo.dispatchEvent(new Event('input', { bubbles: true }));
+		};
+
+		claveModeloInput.addEventListener('input', syncClave);
+		claveModeloInput.addEventListener('change', syncClave);
+		claveModeloInput.addEventListener('blur', () => {
+			const val = claveModeloInput.value?.trim();
+			if (val) cargarDatosRelacionados(val);
+		});
+		claveModeloInput.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				const val = claveModeloInput.value?.trim();
+				if (val) cargarDatosRelacionados(val);
+			}
+		});
+	}
+
+	function bindFlogEditableInput() {
+		const flogInput = document.querySelector('#telar-pedido-body tr#fila-principal .flogs-cell textarea') || document.querySelector('#telar-pedido-body tr#fila-principal .flogs-cell input');
+		if (!flogInput || !inputFlog) return;
+		if (getModoActual() !== 'duplicar') return;
+		if (flogInput.dataset.ptFlogBound === '1') return;
+		flogInput.dataset.ptFlogBound = '1';
+
+		const syncFlog = () => {
+			inputFlog.value = flogInput.value;
+			// Disparar el evento input en inputFlog para activar el autocompletado
+			inputFlog.dispatchEvent(new Event('input', { bubbles: true }));
+		};
+
+		// ⚡ FIX: Agregar event listener para mostrar sugerencias cuando se escribe en el textarea visible
+		flogInput.addEventListener('input', (e) => {
+			syncFlog();
+			// Mostrar sugerencias cuando se escribe
+			const valor = e.target.value.trim();
+			if (valor.length >= 1) {
+				clearTimeout(debounceTimerFlog);
+				debounceTimerFlog = setTimeout(() => {
+					cargarOpcionesFlog(valor);
+				}, 100);
+			} else {
+				if (containerSugerenciasFlog) containerSugerenciasFlog.classList.add('hidden');
+			}
+		});
+
+		flogInput.addEventListener('change', syncFlog);
+
+		flogInput.addEventListener('focus', async () => {
+			// Mostrar todas las sugerencias cuando se enfoca el textarea
+			if (flogInput.value && flogInput.value.trim().length >= 1) {
+				await cargarOpcionesFlog(flogInput.value.trim());
+			} else {
+				await cargarOpcionesFlog('');
+			}
+		});
+
+		flogInput.addEventListener('blur', (e) => {
+			// ⚡ FIX: Verificar si el click fue en el contenedor de sugerencias antes de ocultar
+			setTimeout(() => {
+				// Solo ocultar si el nuevo elemento activo no está dentro del contenedor de sugerencias
+				const activeElement = document.activeElement;
+				if (containerSugerenciasFlog && !containerSugerenciasFlog.contains(activeElement)) {
+					containerSugerenciasFlog.classList.add('hidden');
+					containerSugerenciasFlog.style.display = 'none';
+				}
+			}, 200);
+			const val = flogInput.value?.trim();
+			if (val) cargarDescripcionPorFlog(val);
+		});
+
+		flogInput.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				if (containerSugerenciasFlog) containerSugerenciasFlog.classList.add('hidden');
+				const val = flogInput.value?.trim();
+				if (val) cargarDescripcionPorFlog(val);
+			}
+		});
+	}
+
+	// Event listeners para actualizar columnas cuando cambian los campos del formulario
+	if (inputClaveModelo) {
+		inputClaveModelo.addEventListener('input', actualizarColumnasInformacion);
+		inputClaveModelo.addEventListener('change', actualizarColumnasInformacion);
+	}
+	if (inputProducto) {
+		inputProducto.addEventListener('input', actualizarColumnasInformacion);
+	}
+	if (inputFlog) {
+		inputFlog.addEventListener('input', actualizarColumnasInformacion);
+		inputFlog.addEventListener('change', actualizarColumnasInformacion);
+	}
+	if (inputDescripcion) {
+		inputDescripcion.addEventListener('input', actualizarColumnasInformacion);
 	}
 
 	// Event listener para el checkbox de vincular
@@ -1485,7 +2467,7 @@ function validarYCapturarDatosDuplicar() {
 	const pedido = document.getElementById('swal-pedido').value;
 	const flog = document.getElementById('swal-flog').value;
 	const salon = document.getElementById('swal-salon').value;
-	const aplicacion = document.getElementById('swal-aplicacion').value;
+	const aplicacion = document.getElementById('swal-aplicacion')?.value || '';
 	// Modo: duplicar o dividir
 	const modo = getModoActual();
 	// Verificar si el checkbox de vincular está activo
@@ -1501,29 +2483,33 @@ function validarYCapturarDatosDuplicar() {
 	const ordCompartidaExistente = vincular ? null : (ordCompartidaExistenteRaw || null);
 	const registroIdOriginal = document.getElementById('registro-id-original')?.value || '';
 
-	// Capturar múltiples filas de telar/pedido-tempo/observaciones/pedido/porcentaje_segundos
+	// Capturar múltiples filas de telar/pedido-tempo/observaciones/pedido/porcentaje_segundos/aplicacion
 	// Nota: en modo dividir, el primer telar es un input readonly, no un select
 	const telarInputs = document.querySelectorAll('[name="telar-destino[]"]'); // Captura tanto select como input
-	const salonInputs = document.querySelectorAll('[name="salon-destino[]"]');
 	const pedidoTempoInputs = document.querySelectorAll('input[name="pedido-tempo-destino[]"]');
 	const pedidoInputs = document.querySelectorAll('input[name="pedido-destino[]"]');
-	const observacionesInputs = document.querySelectorAll('input[name="observaciones-destino[]"]');
+	const observacionesInputs = document.querySelectorAll('textarea[name="observaciones-destino[]"]');
 	const porcentajeSegundosInputs = document.querySelectorAll('input[name="porcentaje-segundos-destino[]"]');
 	const saldoInputs = document.querySelectorAll('input[name="saldo-destino[]"]');
+	const aplicacionInputs = document.querySelectorAll('select[name="aplicacion-destino[]"]');
 	const filas = document.querySelectorAll('#telar-pedido-body tr');
 	const destinos = [];
 	const esDuplicar = modo === 'duplicar';
 
 	telarInputs.forEach((input, idx) => {
-		const telarVal = input.value.trim();
-		const salonVal = (salonInputs[idx]?.value || salon || '').trim();
+		const telarRaw = input.value.trim();
+		const parsedTelar = parseTelarValue(telarRaw);
+		const telarVal = parsedTelar.telar || telarRaw;
+		const fila = filas[idx];
+		const salonInputFila = fila?.querySelector('input[name="salon-destino[]"]');
+		const salonVal = (salonInputFila?.value || parsedTelar.salon || salon || '').trim();
 		const pedidoTempoVal = pedidoTempoInputs[idx]?.value.trim() || null;
 		const pedidoVal = pedidoInputs[idx]?.value.trim() || '';
 		const observacionesVal = observacionesInputs[idx]?.value.trim() || null;
 		const porcentajeSegundosVal = porcentajeSegundosInputs[idx]?.value.trim() || null;
 		const saldoVal = saldoInputs[idx]?.value.trim() || '';
+		const aplicacionVal = aplicacionInputs[idx]?.value.trim() || null;
 		const registroId = input.dataset?.registroId || pedidoInputs[idx]?.dataset?.registroId || '';
-		const fila = filas[idx];
 		const esExistente = fila?.dataset?.esExistente === 'true';
 		const esNuevo = fila?.dataset?.esNuevo === 'true';
 
@@ -1542,6 +2528,7 @@ function validarYCapturarDatosDuplicar() {
 				saldo: saldoFinal, // SaldoPedido (con % de segundas)
 				observaciones: observacionesVal,
 				porcentaje_segundos: porcentajeSegundosVal ? parseFloat(porcentajeSegundosVal) : null,
+				aplicacion: aplicacionVal,
 				registro_id: registroId,
 				es_existente: esExistente,
 				es_nuevo: esNuevo

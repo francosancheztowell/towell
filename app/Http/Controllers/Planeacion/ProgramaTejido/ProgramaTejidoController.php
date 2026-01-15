@@ -27,6 +27,8 @@ use Illuminate\Support\Facades\Log as LogFacade;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Models\Planeacion\ReqCalendarioLine;
+use App\Models\Planeacion\ReqMatrizHilos;
 /**
  * Controlador para gestionar el programa de tejido
  */
@@ -220,8 +222,7 @@ class ProgramaTejidoController extends Controller
                 ReqProgramaTejido::where('SalonTejidoId', $salon)
                     ->where('NoTelarId', $noTelarId)
                     ->where(function ($query) {
-                        $query->where('Ultimo', '1')
-                            ->orWhere('Ultimo', 'UL');
+                        $query->where('Ultimo', '1');
                     })
                     ->update(['Ultimo' => 0]);
 
@@ -313,8 +314,6 @@ class ProgramaTejidoController extends Controller
                 $nuevo->CreatedAt = now();
                 $nuevo->UpdatedAt = now();
                 $nuevo->save();
-
-                LogFacade::info('ProgramaTejido.store - guardado', $nuevo->getAttributes());
                 $creados[] = $nuevo;
             }
 
@@ -327,7 +326,6 @@ class ProgramaTejidoController extends Controller
             ]);
         } catch (\Throwable $e) {
             DBFacade::rollBack();
-            LogFacade::error('ProgramaTejido.store error', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(['success' => false, 'message' => 'Error al crear programa de tejido: ' . $e->getMessage()], 500);
         }
     }
@@ -371,7 +369,7 @@ class ProgramaTejidoController extends Controller
             $q->where('TamanoClave', 'LIKE', "%{$search}%");
         }
 
-        $op = $q->distinct()->limit(50)->get()->pluck('TamanoClave')->filter()->values();
+        $op = $q->distinct()->limit(50)->pluck('TamanoClave')->filter()->values();
         return response()->json($op);
     }
 
@@ -397,16 +395,17 @@ class ProgramaTejidoController extends Controller
     public function getFlogsIdFromTwFlogsTable()
     {
         try {
+            // Segunda consulta: Obtener todos los flogs disponibles para búsqueda libre
+            // SELECT ft.IDFLOG, ft.NAMEPROYECT
+            // FROM dbo.TwFlogsTable AS ft
+            // WHERE ft.EstadoFlog IN (3,4,5,21)
             $op = DBFacade::connection('sqlsrv_ti')
-                ->table('dbo.TwFlogsTable as f')
-                ->select('f.IDFLOG')
-                ->whereIn('f.ESTADOFLOG', [4, 5])
-                ->whereIn('f.TIPOPEDIDO', [1, 2, 3])
-                ->where('f.DATAAREAID', 'PRO')
-                ->whereNotNull('f.IDFLOG')
+                ->table('dbo.TwFlogsTable as ft')
+                ->select('ft.IDFLOG')
+                ->whereIn('ft.EstadoFlog', [3, 4, 5, 21])
+                ->whereNotNull('ft.IDFLOG')
                 ->distinct()
-                ->orderBy('f.IDFLOG')
-                ->get()
+                ->orderBy('ft.IDFLOG')
                 ->pluck('IDFLOG')
                 ->filter()
                 ->values();
@@ -421,16 +420,242 @@ class ProgramaTejidoController extends Controller
     public function getDescripcionByIdFlog($idflog)
     {
         try {
+            // Obtener NAMEPROYECT directamente desde TwFlogsTable usando el IDFLOG
+            // La descripción será igual a NAMEPROYECT del FLOGID
             $row = DBFacade::connection('sqlsrv_ti')
-                ->table('dbo.TwFlogsTable as f')
-                ->select('f.NAMEPROYECT as NombreProyecto')
-                ->where('f.IDFLOG', $idflog)
+                ->table('dbo.TwFlogsTable as ft')
+                ->select('ft.NAMEPROYECT as NombreProyecto')
+                ->where('ft.IDFLOG', trim((string)$idflog))
                 ->first();
 
-            return response()->json(['nombreProyecto' => $row->NombreProyecto ?? '']);
+            // Asegurar que NAMEPROYECT se retorne correctamente (trim para limpiar espacios)
+            $nombreProyecto = $row ? trim((string)($row->NombreProyecto ?? '')) : '';
+
+            LogFacade::info('getDescripcionByIdFlog resultado', [
+                'idflog' => $idflog,
+                'nombreProyecto' => $nombreProyecto
+            ]);
+
+            return response()->json(['nombreProyecto' => $nombreProyecto]);
         } catch (\Throwable $e) {
             LogFacade::error('getDescripcionByIdFlog', ['idflog' => $idflog, 'msg' => $e->getMessage()]);
             return response()->json(['nombreProyecto' => ''], 500);
+        }
+    }
+
+    public function getFlogByItem(Request $request)
+    {
+        // Validar que se proporcione item_id e invent_size_id, O tamano_clave y salon_tejido_id
+        $hasItemId = $request->has('item_id') && $request->has('invent_size_id');
+        $hasTamanoClave = $request->has('tamano_clave') && $request->has('salon_tejido_id');
+
+        if (!$hasItemId && !$hasTamanoClave) {
+            return response()->json([
+                'error' => 'Se requiere item_id e invent_size_id, o tamano_clave y salon_tejido_id'
+            ], 400);
+        }
+
+        $itemId = null;
+        $inventSizeId = null;
+
+        // Si se proporciona tamano_clave, obtener ItemId e InventSizeId desde ReqModelosCodificados
+        if ($hasTamanoClave) {
+            $tamanoClave = trim((string) $request->input('tamano_clave'));
+            $salonTejidoId = trim((string) $request->input('salon_tejido_id'));
+
+            $modelo = ReqModelosCodificados::where('SalonTejidoId', $salonTejidoId)
+                ->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tamanoClave)])
+                ->select('ItemId', 'InventSizeId')
+                ->first();
+
+            if (!$modelo) {
+                // Intentar con LIKE
+                $modelo = ReqModelosCodificados::where('SalonTejidoId', $salonTejidoId)
+                    ->whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tamanoClave) . '%'])
+                    ->select('ItemId', 'InventSizeId')
+                    ->first();
+            }
+
+            if ($modelo && $modelo->ItemId && $modelo->InventSizeId) {
+                $itemId = trim((string) $modelo->ItemId);
+                $inventSizeId = trim((string) $modelo->InventSizeId);
+            } else {
+                return response()->json([
+                    'idflog' => null,
+                    'nombreProyecto' => '',
+                    'error' => 'No se encontró ItemId e InventSizeId para la clave modelo proporcionada'
+                ]);
+            }
+        } else {
+            $itemId = trim((string) $request->input('item_id'));
+            $inventSizeId = trim((string) $request->input('invent_size_id'));
+        }
+
+        try {
+            // Primera consulta: Obtener flog y descripción basado en itemId e inventSizeId
+            // SELECT ft.IDFLOG, ft.NAMEPROYECT
+            // FROM dbo.TwFlogsItemLine AS fil
+            // JOIN dbo.TwFlogsTable AS ft ON ft.idFlog = fil.IdFlog
+            // WHERE fil.itemId = '7267' AND fil.inventSizeId = 'MB' AND ft.EstadoFlog IN (3,4,5,21)
+            // Ordenar por IDFLOG descendente para obtener el más reciente (mayor número)
+            $rows = DBFacade::connection('sqlsrv_ti')
+                ->table('dbo.TwFlogsItemLine as fil')
+                ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'fil.IDFLOG')
+                ->select('ft.IDFLOG as IdFlog', 'ft.NAMEPROYECT as NombreProyecto')
+                ->whereRaw('LTRIM(RTRIM(fil.ITEMID)) = ?', [$itemId])
+                ->whereRaw('LTRIM(RTRIM(fil.INVENTSIZEID)) = ?', [$inventSizeId])
+                ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
+                ->orderByDesc('ft.IDFLOG')
+                ->get();
+
+            // Log todos los flogs encontrados para debugging
+            LogFacade::info('getFlogByItem - Flogs encontrados', [
+                'item_id' => $itemId,
+                'invent_size_id' => $inventSizeId,
+                'total_flogs' => $rows->count(),
+                'flogs' => $rows->map(function ($r) {
+                    return [
+                        'idflog' => $r->IdFlog ?? null,
+                        'nombreProyecto' => $r->NombreProyecto ?? ''
+                    ];
+                })->toArray()
+            ]);
+
+            // Si hay múltiples flogs, ordenar numéricamente por el número al final del IDFLOG
+            // Esto asegura que F000827 venga antes que F000826
+            $row = $rows->sortByDesc(function ($item) {
+                $idflog = trim((string)($item->IdFlog ?? ''));
+                // Extraer el número al final del IDFLOG (ej: RS-JUL24-LGONZ-F000827 -> 827)
+                if (preg_match('/(\d+)$/', $idflog, $matches)) {
+                    return (int)$matches[1];
+                }
+                // Si no hay número, usar orden alfabético inverso
+                return 0;
+            })->first();
+
+            // Asegurar que NAMEPROYECT se retorne correctamente (trim para limpiar espacios)
+            $idflog = $row ? trim((string)($row->IdFlog ?? '')) : null;
+            $nombreProyecto = $row ? trim((string)($row->NombreProyecto ?? '')) : '';
+
+            LogFacade::info('getFlogByItem resultado final', [
+                'item_id' => $itemId,
+                'invent_size_id' => $inventSizeId,
+                'idflog_seleccionado' => $idflog,
+                'nombreProyecto' => $nombreProyecto
+            ]);
+
+            return response()->json([
+                'idflog' => $idflog,
+                'nombreProyecto' => $nombreProyecto,
+            ]);
+        } catch (\Throwable $e) {
+            LogFacade::error('getFlogByItem', [
+                'item_id' => $itemId,
+                'invent_size_id' => $inventSizeId,
+                'msg' => $e->getMessage()
+            ]);
+            return response()->json(['idflog' => null, 'nombreProyecto' => ''], 500);
+        }
+    }
+
+    /**
+     * Obtener múltiples opciones de Flogs basadas en tamano_clave
+     * Busca en todos los salones donde existe la clave modelo
+     * Para autocompletado en el modal
+     */
+    public function getFlogsByTamanoClave(Request $request)
+    {
+        $request->validate([
+            'tamano_clave' => 'required|string',
+        ]);
+
+        $tamanoClave = trim((string) $request->input('tamano_clave'));
+        $salonTejidoId = $request->input('salon_tejido_id'); // Opcional, si se proporciona busca solo en ese salón
+
+        try {
+            // Buscar en todos los salones donde existe la clave modelo
+            $query = ReqModelosCodificados::whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tamanoClave)])
+                ->select('ItemId', 'InventSizeId', 'SalonTejidoId')
+                ->whereNotNull('ItemId')
+                ->whereNotNull('InventSizeId')
+                ->where('ItemId', '!=', '')
+                ->where('InventSizeId', '!=', '');
+
+            // Si se proporciona salon_tejido_id, filtrar por ese salón
+            if ($salonTejidoId) {
+                $query->where('SalonTejidoId', trim((string) $salonTejidoId));
+            }
+
+            $modelos = $query->get();
+
+            if ($modelos->isEmpty()) {
+                // Intentar con LIKE si no se encontró con búsqueda exacta
+                $queryLike = ReqModelosCodificados::whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tamanoClave) . '%'])
+                    ->select('ItemId', 'InventSizeId', 'SalonTejidoId')
+                    ->whereNotNull('ItemId')
+                    ->whereNotNull('InventSizeId')
+                    ->where('ItemId', '!=', '')
+                    ->where('InventSizeId', '!=', '');
+
+                if ($salonTejidoId) {
+                    $queryLike->where('SalonTejidoId', trim((string) $salonTejidoId));
+                }
+
+                $modelos = $queryLike->get();
+            }
+
+            if ($modelos->isEmpty()) {
+                return response()->json([]);
+            }
+
+            // Obtener todos los ItemId e InventSizeId únicos
+            $items = $modelos->map(function ($m) {
+                return [
+                    'itemId' => trim((string) $m->ItemId),
+                    'inventSizeId' => trim((string) $m->InventSizeId),
+                ];
+            })->unique(function ($item) {
+                return $item['itemId'] . '|' . $item['inventSizeId'];
+            })->values();
+
+            // Buscar flogs para cada combinación de ItemId e InventSizeId
+            $allFlogs = collect();
+            foreach ($items as $item) {
+                $flogs = DBFacade::connection('sqlsrv_ti')
+                    ->table('dbo.TwFlogsItemLine as il')
+                    ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'il.IDFLOG')
+                    ->select('il.IDFLOG as IdFlog', 'ft.NAMEPROYECT as NombreProyecto')
+                    ->whereRaw('LTRIM(RTRIM(il.ITEMID)) = ?', [$item['itemId']])
+                    ->whereRaw('LTRIM(RTRIM(il.INVENTSIZEID)) = ?', [$item['inventSizeId']])
+                    ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
+                    ->orderByDesc('ft.IDFLOG')
+                    ->get();
+
+                $allFlogs = $allFlogs->merge($flogs);
+            }
+
+            // Eliminar duplicados y ordenar
+            $result = $allFlogs->unique('IdFlog')
+                ->map(function ($row) {
+                    return [
+                        'idflog' => $row->IdFlog ?? null,
+                        'nombreProyecto' => $row->NombreProyecto ?? '',
+                    ];
+                })
+                ->filter(function ($item) {
+                    return !empty($item['idflog']);
+                })
+                ->sortByDesc('idflog')
+                ->values();
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            LogFacade::error('getFlogsByTamanoClave', [
+                'tamano_clave' => $tamanoClave,
+                'salon_tejido_id' => $salonTejidoId,
+                'msg' => $e->getMessage()
+            ]);
+            return response()->json([], 500);
         }
     }
 
@@ -443,7 +668,8 @@ class ProgramaTejidoController extends Controller
     public function getCalendarioLineas($calendarioId)
     {
         try {
-            $lineas = \App\Models\Planeacion\ReqCalendarioLine::where('CalendarioId', $calendarioId)
+            $lineas = ReqCalendarioLine::where('CalendarioId', $calendarioId)
+                ->select(['Id', 'CalendarioId', 'FechaInicio', 'FechaFin', 'HorasTurno', 'Turno'])
                 ->orderBy('FechaInicio')
                 ->get()
                 ->map(function ($linea) {
@@ -598,8 +824,8 @@ class ProgramaTejidoController extends Controller
                 ->salon($salon)
                 ->whereNotNull('NoTelarId')
                 ->distinct()
+                ->orderBy('NoTelarId')
                 ->pluck('NoTelarId')
-                ->sort()
                 ->values()
                 ->toArray();
 
@@ -640,7 +866,7 @@ class ProgramaTejidoController extends Controller
     public function getHilosOptions()
     {
         try {
-            $op = \App\Models\Planeacion\ReqMatrizHilos::query()
+            $op = ReqMatrizHilos::query()
                 ->whereNotNull('Hilo')
                 ->where('Hilo', '!=', '')
                 ->distinct()
@@ -1548,14 +1774,10 @@ class ProgramaTejidoController extends Controller
     public function getAllRegistrosJson()
     {
         try {
-            $registros = ReqProgramaTejido::select([
-                'Id',
-                'NoTelarId',
-                'NombreProducto'
-            ])
-            ->orderBy('NoTelarId')
-            ->orderBy('Id')
-            ->get();
+            $registros = ReqProgramaTejido::query()
+                ->orderBy('NoTelarId')
+                ->orderBy('Id')
+                ->get(['Id', 'NoTelarId', 'NombreProducto']);
 
             return response()->json([
                 'success' => true,
