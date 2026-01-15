@@ -339,6 +339,9 @@
         // Guardar en sessionStorage que se está yendo a editar
         sessionStorage.setItem('editandoFolio', folio);
         sessionStorage.setItem('editandoTimestamp', Date.now().toString());
+        // Marcar que venimos de "consultar" para evitar redirección automática
+        sessionStorage.setItem('vieneDeConsultar', 'true');
+        sessionStorage.setItem('vieneDeConsultarTimestamp', Date.now().toString());
         location.href = Endpoints.editar(folio);
     };
 
@@ -357,6 +360,9 @@
                 sessionStorage.removeItem('editandoTimestamp');
                 sessionStorage.removeItem('folioGuardado');
                 sessionStorage.removeItem('folioGuardadoTimestamp');
+                // Limpiar también la marca de "vieneDeConsultar" ya que ya regresamos
+                sessionStorage.removeItem('vieneDeConsultar');
+                sessionStorage.removeItem('vieneDeConsultarTimestamp');
                 // Recargar los detalles del folio que se editó
                 const row = $(`#tbody-folios tr[data-folio="${folioARecargar}"]`);
                 if (row) {
