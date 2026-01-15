@@ -1,38 +1,31 @@
-// ===== Estado =====
+﻿// ===== Estado =====
 let filters = [];
 let hiddenColumns = [];
 let pinnedColumns = [];
 let allRows = [];
 let selectedRowIndex = -1;
 window.selectedRowIndex = selectedRowIndex; // Exponer globalmente
-let dragDropMode = false;
-let draggedRow = null;
-let draggedRowIndex = -1;
-let draggedRowTelar = null;
-let draggedRowSalon = null;
-let draggedRowCambioHilo = null;
-
-// Cache para optimización de drag and drop
-let rowCache = new Map(); // Cache de datos de filas (telar, salon, etc)
-let dragOverThrottle = null;
-let lastDragOverTime = 0;
-
 let inlineEditMode = false;
 window.inlineEditMode = inlineEditMode; // Exponer globalmente
 
-const normalizeDateValue = (value) => {
+const normalizeInputValue = (value) => {
 	if (value === undefined || value === null) return '';
 	const str = String(value).trim();
 	if (!str || str.toLowerCase() === 'null') return '';
+	return str;
+};
+
+const normalizeDateValue = (value) => {
+	const str = normalizeInputValue(value);
+	if (!str) return '';
 	if (str.includes('T')) return str.split('T')[0];
 	if (str.includes(' ')) return str.split(' ')[0];
 	return str;
 };
 
 const normalizeDateTimeValue = (value) => {
-	if (value === undefined || value === null) return '';
-	let str = String(value).trim();
-	if (!str || str.toLowerCase() === 'null') return '';
+	let str = normalizeInputValue(value);
+	if (!str) return '';
 	str = str.replace('T', ' ').replace('Z', '');
 	if (str.includes('.')) str = str.split('.')[0];
 	const [datePart, rawTime = ''] = str.split(' ');
@@ -106,16 +99,16 @@ const createDateTimeFieldConfig = () => ({
 	compareFormatter: dateTimeCompareValue
 });
 
-// Campos editables permitidos según especificación:
-// - Hilo (FibraRizo) - SELECT con catálogo
-// - Jornada (CalendarioId) - SELECT con catálogo
+// Campos editables permitidos segÃºn especificaciÃ³n:
+// - Hilo (FibraRizo) - SELECT con catÃ¡logo
+// - Jornada (CalendarioId) - SELECT con catÃ¡logo
 // - Clave Modelo (TamanoClave)
 // - Rasurado
 // - Pedido (TotalPedido)
 // - Dia Scheduling (ProgramarProd)
 // - Id Flog (FlogsId)
-// - Descripción (NombreProyecto)
-// - Aplicaciones (AplicacionId) - SELECT con catálogo
+// - DescripciÃ³n (NombreProyecto)
+// - Aplicaciones (AplicacionId) - SELECT con catÃ¡logo
 // - Tiras (NoTiras)
 // - Pei (Peine)
 // - Lcr (LargoCrudo)
@@ -126,15 +119,15 @@ const createDateTimeFieldConfig = () => ({
 // - Entrega (EntregaCte)
 // - Dif vs Compromiso (PTvsCte)
 const inlineEditableFields = {
-	FibraRizo: { type: 'select', catalog: 'hilos' }, // Select con catálogo de hilos
-	CalendarioId: { type: 'select', catalog: 'calendarios' }, // Select con catálogo de calendarios (Jornada)
+	FibraRizo: { type: 'select', catalog: 'hilos' }, // Select con catÃ¡logo de hilos
+	CalendarioId: { type: 'select', catalog: 'calendarios' }, // Select con catÃ¡logo de calendarios (Jornada)
 	TamanoClave: { type: 'text', maxLength: 40 },
 	Rasurado: { type: 'text', maxLength: 2 },
 	TotalPedido: { type: 'number', step: '0.01', min: 0 },
 	ProgramarProd: createDateFieldConfig(),
 	FlogsId: { type: 'text', maxLength: 20 },
 	NombreProyecto: { type: 'text', maxLength: 150 },
-	AplicacionId: { type: 'select', catalog: 'aplicaciones' }, // Select con catálogo de aplicaciones
+	AplicacionId: { type: 'select', catalog: 'aplicaciones' }, // Select con catÃ¡logo de aplicaciones
 	NoTiras: { type: 'number', step: '1', min: 0 },
 	Peine: { type: 'number', step: '1', min: 0 },
 	LargoCrudo: { type: 'number', step: '0.01', min: 0 },
@@ -146,7 +139,7 @@ const inlineEditableFields = {
 	PTvsCte: { type: 'number', step: '1' }
 };
 
-// Cache de catálogos cargados
+// Cache de catÃ¡logos cargados
 let catalogosCache = {
 	hilos: null,
 	aplicaciones: null,

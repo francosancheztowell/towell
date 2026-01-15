@@ -563,11 +563,43 @@ function agregarFilaDividir() {
 	let telarOptionsHTML = '<option value="">Seleccionar destino...</option>';
 
 	const salonActualLocal = document.getElementById('swal-salon')?.value || '';
+	const claveModelo = document.getElementById('swal-claveModelo')?.value || '';
+	const producto = document.getElementById('swal-producto')?.value || '';
+	const flog = document.getElementById('swal-flog')?.value || '';
+	const descripcion = document.getElementById('swal-descripcion')?.value || '';
+	const aplicacion = document.getElementById('swal-aplicacion')?.value || '';
+
+	// Obtener opciones de aplicación disponibles
+	let aplicacionOptionsHTML = '<option value="">Seleccionar...</option>';
+	const selectAplicacionGlobal = document.getElementById('swal-aplicacion');
+	if (selectAplicacionGlobal && selectAplicacionGlobal.options) {
+		Array.from(selectAplicacionGlobal.options).forEach(option => {
+			if (option.value) {
+				aplicacionOptionsHTML += `<option value="${option.value}"${option.value === aplicacion ? ' selected' : ''}>${option.textContent}</option>`;
+			}
+		});
+	}
 
 	newRow.innerHTML = `
-		<td class="p-2 border-r border-gray-200 salon-cell">
-			<select name="salon-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
-				<option value="">Seleccionar...</option>
+		<td class="p-2 border-r border-gray-200 clave-modelo-cell">
+			<input type="text" value="${claveModelo || ''}" readonly
+				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+		</td>
+		<td class="p-2 border-r border-gray-200 producto-cell">
+			<textarea rows="2" readonly
+				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${producto || ''}</textarea>
+		</td>
+		<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 200px;">
+			<textarea rows="2" readonly
+				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${flog || ''}</textarea>
+		</td>
+		<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 250px;">
+			<textarea rows="2"
+				class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none">${descripcion || ''}</textarea>
+		</td>
+		<td class="p-2 border-r border-gray-200 aplicacion-cell">
+			<select name="aplicacion-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+				${aplicacionOptionsHTML}
 			</select>
 		</td>
 		<td class="p-2 border-r border-gray-200">
@@ -579,67 +611,113 @@ function agregarFilaDividir() {
 		</td>
 		<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
 			<input type="number" name="pedido-tempo-destino[]" value="" data-pedido-total="true" step="0.01" min="0"
-				class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+				class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 		</td>
-		<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell hidden">
-			<input type="hidden" name="porcentaje-segundos-destino[]" value="0">
+		<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
+			<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0" readonly
+				class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 		</td>
 		<td class="p-2 border-r border-gray-200 produccion-cell">
 			<input type="text" value="" readonly
-				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+				class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 			<input type="hidden" name="pedido-destino[]" value="">
 		</td>
 		<td class="p-2 border-r border-gray-200 saldo-total-cell">
 			<input type="text" value="" readonly
-				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+				class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 		</td>
 		<td class="p-2 border-r border-gray-200">
-			<input type="text" name="observaciones-destino[]" placeholder="Observaciones..."
-				class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+			<textarea rows="2" name="observaciones-destino[]" placeholder="Observaciones..."
+				class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"></textarea>
 		</td>
-		<td class="p-2 text-center w-10">
-			<button type="button" class="btn-remove-row text-red-500 hover:text-red-700 transition-colors" title="Eliminar fila">
+		<td class="p-2 text-center acciones-cell">
+			<button type="button" class="btn-remove-row px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors" title="Eliminar fila">
 				<i class="fas fa-times"></i>
 			</button>
 		</td>
 	`;
-
 	tbody.appendChild(newRow);
+	const hiddenSalon = document.createElement('input');
+	hiddenSalon.type = 'hidden';
+	hiddenSalon.name = 'salon-destino[]';
+	hiddenSalon.value = '';
+	newRow.appendChild(hiddenSalon);
 
 	// Eventos
-	newRow.querySelector('.btn-remove-row')?.addEventListener('click', () => {
-		// Antes de eliminar, restaurar los valores originales de las filas existentes
-		restaurarValoresOriginales();
+	const btnRemove = newRow.querySelector('.btn-remove-row');
+	if (btnRemove) {
+		btnRemove.addEventListener('click', () => {
+			// Antes de eliminar, restaurar los valores originales de las filas existentes
+			if (typeof restaurarValoresOriginales === 'function') {
+				restaurarValoresOriginales();
+			}
 
-		newRow.remove();
-		if (typeof actualizarResumenCantidades === 'function') {
-			actualizarResumenCantidades();
-		}
-		if (typeof recomputeState === 'function') {
-			recomputeState();
-		}
-	});
+			newRow.remove();
+			
+			// ⚡ FIX: Actualizar visibilidad de la columna de acciones si no quedan filas agregadas
+			const filasAgregadas = document.querySelectorAll('tr.telar-row:not(#fila-principal)');
+			const thAcciones = document.getElementById('th-acciones');
+			if (filasAgregadas.length === 0 && thAcciones) {
+				thAcciones.classList.add('hidden');
+			}
+			
+			if (typeof actualizarResumenCantidades === 'function') {
+				actualizarResumenCantidades();
+			}
+			if (typeof recomputeState === 'function') {
+				recomputeState();
+			}
+		});
+	}
 
-	const salonSelect = newRow.querySelector('select[name="salon-destino[]"]');
+	// ⚡ FIX: Sincronizar descripción en filas agregadas con el input oculto
+	const descripcionTextarea = newRow.querySelector('.descripcion-cell textarea');
+	const inputDescripcion = document.getElementById('swal-descripcion');
+	if (descripcionTextarea && inputDescripcion) {
+		descripcionTextarea.addEventListener('input', (e) => {
+			inputDescripcion.value = e.target.value;
+			inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
+			// Actualizar todas las filas con la nueva descripción
+			if (typeof actualizarColumnasInformacion === 'function') {
+				actualizarColumnasInformacion();
+			}
+		});
+	}
+
+	const salonHiddenInput = newRow.querySelector('input[name="salon-destino[]"]');
 	const telarSelect = newRow.querySelector('select[name="telar-destino[]"]');
 	const pedidoInput = newRow.querySelector('input[name="pedido-destino[]"]');
 
-	if (salonSelect) {
-		// Cargar salones disponibles en el select
-		if (typeof actualizarSelectSalonesParaFila === 'function') {
-			actualizarSelectSalonesParaFila(salonSelect, salonActualLocal);
-		}
+	// Obtener el salón del select global (ya no hay select por fila)
+	const selectSalonGlobal = document.getElementById('swal-salon');
+	if (salonHiddenInput && selectSalonGlobal) {
+		salonHiddenInput.value = selectSalonGlobal.value || salonActualLocal;
+	}
 
-		// Inicializar telares basado en el salón actual (si hay uno)
+	if (telarSelect) {
+		// Inicializar telares si hay un salón preseleccionado
 		if (salonActualLocal && typeof actualizarTelaresPorSalonEnFila === 'function') {
-			actualizarTelaresPorSalonEnFila(salonSelect, telarSelect);
+			// Usar el select global de salón para obtener telares
+			if (selectSalonGlobal) {
+				actualizarTelaresPorSalonEnFila(selectSalonGlobal, telarSelect);
+			}
 		}
 
-		// Listener para cuando cambia el salón
-		salonSelect.addEventListener('change', async () => {
-			const nuevoSalon = salonSelect.value;
+		// Listener para cuando cambia el telar
+		if (typeof recomputeState === 'function') {
+			telarSelect.addEventListener('change', recomputeState);
+		}
+	}
+
+	// Listener para cuando cambia el salón global (actualizar telares de todas las filas nuevas)
+	if (selectSalonGlobal && telarSelect) {
+		const updateTelares = async () => {
+			const nuevoSalon = selectSalonGlobal.value;
+			if (salonHiddenInput) {
+				salonHiddenInput.value = nuevoSalon;
+			}
 			if (typeof actualizarTelaresPorSalonEnFila === 'function') {
-				actualizarTelaresPorSalonEnFila(salonSelect, telarSelect);
+				actualizarTelaresPorSalonEnFila(selectSalonGlobal, telarSelect);
 			}
 
 			// Validar clave modelo en el nuevo salón
@@ -651,28 +729,18 @@ function agregarFilaDividir() {
 					if (typeof showToast === 'function') {
 						showToast('La clave modelo no existe en el salon seleccionado', 'error');
 					}
-					salonSelect.value = '';
-					if (typeof actualizarTelaresPorSalonEnFila === 'function') {
-						actualizarTelaresPorSalonEnFila(salonSelect, telarSelect);
-					}
 				}
 			}
 
 			if (typeof recomputeState === 'function') {
 				recomputeState();
 			}
-		});
-	}
+		};
 
-	if (telarSelect) {
-		// Inicializar telares si hay un salón preseleccionado
-		if (salonActualLocal && typeof actualizarTelaresPorSalonEnFila === 'function') {
-			actualizarTelaresPorSalonEnFila(salonSelect, telarSelect);
-		}
-
-		// Listener para cuando cambia el telar
-		if (typeof recomputeState === 'function') {
-			telarSelect.addEventListener('change', recomputeState);
+		// Agregar listener solo una vez usando una bandera
+		if (!selectSalonGlobal.dataset.listenerAgregado) {
+			selectSalonGlobal.addEventListener('change', updateTelares);
+			selectSalonGlobal.dataset.listenerAgregado = 'true';
 		}
 	}
 
@@ -774,12 +842,30 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 
 			const selectSalon = document.getElementById('swal-salon');
 			const salonActualLocal = selectSalon?.value || '';
+			const claveModelo = document.getElementById('swal-claveModelo')?.value || '';
+			const producto = document.getElementById('swal-producto')?.value || '';
+			const flog = document.getElementById('swal-flog')?.value || '';
+			const descripcion = document.getElementById('swal-descripcion')?.value || '';
+			const aplicacion = document.getElementById('swal-aplicacion')?.value || '';
 
+			// Obtener opciones de aplicaci?n disponibles
+			const selectAplicacionGlobal = document.getElementById('swal-aplicacion');
 			// Crear filas para cada registro existente
 			data.registros.forEach((reg, index) => {
 				// El candado se muestra en el registro que tiene OrdCompartidaLider = 1
 				const esLider = reg.OrdCompartidaLider === 1 || reg.OrdCompartidaLider === true || reg.OrdCompartidaLider === '1';
 				const puedeEliminar = !esLider && !reg.EnProceso;
+
+				// Reconstruir opciones de aplicación para cada registro
+				let aplicacionOptionsHTMLReg = '<option value="">Seleccionar...</option>';
+				if (selectAplicacionGlobal && selectAplicacionGlobal.options) {
+					Array.from(selectAplicacionGlobal.options).forEach(option => {
+						if (option.value) {
+							const selected = (reg.AplicacionId && option.value === reg.AplicacionId) || (!reg.AplicacionId && option.value === aplicacion) ? ' selected' : '';
+							aplicacionOptionsHTMLReg += `<option value="${option.value}"${selected}>${option.textContent}</option>`;
+						}
+					});
+				}
 
 				const newRow = document.createElement('tr');
 				newRow.className = 'telar-row border-t border-gray-200';
@@ -788,10 +874,26 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 				newRow.dataset.esExistente = 'true';
 
 				newRow.innerHTML = `
-					<td class="p-2 border-r border-gray-200 salon-cell">
-						<input type="text" name="salon-destino[]" value="${reg.SalonTejidoId || salonActualLocal}" readonly
-							data-registro-id="${reg.Id}"
+					<td class="p-2 border-r border-gray-200 clave-modelo-cell">
+						<input type="text" value="${claveModelo || ''}" readonly
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+					</td>
+					<td class="p-2 border-r border-gray-200 producto-cell">
+						<textarea rows="2" readonly
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${producto || ''}</textarea>
+					</td>
+					<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 200px;">
+						<textarea rows="2" readonly
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${flog || ''}</textarea>
+					</td>
+					<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 250px;">
+						<textarea rows="2" readonly
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${descripcion || ''}</textarea>
+					</td>
+					<td class="p-2 border-r border-gray-200 aplicacion-cell">
+						<select name="aplicacion-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500" data-registro-id="${reg.Id}">
+							${aplicacionOptionsHTMLReg}
+						</select>
 					</td>
 					<td class="p-2 border-r border-gray-200">
 						<div class="flex items-center gap-2">
@@ -803,124 +905,43 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 					<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
 						<input type="number" name="pedido-tempo-destino[]" value="${reg.TotalPedido || 0}" data-pedido-total="true" step="0.01" min="0" readonly
 							data-registro-id="${reg.Id}"
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
-					<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell hidden">
-						<input type="hidden" name="porcentaje-segundos-destino[]" value="${reg.PorcentajeSegundos !== null && reg.PorcentajeSegundos !== undefined ? reg.PorcentajeSegundos : '0'}" data-registro-id="${reg.Id}">
+					<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
+						<input type="number" name="porcentaje-segundos-destino[]" value="${reg.PorcentajeSegundos !== null && reg.PorcentajeSegundos !== undefined ? reg.PorcentajeSegundos : '0'}" step="0.01" min="0" readonly data-registro-id="${reg.Id}"
+							class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
 					<td class="p-2 border-r border-gray-200 produccion-cell">
 						<input type="text" value="${reg.Produccion !== null && reg.Produccion !== undefined ? reg.Produccion : 0}" readonly
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 						<input type="hidden" name="pedido-destino[]" value="${reg.TotalPedido || 0}" data-registro-id="${reg.Id}">
 					</td>
 					<td class="p-2 border-r border-gray-200 saldo-total-cell">
 						<input type="text" value="${reg.SaldoPedido !== null && reg.SaldoPedido !== undefined ? reg.SaldoPedido : 0}" readonly
 							data-registro-id="${reg.Id}"
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
 					<td class="p-2 border-r border-gray-200">
-						<input type="text" name="observaciones-destino[]" value="${reg.Observaciones || ''}"
-							placeholder="Observaciones..."
+						<textarea rows="2" name="observaciones-destino[]" placeholder="Observaciones..."
 							data-registro-id="${reg.Id}"
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none">${reg.Observaciones || ''}</textarea>
 					</td>
-					<td class="p-2 text-center w-10">
+					<td class="p-2 text-center acciones-cell">
 						${esLider
-							? '<i class="fas fa-lock text-gray-400" title="Telar líder"></i>'
-							: (puedeEliminar
-								? '<button type="button" class="btn-remove-row text-red-500 hover:text-red-700 transition-colors" title="Eliminar"><i class="fas fa-times"></i></button>'
-								: '<i class="fas fa-lock text-gray-400" title="En proceso"></i>')}
+							? '<div class="w-3 h-3 rounded-full bg-green-500 mx-auto" title="Líder"></div>'
+							: '<div class="w-3 h-3 rounded-full bg-gray-400 mx-auto" title="En proceso"></div>'}
 					</td>
 				`;
-
 				tbody.appendChild(newRow);
+				const hiddenSalon = document.createElement('input');
+				hiddenSalon.type = 'hidden';
+				hiddenSalon.name = 'salon-destino[]';
+				hiddenSalon.value = reg.SalonTejidoId || salonActualLocal;
+				hiddenSalon.setAttribute('data-registro-id', reg.Id);
+				newRow.appendChild(hiddenSalon);
 
 				// Guardar valores originales de esta fila existente
 				guardarValoresOriginales(newRow);
-
-				// Evento para eliminar fila (solo si puede eliminar)
-				if (puedeEliminar) {
-					const btnRemove = newRow.querySelector('.btn-remove-row');
-					if (btnRemove) {
-						btnRemove.addEventListener('click', function(e) {
-							e.preventDefault();
-							e.stopPropagation();
-
-							const registroIdEliminar = reg.Id;
-							const telarEliminar = reg.NoTelarId;
-
-							// Confirmar con SweetAlert2
-							Swal.fire({
-								title: '¿Eliminar registro?',
-								html: `<p>Se eliminará el registro del telar <strong>${telarEliminar}</strong> de la base de datos.</p>
-									   <p class="text-sm text-gray-500 mt-2">Esta acción no se puede deshacer.</p>`,
-								icon: 'warning',
-								showCancelButton: true,
-								confirmButtonText: 'Sí, eliminar',
-								cancelButtonText: 'Cancelar',
-								confirmButtonColor: '#dc2626',
-								cancelButtonColor: '#6b7280',
-								reverseButtons: true,
-								focusCancel: true
-							}).then((result) => {
-								if (result.isConfirmed) {
-									// Mostrar loading
-									Swal.fire({
-										title: 'Eliminando...',
-										text: 'Por favor espere',
-										allowOutsideClick: false,
-										allowEscapeKey: false,
-										showConfirmButton: false,
-										didOpen: () => {
-											Swal.showLoading();
-										}
-									});
-
-									// Eliminar de la base de datos
-									fetch(`/planeacion/programa-tejido/${registroIdEliminar}`, {
-										method: 'DELETE',
-										headers: {
-											'Content-Type': 'application/json',
-											'Accept': 'application/json',
-											'X-CSRF-TOKEN': getCsrfToken()
-										}
-									})
-									.then(response => response.json())
-									.then(dataDelete => {
-										Swal.close();
-
-										if (dataDelete.success) {
-											// Mostrar mensaje de éxito y recargar la página
-											Swal.fire({
-												icon: 'success',
-												title: '¡Eliminado!',
-												text: 'El registro ha sido eliminado correctamente',
-												timer: 1500,
-												showConfirmButton: false
-											}).then(() => {
-												// Recargar la página
-												window.location.reload();
-											});
-										} else {
-											Swal.fire({
-												icon: 'error',
-												title: 'Error',
-												text: dataDelete.message || 'Error al eliminar el registro'
-											});
-										}
-									})
-									.catch(error => {
-										Swal.fire({
-											icon: 'error',
-											title: 'Error',
-											text: 'Error al eliminar el registro'
-										});
-									});
-								}
-							});
-						});
-					}
-				}
 
 				// Evento para actualizar al cambiar cantidad
 				const pedidoInput = newRow.querySelector('input[name="pedido-destino[]"]');

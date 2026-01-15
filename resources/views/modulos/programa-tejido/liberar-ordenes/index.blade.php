@@ -2,7 +2,7 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
-    <button onclick="openPinColumnsModal()" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 flex items-center gap-2">
+    <button onclick="openPinColumnsModal()" class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 flex items-center gap-2">
         <i class="fas fa-thumbtack"></i>
     </button>
     <button onclick="openHideColumnsModal()" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 flex items-center gap-2">

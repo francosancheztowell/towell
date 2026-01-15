@@ -1,13 +1,8 @@
-@extends('layouts.app')
+{{-- @extends('layouts.app')
 
 @section('page-title', 'Notificar Montado de Rollos')
 
 @section('content')
-{{-- <div class="container mx-auto px-4 py-2">
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <h1 class="text-2xl font-bold text-gray-800 mb-6">Notificar Montado de Rollos</h1>
-    </div>
-</div> --}}
 
 <!-- Modal de Telares -->
 <div id="modalTelares" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
@@ -89,7 +84,7 @@
                 Cerrar
             </button>
             <button type="button" id="btnNotificarRollos" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors" style="display: none;">
-                Notificar
+                Notificarrrrr
             </button>
         </div>
     </div>
@@ -364,4 +359,4 @@
         });
     });
 </script>
-@endsection
+@endsection --}}
