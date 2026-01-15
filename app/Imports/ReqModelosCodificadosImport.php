@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Models\ReqModelosCodificados;
+use App\Models\Planeacion\ReqModelosCodificados;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
@@ -66,10 +66,8 @@ class ReqModelosCodificadosImport implements
                             $state['errors'] = array_slice($this->errors, 0, 20);
                         }
                         Cache::put($cacheKey, $state, 60 * 60);
-                        Log::info('Importación finalizada, caché actualizado', ['importId' => $this->importId, 'total_errors' => count($this->errors), 'created' => $this->createdCount, 'updated' => $this->updatedCount]);
                     }
                 } catch (\Throwable $e) {
-                    Log::warning('No se pudo finalizar caché de importación: ' . $e->getMessage());
                 }
             },
         ];

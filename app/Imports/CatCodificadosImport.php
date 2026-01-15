@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Models\catcodificados\CatCodificados;
+use App\Models\Planeacion\Catalogos\CatCodificados;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;

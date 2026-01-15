@@ -20,6 +20,11 @@
             backface-visibility: hidden;
         }
 
+        /* Reset completo para eliminar espacios muertos */
+        * {
+            box-sizing: border-box;
+        }
+
         /* PWA: Safe area insets para notches en iOS y ocultar barra Chrome */
         html {
             height: 100%;
@@ -29,6 +34,8 @@
             overflow-y: hidden;
             position: fixed;
             width: 100%;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
         body {
@@ -42,15 +49,43 @@
             -webkit-overflow-scrolling: touch;
             position: fixed;
             width: 100%;
-            top: 0;
-            left: 0;
+            top: 0 !important;
+            left: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
-        :root {
+        /* Asegurar que el navbar esté pegado al top */
+        nav[class*="navbar"],
+        nav[class*="sticky"] {
+            margin-top: 0 !important;
+            top: 0 !important;
+        }
+
+        /*
+         * Safe-area insets:
+         * - Aplicarlos en :root puede crear un "hueco" superior visible en navegadores/entornos
+         *   que reportan un inset distinto de 0 (se percibe como un mt-2 global).
+         * - En esta app preferimos NO empujar todo el documento; si se requiere soporte PWA/iOS,
+         *   aplicar el padding solo en modos standalone/fullscreen y sobre el body.
+         */
+        /*
+         * Safe-area SOLO para iOS (WebKit).
+         * En Windows/Chrome (incl. PWA) algunos entornos pueden reportar un inset-top no-cero,
+         * generando una franja superior "muerta".
+         */
+        @@supports (padding: env(safe-area-inset-top)) {
+            @@supports (-webkit-touch-callout: none) {
+                @media all and (display-mode: fullscreen),
+                       all and (display-mode: standalone) {
+                    body {
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
             padding-left: env(safe-area-inset-left);
             padding-right: env(safe-area-inset-right);
+                    }
+                }
+            }
         }
 
         @media all and (display-mode: fullscreen),
@@ -82,7 +117,7 @@
     <!-- Estilos para layout simple -->
     <style>
         body {
-            background: linear-gradient(135deg, #099ff6, #c2e7ff, #0857be);
+            background: linear-gradient(135deg, #099ff6, #c2e7ff, #034395);
             background-size: 300% 300%;
             animation: gradientAnimation 5s ease infinite;
             position: relative;

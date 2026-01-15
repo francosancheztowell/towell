@@ -181,9 +181,7 @@
                             <td class="px-2 py-2">
                                 <select id="inputNucleo" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                                     <option value="">Seleccione</option>
-                                    <option value="Jacquard">Jacquard</option>
-                                    <option value="Itema">Itema</option>
-                                    <option value="Smith">Smith</option>
+                                    <!-- Los núcleos se cargarán dinámicamente desde el catálogo -->
                                 </select>
                             </td>
                             <td class="px-2 py-2">
@@ -232,6 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 materialesEngomado: '{{ route("programa.urd.eng.materiales.engomado") }}',
                 anchosBalona: '{{ route("programa.urd.eng.anchos.balona") }}',
                 maquinasEngomado: '{{ route("programa.urd.eng.maquinas.engomado") }}',
+                nucleos: '{{ route("programa.urd.eng.nucleos") }}',
                 crearOrdenes: '{{ route("programa.urd.eng.crear.ordenes") }}'
             }
         });

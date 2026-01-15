@@ -777,19 +777,99 @@
         }
 
         form.addEventListener('submit', function(event) {
+            event.preventDefault(); // Siempre prevenir el submit normal
+
             if (omitirConfirmacionPasadas) {
                 omitirConfirmacionPasadas = false;
-                return;
+            } else {
+                const sumaDetalle = calcularSumaPasadasDetalle();
+                const totalInput = parseInt(totalPasadasDibujo?.value ?? '0', 10);
+                const coincideTotal = Number.isFinite(totalInput) && totalInput === sumaDetalle;
+
+                if (sumaDetalle > 0 && !coincideTotal) {
+                    mostrarModalPasadas();
+                    return;
+                }
             }
 
-            const sumaDetalle = calcularSumaPasadasDetalle();
-            const totalInput = parseInt(totalPasadasDibujo?.value ?? '0', 10);
-            const coincideTotal = Number.isFinite(totalInput) && totalInput === sumaDetalle;
+            // Mostrar loading
+            Swal.fire({
+                title: 'Guardando...',
+                text: 'Por favor espera',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
 
-            if (sumaDetalle > 0 && !coincideTotal) {
-                event.preventDefault();
-                mostrarModalPasadas();
-            }
+            // Preparar datos del formulario
+            const formData = new FormData(form);
+
+            // Agregar pasadas del detalle (ya están en el FormData con name="pasadas[...]")
+            // El backend espera un array, así que las pasadas ya se envían correctamente
+            // Solo necesitamos asegurarnos de que se envíen como array
+            const inputsPasadas = obtenerInputsPasadasDetalle();
+            inputsPasadas.forEach(input => {
+                if (input.value) {
+                    // Los inputs ya tienen name="pasadas[key]", así que FormData los maneja automáticamente
+                    // Solo verificamos que tengan valor
+                }
+            });
+
+            // Enviar por AJAX
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Guardado exitosamente!',
+                        text: data.message || 'Los datos se han guardado correctamente',
+                        confirmButtonColor: '#2563eb',
+                        confirmButtonText: 'Aceptar'
+                    }).then(() => {
+                        // Limpiar formulario y ocultarlo
+                        form.reset();
+                        resetNumberSelectors();
+                        codificacionInputs.forEach(input => input.value = '');
+                        codificacionHidden.value = '';
+                        codificacionFetchAttempted = false;
+                        updateCodificacionNoDataMessage();
+                        formContainer.classList.add('hidden');
+                        document.querySelectorAll('.checkbox-produccion').forEach(cb => cb.checked = false);
+                        document.getElementById('bodyDetallesOrden').innerHTML = `
+                            <tr>
+                                <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-500">
+                                    Selecciona una producción para ver los detalles
+                                </td>
+                            </tr>
+                        `;
+                        resetDetallePasadas();
+                        actualizarResumenCatCodificados(null);
+                        prefillFormularioDesdeCatCodificados(null);
+                    });
+                } else {
+                    throw new Error(data.message || 'Error al guardar los datos');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al guardar',
+                    text: error.message || 'Ocurrió un error al guardar los datos. Por favor intenta nuevamente.',
+                    confirmButtonColor: '#dc2626',
+                    confirmButtonText: 'Aceptar'
+                });
+            });
         });
 
         modalPasadasCancelar?.addEventListener('click', () => {
@@ -799,11 +879,8 @@
         modalPasadasAceptar?.addEventListener('click', () => {
             ocultarModalPasadas();
             omitirConfirmacionPasadas = true;
-            if (typeof form.requestSubmit === 'function') {
-                form.requestSubmit();
-            } else {
-                form.submit();
-            }
+            // Disparar el evento submit que ahora maneja AJAX
+            form.dispatchEvent(new Event('submit'));
         });
 
         // Lógica de selectores numéricos (tomada del formulario original)

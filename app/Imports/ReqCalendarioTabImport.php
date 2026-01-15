@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Models\ReqCalendarioTab;
+use App\Models\Planeacion\ReqCalendarioTab;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
@@ -54,7 +54,6 @@ class ReqCalendarioTabImport implements ToModel, WithHeadingRow, WithBatchInsert
 
             $this->procesados++;
             $this->creados++;
-            Log::info("✓ Calendario guardado: {$calendarioId}");
             return null;
 
         } catch (\Exception $e) {
@@ -71,11 +70,9 @@ class ReqCalendarioTabImport implements ToModel, WithHeadingRow, WithBatchInsert
     {
         return [
             BeforeImport::class => function(BeforeImport $event) {
-                Log::info("🧹 Limpiando datos existentes de calendarios tablas antes de importar...");
 
                 // Limpiar todas las tablas de calendario
                 $deleted = ReqCalendarioTab::truncate();
-                Log::info("🗑️ Eliminadas todas las tablas de calendario existentes");
             }
         ];
     }

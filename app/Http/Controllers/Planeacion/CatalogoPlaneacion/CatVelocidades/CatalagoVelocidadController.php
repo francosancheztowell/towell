@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatVelocidades;
 
-use App\Models\ReqVelocidadStd;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqVelocidadStd;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Imports\ReqVelocidadStdImport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -54,7 +54,6 @@ class CatalagoVelocidadController extends Controller
 
             $archivo = $request->file('archivo_excel');
             $nombreArchivo = $archivo->getClientOriginalName();
-            Log::info('Procesando archivo Excel de velocidades: ' . $nombreArchivo);
 
             // Usar transacciones
             DB::beginTransaction();
@@ -68,8 +67,6 @@ class CatalagoVelocidadController extends Controller
                 $stats = $importador->getStats();
 
                 DB::commit();
-
-                Log::info('Excel de velocidades procesado exitosamente', $stats);
 
                 return response()->json([
                     'success' => true,
@@ -85,11 +82,6 @@ class CatalagoVelocidadController extends Controller
 
             } catch (\Exception $e) {
                 DB::rollBack();
-                Log::error('Error al procesar Excel de velocidades: ' . $e->getMessage(), [
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'trace' => $e->getTraceAsString()
-                ]);
 
                 return response()->json([
                     'success' => false,
@@ -291,16 +283,6 @@ class CatalagoVelocidadController extends Controller
                     // Si el valor es diferente al original, se marcará como modificado
                     $programa->VelocidadSTD = $nuevaVelocidad;
 
-                    // Log para verificar que se detecta el cambio
-                    Log::info('Actualizando programa con nueva velocidad', [
-                        'programa_id' => $programa->Id,
-                        'velocidad_antes' => $velocidadAntes,
-                        'velocidad_nueva' => $nuevaVelocidad,
-                        'isDirty_VelocidadSTD' => $programa->isDirty('VelocidadSTD'),
-                        'velocidad_original' => $programa->getOriginal('VelocidadSTD'),
-                        'velocidad_actual' => $programa->VelocidadSTD
-                    ]);
-
                     // Forzar que Eloquent detecte el cambio actualizando UpdatedAt
                     // Esto asegura que el Observer se ejecute
                     $programa->UpdatedAt = now();
@@ -318,36 +300,11 @@ class CatalagoVelocidadController extends Controller
                     $stdDiaDespues = $programa->StdDia ?? 0;
                     $diasJornadaDespues = $programa->DiasJornada ?? 0;
 
-                    Log::info('Programa actualizado por cambio de velocidad', [
-                        'programa_id' => $programa->Id,
-                        'velocidad_antes' => $velocidadAntes,
-                        'velocidad_despues' => $nuevaVelocidad,
-                        'stdtoahra_antes' => $stdToaHraAntes,
-                        'stdtoahra_despues' => $stdToaHraDespues,
-                        'stddia_antes' => $stdDiaAntes,
-                        'stddia_despues' => $stdDiaDespues,
-                        'diasjornada_antes' => $diasJornadaAntes,
-                        'diasjornada_despues' => $diasJornadaDespues
-                    ]);
                     $actualizados++;
                 }
             }
 
-            Log::info('Programas actualizados y recalculados por cambio de velocidad', [
-                'telar_original' => $oldTelar,
-                'fibra_original' => $oldFibra,
-                'densidad_original' => $oldDensidad,
-                'nueva_velocidad' => $nuevaVelocidad,
-                'programas_actualizados' => $actualizados
-            ]);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar programas y recalcular fórmulas por cambio de velocidad', [
-                'telar' => $oldTelar,
-                'fibra' => $oldFibra,
-                'densidad' => $oldDensidad,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
         }
     }
 
@@ -395,7 +352,6 @@ class CatalagoVelocidadController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al eliminar velocidad', ['id' => $velocidad->Id, 'error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Error al eliminar la velocidad: ' . $e->getMessage()

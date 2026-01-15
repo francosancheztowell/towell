@@ -572,7 +572,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const payload = normalizeInput(telaresData);
 
-            console.log('Enviando datos al servidor:', { telares: payload.length, muestra: payload.slice(0, 2) });
 
             const res = await fetch(RUTA_RESUMEN, {
                 method: 'POST',
@@ -582,14 +581,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const json = await res.json();
 
-            console.log('Respuesta del servidor:', {
-                ok: res.ok,
-                status: res.status,
-                success: json.success,
-                tieneData: !!json.data,
-                tieneSemanas: !!json.semanas,
-                message: json.message
-            });
 
             if (!res.ok) {
                 throw new Error(json.message || `Error HTTP ${res.status}`);
@@ -660,16 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const hiloEsperado = validacion.hilo; // null => no filtra por hilo
 
         // Log para debugging
-        console.log('renderResumen - Datos recibidos', {
-            tipo,
-            calEsperado,
-            hiloEsperado,
-            dataRizo: data.rizo,
-            dataPie: data.pie,
-            tieneRizo: Array.isArray(data.rizo) && data.rizo.length > 0,
-            tienePie: Array.isArray(data.pie) && data.pie.length > 0,
-            semanas
-        });
+
 
         const items = [];
 

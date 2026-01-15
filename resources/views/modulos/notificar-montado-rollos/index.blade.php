@@ -69,11 +69,11 @@
             <!-- Filtros de Tipo (ocultos por ahora) -->
             <div class="mb-6 flex gap-4" style="display: none;">
                 <label class="inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="checkRizo" class="form-checkbox h-5 w-5 text-blue-600 rounded" 
+                    <input type="checkbox" id="checkRizo" class="form-checkbox h-5 w-5 text-blue-600 rounded"
                         {{ $tipo === 'rizo' ? 'checked' : '' }}>
                     <span class="ml-2 text-gray-700 font-medium">Rizo</span>
                 </label>
-                
+
                 <label class="inline-flex items-center cursor-pointer">
                     <input type="checkbox" id="checkPie" class="form-checkbox h-5 w-5 text-blue-600 rounded"
                         {{ $tipo === 'pie' ? 'checked' : '' }}>
@@ -161,7 +161,7 @@
         // Event listener para cambio de telar
         selectTelarOperador.addEventListener('change', async function() {
             const noTelar = this.value;
-            
+
             if (!noTelar) {
                 tablaProduccionContainer.style.display = 'none';
                 btnNotificarRollos.style.display = 'none';
@@ -184,13 +184,10 @@
 
                 if (!dataOrden.success) {
                     mostrarMensaje(dataOrden.error || 'No se encontró orden activa', 'error');
-                    console.log('Debug orden:', dataOrden.debug);
                     return;
                 }
 
                 ordenActual = dataOrden.orden;
-                console.log('Orden activa encontrada:', ordenActual);
-                console.log('Debug conexión:', dataOrden.debug);
                 mostrarMensaje('Cargando datos de producción desde TOW_PRO...', 'info');
 
                 // 2. Obtener datos de producción desde TOW_PRO (sin insertar aún)
@@ -203,7 +200,6 @@
                 });
 
                 const dataDatos = await responseDatos.json();
-                console.log('Datos de producción:', dataDatos);
 
                 if (!dataDatos.success || dataDatos.datos.length === 0) {
                     let mensajeError = dataDatos.error || 'No se encontraron datos de producción';
@@ -211,15 +207,14 @@
                         mensajeError += '\n' + dataDatos.mensaje;
                     }
                     mostrarMensaje(mensajeError, 'error');
-                    console.log('Debug validación:', dataDatos.debug);
                     return;
                 }
 
                 datosProduccion = dataDatos.datos;
-                
+
                 // 3. Renderizar tabla
                 renderizarTablaProduccion(datosProduccion);
-                
+
                 mensajeEstado.style.display = 'none';
                 tablaProduccionContainer.style.display = 'block';
                 btnNotificarRollos.style.display = 'inline-block';
@@ -240,13 +235,13 @@
 
         function renderizarTablaProduccion(datos) {
             tablaProduccionBody.innerHTML = '';
-            
+
             datos.forEach((dato, index) => {
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-blue-50 cursor-pointer transition-colors';
                 row.dataset.marbete = JSON.stringify(dato);
                 row.dataset.index = index;
-                
+
                 row.innerHTML = `
                     <td class="px-4 py-2 text-sm text-gray-900">${dato.CUANTAS || 'N/A'}</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${dato.PurchBarCode || 'N/A'}</td>
@@ -257,18 +252,18 @@
                     <td class="px-4 py-2 text-sm text-gray-900">${dato.QtySched || 'N/A'}</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${dato.Salon || 'N/A'}</td>
                 `;
-                
+
                 // Click en la fila para seleccionar
                 row.addEventListener('click', function() {
                     // Remover selección previa
                     document.querySelectorAll('#tablaProduccionBody tr').forEach(r => {
                         r.classList.remove('bg-blue-200', 'selected');
                     });
-                    
+
                     // Seleccionar esta fila
                     this.classList.add('bg-blue-200', 'selected');
                 });
-                
+
                 tablaProduccionBody.appendChild(row);
             });
         }
@@ -277,7 +272,7 @@
         btnNotificarRollos.addEventListener('click', async function() {
             // Obtener fila seleccionada
             const filaSeleccionada = document.querySelector('#tablaProduccionBody tr.selected');
-            
+
             if (!filaSeleccionada) {
                 Swal.fire({
                     icon: 'warning',
@@ -353,10 +348,10 @@
                     timer: 2000,
                     timerProgressBar: true
                 });
-                
+
                 // Redirigir a tejedores
                 window.location.href = '/submodulos/tejedores';
-                
+
             } catch (error) {
                 console.error('Error:', error);
                 Swal.fire({

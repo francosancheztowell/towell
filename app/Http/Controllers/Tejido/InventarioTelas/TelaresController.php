@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Tejido\InventarioTelas;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class TelaresController extends Controller
 {
@@ -132,11 +131,6 @@ class TelaresController extends Controller
             ->select('NoTelarId', 'EnProceso', 'NoProduccion', 'NombreProducto', 'SalonTejidoId')
             ->get();
 
-        Log::info('DEBUG - Registros ITEMA/SMIT', [
-            'count'     => $todosRegistrosItema->count(),
-            'registros' => $todosRegistrosItema->toArray()
-        ]);
-
         // Tomar la secuencia desde la tabla
         $telaresOrdenados = $this->getSecuenciaTelares(['ITEMA', 'SMIT']); // pluck NoTelar por Secuencia
         $telaresOrdenados = array_map('intval', $telaresOrdenados);
@@ -185,6 +179,47 @@ class TelaresController extends Controller
             'telares'              => $telaresOrdenados,
             'datosTelaresCompletos' => $datosTelaresCompletos,
             'tipoInventario'       => 'itema'
+        ]);
+    }
+
+    /**
+     * Inventario de telares Karl Mayer (vista)
+     * Ordenado por la tabla InvSecuenciaTelares
+     */
+    public function inventarioKarlMayer()
+    {
+        $telaresOrdenados = $this->getSecuenciaTelares(['KARL MAYER']);
+        $datosTelaresCompletos = [];
+
+        foreach ($telaresOrdenados as $numeroTelar) {
+            $salones = ['KARL MAYER'];
+            $candidatos = [$numeroTelar];
+
+            $telarEnProceso = $this->fetchTelarEnProceso($salones, $candidatos);
+            $ordenSig = null;
+
+            if ($telarEnProceso && $telarEnProceso->en_proceso) {
+                $ordenSig = $this->fetchSiguienteOrden(
+                    $salones,
+                    $numeroTelar,
+                    $telarEnProceso->Inicio_Tejido,
+                    $telarEnProceso->ProgramaId ?? null
+                );
+            } else {
+                $telarEnProceso = $this->objTelarVacio($numeroTelar);
+                $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
+            }
+
+            $datosTelaresCompletos[$numeroTelar] = [
+                'telarData' => $telarEnProceso,
+                'ordenSig'  => $ordenSig
+            ];
+        }
+
+        return view('modulos/tejido/inventario-telas/inventario-telas', [
+            'telares'               => $telaresOrdenados,
+            'datosTelaresCompletos' => $datosTelaresCompletos,
+            'tipoInventario'        => 'karl-mayer'
         ]);
     }
 

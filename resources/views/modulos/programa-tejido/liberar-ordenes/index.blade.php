@@ -141,52 +141,72 @@
                 return '';
             }
 
-            // Campo HiloAX - inicialmente como texto, se convertirá a select si hay CodigoDibujo
+            // Campo HiloAX - mostrar como select siempre, incluso si es null
             if ($field === 'HiloAX') {
                 $value = $registro->{$field} ?? null;
-                // Inicialmente mostrar como texto, JavaScript lo convertirá a select si es necesario
-                return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
-            }
-
-            // Campos editables: MtsRollo, PzasRollo, TotalRollos, TotalPzas, Repeticiones, SaldoMarbete, Densidad
-            $camposNumericosEditables = ['MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'Repeticiones', 'SaldoMarbete', 'Densidad'];
-            if (in_array($field, $camposNumericosEditables, true)) {
                 $rowId = $registro->Id ?? uniqid('row_');
                 $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $valueStr = $value !== null ? htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') : '';
+
+                // Construir opciones del select
+                $optionsHtml = '<option value="">Seleccionar...</option>';
+                if (!empty($hilosOptions) && is_array($hilosOptions)) {
+                    foreach ($hilosOptions as $hilo) {
+                        $hiloValue = htmlspecialchars((string) ($hilo ?? ''), ENT_QUOTES, 'UTF-8');
+                        $selected = ($valueStr && $valueStr === $hiloValue) ? 'selected' : '';
+                        $optionsHtml .= '<option value="' . $hiloValue . '" ' . $selected . '>' . $hiloValue . '</option>';
+                    }
+                }
+
+                // Si el valor no está en las opciones pero existe, agregarlo
+                if ($valueStr && !empty($hilosOptions) && !in_array($valueStr, $hilosOptions)) {
+                    $optionsHtml = '<option value="' . $valueStr . '" selected>' . $valueStr . '</option>' . $optionsHtml;
+                }
+
+                return '<select class="hilo-ax-select w-full px-3 py-2 text-base border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                data-row-id="' . $rowId . '"
+                                data-id="' . $rowId . '"
+                                style="min-width: 200px; width: 100%;">' . $optionsHtml . '</select>';
+            }
+
+            // Solo TotalRollos es editable, los demás son texto plano
+            $camposNumericosSoloLectura = ['MtsRollo', 'PzasRollo', 'TotalPzas', 'Repeticiones', 'SaldoMarbete', 'Densidad'];
+            if (in_array($field, $camposNumericosSoloLectura, true)) {
                 $value = $registro->{$field} ?? null;
 
                 // Formatear según el campo: Densidad (4 decimales), MtsRollo (decimales sin límite), otros (0 decimales)
                 if ($field === 'Densidad') {
-                    $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 4, '.', '') : '') : '';
+                    $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 4, '.', ',') : '') : '';
                 } elseif ($field === 'MtsRollo') {
-                    // MtsRollo se mantiene como decimal sin redondear
-                    $valueFormatted = $value !== null ? (is_numeric($value) ? (string)(float)$value : '') : '';
+                    // MtsRollo se mantiene como decimal sin redondear, con separador de miles
+                    $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 2, '.', ',') : '') : '';
                 } else {
-                    $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 0, '.', '') : '') : '';
+                    // TotalPzas, PzasRollo, Repeticiones, SaldoMarbete: números enteros con separador de miles
+                    $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 0, '.', ',') : '') : '';
                 }
 
-                // Clase adicional para densidad y TotalPzas para hacerlos más anchos
-                $claseAdicional = '';
-                if ($field === 'Densidad') {
-                    $claseAdicional = 'densidad-input';
-                } elseif ($field === 'TotalPzas') {
-                    $claseAdicional = 'total-pzas-input';
-                }
+                // Mostrar como texto plano (solo lectura) con atributo data-field para facilitar búsqueda
+                return '<span class="text-sm text-gray-700" data-field="' . htmlspecialchars($field, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '</span>';
+            }
 
-                // Determinar el step según el campo
-                $step = '1';
-                if ($field === 'Densidad') {
-                    $step = '0.0001';
-                } elseif ($field === 'MtsRollo') {
-                    $step = '0.01'; // Permitir decimales en MtsRollo
-                }
+            // TotalRollos es el único editable
+            if ($field === 'TotalRollos') {
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $value = $registro->{$field} ?? null;
+                $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 0, '.', '') : '') : '';
+
+                // Guardar PzasRollo como atributo para el cálculo
+                $pzasRollo = $registro->PzasRollo ?? 0;
+                $pzasRolloFormatted = $pzasRollo !== null ? (is_numeric($pzasRollo) ? number_format((float)$pzasRollo, 0, '.', '') : '0') : '0';
 
                 return '<input type="number"
-                              step="' . $step . '"
-                              class="editable-field ' . $claseAdicional . ' w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              step="1"
+                              class="editable-field w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '"
                               data-field="' . htmlspecialchars($field, ENT_QUOTES, 'UTF-8') . '"
                               data-row-id="' . htmlspecialchars($rowId, ENT_QUOTES, 'UTF-8') . '"
+                              data-pzas-rollo="' . htmlspecialchars($pzasRolloFormatted, ENT_QUOTES, 'UTF-8') . '"
                               data-original-value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '">';
             }
 
@@ -438,35 +458,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // No guardar automáticamente
             });
         }
-        // PzasRollo - calcular TotalPzas automáticamente (sin guardar)
-        else if (fieldName === 'PzasRollo') {
-            field.addEventListener('input', function() {
-                calcularTotalPzas(this);
-            });
-            field.addEventListener('blur', function() {
-                calcularTotalPzas(this);
-                // No guardar automáticamente
-            });
-        }
-        // Event listeners para Densidad y Repeticiones - calcular uno cuando cambia el otro (sin guardar)
-        else if (fieldName === 'Densidad') {
-            field.addEventListener('input', function() {
-                calcularRepeticionesDesdeDensidad(this);
-            });
-            field.addEventListener('blur', function() {
-                calcularRepeticionesDesdeDensidad(this);
-                // No guardar automáticamente
-            });
-        }
-        else if (fieldName === 'Repeticiones') {
-            field.addEventListener('input', function() {
-                calcularDensidadDesdeRepeticiones(this);
-            });
-            field.addEventListener('blur', function() {
-                calcularDensidadDesdeRepeticiones(this);
-                // No guardar automáticamente
-            });
-        }
         // Los demás campos no tienen cálculos automáticos ni guardado automático
     });
 
@@ -496,10 +487,11 @@ function autoFillAllHiloAX() {
         if (!itemIdCell || !hiloAXCell) return;
 
         const itemId = (itemIdCell.textContent || '').trim();
-        const currentHiloAX = (hiloAXCell.textContent || '').trim();
+        const hiloAXSelect = hiloAXCell.querySelector('select');
+        const currentHiloAX = hiloAXSelect ? hiloAXSelect.value : (hiloAXCell.textContent || '').trim();
 
-        // Solo procesar si no tiene valor y tiene itemId
-        if (!currentHiloAX && itemId) {
+        // Procesar si no tiene valor (o tiene valor vacío) y tiene itemId
+        if ((!currentHiloAX || currentHiloAX === '') && itemId) {
             itemIdsSet.add(itemId);
             if (!rowsByItemId.has(itemId)) {
                 rowsByItemId.set(itemId, []);
@@ -528,13 +520,36 @@ function autoFillAllHiloAX() {
                 if (data[itemId]) {
                     const rows = rowsByItemId.get(itemId) || [];
                     rows.forEach(row => {
-                        // Convertir a select y rellenar con el valor de INVENTTABLE
-                        convertirHiloAXaSelect(row, data[itemId]);
+                        // Actualizar el select con el valor de INVENTTABLE
+                        actualizarHiloAXSelect(row, data[itemId]);
                     });
                 }
             });
         })
         .catch(() => {});
+}
+
+// Función para actualizar el select de HiloAX con un valor
+function actualizarHiloAXSelect(row, valorHiloAX) {
+    const hiloAXCell = row.querySelector('[data-column="HiloAX"]');
+    if (!hiloAXCell) return;
+
+    const select = hiloAXCell.querySelector('select');
+    if (!select) return;
+
+    if (valorHiloAX && valorHiloAX.trim() !== '') {
+        const valor = valorHiloAX.trim();
+        select.value = valor;
+
+        // Si el valor no está en las opciones, agregarlo
+        if (!Array.from(select.options).some(opt => opt.value === valor)) {
+            const option = document.createElement('option');
+            option.value = valor;
+            option.textContent = valor;
+            option.selected = true;
+            select.insertBefore(option, select.firstChild);
+        }
+    }
 }
 
 function autoFillAllBomFields() {
@@ -1348,6 +1363,14 @@ function obtenerRegistrosSeleccionados() {
                 return value === '' ? null : value;
             }
 
+            // Para TotalPzas, priorizar el valor calculado si existe
+            if (columnName === 'TotalPzas') {
+                const span = cell.querySelector('span');
+                if (span && span.hasAttribute('data-calculated-value')) {
+                    return span.getAttribute('data-calculated-value');
+                }
+            }
+
             // Si no hay input ni select, usar textContent
             const text = cell.textContent ? cell.textContent.trim() : '';
             return text === '' ? null : text;
@@ -1564,7 +1587,7 @@ function guardarCampoEditable(input) {
     });
 }
 
-// Función para calcular TotalPzas automáticamente cuando cambian TotalRollos o PzasRollo
+// Función para calcular TotalPzas automáticamente cuando cambia TotalRollos
 function calcularTotalPzas(changedInput) {
     const rowId = changedInput.getAttribute('data-row-id');
     if (!rowId) return;
@@ -1573,30 +1596,31 @@ function calcularTotalPzas(changedInput) {
     const row = changedInput.closest('.row-data');
     if (!row) return;
 
-    // Obtener los valores de TotalRollos y PzasRollo de la misma fila
+    // Obtener los valores de TotalRollos
     const totalRollosInput = row.querySelector('input[data-field="TotalRollos"]');
-    const pzasRolloInput = row.querySelector('input[data-field="PzasRollo"]');
-    const totalPzasInput = row.querySelector('input[data-field="TotalPzas"]');
 
-    if (!totalRollosInput || !pzasRolloInput || !totalPzasInput) return;
+    // Buscar la celda de TotalPzas y el span dentro
+    const totalPzasCell = row.querySelector('td[data-column="TotalPzas"]');
+    const totalPzasSpan = totalPzasCell ? totalPzasCell.querySelector('span') : null;
+
+    // Obtener PzasRollo del atributo data-pzas-rollo del input TotalRollos
+    const pzasRollo = parseFloat(changedInput.getAttribute('data-pzas-rollo')) || 0;
+
+    if (!totalRollosInput || !totalPzasSpan) return;
 
     const totalRollos = parseFloat(totalRollosInput.value) || 0;
-    const pzasRollo = parseFloat(pzasRolloInput.value) || 0;
 
     // Calcular TotalPzas = TotalRollos * PzasRollo
     const totalPzas = totalRollos * pzasRollo;
 
-    // Actualizar el valor de TotalPzas
+    // Actualizar el valor de TotalPzas (ahora es un span, no un input)
     if (totalPzas > 0) {
         const newTotalPzas = Math.round(totalPzas);
-        const oldValue = totalPzasInput.getAttribute('data-original-value') || '';
-
-        totalPzasInput.value = newTotalPzas;
-        // Actualizar el valor original guardado (pero NO guardar en BD hasta que se presione "Liberar")
-        totalPzasInput.setAttribute('data-original-value', newTotalPzas.toString());
+        totalPzasSpan.textContent = newTotalPzas.toLocaleString('es-MX');
+        totalPzasSpan.setAttribute('data-calculated-value', newTotalPzas.toString());
     } else {
-        totalPzasInput.value = '';
-        totalPzasInput.setAttribute('data-original-value', '');
+        totalPzasSpan.textContent = '';
+        totalPzasSpan.removeAttribute('data-calculated-value');
     }
 }
 

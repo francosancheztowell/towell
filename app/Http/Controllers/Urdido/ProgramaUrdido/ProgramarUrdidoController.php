@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
 use App\Http\Controllers\Controller;
-use App\Models\UrdProgramaUrdido;
-use App\Models\EngProgramaEngomado;
-use App\Models\UrdProduccionUrdido;
+use App\Models\Urdido\UrdProgramaUrdido;
+use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Urdido\UrdProduccionUrdido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -722,17 +722,8 @@ class ProgramarUrdidoController extends Controller
                 // Eliminar registros de producción de urdido cuando se cancela
                 try {
                     $registrosEliminados = UrdProduccionUrdido::where('Folio', $orden->Folio)->delete();
-                    
-                    Log::info('Registros de producción eliminados por cancelación de orden', [
-                        'folio' => $orden->Folio,
-                        'orden_urdido_id' => $orden->Id,
-                        'registros_eliminados' => $registrosEliminados,
-                    ]);
+
                 } catch (\Throwable $e) {
-                    Log::error('Error al eliminar registros de producción al cancelar orden', [
-                        'folio' => $orden->Folio,
-                        'error' => $e->getMessage(),
-                    ]);
                     // No lanzar excepción, solo registrar el error
                 }
 
@@ -746,32 +737,14 @@ class ProgramarUrdidoController extends Controller
 
                         // Eliminar registros de producción de engomado cuando se cancela
                         try {
-                            $registrosEliminados = \App\Models\EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
-                            
-                            Log::info('Registros de producción de engomado eliminados por cancelación de orden', [
-                                'folio' => $orden->Folio,
-                                'orden_engomado_id' => $ordenEngomado->Id,
-                                'registros_eliminados' => $registrosEliminados,
-                            ]);
+
+                            $registrosEliminados = \App\Models\Engomado\EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
                         } catch (\Throwable $e) {
-                            Log::error('Error al eliminar registros de producción de engomado al cancelar orden', [
-                                'folio' => $orden->Folio,
-                                'error' => $e->getMessage(),
-                            ]);
                             // No lanzar excepción, solo registrar el error
                         }
 
-                        Log::info('Orden de engomado cancelada automáticamente por cancelación de urdido', [
-                            'folio' => $orden->Folio,
-                            'orden_urdido_id' => $orden->Id,
-                            'orden_engomado_id' => $ordenEngomado->Id,
-                        ]);
                     }
                 } catch (\Throwable $e) {
-                    Log::error('Error al cancelar orden de engomado automáticamente', [
-                        'folio' => $orden->Folio,
-                        'error' => $e->getMessage(),
-                    ]);
                     // No lanzar excepción, solo registrar el error
                 }
 

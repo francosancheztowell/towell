@@ -308,7 +308,7 @@
         const btnDropdown = document.getElementById('btnDropdownTelares');
         const menuDropdown = document.getElementById('menuDropdownTelares');
         const iconDropdown = document.getElementById('iconDropdown');
-        
+
         if (btnDropdown && menuDropdown) {
             btnDropdown.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -316,7 +316,7 @@
                 menuDropdown.classList.toggle('hidden');
                 if (iconDropdown) iconDropdown.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
             });
-            
+
             document.addEventListener('click', function(e) {
                 if (!btnDropdown.contains(e.target) && !menuDropdown.contains(e.target)) {
                     menuDropdown.classList.add('hidden');
@@ -334,8 +334,19 @@
         if(t){ setTimeout(() => irATelar(t), 300); }
 
         // Redirigir si hay En Proceso y no estamos en edición
+        // Pero NO redirigir si el usuario viene de "consultar" (para evitar bucles)
         try {
-            if (!window.NR_VM.hasQueryFolio && window.NR_VM.enProcesoExists) {
+            const vieneDeConsultar = sessionStorage.getItem('vieneDeConsultar') === 'true';
+            const timestamp = sessionStorage.getItem('vieneDeConsultarTimestamp');
+            const tiempoTranscurrido = timestamp ? Date.now() - parseInt(timestamp) : Infinity;
+
+            // Limpiar la marca si pasó más de 5 segundos (ya no es relevante)
+            if (tiempoTranscurrido > 5000) {
+                sessionStorage.removeItem('vieneDeConsultar');
+                sessionStorage.removeItem('vieneDeConsultarTimestamp');
+            }
+
+            if (!window.NR_VM.hasQueryFolio && window.NR_VM.enProcesoExists && !vieneDeConsultar) {
                 Swal.fire({
                     icon: 'info',
                     title: 'Orden en Proceso',
@@ -345,7 +356,15 @@
                     showConfirmButton: false,
                     allowOutsideClick: false,
                     allowEscapeKey: false
-                }).then(() => { window.location.href = window.NR_VM.consultaUrl; });
+                }).then(() => {
+                    // Usar replaceState para evitar que el botón "atrás" vuelva aquí
+                    history.replaceState(null, '', window.NR_VM.consultaUrl);
+                    window.location.href = window.NR_VM.consultaUrl;
+                });
+            } else if (vieneDeConsultar) {
+                // Limpiar la marca ya que ya estamos en nuevo
+                sessionStorage.removeItem('vieneDeConsultar');
+                sessionStorage.removeItem('vieneDeConsultarTimestamp');
             }
         } catch (e) {}
 

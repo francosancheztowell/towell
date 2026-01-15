@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
-use App\Models\TejTrama;
-use App\Models\TejTramaConsumos;
+use App\Models\Tejido\TejTrama;
+use App\Models\Tejido\TejTramaConsumos;
 
 class ConsultarRequerimientoController extends Controller
 {
@@ -101,11 +101,6 @@ class ConsultarRequerimientoController extends Controller
     public function updateStatus(Request $request, $folio)
     {
         try {
-            Log::info('UpdateStatus - Request recibido', [
-                'folio' => $folio,
-                'request_data' => $request->all(),
-                'headers' => $request->headers->all()
-            ]);
 
             $request->validate([
                 'status' => 'required|in:En Proceso,Solicitado,Surtido,Cancelado,Creado'
@@ -114,7 +109,6 @@ class ConsultarRequerimientoController extends Controller
             $requerimiento = TejTrama::where('Folio', $folio)->first();
 
             if (!$requerimiento) {
-                Log::warning('UpdateStatus - Requerimiento no encontrado', ['folio' => $folio]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Requerimiento no encontrado'
@@ -123,12 +117,6 @@ class ConsultarRequerimientoController extends Controller
 
             $statusActual = $requerimiento->Status;
             $nuevoStatus = $request->status;
-
-            Log::info('UpdateStatus - Estados', [
-                'folio' => $folio,
-                'status_actual' => $statusActual,
-                'nuevo_status' => $nuevoStatus
-            ]);
 
             // Validar transiciones de estado permitidas
             $transicionesPermitidas = [
@@ -153,12 +141,6 @@ class ConsultarRequerimientoController extends Controller
 
             $requerimiento->Status = $nuevoStatus;
             $requerimiento->save();
-
-            Log::info('UpdateStatus - Status actualizado exitosamente', [
-                'folio' => $folio,
-                'status_anterior' => $statusActual,
-                'status_nuevo' => $nuevoStatus
-            ]);
 
             // Enviar notificación a Telegram cuando pasa a "Solicitado"
             if ($nuevoStatus === 'Solicitado') {

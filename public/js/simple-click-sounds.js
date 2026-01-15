@@ -19,7 +19,6 @@
         try {
             return new (window.AudioContext || window.webkitAudioContext)();
         } catch (error) {
-            console.log('Web Audio API no disponible');
             return null;
         }
     }
@@ -57,7 +56,6 @@
 
             source.start();
         } catch (error) {
-            console.log('Error reproduciendo sonido:', error);
         }
     }
 
@@ -100,7 +98,6 @@
 
             source.start();
         } catch (error) {
-            console.log('Error reproduciendo sonido de click:', error);
         }
     }
 

@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\EngProgramaEngomado;
-use App\Models\UrdProgramaUrdido;
-use App\Models\EngProduccionEngomado;
-use App\Models\UrdProduccionUrdido;
-use App\Models\UrdJuliosOrden;
+use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Urdido\UrdProgramaUrdido;
+use App\Models\Engomado\EngProduccionEngomado;
+use App\Models\Urdido\UrdProduccionUrdido;
+use App\Models\Urdido\UrdJuliosOrden;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Planeacion\CatCodificados;
 
 use App\Http\Controllers\Controller;
 use App\Imports\CatCodificadosImport;
-use App\Models\catcodificados\CatCodificados;
+use App\Models\Planeacion\Catalogos\CatCodificados;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -113,6 +113,10 @@ class CatCodificacionController extends Controller
      * API: datos compactos para carga rápida en tabla (getAllFast).
      * Optimizado para máxima velocidad: cache, cursor, sin query log.
      */
+/**
+     * API: Optimización Extrema con PDO puro.
+     * Salta la hidratación de Eloquent/QueryBuilder.
+     */
     public function getAllFast(Request $request): JsonResponse
     {
         try {
@@ -121,74 +125,49 @@ class CatCodificacionController extends Controller
             $idFilter = $request->filled('id') ? (int) $request->input('id') : null;
             $skipCache = $request->boolean('nocache', false);
 
-            // Clave de cache única por filtro
             $cacheKey = $idFilter
                 ? "catcodificacion_fast_id_{$idFilter}"
                 : 'catcodificacion_fast_all';
 
-            // Intentar obtener desde cache (60 segundos TTL)
-            if (!$skipCache) {
-                $cached = Cache::get($cacheKey);
-                if ($cached !== null) {
-                    return response()->json($cached)
-                        ->header('Cache-Control', 'private, max-age=60')
-                        ->header('X-Cache', 'HIT');
-                }
-            }
-
-            // Deshabilitar query log para mejor rendimiento
-            DB::connection()->disableQueryLog();
-
-            // Construir SELECT con campos específicos (más eficiente que array)
-            $columnsStr = implode(', ', array_map(fn($col) => "[{$col}]", $columnas));
-
-            // Consulta directa ordenada por Id descendente (más nuevos primero)
-            $query = DB::table($table)
-                ->selectRaw($columnsStr)
-                ->orderByDesc('Id');
-
-            // Busqueda directa por Id (index) si se envia ?id=123 (atajo rapido)
-            if ($idFilter !== null) {
-                $row = $query->where('Id', $idFilter)->limit(1)->first();
-                $data = $row ? [array_values((array) $row)] : [];
-
-                $response = [
-                    's' => true,
-                    'd' => $data,
-                    't' => $data ? 1 : 0,
-                    'c' => $columnas,
-                ];
-
-                // Cachear respuesta (60 segundos)
-                if (!$skipCache) {
-                    Cache::put($cacheKey, $response, 60);
-                }
-
-                return response()->json($response)
+            // 1. CACHE HIT
+            if (!$skipCache && ($cached = Cache::get($cacheKey))) {
+                return response()->json($cached)
                     ->header('Cache-Control', 'private, max-age=60')
-                    ->header('X-Cache', 'MISS');
+                    ->header('X-Cache', 'HIT');
             }
 
-            // Usar cursor() para grandes volúmenes (reduce memoria)
-            // Si hay menos de 1000 registros, usar get() es más rápido
-            $estimatedCount = Cache::remember(
-                'catcodificacion_estimated_count',
-                300,
-                fn() => DB::table($table)->count()
-            );
+            // 2. PREPARACIÓN DE LA CONSULTA RAW (Más rápido que Query Builder)
+            // Asegúrate de que las columnas sean nombres seguros (vienen de tu constante)
+            $colsStr = implode(',', $columnas);
 
-            $data = $estimatedCount > 1000
-                ? $this->fetchWithCursor($query)
-                : $this->fetchWithGet($query);
+            $pdo = DB::connection()->getPdo();
+
+            if ($idFilter) {
+                // Caso filtro ID
+                $stmt = $pdo->prepare("SELECT {$colsStr} FROM {$table} WHERE Id = :id LIMIT 1");
+                $stmt->bindValue(':id', $idFilter, \PDO::PARAM_INT);
+            } else {
+                // Caso TODO (11,000 registros)
+                // LIMIT 20000 es un seguro por si la tabla crece descontroladamente
+                $stmt = $pdo->prepare("SELECT {$colsStr} FROM {$table} ORDER BY Id DESC");
+            }
+
+            // 3. EJECUCIÓN
+            $stmt->execute();
+
+            // 4. MAGIA: FETCH_NUM
+            // Esto devuelve [[val, val], [val, val]] directamente.
+            // Cero procesamiento de PHP, cero bucles foreach manuales.
+            $data = $stmt->fetchAll(\PDO::FETCH_NUM);
 
             $response = [
-                's' => true,             // success
-                'd' => $data,            // data (array de arrays)
-                't' => count($data),     // total registros
-                'c' => $columnas,        // columnas
+                's' => true,
+                'd' => $data,
+                't' => count($data),
+                'c' => $columnas,
             ];
 
-            // Cachear respuesta (60 segundos)
+            // 5. CACHE MISS
             if (!$skipCache) {
                 Cache::put($cacheKey, $response, 60);
             }
@@ -196,9 +175,8 @@ class CatCodificacionController extends Controller
             return response()->json($response)
                 ->header('Cache-Control', 'private, max-age=60')
                 ->header('X-Cache', 'MISS');
+
         } catch (\Throwable $e) {
-
-
             return response()->json([
                 's' => false,
                 'e' => $e->getMessage(),

@@ -291,7 +291,7 @@ try {
 
     // Verificar datos guardados
     echo "\n=== VERIFICANDO DATOS GUARDADOS ===\n";
-    $registro = \App\Models\ReqModelosCodificados::where('TamanoClave', 'TEST001')->first();
+    $registro = \App\Models\Planeacion\ReqModelosCodificados::where('TamanoClave', 'TEST001')->first();
     if ($registro) {
         echo "Registro encontrado:\n";
         echo "- Clave: {$registro->TamanoClave}\n";

@@ -23,7 +23,7 @@
 
   <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">@csrf</form>
 
-        <main class="overflow-x-hidden overflow-y-auto max-w-full flex-1" style="height: calc(100vh - 64px); max-height: calc(100vh - 64px);">
+        <main class="overflow-x-hidden overflow-y-auto max-w-full flex-1" style="padding-top: 64px; height: 100vh; max-height: 100vh;">
             @yield('content')
         </main>
 
@@ -270,10 +270,7 @@
   @stack('scripts')
 
   <!-- Scripts específicos -->
-  @if(request()->routeIs('catalogos.req-programa-tejido') || (request()->is('planeacion/programa-tejido') && !request()->is('*programa-tejido/*/editar') && !request()->is('*programa-tejido/nuevo*')))
-    <script src="{{ asset('js/programa-tejido-menu.js') }}"></script>
-  @endif
-  @if(request()->is('simulacion') && !request()->is('*simulacion/*/editar') && !request()->is('*simulacion/nuevo*'))
+  @if(request()->routeIs('catalogos.req-programa-tejido') || request()->is('planeacion/programa-tejido'))
     <script src="{{ asset('js/programa-tejido-menu.js') }}"></script>
   @endif
 

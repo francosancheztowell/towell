@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
-use App\Models\ReqProgramaTejidoLine;
+use App\Models\Planeacion\ReqProgramaTejidoLine;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
@@ -83,7 +83,7 @@ class ReqProgramaTejidoLineController extends Controller
         return response()->json([
             'success' => true,
             'data'    => $q->paginate($perPage),
-        ]);
+        ])->header('Content-Type', 'application/json; charset=utf-8');
     }
 
     /* -------------------- Store -------------------- */
@@ -95,14 +95,15 @@ class ReqProgramaTejidoLineController extends Controller
         return response()->json([
             'success' => true,
             'data'    => $created,
-        ], 201);
+        ], 201)->header('Content-Type', 'application/json; charset=utf-8');
     }
 
     /* -------------------- Show -------------------- */
     public function show(int $id): JsonResponse
     {
         $row = ReqProgramaTejidoLine::findOrFail($id);
-        return response()->json(['success' => true, 'data' => $row]);
+        return response()->json(['success' => true, 'data' => $row])
+            ->header('Content-Type', 'application/json; charset=utf-8');
     }
 
     /* -------------------- Update -------------------- */
@@ -113,7 +114,8 @@ class ReqProgramaTejidoLineController extends Controller
 
         $row->fill($data)->save();
 
-        return response()->json(['success' => true, 'data' => $row]);
+        return response()->json(['success' => true, 'data' => $row])
+            ->header('Content-Type', 'application/json; charset=utf-8');
     }
 
     /* -------------------- Destroy -------------------- */
@@ -122,6 +124,7 @@ class ReqProgramaTejidoLineController extends Controller
         $row = ReqProgramaTejidoLine::findOrFail($id);
         $row->delete();
 
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true])
+            ->header('Content-Type', 'application/json; charset=utf-8');
     }
 }

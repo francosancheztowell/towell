@@ -1,4 +1,4 @@
-﻿@extends('layouts.app', ['ocultarBotones' => true])
+@extends('layouts.app', ['ocultarBotones' => true])
 
 @section('page-title', 'Programa de Tejido')
 
@@ -402,7 +402,6 @@
 
     const toast = (msg, type='info') => {
       if (typeof window.showToast === 'function') return window.showToast(msg, type);
-      console.log('[Toast]', type, msg);
     };
 
     // =========================
@@ -661,7 +660,8 @@
     };
 
     PT.actions.abrirNuevo = function abrirNuevo() {
-      window.location.href = '/planeacion/programa-tejido/nuevo';
+      // Funcionalidad de nuevo eliminada - ahora se usa duplicar/vincular/dividir
+      console.warn('La funcionalidad de nuevo registro ha sido reemplazada por duplicar/vincular/dividir');
     };
 
     PT.actions.eliminarRegistro = function eliminarRegistro(id) {
@@ -1779,7 +1779,8 @@
         const row = rows[window.selectedRowIndex];
         const id = row?.getAttribute('data-id');
         if (!id) return;
-        window.location.href = `/planeacion/programa-tejido/${encodeURIComponent(id)}/editar`;
+        // Funcionalidad de editar eliminada - ahora se usa duplicar/vincular/dividir
+        console.warn('La funcionalidad de editar ha sido reemplazada por duplicar/vincular/dividir');
       });
 
       qs('#btn-eliminar-programa')?.addEventListener('click', () => {

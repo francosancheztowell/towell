@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
-use App\Models\ReqModelosCodificados;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
 
 class EditTejido
 {

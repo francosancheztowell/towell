@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
-use App\Models\ReqModelosCodificados;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;

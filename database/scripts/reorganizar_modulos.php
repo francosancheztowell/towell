@@ -10,7 +10,7 @@
 require_once __DIR__ . '/../../vendor/autoload.php';
 
 use Illuminate\Support\Facades\DB;
-use App\Models\SYSRoles;
+use App\Models\Sistema\SYSRoles;
 
 // Configurar Laravel
 $app = require_once __DIR__ . '/../../bootstrap/app.php';

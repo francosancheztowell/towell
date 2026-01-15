@@ -149,7 +149,7 @@
                     type="button"
                     id="btn-cancelar"
                     class="px-4 py-2.5 md:px-6 md:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm md:text-base font-medium rounded-md transition-colors"
-                    onclick="window.location.href='{{ route('mantenimiento.reporte-fallos-paros') }}'"
+                    onclick="window.location.href='{{ route('mantenimiento.solicitudes') }}'"
                 >
                     Ir a Solicitudes
                 </button>
@@ -157,7 +157,7 @@
                     type="button"
                     id="btn-cancelar"
                     class="px-4 py-2.5 md:px-6 md:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm md:text-base font-medium rounded-md transition-colors"
-                    onclick="window.location.href='{{ route('mantenimiento.reporte-fallos-paros') }}'"
+                    onclick="window.location.href='{{ route('mantenimiento.solicitudes') }}'"
                 >
                     Cancelar
                 </button>
@@ -493,11 +493,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         timer: 2000,
                         showConfirmButton: false
                     }).then(() => {
-                        window.location.href = '{{ route('mantenimiento.reporte-fallos-paros') }}';
+                        window.location.href = '{{ route('mantenimiento.solicitudes') }}';
                     });
                 } else {
                     alert(result.message || 'Paro reportado correctamente');
-                    window.location.href = '{{ route('mantenimiento.reporte-fallos-paros') }}';
+                    window.location.href = '{{ route('mantenimiento.solicitudes') }}';
                 }
             } else {
                 // Error del servidor

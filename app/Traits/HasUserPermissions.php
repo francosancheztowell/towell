@@ -2,7 +2,7 @@
 
 namespace App\Traits;
 
-use App\Models\SYSUsuariosRoles;
+use App\Models\Sistema\SYSUsuariosRoles;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -62,7 +62,7 @@ trait HasUserPermissions
                     ->first();
             } else {
                 // Si es string, buscar por nombre del módulo
-                $rol = \App\Models\SYSRoles::where('modulo', $module)->first();
+                $rol = \App\Models\Sistema\SYSRoles::where('modulo', $module)->first();
 
                 if (!$rol) {
                     self::$permissionsCache[$cacheKey] = false;
@@ -118,7 +118,7 @@ trait HasUserPermissions
                     ->where('idrol', $module)
                     ->first();
             } else {
-                $rol = \App\Models\SYSRoles::where('modulo', $module)->first();
+                $rol = \App\Models\Sistema\SYSRoles::where('modulo', $module)->first();
 
                 if (!$rol) {
                     return null;

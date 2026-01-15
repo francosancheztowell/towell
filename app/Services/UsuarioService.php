@@ -6,7 +6,6 @@ use App\Repositories\UsuarioRepository;
 use App\Services\PermissionService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class UsuarioService
@@ -19,7 +18,7 @@ class UsuarioService
     /**
      * Crear usuario
      */
-    public function create(array $data, ?UploadedFile $foto = null, array $permisos = []): \App\Models\Usuario
+    public function create(array $data, ?UploadedFile $foto = null, array $permisos = []): \App\Models\Sistema\Usuario
     {
         // Procesar foto
         if ($foto) {
@@ -42,7 +41,6 @@ class UsuarioService
             $this->permissionService->guardarPermisos($permisos, $usuario->idusuario);
         }
 
-        Log::info('Usuario creado exitosamente', ['usuario_id' => $usuario->idusuario]);
 
         return $usuario;
     }
@@ -73,7 +71,6 @@ class UsuarioService
         }
 
         if ($actualizado) {
-            Log::info('Usuario actualizado exitosamente', ['usuario_id' => $id]);
         }
 
         return $actualizado;
@@ -85,13 +82,12 @@ class UsuarioService
     public function delete(int $id): bool
     {
         // Eliminar permisos primero
-        \App\Models\SYSUsuariosRoles::porUsuario($id)->delete();
+        \App\Models\Sistema\SYSUsuariosRoles::porUsuario($id)->delete();
 
         // Eliminar usuario
         $eliminado = $this->usuarioRepository->delete($id);
 
         if ($eliminado) {
-            Log::info('Usuario eliminado exitosamente', ['usuario_id' => $id]);
         }
 
         return $eliminado;

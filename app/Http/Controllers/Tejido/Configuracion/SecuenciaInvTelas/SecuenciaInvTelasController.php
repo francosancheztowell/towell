@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTelas;
 
 use App\Http\Controllers\Controller;
-use App\Models\InvSecuenciaTelares;
+use App\Models\Inventario\InvSecuenciaTelares;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 

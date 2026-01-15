@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Atadores\Catalogos\Comentarios;
 
 use App\Http\Controllers\Controller;
-use App\Models\AtaComentariosModel;
+use App\Models\Atadores\AtaComentariosModel;
 use Illuminate\Http\Request;
 
 class AtaComentariosController extends Controller

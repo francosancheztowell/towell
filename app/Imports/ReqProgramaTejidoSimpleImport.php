@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace App\Imports;
 
-use App\Models\ReqModelosCodificados;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
@@ -44,15 +44,24 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
             $colorC4Excel = $this->parseString($this->getValue($row, ['COLOR C4']), 120);
             $colorC5Excel = $this->parseString($this->getValue($row, ['COLOR C5']), 120);
 
-            // Detectar si el campo Ultimo contiene "ULTIMO" y establecerlo a '1'
             $ultimoValue = $this->getValue($row, ['Último','Ultimo','ultimo']);
-            $isUltimo = (strtoupper(trim((string)($ultimoValue ?? ''))) === 'ULTIMO');
+
+            // Si contiene "ultimo" o "ULTIMO", establecer a '1'
+            $ultimoFinal = '1';
+            if ($ultimoValue !== null) {
+                $ultimoStr = strtoupper(trim((string)$ultimoValue));
+                if (!str_contains($ultimoStr, 'ULTIMO')) {
+                    $ultimoFinal = $this->parseString($ultimoValue, 4);
+                }
+            } else {
+                $ultimoFinal = $this->parseString($ultimoValue, 4);
+            }
 
             $data = [
                 /* ===== PRINCIPALES ===== */
                 'SalonTejidoId'   => $this->parseString($this->getValue($row, ['Salón','Salon','Salon Tejido Id','salon_tejido_id']), 20),
                 'NoTelarId'       => $this->parseString($this->getValue($row, ['Telar','No Telar','no_telar_id']), 20),
-                'Ultimo'          => $isUltimo ? '1' : $this->parseString($ultimoValue, 4),
+                'Ultimo'          => $ultimoFinal,
                 'CambioHilo'      => $this->parseString($this->getValue($row, ['Cambios Hilo','Cambio Hilo','CAMBIOS HILO','CAMBIO HILO','cambio_hilo']), 4),
                 'Maquina'         => $this->parseString($this->getValue($row, ['Maq','Máq','Maquina','máquina','maquina']), 30),
 
@@ -460,19 +469,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
     /**
      * Retorna el primer valor no vacío de un arreglo por lista de claves (case-insensitive)
      */
-    private function firstNonEmpty(array $data, array $keys): ?string
-    {
-        foreach ($keys as $k) {
-            foreach ($data as $dk => $dv) {
-                if (strcasecmp((string)$dk, (string)$k) === 0) {
-                    if ($dv !== null && $dv !== '') {
-                        return (string)$dv;
-                    }
-                }
-            }
-        }
-        return null;
-    }
+
 
     private function parseDiaMesNombre(string $s): ?string
     {

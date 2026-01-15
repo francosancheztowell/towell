@@ -302,14 +302,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     function openModal(modalId) {
-        console.log('openModal llamado con:', modalId);
         const modal = document.getElementById(modalId);
-        console.log('Modal encontrado:', modal);
         if (!modal) {
             console.error('Modal no encontrado:', modalId);
             return;
         }
-        
+
         // Reset form if it's the create modal
         if (modalId === 'createModal') {
             const form = modal.querySelector('form');
@@ -322,9 +320,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (turno) turno.value = '';
             if (salon) salon.value = '';
         }
-        
+
         modal.classList.remove('hidden');
-        console.log('Modal abierto');
     }
     function closeModal(modalId) {
         document.getElementById(modalId).classList.add('hidden');
@@ -440,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     wireEmpleado('createEmpleado','createNombre','createTurno');
     wireEmpleado('editEmpleado','editNombre','editTurno');
-    
+
     // Validar formulario de creación antes de submit
     const createForm = document.querySelector('#createModal form');
     if (createForm) {
@@ -450,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const nombre = document.getElementById('createNombre');
             const turno = document.getElementById('createTurno');
             const salon = document.getElementById('createSalon');
-            
+
             if (!empSel.value || !telarSel.value || !nombre.value || !turno.value || !salon.value) {
                 e.preventDefault();
                 Swal.fire({

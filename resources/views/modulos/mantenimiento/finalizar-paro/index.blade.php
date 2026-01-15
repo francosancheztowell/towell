@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.removeItem('selectedParoId');
         } else {
             // Redirigir sin mostrar mensaje si no hay paro seleccionado
-            window.location.href = '{{ route('mantenimiento.reporte-fallos-paros') }}';
+            window.location.href = '{{ route('mantenimiento.solicitudes') }}';
         }
     }
 
@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 alert('Error al cargar los datos del paro');
-                window.location.href = '{{ route('mantenimiento.reporte-fallos-paros') }}';
+                window.location.href = '{{ route('mantenimiento.solicitudes') }}';
             }
         } catch (error) {
             console.error('Error al cargar datos del paro:', error);
@@ -404,7 +404,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Botón Cancelar
     document.getElementById('btn-cancelar').addEventListener('click', function() {
-        window.location.href = '{{ route('mantenimiento.reporte-fallos-paros') }}';
+        window.location.href = '{{ route('mantenimiento.solicitudes') }}';
     });
 
     // Submit del formulario
@@ -442,11 +442,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         timer: 2000,
                         showConfirmButton: false
                     }).then(() => {
-                        window.location.href = '{{ route('mantenimiento.reporte-fallos-paros') }}';
+                        window.location.href = '{{ route('mantenimiento.solicitudes') }}';
                     });
                 } else {
                     alert(result.message || 'Paro finalizado correctamente');
-                    window.location.href = '{{ route('mantenimiento.reporte-fallos-paros') }}';
+                    window.location.href = '{{ route('mantenimiento.solicitudes') }}';
                 }
             } else {
                 const errorMsg = result.error || 'Error al finalizar el paro. Por favor, intenta nuevamente.';

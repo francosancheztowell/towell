@@ -16,10 +16,10 @@ use App\Exports\CortesEficienciaExport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Helpers\TurnoHelper;
 use App\Helpers\FolioHelper;
-use App\Models\InvSecuenciaCorteEf;
-use App\Models\TejEficienciaLine;
-use App\Models\TejEficiencia;
-
+use App\Models\Inventario\InvSecuenciaCorteEf;
+use App\Models\Tejido\TejEficienciaLine;
+use App\Models\Tejido\TejEficiencia;
+use App\Models\Planeacion\ReqProgramaTejido;
 class CortesEficienciaController extends Controller
 {
     /**
@@ -575,7 +575,7 @@ class CortesEficienciaController extends Controller
                 ->toArray();
 
             // Obtener datos de ReqProgramaTejido para telares en proceso
-            $telares = \App\Models\ReqProgramaTejido::whereIn('NoTelarId', $telaresOrden)
+            $telares = ReqProgramaTejido::whereIn('NoTelarId', $telaresOrden)
                 ->where('EnProceso', 1)
                 ->select('NoTelarId', 'VelocidadSTD', 'EficienciaSTD')
                 ->get()
@@ -594,7 +594,7 @@ class CortesEficienciaController extends Controller
                 ]);
 
                 $telares = collect($telaresOrden)->map(function ($telarId) {
-                    $ultimoRegistro = \App\Models\ReqProgramaTejido::where('NoTelarId', $telarId)
+                    $ultimoRegistro = ReqProgramaTejido::where('NoTelarId', $telarId)
                         ->orderBy('Id', 'desc')
                         ->select('NoTelarId', 'VelocidadSTD', 'EficienciaSTD')
                         ->first();

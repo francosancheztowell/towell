@@ -13,12 +13,11 @@ function generateClickSound() {
         for (let i = 0; i < buffer.length; i++) {
             // Generar un sonido de click suave y corto
             const t = i / audioContext.sampleRate;
-            data[i] = Math.sin(2 * Math.PI * 800 * t) * Math.exp(-t * 20) * 0.3;
+            data[i] = Math.sin(2 * Math.PI * 800 * t) * Math.exp(-t * 20) * 0.15;
         }
 
         return { audioContext, buffer };
     } catch (error) {
-        console.log('Web Audio API no disponible');
         return null;
     }
 }
@@ -33,14 +32,14 @@ function playClickSound() {
         const gainNode = sound.audioContext.createGain();
 
         source.buffer = sound.buffer;
-        gainNode.gain.value = 0.2; // Volumen suave
+        gainNode.gain.value = 0.1; // Volumen suave y discreto
 
         source.connect(gainNode);
         gainNode.connect(sound.audioContext.destination);
 
         source.start();
     } catch (error) {
-        console.log('Error reproduciendo sonido:', error);
+
     }
 }
 
@@ -53,7 +52,7 @@ function generateHoverSound() {
 
         for (let i = 0; i < buffer.length; i++) {
             const t = i / audioContext.sampleRate;
-            data[i] = Math.sin(2 * Math.PI * 600 * t) * Math.exp(-t * 25) * 0.15;
+            data[i] = Math.sin(2 * Math.PI * 600 * t) * Math.exp(-t * 25) * 0.08;
         }
 
         return { audioContext, buffer };
@@ -72,14 +71,13 @@ function playHoverSound() {
         const gainNode = sound.audioContext.createGain();
 
         source.buffer = sound.buffer;
-        gainNode.gain.value = 0.1;
+        gainNode.gain.value = 0.02; // Volumen muy suave para hover
 
         source.connect(gainNode);
         gainNode.connect(sound.audioContext.destination);
 
         source.start();
     } catch (error) {
-        console.log('Error reproduciendo sonido de hover:', error);
     }
 }
 

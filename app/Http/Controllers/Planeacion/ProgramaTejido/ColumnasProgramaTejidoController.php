@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
-use App\Models\OrdColProgramaTejido;
+use App\Models\Planeacion\OrdColProgramaTejido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -20,7 +20,7 @@ class ColumnasProgramaTejidoController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'usuario_id requerido',
-            ], 400);
+            ], 400)->header('Content-Type', 'application/json; charset=utf-8');
         }
 
         $estados = OrdColProgramaTejido::query()
@@ -31,7 +31,7 @@ class ColumnasProgramaTejidoController extends Controller
         return response()->json([
             'success' => true,
             'data' => $estados,
-        ]);
+        ])->header('Content-Type', 'application/json; charset=utf-8');
     }
 
     /**
@@ -80,7 +80,7 @@ class ColumnasProgramaTejidoController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Estados de columnas guardados',
-        ]);
+        ])->header('Content-Type', 'application/json; charset=utf-8');
     }
 }
 

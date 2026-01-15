@@ -15,7 +15,7 @@
     // Obtener permisos del usuario para el módulo "Requerimientos" (idrol 21)
     $permisos = null;
     if ($idusuario) {
-        $permisos = \App\Models\SYSUsuariosRoles::where('idusuario', $idusuario)
+        $permisos = \App\Models\Sistema\SYSUsuariosRoles::where('idusuario', $idusuario)
             ->where('idrol', 21) // Requerimientos
             ->first();
     }

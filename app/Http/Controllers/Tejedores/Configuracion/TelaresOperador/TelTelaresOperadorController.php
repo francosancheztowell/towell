@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Tejedores\Configuracion\TelaresOperador;
 
 use App\Http\Controllers\Controller;
-use App\Models\TelTelaresOperador;
-use App\Models\ReqTelares;
-use App\Models\SYSUsuario;
+use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Planeacion\ReqTelares;
+use App\Models\Sistema\SYSUsuario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -33,7 +33,7 @@ class TelTelaresOperadorController extends Controller
 
         $telares = ReqTelares::obtenerTodos();
         $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')
-            ->orderByRaw('TRY_CAST(numero_empleado AS INT) ASC')
+            ->orderByRaw("CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC")
             ->get();
         return view('modulos.tel-telares-operador.index', compact('items', 'q', 'telares','usuarios'));
     }
@@ -45,7 +45,7 @@ class TelTelaresOperadorController extends Controller
     {
         $telares = ReqTelares::obtenerTodos();
         $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')
-            ->orderByRaw('TRY_CAST(numero_empleado AS INT) ASC')
+            ->orderByRaw("CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC")
             ->get();
         return view('modulos.tel-telares-operador.create', compact('telares','usuarios'));
     }
@@ -94,7 +94,7 @@ class TelTelaresOperadorController extends Controller
     {
         $telares = ReqTelares::obtenerTodos();
         $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')
-            ->orderByRaw('TRY_CAST(numero_empleado AS INT) ASC')
+            ->orderByRaw("CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC")
             ->get();
         return view('modulos.tel-telares-operador.edit', [
             'item' => $telTelaresOperador,

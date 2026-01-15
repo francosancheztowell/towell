@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatEficiencias;
 
-use App\Models\ReqEficienciaStd;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqEficienciaStd;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Imports\ReqEficienciaStdImport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -48,12 +47,6 @@ class CatalagoEficienciaController extends Controller
 
             $archivo = $request->file('archivo_excel');
 
-            Log::info('Procesando archivo Excel de eficiencias', [
-                'nombre' => $archivo->getClientOriginalName(),
-                'tamaño' => $archivo->getSize(),
-                'mime' => $archivo->getMimeType()
-            ]);
-
             DB::beginTransaction();
 
             try {
@@ -67,8 +60,6 @@ class CatalagoEficienciaController extends Controller
                 $stats = $import->getStats();
 
                 DB::commit();
-
-                Log::info('Excel de eficiencias procesado exitosamente', $stats);
 
                 return response()->json([
                     'success' => true,
@@ -88,12 +79,6 @@ class CatalagoEficienciaController extends Controller
             }
 
         } catch (\Exception $e) {
-            Log::error('Error al procesar Excel de eficiencias: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Error interno del servidor al procesar el archivo Excel: ' . $e->getMessage()
@@ -282,38 +267,12 @@ class CatalagoEficienciaController extends Controller
                         $programa->refresh();
                         $horasProdDespues = $programa->HorasProd ?? 0;
 
-                        Log::info('Programa actualizado', [
-                            'programa_id' => $programa->Id,
-                            'eficiencia_antes' => $eficienciaAntes,
-                            'eficiencia_despues' => $nuevaEficiencia,
-                            'eficiencia_en_modelo' => (float)($programa->EficienciaSTD ?? 0),
-                            'horasprod_antes' => $horasProdAntes,
-                            'horasprod_despues' => $horasProdDespues,
-                            'stdtoahra' => $programa->StdToaHra ?? 0,
-                            'cantidad' => $programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0,
-                            'horasprod_esperado' => ($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0) / (($programa->StdToaHra ?? 0) * $nuevaEficiencia)
-                        ]);
-
                         $actualizados++;
                     }
                 }
             }
 
-            Log::info('Programas actualizados y recalculados', [
-                'telar' => $telar,
-                'fibra' => $fibra,
-                'densidad' => $densidad,
-                'nueva_eficiencia' => $nuevaEficiencia,
-                'programas_actualizados' => $actualizados
-            ]);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar programas y recalcular fórmulas', [
-                'telar' => $telar,
-                'fibra' => $fibra,
-                'densidad' => $densidad,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
         }
     }
 

@@ -4,13 +4,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
-use App\Models\TejInventarioTelares;
-use App\Models\InvTelasReservadas;
-use App\Models\ReqProgramaTejido;
+use App\Models\Tejido\TejInventarioTelares;
+use App\Models\Inventario\InvTelasReservadas;
+use App\Models\Planeacion\ReqProgramaTejido;
 
-use App\Models\URDCatalogoMaquina;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\InvTelasReservadasController;
-use App\Models\EngAnchoBalonaCuenta;
+use App\Models\Engomado\EngAnchoBalonaCuenta;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -179,8 +179,6 @@ class ReservarProgramarController extends Controller
             $request->validate(['no_telar' => ['required','string','max:50']]);
             $noTelar = (string)$request->string('no_telar');
 
-            Log::info('Programar telar', ['no_telar' => $noTelar]);
-
             return response()->json([
                 'success' => true,
                 'message' => "El telar {$noTelar} ha sido programado exitosamente.",
@@ -235,19 +233,10 @@ class ReservarProgramarController extends Controller
                     $actualizados++;
                 }
 
-                Log::info('Telar actualizado', [
-                    'no_telar' => $noTelar,
-                    'tipo' => $tipo,
-                    'registros_actualizados' => $actualizados,
-                    'total_registros' => $telares->count(),
-                    'update' => $update
-                ]);
             }
 
             // Retornar el primer registro actualizado para compatibilidad
             $telar = $telares->first();
-
-            Log::info('Telar actualizado', ['no_telar' => $noTelar, 'tipo' => $telar->tipo, 'update' => $update]);
 
             return response()->json([
                 'success' => true,
@@ -307,11 +296,7 @@ class ReservarProgramarController extends Controller
             // 2) Limpiar campos de reserva
             $telar->update(['hilo'=>null,'metros'=>null,'no_julio'=>null,'no_orden'=>null]);
 
-            Log::info('Telar liberado', [
-                'no_telar' => $noTelar,
-                'tipo'     => $telar->tipo,
-                'reservas_eliminadas' => $eliminadas,
-            ]);
+
 
             return response()->json([
                 'success' => true,
@@ -498,34 +483,6 @@ class ReservarProgramarController extends Controller
                 if ($noTelar !== '') $hiloPorTelar[$noTelar] = $hiloTelar;
             }
 
-            Log::info('getResumenSemanas - Verificación de telares desde BD', [
-                'hiloPorTelar' => $hiloPorTelar,
-                'hiloEsperadoDesdeValidacion' => $hiloEsperado,
-                'telares_bd' => $telaresConHilo->map(function($t) {
-                    return [
-                        'no_telar' => $t->no_telar,
-                        'tipo' => $t->tipo,
-                        'hilo' => $t->hilo,
-                        'salon' => $t->salon,
-                        'calibre' => $t->calibre,
-                    ];
-                })->values()->toArray()
-            ]);
-
-            Log::info('getResumenSemanas - Inicio procesamiento', [
-                'noTelares' => $noTelares,
-                'tipoEsperado' => $tipoEsperado,
-                'calibreEsperado' => $calibreEsperado,
-                'calibreEsVacio' => $calibreEsVacio,
-                'hiloEsperado' => $hiloEsperado,
-                'hiloEsperado_type' => gettype($hiloEsperado),
-                'salonEsperado' => $salonEsperado,
-                'fechaIni' => $fechaIni,
-                'fechaFin' => $fechaFin,
-                'semanas' => $semanas,
-                'usarFallbackMetros' => $usarFallbackMetros,
-            ]);
-
             // Programas + líneas (eager) - Seleccionar campos específicos de ReqProgramaTejidoLine
             $programas = ReqProgramaTejido::whereIn('NoTelarId', $noTelares)
                 ->with(['lineas' => function($query) use ($fechaIni, $fechaFin) {
@@ -545,30 +502,6 @@ class ReservarProgramarController extends Controller
                 }])
                 ->get();
 
-            Log::info('getResumenSemanas - Programas encontrados con líneas relacionadas (eager loading)', [
-                'noTelares' => $noTelares,
-                'totalProgramas' => $programas->count(),
-                'programas_con_EnProceso' => $programas->where('EnProceso', true)->count(),
-                'programas_sin_EnProceso' => $programas->where('EnProceso', false)->count(),
-                'programas_por_telar' => $programas->groupBy('NoTelarId')->map(fn($g) => $g->count())->toArray(),
-                'programas_con_lineas' => $programas->filter(fn($p) => $p->lineas->count() > 0)->count(),
-                'programas_detallados' => $programas->map(function($p) {
-                    return [
-                        'Id' => $p->Id,
-                        'NoTelarId' => $p->NoTelarId,
-                        'CuentaRizo' => $p->CuentaRizo,
-                        'CuentaPie' => $p->CuentaPie,
-                        'FibraRizo' => $p->FibraRizo,
-                        'FibraPie' => $p->FibraPie ?? null,
-                        'SalonTejidoId' => $p->SalonTejidoId,
-                        'EnProceso' => $p->EnProceso,
-                        'CalibreRizo' => $p->CalibreRizo ?? null,
-                        'TotalLineas' => $p->lineas->count(),
-                        'LineasConMtsRizo' => $p->lineas->filter(fn($l) => ($l->MtsRizo ?? 0) > 0)->count(),
-                        'LineasConMtsPie' => $p->lineas->filter(fn($l) => ($l->MtsPie ?? 0) > 0)->count(),
-                    ];
-                })->toArray()
-            ]);
 
             $lineasPorPrograma = [];
             foreach ($programas as $programa) {
@@ -582,15 +515,7 @@ class ReservarProgramarController extends Controller
                     $matchSalon = $this->matchSalon($salonEsperado, (string)($p->SalonTejidoId ?? ''));
                     $tieneCuentaRizo = !empty($p->CuentaRizo);
 
-                    Log::debug('Filtrado programa RIZO - Detalle', [
-                        'ProgramaId' => $p->Id ?? null,
-                        'NoTelarId' => $p->NoTelarId ?? null,
-                        'SalonEsperado' => $salonEsperado,
-                        'SalonPrograma' => $p->SalonTejidoId ?? null,
-                        'matchSalon' => $matchSalon,
-                        'tieneCuentaRizo' => $tieneCuentaRizo,
-                        'CuentaRizo' => $p->CuentaRizo ?? null,
-                    ]);
+
 
 
                     $fibraRizoRaw = $p->FibraRizo ?? null;
@@ -652,11 +577,7 @@ class ReservarProgramarController extends Controller
                     return $resultadoFinal;
                 })->values();
 
-                Log::info('getResumenSemanas - Programas filtrados para RIZO', [
-                    'totalProgramas' => $programas->count(),
-                    'programasFiltrados' => $programasFiltrados->count(),
-                    'programasFiltrados_ids' => $programasFiltrados->pluck('Id')->toArray(),
-                ]);
+
 
                 $resumenRizo = $this->procesarResumenPorTipo(
                     $programasFiltrados, $semanas, 'Rizo',
@@ -668,10 +589,6 @@ class ReservarProgramarController extends Controller
                     $fechaFin,
                     $usarFallbackMetros
                 );
-
-                Log::info('getResumenSemanas - Resumen RIZO generado', [
-                    'totalItems' => count($resumenRizo),
-                ]);
 
                 return response()->json([
                     'success' => true,
@@ -690,12 +607,6 @@ class ReservarProgramarController extends Controller
                 return $matchSalon && $tieneCuentaPie && $matchCalibre;
             })->values();
 
-            Log::info('getResumenSemanas - Programas filtrados para PIE', [
-                'totalProgramas' => $programas->count(),
-                'programasFiltrados' => $programasFiltrados->count(),
-                'programasFiltrados_ids' => $programasFiltrados->pluck('Id')->toArray(),
-            ]);
-
             $resumenPie = $this->procesarResumenPorTipo(
                 $programasFiltrados, $semanas, 'Pie',
                 null, $hiloEsperado, $calibreEsperado, $calibreEsVacio, $lineasPorPrograma,
@@ -704,22 +615,12 @@ class ReservarProgramarController extends Controller
                 $usarFallbackMetros
             );
 
-            Log::info('getResumenSemanas - Resumen PIE generado', [
-                'totalItems' => count($resumenPie),
-            ]);
-
             return response()->json([
                 'success' => true,
                 'data'    => ['rizo' => [], 'pie' => $resumenPie],
                 'semanas' => $semanas,
             ]);
         } catch (\Throwable $e) {
-            Log::error('getResumenSemanas', [
-                'msg' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
             $semanas = $this->construirSemanas(5);
             return response()->json([
                 'success' => false,
@@ -903,13 +804,6 @@ class ReservarProgramarController extends Controller
                 $resumen[$clave]['TotalKilos'] += $kilos;
             }
         }
-
-        Log::info('procesarResumenPorTipo - Resumen generado', [
-            'tipo' => $tipo,
-            'totalProgramas' => count($programas),
-            'itemsEnResumen' => count($resumen),
-            'clavesResumen' => array_keys($resumen),
-        ]);
 
         // *** NO filtramos por Total > 0: si existe el programa, se muestra con ceros ***
         return collect($resumen)

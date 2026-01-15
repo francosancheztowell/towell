@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTrama;
 
 use App\Http\Controllers\Controller;
-use App\Models\InvSecuenciaTrama;
+use App\Models\Inventario\InvSecuenciaTrama;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;

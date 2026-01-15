@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Tejedores\NotificarMontadoJulios;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\TelTelaresOperador;
-use App\Models\TejInventarioTelares;
+use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Tejido\TejInventarioTelares;
 use Carbon\Carbon;
 
 class NotificarMontadoJulioController extends Controller

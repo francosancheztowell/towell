@@ -4,7 +4,7 @@ namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Requerimiento;
+use App\Models\Planeacion\Requerimiento;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,6 +19,11 @@ class RequerimientoController extends Controller
     {
         $requerimientos = Requerimiento::all();
         return view('requerimiento.index', compact('requerimientos'));
+    }
+
+    public function ultimosRequerimientos()
+    {
+        return response()->json([]);
     }
 
     public function store(Request $request)
@@ -221,7 +226,6 @@ class RequerimientoController extends Controller
             ->keyBy('dis_id'); // Agrupa por dis_id como índice
 
 
-        //Log::info((array) $InventariosSeleccionados);
 
         return view('modulos.programar_requerimientos.programar-requerimientos', compact('requerimientos', 'inventarios', 'InventariosSeleccionados', 'vinculados'));
     }
@@ -277,8 +281,6 @@ class RequerimientoController extends Controller
         $nuevoTelar = DB::table('Produccion.dbo.requerimiento')->where('id', $requerimiento['id'])->first();
         $orden = $inventario['orden'];
 
-        //Log::info((array) $nuevoTelar);
-
         return response()->json([
             'success' => true,
             'message' => 'RESERVADO CORRECTAMENTE',
@@ -290,13 +292,7 @@ class RequerimientoController extends Controller
             ]
         ]);
     }
-    /*************************************************************************************************************************************************************************/
-    /*************************************************************************************************************************************************************************/
-    //metodo que regresa 2 objetos a la vista para llenar 2 tablas (amarillas)
-    //PROGRAMAR-REQUERIMIENTO en programar_requerimiento //PROGRAMAR-REQUERIMIENTO en programar_requerimiento //PROGRAMAR-REQUERIMIENTO en programar_requerimiento
-    /********************VISTA DOBLE - PROGRAMAR - URDIDO ENGOMADO*****************************************************************************************************************************************************/
-    /********************VISTA DOBLE - PROGRAMAR - URDIDO ENGOMADO*****************************************************************************************************************************************************/
-    public function requerimientosAProgramar(Request $request)
+     public function requerimientosAProgramar(Request $request)
     {
         // Recuperar los valores enviados desde la vista
         $telar = $request->input('telar');

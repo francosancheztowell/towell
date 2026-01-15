@@ -3,11 +3,11 @@ namespace App\Http\Controllers\Tejedores\Desarrolladores;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\TelDesarrolladoresHelper;
-use App\Models\TelTelaresOperador;
-use App\Models\catDesarrolladoresModel;
-use App\Models\catcodificados\CatCodificados;
-use App\Models\ReqModelosCodificados;
-use App\Models\UrdCatJulios;
+use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Tejedores\catDesarrolladoresModel;
+use App\Models\Planeacion\Catalogos\CatCodificados;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Urdido\UrdCatJulios;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejido;
 
 class TelDesarrolladoresController extends Controller
 {
@@ -53,7 +53,7 @@ class TelDesarrolladoresController extends Controller
             ->get();
     }
 
-    public function obtenerProducciones(Request $request, $telarId)
+    public function obtenerProducciones($telarId)
     {
         try {
             $producciones = ReqProgramaTejido::where('NoTelarId', $telarId)
@@ -157,7 +157,7 @@ class TelDesarrolladoresController extends Controller
 
 
 
-    public function obtenerCodigoDibujo(Request $request, $salonTejidoId, $tamanoClave)
+    public function obtenerCodigoDibujo($salonTejidoId, $tamanoClave)
     {
         try {
             $codigoDibujo = ReqModelosCodificados::query()
@@ -179,11 +179,6 @@ class TelDesarrolladoresController extends Controller
                 'codigoDibujo' => $codigoDibujo
             ]);
         } catch (Exception $e) {
-            Log::error('Error al obtener CodigoDibujo: ' . $e->getMessage(), [
-                'salonTejidoId' => $salonTejidoId,
-                'tamanoClave' => $tamanoClave,
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener CodigoDibujo'
@@ -239,11 +234,6 @@ class TelDesarrolladoresController extends Controller
                 'registro' => $registro,
             ]);
         } catch (Exception $e) {
-            Log::error('Error al obtener datos de CatCodificados: ' . $e->getMessage(), [
-                'telarId' => $telarId,
-                'noProduccion' => $noProduccion,
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener la información'
@@ -403,7 +393,7 @@ class TelDesarrolladoresController extends Controller
             }
         }
 
-        private function moverRegistroConReprogramar(ReqProgramaTejido $registro, $todosLosRegistros, string $reprogramar, string $salonTejido, string $noTelarId): array
+        private function moverRegistroConReprogramar(ReqProgramaTejido $registro, $todosLosRegistros, string $reprogramar): array
         {
             $idsAfectados = [];
 
@@ -459,14 +449,12 @@ class TelDesarrolladoresController extends Controller
                     $idsAfectados[] = (int) $idU;
                 }
 
+                // Limpiar el campo Reprogramar ya que se utilizó
                 $registro->EnProceso = 0;
+                $registro->Reprogramar = null;
                 $registro->save();
 
             } catch (Exception $e) {
-                Log::error('Error al mover registro con Reprogramar: ' . $e->getMessage(), [
-                    'id' => $registro->Id ?? null,
-                    'reprogramar' => $reprogramar,
-                ]);
             }
 
             return $idsAfectados;
@@ -515,7 +503,7 @@ class TelDesarrolladoresController extends Controller
                                 ->lockForUpdate()
                                 ->get();
 
-                            $idsMovidos = $this->moverRegistroConReprogramar($registroEnProceso, $todosLosRegistros, $reprogramar, $salonTejido, $noTelarId);
+                            $idsMovidos = $this->moverRegistroConReprogramar($registroEnProceso, $todosLosRegistros, $reprogramar);
                             $idsAfectados = array_merge($idsAfectados, $idsMovidos);
                         } else {
                             // Si no tiene Reprogramar, aplicar lógica actual (actualizar CatCodificados y eliminar)
@@ -610,13 +598,43 @@ class TelDesarrolladoresController extends Controller
                         DB::table('ReqProgramaTejido')->where('Id', $idU)->update($dataU);
                         $idsAfectados[] = (int) $idU;
                     }
+
+                    // Validar y actualizar OrdCompartidaLider si el nuevo registro tiene OrdCompartida
+                    $registroActualizadoRecargado = ReqProgramaTejido::query()
+                        ->where('Id', $registroActualizado->Id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($registroActualizadoRecargado) {
+                        $ordCompartidaRaw = trim((string) ($registroActualizadoRecargado->OrdCompartida ?? ''));
+                        $ordCompartida = $ordCompartidaRaw !== '' ? (int) $ordCompartidaRaw : null;
+
+                        if ($ordCompartida && $ordCompartida > 0) {
+                            // Buscar todos los registros con la misma OrdCompartida
+                            $registrosCompartidos = ReqProgramaTejido::query()
+                                ->where('OrdCompartida', $ordCompartida)
+                                ->whereNotNull('FechaInicio')
+                                ->orderBy('FechaInicio', 'asc')
+                                ->lockForUpdate()
+                                ->get();
+
+                            if ($registrosCompartidos->isNotEmpty()) {
+                                // El primero (con FechaInicio más antigua) será el líder
+                                $nuevoLider = $registrosCompartidos->first();
+
+                                // Poner null en todos los registros de la orden compartida
+                                ReqProgramaTejido::query()
+                                    ->where('OrdCompartida', $ordCompartida)
+                                    ->update(['OrdCompartidaLider' => null]);
+
+                                // Asignar OrdCompartidaLider = 1 al registro con FechaInicio más antigua
+                                $nuevoLider->OrdCompartidaLider = 1;
+                                $nuevoLider->saveQuietly();
+                            }
+                        }
+                    }
                 });
             } catch (Exception $e) {
-                Log::error('Error al mover registro en proceso: ' . $e->getMessage(), [
-                    'salonTejidoId' => $salonTejido,
-                    'noTelarId' => $noTelarId,
-                    'registroId' => $registroActualizado->Id,
-                ]);
             } finally {
                 if ($dispatcher) {
                     ReqProgramaTejido::setEventDispatcher($dispatcher);
@@ -644,6 +662,8 @@ class TelDesarrolladoresController extends Controller
 
 	    public function store(Request $request){
 	        try {
+
+
 	            $validated = $request->validate([
 	                'NoTelarId' => 'required|string',
 	                'NoProduccion' => 'required|string|max:80',
@@ -663,8 +683,13 @@ class TelDesarrolladoresController extends Controller
                     'pasadas.*' => 'nullable|integer|min:1',
 	            ]);
 
+
+
                 $codigoDibujo = $this->normalizeCodigoDibujo($validated['CodificacionModelo'] ?? '');
+
+
                 $ordenData = ReqProgramaTejido::where('NoProduccion', $validated['NoProduccion'])->first();
+
                 $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
                 $minutosCambio = $this->calcularMinutosCambio(
                     $validated['HoraInicio'] ?? null,
@@ -715,46 +740,46 @@ class TelDesarrolladoresController extends Controller
                         $pasadasPayload[$field] = (int) $combValue;
                     }
                 }
-	            $modelo = new CatCodificados();
-	            $table = $modelo->getTable();
-	            $columns = Schema::getColumnListing($table);
+                $modelo = new CatCodificados();
+                $table = $modelo->getTable();
+                $columns = Schema::getColumnListing($table);
 
-	            $query = CatCodificados::query();
-	            $hasKeyFilter = false;
-	            if (in_array('OrdenTejido', $columns, true)) {
-	                $query->where('OrdenTejido', $validated['NoProduccion']);
-	                $hasKeyFilter = true;
-	            } elseif (in_array('NumOrden', $columns, true)) {
-	                $query->where('NumOrden', $validated['NoProduccion']);
-	                $hasKeyFilter = true;
-	            }
+                $query = CatCodificados::query();
+                $hasKeyFilter = false;
+                if (in_array('OrdenTejido', $columns, true)) {
+                    $query->where('OrdenTejido', $validated['NoProduccion']);
+                    $hasKeyFilter = true;
+                } elseif (in_array('NumOrden', $columns, true)) {
+                    $query->where('NumOrden', $validated['NoProduccion']);
+                    $hasKeyFilter = true;
+                }
 
-	            if (in_array('TelarId', $columns, true)) {
-	                $query->where('TelarId', $validated['NoTelarId']);
-	                $hasKeyFilter = true;
-	            } elseif (in_array('NoTelarId', $columns, true)) {
-	                $query->where('NoTelarId', $validated['NoTelarId']);
-	                $hasKeyFilter = true;
-	            }
+                if (in_array('TelarId', $columns, true)) {
+                    $query->where('TelarId', $validated['NoTelarId']);
+                    $hasKeyFilter = true;
+                } elseif (in_array('NoTelarId', $columns, true)) {
+                    $query->where('NoTelarId', $validated['NoTelarId']);
+                    $hasKeyFilter = true;
+                }
 
                 $registro = $hasKeyFilter ? ($query->first() ?? $modelo) : $modelo;
 
                 $payload = array_merge([
-	                'TelarId' => $validated['NoTelarId'],
-	                'NoTelarId' => $validated['NoTelarId'],
-	                'OrdenTejido' => $validated['NoProduccion'],
-	                'CodigoDibujo' => $codigoDibujo,
-	                'CodificacionModelo' => $codigoDibujo,
-	                'RespInicio' => $validated['Desarrollador'] ?? null,
-	                'HrInicio' => $validated['HoraInicio'] ?? null,
-	                'HrTermino' => $validated['HoraFinal'] ?? null,
+                    'TelarId' => $validated['NoTelarId'],
+                    'NoTelarId' => $validated['NoTelarId'],
+                    'OrdenTejido' => $validated['NoProduccion'],
+                    'CodigoDibujo' => $codigoDibujo,
+                    'CodificacionModelo' => $codigoDibujo,
+                    'RespInicio' => $validated['Desarrollador'] ?? null,
+                    'HrInicio' => $validated['HoraInicio'] ?? null,
+                    'HrTermino' => $validated['HoraFinal'] ?? null,
                     'MinutosCambio' => $minutosCambio,
-	                'TramaAnchoPeine' => $validated['TramaAnchoPeine'] ?? null,
-	                'AnchoPeineTrama' => $validated['TramaAnchoPeine'] ?? null,
-	                'LogLuchaTotal' => $validated['LongitudLuchaTot'] ?? null,
-	                'LongitudLuchaTot' => $validated['LongitudLuchaTot'] ?? null,
-	                'Total' => $validated['TotalPasadasDibujo'],
-	                'TotalPasadasDibujo' => $validated['TotalPasadasDibujo'],
+                    'TramaAnchoPeine' => $validated['TramaAnchoPeine'] ?? null,
+                    'AnchoPeineTrama' => $validated['TramaAnchoPeine'] ?? null,
+                    'LogLuchaTotal' => $validated['LongitudLuchaTot'] ?? null,
+                    'LongitudLuchaTot' => $validated['LongitudLuchaTot'] ?? null,
+                    'Total' => $validated['TotalPasadasDibujo'],
+                    'TotalPasadasDibujo' => $validated['TotalPasadasDibujo'],
                     'NumeroJulioRizo' => $validated['NumeroJulioRizo'],
                     'NumeroJulioPie' => $validated['NumeroJulioPie'] ?? null,
                     'JulioRizo' => $validated['NumeroJulioRizo'],
@@ -763,23 +788,26 @@ class TelDesarrolladoresController extends Controller
                     'EficienciaFinal' => $validated['EficienciaFinal'] ?? null,
                     'EfiInicial' => $validated['EficienciaInicio'] ?? null,
                     'EfiFinal' => $validated['EficienciaFinal'] ?? null,
-	                'DesperdicioTrama' => $validated['DesperdicioTrama'] ?? null,
-	                'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
+                    'DesperdicioTrama' => $validated['DesperdicioTrama'] ?? null,
+                    'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
                 ], $detallePayload, $pasadasPayload);
 
-	            foreach ($payload as $column => $value) {
-	                if (!in_array($column, $columns, true)) {
-	                    continue;
-	                }
-	                $registro->setAttribute($column, $value);
-	            }
+                foreach ($payload as $column => $value) {
+                    if (!in_array($column, $columns, true)) {
+                        continue;
+                    }
+                    $registro->setAttribute($column, $value);
+                }
 
-	            $registro->save();
+                $registro->save();
+
 
                 // Buscar y actualizar registro en ReqModelosCodificados
                 $claveModelo = $registro->getAttribute('ClaveModelo') ?: data_get($ordenData, 'TamanoClave');
                 $departamento = $registro->getAttribute('Departamento') ?: data_get($ordenData, 'SalonTejidoId');
 
+
+                $registroModelo = null;
                 if ($claveModelo || $departamento) {
                     $queryModelos = ReqModelosCodificados::query();
 
@@ -792,15 +820,20 @@ class TelDesarrolladoresController extends Controller
                     }
 
                     $registroModelo = $queryModelos->first();
+
+
                     $permitirActualizarRelacionados = true;
                     if ($registroModelo) {
                         $codigoPrevioModelo = trim((string) ($registroModelo->CodigoDibujo ?? $registroModelo->CodificacionModelo ?? ''));
                         if ($codigoPrevioModelo !== '') {
                             $permitirActualizarRelacionados = false;
+
                         }
                     }
 
+                    // Actualizar ReqModelosCodificados solo si está permitido
                     if ($registroModelo && $permitirActualizarRelacionados && $codigoDibujo !== '') {
+
                         // Preparar payload para actualizar ReqModelosCodificados
                         $payloadModelo = array_merge([
                             'TamanoClave' => $claveModelo,
@@ -826,75 +859,142 @@ class TelDesarrolladoresController extends Controller
                         }
 
                         $registroModelo->save();
-                        $ordenTejido = $registroModelo->OrdenTejido ?: $validated['NoProduccion'];
-                        $salonTejido = $registroModelo->SalonTejidoId;
-                        if ($ordenTejido && $salonTejido) {
-                            $programas = ReqProgramaTejido::where('NoProduccion', $ordenTejido)
-                                ->where('SalonTejidoId', $salonTejido)
-                                ->get();
 
-                            if ($programas->isNotEmpty()) {
-                                $columnasPrograma = Schema::getColumnListing($programas->first()->getTable());
-                                $payloadPrograma = [
-                                    'CalibreTrama' => $registroModelo->CalibreTrama,
-                                    'CalibreTrama2' => $registroModelo->CalibreTrama2,
-                                    'FibraTrama' => $registroModelo->FibraId,
-                                    'PasadasTrama' => $registroModelo->PasadasTramaFondoC1,
-                                    'PasadasComb1' => $registroModelo->PasadasComb1,
-                                    'PasadasComb2' => $registroModelo->PasadasComb2,
-                                    'PasadasComb3' => $registroModelo->PasadasComb3,
-                                    'PasadasComb4' => $registroModelo->PasadasComb4,
-                                    'PasadasComb5' => $registroModelo->PasadasComb5,
-                                    'CodColorTrama' => $registroModelo->CodColorTrama,
-                                    'ColorTrama' => $registroModelo->ColorTrama,
-                                    'CalibreComb1' => $registroModelo->CalibreComb1,
-                                    'CalibreComb12' => $registroModelo->CalibreComb12,
-                                    'FibraComb1' => $registroModelo->FibraComb1,
-                                    'CodColorComb1' => $registroModelo->CodColorC1,
-                                    'NombreCC1' => $registroModelo->NomColorC1,
-                                    'CalibreComb2' => $registroModelo->CalibreComb2,
-                                    'CalibreComb22' => $registroModelo->CalibreComb22,
-                                    'FibraComb2' => $registroModelo->FibraComb2,
-                                    'CodColorComb2' => $registroModelo->CodColorC2,
-                                    'NombreCC2' => $registroModelo->NomColorC2,
-                                    'CalibreComb3' => $registroModelo->CalibreComb3,
-                                    'CalibreComb32' => $registroModelo->CalibreComb32,
-                                    'FibraComb3' => $registroModelo->FibraComb3,
-                                    'CodColorComb3' => $registroModelo->CodColorC3,
-                                    'NombreCC3' => $registroModelo->NomColorC3,
-                                    'CalibreComb4' => $registroModelo->CalibreComb4,
-                                    'CalibreComb42' => $registroModelo->CalibreComb42,
-                                    'FibraComb4' => $registroModelo->FibraComb4,
-                                    'CodColorComb4' => $registroModelo->CodColorC4,
-                                    'NombreCC4' => $registroModelo->NomColorC4,
-                                    'CalibreComb5' => $registroModelo->CalibreComb5,
-                                    'CalibreComb52' => $registroModelo->CalibreComb52,
-                                    'FibraComb5' => $registroModelo->FibraComb5,
-                                    'CodColorComb5' => $registroModelo->CodColorC5,
-                                    'NombreCC5' => $registroModelo->NomColorC5,
-                                ];
-                                if ($fechaInicioProgramada) {
-                                    $payloadPrograma['FechaInicio'] = $fechaInicioProgramada;
-                                }
-                                foreach ($programas as $programa) {
-                                    foreach ($payloadPrograma as $column => $value) {
-                                        if (!in_array($column, $columnasPrograma, true)) {
-                                            continue;
-                                        }
-                                        $programa->setAttribute($column, $value);
-                                    }
-                                    $programa->save();
-                                }
-                                $programaEnTelar = $programas->firstWhere('NoTelarId', $validated['NoTelarId']);
-                                if ($programaEnTelar) {
-                                    $this->moverRegistroEnProceso($programaEnTelar);
+                    } else {
 
-                                    // Enviar notificación a Telegram después de completar todo el proceso
-                                    $this->enviarNotificacionTelegram($validated, $programaEnTelar, $codigoDibujo);
-                                }
-                            }
-                        }
                     }
+                } else {
+                    Log::warning('TelDesarrolladoresController::store - No se encontró ReqModelosCodificados (faltan datos)', [
+                        'claveModelo' => $claveModelo,
+                        'departamento' => $departamento
+                    ]);
+                }
+
+                // SIEMPRE actualizar los programas de ReqProgramaTejido, independientemente de si se actualizó ReqModelosCodificados
+                // Usar los datos de CatCodificados que acabamos de guardar
+                $ordenTejido = $validated['NoProduccion'];
+                $salonTejido = $departamento ?: data_get($ordenData, 'SalonTejidoId');
+
+
+
+                if ($ordenTejido && $salonTejido) {
+                    // Primero obtener el programa del telar actual para verificar si tiene OrdCompartida
+                    $programaInicial = ReqProgramaTejido::where('NoProduccion', $ordenTejido)
+                        ->where('SalonTejidoId', $salonTejido)
+                        ->where('NoTelarId', $validated['NoTelarId'])
+                        ->first();
+
+
+
+                    // Si tiene OrdCompartida, buscar TODOS los programas compartidos
+                    $programas = collect();
+                    if ($programaInicial && !empty($programaInicial->OrdCompartida)) {
+                        $ordCompartida = (int) $programaInicial->OrdCompartida;
+
+                        // Buscar todos los programas con la misma OrdCompartida
+                        $programas = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
+                            ->get();
+
+                    } else {
+
+                        // Si no tiene OrdCompartida, buscar solo por NoProduccion y SalonTejidoId
+                        $programas = ReqProgramaTejido::where('NoProduccion', $ordenTejido)
+                            ->where('SalonTejidoId', $salonTejido)
+                            ->get();
+
+                    }
+
+                    if ($programas->isNotEmpty()) {
+
+
+                        // Usar los datos de CatCodificados (que acabamos de guardar) en lugar de ReqModelosCodificados
+                        // Si ReqModelosCodificados existe, usarlo como fuente, sino usar CatCodificados
+                        $fuenteDatos = $registroModelo ?? $registro;
+
+
+
+                        $columnasPrograma = Schema::getColumnListing($programas->first()->getTable());
+                        $payloadPrograma = [
+                            'CalibreTrama' => $fuenteDatos->Tra ?? $fuenteDatos->CalibreTrama ?? null,
+                            'CalibreTrama2' => $fuenteDatos->CalibreTrama2 ?? null,
+                            'FibraTrama' => $fuenteDatos->FibraId ?? $fuenteDatos->FibraTrama ?? null,
+                            'PasadasTrama' => $fuenteDatos->PasadasTramaFondoC1 ?? $fuenteDatos->PasadasTrama ?? null,
+                            'PasadasComb1' => $fuenteDatos->PasadasComb1 ?? null,
+                            'PasadasComb2' => $fuenteDatos->PasadasComb2 ?? null,
+                            'PasadasComb3' => $fuenteDatos->PasadasComb3 ?? null,
+                            'PasadasComb4' => $fuenteDatos->PasadasComb4 ?? null,
+                            'PasadasComb5' => $fuenteDatos->PasadasComb5 ?? null,
+                            'CodColorTrama' => $fuenteDatos->CodColorTrama ?? null,
+                            'ColorTrama' => $fuenteDatos->ColorTrama ?? null,
+                            'CalibreComb1' => $fuenteDatos->CalibreComb1 ?? null,
+                            'CalibreComb12' => $fuenteDatos->CalibreComb12 ?? null,
+                            'FibraComb1' => $fuenteDatos->FibraComb1 ?? null,
+                            'CodColorComb1' => $fuenteDatos->CodColorC1 ?? $fuenteDatos->CodColorComb1 ?? null,
+                            'NombreCC1' => $fuenteDatos->NomColorC1 ?? $fuenteDatos->NombreCC1 ?? null,
+                            'CalibreComb2' => $fuenteDatos->CalibreComb2 ?? null,
+                            'CalibreComb22' => $fuenteDatos->CalibreComb22 ?? null,
+                            'FibraComb2' => $fuenteDatos->FibraComb2 ?? null,
+                            'CodColorComb2' => $fuenteDatos->CodColorC2 ?? $fuenteDatos->CodColorComb2 ?? null,
+                            'NombreCC2' => $fuenteDatos->NomColorC2 ?? $fuenteDatos->NombreCC2 ?? null,
+                            'CalibreComb3' => $fuenteDatos->CalibreComb3 ?? null,
+                            'CalibreComb32' => $fuenteDatos->CalibreComb32 ?? null,
+                            'FibraComb3' => $fuenteDatos->FibraComb3 ?? null,
+                            'CodColorComb3' => $fuenteDatos->CodColorC3 ?? $fuenteDatos->CodColorComb3 ?? null,
+                            'NombreCC3' => $fuenteDatos->NomColorC3 ?? $fuenteDatos->NombreCC3 ?? null,
+                            'CalibreComb4' => $fuenteDatos->CalibreComb4 ?? null,
+                            'CalibreComb42' => $fuenteDatos->CalibreComb42 ?? null,
+                            'FibraComb4' => $fuenteDatos->FibraComb4 ?? null,
+                            'CodColorComb4' => $fuenteDatos->CodColorC4 ?? $fuenteDatos->CodColorComb4 ?? null,
+                            'NombreCC4' => $fuenteDatos->NomColorC4 ?? $fuenteDatos->NombreCC4 ?? null,
+                            'CalibreComb5' => $fuenteDatos->CalibreComb5 ?? null,
+                            'CalibreComb52' => $fuenteDatos->CalibreComb52 ?? null,
+                            'FibraComb5' => $fuenteDatos->FibraComb5 ?? null,
+                            'CodColorComb5' => $fuenteDatos->CodColorC5 ?? $fuenteDatos->CodColorComb5 ?? null,
+                            'NombreCC5' => $fuenteDatos->NomColorC5 ?? $fuenteDatos->NombreCC5 ?? null,
+                        ];
+                        if ($fechaInicioProgramada) {
+                            $payloadPrograma['FechaInicio'] = $fechaInicioProgramada;
+                        }
+
+                        // Actualizar TODOS los programas (todos los telares de la orden compartida)
+                        $programasActualizados = 0;
+                        foreach ($programas as $programa) {
+                            foreach ($payloadPrograma as $column => $value) {
+                                if (!in_array($column, $columnasPrograma, true)) {
+                                    continue;
+                                }
+
+                                // Los campos ya fueron ampliados en la BD, no se necesita validación adicional
+
+                                $programa->setAttribute($column, $value);
+                            }
+                            $programa->save();
+                            $programasActualizados++;
+                        }
+
+
+
+                        // Obtener el programa del telar actual para moverlo a proceso
+                        $programaEnTelar = $programas->firstWhere('NoTelarId', $validated['NoTelarId']);
+
+
+                        if ($programaEnTelar) {
+
+                            $this->moverRegistroEnProceso($programaEnTelar);
+
+                            // Enviar notificación a Telegram después de completar todo el proceso
+                            $this->enviarNotificacionTelegram($validated, $programaEnTelar, $codigoDibujo);
+                        } else {
+
+                        }
+                    } else {
+
+                    }
+                } else {
+                    Log::warning('TelDesarrolladoresController::store - Faltan datos para buscar programas', [
+                        'ordenTejido' => $ordenTejido,
+                        'salonTejido' => $salonTejido
+                    ]);
                 }
             if ($request->ajax()) {
                 return response()->json([
@@ -905,6 +1005,9 @@ class TelDesarrolladoresController extends Controller
             return redirect()->route('desarrolladores')
                 ->with('success', 'Datos guardados correctamente');
         } catch (ValidationException $e) {
+            Log::error('TelDesarrolladoresController::store - Error de validación', [
+                'errors' => $e->errors()
+            ]);
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
@@ -914,14 +1017,20 @@ class TelDesarrolladoresController extends Controller
             }
             return back()->withErrors($e->errors())->withInput();
         } catch (Exception $e) {
-            Log::error('Error al guardar datos de desarrollador: ' . $e->getMessage());
+            Log::error('TelDesarrolladoresController::store - Error general', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ocurrió un error al guardar los datos'
+                    'message' => 'Ocurrió un error al guardar los datos: ' . $e->getMessage()
                 ], 500);
             }
-            return back()->with('error', 'Ocurrió un error al guardar los datos')->withInput();
+            return back()->with('error', 'Ocurrió un error al guardar los datos: ' . $e->getMessage())->withInput();
         }
     }
 

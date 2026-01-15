@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Models\ReqEficienciaStd;
+use App\Models\Planeacion\ReqEficienciaStd;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
@@ -93,12 +93,6 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
             try {
                 // Log de las claves disponibles solo en la primera fila para debugging
                 if ($this->rowCounter === 1) {
-                    Log::info('Claves disponibles en el Excel', [
-                        'keys' => $row->keys()->toArray(),
-                        'normalized_keys' => $row->keys()->map(function($key) {
-                            return $this->normalizeKey($key);
-                        })->toArray()
-                    ]);
                 }
 
                 // Extraer valores usando los encabezados exactos: Salon, No Telar, Fibra, Eficiencia, Densidad

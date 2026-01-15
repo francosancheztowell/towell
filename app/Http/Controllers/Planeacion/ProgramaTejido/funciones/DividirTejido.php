@@ -1,15 +1,15 @@
-﻿<?php
+<?php
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
-use App\Models\ReqModelosCodificados;
+use App\Models\Planeacion\ReqModelosCodificados;
 use App\Helpers\StringTruncator;
 
 class DividirTejido

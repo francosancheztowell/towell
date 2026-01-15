@@ -12,7 +12,7 @@
 @endsection
 
 @section('content')
-<div class="container-fluid px-4 py-6 -mt-6">
+<div class="container-fluid px-4 py-6">
     <div class="bg-white rounded-lg shadow-sm overflow-hidden">
         <div class="overflow-x-auto h-[600px]">
             <table id="mainTable" class="border-collapse w-full">

@@ -58,11 +58,6 @@ class TelegramController extends Controller
                 $data = $response->json();
 
                 if ($data['ok'] ?? false) {
-                    Log::info('Mensaje enviado a Telegram exitosamente', [
-                        'chat_id' => $chatId,
-                        'mensaje' => $mensaje
-                    ]);
-
                     return response()->json([
                         'success' => true,
                         'message' => 'Mensaje enviado a Telegram correctamente',
@@ -74,13 +69,6 @@ class TelegramController extends Controller
             // Si llegamos aquí, hubo un error
             $errorData = $response->json();
             $errorMessage = $errorData['description'] ?? 'Error desconocido';
-
-            Log::error('Error al enviar mensaje a Telegram', [
-                'response' => $errorData,
-                'status' => $response->status(),
-                'chat_id' => $chatId,
-                'mensaje_length' => mb_strlen($mensaje)
-            ]);
 
             return response()->json([
                 'success' => false,

@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use App\Models\TejProduccionReenconado;
+use App\Models\Tejido\TejProduccionReenconado;
 use Illuminate\Support\Facades\Auth;
 use App\Helpers\FolioHelper;
 use App\Helpers\TurnoHelper;
@@ -278,13 +278,6 @@ class ProduccionReenconadoCabezuelaController extends Controller
 
             $turno = TurnoHelper::getTurnoActual();
 
-            Log::info('Generando folio para modal', [
-                'folio' => $folio,
-                'turno' => $turno,
-                'usuario' => $user->nombre ?? '',
-                'numero_empleado' => $user->numero_empleado ?? '',
-            ]);
-
             return response()->json([
                 'success' => true,
                 'folio' => $folio,
@@ -410,12 +403,6 @@ class ProduccionReenconadoCabezuelaController extends Controller
 
             $registro->status = $nuevoStatus;
             $registro->save();
-
-            Log::info('Status cambiado', [
-                'folio' => $folio,
-                'status_anterior' => $statusActual,
-                'status_nuevo' => $nuevoStatus
-            ]);
 
             return response()->json([
                 'success' => true,

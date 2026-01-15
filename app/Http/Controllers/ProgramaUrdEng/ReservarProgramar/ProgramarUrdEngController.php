@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
-use App\Models\UrdProgramaUrdido;
-use App\Models\EngProgramaEngomado;
-use App\Models\UrdJuliosOrden;
-use App\Models\UrdConsumoHilo;
-use App\Models\SSYSFoliosSecuencia;
-use App\Models\TejInventarioTelares;
+use App\Models\Urdido\UrdProgramaUrdido;
+use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Urdido\UrdJuliosOrden;
+use App\Models\Urdido\UrdConsumoHilo;
+use App\Models\Sistema\SSYSFoliosSecuencia;
+use App\Models\Tejido\TejInventarioTelares;
 use App\Helpers\TurnoHelper;
 use Carbon\Carbon;
 use Illuminate\Http\Request;

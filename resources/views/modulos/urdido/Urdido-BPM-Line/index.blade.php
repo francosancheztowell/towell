@@ -4,7 +4,7 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        
+
         @if($header->Status === 'Creado')
             <form action="{{ route('urd-bpm-line.terminar', $header->Folio) }}" method="POST" class="inline" id="form-terminar">
                 @csrf
@@ -98,7 +98,7 @@
     <!-- Checklist de Actividades -->
     <div class="bg-white rounded-lg shadow-sm border p-2 mx-60 mb-32">
         <h2 class="text-base font-bold text-gray-800 mb-2 border-b pb-1.5 px-2">Actividades</h2>
-        
+
         <div class="overflow-y-auto" style="max-height: calc(100vh - 280px);">
             <table class="min-w-full text-sm">
                 <thead class="sticky top-0 bg-gray-100 border-b">
@@ -119,8 +119,8 @@
                             <td class="px-2 py-1.5 text-center">
                                 <button type="button"
                                     class="cell-btn inline-flex items-center justify-center w-9 h-9 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300
-                                        {{ $valor == 1 ? 'bg-green-100 border-green-400 text-green-700 hover:bg-green-200' : 
-                                           ($valor == 2 ? 'bg-red-100 border-red-400 text-red-700 hover:bg-red-200' : 
+                                        {{ $valor == 1 ? 'bg-green-100 border-green-400 text-green-700 hover:bg-green-200' :
+                                           ($valor == 2 ? 'bg-red-100 border-red-400 text-red-700 hover:bg-red-200' :
                                            'bg-gray-50 border-gray-300 text-gray-400 hover:bg-gray-100 hover:border-gray-400') }}"
                                     data-actividad="{{ $actividad->Actividad }}"
                                     data-valor="{{ $valor }}"
@@ -160,7 +160,7 @@
     function validarYTerminar() {
         const totalActividades = {{ $actividades->count() }};
         const actividadesMarcadas = document.querySelectorAll('.cell-btn[data-valor="1"], .cell-btn[data-valor="2"]').length;
-        
+
         if (actividadesMarcadas < totalActividades) {
             const faltantes = totalActividades - actividadesMarcadas;
             Swal.fire({
@@ -171,7 +171,7 @@
             });
             return;
         }
-        
+
         // Si todas están marcadas, enviar el formulario
         document.getElementById('form-terminar').submit();
     }
@@ -180,12 +180,11 @@
     function toggleActividad(btn) {
         const actividad = btn.dataset.actividad;
         const valorActual = parseInt(btn.dataset.valor) || 0;
-        
+
         // Ciclo: 0 → 1 → 2 → 0
         const valorNuevo = (valorActual + 1) % 3;
-        
-        console.log('toggleActividad llamado:', { actividad, valorActual, valorNuevo });
-        
+
+
         fetch("{{ route('urd-bpm-line.toggle', $header->Folio) }}", {
             method: 'POST',
             headers: {
@@ -198,16 +197,14 @@
             })
         })
         .then(response => {
-            console.log('Response status:', response.status);
             return response.json();
         })
         .then(data => {
-            console.log('Response data:', data);
             if (data.success) {
                 // Actualizar UI
                 btn.dataset.valor = valorNuevo;
                 btn.classList.remove('bg-green-100','border-green-400','text-green-700','bg-red-100','border-red-400','text-red-700','bg-gray-50','border-gray-300','text-gray-400');
-                
+
                 if (valorNuevo === 1) {
                     btn.classList.add('bg-green-100','border-green-400','text-green-700');
                     btn.querySelector('.cell-icon').innerHTML = '✓';

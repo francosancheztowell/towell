@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Engomado\CapturaFormulas;
 
 use App\Http\Controllers\Controller;
-use App\Models\EngProduccionFormulacionModel;
-use App\Models\EngFormulacionLineModel;
-use App\Models\SYSUsuario;
-use App\Models\URDCatalogoMaquina;
-use App\Models\EngProgramaEngomado;
+use App\Models\Engomado\EngProduccionFormulacionModel;
+use App\Models\Engomado\EngFormulacionLineModel;
+use App\Models\Sistema\SYSUsuario;
+use App\Models\Urdido\URDCatalogoMaquina;
+use App\Models\Engomado\EngProgramaEngomado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -50,7 +50,6 @@ class EngProduccionFormulacionController extends Controller
             $maquinas = collect([]);
             $foliosPrograma = collect([]);
             $folioSugerido = 'ENG-FORM-' . date('Y') . '-0001';
-            Log::error('Error al cargar Formulación de Engomado: ' . $e->getMessage());
         }
 
         return view("modulos.engomado.captura-formula.index", compact("items", "usuarios", "maquinas", "foliosPrograma", "folioSugerido"));
@@ -98,16 +97,11 @@ class EngProduccionFormulacionController extends Controller
             $validated['Folio'] = $folio;
             $validated['Status'] = 'Creado';
 
-            // Log para debug
-            Log::info('Datos a insertar:', $validated);
-
             $formulacion = EngProduccionFormulacionModel::create($validated);
 
             return redirect()->back()
                 ->with('success', 'Formulación creada exitosamente con folio: ' . $folio);
         } catch (\Exception $e) {
-            Log::error('Error al crear formulación: ' . $e->getMessage());
-            Log::error('Trace: ' . $e->getTraceAsString());
             return redirect()->back()->with('error', 'Error al crear la formulación: ' . $e->getMessage());
         }
     }

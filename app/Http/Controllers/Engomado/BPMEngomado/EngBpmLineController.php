@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Engomado\BPMEngomado;
 
 use App\Http\Controllers\Controller;
-use App\Models\EngBpmModel;
-use App\Models\EngActividadesBpmModel;
-use App\Models\EngBpmLineModel;
+use App\Models\Engomado\EngBpmModel;
+use App\Models\Engomado\EngActividadesBpmModel;
+use App\Models\Engomado\EngBpmLineModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 
 class EngBpmLineController extends Controller
 {
@@ -45,7 +44,7 @@ class EngBpmLineController extends Controller
         // Obtener nombre de máquina desde URDCatalogoMaquina
         $nombreMaquina = 'Máquina';
         if ($maquinaId) {
-            $maquina = \App\Models\URDCatalogoMaquina::where('MaquinaId', $maquinaId)->first();
+            $maquina = \App\Models\Urdido\URDCatalogoMaquina::where('MaquinaId', $maquinaId)->first();
             $nombreMaquina = $maquina->Nombre ?? $maquinaId;
         }
 
@@ -61,18 +60,10 @@ class EngBpmLineController extends Controller
         $actividad = $request->input('actividad');
         $valor = $request->input('valor'); // 0, 1 o 2
 
-        Log::info('toggleActividad llamado', [
-            'folio' => $folio,
-            'actividad' => $actividad,
-            'valor' => $valor,
-            'tipo_valor' => gettype($valor)
-        ]);
-
         $header = EngBpmModel::where('Folio', $folio)->firstOrFail();
 
         // Solo permitir cambios si está en estado "Creado"
         if ($header->Status !== 'Creado') {
-            Log::warning('Intento de modificar actividad con status incorrecto', ['status' => $header->Status]);
             return response()->json([
                 'success' => false,
                 'message' => 'No se pueden modificar actividades en estado ' . $header->Status
@@ -80,17 +71,9 @@ class EngBpmLineController extends Controller
         }
 
         // Actualizar el valor (0 = vacío, 1 = palomita, 2 = tache)
-        Log::info('Intentando actualizar', [
-            'folio' => $folio,
-            'actividad' => $actividad,
-            'valorNuevo' => $valor
-        ]);
-
         $affected = EngBpmLineModel::where('Folio', $folio)
             ->where('Actividad', $actividad)
             ->update(['Valor' => $valor]);
-
-        Log::info('Update ejecutado', ['rows_affected' => $affected]);
 
         return response()->json(['success' => true, 'affected' => $affected]);
     }
@@ -118,7 +101,7 @@ class EngBpmLineController extends Controller
 
         // Obtener información del usuario actual que autoriza
         $usuario = Auth::user();
-        $usuarioDb = \App\Models\SYSUsuario::where('idusuario', $usuario->idusuario)->first();
+        $usuarioDb = \App\Models\Sistema\SYSUsuario::where('idusuario', $usuario->idusuario)->first();
 
         $header->update([
             'Status' => 'Autorizado',

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
-use App\Models\ReqModelosCodificados;
-use App\Models\ReqProgramaTejido;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
@@ -414,10 +414,7 @@ class VincularTejido
 
         // Si llegamos aquí, algo está mal (muchos gaps en la secuencia)
         // Usar el máximo + 1 de todas formas y loggear advertencia
-        LogFacade::warning('VincularTejido: No se encontró OrdCompartida disponible después de múltiples intentos', [
-            'max_ord_compartida' => $maxOrdCompartida,
-            'candidato_final' => $candidato,
-        ]);
+
 
         return $candidato;
     }

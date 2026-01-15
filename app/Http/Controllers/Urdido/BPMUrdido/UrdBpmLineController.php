@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Urdido\BPMUrdido;
 
 use App\Http\Controllers\Controller;
-use App\Models\UrdBpmModel;
-use App\Models\UrdActividadesBpmModel;
-use App\Models\UrdBpmLineModel;
+use App\Models\Urdido\UrdBpmModel;
+use App\Models\Urdido\UrdActividadesBpmModel;
+use App\Models\Urdido\UrdBpmLineModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -45,7 +45,7 @@ class UrdBpmLineController extends Controller
         // Obtener nombre de máquina desde URDCatalogoMaquina
         $nombreMaquina = 'Máquina';
         if ($maquinaId) {
-            $maquina = \App\Models\URDCatalogoMaquina::where('MaquinaId', $maquinaId)->first();
+            $maquina = \App\Models\Urdido\URDCatalogoMaquina::where('MaquinaId', $maquinaId)->first();
             $nombreMaquina = $maquina->Nombre ?? $maquinaId;
         }
 
@@ -60,7 +60,7 @@ class UrdBpmLineController extends Controller
             if ($u) {
                 $num = $u->numero_empleado ?? $u->cve ?? null;
                 if ($num) {
-                    $sysU = \App\Models\SYSUsuario::where('numero_empleado', $num)->first();
+                    $sysU = \App\Models\Sistema\SYSUsuario::where('numero_empleado', $num)->first();
                     $puesto = strtolower(trim((string)($sysU->puesto ?? '')));
                     $esSupervisor = ($puesto === 'supervisor');
                 }
@@ -77,13 +77,6 @@ class UrdBpmLineController extends Controller
         $actividad = $request->input('actividad');
         $valor = $request->input('valor'); // 0, 1 o 2
 
-        Log::info('toggleActividad llamado', [
-            'folio' => $folio,
-            'actividad' => $actividad,
-            'valor' => $valor,
-            'tipo_valor' => gettype($valor)
-        ]);
-
         $header = UrdBpmModel::where('Folio', $folio)->firstOrFail();
 
         // Solo permitir cambios si está en estado "Creado"
@@ -96,17 +89,10 @@ class UrdBpmLineController extends Controller
         }
 
         // Actualizar el valor (0 = vacío, 1 = palomita, 2 = tache)
-        Log::info('Intentando actualizar', [
-            'folio' => $folio,
-            'actividad' => $actividad,
-            'valorNuevo' => $valor
-        ]);
 
         $affected = UrdBpmLineModel::where('Folio', $folio)
             ->where('Actividad', $actividad)
             ->update(['Valor' => $valor]);
-
-        Log::info('Update ejecutado', ['rows_affected' => $affected]);
 
         return response()->json(['success' => true, 'affected' => $affected]);
     }
@@ -141,11 +127,11 @@ class UrdBpmLineController extends Controller
         $numeroEmpleado = $u->numero_empleado ?? $u->cve ?? null;
         $sysUsuario = null;
         if ($numeroEmpleado) {
-            $sysUsuario = \App\Models\SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
+            $sysUsuario = \App\Models\Sistema\SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
         }
         // Fallback por idusuario si no se encontró por número de empleado
         if (!$sysUsuario && isset($u->idusuario)) {
-            $sysUsuario = \App\Models\SYSUsuario::where('idusuario', $u->idusuario)->first();
+            $sysUsuario = \App\Models\Sistema\SYSUsuario::where('idusuario', $u->idusuario)->first();
         }
 
         if (!$sysUsuario || strtolower(trim((string)($sysUsuario->puesto ?? ''))) !== 'supervisor') {
@@ -179,10 +165,10 @@ class UrdBpmLineController extends Controller
         $numeroEmpleado = $u->numero_empleado ?? $u->cve ?? null;
         $sysUsuario = null;
         if ($numeroEmpleado) {
-            $sysUsuario = \App\Models\SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
+            $sysUsuario = \App\Models\Sistema\SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
         }
         if (!$sysUsuario && isset($u->idusuario)) {
-            $sysUsuario = \App\Models\SYSUsuario::where('idusuario', $u->idusuario)->first();
+            $sysUsuario = \App\Models\Sistema\SYSUsuario::where('idusuario', $u->idusuario)->first();
         }
 
         if (!$sysUsuario || strtolower(trim((string)($sysUsuario->puesto ?? ''))) !== 'supervisor') {

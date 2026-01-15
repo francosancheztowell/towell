@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Urdido\BPMUrdido;
 
 use App\Http\Controllers\Controller;
-use App\Models\UrdBpmModel;
-use App\Models\SYSUsuario;
-use App\Models\URDCatalogoMaquina;
+use App\Models\Urdido\UrdBpmModel;
+use App\Models\Sistema\SYSUsuario;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Helpers\FolioHelper;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class UrdBpmController extends Controller

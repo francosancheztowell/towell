@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Atadores\Catalogos\Maquinas;
 
 use App\Http\Controllers\Controller;
-use App\Models\AtaMaquinasModel;
+use App\Models\Atadores\AtaMaquinasModel;
 use Illuminate\Http\Request;
 
 class AtaMaquinasController extends Controller

@@ -57,7 +57,7 @@
                 $moduleParam = $moduleId;
             } elseif ($module) {
                 try {
-                    $rol = \App\Models\SYSRoles::where('modulo', $module)->first();
+                    $rol = \App\Models\Sistema\SYSRoles::where('modulo', $module)->first();
                     $moduleParam = $rol ? $rol->idrol : $module; // Fallback al nombre si no se encuentra
                 } catch (\Exception $e) {
                     $moduleParam = $module; // Fallback al nombre en caso de error
@@ -68,16 +68,6 @@
 
             if ($moduleParam) {
                 $hasPermission = function_exists('userCan') ? userCan('registrar', $moduleParam) : true;
-
-                // Debug temporal: log para verificar permisos
-                if (function_exists('logger') && !$hasPermission) {
-                    \Log::info('Button-report: Sin permiso registrar', [
-                        'moduleParam' => $moduleParam,
-                        'user_id' => auth()->id(),
-                        'module' => $module,
-                        'moduleId' => $moduleId
-                    ]);
-                }
             } else {
                 // Si no se encontró el módulo, permitir por defecto para no bloquear
                 $hasPermission = true;

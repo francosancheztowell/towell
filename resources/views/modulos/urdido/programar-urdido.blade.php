@@ -751,7 +751,6 @@
                     return;
                 }
 
-                console.log('Iniciando irProduccion para orden:', state.ordenSeleccionada.id);
 
                 // Verificar si ya hay 2 órdenes con status "En Proceso" en la misma máquina
                 try {
@@ -788,12 +787,8 @@
                         }
                     }
 
-                    console.log('Verificando orden en proceso - maquinaId:', maquinaId, 'ordenId:', state.ordenSeleccionada.id);
-
                     const verificarUrl = `${routes.verificarEnProceso}?excluir_id=${state.ordenSeleccionada.id}${maquinaId ? `&maquina_id=${encodeURIComponent(maquinaId)}` : ''}`;
                     const verificarResponse = await fetchJson(verificarUrl);
-
-                    console.log('Respuesta de verificación:', verificarResponse);
 
                     if (verificarResponse.success && verificarResponse.tieneOrdenEnProceso) {
                         if (typeof Swal !== 'undefined') {
@@ -864,9 +859,6 @@
 
                 // Si puede crear o hay registros existentes, redirigir
                 const url = `${routes.produccion}?orden_id=${state.ordenSeleccionada.id}`;
-                console.log('Redirigiendo a:', url);
-                console.log('Orden seleccionada:', state.ordenSeleccionada);
-                console.log('Route produccion:', routes.produccion);
 
                 // Verificar que la URL sea válida
                 if (!url || url.includes('undefined') || url.includes('null')) {
@@ -875,8 +867,6 @@
                     return false;
                 }
 
-                // Redirigir inmediatamente - FORZAR navegación de múltiples formas
-                console.log('Ejecutando redirección inmediata a:', url);
 
                 // Método 1: location.replace (más difícil de interceptar)
                 window.location.replace(url);
@@ -886,9 +876,7 @@
 
                 // Método 3: Si aún no funciona, usar window.open después de un delay muy corto
                 setTimeout(() => {
-                    console.log('Verificando redirección...');
                     if (window.location.href !== url && !window.location.href.includes('modulo-produccion-urdido')) {
-                        console.log('Forzando con window.open...');
                         window.open(url, '_self');
                     }
                 }, 50);
