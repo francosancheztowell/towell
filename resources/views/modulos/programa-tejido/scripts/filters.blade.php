@@ -127,7 +127,7 @@ function applyProgramaTejidoFilters() {
                 filtersByColumn[col] = [];
             }
             filtersByColumn[col].push({
-                value: String(f.value || '').toLowerCase(),
+                value: String(f.value || '').trim().toLowerCase(), // ⚡ FIX: Normalizar el valor (trim + lowercase)
                 operator: f.operator || 'contains',
             });
         });
@@ -135,14 +135,19 @@ function applyProgramaTejidoFilters() {
 
     // Función para verificar un valor contra un filtro
     const checkFilterMatch = (cellValue, filter) => {
+        // ⚡ FIX: Normalizar el valor del filtro para evitar problemas con espacios y caracteres especiales
+        // Asegurar que el valor del filtro sea string y esté normalizado
+        const filterValue = String(filter.value || '').toLowerCase().trim();
+        const normalizedCellValue = String(cellValue || '').toLowerCase().trim();
+
         switch (filter.operator) {
-            case 'equals':   return cellValue === filter.value;
-            case 'starts':   return cellValue.startsWith(filter.value);
-            case 'ends':     return cellValue.endsWith(filter.value);
-            case 'not':      return !cellValue.includes(filter.value);
-            case 'empty':    return cellValue === '';
-            case 'notEmpty': return cellValue !== '';
-            default:         return cellValue.includes(filter.value);
+            case 'equals':   return normalizedCellValue === filterValue;
+            case 'starts':   return normalizedCellValue.startsWith(filterValue);
+            case 'ends':     return normalizedCellValue.endsWith(filterValue);
+            case 'not':      return !normalizedCellValue.includes(filterValue);
+            case 'empty':    return normalizedCellValue === '';
+            case 'notEmpty': return normalizedCellValue !== '';
+            default:         return normalizedCellValue.includes(filterValue);
         }
     };
 
@@ -160,7 +165,9 @@ function applyProgramaTejidoFilters() {
             matchesCustom = Object.entries(filtersByColumn).every(([column, columnFilters]) => {
                 const cell = row.querySelector(`[data-column="${column}"]`);
                 if (!cell) return false;
-                const cellValue = (cell.dataset.value || cell.textContent || '').toLowerCase().trim();
+                // ⚡ FIX: Normalizar el valor de la celda correctamente, sin procesar espacios como barras invertidas
+                const rawValue = cell.dataset.value || cell.textContent || '';
+                const cellValue = String(rawValue).trim().toLowerCase();
 
                 // OR: al menos un filtro de esta columna debe coincidir
                 return columnFilters.some(filter => checkFilterMatch(cellValue, filter));
@@ -527,11 +534,13 @@ function renderActiveFilters() {
     return filters
         .map((f, i) => {
             const colLabel = columnsData.find(c => c.field === f.column)?.label || f.column;
+            // ⚡ FIX: Escapar correctamente el valor para HTML sin convertir espacios en barras invertidas
+            const escapedValue = String(f.value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
             return `
                 <div class="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 bg-blue-50 rounded-full text-[11px] text-blue-800">
                     <span class="font-medium">${colLabel}:</span>
-                    <span class="text-blue-600">${f.value}</span>
+                    <span class="text-blue-600">${escapedValue}</span>
                     <button onclick="removeFilter(${i})"
                             class="flex h-4 w-4 items-center justify-center rounded-full hover:bg-blue-100 text-blue-500 transition-colors">
                         <i class="fa-solid fa-xmark text-[9px]"></i>
@@ -548,6 +557,7 @@ function addCustomFilter() {
 
     const column = colSelect?.value;
     const operator = 'contains';
+    // ⚡ FIX: Guardar el valor tal cual, sin procesamiento adicional que pueda convertir espacios
     const value = valEl?.value?.trim() || '';
 
     if (!column) {
@@ -562,11 +572,14 @@ function addCustomFilter() {
         return;
     }
 
-    if (filters.some(f => f.column === column && f.value === value)) {
+    // ⚡ FIX: Comparar valores normalizados para evitar duplicados
+    const normalizedValue = value.toLowerCase().trim();
+    if (filters.some(f => f.column === column && String(f.value || '').toLowerCase().trim() === normalizedValue)) {
         showToast('Este filtro ya existe', 'warning');
         return;
     }
 
+    // ⚡ FIX: Guardar el valor original (con espacios) tal cual se ingresó
     filters.push({ column, operator, value });
     lastFilterState = null;
 

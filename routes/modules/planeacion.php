@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatAplicaciones\AplicacionesController;
@@ -173,6 +173,8 @@ Route::get('/programa-tejido/tamano-clave-by-salon', [ProgramaTejidoController::
 Route::get('/programa-tejido/flogs-id-options', [ProgramaTejidoController::class, 'getFlogsIdOptions']);
 Route::get('/programa-tejido/flogs-id-from-twflogs', [ProgramaTejidoController::class, 'getFlogsIdFromTwFlogsTable']);
 Route::get('/programa-tejido/descripcion-by-idflog/{idflog}', [ProgramaTejidoController::class, 'getDescripcionByIdFlog']);
+Route::get('/programa-tejido/flog-by-item', [ProgramaTejidoController::class, 'getFlogByItem']);
+Route::get('/programa-tejido/flogs-by-tamano-clave', [ProgramaTejidoController::class, 'getFlogsByTamanoClave']);
 Route::get('/programa-tejido/calendario-id-options', [ProgramaTejidoController::class, 'getCalendarioIdOptions']);
 Route::get('/programa-tejido/calendario-lineas/{calendarioId}', [ProgramaTejidoController::class, 'getCalendarioLineas'])->name('programa-tejido.calendario-lineas');
 Route::get('/programa-tejido/aplicacion-id-options', [ProgramaTejidoController::class, 'getAplicacionIdOptions']);

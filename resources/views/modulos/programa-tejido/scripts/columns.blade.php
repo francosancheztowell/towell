@@ -27,59 +27,252 @@ const columnGroups = {
 		defaultVisible: true
 	}
 };
-
+const REQUIRED_PINNED_FIELDS = ['Ultimo', 'CambioHilo', 'Maquina', 'Ancho', 'NombreProducto'];
+// ===== Cache de columnas para lookups rapidos =====
+const columnCache = {
+	fieldToIndex: null,
+	fieldToGroup: null,
+	groupToIndices: null,
+	columnCount: 0
+};
+let columnIndicesCache = null;
+let hiddenColumnsSet = new Set();
+let pinnedColumnsSet = new Set();
+let defaultPinsApplied = false;
+function buildFieldToGroupMap() {
+	columnCache.fieldToGroup = new Map();
+	Object.entries(columnGroups).forEach(([groupId, group]) => {
+		group.fields.forEach(field => {
+			columnCache.fieldToGroup.set(field, parseInt(groupId));
+		});
+	});
+}
+function ensureColumnCache() {
+	if (!columnCache.fieldToGroup || columnCache.fieldToGroup.size === 0) {
+		buildFieldToGroupMap();
+	}
+	if (!Array.isArray(columnsData) || columnsData.length === 0) return false;
+	if (columnCache.fieldToIndex && columnCache.columnCount === columnsData.length) return true;
+	columnCache.fieldToIndex = new Map();
+	columnsData.forEach((col, idx) => {
+		if (col?.field) columnCache.fieldToIndex.set(col.field, idx);
+	});
+	columnCache.columnCount = columnsData.length;
+	columnIndicesCache = columnsData.map((_, idx) => idx);
+	columnCache.groupToIndices = new Map();
+	Object.entries(columnGroups).forEach(([groupId, group]) => {
+		const indices = [];
+		group.fields.forEach(field => {
+			const idx = columnCache.fieldToIndex.get(field);
+			if (idx !== undefined) indices.push(idx);
+		});
+		columnCache.groupToIndices.set(parseInt(groupId), indices);
+	});
+	return true;
+}
+function getAllColumnIndices() {
+	if (Array.isArray(columnIndicesCache) && columnIndicesCache.length > 0) return columnIndicesCache;
+	if (Array.isArray(columnsData) && columnsData.length > 0) {
+		columnIndicesCache = columnsData.map((_, idx) => idx);
+		return columnIndicesCache;
+	}
+	const nodes = document.querySelectorAll('th[class*="column-"]');
+	const indices = [];
+	nodes.forEach(th => {
+		const idx = parseInt(th.dataset.index);
+		if (!Number.isNaN(idx)) indices.push(idx);
+	});
+	return [...new Set(indices)];
+}
+function syncColumnStateSets(force = false) {
+	if (!Array.isArray(hiddenColumns)) hiddenColumns = [];
+	if (!Array.isArray(pinnedColumns)) pinnedColumns = [];
+	if (force || hiddenColumnsSet.size !== hiddenColumns.length) {
+		hiddenColumnsSet = new Set(hiddenColumns);
+	}
+	if (force || pinnedColumnsSet.size !== pinnedColumns.length) {
+		pinnedColumnsSet = new Set(pinnedColumns);
+	}
+}
+const columnElementsCache = new Map();
+let columnElementsCacheRowCount = 0;
+function getColumnElements(index) {
+	const table = document.getElementById('mainTable');
+	if (!table) {
+		columnElementsCache.clear();
+		columnElementsCacheRowCount = 0;
+		return [];
+	}
+	const rowCount = table.rows.length;
+	if (rowCount !== columnElementsCacheRowCount) {
+		columnElementsCache.clear();
+		columnElementsCacheRowCount = rowCount;
+	}
+	let cached = columnElementsCache.get(index);
+	if (cached && cached.length > 0 && cached[0].isConnected) {
+		const valid = cached.every(el => el.closest('table') === table);
+		if (valid) return cached;
+	}
+	cached = Array.from(table.getElementsByClassName(`column-${index}`));
+	columnElementsCache.set(index, cached);
+	return cached;
+}
+function forEachColumnElement(index, cb) {
+	const elements = getColumnElements(index);
+	for (let i = 0; i < elements.length; i++) cb(elements[i]);
+}
+function ensureColumnsReady() {
+	if (!Array.isArray(columnsData) || columnsData.length === 0) {
+		if (typeof showToast === 'function') {
+			showToast('Las columnas aun no estan disponibles. Por favor, espera un momento e intenta de nuevo.', 'warning');
+		} else {
+			alert('Las columnas aun no estan disponibles. Por favor, espera un momento e intenta de nuevo.');
+		}
+		return false;
+	}
+	ensureColumnCache();
+	syncColumnStateSets();
+	return true;
+}
+function buildGroupedColumns() {
+	const groupedColumns = {};
+	const ungroupedColumns = [];
+	columnsData.forEach((col, realIndex) => {
+		if (!col || !col.field) return;
+		const groupId = getColumnGroup(col.field);
+		const colData = {
+			label: col.label || col.field || '',
+			field: col.field
+		};
+		if (groupId) {
+			if (!groupedColumns[groupId]) {
+				groupedColumns[groupId] = {
+					group: columnGroups[groupId],
+					columns: []
+				};
+			}
+			groupedColumns[groupId].columns.push({ col: colData, index: realIndex });
+		} else {
+			ungroupedColumns.push({ col: colData, index: realIndex });
+		}
+	});
+	return { groupedColumns, ungroupedColumns };
+}
 // ===== Persistencia de columnas ocultas (usa hiddenColumns global de state.blade) =====
 const COLUMN_STATE_ENDPOINT = '/programa-tejido/columnas';
 const CURRENT_USER_ID = (window?.App?.user?.id) ?? (window?.authUserId) ?? null;
-let saveHiddenColumnsTimer = null;
-let isInitializingColumns = false; // evita guardar mientras cargamos estados
-let tableLoadingContainer = null;
-let pendingHiddenFields = null; // campos que deben ocultarse cuando columnsData esté listo
+const COLUMN_STATE_CACHE_KEY = 'pt_hidden_columns_' + (CURRENT_USER_ID || 'guest');
+const PINNED_COLUMNS_CACHE_KEY = 'pt_pinned_columns_' + (CURRENT_USER_ID || 'guest');
 
-async function loadPersistedHiddenColumns() {
+function getCachedHiddenFields() {
 	try {
-		setTableLoading(true);
-
-		isInitializingColumns = true;
-		const res = await fetch(COLUMN_STATE_ENDPOINT, {
-			method: 'GET',
-			headers: { 'Accept': 'application/json' },
-			credentials: 'same-origin'
-		});
-		if (!res.ok) return;
-		const data = await res.json();
-		if (!data.success || !data.data) return;
-
-		// Guardar pendientes y aplicar cuando columnsData esté listo
-		pendingHiddenFields = Object.entries(data.data || {})
-			.filter(([, hidden]) => hidden)
-			.map(([field]) => field);
-		tryApplyHiddenFields();
+		const raw = localStorage.getItem(COLUMN_STATE_CACHE_KEY);
+		if (!raw) return null;
+		const data = JSON.parse(raw);
+		return Array.isArray(data) ? data : null;
 	} catch (e) {
-		console.warn('No se pudo cargar estado de columnas', e);
-	} finally {
-		isInitializingColumns = false;
-		// si no se aplicó aún, se liberará en tryApplyHiddenFields cuando columnsData esté listo
+		return null;
 	}
 }
 
+function setCachedHiddenFields(fields) {
+	try {
+		localStorage.setItem(COLUMN_STATE_CACHE_KEY, JSON.stringify(fields || []));
+	} catch (e) {
+		// ignore cache errors
+	}
+}
+
+function getCachedPinnedFields() {
+	try {
+		const raw = localStorage.getItem(PINNED_COLUMNS_CACHE_KEY);
+		if (!raw) return null;
+		const data = JSON.parse(raw);
+		return Array.isArray(data) ? data : null;
+	} catch (e) {
+		return null;
+	}
+}
+
+function setCachedPinnedFields(fields) {
+	try {
+		localStorage.setItem(PINNED_COLUMNS_CACHE_KEY, JSON.stringify(fields || []));
+	} catch (e) {
+		// ignore cache errors
+	}
+}
+
+let saveHiddenColumnsTimer = null;
+let isInitializingColumns = false; // evita guardar mientras cargamos estados
+let pendingHiddenFields = null; // campos que deben ocultarse cuando columnsData estÃ© listo
+let initialColumnsApplyScheduled = false;
+let initialColumnsApplyAttempts = 0;
+const MAX_INITIAL_COLUMNS_APPLY_ATTEMPTS = 30;
+async function loadPersistedHiddenColumns() {
+	// ⚡ OPTIMIZACIÓN: Aplicar caché inmediatamente sin esperar al servidor
+	const cachedFields = getCachedHiddenFields();
+	const hasCached = Array.isArray(cachedFields);
+	if (hasCached) {
+		pendingHiddenFields = cachedFields.slice();
+		// Aplicar inmediatamente desde caché
+		tryApplyHiddenFields();
+	}
+
+	// ⚡ OPTIMIZACIÓN: Cargar desde servidor en segundo plano sin bloquear
+	// No esperar a que termine para aplicar el estado
+	(async () => {
+		try {
+			isInitializingColumns = true;
+			const res = await fetch(COLUMN_STATE_ENDPOINT, {
+				method: 'GET',
+				headers: { 'Accept': 'application/json' },
+				credentials: 'same-origin'
+			});
+			if (!res.ok) return;
+			const data = await res.json();
+			if (!data.success || !data.data) return;
+			// Guardar pendientes y aplicar cuando columnsData este listo
+			const hiddenFields = Object.entries(data.data || {})
+				.filter(([, hidden]) => hidden)
+				.map(([field]) => field);
+			setCachedHiddenFields(hiddenFields);
+			// Solo actualizar si hay diferencias con el caché
+			if (!hasCached || JSON.stringify(cachedFields.sort()) !== JSON.stringify(hiddenFields.sort())) {
+				pendingHiddenFields = hiddenFields;
+				tryApplyHiddenFields();
+			}
+		} catch (e) {
+			console.warn('No se pudo cargar estado de columnas desde servidor', e);
+		} finally {
+			isInitializingColumns = false;
+		}
+	})();
+
+	// Si no había caché, intentar aplicar de todas formas
+	if (!hasCached) {
+		tryApplyHiddenFields();
+	}
+}
 function scheduleSaveHiddenColumns() {
 	if (isInitializingColumns) return;
 	if (saveHiddenColumnsTimer) clearTimeout(saveHiddenColumnsTimer);
 	saveHiddenColumnsTimer = setTimeout(saveHiddenColumns, 400);
 }
-
 async function saveHiddenColumns() {
 	try {
+		syncColumnStateSets();
 		const columnas = {};
 		// Enviar estado completo: true = oculta, false = visible
+		const hiddenFields = [];
 		columnsData.forEach((col, idx) => {
-			if (col?.field) columnas[col.field] = hiddenColumns.includes(idx);
+			if (!col?.field) return;
+			const hidden = hiddenColumnsSet.has(idx);
+			columnas[col.field] = hidden;
+			if (hidden) hiddenFields.push(col.field);
 		});
-
+		setCachedHiddenFields(hiddenFields);
 		const body = { columnas };
 		if (CURRENT_USER_ID) body.usuario_id = CURRENT_USER_ID;
-
 		const res = await fetch(COLUMN_STATE_ENDPOINT, {
 			method: 'POST',
 			headers: {
@@ -97,385 +290,244 @@ async function saveHiddenColumns() {
 		console.warn('No se pudo guardar estado de columnas', e);
 	}
 }
-
-// Función para obtener el índice de una columna por su campo
+// FunciÃ³n para obtener el Ã­ndice de una columna por su campo
 function getColumnIndexByField(field) {
+	if (ensureColumnCache()) {
+		const idx = columnCache.fieldToIndex.get(field);
+		return idx === undefined ? -1 : idx;
+	}
 	return columnsData.findIndex(col => col.field === field);
 }
-
-// Función para obtener el grupo de una columna
-function getColumnGroup(field) {
-	for (const [groupId, group] of Object.entries(columnGroups)) {
-		if (group.fields.includes(field)) {
-			return parseInt(groupId);
-		}
-	}
-	return null;
+function isRequiredPinnedField(field) {
+	return REQUIRED_PINNED_FIELDS.includes(field);
 }
-
-// Función para obtener todas las columnas de un grupo
+function isRequiredPinnedIndex(index) {
+	const field = columnsData[index]?.field;
+	return field ? isRequiredPinnedField(field) : false;
+}
+// FunciÃ³n para obtener el grupo de una columna
+function getColumnGroup(field) {
+	if (!columnCache.fieldToGroup || columnCache.fieldToGroup.size === 0) {
+		buildFieldToGroupMap();
+	}
+	return columnCache.fieldToGroup.get(field) || null;
+}
+// FunciÃ³n para obtener todas las columnas de un grupo
 function getGroupColumns(groupId) {
+	if (ensureColumnCache() && columnCache.groupToIndices) {
+		return columnCache.groupToIndices.get(groupId) || [];
+	}
 	const group = columnGroups[groupId];
 	if (!group) return [];
 	return group.fields.map(field => getColumnIndexByField(field)).filter(idx => idx !== -1);
 }
-
 function tryApplyHiddenFields() {
+	if (initialColumnsApplyScheduled) return;
+	initialColumnsApplyScheduled = true;
+	// Aplicar inmediatamente si columnsData está disponible, sino usar requestAnimationFrame
+	if (Array.isArray(columnsData) && columnsData.length > 0) {
+		applyInitialColumnState();
+	} else {
+		requestAnimationFrame(applyInitialColumnState);
+	}
+}
+function applyInitialColumnState() {
+	initialColumnsApplyScheduled = false;
 	try {
 		if (!Array.isArray(columnsData) || columnsData.length === 0) {
-			// reintentar hasta que exista columnsData
-			return setTimeout(tryApplyHiddenFields, 80);
-		}
-		if (!Array.isArray(hiddenColumns)) hiddenColumns = [];
-		if (!pendingHiddenFields || pendingHiddenFields.length === 0) {
-			pinDefaultColumns();
-			updatePinnedColumnsPositions();
-			setTableLoading(false);
+			if (initialColumnsApplyAttempts < MAX_INITIAL_COLUMNS_APPLY_ATTEMPTS) {
+				initialColumnsApplyAttempts += 1;
+				// Usar setTimeout con delay mínimo en lugar de requestAnimationFrame para reintentos
+				setTimeout(tryApplyHiddenFields, 10);
+				return;
+			}
 			return;
 		}
+		ensureColumnCache();
+		syncColumnStateSets();
 
-		// Aplicar estados de oculto según pendientes
-		pendingHiddenFields.forEach(field => {
-			const idx = getColumnIndexByField(field);
-			if (idx !== -1 && !hiddenColumns.includes(idx)) {
-				hideColumn(idx, true);
-			}
-		});
+		// ⚡ OPTIMIZACIÓN: Aplicar estados de oculto de forma más eficiente
+		if (pendingHiddenFields && pendingHiddenFields.length > 0) {
+			// Batch DOM updates: aplicar todos los cambios de una vez
+			const indicesToHide = [];
+			pendingHiddenFields.forEach(field => {
+				const idx = getColumnIndexByField(field);
+				if (idx !== -1 && !hiddenColumnsSet.has(idx)) {
+					indicesToHide.push(idx);
+					hiddenColumnsSet.add(idx);
+					hiddenColumns.push(idx);
+				}
+			});
+			// Aplicar todos los cambios de visibilidad de una vez
+			indicesToHide.forEach(idx => {
+				forEachColumnElement(idx, el => {
+					el.style.display = 'none';
+				});
+			});
+		}
 
-		// Fijar columnas por defecto después de aplicar estados
-		pinDefaultColumns();
+		// ⚡ OPTIMIZACIÓN: Aplicar columnas fijadas inmediatamente
+		applyDefaultPinsOnce();
 
+		// ⚡ OPTIMIZACIÓN: Actualizar posiciones de columnas fijadas inmediatamente
 		updatePinnedColumnsPositions();
+
 		pendingHiddenFields = null;
-		setTableLoading(false);
+		initialColumnsApplyAttempts = 0;
 	} catch (e) {
 		console.warn('No se pudo aplicar columnas ocultas', e);
-		setTableLoading(false);
 	}
 }
 
-function setTableLoading(isLoading) {
-	try {
-		const table = document.getElementById('mainTable');
-		if (!table) return;
-		if (!tableLoadingContainer) {
-			tableLoadingContainer = table.closest('.table-responsive') || table;
-		}
-		const c = tableLoadingContainer;
-		if (isLoading) {
-			if (!c.querySelector('.pt-columns-loading')) {
-				const overlay = document.createElement('div');
-				overlay.className = 'pt-columns-loading';
-				overlay.style.position = 'absolute';
-				overlay.style.inset = '0';
-			overlay.style.display = 'flex';
-			overlay.style.alignItems = 'center';
-			overlay.style.justifyContent = 'center';
-			overlay.style.backgroundColor = 'transparent'; // no cubras la tabla
-			overlay.style.zIndex = '999';
-			overlay.style.pointerEvents = 'none'; // no bloquees clicks
-			overlay.innerHTML = `
-				<div class="flex items-center gap-2 px-3 py-1.5 bg-white rounded shadow text-gray-700 text-sm">
-					<svg class="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-					  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-					  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-					</svg>
-					<span class="font-medium whitespace-nowrap">Cargando columnas...</span>
-				</div>
-			`;
-				// asegurar contenedor relativo
-				if (getComputedStyle(c).position === 'static') {
-					c.style.position = 'relative';
-				}
-				c.appendChild(overlay);
-			}
-		} else {
-			const overlay = c.querySelector('.pt-columns-loading');
-			if (overlay) overlay.remove();
-		}
-	} catch (e) {
-		console.warn('No se pudo ajustar visibilidad de tabla', e);
-	}
-}
-
-// Función para verificar si un grupo está visible
+// FunciÃ³n para verificar si un grupo estÃ¡ visible
 function isGroupVisible(groupId) {
+	syncColumnStateSets();
 	const groupColumns = getGroupColumns(groupId);
 	if (groupColumns.length === 0) return false;
-	// Un grupo está visible si al menos una columna está visible
-	return groupColumns.some(idx => !hiddenColumns.includes(idx));
+	// Un grupo estÃ¡ visible si al menos una columna estÃ¡ visible
+	return groupColumns.some(idx => !hiddenColumnsSet.has(idx));
 }
-
-// Función para mostrar/ocultar un grupo completo
+// FunciÃ³n para mostrar/ocultar un grupo completo
 function toggleGroupVisibility(groupId, visible, silent = false) {
 	const groupColumns = getGroupColumns(groupId);
+	if (groupColumns.length === 0) return;
 	groupColumns.forEach(index => {
-		if (visible) {
-			showColumn(index, silent);
-		} else {
-			hideColumn(index, silent);
-		}
+		if (visible) showColumn(index, true);
+		else hideColumn(index, true);
 	});
-	if (!silent) scheduleSaveHiddenColumns();
+	if (!silent) {
+		if (typeof showToast === 'function') {
+			showToast(visible ? 'Grupo visible' : 'Grupo oculto', 'info');
+		}
+		scheduleSaveHiddenColumns();
+	}
 }
-
-// Función para fijar/desfijar un grupo completo
+// FunciÃ³n para fijar/desfijar un grupo completo
 function toggleGroupPin(groupId, pin) {
 	const groupColumns = getGroupColumns(groupId);
-	groupColumns.forEach(index => {
-		if (pin) {
-			pinColumn(index);
-		} else {
-			unpinColumn(index);
+	if (groupColumns.length === 0) return;
+	syncColumnStateSets();
+	let changed = false;
+	if (pin) {
+		groupColumns.forEach(index => {
+			if (!pinnedColumnsSet.has(index)) {
+				pinnedColumnsSet.add(index);
+				pinnedColumns.push(index);
+				changed = true;
+			}
+		});
+		if (changed) pinnedColumns.sort((a, b) => a - b);
+	} else {
+		groupColumns.forEach(index => {
+			if (pinnedColumnsSet.has(index) && !isRequiredPinnedIndex(index)) {
+				pinnedColumnsSet.delete(index);
+				changed = true;
+			}
+		});
+		if (changed) pinnedColumns = pinnedColumns.filter(i => pinnedColumnsSet.has(i));
+	}
+	if (changed) {
+		// ⚡ OPTIMIZACIÓN: Guardar en caché cuando se cambia un grupo
+		if (ensureColumnCache()) {
+			const fields = [];
+			groupColumns.forEach(index => {
+				if (pin && pinnedColumnsSet.has(index)) {
+					const field = columnsData[index]?.field;
+					if (field) fields.push(field);
+				}
+			});
+			if (pin) {
+				const cached = getCachedPinnedFields() || [];
+				fields.forEach(field => {
+					if (!cached.includes(field)) cached.push(field);
+				});
+				setCachedPinnedFields(cached);
+			} else {
+				const cached = getCachedPinnedFields() || [];
+				const filtered = cached.filter(f => !fields.includes(f) || isRequiredPinnedField(f));
+				setCachedPinnedFields(filtered);
+			}
 		}
-	});
+		updatePinnedColumnsPositions();
+	}
 }
-
 // ===== Controles de columnas desde navbar =====
-function openPinColumnsModal() {
-	// Verificar que columnsData esté disponible
-	if (!Array.isArray(columnsData) || columnsData.length === 0) {
-		if (typeof showToast === 'function') {
-			showToast('Las columnas aún no están disponibles. Por favor, espera un momento e intenta de nuevo.', 'warning');
-		} else {
-			alert('Las columnas aún no están disponibles. Por favor, espera un momento e intenta de nuevo.');
-		}
-		return;
-	}
-
-	const pinnedColumns = getPinnedColumns();
-
-	// Agrupar columnas por grupo usando el índice real de columnsData
-	const groupedColumns = {};
-	const ungroupedColumns = [];
-
-	columnsData.forEach((col, realIndex) => {
-		if (!col || !col.field) return; // Saltar columnas sin field
-
-		const groupId = getColumnGroup(col.field);
-		const colData = {
-			label: col.label || col.field || '',
-			field: col.field
-		};
-
-		if (groupId) {
-			if (!groupedColumns[groupId]) {
-				groupedColumns[groupId] = {
-					group: columnGroups[groupId],
-					columns: []
-				};
-			}
-			groupedColumns[groupId].columns.push({ col: colData, index: realIndex });
-		} else {
-			ungroupedColumns.push({ col: colData, index: realIndex });
-		}
-	});
-
-	let html = `
-		<div class="text-left">
-			<p class="text-sm text-gray-600 mb-4">Selecciona las columnas o grupos que deseas fijar a la izquierda de la tabla:</p>
-			<div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-4">
-	`;
-
-	// Mostrar grupos primero
-	Object.keys(groupedColumns).sort().forEach(groupId => {
-		const groupData = groupedColumns[groupId];
-		const groupColumns = getGroupColumns(parseInt(groupId));
-		const allPinned = groupColumns.every(idx => pinnedColumns.includes(idx));
-		const somePinned = groupColumns.some(idx => pinnedColumns.includes(idx));
-
-		html += `
-			<div class="border border-gray-200 rounded-lg p-2">
-				<div class="flex items-center justify-between mb-2 pb-2 border-b border-gray-200">
-					<span class="text-sm font-semibold text-gray-800">${groupData.group.name}</span>
-					<label class="flex items-center gap-2 cursor-pointer">
-						<input type="checkbox" ${allPinned ? 'checked' : ''}
-							   class="w-4 h-4 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500 group-toggle-pin"
-							   data-group-id="${groupId}"
-							   ${somePinned && !allPinned ? 'indeterminate' : ''}>
-						<span class="text-xs text-gray-600">Fijar grupo</span>
-					</label>
-				</div>
-				<div class="pl-4 space-y-1">
-		`;
-
-		groupData.columns.forEach(({ col, index }) => {
-			const isPinned = pinnedColumns.includes(index);
-			html += `
-				<div class="flex items-center justify-between p-1 hover:bg-gray-50 rounded">
-					<span class="text-xs text-gray-700 ml-2">${col.label}</span>
-					<input type="checkbox" ${isPinned ? 'checked' : ''}
-						   class="w-4 h-4 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500 column-toggle-pin"
-						   data-column-index="${index}"
-						   data-group-id="${groupId}">
-				</div>
-			`;
-		});
-
-		html += `
-				</div>
-			</div>
-		`;
-	});
-
-	// Mostrar columnas sin grupo
-	if (ungroupedColumns.length > 0) {
-		html += `
-			<div class="border border-gray-200 rounded-lg p-2">
-				<div class="text-sm font-semibold text-gray-800 mb-2 pb-2 border-b border-gray-200">Otras columnas</div>
-				<div class="pl-4 space-y-1">
-		`;
-		ungroupedColumns.forEach(({ col, index }) => {
-			const isPinned = pinnedColumns.includes(index);
-			html += `
-				<div class="flex items-center justify-between p-1 hover:bg-gray-50 rounded">
-					<span class="text-xs text-gray-700 ml-2">${col.label}</span>
-					<input type="checkbox" ${isPinned ? 'checked' : ''}
-						   class="w-4 h-4 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500 column-toggle-pin"
-						   data-column-index="${index}">
-				</div>
-			`;
-		});
-		html += `
-				</div>
-			</div>
-		`;
-	}
-
-	html += `
-			</div>
-		</div>
-	`;
-
-	Swal.fire({
+const COLUMN_MODAL_CONFIG = {
+	pin: {
 		title: 'Fijar Columnas',
-		html: html,
-		showCancelButton: true,
-		confirmButtonText: 'Aplicar',
-		cancelButtonText: 'Cancelar',
-		confirmButtonColor: '#f59e0b',
-		cancelButtonColor: '#6b7280',
-		width: '600px',
-		didOpen: () => {
-			// Event listeners para checkboxes individuales
-			document.querySelectorAll('#swal2-html-container .column-toggle-pin').forEach(checkbox => {
-				checkbox.addEventListener('change', function() {
-					const columnIndex = parseInt(this.dataset.columnIndex);
-					if (this.checked) {
-						pinColumn(columnIndex);
-					} else {
-						unpinColumn(columnIndex);
-					}
-					// Actualizar estado del grupo
-					const groupId = this.dataset.groupId;
-					if (groupId) {
-						updateGroupCheckboxState(groupId, 'pin');
-					}
-				});
-			});
-
-			// Event listeners para checkboxes de grupo
-			document.querySelectorAll('#swal2-html-container .group-toggle-pin').forEach(checkbox => {
-				checkbox.addEventListener('change', function() {
-					const groupId = parseInt(this.dataset.groupId);
-					toggleGroupPin(groupId, this.checked);
-					// Actualizar todos los checkboxes individuales del grupo
-					document.querySelectorAll(`#swal2-html-container .column-toggle-pin[data-group-id="${groupId}"]`).forEach(cb => {
-						if (cb) cb.checked = this.checked;
-					});
-				});
-			});
-		}
-	});
-}
-
-function openHideColumnsModal() {
-	// Verificar que columnsData esté disponible
-	if (!Array.isArray(columnsData) || columnsData.length === 0) {
-		if (typeof showToast === 'function') {
-			showToast('Las columnas aún no están disponibles. Por favor, espera un momento e intenta de nuevo.', 'warning');
-		} else {
-			alert('Las columnas aún no están disponibles. Por favor, espera un momento e intenta de nuevo.');
-		}
-		return;
+		description: 'Selecciona las columnas o grupos que deseas fijar a la izquierda de la tabla:',
+		groupLabel: 'Fijar grupo',
+		columnClass: 'column-toggle-pin',
+		groupClass: 'group-toggle-pin',
+		checkboxClass: 'text-yellow-700',
+		focusClass: 'focus:ring-yellow-600',
+		confirmColor: '#d97706',
+		columnAction: (index, checked) => (checked ? pinColumn(index) : unpinColumn(index)),
+		groupAction: (groupId, checked) => toggleGroupPin(groupId, checked)
+	},
+	hide: {
+		title: 'Ocultar Columnas',
+		description: 'Selecciona las columnas o grupos que deseas ocultar:',
+		groupLabel: 'Ocultar grupo',
+		columnClass: 'column-toggle-hide',
+		groupClass: 'group-toggle-hide',
+		checkboxClass: 'text-red-600',
+		focusClass: 'focus:ring-red-500',
+		confirmColor: '#ef4444',
+		columnAction: (index, checked) => (checked ? hideColumn(index) : showColumn(index)),
+		groupAction: (groupId, checked) => toggleGroupVisibility(groupId, !checked)
 	}
-
-	const hiddenColumns = getHiddenColumns();
-
-	// Agrupar columnas por grupo usando el índice real de columnsData
-	const groupedColumns = {};
-	const ungroupedColumns = [];
-
-	columnsData.forEach((col, realIndex) => {
-		if (!col || !col.field) return; // Saltar columnas sin field
-
-		const groupId = getColumnGroup(col.field);
-		const colData = {
-			label: col.label || col.field || '',
-			field: col.field
-		};
-
-		if (groupId) {
-			if (!groupedColumns[groupId]) {
-				groupedColumns[groupId] = {
-					group: columnGroups[groupId],
-					columns: []
-				};
-			}
-			groupedColumns[groupId].columns.push({ col: colData, index: realIndex });
-		} else {
-			ungroupedColumns.push({ col: colData, index: realIndex });
-		}
-	});
-
+};
+function getModalStateSet(mode) {
+	syncColumnStateSets();
+	return mode === 'pin' ? pinnedColumnsSet : hiddenColumnsSet;
+}
+function buildColumnsModalHtml({ mode, groupedColumns, ungroupedColumns }) {
+	const config = COLUMN_MODAL_CONFIG[mode];
+	const set = getModalStateSet(mode);
 	let html = `
 		<div class="text-left">
-			<p class="text-sm text-gray-600 mb-4">Selecciona las columnas o grupos que deseas ocultar:</p>
+			<p class="text-sm text-gray-600 mb-4">${config.description}</p>
 			<div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-4">
 	`;
-
-	// Mostrar grupos primero
 	Object.keys(groupedColumns).sort().forEach(groupId => {
 		const groupData = groupedColumns[groupId];
-		const groupColumns = getGroupColumns(parseInt(groupId));
-		const allHidden = groupColumns.every(idx => hiddenColumns.includes(idx));
-		const someHidden = groupColumns.some(idx => hiddenColumns.includes(idx));
-
+		const groupColumns = getGroupColumns(parseInt(groupId, 10));
+		const allChecked = groupColumns.length > 0 && groupColumns.every(idx => set.has(idx) || (mode === 'pin' && isRequiredPinnedIndex(idx)));
+		const someChecked = groupColumns.some(idx => set.has(idx) || (mode === 'pin' && isRequiredPinnedIndex(idx)));
+		const indeterminateAttr = someChecked && !allChecked ? 'data-indeterminate="1"' : '';
 		html += `
 			<div class="border border-gray-200 rounded-lg p-2">
 				<div class="flex items-center justify-between mb-2 pb-2 border-b border-gray-200">
 					<span class="text-sm font-semibold text-gray-800">${groupData.group.name}</span>
 					<label class="flex items-center gap-2 cursor-pointer">
-						<input type="checkbox" ${allHidden ? 'checked' : ''}
-							   class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 group-toggle-hide"
-							   data-group-id="${groupId}"
-							   ${someHidden && !allHidden ? 'indeterminate' : ''}>
-						<span class="text-xs text-gray-600">Ocultar grupo</span>
+						<input type="checkbox" ${allChecked ? 'checked' : ''}
+							   class="w-4 h-4 ${config.checkboxClass} bg-gray-100 border-gray-300 rounded ${config.focusClass} ${config.groupClass}"
+							   data-group-id="${groupId}" ${indeterminateAttr}>
+						<span class="text-xs text-gray-600">${config.groupLabel}</span>
 					</label>
 				</div>
 				<div class="pl-4 space-y-1">
 		`;
-
 		groupData.columns.forEach(({ col, index }) => {
-			const isHidden = hiddenColumns.includes(index);
+			const isRequired = mode === 'pin' && isRequiredPinnedField(col.field);
+			const isChecked = isRequired || set.has(index);
+			const disabledAttr = isRequired ? 'disabled' : '';
 			html += `
 				<div class="flex items-center justify-between p-1 hover:bg-gray-50 rounded">
 					<span class="text-xs text-gray-700 ml-2">${col.label}</span>
-					<input type="checkbox" ${isHidden ? 'checked' : ''}
-						   class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 column-toggle-hide"
+					<input type="checkbox" ${isChecked ? 'checked' : ''}
+						   class="w-4 h-4 ${config.checkboxClass} bg-gray-100 border-gray-300 rounded ${config.focusClass} ${config.columnClass}"
 						   data-column-index="${index}"
-						   data-group-id="${groupId}">
+						   data-group-id="${groupId}" ${disabledAttr}>
 				</div>
 			`;
 		});
-
 		html += `
 				</div>
 			</div>
 		`;
 	});
-
-	// Mostrar columnas sin grupo
 	if (ungroupedColumns.length > 0) {
 		html += `
 			<div class="border border-gray-200 rounded-lg p-2">
@@ -483,13 +535,15 @@ function openHideColumnsModal() {
 				<div class="pl-4 space-y-1">
 		`;
 		ungroupedColumns.forEach(({ col, index }) => {
-			const isHidden = hiddenColumns.includes(index);
+			const isRequired = mode === 'pin' && isRequiredPinnedField(col.field);
+			const isChecked = isRequired || set.has(index);
+			const disabledAttr = isRequired ? 'disabled' : '';
 			html += `
 				<div class="flex items-center justify-between p-1 hover:bg-gray-50 rounded">
 					<span class="text-xs text-gray-700 ml-2">${col.label}</span>
-					<input type="checkbox" ${isHidden ? 'checked' : ''}
-						   class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 column-toggle-hide"
-						   data-column-index="${index}">
+					<input type="checkbox" ${isChecked ? 'checked' : ''}
+						   class="w-4 h-4 ${config.checkboxClass} bg-gray-100 border-gray-300 rounded ${config.focusClass} ${config.columnClass}"
+						   data-column-index="${index}" ${disabledAttr}>
 				</div>
 			`;
 		});
@@ -498,73 +552,80 @@ function openHideColumnsModal() {
 			</div>
 		`;
 	}
-
 	html += `
 			</div>
 		</div>
 	`;
-
+	return html;
+}
+function bindColumnsModalEvents(mode) {
+	const config = COLUMN_MODAL_CONFIG[mode];
+	const container = document.getElementById('swal2-html-container');
+	if (!config || !container) return;
+	container.querySelectorAll(`.${config.groupClass}[data-indeterminate="1"]`).forEach(cb => {
+		cb.indeterminate = true;
+	});
+	container.querySelectorAll(`.${config.columnClass}`).forEach(checkbox => {
+		checkbox.addEventListener('change', function() {
+			const columnIndex = parseInt(this.dataset.columnIndex, 10);
+			if (Number.isNaN(columnIndex)) return;
+			config.columnAction(columnIndex, this.checked);
+			const groupId = this.dataset.groupId;
+			if (groupId) updateGroupCheckboxState(parseInt(groupId, 10), mode);
+		});
+	});
+	container.querySelectorAll(`.${config.groupClass}`).forEach(checkbox => {
+		checkbox.addEventListener('change', function() {
+			const groupId = parseInt(this.dataset.groupId, 10);
+			if (Number.isNaN(groupId)) return;
+			config.groupAction(groupId, this.checked);
+			this.indeterminate = false;
+			container.querySelectorAll(`.${config.columnClass}[data-group-id="${groupId}"]`).forEach(cb => {
+				cb.checked = this.checked;
+			});
+		});
+	});
+}
+function openColumnsModal(mode) {
+	if (!ensureColumnsReady()) return;
+	if (!COLUMN_MODAL_CONFIG[mode]) return;
+	const { groupedColumns, ungroupedColumns } = buildGroupedColumns();
+	const html = buildColumnsModalHtml({ mode, groupedColumns, ungroupedColumns });
+	const config = COLUMN_MODAL_CONFIG[mode];
 	Swal.fire({
-		title: 'Ocultar Columnas',
+		title: config.title,
 		html: html,
 		showCancelButton: true,
 		confirmButtonText: 'Aplicar',
 		cancelButtonText: 'Cancelar',
-		confirmButtonColor: '#ef4444',
+		confirmButtonColor: config.confirmColor,
 		cancelButtonColor: '#6b7280',
 		width: '600px',
-		didOpen: () => {
-			// Event listeners para checkboxes individuales
-			document.querySelectorAll('#swal2-html-container .column-toggle-hide').forEach(checkbox => {
-				checkbox.addEventListener('change', function() {
-					const columnIndex = parseInt(this.dataset.columnIndex);
-					if (this.checked) {
-						hideColumn(columnIndex);
-					} else {
-						showColumn(columnIndex);
-					}
-					// Actualizar estado del grupo
-					const groupId = this.dataset.groupId;
-					if (groupId) {
-						updateGroupCheckboxState(groupId, 'hide');
-					}
-				});
-			});
-
-			// Event listeners para checkboxes de grupo
-			document.querySelectorAll('#swal2-html-container .group-toggle-hide').forEach(checkbox => {
-			checkbox.addEventListener('change', function() {
-				const groupId = parseInt(this.dataset.groupId);
-				toggleGroupVisibility(groupId, !this.checked);
-				// Actualizar todos los checkboxes individuales del grupo
-				document.querySelectorAll(`#swal2-html-container .column-toggle-hide[data-group-id="${groupId}"]`).forEach(cb => {
-					if (cb) cb.checked = this.checked;
-				});
-			});
-			});
-		}
+		didOpen: () => bindColumnsModalEvents(mode)
 	});
 }
-
-// Función auxiliar para actualizar el estado del checkbox de grupo
+function openPinColumnsModal() {
+	openColumnsModal('pin');
+}
+function openHideColumnsModal() {
+	openColumnsModal('hide');
+}
 function updateGroupCheckboxState(groupId, type) {
 	const groupColumns = getGroupColumns(groupId);
 	const prefix = type === 'pin' ? 'pin' : 'hide';
-	const array = type === 'pin' ? pinnedColumns : hiddenColumns;
-
-	const allChecked = groupColumns.every(idx => array.includes(idx));
-	const someChecked = groupColumns.some(idx => array.includes(idx));
-
+	syncColumnStateSets();
+	const set = type === 'pin' ? pinnedColumnsSet : hiddenColumnsSet;
+	const allChecked = groupColumns.every(idx => set.has(idx) || (type === 'pin' && isRequiredPinnedIndex(idx)));
+	const someChecked = groupColumns.some(idx => set.has(idx) || (type === 'pin' && isRequiredPinnedIndex(idx)));
 	const groupCheckbox = document.querySelector(`.group-toggle-${prefix}[data-group-id="${groupId}"]`);
 	if (groupCheckbox) {
 		groupCheckbox.checked = allChecked;
 		groupCheckbox.indeterminate = someChecked && !allChecked;
 	}
 }
-
 function getColumnsData() {
 	if (!Array.isArray(columnsData) || columnsData.length === 0) {
-		console.warn('getColumnsData: columnsData no está disponible o está vacío');
+		console.warn('getColumnsData: columnsData no estÃ¡ disponible o estÃ¡ vacÃ­o');
 		return [];
 	}
 	return columnsData.map(c => ({
@@ -572,28 +633,57 @@ function getColumnsData() {
 		field: c.field || ''
 	})).filter(c => c.field); // Filtrar columnas sin field
 }
-
 function getPinnedColumns() {
+	syncColumnStateSets();
 	return pinnedColumns || [];
 }
-
 function getHiddenColumns() {
+	syncColumnStateSets();
 	return hiddenColumns || [];
 }
-
 function pinColumn(index) {
-	if (!pinnedColumns.includes(index)) {
+	syncColumnStateSets();
+	if (!pinnedColumnsSet.has(index)) {
+		pinnedColumnsSet.add(index);
 		pinnedColumns.push(index);
 		pinnedColumns.sort((a, b) => a - b);
+
+		// ⚡ OPTIMIZACIÓN: Guardar en caché inmediatamente
+		if (ensureColumnCache()) {
+			const field = columnsData[index]?.field;
+			if (field) {
+				const cached = getCachedPinnedFields() || [];
+				if (!cached.includes(field)) {
+					cached.push(field);
+					setCachedPinnedFields(cached);
+				}
+			}
+		}
+
 		updatePinnedColumnsPositions();
 	}
 }
-
 function unpinColumn(index) {
-	pinnedColumns = pinnedColumns.filter(i => i !== index);
-	updatePinnedColumnsPositions();
-}
+	syncColumnStateSets();
+	// Permitir desfijar incluso columnas requeridas
+	if (pinnedColumnsSet.has(index)) {
+		pinnedColumnsSet.delete(index);
+		const idx = pinnedColumns.indexOf(index);
+		if (idx > -1) pinnedColumns.splice(idx, 1);
 
+		// ⚡ OPTIMIZACIÓN: Guardar en caché inmediatamente
+		if (ensureColumnCache()) {
+			const field = columnsData[index]?.field;
+			if (field) {
+				const cached = getCachedPinnedFields() || [];
+				const filtered = cached.filter(f => f !== field);
+				setCachedPinnedFields(filtered);
+			}
+		}
+
+		updatePinnedColumnsPositions();
+	}
+}
 function resetColumnVisibility() {
 	try {
 		const table = document.getElementById('mainTable');
@@ -601,17 +691,15 @@ function resetColumnVisibility() {
 			console.warn('resetColumnVisibility: tabla no encontrada');
 			return;
 		}
-
 		// Limpiar array de columnas ocultas
 		hiddenColumns = [];
-
-		// Aplicar visibilidad según grupos por defecto
+		hiddenColumnsSet.clear();
+		// Aplicar visibilidad segÃºn grupos por defecto
 		Object.keys(columnGroups).forEach(groupId => {
 			const group = columnGroups[groupId];
 			const groupIdNum = parseInt(groupId);
 			toggleGroupVisibility(groupIdNum, group.defaultVisible, true);
 		});
-
 		// Mostrar columnas sin grupo (por defecto visibles)
 		columnsData.forEach((col, index) => {
 			const groupId = getColumnGroup(col.field);
@@ -619,17 +707,14 @@ function resetColumnVisibility() {
 				showColumn(index, true);
 			}
 		});
-
 		// Desfijar todas las columnas
 		pinnedColumns = [];
-
+		pinnedColumnsSet.clear();
 		// Fijar columnas por defecto
 		pinDefaultColumns();
-
 		// Actualizar posiciones
 		updatePinnedColumnsPositions();
-
-		// Mostrar notificación
+		// Mostrar notificaciÃ³n
 		if (typeof showToast === 'function') {
 			showToast('Columnas restablecidas a valores por defecto', 'success');
 		}
@@ -640,8 +725,7 @@ function resetColumnVisibility() {
 		}
 	}
 }
-
-// Función para inicializar la visibilidad de columnas según grupos
+// FunciÃ³n para inicializar la visibilidad de columnas segÃºn grupos
 function initializeColumnVisibility() {
 	try {
 		isInitializingColumns = true;
@@ -656,109 +740,136 @@ function initializeColumnVisibility() {
 		isInitializingColumns = false;
 	}
 }
-
 function showColumn(index, silent = false) {
-	$$(`.column-${index}`).forEach(el => {
+	forEachColumnElement(index, el => {
 		el.style.display = '';
 		el.style.visibility = '';
 	});
 	// Remover del array de columnas ocultas
-	if (Array.isArray(hiddenColumns)) {
+	syncColumnStateSets();
+	if (hiddenColumnsSet.has(index)) {
+		hiddenColumnsSet.delete(index);
 		const idx = hiddenColumns.indexOf(index);
-		if (idx > -1) {
-			hiddenColumns.splice(idx, 1);
-		}
+		if (idx > -1) hiddenColumns.splice(idx, 1);
 	}
 	if (!silent && typeof showToast === 'function') {
 		showToast(`Columna visible`, 'info');
 	}
 	if (!silent) scheduleSaveHiddenColumns();
+	if (pinnedColumns.length > 0) updatePinnedColumnsPositions();
 }
-
 function hideColumn(index, silent = false) {
-	$$(`.column-${index}`).forEach(el => el.style.display = 'none');
+	forEachColumnElement(index, el => {
+		el.style.display = 'none';
+	});
 	const hideBtn = $(`th.column-${index} .hide-btn`);
 	if (hideBtn) {
 		hideBtn.classList.remove('bg-red-500');
 		hideBtn.classList.add('bg-red-600');
 		hideBtn.title = 'Columna oculta';
 	}
-	if (!hiddenColumns.includes(index)) hiddenColumns.push(index);
+	syncColumnStateSets();
+	if (!hiddenColumnsSet.has(index)) {
+		hiddenColumnsSet.add(index);
+		hiddenColumns.push(index);
+	}
 	if (!silent && typeof showToast === 'function') {
 		showToast(`Columna oculta`, 'info');
 	}
 	if (!silent) scheduleSaveHiddenColumns();
+	if (pinnedColumns.length > 0) updatePinnedColumnsPositions();
 }
-
 function togglePinColumn(index) {
-	const exists = pinnedColumns.includes(index);
-	if (exists) pinnedColumns = pinnedColumns.filter(i => i !== index);
-	else pinnedColumns.push(index);
+	syncColumnStateSets();
+	const exists = pinnedColumnsSet.has(index);
+	// Permitir desfijar incluso columnas requeridas
+	if (exists) {
+		pinnedColumnsSet.delete(index);
+		const idx = pinnedColumns.indexOf(index);
+		if (idx > -1) pinnedColumns.splice(idx, 1);
+	} else {
+		pinnedColumnsSet.add(index);
+		pinnedColumns.push(index);
+	}
 	pinnedColumns.sort((a, b) => a - b);
 
-	// Botón estado
-	const pinBtn = $(`th.column-${index} .pin-btn`);
-	if (pinBtn) {
-		pinBtn.classList.toggle('bg-yellow-600', !exists);
-		pinBtn.classList.toggle('bg-yellow-500', exists);
-		pinBtn.title = exists ? 'Fijar columna' : 'Desfijar columna';
+	// ⚡ OPTIMIZACIÓN: Guardar en caché inmediatamente
+	if (ensureColumnCache()) {
+		const field = columnsData[index]?.field;
+		if (field) {
+			const cached = getCachedPinnedFields() || [];
+			if (exists) {
+				const filtered = cached.filter(f => f !== field);
+				setCachedPinnedFields(filtered);
+			} else {
+				if (!cached.includes(field)) {
+					cached.push(field);
+					setCachedPinnedFields(cached);
+				}
+			}
+		}
 	}
 
+	// BotÃ³n estado
+	const pinBtn = $(`th.column-${index} .pin-btn`);
+	if (pinBtn) {
+		pinBtn.classList.toggle('bg-yellow-700', !exists);
+		pinBtn.classList.toggle('bg-yellow-600', exists);
+		pinBtn.title = exists ? 'Fijar columna' : 'Desfijar columna';
+	}
 	updatePinnedColumnsPositions();
 }
-
-function updatePinnedColumnsPositions() {
-	// Limpia estilos de todas primero
-	const allIdx = [...new Set($$('th[class*="column-"]').map(th => +th.dataset.index))];
-	allIdx.forEach(idx => {
-		$$(`.column-${idx}`).forEach(el => {
-			// Mantén sticky top en TH, pero quita left/background si no está fijada
-			if (el.tagName === 'TH') {
-				el.style.top = '0';
-				el.style.position = 'sticky';
-				el.style.backgroundColor = '#3b82f6';
-				el.style.color = '#fff';
-			} else {
-				el.style.position = '';
-				el.style.top = '';
-				el.style.backgroundColor = '';
-				el.style.color = '';
-			}
-			el.style.left = '';
-			el.classList.remove('pinned-column');
-		});
+let lastPinnedColumnsSet = new Set();
+function clearPinnedStyles(index) {
+	forEachColumnElement(index, el => {
+		if (el.tagName === 'TH') {
+			el.style.top = '0';
+			el.style.position = 'sticky';
+		} else {
+			el.style.position = '';
+			el.style.top = '';
+		}
+		el.style.left = '';
+		el.classList.remove('pinned-column');
 	});
-
+}
+function applyPinnedStyles(index, left) {
+	forEachColumnElement(index, el => {
+		el.classList.add('pinned-column');
+		el.style.left = left + 'px';
+		if (el.tagName === 'TH') {
+			el.style.top = '0';
+			el.style.position = 'sticky';
+		} else {
+			el.style.position = 'sticky';
+		}
+	});
+}
+function updatePinnedColumnsPositions() {
+	syncColumnStateSets();
+	const currentPinnedSet = new Set(pinnedColumns);
+	lastPinnedColumnsSet.forEach(idx => {
+		if (!currentPinnedSet.has(idx)) clearPinnedStyles(idx);
+	});
 	// Asegurar que el thead sea sticky cuando hay columnas fijadas
 	const thead = $('thead');
 	if (thead && pinnedColumns.length > 0) {
 		thead.style.position = 'sticky';
 		thead.style.top = '0';
 	}
-
 	// Aplica fijados en orden
 	let left = 0;
-	pinnedColumns.forEach((idx, order) => {
+	pinnedColumns.forEach(idx => {
 		const th = $(`th.column-${idx}`);
-		if (!th || th.style.display === 'none') return;
-
-		const width = th.offsetWidth;
-		$$(`.column-${idx}`).forEach(el => {
-			el.classList.add('pinned-column');
-			el.style.left = left + 'px';
-			if (el.tagName === 'TH') {
-				// Para encabezados fijados: sticky tanto en top como en left
-				el.style.top = '0';
-				el.style.position = 'sticky';
-				el.style.backgroundColor = '#3b82f6';
-				el.style.color = '#fff';
-			} else {
-				// Para celdas fijadas: solo sticky en left
-				el.style.position = 'sticky';
-			}
-		});
+		if (!th || th.style.display === 'none') {
+			clearPinnedStyles(idx);
+			return;
+		}
+		const width = th.getBoundingClientRect().width;
+		applyPinnedStyles(idx, left);
 		left += width;
 	});
+	lastPinnedColumnsSet = currentPinnedSet;
 }
 
 // ===== Exponer funciones globalmente =====
@@ -776,14 +887,29 @@ window.toggleGroupVisibility = toggleGroupVisibility;
 window.toggleGroupPin = toggleGroupPin;
 window.getColumnGroup = getColumnGroup;
 window.getGroupColumns = getGroupColumns;
-
-// Función para fijar columnas por defecto
+window.pinDefaultColumns = pinDefaultColumns;
+window.applyDefaultPinsOnce = applyDefaultPinsOnce;
+// FunciÃ³n para fijar columnas por defecto
+function applyDefaultPinsOnce() {
+	if (defaultPinsApplied) return;
+	defaultPinsApplied = true;
+	pinDefaultColumns();
+}
 function pinDefaultColumns() {
-	const defaultPinnedFields = ['Ultimo', 'CambioHilo', 'Maquina', 'NombreProducto','Ancho'];
+	ensureColumnCache();
+	syncColumnStateSets();
 
-	defaultPinnedFields.forEach(field => {
+	// ⚡ OPTIMIZACIÓN: Cargar columnas fijadas desde caché primero
+	const cachedPinnedFields = getCachedPinnedFields();
+	const fieldsToPin = new Set();
+	if (cachedPinnedFields && cachedPinnedFields.length > 0) {
+		cachedPinnedFields.forEach(field => fieldsToPin.add(field));
+	}
+	REQUIRED_PINNED_FIELDS.forEach(field => fieldsToPin.add(field));
+	fieldsToPin.forEach(field => {
 		const index = getColumnIndexByField(field);
-		if (index !== -1 && !pinnedColumns.includes(index)) {
+		if (index !== -1 && !pinnedColumnsSet.has(index)) {
+			pinnedColumnsSet.add(index);
 			pinnedColumns.push(index);
 		}
 	});
@@ -791,26 +917,18 @@ function pinDefaultColumns() {
 	// Ordenar las columnas fijadas
 	pinnedColumns.sort((a, b) => a - b);
 
-	// Actualizar posiciones después de un breve delay para asegurar que el DOM esté listo
-	setTimeout(() => {
+	// ⚡ OPTIMIZACIÓN: Actualizar posiciones inmediatamente si el DOM está listo
+	// Solo usar requestAnimationFrame si es necesario
+	if (document.readyState === 'complete' || document.readyState === 'interactive') {
 		updatePinnedColumnsPositions();
-	}, 100);
+	} else {
+		requestAnimationFrame(updatePinnedColumnsPositions);
+	}
 }
-
 // Cargar estados persistidos al inicio
-setTableLoading(true);
 loadPersistedHiddenColumns();
 
-// Fijar columnas por defecto después de que se carguen los datos
-document.addEventListener('DOMContentLoaded', function() {
-	// Esperar a que columnsData esté disponible
-	const checkAndPin = () => {
-		if (Array.isArray(columnsData) && columnsData.length > 0) {
-			pinDefaultColumns();
-		} else {
-			setTimeout(checkAndPin, 50);
-		}
-	};
-	checkAndPin();
-});
+
+
+
 

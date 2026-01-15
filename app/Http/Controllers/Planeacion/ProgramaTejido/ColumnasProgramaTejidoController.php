@@ -25,8 +25,9 @@ class ColumnasProgramaTejidoController extends Controller
 
         $estados = OrdColProgramaTejido::query()
             ->where('UsuarioId', $userId)
-            ->get(['Columna', 'Estado'])
-            ->mapWithKeys(fn ($row) => [$row->Columna => (bool) $row->Estado]);
+            ->pluck('Estado', 'Columna')
+            ->map(fn ($estado) => (bool) $estado)
+            ->all();
 
         return response()->json([
             'success' => true,
@@ -82,5 +83,5 @@ class ColumnasProgramaTejidoController extends Controller
             'message' => 'Estados de columnas guardados',
         ])->header('Content-Type', 'application/json; charset=utf-8');
     }
-}
 
+}
