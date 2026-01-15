@@ -93,7 +93,7 @@
                         hoverBg="hover:bg-blue-600"
                         class="text-sm" />
                       <!-- Liberar órdenes -->
-                    <x-navbar.button-report
+                      <x-navbar.button-report
                         onclick="mostrarModalDiasLiberar()"
                         title="Liberar órdenes"
                         module="Programa Tejido"
@@ -102,21 +102,11 @@
                         iconColor="text-white"
                         hoverBg="hover:bg-stone-600"
                         class="text-sm" />
-
-                      <x-navbar.button-delete
-                        id="layoutBtnEliminar"
-                        onclick="const selected = document.querySelectorAll('.selectable-row')[selectedRowIndex]; const id = selected ? selected.getAttribute('data-id') : null; if(id) eliminarRegistro(id);"
-                        title="Eliminar"
-                        module="Programa Tejido"
-                        iconColor="text-white"
-                        hoverBg="hover:bg-red-600"
-                        bg="bg-red-500"
-                        class="text-sm" />
                     </div>
 
                     <!-- Grupo 2: Controles de columnas -->
                     <button type="button" onclick="openPinColumnsModal()"
-                            class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-colors"
+                            class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-600 text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors"
                             title="Fijar columnas" aria-label="Fijar columnas">
                       <i class="fa-solid fa-thumbtack text-sm"></i>
                     </button>
@@ -239,7 +229,7 @@
 
                     <!-- Grupo 2: Controles de columnas -->
                     <button type="button" onclick="openPinColumnsModal()"
-                            class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-colors border-0"
+                            class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-600 text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors border-0"
                             style="border-radius: 50%;"
                             title="Fijar columnas" aria-label="Fijar columnas">
                       <i class="fa-solid fa-thumbtack"></i>
@@ -428,4 +418,3 @@ function mostrarModalDiasLiberar() {
     });
 }
 </script>
-
