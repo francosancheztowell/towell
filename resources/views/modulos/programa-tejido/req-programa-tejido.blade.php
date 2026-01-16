@@ -203,6 +203,11 @@
     <i class="fas fa-trash text-red-500"></i>
     <span>Eliminar</span>
   </button>
+  {{-- Desvincular registro --}}
+  <button id="contextMenuDesvincular" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
+    <i class="fas fa-unlink text-purple-500"></i>
+    <span>Desvincular</span>
+  </button>
 
   </button>
   {{-- redirigir a catalogo de codificacion --}}

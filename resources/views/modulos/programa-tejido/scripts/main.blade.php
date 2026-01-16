@@ -154,6 +154,32 @@
         if (rect.right > window.innerWidth)  menu.style.left = (e.clientX - rect.width) + 'px';
         if (rect.bottom > window.innerHeight) menu.style.top = (e.clientY - rect.height) + 'px';
 
+        // Verificar si el registro está en proceso para ocultar el botón de eliminar
+        const eliminarBtn = qs('#contextMenuEliminar');
+        if (eliminarBtn && row) {
+          const meta = rowMeta(row);
+          const enProceso = meta.enProceso;
+
+          // Ocultar el botón de eliminar si EnProceso === 1
+          if (enProceso) {
+            eliminarBtn.style.display = 'none';
+          } else {
+            eliminarBtn.style.display = '';
+          }
+        }
+
+        // Mostrar/ocultar el botón de desvincular según si el registro tiene OrdCompartida
+        const desvincularBtn = qs('#contextMenuDesvincular');
+        if (desvincularBtn && row) {
+          const ordCompartida = row.getAttribute('data-ord-compartida');
+          // Ocultar el botón de desvincular si no tiene OrdCompartida
+          if (!ordCompartida || ordCompartida.trim() === '') {
+            desvincularBtn.style.display = 'none';
+          } else {
+            desvincularBtn.style.display = '';
+          }
+        }
+
         menu.classList.remove('hidden');
       }
 
@@ -254,6 +280,26 @@
             const id = row.getAttribute('data-id');
             if (id && typeof window.eliminarRegistro === 'function') {
               window.eliminarRegistro(id);
+            } else {
+              toast('No se pudo obtener el ID del registro', 'error');
+            }
+          } else {
+            toast('No hay registro seleccionado', 'error');
+          }
+        });
+
+        // Desvincular registro
+        qs('#contextMenuDesvincular')?.addEventListener('click', () => {
+          const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tbodyEl());
+          const selectedRow = (window.selectedRowIndex !== null && window.selectedRowIndex !== undefined && window.selectedRowIndex >= 0)
+            ? rows[window.selectedRowIndex]
+            : null;
+          const row = menuRow || selectedRow;
+          hide();
+          if (row) {
+            const id = row.getAttribute('data-id');
+            if (id && typeof window.desvincularRegistro === 'function') {
+              window.desvincularRegistro(id);
             } else {
               toast('No se pudo obtener el ID del registro', 'error');
             }
@@ -1271,6 +1317,59 @@
     window.eliminarRegistro = PT.actions.eliminarRegistro;
 
     // =========================
+    // Desvincular registro
+    // =========================
+    window.desvincularRegistro = async function desvincularRegistro(id) {
+      const doDesvincular = async () => {
+        PT.loader.show();
+        try {
+          const response = await fetch(`/planeacion/programa-tejido/${id}/desvincular`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
+            }
+          });
+
+          const data = await response.json();
+          PT.loader.hide();
+
+          if (data.success) {
+            // Actualizar registros sin recargar usando la misma función que para vincular
+            if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
+              await actualizarRegistrosVinculados(data.registros_ids, null);
+            }
+
+            toast(data.message || 'Registro desvinculado correctamente', 'success');
+          } else {
+            toast(data.message || 'No se pudo desvincular el registro', 'error');
+          }
+        } catch (error) {
+          PT.loader.hide();
+          toast('Ocurrió un error al procesar la solicitud', 'error');
+        }
+      };
+
+      if (typeof Swal === 'undefined') {
+        if (confirm('¿Desvincular este registro? Se eliminará su relación con otros registros.')) {
+          doDesvincular();
+        }
+        return;
+      }
+
+      Swal.fire({
+        title: '¿Desvincular registro?',
+        text: 'Se eliminará la relación con otros registros vinculados.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, desvincular',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#9333ea',
+        cancelButtonColor: '#6b7280',
+      }).then(r => { if (r.isConfirmed) doDesvincular(); });
+    };
+
+    // =========================
     // Editar fila seleccionada
     // =========================
     window.editarFilaSeleccionada = function() {
@@ -2170,6 +2269,9 @@
           // Actualizar data attribute de OrdCompartida
           if (registro.OrdCompartida) {
             fila.setAttribute('data-ord-compartida', registro.OrdCompartida);
+          } else {
+            // Si OrdCompartida es null, eliminar el atributo
+            fila.removeAttribute('data-ord-compartida');
           }
 
           // Actualizar celdas relevantes

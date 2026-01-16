@@ -614,7 +614,7 @@ function agregarFilaDividir() {
 				class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 		</td>
 		<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
-			<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0" readonly
+			<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0" readonly disabled
 				class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 		</td>
 		<td class="p-2 border-r border-gray-200 produccion-cell">
@@ -898,7 +898,7 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${descripcion || ''}</textarea>
 					</td>
 					<td class="p-2 border-r border-gray-200 aplicacion-cell">
-						<select name="aplicacion-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500" data-registro-id="${reg.Id}">
+						<select name="aplicacion-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" data-registro-id="${reg.Id}" disabled>
 							${aplicacionOptionsHTMLReg}
 						</select>
 					</td>
@@ -978,6 +978,38 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 			if (typeof actualizarResumenCantidades === 'function') {
 				actualizarResumenCantidades();
 			}
+
+			// Calcular y mostrar saldo total de todos los registros vinculados
+			let saldoTotalAcumulado = 0;
+			data.registros.forEach(reg => {
+				const saldo = parseFloat(reg.SaldoPedido) || 0;
+				saldoTotalAcumulado += saldo;
+			});
+
+			// Crear o actualizar fila de totales
+			let filaTotales = tbody.querySelector('tr.saldo-total-row');
+			if (!filaTotales) {
+				filaTotales = document.createElement('tr');
+				filaTotales.className = 'saldo-total-row bg-blue-50 font-semibold';
+				tbody.appendChild(filaTotales);
+			}
+
+			// Obtener número de columnas (basado en el header)
+			const thead = tbody.closest('table')?.querySelector('thead tr');
+			const numColumns = thead ? thead.children.length : 13; // Aproximadamente 13 columnas
+
+			// Crear HTML de la fila de totales
+			// Columnas: Clave Modelo, Producto, Flogs, Descripcion, Aplicación, Telar, Pedido, % Segundas (hidden), Produccion, Saldo Total, Obs, Acciones (hidden)
+			// La columna "Saldo Total" está en la posición 10 (índice 9)
+			filaTotales.innerHTML = `
+				<td class="p-2 border-r border-gray-300"></td>
+				<td class="p-2 border-r border-gray-300 text-right text-sm font-semibold text-gray-700" colspan="8">Saldo Total:</td>
+				<td class="p-2 border-r border-gray-300 text-right text-sm font-bold text-blue-700">
+					<span id="saldo-total-vinculados">${saldoTotalAcumulado.toFixed(2)}</span>
+				</td>
+				<td class="p-2 border-r border-gray-300"></td>
+				<td class="p-2"></td>
+			`;
 		}
 	} catch (error) {
 		// Mostrar mensaje de error al usuario si existe la función showToast

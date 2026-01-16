@@ -1755,6 +1755,153 @@ class ProgramaTejidoController extends Controller
     }
 
     /**
+     * Desvincular un registro de su OrdCompartida
+     *
+     * - Si hay 2 registros con la misma OrdCompartida: ambos se ponen OrdCompartida = null y OrdCompartidaLider = null
+     * - Si hay más de 2: solo el seleccionado se pone OrdCompartida = null, y de los restantes se busca el que tiene la fecha más antigua para ponerlo como líder (OrdCompartidaLider = 1)
+     */
+    public function desvincularRegistro(Request $request, $id)
+    {
+        try {
+            $registro = ReqProgramaTejido::find($id);
+
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Registro no encontrado'
+                ], 404);
+            }
+
+            $ordCompartida = $registro->OrdCompartida;
+
+            if (!$ordCompartida || trim((string)$ordCompartida) === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El registro no tiene OrdCompartida asignada'
+                ], 400);
+            }
+
+            // Normalizar OrdCompartida
+            $ordCompartidaNormalizada = (int) $ordCompartida;
+
+            // Obtener todos los registros con la misma OrdCompartida
+            $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $ordCompartidaNormalizada)
+                ->get();
+
+            $totalRegistros = $registrosConOrdCompartida->count();
+
+            if ($totalRegistros < 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron registros con esta OrdCompartida'
+                ], 400);
+            }
+
+            DBFacade::beginTransaction();
+
+            // Desactivar observer temporalmente
+            $dispatcher = ReqProgramaTejido::getEventDispatcher();
+            ReqProgramaTejido::unsetEventDispatcher();
+
+            $idsAfectados = [];
+
+            if ($totalRegistros === 2) {
+                // Si hay 2 registros: ambos se ponen OrdCompartida = null y OrdCompartidaLider = null
+                $registrosConOrdCompartida->each(function ($reg) use (&$idsAfectados) {
+                    $reg->OrdCompartida = null;
+                    $reg->OrdCompartidaLider = null;
+                    $reg->UpdatedAt = now();
+                    $reg->save();
+                    $idsAfectados[] = $reg->Id;
+                });
+            } else {
+                // Si hay más de 2: solo el seleccionado se pone OrdCompartida = null
+                $registro->OrdCompartida = null;
+                $registro->OrdCompartidaLider = null;
+                $registro->UpdatedAt = now();
+                $registro->save();
+                $idsAfectados[] = $registro->Id;
+
+                // De los registros restantes, buscar el que tiene la fecha más antigua para ponerlo como líder
+                $registrosRestantes = $registrosConOrdCompartida->filter(function ($reg) use ($id) {
+                    return $reg->Id != $id;
+                });
+
+                if ($registrosRestantes->count() > 0) {
+                    // Ordenar por FechaInicio (más antigua primero)
+                    $registrosOrdenados = $registrosRestantes->sortBy(function ($registro) {
+                        return $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->timestamp : PHP_INT_MAX;
+                    });
+
+                    // Quitar OrdCompartidaLider de todos los registros restantes
+                    $idsRestantes = $registrosRestantes->pluck('Id')->toArray();
+                    ReqProgramaTejido::whereIn('Id', $idsRestantes)
+                        ->update([
+                            'OrdCompartidaLider' => null,
+                            'UpdatedAt' => now()
+                        ]);
+
+                    // Asignar OrdCompartidaLider = 1 al registro con fecha más antigua
+                    $idLider = $registrosOrdenados->first()->Id;
+                    ReqProgramaTejido::where('Id', $idLider)
+                        ->update([
+                            'OrdCompartidaLider' => 1,
+                            'UpdatedAt' => now()
+                        ]);
+
+                    $idsAfectados = array_merge($idsAfectados, $idsRestantes);
+                }
+            }
+
+            DBFacade::commit();
+
+            // Reactivar observer
+            if ($dispatcher) {
+                ReqProgramaTejido::setEventDispatcher($dispatcher);
+            }
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+
+            // Disparar observer para recalcular fórmulas si es necesario
+            $observer = new ReqProgramaTejidoObserver();
+            foreach ($idsAfectados as $idAfectado) {
+                if ($reg = ReqProgramaTejido::find($idAfectado)) {
+                    $observer->saved($reg);
+                }
+            }
+
+            $mensaje = $totalRegistros === 2
+                ? 'Se desvincularon ambos registros correctamente'
+                : 'Registro desvinculado correctamente';
+
+            return response()->json([
+                'success' => true,
+                'message' => $mensaje,
+                'registros_ids' => $idsAfectados,
+                'total_registros_afectados' => count($idsAfectados)
+            ]);
+
+        } catch (\Throwable $e) {
+            DBFacade::rollBack();
+
+            if (isset($dispatcher)) {
+                ReqProgramaTejido::setEventDispatcher($dispatcher);
+            }
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+
+            LogFacade::error('desvincularRegistro error', [
+                'registro_id' => $id,
+                'msg' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al desvincular el registro: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Obtiene un nuevo OrdCompartida disponible verificando que no esté en uso
      *
      * @return int

@@ -153,6 +153,7 @@ Route::post('/planeacion/programa-tejido/dividir-telar', [ProgramaTejidoControll
 Route::post('/planeacion/programa-tejido/dividir-saldo', [ProgramaTejidoController::class, 'dividirSaldo'])->name('programa-tejido.dividir-saldo');
 Route::post('/planeacion/programa-tejido/vincular-telar', [ProgramaTejidoController::class, 'vincularTelar'])->name('programa-tejido.vincular-telar');
 Route::post('/planeacion/programa-tejido/vincular-registros-existentes', [ProgramaTejidoController::class, 'vincularRegistrosExistentes'])->name('programa-tejido.vincular-registros-existentes');
+Route::post('/planeacion/programa-tejido/{id}/desvincular', [ProgramaTejidoController::class, 'desvincularRegistro'])->name('programa-tejido.desvincular');
 Route::get('/planeacion/programa-tejido/registros-ord-compartida/{ordCompartida}', [ProgramaTejidoController::class, 'getRegistrosPorOrdCompartida'])->name('programa-tejido.registros-ord-compartida');
 Route::get('/planeacion/programa-tejido/balancear', [ProgramaTejidoController::class, 'balancear'])->name('programa-tejido.balancear');
 Route::get('/planeacion/programa-tejido/{id}/detalles-balanceo', [ProgramaTejidoController::class, 'detallesBalanceo'])->name('programa-tejido.detalles-balanceo');
