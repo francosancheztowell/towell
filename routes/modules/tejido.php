@@ -22,8 +22,9 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
         ->where('serie', '205')
         ->name('configurar');
 
-    Route::get('/marcasfinales/{moduloPadre?}', [UsuarioController::class, 'showSubModulosNivel3'])
-        ->defaults('moduloPadre', '202')
+    Route::get('/marcasfinales/{moduloPadre?}', function () {
+        return redirect('/modulo-marcas/consultar');
+    })
         ->where('moduloPadre', '202')
         ->name('marcas.finales');
 
@@ -34,8 +35,9 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
 
     Route::redirect('/inventario', '/tejido/invtrama', 301);
 
-    Route::get('/cortesdeeficiencia/{moduloPadre?}', [UsuarioController::class, 'showSubModulosNivel3'])
-        ->defaults('moduloPadre', '206')
+    Route::get('/cortesdeeficiencia/{moduloPadre?}', function () {
+        return redirect('/modulo-cortes-de-eficiencia/consultar');
+    })
         ->where('moduloPadre', '206')
         ->name('cortes.eficiencia');
 
@@ -104,30 +106,25 @@ Route::get('/produccion/reenconado-cabezuela', [ProduccionReenconadoCabezuelaCon
 Route::post('/produccion/reenconado-cabezuela', [ProduccionReenconadoCabezuelaController::class, 'store'])
     ->name('produccion.reenconado_cabezuela.store');
 
-// Rutas para módulo de marcas finales (ruta de prueba)
-Route::get('/tejido/modulo-prueba', [MarcasController::class, 'prueba'])->name('tejido.modulo.prueba.marcasFinales');
-Route::post('/tejido/modulo-prueba/generar-folio', [MarcasController::class, 'generarFolio'])->name('tejido.modulo.prueba.marcas.generar.folio');
-Route::get('/tejido/modulo-prueba/obtener-datos-std', [MarcasController::class, 'obtenerDatosSTD'])->name('tejido.modulo.prueba.marcas.datos.std');
-Route::post('/tejido/modulo-prueba/store', [MarcasController::class, 'store'])->name('tejido.modulo.prueba.marcas.store');
-Route::get('/tejido/modulo-prueba/visualizar/{folio}', [MarcasController::class, 'visualizarFolio'])->name('tejido.modulo.prueba.marcas.visualizar');
-Route::get('/tejido/modulo-prueba/reporte', [MarcasController::class, 'reporte'])->name('tejido.modulo.prueba.marcas.reporte');
-Route::post('/tejido/modulo-prueba/reporte/exportar-excel', [MarcasController::class, 'exportarExcel'])->name('tejido.modulo.prueba.marcas.reporte.excel');
-Route::post('/tejido/modulo-prueba/reporte/descargar-pdf', [MarcasController::class, 'descargarPDF'])->name('tejido.modulo.prueba.marcas.reporte.pdf');
-Route::get('/tejido/modulo-prueba/{folio}', [MarcasController::class, 'show'])
+// Rutas para módulo de marcas finales
+Route::get('/modulo-marcas', [MarcasController::class, 'index'])->name('marcas.nuevo');
+Route::get('/modulo-marcas/consultar', [MarcasController::class, 'consultar'])->name('marcas.consultar');
+Route::post('/modulo-marcas/generar-folio', [MarcasController::class, 'generarFolio'])->name('marcas.generar.folio');
+Route::get('/modulo-marcas/obtener-datos-std', [MarcasController::class, 'obtenerDatosSTD'])->name('marcas.datos.std');
+Route::post('/modulo-marcas/store', [MarcasController::class, 'store'])->name('marcas.store');
+Route::get('/modulo-marcas/visualizar/{folio}', [MarcasController::class, 'visualizarFolio'])->name('marcas.visualizar');
+Route::get('/modulo-marcas/reporte', [MarcasController::class, 'reporte'])->name('marcas.reporte');
+Route::post('/modulo-marcas/reporte/exportar-excel', [MarcasController::class, 'exportarExcel'])->name('marcas.reporte.excel');
+Route::post('/modulo-marcas/reporte/descargar-pdf', [MarcasController::class, 'descargarPDF'])->name('marcas.reporte.pdf');
+Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])
     ->where('folio', '^(?!reporte$).+')
-    ->name('tejido.modulo.prueba.marcas.show');
-Route::put('/tejido/modulo-prueba/{folio}', [MarcasController::class, 'update'])
+    ->name('marcas.show');
+Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])
     ->where('folio', '^(?!reporte$).+')
-    ->name('tejido.modulo.prueba.marcas.update');
-Route::post('/tejido/modulo-prueba/{folio}/finalizar', [MarcasController::class, 'finalizar'])
+    ->name('marcas.update');
+Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])
     ->where('folio', '^(?!reporte$).+')
-    ->name('tejido.modulo.prueba.marcas.finalizar');
-
-
-
-// Route::get('/tejido/marcas-finales', [MarcasController::class, 'prueba'])->name('tejido.marcas.marcasFinales');
-// Route::get('/tejido/modulo-prueba', [MarcasController::class, 'prueba'])->name('tejido.modulo.prueba');
-
+    ->name('marcas.finalizar');
 
 Route::get('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'index'])->name('cortes.eficiencia');
 Route::get('/modulo-cortes-de-eficiencia/consultar', [CortesEficienciaController::class, 'consultar'])->name('cortes.eficiencia.consultar');
