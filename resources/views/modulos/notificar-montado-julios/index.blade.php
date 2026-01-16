@@ -1,4 +1,4 @@
-@extends('layouts.app')
+{{-- @extends('layouts.app')
 
 @section('page-title', 'Notificar Montado de Julio')
 
@@ -146,4 +146,4 @@
         });
     });
 </script>
-@endsection
+@endsection --}}
