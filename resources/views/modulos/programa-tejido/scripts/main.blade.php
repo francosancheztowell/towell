@@ -154,6 +154,32 @@
         if (rect.right > window.innerWidth)  menu.style.left = (e.clientX - rect.width) + 'px';
         if (rect.bottom > window.innerHeight) menu.style.top = (e.clientY - rect.height) + 'px';
 
+        // Verificar si el registro está en proceso para ocultar el botón de eliminar
+        const eliminarBtn = qs('#contextMenuEliminar');
+        if (eliminarBtn && row) {
+          const meta = rowMeta(row);
+          const enProceso = meta.enProceso;
+
+          // Ocultar el botón de eliminar si EnProceso === 1
+          if (enProceso) {
+            eliminarBtn.style.display = 'none';
+          } else {
+            eliminarBtn.style.display = '';
+          }
+        }
+
+        // Mostrar/ocultar el botón de desvincular según si el registro tiene OrdCompartida
+        const desvincularBtn = qs('#contextMenuDesvincular');
+        if (desvincularBtn && row) {
+          const ordCompartida = row.getAttribute('data-ord-compartida');
+          // Ocultar el botón de desvincular si no tiene OrdCompartida
+          if (!ordCompartida || ordCompartida.trim() === '') {
+            desvincularBtn.style.display = 'none';
+          } else {
+            desvincularBtn.style.display = '';
+          }
+        }
+
         menu.classList.remove('hidden');
       }
 
@@ -254,6 +280,26 @@
             const id = row.getAttribute('data-id');
             if (id && typeof window.eliminarRegistro === 'function') {
               window.eliminarRegistro(id);
+            } else {
+              toast('No se pudo obtener el ID del registro', 'error');
+            }
+          } else {
+            toast('No hay registro seleccionado', 'error');
+          }
+        });
+
+        // Desvincular registro
+        qs('#contextMenuDesvincular')?.addEventListener('click', () => {
+          const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tbodyEl());
+          const selectedRow = (window.selectedRowIndex !== null && window.selectedRowIndex !== undefined && window.selectedRowIndex >= 0)
+            ? rows[window.selectedRowIndex]
+            : null;
+          const row = menuRow || selectedRow;
+          hide();
+          if (row) {
+            const id = row.getAttribute('data-id');
+            if (id && typeof window.desvincularRegistro === 'function') {
+              window.desvincularRegistro(id);
             } else {
               toast('No se pudo obtener el ID del registro', 'error');
             }
@@ -562,7 +608,6 @@
         const count = entry ? entry.count : 0;
         const displayValue = entry ? entry.displayValue : value;
 
-        // ⚡ FIX: Escapar valores para HTML sin usar CSS.escape() que convierte espacios en barras invertidas
         // Usar escape HTML estándar para el atributo data-value y el value del checkbox
         const escapedValueAttr = String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         const escapedDisplayValue = String(displayValue).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -570,7 +615,7 @@
         html += '<label class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer filter-checkbox-item" data-value="' + escapedValueAttr + '">' +
           '<div class="flex items-center gap-2">' +
           '<input type="checkbox" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 filter-checkbox" ' +
-          'value="' + escapedValueAttr + '" checked>' +
+          'value="' + escapedValueAttr + '">' +
           '<span class="text-sm text-gray-700">' + escapedDisplayValue + '</span>' +
           '</div>' +
           '<span class="text-xs text-gray-500">(' + count + ')</span>' +
@@ -596,9 +641,7 @@
           if (activeFiltersForColumn.length > 0) {
             activeFiltersForColumn.forEach(filter => {
               const filterValue = String(filter.value || '').trim();
-              // ⚡ FIX: Buscar por data-value en lugar de value para evitar problemas con CSS.escape()
               const escapedValueAttr = filterValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-              // Buscar el label que tiene el data-value correspondiente
               const label = Array.from(document.querySelectorAll('.filter-checkbox-item')).find(l => {
                 return l.dataset.value === filterValue || l.dataset.value === escapedValueAttr;
               });
@@ -1097,16 +1140,115 @@
 
               const isSelected = selectedRowId === id;
 
+              // Verificar si el registro eliminado tenía Ultimo=1 antes de eliminarlo
+              const ultimoCell = rowToDelete.querySelector('[data-column="Ultimo"]');
+              const tieneUltimo = ultimoCell && (
+                ultimoCell.textContent.includes('ULTIMO') ||
+                ultimoCell.querySelector('strong') ||
+                ultimoCell.getAttribute('data-value') === '1' ||
+                ultimoCell.getAttribute('data-value') === 'UL'
+              );
+              const salonId = rowToDelete.querySelector('[data-column="SalonTejidoId"]')?.textContent?.trim();
+              const telarId = rowToDelete.querySelector('[data-column="NoTelarId"]')?.textContent?.trim();
+
+              // Obtener el ID del registro eliminado para comparar
+              const registroIdEliminado = rowToDelete.getAttribute('data-id');
+
               // Eliminar la fila del DOM
               rowToDelete.remove();
 
-              // Actualizar window.allRows removiendo la fila eliminada
-              if (window.allRows && Array.isArray(window.allRows)) {
-                window.allRows = window.allRows.filter(row => {
-                  const rowId = row.getAttribute('data-id');
-                  return rowId !== id && row !== rowToDelete;
+              // Si el registro eliminado tenía Ultimo=1, buscar el último registro del mismo telar y actualizarlo
+              if (tieneUltimo && salonId && telarId) {
+                // Usar requestAnimationFrame para asegurar que el DOM se actualice
+                requestAnimationFrame(() => {
+                  const tb = tbodyEl();
+                  if (!tb) return;
+
+                  // Obtener todas las filas del mismo telar (después de eliminar)
+                  const filasMismoTelar = Array.from(tb.querySelectorAll('.selectable-row')).filter(f => {
+                    const rowId = f.getAttribute('data-id');
+                    const fSalon = f.querySelector('[data-column="SalonTejidoId"]')?.textContent?.trim();
+                    const fTelar = f.querySelector('[data-column="NoTelarId"]')?.textContent?.trim();
+                    return rowId !== registroIdEliminado &&
+                      fSalon === salonId &&
+                      fTelar === telarId;
+                  });
+
+                  if (filasMismoTelar.length > 0) {
+                    // Ordenar por FechaFinal primero, luego por FechaInicio (descendente) para encontrar el último
+                    filasMismoTelar.sort((a, b) => {
+                      // Intentar primero con FechaFinal, luego con FechaInicio
+                      const fechaFinalA = a.querySelector('[data-column="FechaFinal"]')?.textContent?.trim() || '';
+                      const fechaFinalB = b.querySelector('[data-column="FechaFinal"]')?.textContent?.trim() || '';
+                      const fechaInicioA = a.querySelector('[data-column="FechaInicio"]')?.textContent?.trim() || '';
+                      const fechaInicioB = b.querySelector('[data-column="FechaInicio"]')?.textContent?.trim() || '';
+
+                      const fechaA = fechaFinalA || fechaInicioA;
+                      const fechaB = fechaFinalB || fechaInicioB;
+
+                      if (!fechaA && !fechaB) return 0;
+                      if (!fechaA) return 1;
+                      if (!fechaB) return -1;
+
+                      try {
+                        // Intentar parsear fecha con formato d/m/Y o d/m/Y H:i
+                        let partesA = fechaA.split(' ');
+                        let partesB = fechaB.split(' ');
+                        let fechaSoloA = partesA[0];
+                        let fechaSoloB = partesB[0];
+
+                        const datePartsA = fechaSoloA.split('/');
+                        const datePartsB = fechaSoloB.split('/');
+
+                        if (datePartsA.length === 3 && datePartsB.length === 3) {
+                          const dateA = new Date(datePartsA[2], datePartsA[1] - 1, datePartsA[0]);
+                          const dateB = new Date(datePartsB[2], datePartsB[1] - 1, datePartsB[0]);
+
+                          // Comparar por fecha completa si hay hora
+                          if (partesA.length > 1 && partesB.length > 1) {
+                            const horaA = partesA[1].split(':');
+                            const horaB = partesB[1].split(':');
+                            if (horaA.length >= 2 && horaB.length >= 2) {
+                              dateA.setHours(parseInt(horaA[0]) || 0, parseInt(horaA[1]) || 0);
+                              dateB.setHours(parseInt(horaB[0]) || 0, parseInt(horaB[1]) || 0);
+                            }
+                          }
+
+                          return dateB.getTime() - dateA.getTime(); // Orden descendente (el más reciente primero)
+                        }
+                      } catch (e) {
+                        // Si hay error, mantener orden original
+                        console.warn('Error al parsear fecha para ordenar:', e);
+                      }
+                      return 0;
+                    });
+
+                    // La primera fila después de ordenar es la última (más reciente)
+                    const nuevoUltimo = filasMismoTelar[0];
+                    if (nuevoUltimo) {
+                      const nuevoUltimoCell = nuevoUltimo.querySelector('[data-column="Ultimo"]');
+                      if (nuevoUltimoCell) {
+                        // Actualizar visualmente el campo Ultimo
+                        nuevoUltimoCell.innerHTML = '<strong>ULTIMO</strong>';
+                        nuevoUltimoCell.setAttribute('data-value', '1');
+
+                        // Forzar repintado del navegador
+                        nuevoUltimoCell.style.visibility = 'hidden';
+                        nuevoUltimoCell.offsetHeight; // Trigger reflow
+                        nuevoUltimoCell.style.visibility = 'visible';
+                      }
+                    }
+                  }
                 });
               }
+
+              // Actualizar window.allRows removiendo la fila eliminada y actualizar índices
+              window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
+
+              // Actualizar data-row-index de todas las filas restantes
+              window.allRows.forEach((fila, index) => {
+                fila.setAttribute('data-row-index', index);
+              });
 
               // Limpiar la selección si la fila eliminada estaba seleccionada
               if (isSelected) {
@@ -1173,6 +1315,59 @@
     window.descargarPrograma = PT.actions.descargarPrograma;
     window.abrirNuevo = PT.actions.abrirNuevo;
     window.eliminarRegistro = PT.actions.eliminarRegistro;
+
+    // =========================
+    // Desvincular registro
+    // =========================
+    window.desvincularRegistro = async function desvincularRegistro(id) {
+      const doDesvincular = async () => {
+        PT.loader.show();
+        try {
+          const response = await fetch(`/planeacion/programa-tejido/${id}/desvincular`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
+            }
+          });
+
+          const data = await response.json();
+          PT.loader.hide();
+
+          if (data.success) {
+            // Actualizar registros sin recargar usando la misma función que para vincular
+            if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
+              await actualizarRegistrosVinculados(data.registros_ids, null);
+            }
+
+            toast(data.message || 'Registro desvinculado correctamente', 'success');
+          } else {
+            toast(data.message || 'No se pudo desvincular el registro', 'error');
+          }
+        } catch (error) {
+          PT.loader.hide();
+          toast('Ocurrió un error al procesar la solicitud', 'error');
+        }
+      };
+
+      if (typeof Swal === 'undefined') {
+        if (confirm('¿Desvincular este registro? Se eliminará su relación con otros registros.')) {
+          doDesvincular();
+        }
+        return;
+      }
+
+      Swal.fire({
+        title: '¿Desvincular registro?',
+        text: 'Se eliminará la relación con otros registros vinculados.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, desvincular',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#9333ea',
+        cancelButtonColor: '#6b7280',
+      }).then(r => { if (r.isConfirmed) doDesvincular(); });
+    };
 
     // =========================
     // Editar fila seleccionada
@@ -1946,7 +2141,7 @@
     // Vincular registros existentes
     window.vincularRegistrosExistentes = function() {
       if (!window.multiSelectMode) {
-        // Activar modo selecciÃ³n mÃºltiple
+        // Activar modo selección múltiple
         toggleMultiSelectMode();
         return;
       }
@@ -1973,24 +2168,24 @@
       const primerOrdCompartida = primerRow?.getAttribute('data-ord-compartida');
       const primerTieneOrdCompartida = primerOrdCompartida && primerOrdCompartida.trim() !== '';
 
-      // Confirmar acciÃ³n
+      // Confirmar acción
       if (typeof Swal === 'undefined') {
         const mensaje = primerTieneOrdCompartida
-          ? `Â¿Vincular ${selectedIds.length} registro(s) usando el OrdCompartida existente (${primerOrdCompartida.trim()})?`
-          : `Â¿Vincular ${selectedIds.length} registro(s) con un nuevo OrdCompartida?`;
+          ? `¿Vincular ${selectedIds.length} registro(s) usando el OrdCompartida existente (${primerOrdCompartida.trim()})?`
+          : `¿Vincular ${selectedIds.length} registro(s) con un nuevo OrdCompartida?`;
         if (!confirm(mensaje)) return;
         doVincular(selectedIds);
       } else {
         const mensajeHtml = primerTieneOrdCompartida
-          ? `Se vincularÃ¡n <strong>${selectedIds.length} registro(s)</strong> usando el OrdCompartida existente: <strong>${primerOrdCompartida.trim()}</strong>.<br><br>Esto no afectarÃ¡ los datos de los registros, solo los agruparÃ¡.`
-          : `Se vincularÃ¡n <strong>${selectedIds.length} registro(s)</strong> con un nuevo OrdCompartida.<br><br>Esto no afectarÃ¡ los datos de los registros, solo los agruparÃ¡.`;
+          ? `Se vincularán <strong>${selectedIds.length} registro(s)</strong> usando el OrdCompartida existente: <strong>${primerOrdCompartida.trim()}</strong>.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`
+          : `Se vincularán <strong>${selectedIds.length} registro(s)</strong> con un nuevo OrdCompartida.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`;
 
         Swal.fire({
-          title: 'Â¿Vincular registros?',
+          title: 'Vincular registros?',
           html: mensajeHtml,
           icon: 'question',
           showCancelButton: true,
-          confirmButtonText: 'SÃ­, vincular',
+          confirmButtonText: 'Si, vincular',
           cancelButtonText: 'Cancelar',
           confirmButtonColor: '#6366f1',
           cancelButtonColor: '#6b7280',
@@ -2001,6 +2196,107 @@
         });
       }
     };
+
+    // Función para actualizar registros vinculados sin recargar
+    async function actualizarRegistrosVinculados(registrosIds, ordCompartida) {
+      const tb = document.querySelector('#mainTable tbody');
+      if (!tb) return;
+
+      // Obtener columnas para formatear valores
+      const columns = (typeof columnsData !== 'undefined' && columnsData && columnsData.length > 0)
+        ? columnsData
+        : (window.columns || Array.from(document.querySelectorAll('#mainTable thead th[data-column]')).map(th => ({
+          field: th.getAttribute('data-column'),
+          label: th.textContent.trim(),
+          dateType: null
+        })));
+
+      if (!columns || columns.length === 0) return;
+
+      // Función para obtener el tipo de fecha de una columna
+      const getDateType = (field) => {
+        const col = columns.find(c => c.field === field);
+        return col?.dateType || null;
+      };
+
+      // Función para formatear valor (usar la función global si existe, sino básica)
+      const formatearValor = (registro, field, value) => {
+        if (typeof formatearValorCelda === 'function') {
+          return formatearValorCelda(registro, field, value, getDateType(field));
+        }
+        // Fallback básico
+        if (value === null || value === undefined || value === '') return '';
+        if (getDateType(field) === 'date' || getDateType(field) === 'datetime') {
+          try {
+            const dt = new Date(value);
+            if (dt.getFullYear() <= 1970) return '';
+            return getDateType(field) === 'date'
+              ? dt.toLocaleDateString('es-MX')
+              : dt.toLocaleString('es-MX');
+          } catch (e) {
+            return String(value);
+          }
+        }
+        if (!isNaN(value) && !Number.isInteger(parseFloat(value))) {
+          return parseFloat(value).toFixed(2);
+        }
+        return String(value);
+      };
+
+      // Actualizar cada registro
+      for (const registroId of registrosIds) {
+        try {
+          // Obtener datos actualizados del registro
+          const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
+            headers: {
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content,
+              'Cache-Control': 'no-cache'
+            }
+          });
+
+          if (!response.ok) continue;
+
+          const result = await response.json();
+          if (!result.success || !result.registro) continue;
+
+          const registro = result.registro;
+
+          // Buscar la fila existente
+          const fila = tb.querySelector(`tr.selectable-row[data-id="${registroId}"]`);
+          if (!fila) continue;
+
+          // Actualizar data attribute de OrdCompartida
+          if (registro.OrdCompartida) {
+            fila.setAttribute('data-ord-compartida', registro.OrdCompartida);
+          } else {
+            // Si OrdCompartida es null, eliminar el atributo
+            fila.removeAttribute('data-ord-compartida');
+          }
+
+          // Actualizar celdas relevantes
+          columns.forEach(col => {
+            const field = col.field;
+            const value = registro[field] !== undefined ? registro[field] : null;
+            const celda = fila.querySelector(`td[data-column="${field}"]`);
+
+            if (celda) {
+              // Actualizar data-value
+              celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
+
+              // Actualizar contenido HTML formateado
+              const contenidoHTML = formatearValor(registro, field, value);
+              celda.innerHTML = contenidoHTML;
+            }
+          });
+
+          // Pequeño delay para no saturar
+          await new Promise(resolve => setTimeout(resolve, 50));
+        } catch (error) {
+          console.warn(`Error al actualizar registro ${registroId}:`, error);
+        }
+      }
+    }
 
     function doVincular(registrosIds) {
       PT.loader.show();
@@ -2022,8 +2318,11 @@
         PT.loader.hide();
 
         if (data.success) {
+          // Actualizar registros sin recargar
+          actualizarRegistrosVinculados(data.registros_ids || registrosIds, data.ord_compartida);
+
           toast(data.message || 'Registros vinculados correctamente', 'success');
-          // Limpiar selecciÃ³n y desactivar modo
+          // Limpiar selección y desactivar modo
           window.selectedRowsIds.clear();
           window.selectedRowsOrder = [];
           window.multiSelectMode = false;
@@ -2035,13 +2334,8 @@
             btn.classList.remove('bg-blue-500','text-white','hover:bg-blue-600','ring-2', 'ring-blue-300', 'bg-blue-300', 'cursor-not-allowed');
             btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
             btn.disabled = false;
-            btn.title = 'Vincular registros existentes - Click para activar modo selecciÃ³n mÃºltiple';
+            btn.title = 'Vincular registros existentes - Click para activar modo selección múltiple';
           }
-
-          // Recargar pÃ¡gina despuÃ©s de un breve delay para ver los cambios
-          setTimeout(() => {
-            window.location.reload();
-          }, 1500);
         } else {
           toast(data.message || 'Error al vincular los registros', 'error');
         }

@@ -1,60 +1,58 @@
-@extends('layouts.app', ['ocultarBotones' => true])
+@extends('layouts.app')
 
-@section('page-title', 'Consultar Marcas Finales')
+@section('page-title', 'Marcas Finales')
 
 @php
     use Carbon\Carbon;
 @endphp
 
 @section('navbar-right')
-<div class="flex items-center gap-2">
-        
-    <x-navbar.button-create
-      id="btn-nuevo"
-      title="Nuevo"
-      module="Marcas Finales"
-      :disabled="false"
-      icon="fa-plus"
-      iconColor="text-green-600"
-      hoverBg="hover:bg-green-100" />
+    <div class="flex items-center gap-2">
+        <x-navbar.button-create
+            id="btn-nuevo"
+            title="Nuevo"
+            module="Marcas Finales"
+            :disabled="false"
+            icon="fa-plus"
+            iconColor="text-green-600"
+            hoverBg="hover:bg-green-100" />
 
-    <x-navbar.button-edit
-      id="btn-editar"
-      title="Editar"
-      module="Marcas Finales"
-      :disabled="true"
-      icon="fa-pen-to-square"
-      iconColor="text-blue-600"
-      hoverBg="hover:bg-blue-100" />
+        <x-navbar.button-edit
+            id="btn-editar"
+            title="Editar"
+            module="Marcas Finales"
+            :disabled="true"
+            icon="fa-pen-to-square"
+            iconColor="text-blue-600"
+            hoverBg="hover:bg-blue-100" />
 
-    <x-navbar.button-report
-        id="btn-visualizar"
-        title="Visualizar"
-        module="Marcas Finales"
-        :disabled="true"
-        icon="fa-eye"
-        iconColor="text-gray-700"
-        hoverBg="hover:bg-gray-100" />
+        <x-navbar.button-report
+            id="btn-visualizar"
+            title="Visualizar"
+            module="Marcas Finales"
+            :disabled="true"
+            icon="fa-eye"
+            iconColor="text-gray-700"
+            hoverBg="hover:bg-gray-100" />
 
-    <x-navbar.button-report
-      id="btn-finalizar"
-      title="Finalizar"
-      module="Marcas Finales"
-      :disabled="false"
-      icon="fa-check"
-      iconColor="text-orange-600"
-      hoverBg="hover:bg-orange-100"
-      />
+        <x-navbar.button-report
+            id="btn-finalizar"
+            title="Finalizar"
+            module="Marcas Finales"
+            :disabled="false"
+            icon="fa-check"
+            iconColor="text-orange-600"
+            hoverBg="hover:bg-orange-100" />
 
-    <x-navbar.button-report
-      id="btn-fechas"
-      title="Fechas"
-      module="Marcas Finales"
-      :disabled="false"
-      icon="fa-calendar"
-      iconColor="text-indigo-600"
-      hoverBg="hover:bg-indigo-100" />
-</div>
+        <x-navbar.button-report
+            id="btn-fechas"
+            title="Fechas"
+            module="Marcas Finales"
+            :disabled="false"
+            icon="fa-calendar"
+            iconColor="text-indigo-600"
+            hoverBg="hover:bg-indigo-100" />
+    </div>
 @endsection
 
 @section('content')
@@ -131,6 +129,7 @@
                   id="btn-nuevo-empty"
           title="Nuevo"
           module="Marcas Finales"
+                    :checkPermission="false"
           :disabled="false"
           icon="fa-plus"
           iconColor="text-green-600"
@@ -428,7 +427,7 @@
                 }
 
                 // Si no hay folio en proceso, redirigir a la página de nuevo
-                window.location.href = '{{ route("marcas.nuevo") }}';
+                window.location.href = '/modulo-marcas';
             } catch (error) {
                 Swal.fire({
                     icon: 'error',
@@ -650,7 +649,7 @@
         const btnNuevoEmpty = document.getElementById('btn-nuevo-empty');
         if (btnNuevoEmpty) {
             btnNuevoEmpty.addEventListener('click', () => {
-                window.location.href = '{{ route("marcas.nuevo") }}';
+                window.location.href = '/modulo-marcas';
             });
         }
     });

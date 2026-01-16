@@ -582,16 +582,16 @@ function agregarFilaDividir() {
 
 	newRow.innerHTML = `
 		<td class="p-2 border-r border-gray-200 clave-modelo-cell">
-			<input type="text" value="${claveModelo || ''}" readonly
-				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+			<input type="text" value="${claveModelo || ''}"
+				class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 		</td>
 		<td class="p-2 border-r border-gray-200 producto-cell">
 			<textarea rows="2" readonly
 				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${producto || ''}</textarea>
 		</td>
 		<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 200px;">
-			<textarea rows="2" readonly
-				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${flog || ''}</textarea>
+			<textarea rows="2"
+				class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none">${flog || ''}</textarea>
 		</td>
 		<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 250px;">
 			<textarea rows="2"
@@ -614,7 +614,7 @@ function agregarFilaDividir() {
 				class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 		</td>
 		<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
-			<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0" readonly
+			<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0" readonly disabled
 				class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 		</td>
 		<td class="p-2 border-r border-gray-200 produccion-cell">
@@ -643,6 +643,12 @@ function agregarFilaDividir() {
 	hiddenSalon.value = '';
 	newRow.appendChild(hiddenSalon);
 
+	// ⚡ FIX: Configurar autocompletadores independientes para esta fila
+	// Cada fila debe funcionar de forma independiente
+	if (typeof window.setupRowAutocompletadores === 'function') {
+		window.setupRowAutocompletadores(newRow);
+	}
+
 	// Eventos
 	const btnRemove = newRow.querySelector('.btn-remove-row');
 	if (btnRemove) {
@@ -653,14 +659,14 @@ function agregarFilaDividir() {
 			}
 
 			newRow.remove();
-			
+
 			// ⚡ FIX: Actualizar visibilidad de la columna de acciones si no quedan filas agregadas
 			const filasAgregadas = document.querySelectorAll('tr.telar-row:not(#fila-principal)');
 			const thAcciones = document.getElementById('th-acciones');
 			if (filasAgregadas.length === 0 && thAcciones) {
 				thAcciones.classList.add('hidden');
 			}
-			
+
 			if (typeof actualizarResumenCantidades === 'function') {
 				actualizarResumenCantidades();
 			}
@@ -670,19 +676,9 @@ function agregarFilaDividir() {
 		});
 	}
 
-	// ⚡ FIX: Sincronizar descripción en filas agregadas con el input oculto
-	const descripcionTextarea = newRow.querySelector('.descripcion-cell textarea');
-	const inputDescripcion = document.getElementById('swal-descripcion');
-	if (descripcionTextarea && inputDescripcion) {
-		descripcionTextarea.addEventListener('input', (e) => {
-			inputDescripcion.value = e.target.value;
-			inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
-			// Actualizar todas las filas con la nueva descripción
-			if (typeof actualizarColumnasInformacion === 'function') {
-				actualizarColumnasInformacion();
-			}
-		});
-	}
+	// NOTA: Ya no sincronizamos descripción entre filas
+	// Cada fila es independiente y maneja sus propios valores
+	// Los autocompletadores se configuran en setupRowAutocompletadores
 
 	const salonHiddenInput = newRow.querySelector('input[name="salon-destino[]"]');
 	const telarSelect = newRow.querySelector('select[name="telar-destino[]"]');
@@ -706,6 +702,17 @@ function agregarFilaDividir() {
 		// Listener para cuando cambia el telar
 		if (typeof recomputeState === 'function') {
 			telarSelect.addEventListener('change', recomputeState);
+			telarSelect.addEventListener('change', () => {
+				// Recalcular eficiencia, velocidad y maquina cuando cambie el telar
+				const claveModeloInput = newRow.querySelector('.clave-modelo-cell input');
+				if (claveModeloInput && claveModeloInput.value && typeof window.cargarDatosRelacionadosRow === 'function') {
+					// Si hay una clave modelo, recargar los datos para obtener eficiencia y velocidad con el nuevo telar
+					window.cargarDatosRelacionadosRow(newRow, claveModeloInput.value);
+				} else if (typeof window.construirMaquinaRow === 'function') {
+					// Si no hay clave modelo, solo construir la máquina
+					window.construirMaquinaRow(newRow);
+				}
+			});
 		}
 	}
 
@@ -891,7 +898,7 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${descripcion || ''}</textarea>
 					</td>
 					<td class="p-2 border-r border-gray-200 aplicacion-cell">
-						<select name="aplicacion-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500" data-registro-id="${reg.Id}">
+						<select name="aplicacion-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" data-registro-id="${reg.Id}" disabled>
 							${aplicacionOptionsHTMLReg}
 						</select>
 					</td>
@@ -971,6 +978,38 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 			if (typeof actualizarResumenCantidades === 'function') {
 				actualizarResumenCantidades();
 			}
+
+			// Calcular y mostrar saldo total de todos los registros vinculados
+			let saldoTotalAcumulado = 0;
+			data.registros.forEach(reg => {
+				const saldo = parseFloat(reg.SaldoPedido) || 0;
+				saldoTotalAcumulado += saldo;
+			});
+
+			// Crear o actualizar fila de totales
+			let filaTotales = tbody.querySelector('tr.saldo-total-row');
+			if (!filaTotales) {
+				filaTotales = document.createElement('tr');
+				filaTotales.className = 'saldo-total-row bg-blue-50 font-semibold';
+				tbody.appendChild(filaTotales);
+			}
+
+			// Obtener número de columnas (basado en el header)
+			const thead = tbody.closest('table')?.querySelector('thead tr');
+			const numColumns = thead ? thead.children.length : 13; // Aproximadamente 13 columnas
+
+			// Crear HTML de la fila de totales
+			// Columnas: Clave Modelo, Producto, Flogs, Descripcion, Aplicación, Telar, Pedido, % Segundas (hidden), Produccion, Saldo Total, Obs, Acciones (hidden)
+			// La columna "Saldo Total" está en la posición 10 (índice 9)
+			filaTotales.innerHTML = `
+				<td class="p-2 border-r border-gray-300"></td>
+				<td class="p-2 border-r border-gray-300 text-right text-sm font-semibold text-gray-700" colspan="8">Saldo Total:</td>
+				<td class="p-2 border-r border-gray-300 text-right text-sm font-bold text-blue-700">
+					<span id="saldo-total-vinculados">${saldoTotalAcumulado.toFixed(2)}</span>
+				</td>
+				<td class="p-2 border-r border-gray-300"></td>
+				<td class="p-2"></td>
+			`;
 		}
 	} catch (error) {
 		// Mostrar mensaje de error al usuario si existe la función showToast

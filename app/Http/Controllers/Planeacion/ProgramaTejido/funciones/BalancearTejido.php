@@ -291,6 +291,7 @@ class BalancearTejido
                 'success' => true,
                 'message' => 'Balanceo aplicado correctamente',
                 'actualizados' => count($idsAfectados),
+                'registros_ids' => $idsAfectados, // IDs de los registros actualizados para actualizar sin recargar
             ]);
 
         } catch (\Throwable $e) {

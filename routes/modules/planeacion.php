@@ -153,6 +153,7 @@ Route::post('/planeacion/programa-tejido/dividir-telar', [ProgramaTejidoControll
 Route::post('/planeacion/programa-tejido/dividir-saldo', [ProgramaTejidoController::class, 'dividirSaldo'])->name('programa-tejido.dividir-saldo');
 Route::post('/planeacion/programa-tejido/vincular-telar', [ProgramaTejidoController::class, 'vincularTelar'])->name('programa-tejido.vincular-telar');
 Route::post('/planeacion/programa-tejido/vincular-registros-existentes', [ProgramaTejidoController::class, 'vincularRegistrosExistentes'])->name('programa-tejido.vincular-registros-existentes');
+Route::post('/planeacion/programa-tejido/{id}/desvincular', [ProgramaTejidoController::class, 'desvincularRegistro'])->name('programa-tejido.desvincular');
 Route::get('/planeacion/programa-tejido/registros-ord-compartida/{ordCompartida}', [ProgramaTejidoController::class, 'getRegistrosPorOrdCompartida'])->name('programa-tejido.registros-ord-compartida');
 Route::get('/planeacion/programa-tejido/balancear', [ProgramaTejidoController::class, 'balancear'])->name('programa-tejido.balancear');
 Route::get('/planeacion/programa-tejido/{id}/detalles-balanceo', [ProgramaTejidoController::class, 'detallesBalanceo'])->name('programa-tejido.detalles-balanceo');
@@ -184,6 +185,7 @@ Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoControlle
 Route::get('/programa-tejido/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
 Route::get('/programa-tejido/eficiencia-std', [ProgramaTejidoController::class, 'getEficienciaStd']);
 Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, 'getVelocidadStd']);
+Route::get('/programa-tejido/eficiencia-velocidad-std', [ProgramaTejidoController::class, 'getEficienciaVelocidadStd']);
 Route::post('/programa-tejido/calcular-totales-dividir', [DividirTejido::class, 'calcularTotalesDividir']);
 Route::get('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'index']);
 Route::post('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'store']);

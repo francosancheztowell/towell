@@ -370,6 +370,35 @@ class DividirTejido
                 $totalDivididos++;
             }
 
+            // ===== ORDCOMPARTIDALIDER: Asignar al registro con fecha inicio más antigua =====
+            // Obtener todos los registros con este OrdCompartida (incluyendo el original)
+            $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $nuevoOrdCompartida)
+                ->get();
+
+            if ($registrosConOrdCompartida->count() > 0) {
+                // Ordenar por FechaInicio (más antigua primero)
+                $registrosOrdenados = $registrosConOrdCompartida->sortBy(function ($registro) {
+                    return $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->timestamp : PHP_INT_MAX;
+                });
+
+                // El primero es el líder (fecha más antigua)
+                $idLider = $registrosOrdenados->first()->Id;
+
+                // Quitar OrdCompartidaLider de todos
+                ReqProgramaTejido::where('OrdCompartida', $nuevoOrdCompartida)
+                    ->update([
+                        'OrdCompartidaLider' => null,
+                        'UpdatedAt' => now()
+                    ]);
+
+                // Asignar OrdCompartidaLider = 1 solo al registro con fecha más antigua
+                ReqProgramaTejido::where('Id', $idLider)
+                    ->update([
+                        'OrdCompartidaLider' => 1,
+                        'UpdatedAt' => now()
+                    ]);
+            }
+
             DBFacade::commit();
 
             // Re-habilitar observer
@@ -847,6 +876,35 @@ class DividirTejido
                 if ($registro) {
                     $observer->saved($registro);
                 }
+            }
+
+            // ===== ORDCOMPARTIDALIDER: Asignar al registro con fecha inicio más antigua =====
+            // Obtener todos los registros con este OrdCompartida (incluyendo los actualizados y nuevos)
+            $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
+                ->get();
+
+            if ($registrosConOrdCompartida->count() > 0) {
+                // Ordenar por FechaInicio (más antigua primero)
+                $registrosOrdenados = $registrosConOrdCompartida->sortBy(function ($registro) {
+                    return $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->timestamp : PHP_INT_MAX;
+                });
+
+                // El primero es el líder (fecha más antigua)
+                $idLider = $registrosOrdenados->first()->Id;
+
+                // Quitar OrdCompartidaLider de todos
+                ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
+                    ->update([
+                        'OrdCompartidaLider' => null,
+                        'UpdatedAt' => now()
+                    ]);
+
+                // Asignar OrdCompartidaLider = 1 solo al registro con fecha más antigua
+                ReqProgramaTejido::where('Id', $idLider)
+                    ->update([
+                        'OrdCompartidaLider' => 1,
+                        'UpdatedAt' => now()
+                    ]);
             }
 
             // Obtener el primer registro nuevo creado para redirigir (si hay)

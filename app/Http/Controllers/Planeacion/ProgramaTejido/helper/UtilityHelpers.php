@@ -44,7 +44,7 @@ class UtilityHelpers
             ['field' => 'FlogsId', 'label' => 'Id Flog', 'dateType' => null],
             ['field' => 'CategoriaCalidad', 'label' => 'Cat. Calidad', 'dateType' => null],
             ['field' => 'NombreProyecto', 'label' => 'Descrip.', 'dateType' => null],
-            ['field' => 'CustName', 'label' => 'Nombre Cliente', 'dateType' => null],
+            ['field' => 'CustName', 'label' => 'Custname', 'dateType' => null],
             ['field' => 'AplicacionId', 'label' => 'Aplic.', 'dateType' => null],
             ['field' => 'Observaciones', 'label' => 'Obs', 'dateType' => null],
             ['field' => 'TipoPedido', 'label' => 'Tipo Ped.', 'dateType' => null],

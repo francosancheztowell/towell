@@ -2,377 +2,562 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
-use App\Helpers\StringTruncator;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
-use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Models\Planeacion\Catalogos\CatCodificados;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
+use Illuminate\Support\Facades\Schema;
 
 class VincularTejido
 {
-    /** Cache de modelo para no pegar a ReqModelosCodificados por cada registro */
-    private static array $modeloCache = [];
-
-    /** Valores válidos en catálogo */
-
     /**
-     * Vincular tejidos nuevos desde cero con un OrdCompartida
-     * Permite crear registros nuevos y asignarles un OrdCompartida existente o crear uno nuevo
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * Vincular registros existentes de ReqProgramaTejido
+     * sin importar el salón o la diferencia de clave modelo
      */
-    public static function vincular(Request $request)
+    public static function vincularRegistrosExistentes(Request $request)
     {
-        $data = $request->validate([
-            'salon_tejido_id' => 'required|string',
-            'no_telar_id'     => 'required|string',
-            'destinos'        => 'required|array|min:1',
-            'destinos.*.telar'  => 'required|string',
-            'destinos.*.pedido' => 'nullable|string',
-            'destinos.*.pedido_tempo' => 'nullable|string',
-            'destinos.*.saldo' => 'nullable|string',
-            'destinos.*.observaciones' => 'nullable|string|max:500',
-            'destinos.*.porcentaje_segundos' => 'nullable|numeric|min:0',
-
-            'tamano_clave'   => 'nullable|string|max:100',
-            'invent_size_id' => 'nullable|string|max:100',
-            'cod_articulo'   => 'nullable|string|max:100',
-            'producto'       => 'nullable|string|max:255',
-            'custname'       => 'nullable|string|max:255',
-
-            'salon_destino' => 'nullable|string',
-            'hilo'          => 'nullable|string',
-            'pedido'        => 'nullable|string',
-            'flog'          => 'nullable|string',
-            'aplicacion'    => 'nullable|string',
-            'descripcion'   => 'nullable|string',
-            'ord_compartida_existente' => 'nullable|integer|min:1', // OrdCompartida existente para vincular (solo si es > 0)
-            'registro_id_original' => 'nullable|integer',
+        $request->validate([
+            'registros_ids' => 'required|array|min:2',
+            'registros_ids.*' => 'required|integer|exists:ReqProgramaTejido,Id',
         ]);
 
-        $salonOrigen  = $data['salon_tejido_id'];
-        $telarOrigen  = $data['no_telar_id'];
-        $salonDestino = $data['salon_destino'] ?? $salonOrigen;
-        $destinos     = $data['destinos'];
+        $registrosIds = $request->input('registros_ids');
 
-        $pedidoGlobal   = self::sanitizeNumber($data['pedido'] ?? null);
-        $inventSizeId   = $data['invent_size_id'] ?? null;
-        $tamanoClave    = $data['tamano_clave'] ?? null;
-        $codArticulo    = $data['cod_articulo'] ?? null;
-        $producto       = $data['producto'] ?? null;
-        $custname       = $data['custname'] ?? null;
-        $hilo           = $data['hilo'] ?? null;
-        $flog           = $data['flog'] ?? null;
-        $aplicacion     = $data['aplicacion'] ?? null;
-        $descripcion    = $data['descripcion'] ?? null;
-        $ordCompartidaExistente = $data['ord_compartida_existente'] ?? null;
-        $registroIdOriginal = $data['registro_id_original'] ?? null;
+        // Verificar que todos los registros existan
+        $registros = ReqProgramaTejido::whereIn('Id', $registrosIds)->get();
 
-        // Guardar y restaurar dispatcher para no romper otros flujos
-        $dispatcher = ReqProgramaTejido::getEventDispatcher();
-        ReqProgramaTejido::unsetEventDispatcher();
+        if ($registros->count() !== count($registrosIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Uno o más registros no fueron encontrados'
+            ], 404);
+        }
 
-        DBFacade::beginTransaction();
+        // Obtener el primer registro (el primero en el array de IDs - orden de selección)
+        // El array viene ordenado según el orden de selección del usuario
+        $primerId = $registrosIds[0];
+        $primerRegistro = $registros->firstWhere('Id', $primerId);
 
-        try {
-            // Determinar el OrdCompartida a usar
-            // En modo "vincular" siempre se debe crear uno nuevo, no usar existente
-            $ordCompartidaAVincular = null;
+        if (!$primerRegistro) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontró el primer registro seleccionado'
+            ], 404);
+        }
 
-            // Normalizar el valor: convertir strings vacíos a null
-            $ordCompartidaExistente = ($ordCompartidaExistente === '' || $ordCompartidaExistente === null)
-                ? null
-                : $ordCompartidaExistente;
+        // Determinar el OrdCompartida a usar
+        $ordCompartidaAVincular = null;
+        $primerOrdCompartidaRaw = $primerRegistro->OrdCompartida;
+        $primerTieneOrdCompartida = !empty($primerOrdCompartidaRaw) && trim((string)$primerOrdCompartidaRaw) !== '';
 
-            if ($ordCompartidaExistente !== null && $ordCompartidaExistente > 0) {
-                // Verificar que el OrdCompartida existente realmente exista en la BD
-                $existe = ReqProgramaTejido::where('OrdCompartida', (int)$ordCompartidaExistente)->exists();
-                if (!$existe) {
-                    DBFacade::rollBack();
-                    return response()->json([
-                        'success' => false,
-                        'message' => "El OrdCompartida {$ordCompartidaExistente} no existe en la base de datos.",
-                    ], 404);
-                }
-                // Usar OrdCompartida existente
-                $ordCompartidaAVincular = (int) $ordCompartidaExistente;
-            } else {
-                // Crear un nuevo OrdCompartida verificando que no esté en uso
-                $ordCompartidaAVincular = self::obtenerNuevoOrdCompartidaDisponible();
-            }
-            // Obtener el registro específico a vincular, o como fallback el último del telar
-            $original = null;
-            if ($registroIdOriginal) {
-                $original = ReqProgramaTejido::find($registroIdOriginal);
-                // Verificar que el registro encontrado pertenece al telar y salón correctos
-                if ($original && ($original->SalonTejidoId !== $salonOrigen || $original->NoTelarId !== $telarOrigen)) {
-                    $original = null; // No es del telar correcto, usar fallback
-                }
-            }
+        if ($primerTieneOrdCompartida) {
+            // Si el primer registro ya tiene OrdCompartida, usar ese
+            $ordCompartidaAVincular = (int) trim((string)$primerOrdCompartidaRaw);
 
-            // Fallback: obtener el último registro del telar
-            if (!$original) {
-                $original = self::obtenerUltimoRegistroTelar($salonOrigen, $telarOrigen);
-            }
+            // Validar que los demás registros no tengan un OrdCompartida diferente
+            $otrosRegistros = $registros->reject(fn($r) => $r->Id === $primerId);
+            $conOrdCompartidaDiferente = $otrosRegistros->filter(function ($registro) use ($ordCompartidaAVincular) {
+                $ordRegistro = !empty($registro->OrdCompartida) ? (int) trim((string)$registro->OrdCompartida) : null;
+                return $ordRegistro !== null && $ordRegistro !== $ordCompartidaAVincular;
+            });
 
-            if (!$original) {
-                DBFacade::rollBack();
+            if ($conOrdCompartidaDiferente->count() > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se encontraron registros para vincular',
-                ], 404);
+                    'message' => 'No se pueden vincular: El primer registro seleccionado tiene OrdCompartida ' . $ordCompartidaAVincular . ', pero algunos registros tienen un OrdCompartida diferente. Registros con OrdCompartida diferente: ' . $conOrdCompartidaDiferente->pluck('Id')->implode(', ')
+                ], 422);
+            }
+        } else {
+            // Si el primer registro NO tiene OrdCompartida, validar que ninguno de los otros tenga
+            $otrosRegistros = $registros->reject(fn($r) => $r->Id === $primerId);
+            $conOrdCompartida = $otrosRegistros->filter(function ($registro) {
+                return !empty($registro->OrdCompartida) && trim((string)$registro->OrdCompartida) !== '';
+            });
+
+            if ($conOrdCompartida->count() > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden vincular: El primer registro seleccionado (ID: ' . $primerId . ') no tiene OrdCompartida, pero los siguientes registros sí lo tienen: ' . $conOrdCompartida->pluck('Id')->implode(', ') . '. Por favor, selecciona primero un registro que ya tenga OrdCompartida si deseas vincular con otros que también lo tengan.'
+                ], 422);
             }
 
-            $idsParaObserver = [];
-            $totalVinculados = 0;
+            // Crear un nuevo OrdCompartida disponible
+            $ordCompartidaAVincular = self::obtenerNuevoOrdCompartidaDisponible();
+        }
 
-            foreach ($destinos as $destino) {
-                $telarDestino = $destino['telar'];
-                $pedidoDestinoRaw = $destino['pedido'] ?? null;
-                $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
-                $saldoDestinoRaw = $destino['saldo'] ?? null;
-                $observacionesDestino = $destino['observaciones'] ?? null;
-                $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
-                    ? (float)$destino['porcentaje_segundos']
-                    : null;
+        DBFacade::beginTransaction();
+        ReqProgramaTejido::unsetEventDispatcher();
 
-                $ultimoDestino = ReqProgramaTejido::query()
-                    ->salon($salonDestino)
-                    ->telar($telarDestino)
-                    ->orderBy('FechaInicio', 'desc')
-                    ->first();
+        try {
+            // PASO 1: Primero, quitar OrdCompartidaLider de todos los registros que se van a vincular
+            // (excepto el primero, que se actualizará después)
+            $otrosIds = array_filter($registrosIds, fn($id) => $id != $primerId);
+            if (count($otrosIds) > 0) {
+                ReqProgramaTejido::whereIn('Id', $otrosIds)
+                    ->update([
+                        'OrdCompartidaLider' => null,
+                        'UpdatedAt' => now()
+                    ]);
+            }
 
-                if ($ultimoDestino && (int)$ultimoDestino->Ultimo === 1) {
-                    ReqProgramaTejido::where('Id', $ultimoDestino->Id)->update(['Ultimo' => 0]);
-                }
-
-                // FechaInicio = EXACTAMENTE FechaFinal del último programa del telar destino
-                $fechaInicioBase = $ultimoDestino && $ultimoDestino->FechaFinal
-                    ? Carbon::parse($ultimoDestino->FechaFinal)
-                    : ($original->FechaInicio ? Carbon::parse($original->FechaInicio) : Carbon::now());
-
-                $nuevo = $original->replicate();
-
-                // ===== Básicos =====
-                $nuevo->SalonTejidoId = $salonDestino;
-                $nuevo->NoTelarId     = $telarDestino;
-                $nuevo->EnProceso     = 0;
-                $nuevo->Ultimo        = 1;
-                $nuevo->CambioHilo    = 0;
-
-                $nuevo->Maquina = self::construirMaquina($original->Maquina ?? null, $salonDestino, $telarDestino);
-
-                // Limpiar campos
-                $nuevo->Produccion    = null;
-                $nuevo->Programado    = null;
-                $nuevo->NoProduccion  = null;
-
-                // ===== ORDCOMPARTIDA: Asignar el OrdCompartida (existente o nuevo) =====
-                $nuevo->OrdCompartida = $ordCompartidaAVincular;
-
-                // ===== ORDCOMPARTIDALIDER: Solo el primer registro vinculado tiene OrdCompartidaLider = 1 =====
-                if ($totalVinculados === 0) {
-                    $nuevo->OrdCompartidaLider = 1;
-                } else {
-                    $nuevo->OrdCompartidaLider = null;
-                }
-
-                $nuevo->ProgramarProd = Carbon::now()->format('Y-m-d');
-
-                // ===== Overrides =====
-                if ($inventSizeId) $nuevo->InventSizeId = $inventSizeId;
-                if ($tamanoClave)  $nuevo->TamanoClave  = $tamanoClave;
-                if ($codArticulo)  $nuevo->ItemId       = $codArticulo;
-                if ($producto)     $nuevo->NombreProducto = StringTruncator::truncate('NombreProducto', $producto);
-                if ($custname)     $nuevo->CustName = StringTruncator::truncate('CustName', $custname);
-                if ($hilo)         $nuevo->FibraRizo = $hilo;
-                if ($flog)         $nuevo->FlogsId = $flog;
-                if ($aplicacion)   $nuevo->AplicacionId = StringTruncator::truncate('AplicacionId', $aplicacion);
-                if ($descripcion)  $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', $descripcion);
-
-                // ===== PedidoTempo, Observaciones y PorcentajeSegundos =====
-                if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
-                    $nuevo->PedidoTempo = $pedidoTempoDestino;
-                }
-                if ($observacionesDestino !== null && $observacionesDestino !== '') {
-                    $nuevo->Observaciones = StringTruncator::truncate('Observaciones', $observacionesDestino);
-                }
-                if ($porcentajeSegundosDestino !== null) {
-                    $nuevo->PorcentajeSegundos = $porcentajeSegundosDestino;
-                }
-
-                // ===== TotalPedido / SaldoPedido =====
-                // TotalPedido = pedido (sin % de segundas)
-                $pedidoDestino = ($pedidoDestinoRaw !== null && $pedidoDestinoRaw !== '') ? self::sanitizeNumber($pedidoDestinoRaw) : null;
-
-                if ($pedidoDestino !== null) {
-                    $nuevo->TotalPedido = $pedidoDestino;
-                } elseif (!empty($pedidoGlobal)) {
-                    $nuevo->TotalPedido = $pedidoGlobal;
-                } elseif (!empty($original->TotalPedido)) {
-                    $nuevo->TotalPedido = self::sanitizeNumber($original->TotalPedido);
-                } elseif (!empty($original->SaldoPedido)) {
-                    $nuevo->TotalPedido = self::sanitizeNumber($original->SaldoPedido);
-                } else {
-                    $nuevo->TotalPedido = 0;
-                }
-
-                // SaldoPedido = saldo (con % de segundas aplicado)
-                $saldoDestino = ($saldoDestinoRaw !== null && $saldoDestinoRaw !== '') ? self::sanitizeNumber($saldoDestinoRaw) : null;
-
-                if ($saldoDestino !== null) {
-                    $nuevo->SaldoPedido = $saldoDestino;
-                } else {
-                    // Si no viene saldo, calcularlo basado en TotalPedido y % de segundas
-                    $porcentajeSegundos = $porcentajeSegundosDestino ?? 0;
-                    $nuevo->SaldoPedido = $nuevo->TotalPedido * (1 + $porcentajeSegundos / 100);
-                }
-
-                // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
-                self::aplicarStdDesdeCatalogos($nuevo);
-
-                // ===== FECHA INICIO: SIEMPRE la FechaFinal del último registro del telar destino =====
-                // NO hacer snap al calendario, usar exactamente la fecha final del último registro
-                $nuevo->FechaInicio = $fechaInicioBase->format('Y-m-d H:i:s');
-                $inicio = $fechaInicioBase->copy();
-
-                // ===== CALCULAR FECHA FINAL desde la fecha inicio exacta =====
-                $horasNecesarias = self::calcularHorasProd($nuevo);
-
-                // fallback proporcional si por alguna razón horas=0 pero existe HorasProd en original
-                if ($horasNecesarias <= 0 && !empty($original->HorasProd)) {
-                    $cantOrig = self::sanitizeNumber($original->SaldoPedido ?? $original->TotalPedido ?? 0);
-                    $cantNew  = self::sanitizeNumber($nuevo->SaldoPedido ?? $nuevo->TotalPedido ?? 0);
-                    if ($cantOrig > 0 && $cantNew > 0) {
-                        $horasNecesarias = (float)$original->HorasProd * ($cantNew / $cantOrig);
-                    }
-                }
-
-                if ($horasNecesarias <= 0) {
-                    $nuevo->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
-                } else {
-                    // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
-                    if (!empty($nuevo->CalendarioId)) {
-                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
-                        if (!$fin) {
-                            $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
-                        }
-                        $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
-                    } else {
-                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
-                    }
-                }
-
-                LogFacade::info('VincularTejido: recalculo exacto nuevo registro', [
-                    'id' => $nuevo->Id ?? 'nuevo',
-                    'telar_destino' => $telarDestino,
-                    'cantidad' => $nuevo->TotalPedido,
-                    'horas' => $horasNecesarias,
-                    'inicio' => $nuevo->FechaInicio,
-                    'fin' => $nuevo->FechaFinal,
-                    'calendario_id' => $nuevo->CalendarioId ?? null,
-                    'no_tiras' => $nuevo->NoTiras ?? null,
-                    'luchaje' => $nuevo->Luchaje ?? null,
-                    'rep' => $nuevo->Repeticiones ?? null,
-                    'vel_std' => $nuevo->VelocidadSTD ?? null,
-                    'efi_std' => $nuevo->EficienciaSTD ?? null,
+            // PASO 2: Quitar OrdCompartidaLider de todos los registros que ya tienen el mismo OrdCompartida
+            // (para asegurar que solo haya un líder)
+            ReqProgramaTejido::where('OrdCompartida', $ordCompartidaAVincular)
+                ->where('Id', '!=', $primerId)
+                ->update([
+                    'OrdCompartidaLider' => null,
+                    'UpdatedAt' => now()
                 ]);
 
-                if (!empty($nuevo->FechaFinal) && !empty($nuevo->FechaInicio)) {
-                    if (Carbon::parse($nuevo->FechaFinal)->lt(Carbon::parse($nuevo->FechaInicio))) {
-                        $nuevo->FechaFinal = $nuevo->FechaInicio;
+            // PASO 3: Actualizar todos los registros con el OrdCompartida determinado
+            // Solo actualizar los que no tienen OrdCompartida o tienen uno diferente
+            $actualizados = ReqProgramaTejido::whereIn('Id', $registrosIds)
+                ->where(function ($query) use ($ordCompartidaAVincular) {
+                    $query->whereNull('OrdCompartida')
+                        ->orWhere('OrdCompartida', '!=', $ordCompartidaAVincular)
+                        ->orWhereRaw("LTRIM(RTRIM(CAST(OrdCompartida AS NVARCHAR(50)))) = ''");
+                })
+                ->update([
+                    'OrdCompartida' => $ordCompartidaAVincular,
+                    'UpdatedAt' => now()
+                ]);
+
+            // PASO 4: Asignar OrdCompartidaLider = 1 al registro con fecha inicio más antigua
+            // Obtener todos los registros con este OrdCompartida (incluyendo los que ya lo tenían)
+            $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $ordCompartidaAVincular)
+                ->get();
+
+            if ($registrosConOrdCompartida->count() > 0) {
+                // Ordenar por FechaInicio (más antigua primero)
+                $registrosOrdenados = $registrosConOrdCompartida->sortBy(function ($registro) {
+                    return $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->timestamp : PHP_INT_MAX;
+                });
+
+                // El primero es el líder (fecha más antigua)
+                $idLider = $registrosOrdenados->first()->Id;
+
+                // Quitar OrdCompartidaLider de todos
+                ReqProgramaTejido::where('OrdCompartida', $ordCompartidaAVincular)
+                    ->update([
+                        'OrdCompartidaLider' => null,
+                        'UpdatedAt' => now()
+                    ]);
+
+                // Asignar OrdCompartidaLider = 1 solo al registro con fecha más antigua
+                ReqProgramaTejido::where('Id', $idLider)
+                    ->update([
+                        'OrdCompartidaLider' => 1,
+                        'UpdatedAt' => now()
+                    ]);
+            }
+
+            // PASO 5: Actualizar OrdCompartida y OrdCompartidaLider en CatCodificados si NoProduccion y Programado están llenos
+            // Obtener todos los registros vinculados con sus valores actualizados
+            // Los valores ya están actualizados en la transacción, así que los obtenemos frescos de la BD
+            $registrosVinculadosActualizados = ReqProgramaTejido::where('OrdCompartida', $ordCompartidaAVincular)
+                ->get();
+
+            foreach ($registrosVinculadosActualizados as $registro) {
+                if ($registro) {
+                    // Obtener valores frescos usando fresh() para asegurar que tenemos los valores correctos de la BD
+                    $registroFresco = $registro->fresh();
+                    if ($registroFresco) {
+                        self::actualizarOrdCompartidaEnCatCodificados($registroFresco);
                     }
                 }
-
-                // ===== CambioHilo =====
-                if ($ultimoDestino) {
-                    $nuevo->CambioHilo = (trim((string)$nuevo->FibraRizo) !== trim((string)$ultimoDestino->FibraRizo)) ? '1' : '0';
-                }
-
-                // ===== Fórmulas =====
-                if (!empty($nuevo->FechaInicio) && !empty($nuevo->FechaFinal)) {
-                    $formulas = self::calcularFormulasEficiencia($nuevo);
-                    foreach ($formulas as $campo => $valor) {
-                        $nuevo->{$campo} = $valor;
-                    }
-                }
-
-                // Truncar strings
-                foreach ([
-                    'Maquina','NombreProyecto','CustName','AplicacionId','NombreProducto',
-                    'FlogsId','TipoPedido','Observaciones','FibraTrama','FibraComb1','FibraComb2',
-                    'FibraComb3','FibraComb4','FibraComb5','FibraPie','SalonTejidoId','NoTelarId',
-                    'Rasurado','TamanoClave'
-                ] as $campoStr) {
-                    if (isset($nuevo->{$campoStr})) {
-                        $nuevo->{$campoStr} = StringTruncator::truncate($campoStr, $nuevo->{$campoStr});
-                    }
-                }
-
-                $nuevo->CreatedAt = now();
-                $nuevo->UpdatedAt = now();
-                $nuevo->save();
-
-                $idsParaObserver[] = $nuevo->Id;
-                $totalVinculados++;
             }
 
             DBFacade::commit();
 
-            // Restaurar dispatcher y observer
-            if ($dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
+            // Reactivar observer
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
-
-            // Disparar observer manualmente
             $observer = new ReqProgramaTejidoObserver();
-            foreach ($idsParaObserver as $id) {
+
+            // Disparar observer para recalcular fórmulas si es necesario
+            foreach ($registrosIds as $id) {
                 if ($registro = ReqProgramaTejido::find($id)) {
                     $observer->saved($registro);
                 }
             }
 
-            // asegurarse
-            ReqProgramaTejido::whereIn('Id', $idsParaObserver)->update(['EnProceso' => 0]);
-
-            $primer = !empty($idsParaObserver) ? ReqProgramaTejido::find($idsParaObserver[0]) : null;
+            $mensaje = $primerTieneOrdCompartida
+                ? "Se vincularon {$actualizados} registro(s) usando el OrdCompartida existente: {$ordCompartidaAVincular}"
+                : "Se vincularon {$actualizados} registro(s) con nuevo OrdCompartida: {$ordCompartidaAVincular}";
 
             return response()->json([
                 'success' => true,
-                'message' => "Telar vinculado correctamente. Se crearon {$totalVinculados} registro(s) con OrdCompartida: {$ordCompartidaAVincular}.",
-                'registros_vinculados' => $totalVinculados,
+                'message' => $mensaje,
                 'ord_compartida' => $ordCompartidaAVincular,
-                'registro_id' => $primer?->Id,
-                'salon_destino' => $primer?->SalonTejidoId,
-                'telar_destino' => $primer?->NoTelarId,
+                'registros_vinculados' => $actualizados,
+                'registros_ids' => $registrosIds
             ]);
 
         } catch (\Throwable $e) {
             DBFacade::rollBack();
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
+            LogFacade::error('vincularRegistrosExistentes error', [
+                'registros_ids' => $registrosIds,
+                'msg' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al vincular los registros: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Desvincular un registro de su OrdCompartida
+     *
+     * - Si hay 2 registros con la misma OrdCompartida: ambos se ponen OrdCompartida = null y OrdCompartidaLider = null
+     * - Si hay más de 2: solo el seleccionado se pone OrdCompartida = null, y de los restantes se busca el que tiene la fecha más antigua para ponerlo como líder (OrdCompartidaLider = 1)
+     */
+    public static function desvincularRegistro(Request $request, $id)
+    {
+        try {
+            $registro = ReqProgramaTejido::find($id);
+
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Registro no encontrado'
+                ], 404);
+            }
+
+            $ordCompartida = $registro->OrdCompartida;
+
+            if (!$ordCompartida || trim((string)$ordCompartida) === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El registro no tiene OrdCompartida asignada'
+                ], 400);
+            }
+
+            // Normalizar OrdCompartida
+            $ordCompartidaNormalizada = (int) $ordCompartida;
+
+            // Obtener todos los registros con la misma OrdCompartida
+            $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $ordCompartidaNormalizada)
+                ->get();
+
+            $totalRegistros = $registrosConOrdCompartida->count();
+
+            if ($totalRegistros < 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron registros con esta OrdCompartida'
+                ], 400);
+            }
+
+            DBFacade::beginTransaction();
+
+            // Desactivar observer temporalmente
+            $dispatcher = ReqProgramaTejido::getEventDispatcher();
+            ReqProgramaTejido::unsetEventDispatcher();
+
+            $idsAfectados = [];
+            $idsDesvinculados = []; // IDs de registros desvinculados para obtener frescos después
+            $registrosRestantesActualizados = []; // Para actualizar en CatCodificados cuando hay más de 2
+
+            if ($totalRegistros === 2) {
+                // Si hay 2 registros: ambos se ponen OrdCompartida = null y OrdCompartidaLider = null
+                $registrosConOrdCompartida->each(function ($reg) use (&$idsAfectados, &$idsDesvinculados) {
+                    $reg->OrdCompartida = null;
+                    $reg->OrdCompartidaLider = null;
+                    $reg->UpdatedAt = now();
+                    $reg->save();
+                    $idsAfectados[] = $reg->Id;
+                    $idsDesvinculados[] = $reg->Id; // Guardar ID para obtener registro fresco después
+                });
+            } else {
+                // Si hay más de 2: solo el seleccionado se pone OrdCompartida = null
+                $registro->OrdCompartida = null;
+                $registro->OrdCompartidaLider = null;
+                $registro->UpdatedAt = now();
+                $registro->save();
+                $idsAfectados[] = $registro->Id;
+                $idsDesvinculados[] = $registro->Id; // Guardar ID para obtener registro fresco después
+
+                // De los registros restantes, buscar el que tiene la fecha más antigua para ponerlo como líder
+                $registrosRestantes = $registrosConOrdCompartida->filter(function ($reg) use ($id) {
+                    return $reg->Id != $id;
+                });
+
+                if ($registrosRestantes->count() > 0) {
+                    // Ordenar por FechaInicio (más antigua primero)
+                    $registrosOrdenados = $registrosRestantes->sortBy(function ($registro) {
+                        return $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->timestamp : PHP_INT_MAX;
+                    });
+
+                    // Quitar OrdCompartidaLider de todos los registros restantes
+                    $idsRestantes = $registrosRestantes->pluck('Id')->toArray();
+                    ReqProgramaTejido::whereIn('Id', $idsRestantes)
+                        ->update([
+                            'OrdCompartidaLider' => null,
+                            'UpdatedAt' => now()
+                        ]);
+
+                    // Asignar OrdCompartidaLider = 1 al registro con fecha más antigua
+                    $idLider = $registrosOrdenados->first()->Id;
+                    ReqProgramaTejido::where('Id', $idLider)
+                        ->update([
+                            'OrdCompartidaLider' => 1,
+                            'UpdatedAt' => now()
+                        ]);
+
+                    $idsAfectados = array_merge($idsAfectados, $idsRestantes);
+
+                    // Obtener todos los registros restantes con sus valores actualizados para actualizar en CatCodificados
+                    $registrosRestantesActualizados = ReqProgramaTejido::whereIn('Id', $idsRestantes)
+                        ->get();
+                }
+            }
+
+            // Obtener registros desvinculados frescos de la BD (con OrdCompartida = null)
+            // para limpiar en CatCodificados si NoProduccion y Programado están llenos
+            if (count($idsDesvinculados) > 0) {
+                $registrosDesvinculadosFrescos = ReqProgramaTejido::whereIn('Id', $idsDesvinculados)
+                    ->whereNull('OrdCompartida')
+                    ->get();
+
+                foreach ($registrosDesvinculadosFrescos as $regDesvinculado) {
+                    if ($regDesvinculado) {
+                        self::limpiarOrdCompartidaEnCatCodificados($regDesvinculado);
+                    }
+                }
+            }
+
+            // Actualizar OrdCompartida y OrdCompartidaLider en CatCodificados para los registros restantes
+            // (los que mantienen OrdCompartida pero tienen un nuevo OrdCompartidaLider)
+            foreach ($registrosRestantesActualizados as $regRestante) {
+                if ($regRestante) {
+                    $regRestanteFresco = $regRestante->fresh();
+                    if ($regRestanteFresco) {
+                        self::actualizarOrdCompartidaEnCatCodificados($regRestanteFresco);
+                    }
+                }
+            }
+
+            DBFacade::commit();
+
+            // Reactivar observer
             if ($dispatcher) {
                 ReqProgramaTejido::setEventDispatcher($dispatcher);
             }
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
-            LogFacade::error('VincularTejido error', [
-                'salon' => $salonOrigen,
-                'telar' => $telarOrigen,
-                'msg'   => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+            // Disparar observer para recalcular fórmulas si es necesario
+            $observer = new ReqProgramaTejidoObserver();
+            foreach ($idsAfectados as $idAfectado) {
+                if ($reg = ReqProgramaTejido::find($idAfectado)) {
+                    $observer->saved($reg);
+                }
+            }
+
+            $mensaje = $totalRegistros === 2
+                ? 'Se desvincularon ambos registros correctamente'
+                : 'Registro desvinculado correctamente';
+
+            return response()->json([
+                'success' => true,
+                'message' => $mensaje,
+                'registros_ids' => $idsAfectados,
+                'total_registros_afectados' => count($idsAfectados)
+            ]);
+
+        } catch (\Throwable $e) {
+            DBFacade::rollBack();
+
+            if (isset($dispatcher)) {
+                ReqProgramaTejido::setEventDispatcher($dispatcher);
+            }
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+
+            LogFacade::error('desvincularRegistro error', [
+                'registro_id' => $id,
+                'msg' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al vincular el telar: ' . $e->getMessage(),
+                'message' => 'Error al desvincular el registro: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Actualiza OrdCompartida y OrdCompartidaLider en CatCodificados basándose en los valores de ReqProgramaTejido
+     * Solo si NoProduccion y Programado están llenos
+     *
+     * @param ReqProgramaTejido $registro
+     * @return void
+     */
+    private static function actualizarOrdCompartidaEnCatCodificados(ReqProgramaTejido $registro): void
+    {
+        try {
+            $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
+            $programado = $registro->Programado ?? null;
+
+            // Validar que NoProduccion y Programado estén llenos
+            if (empty($noProduccion) || empty($programado)) {
+                return;
+            }
+
+            $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
+
+            $modelo = new CatCodificados();
+            $table = $modelo->getTable();
+            $columns = Schema::getColumnListing($table);
+
+            $query = CatCodificados::query();
+            $hasKeyFilter = false;
+
+            // Buscar por OrdenTejido o NoProduccion
+            if (in_array('OrdenTejido', $columns, true)) {
+                $query->where('OrdenTejido', $noProduccion);
+                $hasKeyFilter = true;
+            } elseif (in_array('NumOrden', $columns, true)) {
+                $query->where('NumOrden', $noProduccion);
+                $hasKeyFilter = true;
+            }
+
+            // Filtrar por telar si está disponible
+            if (in_array('TelarId', $columns, true)) {
+                $query->where('TelarId', $noTelarId);
+            } elseif (in_array('NoTelarId', $columns, true)) {
+                $query->where('NoTelarId', $noTelarId);
+            }
+
+            if (!$hasKeyFilter) {
+                $query->where('NoProduccion', $noProduccion);
+            }
+
+            $registroCodificado = $query->first();
+
+            if ($registroCodificado) {
+                // Actualizar OrdCompartida y OrdCompartidaLider con los valores de ReqProgramaTejido
+                // Asegurarse de obtener los valores correctos (OrdCompartida es el número, OrdCompartidaLider es 1 o null)
+                $ordCompartida = $registro->OrdCompartida;
+                $ordCompartidaLider = $registro->OrdCompartidaLider;
+
+                // Normalizar OrdCompartida como integer (puede ser string o int)
+                // IMPORTANTE: No confundir OrdCompartida (número del grupo, ej: 20) con OrdCompartidaLider (1 o null)
+                $ordCompartidaValue = null;
+                if ($ordCompartida !== null && $ordCompartida !== '' && trim((string) $ordCompartida) !== '') {
+                    $ordCompartidaValue = (int) trim((string) $ordCompartida);
+                }
+
+                // Convertir a int/null para OrdCompartidaLider (puede ser boolean o int)
+                $ordCompartidaLiderValue = null;
+                if ($ordCompartidaLider === 1 || $ordCompartidaLider === '1' || $ordCompartidaLider === true) {
+                    $ordCompartidaLiderValue = 1;
+                }
+
+                // Log temporal para debug (remover después)
+                LogFacade::info('Actualizando CatCodificados con OrdCompartida', [
+                    'cat_codificado_id' => $registroCodificado->Id,
+                    'ord_compartida_original' => $ordCompartida,
+                    'ord_compartida_value' => $ordCompartidaValue,
+                    'ord_compartida_lider_original' => $ordCompartidaLider,
+                    'ord_compartida_lider_value' => $ordCompartidaLiderValue,
+                ]);
+
+                // Usar DB::update directamente, pero asegurarse de que OrdCompartidaValue sea realmente un integer
+                // Si la columna es BIT en la BD, solo aceptará 0 o 1 (eso explicaría por qué guarda 1)
+                // El problema puede estar en que la columna está definida como BIT en lugar de INT
+                $updateData = [
+                    'OrdCompartida' => $ordCompartidaValue,
+                    'OrdCompartidaLider' => $ordCompartidaLiderValue
+                ];
+
+                DBFacade::table($table)
+                    ->where('Id', $registroCodificado->Id)
+                    ->update($updateData);
+            }
+        } catch (\Throwable $e) {
+            // Loggear error pero no fallar la operación principal
+            LogFacade::warning('Error al actualizar OrdCompartida en CatCodificados', [
+                'registro_id' => $registro->Id ?? null,
+                'no_produccion' => $noProduccion ?? null,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Limpia OrdCompartida y OrdCompartidaLider en CatCodificados si NoProduccion y Programado están llenos
+     * Se usa solo en desvincular para poner los valores en null
+     *
+     * @param ReqProgramaTejido $registro
+     * @return void
+     */
+    private static function limpiarOrdCompartidaEnCatCodificados(ReqProgramaTejido $registro): void
+    {
+        try {
+            $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
+            $programado = $registro->Programado ?? null;
+
+            // Validar que NoProduccion y Programado estén llenos
+            if (empty($noProduccion) || empty($programado)) {
+                return;
+            }
+
+            $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
+
+            $modelo = new CatCodificados();
+            $table = $modelo->getTable();
+            $columns = Schema::getColumnListing($table);
+
+            $query = CatCodificados::query();
+            $hasKeyFilter = false;
+
+            // Buscar por OrdenTejido o NoProduccion
+            if (in_array('OrdenTejido', $columns, true)) {
+                $query->where('OrdenTejido', $noProduccion);
+                $hasKeyFilter = true;
+            } elseif (in_array('NumOrden', $columns, true)) {
+                $query->where('NumOrden', $noProduccion);
+                $hasKeyFilter = true;
+            }
+
+            // Filtrar por telar si está disponible
+            if (in_array('TelarId', $columns, true)) {
+                $query->where('TelarId', $noTelarId);
+            } elseif (in_array('NoTelarId', $columns, true)) {
+                $query->where('NoTelarId', $noTelarId);
+            }
+
+            if (!$hasKeyFilter) {
+                $query->where('NoProduccion', $noProduccion);
+            }
+
+            $registroCodificado = $query->first();
+
+            if ($registroCodificado) {
+                // Limpiar OrdCompartida y OrdCompartidaLider usando update directo para asegurar null
+                // Esto es importante si los campos son BIT en SQL Server
+                // Usar DB::update directamente para evitar problemas con casts del modelo
+                DBFacade::table($table)
+                    ->where('Id', $registroCodificado->Id)
+                    ->update([
+                        'OrdCompartida' => null,
+                        'OrdCompartidaLider' => null
+                    ]);
+            }
+        } catch (\Throwable $e) {
+            // Loggear error pero no fallar la operación principal
+            LogFacade::warning('Error al limpiar OrdCompartida en CatCodificados', [
+                'registro_id' => $registro->Id ?? null,
+                'no_produccion' => $noProduccion ?? null,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 
@@ -399,11 +584,6 @@ class VincularTejido
             $existe = ReqProgramaTejido::where('OrdCompartida', $candidato)->exists();
 
             if (!$existe) {
-                // Este OrdCompartida está disponible
-                LogFacade::info('VincularTejido: Nuevo OrdCompartida asignado', [
-                    'ord_compartida' => $candidato,
-                    'max_existente' => $maxOrdCompartida,
-                ]);
                 return $candidato;
             }
 
@@ -412,168 +592,6 @@ class VincularTejido
             $intentos++;
         }
 
-        // Si llegamos aquí, algo está mal (muchos gaps en la secuencia)
-        // Usar el máximo + 1 de todas formas y loggear advertencia
-
-
         return $candidato;
-    }
-
-    private static function obtenerUltimoRegistroTelar(string $salon, string $telar): ?ReqProgramaTejido
-    {
-        return ReqProgramaTejido::query()
-            ->salon($salon)
-            ->telar($telar)
-            ->where('Ultimo', 1)
-            ->orderBy('FechaInicio', 'desc')
-            ->first()
-            ?? ReqProgramaTejido::query()
-                ->salon($salon)
-                ->telar($telar)
-                ->orderBy('FechaInicio', 'desc')
-                ->first();
-    }
-
-    // =========================================================
-    // FECHAS EXACTAS (IGUAL QUE DUPLICAR)
-    // =========================================================
-
-    private static function calcularInicioFinExactos(ReqProgramaTejido $r): array
-    {
-        if (empty($r->FechaInicio)) {
-            return [null, null, 0.0];
-        }
-
-        $inicio = Carbon::parse($r->FechaInicio);
-
-        if (!empty($r->CalendarioId)) {
-            $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
-            if ($snap) $inicio = $snap;
-        }
-
-        $horasNecesarias = self::calcularHorasProd($r);
-
-        if ($horasNecesarias <= 0) {
-            $fin = $inicio->copy()->addDays(30);
-            return [$inicio, $fin, 0.0];
-        }
-
-        if (!empty($r->CalendarioId)) {
-            $fin = BalancearTejido::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horasNecesarias);
-            if (!$fin) {
-                $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
-            }
-            return [$inicio, $fin, $horasNecesarias];
-        }
-
-        $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
-        return [$inicio, $fin, $horasNecesarias];
-    }
-
-    private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
-    {
-        return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio);
-    }
-
-    // =========================================================
-    // HORAS (CORREGIDO: toma NoTiras/Luchaje/Rep del modelo si faltan)
-    // =========================================================
-
-    private static function calcularHorasProd(ReqProgramaTejido $p): float
-    {
-        $vel   = (float) ($p->VelocidadSTD ?? 0);
-        $efic  = (float) ($p->EficienciaSTD ?? 0);
-        $cantidad = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
-
-        $m = self::getModeloParams($p->TamanoClave ?? null, $p);
-
-        return TejidoHelpers::calcularHorasProd(
-            $vel,
-            $efic,
-            $cantidad,
-            (float)($m['no_tiras'] ?? 0),
-            (float)($m['total'] ?? 0),
-            (float)($m['luchaje'] ?? 0),
-            (float)($m['repeticiones'] ?? 0)
-        );
-    }
-
-    private static function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
-    {
-        $noTiras = (float)($p->NoTiras ?? 0);
-        $luchaje = (float)($p->Luchaje ?? 0);
-        $rep     = (float)($p->Repeticiones ?? 0);
-
-        $key = trim((string)$tamanoClave);
-        if ($key === '') {
-            return [
-                'total' => 0.0,
-                'no_tiras' => $noTiras,
-                'luchaje' => $luchaje,
-                'repeticiones' => $rep,
-            ];
-        }
-
-        if (!isset(self::$modeloCache[$key])) {
-            $m = ReqModelosCodificados::where('TamanoClave', $key)->first();
-            self::$modeloCache[$key] = $m ? [
-                'total' => (float)($m->Total ?? 0),
-                'no_tiras' => (float)($m->NoTiras ?? 0),
-                'luchaje' => (float)($m->Luchaje ?? 0),
-                'repeticiones' => (float)($m->Repeticiones ?? 0),
-            ] : [
-                'total' => 0.0,
-                'no_tiras' => 0.0,
-                'luchaje' => 0.0,
-                'repeticiones' => 0.0,
-            ];
-        }
-
-        $base = self::$modeloCache[$key];
-
-        return [
-            'total' => (float)($base['total'] ?? 0),
-            'no_tiras' => $noTiras > 0 ? $noTiras : (float)($base['no_tiras'] ?? 0),
-            'luchaje' => $luchaje > 0 ? $luchaje : (float)($base['luchaje'] ?? 0),
-            'repeticiones' => $rep > 0 ? $rep : (float)($base['repeticiones'] ?? 0),
-        ];
-    }
-
-    // =========================
-    // STD DESDE CATÁLOGOS
-    // =========================
-
-    private static function aplicarStdDesdeCatalogos(ReqProgramaTejido $p): void
-    {
-        TejidoHelpers::aplicarStdDesdeCatalogos($p);
-    }
-
-    // =========================
-    // FÓRMULAS (se quedan como tenías)
-    // =========================
-
-    private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
-    {
-        try {
-            $m = self::getModeloParams($programa->TamanoClave ?? null, $programa);
-            return TejidoHelpers::calcularFormulasEficiencia($programa, $m, true, true, true);
-        } catch (\Throwable $e) {
-            LogFacade::warning('VincularTejido: Error al calcular formulas', [
-                'error' => $e->getMessage(),
-                'programa_id' => $programa->Id ?? null,
-            ]);
-        }
-
-        return [];
-    }
-
-    private static function construirMaquina(?string $maquinaBase, ?string $salon, $telar): string
-    {
-        return TejidoHelpers::construirMaquinaConBase($maquinaBase, $salon, $telar);
-    }
-
-    private static function sanitizeNumber($value): float
-    {
-        return TejidoHelpers::sanitizeNumber($value);
     }
 }

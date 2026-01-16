@@ -53,9 +53,9 @@ class MarcasController extends Controller
 
             $ultimoFolio = $marcas->first();
 
-            return view('modulos.marcas-finales.consultar-marcas-finales', compact('marcas', 'ultimoFolio'));
+            return view('modulos.marcas-finales.marcasFinales', compact('marcas', 'ultimoFolio'));
         } catch (\Exception $e) {
-            return view('modulos.marcas-finales.consultar-marcas-finales', [
+            return view('modulos.marcas-finales.marcasFinales', [
                 'marcas' => collect([]),
                 'ultimoFolio' => null
             ]);
@@ -334,38 +334,7 @@ class MarcasController extends Controller
             ], 404);
         }
 
-        // Validar que todas las líneas tengan Marcas y Eficiencia > 0
-        $lineas = TejMarcasLine::where('Folio', $folio)->get();
-
-        if ($lineas->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No se puede finalizar un folio sin líneas capturadas'
-            ], 400);
-        }
-
-        $lineasConMarcasInvalidas = $lineas->filter(function($l) {
-            return is_null($l->Marcas) || $l->Marcas <= 0;
-        })->count();
-
-        $lineasConEficienciaInvalida = $lineas->filter(function($l) {
-            return is_null($l->Eficiencia) || $l->Eficiencia <= 0;
-        })->count();
-
-        if ($lineasConMarcasInvalidas > 0 || $lineasConEficienciaInvalida > 0) {
-            $errores = [];
-            if ($lineasConMarcasInvalidas > 0) {
-                $errores[] = "{$lineasConMarcasInvalidas} línea(s) con el campo Marcas vacío o en 0";
-            }
-            if ($lineasConEficienciaInvalida > 0) {
-                $errores[] = "{$lineasConEficienciaInvalida} línea(s) con el campo % Efi vacío o en 0";
-            }
-
-            return response()->json([
-                'success' => false,
-                'message' => 'No se puede finalizar: ' . implode(', ', $errores)
-            ], 400);
-        }
+        // Ya no se bloquea por valores vacíos; la confirmación se maneja en frontend.
 
         $marca->update([
             'Status' => 'Finalizado',

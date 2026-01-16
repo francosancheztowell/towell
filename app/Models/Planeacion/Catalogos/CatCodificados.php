@@ -50,6 +50,8 @@ class CatCodificados extends Model
         'Pedido' => 'float',
         'Produccion' => 'float',
         'Saldos' => 'float',
+        'OrdCompartida' => 'integer', // Permitir null
+        'OrdCompartidaLider' => 'integer', // Permitir null (BIT o INT según schema)
         // Nuevos campos agregados
         'MtsRollo' => 'float', // REAL en SQL Server
         'PzasRollo' => 'float', // REAL en SQL Server

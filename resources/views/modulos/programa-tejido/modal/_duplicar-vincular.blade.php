@@ -155,8 +155,8 @@ function agregarFilaDuplicar() {
 
 	newRow.innerHTML =
 		'<td class="p-2 border-r border-gray-200 clave-modelo-cell">' +
-			'<input type="text" value="' + (claveModelo || '') + '" readonly' +
-				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">' +
+			'<input type="text" value="' + (claveModelo || '') + '"' +
+				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 		'</td>' +
 		'<td class="p-2 border-r border-gray-200 producto-cell">' +
 			'<textarea rows="2" readonly' +
@@ -165,8 +165,8 @@ function agregarFilaDuplicar() {
 			'</textarea>' +
 		'</td>' +
 		'<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 200px;">' +
-			'<textarea rows="2" readonly' +
-				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">' +
+			'<textarea rows="2"' +
+				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none">' +
 				(flog || '') +
 			'</textarea>' +
 		'</td>' +
@@ -248,6 +248,16 @@ function agregarFilaDuplicar() {
 			if (typeof window.parseTelarValue !== 'function') return;
 			const parsed = window.parseTelarValue(telarSelect.value);
 			if (parsed.salon) hiddenSalon.value = parsed.salon;
+			
+			// Recalcular eficiencia, velocidad y maquina cuando cambie el telar
+			const claveModeloInput = newRow.querySelector('.clave-modelo-cell input');
+			if (claveModeloInput && claveModeloInput.value && typeof window.cargarDatosRelacionadosRow === 'function') {
+				// Si hay una clave modelo, recargar los datos para obtener eficiencia y velocidad con el nuevo telar
+				window.cargarDatosRelacionadosRow(newRow, claveModeloInput.value);
+			} else if (typeof window.construirMaquinaRow === 'function') {
+				// Si no hay clave modelo, solo construir la máquina
+				window.construirMaquinaRow(newRow);
+			}
 		});
 		if (typeof window.parseTelarValue === 'function') {
 			const parsed = window.parseTelarValue(telarSelect.value);
@@ -266,19 +276,9 @@ function agregarFilaDuplicar() {
 		aplicarVisibilidadColumnas(true);
 	}
 
-	// ⚡ FIX: Sincronizar descripción en filas agregadas con el input oculto
-	const descripcionTextarea = newRow.querySelector('.descripcion-cell textarea');
-	const inputDescripcion = document.getElementById('swal-descripcion');
-	if (descripcionTextarea && inputDescripcion) {
-		descripcionTextarea.addEventListener('input', (e) => {
-			inputDescripcion.value = e.target.value;
-			inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
-			// Actualizar todas las filas con la nueva descripción
-			if (typeof actualizarColumnasInformacion === 'function') {
-				actualizarColumnasInformacion();
-			}
-		});
-	}
+	// ⚡ FIX: Configurar autocompletadores independientes para esta fila
+	// Cada fila debe funcionar de forma independiente
+	setupRowAutocompletadores(newRow);
 
 	// Calcular saldo inicial para la nueva fila
 	if (typeof calcularSaldoDuplicar === 'function') {

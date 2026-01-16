@@ -22,8 +22,9 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
         ->where('serie', '205')
         ->name('configurar');
 
-    Route::get('/marcasfinales/{moduloPadre?}', [UsuarioController::class, 'showSubModulosNivel3'])
-        ->defaults('moduloPadre', '202')
+    Route::get('/marcasfinales/{moduloPadre?}', function () {
+        return redirect('/modulo-marcas/consultar');
+    })
         ->where('moduloPadre', '202')
         ->name('marcas.finales');
 
@@ -34,8 +35,9 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
 
     Route::redirect('/inventario', '/tejido/invtrama', 301);
 
-    Route::get('/cortesdeeficiencia/{moduloPadre?}', [UsuarioController::class, 'showSubModulosNivel3'])
-        ->defaults('moduloPadre', '206')
+    Route::get('/cortesdeeficiencia/{moduloPadre?}', function () {
+        return redirect('/modulo-cortes-de-eficiencia/consultar');
+    })
         ->where('moduloPadre', '206')
         ->name('cortes.eficiencia');
 
@@ -104,6 +106,7 @@ Route::get('/produccion/reenconado-cabezuela', [ProduccionReenconadoCabezuelaCon
 Route::post('/produccion/reenconado-cabezuela', [ProduccionReenconadoCabezuelaController::class, 'store'])
     ->name('produccion.reenconado_cabezuela.store');
 
+// Rutas para módulo de marcas finales
 Route::get('/modulo-marcas', [MarcasController::class, 'index'])->name('marcas.nuevo');
 Route::get('/modulo-marcas/consultar', [MarcasController::class, 'consultar'])->name('marcas.consultar');
 Route::post('/modulo-marcas/generar-folio', [MarcasController::class, 'generarFolio'])->name('marcas.generar.folio');

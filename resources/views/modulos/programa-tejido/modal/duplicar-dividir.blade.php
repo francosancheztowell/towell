@@ -136,13 +136,14 @@ async function duplicarTelar(row) {
 
 	const datos = resultado.value;
 
-	// Determinar endpoint según el modo y si el checkbox de vincular está activo
-	const usarVincular = datos.vincular === true && datos.modo === 'duplicar';
+	// Determinar endpoint según el modo
+	// NOTA: Vincular ahora usa el mismo endpoint de duplicar, solo cambia el parámetro 'vincular'
 	const endpoint = datos.modo === 'dividir'
 		? '/planeacion/programa-tejido/dividir-saldo'
-		: usarVincular
-			? '/planeacion/programa-tejido/vincular-telar'
-			: '/planeacion/programa-tejido/duplicar-telar';
+		: '/planeacion/programa-tejido/duplicar-telar';
+
+	// Determinar si es vincular para el mensaje de éxito
+	const usarVincular = datos.vincular === true && datos.modo === 'duplicar';
 
 	const mensajeExito = datos.modo === 'dividir'
 		? 'Registro dividido correctamente'
@@ -154,6 +155,7 @@ async function duplicarTelar(row) {
 	showLoading();
 	try {
 		const csrfToken = getCsrfToken();
+
 		const response = await fetch(endpoint, {
 			method: 'POST',
 			headers: {
@@ -176,6 +178,7 @@ async function duplicarTelar(row) {
 				descripcion: datos.descripcion,
 				custname: datos.custname,
 				invent_size_id: datos.inventSizeId,
+				vincular: datos.vincular || false, // Checkbox de vincular
 				ord_compartida_existente: datos.ord_compartida_existente,
 				registro_id_original: datos.registro_id_original
 			})
@@ -272,8 +275,8 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 			<select id="swal-aplicacion" class="hidden">
 				${aplicacion ? `<option value="${aplicacion}" selected>${aplicacion}</option>` : '<option value="">Seleccionar...</option>'}
 			</select>
-			<div id="swal-claveModelo-suggestions" class="absolute z-50 w-full bg-white border border-gray-300 rounded-b shadow-lg hidden max-h-40 overflow-y-auto"></div>
-			<div id="swal-flog-suggestions" class="absolute w-full bg-white border border-gray-300 rounded-b shadow-lg hidden" style="max-height: 500px; overflow-y: auto; z-index: 99999;"></div>
+			<div id="swal-claveModelo-suggestions" class="absolute z-50 w-full bg-white border border-gray-300 rounded-t shadow-lg hidden max-h-40 overflow-y-auto" style="bottom: 100%; margin-bottom: 2px;"></div>
+			<div id="swal-flog-suggestions" class="absolute w-full bg-white border border-gray-300 rounded-t shadow-lg hidden" style="max-height: 500px; overflow-y: auto; z-index: 99999; bottom: 100%; margin-bottom: 2px;"></div>
 
 			<!-- Campos ocultos para datos adicionales del codificado -->
 			<input type="hidden" id="swal-custname" value="">
@@ -355,7 +358,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 							<th id="th-saldo-total" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">Saldo Total</th>
 							<th id="th-saldo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">Saldos</th>
 							<th id="th-obs" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Obs</th>
-							<th id="th-acciones" class="py-2 px-2 text-center border-b border-gray-300 w-16 hidden font-normal">Líder</th>
+							<th id="th-acciones" class="py-2 px-2 text-center border-b border-gray-300 w-16 hidden font-normal"></th>
 						</tr>
 					</thead>
 					<tbody id="telar-pedido-body">
@@ -648,6 +651,10 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 				thSaldo.classList.remove('hidden');
 				thSaldo.textContent = 'Saldos';
 			}
+			// En modo duplicar, la columna de acciones no se llama "Líder"
+			if (thAcciones) {
+				thAcciones.textContent = ''; // Vacío o solo el ícono de eliminar
+			}
 			// ⚡ FIX: Mostrar columna de acciones solo para filas agregadas (no la fila principal)
 			const filasAgregadas = document.querySelectorAll('tr.telar-row:not(#fila-principal)');
 			if (filasAgregadas.length > 0) {
@@ -673,6 +680,10 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 			document.querySelectorAll('tr#fila-principal .acciones-cell').forEach((cell) => cell.classList.add('hidden'));
 		} else {
 			// Modo dividir: salon, telar, pedido, %segundas, produccion, saldo total
+			// En modo dividir, la columna de acciones se llama "Líder"
+			if (thAcciones) {
+				thAcciones.textContent = 'Líder';
+			}
 			if (thSalon) thSalon.classList.remove('hidden');
 			if (thPedidoTempo) {
 				thPedidoTempo.classList.remove('hidden');
@@ -746,7 +757,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	window.aplicarVisibilidadColumnas = aplicarVisibilidadColumnas;
 	window.calcularSaldoDuplicar = calcularSaldoDuplicar;
 
-function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicacionOptionsHTML, ringClass, editableClaveModelo, editableFlog }) {
+function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicacionOptionsHTML, aplicacionSeleccionada, ringClass, editableClaveModelo, editableFlog }) {
 		const readonlyClass = 'w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed';
 		const editableClass = `w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 ${ringClass}`;
 		const selectClass = `w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 ${ringClass}`;
@@ -773,8 +784,10 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 				<textarea rows="2" class="${editableClass} resize-none">${descripcion || ''}</textarea>
 			</td>
 			<td class="p-2 border-r border-gray-200 aplicacion-cell">
-				<select name="aplicacion-destino[]" class="${selectClass}">
-					${aplicacionOptionsHTML}
+				<select name="aplicacion-destino[]" class="${selectClass}" data-valor-seleccionado="${aplicacionSeleccionada || ''}">
+					${aplicacionOptionsHTML.replace(/<option value="([^"]*)">/g, (match, value) => {
+						return `<option value="${value}"${value === (aplicacionSeleccionada || '') ? ' selected' : ''}>`;
+					})}
 				</select>
 			</td>
 		`;
@@ -813,19 +826,23 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		if (selectAplicacionGlobal && selectAplicacionGlobal.options) {
 			Array.from(selectAplicacionGlobal.options).forEach(option => {
 				if (option.value) {
-					aplicacionOptionsHTML += `<option value="${option.value}"${option.value === aplicacion ? ' selected' : ''}>${option.textContent}</option>`;
+					aplicacionOptionsHTML += `<option value="${option.value}">${option.textContent}</option>`;
 				}
 			});
 		}
 
 		const thTelar = document.getElementById('th-telar');
 		const thPedidoTempo = document.getElementById('th-pedido-tempo');
+		// Para nuevas filas, no preseleccionar ninguna aplicación (dejar que el usuario elija)
+		const aplicacionParaFila = '';
+
 		const baseCells = buildBaseInfoCells({
 			claveModelo,
 			producto,
 			flog,
 			descripcion,
 			aplicacionOptionsHTML,
+			aplicacionSeleccionada: aplicacionParaFila,
 			ringClass: esDuplicar ? 'focus:ring-blue-500' : 'focus:ring-green-500',
 			editableClaveModelo: esDuplicar,
 			editableFlog: esDuplicar
@@ -1095,6 +1112,21 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 	function mostrarSugerenciasClaveModelo(sugerencias) {
 		containerSugerencias.innerHTML = '';
+
+		// Asegurar que el contenedor esté posicionado arriba
+		const claveCell = document.querySelector('#telar-pedido-body tr#fila-principal .clave-modelo-cell');
+		if (claveCell && inputClaveModelo) {
+			if (!claveCell.contains(containerSugerencias)) {
+				claveCell.style.position = 'relative';
+				claveCell.appendChild(containerSugerencias);
+			}
+			containerSugerencias.style.position = 'absolute';
+			containerSugerencias.style.bottom = '100%';
+			containerSugerencias.style.top = 'auto';
+			containerSugerencias.style.left = '0';
+			containerSugerencias.style.marginBottom = '2px';
+		}
+
 		if (sugerencias.length === 0) {
 			const div = document.createElement('div');
 			div.className = 'px-3 py-2 text-gray-500 text-xs italic';
@@ -1119,7 +1151,14 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		suppressClaveAutocomplete = true;
 		inputClaveModelo.value = clave;
 		containerSugerencias.classList.add('hidden');
-		cargarDatosRelacionados(clave);
+		// Cargar datos relacionados solo para la fila principal
+		const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+		if (filaPrincipal && typeof window.cargarDatosRelacionadosRow === 'function') {
+			window.cargarDatosRelacionadosRow(filaPrincipal, clave);
+		} else {
+			// Fallback a la función global (para compatibilidad)
+			cargarDatosRelacionados(clave);
+		}
 	}
 
 	function cargarDatosRelacionados(tamanoClave) {
@@ -1162,6 +1201,27 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 								return r.json();
 							})
 							.then(info => {
+								// LOG: CustName desde flog
+								const custNameFromFlog = (info?.custName || info?.CustName || info?.custname || '').trim();
+								console.log('[cargarDatosRelacionados] 🏢 CUSTNAME DESDE FLOG-BY-ITEM:', {
+									custNameFromFlog,
+									infoCompleto: info
+								});
+
+								// Actualizar CustName desde flog-by-item
+								if (custNameFromFlog && inputCustname) {
+									inputCustname.value = custNameFromFlog;
+									console.log('[cargarDatosRelacionados] ✅ CustName actualizado desde flog:', custNameFromFlog);
+								}
+
+								// LOG: Datos del flog obtenidos
+								console.log('[cargarDatosRelacionadosRow] 📋 DATOS DEL FLOG OBTENIDOS:', {
+									idflog: info?.idflog,
+									nombreProyecto: info?.nombreProyecto,
+									custName: info?.custName || info?.CustName,
+									itemId: itemId,
+									inventSizeId: inventSizeId
+								});
 
 								// Autocompletar flog y descripción desde TI_PRO
 								// Si no se obtiene, dejar en blanco (el usuario puede escribir libremente)
@@ -1406,7 +1466,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 				const textareaRect = flogTextarea.getBoundingClientRect();
 				const cellRect = flogCell.getBoundingClientRect();
 
-				// ⚡ FIX: Posicionar el contenedor arriba del textarea usando coordenadas absolutas
+				// Posicionar el contenedor arriba del textarea
 				containerSugerenciasFlog.style.position = 'absolute';
 				containerSugerenciasFlog.style.bottom = '100%'; // Posicionar arriba del textarea
 				containerSugerenciasFlog.style.top = 'auto';
@@ -1414,6 +1474,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 				containerSugerenciasFlog.style.right = 'auto';
 				containerSugerenciasFlog.style.marginBottom = '2px'; // Pequeño espacio entre el contenedor y el textarea
 				containerSugerenciasFlog.style.width = Math.max(flogTextarea.offsetWidth, 300) + 'px'; // Mínimo 300px de ancho
+				containerSugerenciasFlog.style.borderRadius = '0.375rem 0.375rem 0 0'; // Redondeo arriba
 				containerSugerenciasFlog.style.zIndex = '99999'; // ⚡ Z-index muy alto para estar por encima de todo (incluido SweetAlert)
 				containerSugerenciasFlog.style.maxHeight = '500px'; // ⚡ Aumentado para mostrar más registros (3 o más)
 				containerSugerenciasFlog.style.overflowY = 'auto';
@@ -1634,7 +1695,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		}
 
 		try {
-			// ⚡ OPTIMIZACIÓN: Usar AbortController para cancelar si hay múltiples requests
+			//  OPTIMIZACIÓN: Usar AbortController para cancelar si hay múltiples requests
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout de 5 segundos
 
@@ -1686,6 +1747,855 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		}
 	}
 
+	// Función para configurar autocompletadores independientes para cada fila
+	// Cada fila tiene su propio autocompletador para Clave Modelo y Flog
+	window.setupRowAutocompletadores = function setupRowAutocompletadores(row) {
+		if (!row) return;
+
+		const claveModeloInput = row.querySelector('.clave-modelo-cell input');
+		const flogInput = row.querySelector('.flogs-cell textarea') || row.querySelector('.flogs-cell input');
+		const descripcionTextarea = row.querySelector('.descripcion-cell textarea');
+
+		if (!claveModeloInput && !flogInput) return;
+
+		// Crear contenedor de sugerencias para Clave Modelo específico de esta fila
+		let containerSugerenciasClave = row.querySelector('.clave-modelo-suggestions');
+		if (!containerSugerenciasClave && claveModeloInput) {
+			containerSugerenciasClave = document.createElement('div');
+			containerSugerenciasClave.className = 'clave-modelo-suggestions absolute z-50 w-full bg-white border border-gray-300 rounded-t shadow-lg hidden max-h-40 overflow-y-auto';
+			containerSugerenciasClave.style.bottom = '100%';
+			containerSugerenciasClave.style.marginBottom = '2px';
+			const claveCell = row.querySelector('.clave-modelo-cell');
+			if (claveCell) {
+				claveCell.style.position = 'relative';
+				claveCell.appendChild(containerSugerenciasClave);
+			}
+		}
+
+		// Crear contenedor de sugerencias para Flog específico de esta fila
+		let containerSugerenciasFlogRow = row.querySelector('.flog-suggestions');
+		if (!containerSugerenciasFlogRow && flogInput) {
+			containerSugerenciasFlogRow = document.createElement('div');
+			containerSugerenciasFlogRow.className = 'flog-suggestions absolute w-full bg-white border border-gray-300 rounded-t shadow-lg hidden';
+			containerSugerenciasFlogRow.style.maxHeight = '500px';
+			containerSugerenciasFlogRow.style.overflowY = 'auto';
+			containerSugerenciasFlogRow.style.zIndex = '99999';
+			containerSugerenciasFlogRow.style.bottom = '100%';
+			containerSugerenciasFlogRow.style.marginBottom = '2px';
+			const flogCell = row.querySelector('.flogs-cell');
+			if (flogCell) {
+				flogCell.style.position = 'relative';
+				flogCell.style.overflow = 'visible';
+				flogCell.style.zIndex = '1';
+				flogCell.appendChild(containerSugerenciasFlogRow);
+			}
+		}
+
+		// Configurar autocompletador para Clave Modelo de esta fila
+		if (claveModeloInput && containerSugerenciasClave) {
+			// Verificar que no se haya configurado ya
+			if (claveModeloInput.dataset.autocompleteSetup === '1') return;
+			claveModeloInput.dataset.autocompleteSetup = '1';
+
+			let debounceTimerClave = null;
+			let suppressAutocompleteClave = false;
+			let clickedSuggestion = false;
+
+			const buscarClaveModeloRow = (busqueda) => {
+				if (suppressAutocompleteClave) {
+					suppressAutocompleteClave = false;
+					return;
+				}
+				const selectSalon = document.getElementById('swal-salon');
+				const salonParaBuscar = selectSalon?.value || '';
+				if (!salonParaBuscar || busqueda.length < 1) {
+					containerSugerenciasClave.classList.add('hidden');
+					return;
+				}
+
+				const params = new URLSearchParams();
+				params.append('salon_tejido_id', salonParaBuscar);
+				params.append('search', busqueda);
+
+				fetch('/programa-tejido/tamano-clave-by-salon?' + params)
+					.then(r => r.json())
+					.then(opciones => {
+						const sugerencias = Array.isArray(opciones) ? opciones : [];
+						containerSugerenciasClave.innerHTML = '';
+						if (sugerencias.length === 0) {
+							const div = document.createElement('div');
+							div.className = 'px-3 py-2 text-gray-500 text-xs italic';
+							div.textContent = 'No se encontraron coincidencias';
+							containerSugerenciasClave.appendChild(div);
+						} else {
+							sugerencias.forEach(sug => {
+								const div = document.createElement('div');
+								div.className = 'px-3 py-2 hover:bg-blue-100 cursor-pointer text-sm';
+								div.textContent = sug;
+								div.addEventListener('mousedown', (e) => {
+									// Prevenir que el blur se ejecute antes del click
+									e.preventDefault();
+									e.stopPropagation();
+									clickedSuggestion = true;
+									suppressAutocompleteClave = true;
+									claveModeloInput.value = sug;
+									containerSugerenciasClave.classList.add('hidden');
+									// Cargar datos relacionados solo para esta fila
+									if (typeof window.cargarDatosRelacionadosRow === 'function') {
+										window.cargarDatosRelacionadosRow(row, sug);
+									}
+								});
+								div.addEventListener('click', (e) => {
+									e.preventDefault();
+									e.stopPropagation();
+								});
+								containerSugerenciasClave.appendChild(div);
+							});
+						}
+						containerSugerenciasClave.classList.remove('hidden');
+					})
+					.catch(() => {
+						containerSugerenciasClave.classList.add('hidden');
+					});
+			};
+
+			claveModeloInput.addEventListener('input', (e) => {
+				clearTimeout(debounceTimerClave);
+				debounceTimerClave = setTimeout(() => buscarClaveModeloRow(e.target.value), 150);
+			});
+
+			claveModeloInput.addEventListener('focus', () => {
+				if (claveModeloInput.value.length >= 1) {
+					buscarClaveModeloRow(claveModeloInput.value);
+				}
+			});
+
+			claveModeloInput.addEventListener('blur', (e) => {
+				// Esperar un poco para permitir que el click en la sugerencia se ejecute primero
+				setTimeout(() => {
+					// Si se hizo click en una sugerencia, no hacer nada
+					if (clickedSuggestion) {
+						clickedSuggestion = false;
+						suppressAutocompleteClave = false;
+						containerSugerenciasClave.classList.add('hidden');
+						return;
+					}
+
+					// Si no se hizo click en una sugerencia, cargar datos si hay valor
+					const val = claveModeloInput.value?.trim();
+					if (val && typeof window.cargarDatosRelacionadosRow === 'function') {
+						window.cargarDatosRelacionadosRow(row, val);
+					}
+					suppressAutocompleteClave = false; // Resetear la bandera
+					containerSugerenciasClave.classList.add('hidden');
+				}, 250);
+			});
+
+			claveModeloInput.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					containerSugerenciasClave.classList.add('hidden');
+					const val = claveModeloInput.value?.trim();
+					if (val && typeof window.cargarDatosRelacionadosRow === 'function') {
+						window.cargarDatosRelacionadosRow(row, val);
+					}
+				}
+			});
+		}
+
+		// Configurar autocompletador para Flog de esta fila
+		if (flogInput && containerSugerenciasFlogRow) {
+			// Verificar que no se haya configurado ya
+			if (flogInput.dataset.autocompleteSetup === '1') return;
+			flogInput.dataset.autocompleteSetup = '1';
+
+			let debounceTimerFlogRow = null;
+
+			const cargarOpcionesFlogRow = async (search = '') => {
+				try {
+					// Cargar todos los flogs disponibles si no están en caché global
+					let todasOpcionesFlog = [];
+					if (typeof window.todasOpcionesFlogGeneral !== 'undefined' && window.todasOpcionesFlogGeneral.length > 0) {
+						todasOpcionesFlog = window.todasOpcionesFlogGeneral;
+					} else {
+						const response = await fetch('/programa-tejido/flogs-id-from-twflogs', {
+							headers: {
+								'Accept': 'application/json',
+								'X-CSRF-TOKEN': getCsrfToken()
+							}
+						});
+						if (response.ok) {
+							const opciones = await response.json();
+							const opcionesArray = Array.isArray(opciones) ? opciones : [];
+							todasOpcionesFlog = opcionesArray.filter(f => f && String(f).trim()).map(f => String(f).trim());
+							window.todasOpcionesFlogGeneral = todasOpcionesFlog;
+						}
+					}
+
+					if (todasOpcionesFlog.length === 0) {
+						containerSugerenciasFlogRow.classList.add('hidden');
+						return;
+					}
+
+					// Filtrar según búsqueda
+					let sugerencias = [];
+					if (search && search.length >= 1) {
+						const searchLower = search.toLowerCase().trim();
+						sugerencias = todasOpcionesFlog.filter(opcion => {
+							const opcionStr = String(opcion || '').toLowerCase().trim();
+							return opcionStr && opcionStr.includes(searchLower);
+						}).map(id => ({ idflog: String(id), nombreProyecto: '' }));
+					} else {
+						sugerencias = todasOpcionesFlog.map(id => ({ idflog: String(id), nombreProyecto: '' }));
+					}
+
+					// Mostrar sugerencias
+					containerSugerenciasFlogRow.innerHTML = '';
+					if (sugerencias.length === 0) {
+						const div = document.createElement('div');
+						div.className = 'px-3 py-2 text-gray-500 text-xs italic';
+						div.textContent = 'No se encontraron coincidencias';
+						containerSugerenciasFlogRow.appendChild(div);
+					} else {
+						sugerencias.forEach(sug => {
+							const div = document.createElement('div');
+							div.className = 'px-3 py-2 hover:bg-blue-100 cursor-pointer text-sm';
+							div.textContent = sug.idflog;
+							div.addEventListener('click', () => {
+								flogInput.value = sug.idflog;
+								containerSugerenciasFlogRow.classList.add('hidden');
+								// Cargar descripción solo para esta fila
+								cargarDescripcionPorFlogRow(row, sug.idflog);
+							});
+							containerSugerenciasFlogRow.appendChild(div);
+						});
+					}
+
+					// Posicionar el contenedor arriba del input
+					const flogCell = row.querySelector('.flogs-cell');
+					if (flogCell) {
+						containerSugerenciasFlogRow.style.position = 'absolute';
+						containerSugerenciasFlogRow.style.bottom = '100%';
+						containerSugerenciasFlogRow.style.left = '0';
+						containerSugerenciasFlogRow.style.width = '100%';
+						containerSugerenciasFlogRow.style.marginBottom = '2px';
+					}
+
+					containerSugerenciasFlogRow.classList.remove('hidden');
+				} catch (error) {
+					console.error('[cargarOpcionesFlogRow] Error:', error);
+					containerSugerenciasFlogRow.classList.add('hidden');
+				}
+			};
+
+			flogInput.addEventListener('input', (e) => {
+				clearTimeout(debounceTimerFlogRow);
+				const valor = e.target.value.trim();
+				if (valor.length >= 1) {
+					debounceTimerFlogRow = setTimeout(() => cargarOpcionesFlogRow(valor), 100);
+				} else {
+					containerSugerenciasFlogRow.classList.add('hidden');
+				}
+			});
+
+			flogInput.addEventListener('focus', async () => {
+				if (flogInput.value && flogInput.value.trim().length >= 1) {
+					await cargarOpcionesFlogRow(flogInput.value.trim());
+				} else {
+					await cargarOpcionesFlogRow('');
+				}
+			});
+
+			flogInput.addEventListener('blur', (e) => {
+				setTimeout(() => {
+					const activeElement = document.activeElement;
+					if (!containerSugerenciasFlogRow.contains(activeElement)) {
+						containerSugerenciasFlogRow.classList.add('hidden');
+					}
+				}, 200);
+				const val = flogInput.value?.trim();
+				if (val) cargarDescripcionPorFlogRow(row, val);
+			});
+
+			flogInput.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					containerSugerenciasFlogRow.classList.add('hidden');
+					const val = flogInput.value?.trim();
+					if (val) cargarDescripcionPorFlogRow(row, val);
+				}
+			});
+		}
+	}
+
+	// Función auxiliar para cargar datos relacionados solo para una fila específica
+	window.cargarDatosRelacionadosRow = function cargarDatosRelacionadosRow(row, tamanoClave) {
+		if (!row || !tamanoClave || !tamanoClave.trim()) {
+			console.warn('[cargarDatosRelacionadosRow] Fila o clave modelo inválidos', { row, tamanoClave });
+			return;
+		}
+
+		const selectSalon = document.getElementById('swal-salon');
+		const salonParaBuscar = selectSalon?.value || '';
+		if (!salonParaBuscar) {
+			console.warn('[cargarDatosRelacionadosRow] No hay salón seleccionado');
+			return;
+		}
+
+		const params = new URLSearchParams();
+		params.append('salon_tejido_id', salonParaBuscar);
+		params.append('tamano_clave', tamanoClave.trim());
+
+		fetch('/programa-tejido/datos-relacionados?' + params.toString(), {
+			method: 'GET',
+			headers: { 'Accept': 'application/json' }
+		})
+			.then(r => {
+				if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`);
+				return r.json();
+			})
+			.then(data => {
+				if (data && data.datos) {
+					const datos = data.datos;
+
+					// Guardar todos los datos del modelo codificado en atributos data de la fila
+					// Estos datos se usarán cuando se guarde el formulario
+					if (datos.CuentaRizo !== undefined && datos.CuentaRizo !== null) row.dataset.cuentaRizo = String(datos.CuentaRizo);
+					// LOG: Campos guardados en data attributes de la fila
+					console.log('[cargarDatosRelacionadosRow] 💾 CAMPOS GUARDADOS EN ROW.DATASET:', {
+						calibreRizo: datos.CalibreRizo,
+						calibreRizo2: datos.CalibreRizo2,
+						ancho: datos.Ancho,
+						fibraRizo: datos.FibraRizo,
+						calibrePie: datos.CalibrePie,
+						calibrePie2: datos.CalibrePie2,
+						calibreTrama: datos.CalibreTrama,
+						calibreTrama2: datos.CalibreTrama2,
+						noTiras: datos.NoTiras,
+						peine: datos.Peine,
+						luchaje: datos.Luchaje,
+						pesoCrudo: datos.PesoCrudo,
+						dobladilloId: datos.DobladilloId,
+						pasadasTrama: datos.PasadasTrama,
+						anchoToalla: datos.AnchoToalla,
+						codColorTrama: datos.CodColorTrama,
+						colorTrama: datos.ColorTrama,
+						medidaPlano: datos.MedidaPlano,
+						cuentaPie: datos.CuentaPie,
+						rasurado: datos.Rasurado,
+						velocidadSTD: datos.VelocidadSTD,
+						eficienciaSTD: datos.VelocidadSTD ? 'Se obtendrá después' : null
+					});
+
+					// IMPORTANTE: Guardar TODOS los campos que deben actualizarse al cambiar la clave modelo
+					if (datos.CalibreRizo !== undefined && datos.CalibreRizo !== null) row.dataset.calibreRizo = String(datos.CalibreRizo);
+					if (datos.CalibreRizo2 !== undefined && datos.CalibreRizo2 !== null) row.dataset.calibreRizo2 = String(datos.CalibreRizo2);
+					if (datos.Ancho !== undefined && datos.Ancho !== null) row.dataset.ancho = String(datos.Ancho);
+					if (datos.FibraRizo !== undefined && datos.FibraRizo !== null) row.dataset.fibraRizo = String(datos.FibraRizo);
+					if (datos.CalibrePie !== undefined && datos.CalibrePie !== null) row.dataset.calibrePie = String(datos.CalibrePie);
+					if (datos.CalibrePie2 !== undefined && datos.CalibrePie2 !== null) row.dataset.calibrePie2 = String(datos.CalibrePie2);
+					if (datos.CalibreTrama !== undefined && datos.CalibreTrama !== null) row.dataset.calibreTrama = String(datos.CalibreTrama);
+					if (datos.CalibreTrama2 !== undefined && datos.CalibreTrama2 !== null) row.dataset.calibreTrama2 = String(datos.CalibreTrama2);
+					if (datos.Rasurado !== undefined && datos.Rasurado !== null) row.dataset.rasurado = String(datos.Rasurado);
+					if (datos.NoTiras !== undefined && datos.NoTiras !== null) row.dataset.noTiras = String(datos.NoTiras);
+					if (datos.Peine !== undefined && datos.Peine !== null) row.dataset.peine = String(datos.Peine);
+					if (datos.Luchaje !== undefined && datos.Luchaje !== null) row.dataset.luchaje = String(datos.Luchaje);
+					if (datos.PesoCrudo !== undefined && datos.PesoCrudo !== null) row.dataset.pesoCrudo = String(datos.PesoCrudo);
+					if (datos.CalibreTrama !== undefined && datos.CalibreTrama !== null) row.dataset.calibreTrama = String(datos.CalibreTrama);
+					if (datos.CalibreTrama2 !== undefined && datos.CalibreTrama2 !== null) row.dataset.calibreTrama2 = String(datos.CalibreTrama2);
+					if (datos.FibraTrama !== undefined && datos.FibraTrama !== null) row.dataset.fibraTrama = String(datos.FibraTrama);
+					if (datos.DobladilloId !== undefined && datos.DobladilloId !== null) row.dataset.dobladilloId = String(datos.DobladilloId);
+					if (datos.PasadasTrama !== undefined && datos.PasadasTrama !== null) row.dataset.pasadasTrama = String(datos.PasadasTrama);
+					if (datos.PasadasComb1 !== undefined && datos.PasadasComb1 !== null) row.dataset.pasadasComb1 = String(datos.PasadasComb1);
+					if (datos.PasadasComb2 !== undefined && datos.PasadasComb2 !== null) row.dataset.pasadasComb2 = String(datos.PasadasComb2);
+					if (datos.PasadasComb3 !== undefined && datos.PasadasComb3 !== null) row.dataset.pasadasComb3 = String(datos.PasadasComb3);
+					if (datos.PasadasComb4 !== undefined && datos.PasadasComb4 !== null) row.dataset.pasadasComb4 = String(datos.PasadasComb4);
+					if (datos.PasadasComb5 !== undefined && datos.PasadasComb5 !== null) row.dataset.pasadasComb5 = String(datos.PasadasComb5);
+					if (datos.AnchoToalla !== undefined && datos.AnchoToalla !== null) row.dataset.anchoToalla = String(datos.AnchoToalla);
+					if (datos.CodColorTrama !== undefined && datos.CodColorTrama !== null) row.dataset.codColorTrama = String(datos.CodColorTrama);
+					if (datos.ColorTrama !== undefined && datos.ColorTrama !== null) row.dataset.colorTrama = String(datos.ColorTrama);
+					if (datos.CalibreComb1 !== undefined && datos.CalibreComb1 !== null) row.dataset.calibreComb1 = String(datos.CalibreComb1);
+					if (datos.CalibreComb12 !== undefined && datos.CalibreComb12 !== null) row.dataset.calibreComb12 = String(datos.CalibreComb12);
+					if (datos.FibraComb1 !== undefined && datos.FibraComb1 !== null) row.dataset.fibraComb1 = String(datos.FibraComb1);
+					if (datos.CodColorComb1 !== undefined && datos.CodColorComb1 !== null) row.dataset.codColorComb1 = String(datos.CodColorComb1);
+					if (datos.NombreCC1 !== undefined && datos.NombreCC1 !== null) row.dataset.nombreCC1 = String(datos.NombreCC1);
+					if (datos.CalibreComb2 !== undefined && datos.CalibreComb2 !== null) row.dataset.calibreComb2 = String(datos.CalibreComb2);
+					if (datos.CalibreComb22 !== undefined && datos.CalibreComb22 !== null) row.dataset.calibreComb22 = String(datos.CalibreComb22);
+					if (datos.FibraComb2 !== undefined && datos.FibraComb2 !== null) row.dataset.fibraComb2 = String(datos.FibraComb2);
+					if (datos.CodColorComb2 !== undefined && datos.CodColorComb2 !== null) row.dataset.codColorComb2 = String(datos.CodColorComb2);
+					if (datos.NombreCC2 !== undefined && datos.NombreCC2 !== null) row.dataset.nombreCC2 = String(datos.NombreCC2);
+					if (datos.CalibreComb3 !== undefined && datos.CalibreComb3 !== null) row.dataset.calibreComb3 = String(datos.CalibreComb3);
+					if (datos.CalibreComb32 !== undefined && datos.CalibreComb32 !== null) row.dataset.calibreComb32 = String(datos.CalibreComb32);
+					if (datos.FibraComb3 !== undefined && datos.FibraComb3 !== null) row.dataset.fibraComb3 = String(datos.FibraComb3);
+					if (datos.CodColorComb3 !== undefined && datos.CodColorComb3 !== null) row.dataset.codColorComb3 = String(datos.CodColorComb3);
+					if (datos.NombreCC3 !== undefined && datos.NombreCC3 !== null) row.dataset.nombreCC3 = String(datos.NombreCC3);
+					if (datos.CalibreComb4 !== undefined && datos.CalibreComb4 !== null) row.dataset.calibreComb4 = String(datos.CalibreComb4);
+					if (datos.CalibreComb42 !== undefined && datos.CalibreComb42 !== null) row.dataset.calibreComb42 = String(datos.CalibreComb42);
+					if (datos.FibraComb4 !== undefined && datos.FibraComb4 !== null) row.dataset.fibraComb4 = String(datos.FibraComb4);
+					if (datos.CodColorComb4 !== undefined && datos.CodColorComb4 !== null) row.dataset.codColorComb4 = String(datos.CodColorComb4);
+					if (datos.NombreCC4 !== undefined && datos.NombreCC4 !== null) row.dataset.nombreCC4 = String(datos.NombreCC4);
+					if (datos.CalibreComb5 !== undefined && datos.CalibreComb5 !== null) row.dataset.calibreComb5 = String(datos.CalibreComb5);
+					if (datos.CalibreComb52 !== undefined && datos.CalibreComb52 !== null) row.dataset.calibreComb52 = String(datos.CalibreComb52);
+					if (datos.FibraComb5 !== undefined && datos.FibraComb5 !== null) row.dataset.fibraComb5 = String(datos.FibraComb5);
+					if (datos.CodColorComb5 !== undefined && datos.CodColorComb5 !== null) row.dataset.codColorComb5 = String(datos.CodColorComb5);
+					if (datos.NombreCC5 !== undefined && datos.NombreCC5 !== null) row.dataset.nombreCC5 = String(datos.NombreCC5);
+					if (datos.MedidaPlano !== undefined && datos.MedidaPlano !== null) row.dataset.medidaPlano = String(datos.MedidaPlano);
+					if (datos.CuentaPie !== undefined && datos.CuentaPie !== null) row.dataset.cuentaPie = String(datos.CuentaPie);
+					// CodColorCtaPie no existe en ReqModelosCodificados, se obtendrá de otra fuente si es necesario
+					if (datos.VelocidadSTD !== undefined && datos.VelocidadSTD !== null) row.dataset.velocidadSTD = String(datos.VelocidadSTD);
+					// Guardar InventSizeId e ItemId también
+					if (datos.InventSizeId !== undefined && datos.InventSizeId !== null) {
+						row.dataset.inventSizeId = String(datos.InventSizeId);
+					}
+					if (datos.ItemId !== undefined && datos.ItemId !== null) {
+						row.dataset.itemId = String(datos.ItemId);
+					}
+
+					// Guardar CustName si viene de datos-relacionados (aunque normalmente viene del flog)
+					if (datos.CustName !== undefined && datos.CustName !== null && datos.CustName !== '') {
+						row.dataset.custName = String(datos.CustName);
+						const inputCustnameGlobal = document.getElementById('swal-custname');
+						if (inputCustnameGlobal) {
+							inputCustnameGlobal.value = String(datos.CustName);
+							console.log('[cargarDatosRelacionadosRow] CustName actualizado desde datos-relacionados:', datos.CustName);
+						}
+					}
+
+					// Actualizar también los campos globales (swal-codArticulo y swal-inventsizeid)
+					// Estos campos se usan como fallback cuando se guarda el formulario
+					const inputCodArticuloGlobal = document.getElementById('swal-codArticulo');
+					const inputInventSizeIdGlobal = document.getElementById('swal-inventsizeid');
+
+					if (datos.ItemId !== undefined && datos.ItemId !== null && inputCodArticuloGlobal) {
+						inputCodArticuloGlobal.value = String(datos.ItemId);
+						console.log('[cargarDatosRelacionadosRow] Clave AX (ItemId) actualizado globalmente:', datos.ItemId);
+					}
+
+					if (datos.InventSizeId !== undefined && datos.InventSizeId !== null && inputInventSizeIdGlobal) {
+						inputInventSizeIdGlobal.value = String(datos.InventSizeId);
+						console.log('[cargarDatosRelacionadosRow] Tamaño AX (InventSizeId) actualizado globalmente:', datos.InventSizeId);
+					}
+
+					// Actualizar solo los campos visibles de esta fila
+					const productoInput = row.querySelector('.producto-cell textarea') || row.querySelector('.producto-cell input');
+					if (productoInput) {
+						const nombreProducto = datos.Nombre || datos.NombreProducto || '';
+						if (nombreProducto) {
+							productoInput.value = nombreProducto;
+							console.log('[cargarDatosRelacionadosRow] Producto actualizado:', nombreProducto);
+						}
+					}
+
+					// Cargar flog y descripción si hay ItemId e InventSizeId
+					const itemId = (datos.ItemId || '').toString().trim();
+					const inventSizeId = (datos.InventSizeId || '').toString().trim();
+
+					// LOG DETALLADO: Campos extraídos del modelo codificado
+					console.log('[cargarDatosRelacionadosRow] 📋 CAMPOS EXTRAÍDOS DEL MODELO CODIFICADO:', {
+						tamanoClave,
+						itemId,
+						inventSizeId,
+						// Campos técnicos principales
+						CuentaRizo: data.datos.CuentaRizo,
+						CalibreRizo: data.datos.CalibreRizo,
+						CalibreRizo2: data.datos.CalibreRizo2,
+						FibraRizo: data.datos.FibraRizo,
+						CalibrePie: data.datos.CalibrePie,
+						CalibrePie2: data.datos.CalibrePie2,
+						CalibreTrama: data.datos.CalibreTrama,
+						CalibreTrama2: data.datos.CalibreTrama2,
+						FibraTrama: data.datos.FibraTrama,
+						// Campos técnicos secundarios
+						NoTiras: data.datos.NoTiras,
+						Peine: data.datos.Peine,
+						Luchaje: data.datos.Luchaje,
+						PesoCrudo: data.datos.PesoCrudo,
+						DobladilloId: data.datos.DobladilloId,
+						PasadasTrama: data.datos.PasadasTrama,
+						AnchoToalla: data.datos.AnchoToalla,
+						CodColorTrama: data.datos.CodColorTrama,
+						ColorTrama: data.datos.ColorTrama,
+						MedidaPlano: data.datos.MedidaPlano,
+						CuentaPie: data.datos.CuentaPie,
+						Rasurado: data.datos.Rasurado,
+						// Campos de combinaciones
+						PasadasComb1: data.datos.PasadasComb1,
+						PasadasComb2: data.datos.PasadasComb2,
+						PasadasComb3: data.datos.PasadasComb3,
+						PasadasComb4: data.datos.PasadasComb4,
+						PasadasComb5: data.datos.PasadasComb5,
+						CalibreComb1: data.datos.CalibreComb1,
+						CalibreComb12: data.datos.CalibreComb12,
+						CalibreComb2: data.datos.CalibreComb2,
+						CalibreComb22: data.datos.CalibreComb22,
+						// Y otros campos importantes
+						VelocidadSTD: data.datos.VelocidadSTD,
+						Ancho: data.datos.Ancho,
+						NombreProducto: data.datos.NombreProducto,
+						FlogsId: data.datos.FlogsId,
+						NombreProyecto: data.datos.NombreProyecto
+					});
+
+					if (itemId && inventSizeId) {
+						const paramsFlog = new URLSearchParams();
+						paramsFlog.append('item_id', itemId);
+						paramsFlog.append('invent_size_id', inventSizeId);
+
+						const urlFlog = '/programa-tejido/flog-by-item?' + paramsFlog.toString();
+						console.log('[cargarDatosRelacionadosRow] Haciendo GET a flog-by-item:', urlFlog);
+						console.log('[cargarDatosRelacionadosRow] Parámetros:', {
+							item_id: itemId,
+							invent_size_id: inventSizeId
+						});
+
+						fetch(urlFlog, {
+							headers: { 'Accept': 'application/json' }
+						})
+							.then(rFlog => {
+								if (!rFlog.ok) {
+									console.error('[cargarDatosRelacionadosRow] Error HTTP al cargar flog:', rFlog.status);
+									throw new Error(`HTTP error! status: ${rFlog.status}`);
+								}
+								return rFlog.json();
+							})
+							.then(info => {
+								console.log('[cargarDatosRelacionadosRow] Respuesta flog-by-item completa:', JSON.stringify(info));
+
+								// Intentar obtener el idflog de diferentes posibles propiedades
+								let idflog = info?.idflog || info?.idFlog || info?.flog || info?.FlogId || info?.IDFLOG ||
+												(info?.data && (info.data.idflog || info.data.idFlog || info.data.flog)) ||
+												(info?.response && (info.response.idflog || info.response.idFlog || info.response.flog));
+
+								// Convertir a string y limpiar espacios
+								if (idflog != null) {
+									idflog = String(idflog).trim();
+								}
+
+								// Validar que idflog no sea null, undefined, ni cadena vacía
+								const idflogValido = idflog && idflog !== 'null' && idflog !== '';
+
+								console.log('[cargarDatosRelacionadosRow] idflog extraído:', idflog);
+								console.log('[cargarDatosRelacionadosRow] idflog válido:', idflogValido);
+
+								const flogInput = row.querySelector('.flogs-cell textarea') || row.querySelector('.flogs-cell input');
+								const descripcionTextarea = row.querySelector('.descripcion-cell textarea');
+
+								if (idflogValido) {
+									// Autocompletar flog y descripción desde TI_PRO
+									if (flogInput) {
+										flogInput.value = idflog;
+										console.log('[cargarDatosRelacionadosRow] Flog actualizado en la fila:', idflog);
+									} else {
+										console.warn('[cargarDatosRelacionadosRow] No se encontró el input de flog en la fila');
+									}
+
+									const nombreProyecto = (info?.nombreProyecto || info?.NombreProyecto || info?.nameProyecto ||
+															(info?.data && info.data.nombreProyecto) ||
+															(info?.response && info.response.nombreProyecto) || '').trim();
+									const custName = (info?.custName || info?.CustName || info?.custname ||
+														(info?.data && info.data.custName) ||
+														(info?.response && info.response.custName) || '').trim();
+
+									// Guardar CustName en data attribute y actualizar input global
+									if (custName) {
+										row.dataset.custName = custName;
+										const inputCustnameGlobal = document.getElementById('swal-custname');
+										if (inputCustnameGlobal) {
+											inputCustnameGlobal.value = custName;
+											console.log('[cargarDatosRelacionadosRow] 👤 CUSTNAME GUARDADO Y ACTUALIZADO:', custName);
+										}
+									}
+
+									if (descripcionTextarea) {
+										if (nombreProyecto) {
+											descripcionTextarea.value = `${nombreProyecto} (${idflog})`;
+										} else {
+											descripcionTextarea.value = `(${idflog})`;
+										}
+										console.log('[cargarDatosRelacionadosRow] Descripción actualizada en la fila');
+									} else {
+										console.warn('[cargarDatosRelacionadosRow] No se encontró el textarea de descripción en la fila');
+									}
+
+									// Obtener eficiencia y velocidad si tenemos telar, hilo y calibre trama
+									console.log('[cargarDatosRelacionadosRow] Llamando a cargarEficienciaVelocidadRow y construirMaquinaRow');
+									if (typeof window.cargarEficienciaVelocidadRow === 'function') {
+										window.cargarEficienciaVelocidadRow(row, datos);
+									} else {
+										console.warn('[cargarDatosRelacionadosRow] cargarEficienciaVelocidadRow no está disponible');
+									}
+									// Construir Maquina basándose en salón y telar
+									if (typeof window.construirMaquinaRow === 'function') {
+										window.construirMaquinaRow(row);
+									} else {
+										console.warn('[cargarDatosRelacionadosRow] construirMaquinaRow no está disponible');
+									}
+								} else {
+									// Si no se obtiene, dejar en blanco (el usuario puede escribir libremente)
+									console.warn('[cargarDatosRelacionadosRow] No se recibió idflog válido en la respuesta. Limpiando campos.');
+									if (flogInput) flogInput.value = '';
+									if (descripcionTextarea) descripcionTextarea.value = '';
+									// Aún intentar cargar eficiencia y velocidad si tenemos los datos necesarios
+									console.log('[cargarDatosRelacionadosRow] Llamando a cargarEficienciaVelocidadRow y construirMaquinaRow (sin flog)');
+									if (typeof window.cargarEficienciaVelocidadRow === 'function') {
+										window.cargarEficienciaVelocidadRow(row, datos);
+									}
+									// Construir Maquina basándose en salón y telar
+									if (typeof window.construirMaquinaRow === 'function') {
+										window.construirMaquinaRow(row);
+									}
+								}
+							})
+							.catch((error) => {
+								console.error('[cargarDatosRelacionadosRow] Error al cargar flog:', error);
+							});
+					} else {
+						console.warn('[cargarDatosRelacionadosRow] No hay ItemId o InventSizeId para cargar el flog', {
+							itemId,
+							inventSizeId
+						});
+						// Si no hay ItemId o InventSizeId, limpiar flog y descripción
+						const flogInput = row.querySelector('.flogs-cell textarea') || row.querySelector('.flogs-cell input');
+						const descripcionTextarea = row.querySelector('.descripcion-cell textarea');
+						if (flogInput) flogInput.value = '';
+						if (descripcionTextarea) descripcionTextarea.value = '';
+
+						// Aún intentar cargar eficiencia y velocidad si tenemos los datos necesarios
+						console.log('[cargarDatosRelacionadosRow] Llamando a cargarEficienciaVelocidadRow y construirMaquinaRow (sin ItemId/InventSizeId)');
+						if (typeof window.cargarEficienciaVelocidadRow === 'function') {
+							window.cargarEficienciaVelocidadRow(row, datos);
+						}
+						// Construir Maquina basándose en salón y telar
+						if (typeof window.construirMaquinaRow === 'function') {
+							window.construirMaquinaRow(row);
+						}
+					}
+				} else {
+					console.warn('[cargarDatosRelacionadosRow] No se recibieron datos válidos:', data);
+				}
+
+				// Resumen final de todos los datos guardados en la fila
+				console.log('[cargarDatosRelacionadosRow] Resumen final de datos guardados en la fila:', {
+					cuentaRizo: row.dataset.cuentaRizo,
+					calibreRizo: row.dataset.calibreRizo,
+					calibreRizo2: row.dataset.calibreRizo2,
+					ancho: row.dataset.ancho,
+					fibraRizo: row.dataset.fibraRizo,
+					calibrePie: row.dataset.calibrePie,
+					calibrePie2: row.dataset.calibrePie2,
+					rasurado: row.dataset.rasurado,
+					noTiras: row.dataset.noTiras,
+					peine: row.dataset.peine,
+					luchaje: row.dataset.luchaje,
+					pesoCrudo: row.dataset.pesoCrudo,
+					calibreTrama: row.dataset.calibreTrama,
+					calibreTrama2: row.dataset.calibreTrama2,
+					eficienciaSTD: row.dataset.eficienciaSTD,
+					velocidadSTD: row.dataset.velocidadSTD,
+					maquina: row.dataset.maquina,
+					itemId: row.dataset.itemId,
+					inventSizeId: row.dataset.inventSizeId,
+					custName: row.dataset.custName
+				});
+			})
+			.catch((error) => {
+				console.error('[cargarDatosRelacionadosRow] Error al cargar datos relacionados:', error);
+			});
+	}
+
+	// Función auxiliar para cargar eficiencia y velocidad basándose en telar, hilo y calibre trama
+	window.cargarEficienciaVelocidadRow = function cargarEficienciaVelocidadRow(row, datosModelo) {
+		if (!row || !datosModelo) return;
+
+		// Obtener telar de la fila - puede venir del select o del data attribute
+		const telarSelect = row.querySelector('select[name="telar-destino[]"]');
+		let telar = telarSelect?.value || '';
+
+		// Limpiar el telar: extraer solo el número
+		// Puede venir como "SMIT::320", "SMIT 320", "SMISMIT::320", etc.
+		if (telar) {
+			// Manejar formato "SALON::TELAR" o múltiples "::" (ej: "SMIT::320" o "SMISMIT::320")
+			if (telar.includes('::')) {
+				const parts = telar.split('::');
+				// Tomar la última parte que debería ser el número del telar
+				telar = parts[parts.length - 1] || telar;
+			}
+			// Manejar formato "SALON TELAR" (ej: "SMIT 320")
+			else if (telar.includes(' ')) {
+				const parsed = typeof window.parseTelarValue === 'function' ? window.parseTelarValue(telar) : null;
+				if (parsed && parsed.telar) {
+					telar = parsed.telar;
+				} else {
+					// Extraer solo el número (última parte después del espacio)
+					const parts = telar.trim().split(/\s+/);
+					telar = parts[parts.length - 1] || telar;
+				}
+			}
+		}
+
+		// Limpiar cualquier carácter no numérico al inicio (por si acaso)
+		// Solo conservar números y letras al final si es necesario
+		telar = telar ? String(telar).trim().replace(/^[^0-9]+/, '') : '';
+
+		// Obtener hilo (FibraRizo) del modelo codificado o del data attribute
+		// Priorizar FibraRizo sobre FibraId
+		const fibraRizo = datosModelo.FibraRizo || row.dataset.fibraRizo || datosModelo.FibraId || row.dataset.fibraTrama || '';
+
+		// Obtener calibre trama del modelo codificado o del data attribute
+		const calibreTrama = datosModelo.CalibreTrama || datosModelo.CalibreTrama2 || row.dataset.calibreTrama || row.dataset.calibreTrama2 || '';
+
+		if (!telar || !fibraRizo || !calibreTrama) {
+			console.warn('[cargarEficienciaVelocidadRow] Faltan datos para obtener eficiencia y velocidad', {
+				telar,
+				fibraRizo,
+				calibreTrama,
+				datosModelo: {
+					FibraRizo: datosModelo.FibraRizo,
+					FibraId: datosModelo.FibraId,
+					CalibreTrama: datosModelo.CalibreTrama,
+					CalibreTrama2: datosModelo.CalibreTrama2
+				},
+				rowDataset: {
+					fibraRizo: row.dataset.fibraRizo,
+					fibraTrama: row.dataset.fibraTrama,
+					calibreTrama: row.dataset.calibreTrama,
+					calibreTrama2: row.dataset.calibreTrama2
+				}
+			});
+			return;
+		}
+
+		const params = new URLSearchParams();
+		params.append('no_telar_id', telar);
+		params.append('fibra_id', fibraRizo);
+		params.append('calibre_trama', calibreTrama);
+
+		const url = '/programa-tejido/eficiencia-velocidad-std?' + params.toString();
+		console.log('[cargarEficienciaVelocidadRow] Obteniendo eficiencia y velocidad:', {
+			url,
+			telar,
+			fibraRizo,
+			calibreTrama
+		});
+
+		fetch(url, {
+			headers: { 'Accept': 'application/json' }
+		})
+			.then(r => {
+				if (!r.ok) {
+					console.error('[cargarEficienciaVelocidadRow] Error HTTP:', r.status, r.statusText);
+					throw new Error(`HTTP error! status: ${r.status}`);
+				}
+				return r.json();
+			})
+							.then(result => {
+								console.log('[cargarEficienciaVelocidadRow] 📊 EFICIENCIA Y VELOCIDAD OBTENIDAS:', {
+									eficiencia: result.eficiencia,
+									velocidad: result.velocidad,
+									fibraRizo: fibraRizo,
+									calibreTrama: calibreTrama,
+									telar: telar
+								});
+
+								if (result.eficiencia !== null && result.eficiencia !== undefined) {
+									row.dataset.eficienciaSTD = String(result.eficiencia);
+					console.log('[cargarEficienciaVelocidadRow] Eficiencia guardada:', result.eficiencia);
+				} else {
+					console.warn('[cargarEficienciaVelocidadRow] No se obtuvo eficiencia en la respuesta');
+				}
+				if (result.velocidad !== null && result.velocidad !== undefined) {
+					row.dataset.velocidadSTD = String(result.velocidad);
+					console.log('[cargarEficienciaVelocidadRow] Velocidad guardada:', result.velocidad);
+				} else {
+					console.warn('[cargarEficienciaVelocidadRow] No se obtuvo velocidad en la respuesta');
+				}
+				console.log('[cargarEficienciaVelocidadRow] Eficiencia y velocidad cargadas:', {
+					eficiencia: result.eficiencia,
+					velocidad: result.velocidad,
+					telar,
+					fibraRizo,
+					calibreTrama,
+					densidad: result.densidad,
+					error: result.error
+				});
+			})
+			.catch((error) => {
+				console.error('[cargarEficienciaVelocidadRow] Error al cargar eficiencia y velocidad:', error);
+			});
+	}
+
+	// Función auxiliar para construir Maquina basándose en salón y telar
+	window.construirMaquinaRow = function construirMaquinaRow(row) {
+		if (!row) return '';
+
+		const selectSalon = document.getElementById('swal-salon');
+		let salon = selectSalon?.value || '';
+		const telarSelect = row.querySelector('select[name="telar-destino[]"]');
+		let telar = telarSelect?.value || '';
+
+		// Si el telar viene con formato "SALON TELAR", extraer salón y telar
+		if (telar && telar.includes(' ') && typeof window.parseTelarValue === 'function') {
+			const parsed = window.parseTelarValue(telar);
+			if (parsed.salon) salon = parsed.salon;
+			if (parsed.telar) telar = parsed.telar;
+		}
+
+		// Si aún no tenemos salón, intentar obtenerlo del hidden input de la fila
+		if (!salon) {
+			const salonInputFila = row.querySelector('input[name="salon-destino[]"]');
+			salon = salonInputFila?.value || '';
+		}
+
+		if (!salon || !telar) return '';
+
+		// Extraer solo el número del telar si viene con formato "SALON TELAR"
+		const telarNumero = telar.split(' ').pop() || telar;
+
+		// Determinar prefijo basándose en el salón
+		let prefijo = '';
+		const salonUpper = salon.toUpperCase();
+		if (salonUpper.includes('SMIT') || salonUpper.includes('SMI')) {
+			prefijo = 'SMI';
+		} else if (salonUpper.includes('JAC')) {
+			prefijo = 'JAC';
+		} else {
+			prefijo = salonUpper.substring(0, 3);
+		}
+
+		const maquina = `${prefijo}${telarNumero}`;
+		row.dataset.maquina = maquina;
+		console.log('[construirMaquinaRow] Maquina construida:', maquina, { salon, telar, telarNumero, prefijo });
+		return maquina;
+	}
+
+	// Función auxiliar para cargar descripción por flog solo para una fila específica
+	window.cargarDescripcionPorFlogRow = async function cargarDescripcionPorFlogRow(row, flog) {
+		if (!flog || flog.trim() === '' || !row) return;
+
+		try {
+			const response = await fetch(`/programa-tejido/descripcion-by-idflog/${encodeURIComponent(flog)}`, {
+				headers: {
+					'Accept': 'application/json',
+					'X-CSRF-TOKEN': getCsrfToken()
+				}
+			});
+
+			const data = await response.json();
+			const descripcionTextarea = row.querySelector('.descripcion-cell textarea');
+			if (descripcionTextarea && flog) {
+				let descripcionCompleta = '';
+				if (data.nombreProyecto) {
+					descripcionCompleta = `${data.nombreProyecto} (${flog})`;
+				} else {
+					descripcionCompleta = `(${flog})`;
+				}
+				descripcionTextarea.value = descripcionCompleta;
+			}
+		} catch (error) {
+			console.error('[cargarDescripcionPorFlogRow] Error:', error);
+		}
+	}
+
 	// Validación de clave modelo
 	const alertaClaveModelo = document.getElementById('alerta-clave-modelo');
 	const alertaClaveModeloTexto = document.getElementById('alerta-clave-modelo-texto');
@@ -1712,7 +2622,13 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		const existeEnSalon = await existeClaveEnSalon(salon, claveModelo);
 		if (existeEnSalon) {
 			ocultarAlertaClaveModelo();
-			cargarDatosRelacionados(claveModelo);
+			// Cargar datos relacionados solo para la fila principal
+			const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+			if (filaPrincipal && typeof cargarDatosRelacionadosRow === 'function') {
+				cargarDatosRelacionadosRow(filaPrincipal, claveModelo);
+			} else {
+				cargarDatosRelacionados(claveModelo);
+			}
 			return;
 		}
 
@@ -1847,23 +2763,14 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 				optionNA.textContent = 'NA';
 				selectAplicacion.appendChild(optionNA);
 			}
+			// Solo seleccionar la aplicación original si existe y está disponible
 			if (aplicacionOriginal && !selectAplicacion.value) {
 				const optOriginal = Array.from(selectAplicacion.options).find(o => o.value === aplicacionOriginal);
 				if (optOriginal) {
 					optOriginal.selected = true;
 				}
 			}
-			if (!selectAplicacion.value) {
-				const optNa = Array.from(selectAplicacion.options).find(o => o.value === 'NA');
-				if (optNa) {
-					optNa.selected = true;
-				} else {
-					const firstOption = Array.from(selectAplicacion.options).find(o => o.value);
-					if (firstOption) {
-						firstOption.selected = true;
-					}
-				}
-			}
+			// NO forzar selección automática de "NA" u otra opción
 		}
 
 		// Estado inicial - Determinar modo basado en si tiene registros divididos
@@ -2235,168 +3142,39 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 	}
 
 	// Función para actualizar las columnas de información en todas las filas
+	// NOTA: Esta función ya no se usa porque cada fila es independiente
 	function actualizarColumnasInformacion() {
-		const claveModelo = document.getElementById('swal-claveModelo')?.value || '';
-		const producto = document.getElementById('swal-producto')?.value || '';
-		const flog = document.getElementById('swal-flog')?.value || '';
-		const descripcion = document.getElementById('swal-descripcion')?.value || '';
-
-		// Actualizar todas las filas de la tabla
-		const filas = document.querySelectorAll('#telar-pedido-body tr.telar-row');
-		filas.forEach(fila => {
-			const claveModeloInput = fila.querySelector('.clave-modelo-cell input');
-			const productoInput = fila.querySelector('.producto-cell textarea') || fila.querySelector('.producto-cell input');
-			const flogsInput = fila.querySelector('.flogs-cell textarea') || fila.querySelector('.flogs-cell input');
-			const descripcionInput = fila.querySelector('.descripcion-cell textarea') || fila.querySelector('.descripcion-cell input');
-
-			if (claveModeloInput) claveModeloInput.value = claveModelo;
-			if (productoInput) productoInput.value = producto;
-			if (flogsInput) flogsInput.value = flog;
-			if (descripcionInput) descripcionInput.value = descripcion;
-		});
+		// Esta función se mantiene por compatibilidad pero ya no hace nada
+		// Cada fila ahora maneja sus propios valores independientemente
 	}
 
-	// ⚡ FIX: Función para sincronizar descripción desde la tabla hacia el input oculto
+	// NOTA: Ya no sincronizamos descripción desde la tabla hacia el input oculto
+	// Cada fila es independiente y maneja sus propios valores
 	function bindDescripcionEditableInput() {
-		const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
-		const descripcionTextarea = filaPrincipal ? filaPrincipal.querySelector('.descripcion-cell textarea') : null;
-		const inputDescripcion = document.getElementById('swal-descripcion');
-
-		if (!descripcionTextarea || !inputDescripcion) return;
-
-		// Evitar múltiples bindings
-		if (descripcionTextarea.dataset.ptDescripcionBound === '1') return;
-		descripcionTextarea.dataset.ptDescripcionBound = '1';
-
-		// Sincronizar desde el textarea visible hacia el input oculto y actualizar todas las filas
-		descripcionTextarea.addEventListener('input', (e) => {
-			if (inputDescripcion) {
-				inputDescripcion.value = e.target.value;
-				inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
-				// Actualizar todas las filas con la nueva descripción
-				if (typeof actualizarColumnasInformacion === 'function') {
-					actualizarColumnasInformacion();
-				}
-			}
-		});
-
-		descripcionTextarea.addEventListener('change', (e) => {
-			if (inputDescripcion) {
-				inputDescripcion.value = e.target.value;
-				inputDescripcion.dispatchEvent(new Event('change', { bubbles: true }));
-				// Actualizar todas las filas con la nueva descripción
-				if (typeof actualizarColumnasInformacion === 'function') {
-					actualizarColumnasInformacion();
-				}
-			}
-		});
+		// Esta función se mantiene por compatibilidad pero ya no hace nada
+		// Cada fila ahora maneja su propia descripción de forma independiente
 	}
 
 	function bindClaveModeloEditableInput() {
-		const claveModeloInput = document.querySelector('#telar-pedido-body tr#fila-principal .clave-modelo-cell input');
-		if (!claveModeloInput || !inputClaveModelo) return;
-		if (getModoActual() !== 'duplicar') return;
-		if (claveModeloInput.dataset.ptClaveBound === '1') return;
-		claveModeloInput.dataset.ptClaveBound = '1';
-
-		const syncClave = () => {
-			inputClaveModelo.value = claveModeloInput.value;
-			inputClaveModelo.dispatchEvent(new Event('input', { bubbles: true }));
-		};
-
-		claveModeloInput.addEventListener('input', syncClave);
-		claveModeloInput.addEventListener('change', syncClave);
-		claveModeloInput.addEventListener('blur', () => {
-			const val = claveModeloInput.value?.trim();
-			if (val) cargarDatosRelacionados(val);
-		});
-		claveModeloInput.addEventListener('keydown', (e) => {
-			if (e.key === 'Enter') {
-				e.preventDefault();
-				const val = claveModeloInput.value?.trim();
-				if (val) cargarDatosRelacionados(val);
-			}
-		});
+		// Configurar autocompletadores independientes para la fila principal
+		const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+		if (filaPrincipal && getModoActual() === 'duplicar') {
+			setupRowAutocompletadores(filaPrincipal);
+		}
 	}
 
 	function bindFlogEditableInput() {
-		const flogInput = document.querySelector('#telar-pedido-body tr#fila-principal .flogs-cell textarea') || document.querySelector('#telar-pedido-body tr#fila-principal .flogs-cell input');
-		if (!flogInput || !inputFlog) return;
-		if (getModoActual() !== 'duplicar') return;
-		if (flogInput.dataset.ptFlogBound === '1') return;
-		flogInput.dataset.ptFlogBound = '1';
-
-		const syncFlog = () => {
-			inputFlog.value = flogInput.value;
-			// Disparar el evento input en inputFlog para activar el autocompletado
-			inputFlog.dispatchEvent(new Event('input', { bubbles: true }));
-		};
-
-		// ⚡ FIX: Agregar event listener para mostrar sugerencias cuando se escribe en el textarea visible
-		flogInput.addEventListener('input', (e) => {
-			syncFlog();
-			// Mostrar sugerencias cuando se escribe
-			const valor = e.target.value.trim();
-			if (valor.length >= 1) {
-				clearTimeout(debounceTimerFlog);
-				debounceTimerFlog = setTimeout(() => {
-					cargarOpcionesFlog(valor);
-				}, 100);
-			} else {
-				if (containerSugerenciasFlog) containerSugerenciasFlog.classList.add('hidden');
-			}
-		});
-
-		flogInput.addEventListener('change', syncFlog);
-
-		flogInput.addEventListener('focus', async () => {
-			// Mostrar todas las sugerencias cuando se enfoca el textarea
-			if (flogInput.value && flogInput.value.trim().length >= 1) {
-				await cargarOpcionesFlog(flogInput.value.trim());
-			} else {
-				await cargarOpcionesFlog('');
-			}
-		});
-
-		flogInput.addEventListener('blur', (e) => {
-			// ⚡ FIX: Verificar si el click fue en el contenedor de sugerencias antes de ocultar
-			setTimeout(() => {
-				// Solo ocultar si el nuevo elemento activo no está dentro del contenedor de sugerencias
-				const activeElement = document.activeElement;
-				if (containerSugerenciasFlog && !containerSugerenciasFlog.contains(activeElement)) {
-					containerSugerenciasFlog.classList.add('hidden');
-					containerSugerenciasFlog.style.display = 'none';
-				}
-			}, 200);
-			const val = flogInput.value?.trim();
-			if (val) cargarDescripcionPorFlog(val);
-		});
-
-		flogInput.addEventListener('keydown', (e) => {
-			if (e.key === 'Enter') {
-				e.preventDefault();
-				if (containerSugerenciasFlog) containerSugerenciasFlog.classList.add('hidden');
-				const val = flogInput.value?.trim();
-				if (val) cargarDescripcionPorFlog(val);
-			}
-		});
+		// Configurar autocompletadores independientes para la fila principal
+		// La función setupRowAutocompletadores ya maneja el autocompletado de Flog
+		const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+		if (filaPrincipal && getModoActual() === 'duplicar') {
+			setupRowAutocompletadores(filaPrincipal);
+		}
 	}
 
-	// Event listeners para actualizar columnas cuando cambian los campos del formulario
-	if (inputClaveModelo) {
-		inputClaveModelo.addEventListener('input', actualizarColumnasInformacion);
-		inputClaveModelo.addEventListener('change', actualizarColumnasInformacion);
-	}
-	if (inputProducto) {
-		inputProducto.addEventListener('input', actualizarColumnasInformacion);
-	}
-	if (inputFlog) {
-		inputFlog.addEventListener('input', actualizarColumnasInformacion);
-		inputFlog.addEventListener('change', actualizarColumnasInformacion);
-	}
-	if (inputDescripcion) {
-		inputDescripcion.addEventListener('input', actualizarColumnasInformacion);
-	}
+	// NOTA: Ya no sincronizamos desde los inputs globales a las filas
+	// Cada fila es independiente y maneja sus propios valores
+	// Los listeners globales se eliminaron para permitir que cada fila funcione de forma independiente
 
 	// Event listener para el checkbox de vincular
 	const checkboxVincular = document.getElementById('checkbox-vincular');
@@ -2455,6 +3233,16 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 				return;
 			}
 		}, true); // Usar capture para capturar antes que otros listeners
+
+		// Event listener para cambios en selects de aplicación
+		document.addEventListener('change', (event) => {
+			if (event.target.matches('select[name="aplicacion-destino[]"]')) {
+				const fila = event.target.closest('tr');
+				if (fila) {
+					fila.dataset.aplicacionSeleccionada = event.target.value;
+				}
+			}
+		});
 	}
 }
 
@@ -2508,19 +3296,150 @@ function validarYCapturarDatosDuplicar() {
 		const observacionesVal = observacionesInputs[idx]?.value.trim() || null;
 		const porcentajeSegundosVal = porcentajeSegundosInputs[idx]?.value.trim() || null;
 		const saldoVal = saldoInputs[idx]?.value.trim() || '';
-		const aplicacionVal = aplicacionInputs[idx]?.value.trim() || null;
+		// Obtener aplicación de la fila actual directamente
+		const aplicacionSelect = fila?.querySelector('select[name="aplicacion-destino[]"]');
+		const aplicacionValRaw = aplicacionSelect?.value?.trim() || '';
+		const aplicacionVal = aplicacionValRaw !== '' ? aplicacionValRaw : null;
 		const registroId = input.dataset?.registroId || pedidoInputs[idx]?.dataset?.registroId || '';
 		const esExistente = fila?.dataset?.esExistente === 'true';
 		const esNuevo = fila?.dataset?.esNuevo === 'true';
 
+		// Obtener los valores específicos de cada fila para Clave Modelo, Producto, Flog y Descripción
+		const claveModeloInput = fila?.querySelector('.clave-modelo-cell input');
+		const productoTextarea = fila?.querySelector('.producto-cell textarea') || fila?.querySelector('.producto-cell input');
+		const flogTextarea = fila?.querySelector('.flogs-cell textarea') || fila?.querySelector('.flogs-cell input');
+		const descripcionTextarea = fila?.querySelector('.descripcion-cell textarea');
+
+		// Leer valores actuales de los inputs (sin fallback a global)
+		const claveModeloFila = (claveModeloInput?.value || '').trim();
+		const productoFila = (productoTextarea?.value || '').trim();
+		const flogFila = (flogTextarea?.value || '').trim();
+		const descripcionFila = (descripcionTextarea?.value || '').trim();
+		const aplicacionFila = (aplicacionInputs[idx]?.value || '').trim();
+
+		// Leer todos los campos guardados en data attributes de la fila
+		// IMPORTANTE: Los valores vacíos ('') se convierten a undefined para que el backend sepa que no hay valor
+		// LOG: Datos que se van a enviar al backend para guardar
+		// Guardar valores actuales en data attributes de la fila para persistencia
+		if (fila) {
+			fila.dataset.claveModelo = claveModeloFila;
+			fila.dataset.producto = productoFila;
+			fila.dataset.flog = flogFila;
+			fila.dataset.descripcion = descripcionFila;
+			fila.dataset.aplicacion = aplicacionFila;
+		}
+
+		// IMPORTANTE: Solo enviar campos DEL MODELO, NO campos del usuario como FibraRizo o Aplicacion
+		// FibraRizo viene del input de hilo del modal, AplicacionId viene del select
+		const datosFila = {
+			cuentaRizo: fila?.dataset.cuentaRizo && fila.dataset.cuentaRizo !== '' ? fila.dataset.cuentaRizo : undefined,
+			calibreRizo: fila?.dataset.calibreRizo && fila.dataset.calibreRizo !== '' ? fila.dataset.calibreRizo : undefined,
+			calibreRizo2: fila?.dataset.calibreRizo2 && fila.dataset.calibreRizo2 !== '' ? fila.dataset.calibreRizo2 : undefined,
+			ancho: fila?.dataset.ancho && fila.dataset.ancho !== '' ? fila.dataset.ancho : undefined,
+			// fibraRizo NO se incluye aquí - viene del input de hilo del modal
+			calibrePie: fila?.dataset.calibrePie && fila.dataset.calibrePie !== '' ? fila.dataset.calibrePie : undefined,
+			calibrePie2: fila?.dataset.calibrePie2 && fila.dataset.calibrePie2 !== '' ? fila.dataset.calibrePie2 : undefined,
+			rasurado: fila?.dataset.rasurado && fila.dataset.rasurado !== '' ? fila.dataset.rasurado : undefined,
+			noTiras: fila?.dataset.noTiras && fila.dataset.noTiras !== '' ? fila.dataset.noTiras : undefined,
+			peine: fila?.dataset.peine && fila.dataset.peine !== '' ? fila.dataset.peine : undefined,
+			luchaje: fila?.dataset.luchaje && fila.dataset.luchaje !== '' ? fila.dataset.luchaje : undefined,
+			pesoCrudo: fila?.dataset.pesoCrudo && fila.dataset.pesoCrudo !== '' ? fila.dataset.pesoCrudo : undefined,
+			calibreTrama: fila?.dataset.calibreTrama && fila.dataset.calibreTrama !== '' ? fila.dataset.calibreTrama : undefined,
+			calibreTrama2: fila?.dataset.calibreTrama2 && fila.dataset.calibreTrama2 !== '' ? fila.dataset.calibreTrama2 : undefined,
+			fibraTrama: fila?.dataset.fibraTrama && fila.dataset.fibraTrama !== '' ? fila.dataset.fibraTrama : undefined,
+			dobladilloId: fila?.dataset.dobladilloId && fila.dataset.dobladilloId !== '' ? fila.dataset.dobladilloId : undefined,
+			pasadasTrama: fila?.dataset.pasadasTrama && fila.dataset.pasadasTrama !== '' ? fila.dataset.pasadasTrama : undefined,
+			pasadasComb1: fila?.dataset.pasadasComb1 && fila.dataset.pasadasComb1 !== '' ? fila.dataset.pasadasComb1 : undefined,
+			pasadasComb2: fila?.dataset.pasadasComb2 && fila.dataset.pasadasComb2 !== '' ? fila.dataset.pasadasComb2 : undefined,
+			pasadasComb3: fila?.dataset.pasadasComb3 && fila.dataset.pasadasComb3 !== '' ? fila.dataset.pasadasComb3 : undefined,
+			pasadasComb4: fila?.dataset.pasadasComb4 && fila.dataset.pasadasComb4 !== '' ? fila.dataset.pasadasComb4 : undefined,
+			pasadasComb5: fila?.dataset.pasadasComb5 && fila.dataset.pasadasComb5 !== '' ? fila.dataset.pasadasComb5 : undefined,
+			anchoToalla: fila?.dataset.anchoToalla && fila.dataset.anchoToalla !== '' ? fila.dataset.anchoToalla : undefined,
+			codColorTrama: fila?.dataset.codColorTrama && fila.dataset.codColorTrama !== '' ? fila.dataset.codColorTrama : undefined,
+			colorTrama: fila?.dataset.colorTrama && fila.dataset.colorTrama !== '' ? fila.dataset.colorTrama : undefined,
+			calibreComb1: fila?.dataset.calibreComb1 && fila.dataset.calibreComb1 !== '' ? fila.dataset.calibreComb1 : undefined,
+			calibreComb12: fila?.dataset.calibreComb12 && fila.dataset.calibreComb12 !== '' ? fila.dataset.calibreComb12 : undefined,
+			fibraComb1: fila?.dataset.fibraComb1 && fila.dataset.fibraComb1 !== '' ? fila.dataset.fibraComb1 : undefined,
+			codColorComb1: fila?.dataset.codColorComb1 && fila.dataset.codColorComb1 !== '' ? fila.dataset.codColorComb1 : undefined,
+			nombreCC1: fila?.dataset.nombreCC1 && fila.dataset.nombreCC1 !== '' ? fila.dataset.nombreCC1 : undefined,
+			calibreComb2: fila?.dataset.calibreComb2 && fila.dataset.calibreComb2 !== '' ? fila.dataset.calibreComb2 : undefined,
+			calibreComb22: fila?.dataset.calibreComb22 && fila.dataset.calibreComb22 !== '' ? fila.dataset.calibreComb22 : undefined,
+			fibraComb2: fila?.dataset.fibraComb2 && fila.dataset.fibraComb2 !== '' ? fila.dataset.fibraComb2 : undefined,
+			codColorComb2: fila?.dataset.codColorComb2 && fila.dataset.codColorComb2 !== '' ? fila.dataset.codColorComb2 : undefined,
+			nombreCC2: fila?.dataset.nombreCC2 && fila.dataset.nombreCC2 !== '' ? fila.dataset.nombreCC2 : undefined,
+			calibreComb3: fila?.dataset.calibreComb3 && fila.dataset.calibreComb3 !== '' ? fila.dataset.calibreComb3 : undefined,
+			calibreComb32: fila?.dataset.calibreComb32 && fila.dataset.calibreComb32 !== '' ? fila.dataset.calibreComb32 : undefined,
+			fibraComb3: fila?.dataset.fibraComb3 && fila.dataset.fibraComb3 !== '' ? fila.dataset.fibraComb3 : undefined,
+			codColorComb3: fila?.dataset.codColorComb3 && fila.dataset.codColorComb3 !== '' ? fila.dataset.codColorComb3 : undefined,
+			nombreCC3: fila?.dataset.nombreCC3 && fila.dataset.nombreCC3 !== '' ? fila.dataset.nombreCC3 : undefined,
+			calibreComb4: fila?.dataset.calibreComb4 && fila.dataset.calibreComb4 !== '' ? fila.dataset.calibreComb4 : undefined,
+			calibreComb42: fila?.dataset.calibreComb42 && fila.dataset.calibreComb42 !== '' ? fila.dataset.calibreComb42 : undefined,
+			fibraComb4: fila?.dataset.fibraComb4 && fila.dataset.fibraComb4 !== '' ? fila.dataset.fibraComb4 : undefined,
+			codColorComb4: fila?.dataset.codColorComb4 && fila.dataset.codColorComb4 !== '' ? fila.dataset.codColorComb4 : undefined,
+			nombreCC4: fila?.dataset.nombreCC4 && fila.dataset.nombreCC4 !== '' ? fila.dataset.nombreCC4 : undefined,
+			calibreComb5: fila?.dataset.calibreComb5 && fila.dataset.calibreComb5 !== '' ? fila.dataset.calibreComb5 : undefined,
+			calibreComb52: fila?.dataset.calibreComb52 && fila.dataset.calibreComb52 !== '' ? fila.dataset.calibreComb52 : undefined,
+			fibraComb5: fila?.dataset.fibraComb5 && fila.dataset.fibraComb5 !== '' ? fila.dataset.fibraComb5 : undefined,
+			codColorComb5: fila?.dataset.codColorComb5 && fila.dataset.codColorComb5 !== '' ? fila.dataset.codColorComb5 : undefined,
+			nombreCC5: fila?.dataset.nombreCC5 && fila.dataset.nombreCC5 !== '' ? fila.dataset.nombreCC5 : undefined,
+			medidaPlano: fila?.dataset.medidaPlano && fila.dataset.medidaPlano !== '' ? fila.dataset.medidaPlano : undefined,
+			cuentaPie: fila?.dataset.cuentaPie && fila.dataset.cuentaPie !== '' ? fila.dataset.cuentaPie : undefined,
+			codColorCtaPie: fila?.dataset.codColorCtaPie && fila.dataset.codColorCtaPie !== '' ? fila.dataset.codColorCtaPie : undefined,
+			eficienciaSTD: fila?.dataset.eficienciaSTD && fila.dataset.eficienciaSTD !== '' ? fila.dataset.eficienciaSTD : undefined,
+			velocidadSTD: fila?.dataset.velocidadSTD && fila.dataset.velocidadSTD !== '' ? fila.dataset.velocidadSTD : undefined,
+			maquina: fila?.dataset.maquina && fila.dataset.maquina !== '' ? fila.dataset.maquina : undefined,
+			custName: fila?.dataset.custName && fila.dataset.custName !== '' ? fila.dataset.custName : undefined
+		};
+
 		if (telarVal || pedidoVal || saldoVal) {
+			// LOG: Datos que se van a enviar al backend para esta fila
+			console.log('[validarYCapturarDatosDuplicar] 📤 DATOS ENVIADOS AL BACKEND PARA FILA:', {
+				telar: telarVal,
+				salon: salonVal,
+				pedidoTempo: pedidoTempoVal,
+				pedido: pedidoVal,
+				saldo: saldoVal,
+				aplicacion: aplicacionVal,
+				camposTecnicos: {
+					cuentaRizo: datosFila.cuentaRizo,
+					calibreRizo: datosFila.calibreRizo,
+					fibraRizo: datosFila.fibraRizo,
+					noTiras: datosFila.noTiras,
+					peine: datosFila.peine,
+					luchaje: datosFila.luchaje,
+					pesoCrudo: datosFila.pesoCrudo,
+					tipoPedido: 'Se determinará en backend'
+				},
+				datosFilaCompletos: datosFila,
+				totalCamposEnDatosFila: Object.keys(datosFila).length
+			});
+
 			// En modo duplicar/vincular:
 			// - pedido (TotalPedido) = valor del pedido tempo (sin % de segundas)
 			// - saldo (SaldoPedido) = valor calculado con % de segundas
 			const pedidoFinal = esDuplicar ? (pedidoTempoVal || pedidoVal) : pedidoVal;
 			const saldoFinal = esDuplicar ? (saldoVal || pedidoTempoVal || pedidoVal) : pedidoVal;
 
-			destinos.push({
+			// Construir Maquina si no está ya guardado
+			if (!datosFila.maquina && salonVal && telarVal) {
+				const telarNumero = telarVal.split(' ').pop() || telarVal;
+				let prefijo = '';
+				const salonUpper = salonVal.toUpperCase();
+				if (salonUpper.includes('SMIT') || salonUpper.includes('SMI')) {
+					prefijo = 'SMI';
+				} else if (salonUpper.includes('JAC')) {
+					prefijo = 'JAC';
+				} else {
+					prefijo = salonUpper.substring(0, 3);
+				}
+				datosFila.maquina = `${prefijo}${telarNumero}`;
+			}
+
+			// Obtener CustName de la fila si está disponible
+			const custNameFila = fila?.dataset.custName || '';
+
+			// IMPORTANTE: Crear objeto destino completo con TODOS los campos técnicos
+			const destinoObj = {
 				salon_destino: salonVal,
 				telar: telarVal,
 				pedido_tempo: pedidoTempoVal,
@@ -2529,10 +3448,27 @@ function validarYCapturarDatosDuplicar() {
 				observaciones: observacionesVal,
 				porcentaje_segundos: porcentajeSegundosVal ? parseFloat(porcentajeSegundosVal) : null,
 				aplicacion: aplicacionVal,
+				// Usar valores de la fila si existen, sino usar valores globales
+				tamano_clave: claveModeloFila || claveModelo,
+				producto: productoFila || producto,
+				flog: flogFila || flog,
+				descripcion: descripcionFila || descripcion,
+				custName: custNameFila || custname || '',
 				registro_id: registroId,
 				es_existente: esExistente,
-				es_nuevo: esNuevo
-			});
+				es_nuevo: esNuevo,
+				itemId: fila?.dataset.itemId || codArticulo || '',
+				inventSizeId: fila?.dataset.inventSizeId || inventSizeId || ''
+			};
+
+			// Agregar TODOS los campos técnicos del modelo usando Object.assign
+			// PERO preservar el campo aplicacion que ya está asignado
+			const aplicacionTemp = destinoObj.aplicacion;
+			Object.assign(destinoObj, datosFila);
+			// Asegurar que aplicacion siempre esté presente (incluso si es null)
+			destinoObj.aplicacion = aplicacionTemp !== undefined ? aplicacionTemp : null;
+
+			destinos.push(destinoObj);
 		}
 	});
 
