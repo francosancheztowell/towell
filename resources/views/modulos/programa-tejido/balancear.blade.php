@@ -756,6 +756,106 @@
       };
 
       // ==========================
+      // Actualizar registros en tabla principal sin recargar
+      // ==========================
+      async function actualizarRegistrosBalanceo(registrosIds) {
+        const tb = document.querySelector('#mainTable tbody');
+        if (!tb) return;
+
+        // Obtener columnas para formatear valores
+        const columns = (typeof columnsData !== 'undefined' && columnsData && columnsData.length > 0)
+          ? columnsData
+          : (window.columns || Array.from(document.querySelectorAll('#mainTable thead th[data-column]')).map(th => ({
+            field: th.getAttribute('data-column'),
+            label: th.textContent.trim(),
+            dateType: null
+          })));
+
+        if (!columns || columns.length === 0) return;
+
+        // Función para obtener el tipo de fecha de una columna
+        const getDateType = (field) => {
+          const col = columns.find(c => c.field === field);
+          return col?.dateType || null;
+        };
+
+        // Función para formatear valor (usar la función global si existe, sino básica)
+        const formatearValor = (registro, field, value) => {
+          if (typeof formatearValorCelda === 'function') {
+            return formatearValorCelda(registro, field, value, getDateType(field));
+          }
+          // Fallback básico
+          if (value === null || value === undefined || value === '') return '';
+          if (getDateType(field) === 'date' || getDateType(field) === 'datetime') {
+            try {
+              const dt = new Date(value);
+              if (dt.getFullYear() <= 1970) return '';
+              return getDateType(field) === 'date'
+                ? dt.toLocaleDateString('es-MX')
+                : dt.toLocaleString('es-MX');
+            } catch (e) {
+              return String(value);
+            }
+          }
+          if (!isNaN(value) && !Number.isInteger(parseFloat(value))) {
+            return parseFloat(value).toFixed(2);
+          }
+          return String(value);
+        };
+
+        // Actualizar cada registro
+        for (const registroId of registrosIds) {
+          try {
+            // Obtener datos actualizados del registro
+            const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
+              headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Cache-Control': 'no-cache'
+              }
+            });
+
+            if (!response.ok) continue;
+
+            const result = await response.json();
+            if (!result.success || !result.registro) continue;
+
+            const registro = result.registro;
+
+            // Buscar la fila existente
+            const fila = tb.querySelector(`tr.selectable-row[data-id="${registroId}"]`);
+            if (!fila) continue;
+
+            // Actualizar data attribute de OrdCompartida si existe
+            if (registro.OrdCompartida) {
+              fila.setAttribute('data-ord-compartida', registro.OrdCompartida);
+            }
+
+            // Actualizar celdas relevantes
+            columns.forEach(col => {
+              const field = col.field;
+              const value = registro[field] !== undefined ? registro[field] : null;
+              const celda = fila.querySelector(`td[data-column="${field}"]`);
+
+              if (celda) {
+                // Actualizar data-value
+                celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
+
+                // Actualizar contenido HTML formateado
+                const contenidoHTML = formatearValor(registro, field, value);
+                celda.innerHTML = contenidoHTML;
+              }
+            });
+
+            // Pequeño delay para no saturar
+            await new Promise(resolve => setTimeout(resolve, 50));
+          } catch (error) {
+            console.warn(`Error al actualizar registro ${registroId}:`, error);
+          }
+        }
+      }
+
+      // ==========================
       // Guardar cambios
       // ==========================
       async function guardarCambiosPedido(ordCompartida) {
@@ -810,7 +910,11 @@
               showConfirmButton: false
             });
 
-            setTimeout(() => window.location.reload(), 600);
+            // Actualizar registros en la tabla principal sin recargar
+            if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
+              actualizarRegistrosBalanceo(data.registros_ids);
+            }
+
             return true;
           }
 

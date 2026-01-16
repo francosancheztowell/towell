@@ -2098,6 +2098,104 @@
       }
     };
 
+    // Función para actualizar registros vinculados sin recargar
+    async function actualizarRegistrosVinculados(registrosIds, ordCompartida) {
+      const tb = document.querySelector('#mainTable tbody');
+      if (!tb) return;
+
+      // Obtener columnas para formatear valores
+      const columns = (typeof columnsData !== 'undefined' && columnsData && columnsData.length > 0)
+        ? columnsData
+        : (window.columns || Array.from(document.querySelectorAll('#mainTable thead th[data-column]')).map(th => ({
+          field: th.getAttribute('data-column'),
+          label: th.textContent.trim(),
+          dateType: null
+        })));
+
+      if (!columns || columns.length === 0) return;
+
+      // Función para obtener el tipo de fecha de una columna
+      const getDateType = (field) => {
+        const col = columns.find(c => c.field === field);
+        return col?.dateType || null;
+      };
+
+      // Función para formatear valor (usar la función global si existe, sino básica)
+      const formatearValor = (registro, field, value) => {
+        if (typeof formatearValorCelda === 'function') {
+          return formatearValorCelda(registro, field, value, getDateType(field));
+        }
+        // Fallback básico
+        if (value === null || value === undefined || value === '') return '';
+        if (getDateType(field) === 'date' || getDateType(field) === 'datetime') {
+          try {
+            const dt = new Date(value);
+            if (dt.getFullYear() <= 1970) return '';
+            return getDateType(field) === 'date'
+              ? dt.toLocaleDateString('es-MX')
+              : dt.toLocaleString('es-MX');
+          } catch (e) {
+            return String(value);
+          }
+        }
+        if (!isNaN(value) && !Number.isInteger(parseFloat(value))) {
+          return parseFloat(value).toFixed(2);
+        }
+        return String(value);
+      };
+
+      // Actualizar cada registro
+      for (const registroId of registrosIds) {
+        try {
+          // Obtener datos actualizados del registro
+          const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
+            headers: {
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content,
+              'Cache-Control': 'no-cache'
+            }
+          });
+
+          if (!response.ok) continue;
+
+          const result = await response.json();
+          if (!result.success || !result.registro) continue;
+
+          const registro = result.registro;
+
+          // Buscar la fila existente
+          const fila = tb.querySelector(`tr.selectable-row[data-id="${registroId}"]`);
+          if (!fila) continue;
+
+          // Actualizar data attribute de OrdCompartida
+          if (registro.OrdCompartida) {
+            fila.setAttribute('data-ord-compartida', registro.OrdCompartida);
+          }
+
+          // Actualizar celdas relevantes
+          columns.forEach(col => {
+            const field = col.field;
+            const value = registro[field] !== undefined ? registro[field] : null;
+            const celda = fila.querySelector(`td[data-column="${field}"]`);
+
+            if (celda) {
+              // Actualizar data-value
+              celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
+
+              // Actualizar contenido HTML formateado
+              const contenidoHTML = formatearValor(registro, field, value);
+              celda.innerHTML = contenidoHTML;
+            }
+          });
+
+          // Pequeño delay para no saturar
+          await new Promise(resolve => setTimeout(resolve, 50));
+        } catch (error) {
+          console.warn(`Error al actualizar registro ${registroId}:`, error);
+        }
+      }
+    }
+
     function doVincular(registrosIds) {
       PT.loader.show();
 
@@ -2118,8 +2216,11 @@
         PT.loader.hide();
 
         if (data.success) {
+          // Actualizar registros sin recargar
+          actualizarRegistrosVinculados(data.registros_ids || registrosIds, data.ord_compartida);
+
           toast(data.message || 'Registros vinculados correctamente', 'success');
-          // Limpiar selecciÃ³n y desactivar modo
+          // Limpiar selección y desactivar modo
           window.selectedRowsIds.clear();
           window.selectedRowsOrder = [];
           window.multiSelectMode = false;
@@ -2133,11 +2234,6 @@
             btn.disabled = false;
             btn.title = 'Vincular registros existentes - Click para activar modo selección múltiple';
           }
-
-          // Recargar pÃ¡gina despuÃ©s de un breve delay para ver los cambios
-          setTimeout(() => {
-            window.location.reload();
-          }, 1500);
         } else {
           toast(data.message || 'Error al vincular los registros', 'error');
         }
