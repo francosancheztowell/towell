@@ -714,4 +714,22 @@ class MarcasController extends Controller
             }
         }
     }
+    public function prueba()
+    {
+        try {
+            $marcas = TejMarcas::select('Folio', 'Date', 'Turno', 'numero_empleado', 'Status')
+                ->orderByRaw("CASE WHEN Status = 'En Proceso' THEN 0 ELSE 1 END")
+                ->orderByDesc('Date')
+                ->get();
+
+            $ultimoFolio = $marcas->first();
+
+            return view('modulos.marcas-finales.marcasFinales', compact('marcas', 'ultimoFolio'));
+        } catch (\Exception $e) {
+            return view('modulos.marcas-finales.marcasFinales', [
+                'marcas' => collect([]),
+                'ultimoFolio' => null
+            ]);
+        }
+    }
 }
