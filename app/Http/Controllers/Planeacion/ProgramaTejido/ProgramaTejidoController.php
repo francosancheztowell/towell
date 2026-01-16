@@ -412,7 +412,6 @@ class ProgramaTejidoController extends Controller
 
             return response()->json($op);
         } catch (\Throwable $e) {
-            LogFacade::error('getFlogsIdFromTwFlogsTable', ['msg' => $e->getMessage()]);
             return response()->json(['error' => 'Error al cargar opciones de FlogsId: ' . $e->getMessage()], 500);
         }
     }
@@ -420,23 +419,22 @@ class ProgramaTejidoController extends Controller
     public function getDescripcionByIdFlog($idflog)
     {
         try {
-            // Obtener NAMEPROYECT directamente desde TwFlogsTable usando el IDFLOG
+            // Obtener NAMEPROYECT y CUSTNAME directamente desde TwFlogsTable usando el IDFLOG
             // La descripción será igual a NAMEPROYECT del FLOGID
             $row = DBFacade::connection('sqlsrv_ti')
                 ->table('dbo.TwFlogsTable as ft')
-                ->select('ft.NAMEPROYECT as NombreProyecto')
+                ->select('ft.NAMEPROYECT as NombreProyecto', 'ft.CUSTNAME as CustName')
                 ->where('ft.IDFLOG', trim((string)$idflog))
                 ->first();
 
-            // Asegurar que NAMEPROYECT se retorne correctamente (trim para limpiar espacios)
+            // Asegurar que NAMEPROYECT y CUSTNAME se retornen correctamente (trim para limpiar espacios)
             $nombreProyecto = $row ? trim((string)($row->NombreProyecto ?? '')) : '';
+            $custName = $row ? trim((string)($row->CustName ?? '')) : '';
 
-            LogFacade::info('getDescripcionByIdFlog resultado', [
-                'idflog' => $idflog,
-                'nombreProyecto' => $nombreProyecto
+            return response()->json([
+                'nombreProyecto' => $nombreProyecto,
+                'custName' => $custName
             ]);
-
-            return response()->json(['nombreProyecto' => $nombreProyecto]);
         } catch (\Throwable $e) {
             LogFacade::error('getDescripcionByIdFlog', ['idflog' => $idflog, 'msg' => $e->getMessage()]);
             return response()->json(['nombreProyecto' => ''], 500);
@@ -492,8 +490,8 @@ class ProgramaTejidoController extends Controller
         }
 
         try {
-            // Primera consulta: Obtener flog y descripción basado en itemId e inventSizeId
-            // SELECT ft.IDFLOG, ft.NAMEPROYECT
+            // Primera consulta: Obtener flog, descripción y custname basado en itemId e inventSizeId
+            // SELECT ft.IDFLOG, ft.NAMEPROYECT, ft.CUSTNAME
             // FROM dbo.TwFlogsItemLine AS fil
             // JOIN dbo.TwFlogsTable AS ft ON ft.idFlog = fil.IdFlog
             // WHERE fil.itemId = '7267' AND fil.inventSizeId = 'MB' AND ft.EstadoFlog IN (3,4,5,21)
@@ -501,7 +499,7 @@ class ProgramaTejidoController extends Controller
             $rows = DBFacade::connection('sqlsrv_ti')
                 ->table('dbo.TwFlogsItemLine as fil')
                 ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'fil.IDFLOG')
-                ->select('ft.IDFLOG as IdFlog', 'ft.NAMEPROYECT as NombreProyecto')
+                ->select('ft.IDFLOG as IdFlog', 'ft.NAMEPROYECT as NombreProyecto', 'ft.CUSTNAME as CustName')
                 ->whereRaw('LTRIM(RTRIM(fil.ITEMID)) = ?', [$itemId])
                 ->whereRaw('LTRIM(RTRIM(fil.INVENTSIZEID)) = ?', [$inventSizeId])
                 ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
@@ -509,17 +507,7 @@ class ProgramaTejidoController extends Controller
                 ->get();
 
             // Log todos los flogs encontrados para debugging
-            LogFacade::info('getFlogByItem - Flogs encontrados', [
-                'item_id' => $itemId,
-                'invent_size_id' => $inventSizeId,
-                'total_flogs' => $rows->count(),
-                'flogs' => $rows->map(function ($r) {
-                    return [
-                        'idflog' => $r->IdFlog ?? null,
-                        'nombreProyecto' => $r->NombreProyecto ?? ''
-                    ];
-                })->toArray()
-            ]);
+
 
             // Si hay múltiples flogs, ordenar numéricamente por el número al final del IDFLOG
             // Esto asegura que F000827 venga antes que F000826
@@ -533,28 +521,19 @@ class ProgramaTejidoController extends Controller
                 return 0;
             })->first();
 
-            // Asegurar que NAMEPROYECT se retorne correctamente (trim para limpiar espacios)
+            // Asegurar que NAMEPROYECT y CUSTNAME se retornen correctamente (trim para limpiar espacios)
             $idflog = $row ? trim((string)($row->IdFlog ?? '')) : null;
             $nombreProyecto = $row ? trim((string)($row->NombreProyecto ?? '')) : '';
-
-            LogFacade::info('getFlogByItem resultado final', [
-                'item_id' => $itemId,
-                'invent_size_id' => $inventSizeId,
-                'idflog_seleccionado' => $idflog,
-                'nombreProyecto' => $nombreProyecto
-            ]);
+            $custName = $row ? trim((string)($row->CustName ?? '')) : '';
 
             return response()->json([
                 'idflog' => $idflog,
                 'nombreProyecto' => $nombreProyecto,
+                'custName' => $custName,
             ]);
         } catch (\Throwable $e) {
-            LogFacade::error('getFlogByItem', [
-                'item_id' => $itemId,
-                'invent_size_id' => $inventSizeId,
-                'msg' => $e->getMessage()
-            ]);
-            return response()->json(['idflog' => null, 'nombreProyecto' => ''], 500);
+
+            return response()->json(['idflog' => null, 'nombreProyecto' => '', 'custName' => ''], 500);
         }
     }
 
@@ -624,7 +603,7 @@ class ProgramaTejidoController extends Controller
                 $flogs = DBFacade::connection('sqlsrv_ti')
                     ->table('dbo.TwFlogsItemLine as il')
                     ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'il.IDFLOG')
-                    ->select('il.IDFLOG as IdFlog', 'ft.NAMEPROYECT as NombreProyecto')
+                    ->select('il.IDFLOG as IdFlog', 'ft.NAMEPROYECT as NombreProyecto', 'ft.CUSTNAME as CustName')
                     ->whereRaw('LTRIM(RTRIM(il.ITEMID)) = ?', [$item['itemId']])
                     ->whereRaw('LTRIM(RTRIM(il.INVENTSIZEID)) = ?', [$item['inventSizeId']])
                     ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
@@ -640,6 +619,7 @@ class ProgramaTejidoController extends Controller
                     return [
                         'idflog' => $row->IdFlog ?? null,
                         'nombreProyecto' => $row->NombreProyecto ?? '',
+                        'custName' => $row->CustName ?? '',
                     ];
                 })
                 ->filter(function ($item) {
@@ -688,7 +668,6 @@ class ProgramaTejidoController extends Controller
                 'lineas' => $lineas
             ]);
         } catch (\Throwable $e) {
-            LogFacade::error('getCalendarioLineas error', ['msg' => $e->getMessage()]);
             return response()->json(['error' => 'Error al obtener líneas del calendario'], 500);
         }
     }
@@ -726,18 +705,12 @@ class ProgramaTejidoController extends Controller
                 $tam = preg_replace('/\s+/', ' ', $tam);
             }
 
-            LogFacade::info('getDatosRelacionados request', [
-                'salon' => $salon,
-                'tamano_clave' => $tam,
-                'method' => $request->method(),
-                'all' => $request->all()
-            ]);
 
             if (!$salon) {
                 return response()->json(['error' => 'SalonTejidoId es requerido'], 400);
             }
 
-            // Usar solo columnas seguras y existentes
+            // Usar solo columnas que existen en ReqModelosCodificados - incluir todos los campos necesarios
             $selectCols = [
                 'TamanoClave',
                 'SalonTejidoId',
@@ -745,7 +718,62 @@ class ProgramaTejidoController extends Controller
                 'NombreProyecto',
                 'InventSizeId',
                 'ItemId',
-                'Nombre as NombreProducto'
+                'Nombre',
+                'VelocidadSTD',
+                'AnchoToalla',
+                'CuentaPie',
+                'MedidaPlano',
+                'PesoCrudo',
+                'NoTiras',
+                'Luchaje',
+                'Repeticiones',
+                'Total',
+                'CalibreTrama',
+                'CalibreTrama2',
+                'FibraId',
+                'FibraRizo',
+                'CalibreRizo',
+                'CalibreRizo2',
+                'CuentaRizo',
+                'CalibrePie',
+                'CalibrePie2',
+                'Peine',
+                'Rasurado',
+                'CodColorTrama',
+                'ColorTrama',
+                'DobladilloId',
+                'PasadasTramaFondoC1', // PasadasTrama no existe, solo PasadasTramaFondoC1
+                'FibraTramaFondoC1', // FibraTrama se obtiene de FibraTramaFondoC1
+                'PasadasComb1',
+                'PasadasComb2',
+                'PasadasComb3',
+                'PasadasComb4',
+                'PasadasComb5',
+                'CalibreComb1',
+                'CalibreComb12',
+                'FibraComb1',
+                'CodColorC1',
+                'NomColorC1',
+                'CalibreComb2',
+                'CalibreComb22',
+                'FibraComb2',
+                'CodColorC2',
+                'NomColorC2',
+                'CalibreComb3',
+                'CalibreComb32',
+                'FibraComb3',
+                'CodColorC3',
+                'NomColorC3',
+                'CalibreComb4',
+                'CalibreComb42',
+                'FibraComb4',
+                'CodColorC4',
+                'NomColorC4',
+                'CalibreComb5',
+                'CalibreComb52',
+                'FibraComb5',
+                'CodColorC5',
+                'NomColorC5'
             ];
 
             $qBase = ReqModelosCodificados::where('SalonTejidoId', $salon);
@@ -776,29 +804,110 @@ class ProgramaTejidoController extends Controller
             }
 
             if (!$datos) {
-                LogFacade::warning('getDatosRelacionados sin resultados', [
-                    'salon' => $salon,
-                    'tamano_clave' => $tam
-                ]);
+
                 return response()->json(['datos' => null]);
             }
 
-            LogFacade::info('getDatosRelacionados result', [
+            // Mapear campos del modelo codificado a los nombres que se usan en ReqProgramaTejido
+            // Algunos campos tienen nombres diferentes
+            $datosMapeados = [
+                'TamanoClave' => $datos->TamanoClave ?? null,
+                'SalonTejidoId' => $datos->SalonTejidoId ?? null,
+                'FlogsId' => $datos->FlogsId ?? null,
+                'NombreProyecto' => $datos->NombreProyecto ?? null,
+                'InventSizeId' => $datos->InventSizeId ?? null,
+                'ItemId' => $datos->ItemId ?? null,
+                'Nombre' => $datos->Nombre ?? null,
+                'NombreProducto' => $datos->Nombre ?? null, // Alias
+                'VelocidadSTD' => $datos->VelocidadSTD ?? null,
+                'AnchoToalla' => $datos->AnchoToalla ?? null,
+                'CuentaPie' => $datos->CuentaPie ?? null,
+                'MedidaPlano' => $datos->MedidaPlano ?? null,
+                'PesoCrudo' => $datos->PesoCrudo ?? null,
+                'NoTiras' => $datos->NoTiras ?? null,
+                'Luchaje' => $datos->Luchaje ?? null,
+                'Repeticiones' => $datos->Repeticiones ?? null,
+                'Total' => $datos->Total ?? null,
+                'CalibreTrama' => $datos->CalibreTrama ?? null,
+                'CalibreTrama2' => $datos->CalibreTrama2 ?? null,
+                'FibraId' => $datos->FibraId ?? null,
+                'FibraRizo' => $datos->FibraRizo ?? null,
+                'CalibreRizo' => $datos->CalibreRizo ?? null,
+                'CalibreRizo2' => $datos->CalibreRizo2 ?? null,
+                'CuentaRizo' => $datos->CuentaRizo ?? null,
+                'CalibrePie' => $datos->CalibrePie ?? null,
+                'CalibrePie2' => $datos->CalibrePie2 ?? null,
+                'Peine' => $datos->Peine ?? null,
+                'Rasurado' => $datos->Rasurado ?? null,
+                'Ancho' => $datos->AnchoToalla ?? null, // Ancho se obtiene de AnchoToalla del modelo codificado
+                'CodColorTrama' => $datos->CodColorTrama ?? null,
+                'ColorTrama' => $datos->ColorTrama ?? null,
+                'DobladilloId' => $datos->DobladilloId ?? null,
+                'PasadasTrama' => $datos->PasadasTramaFondoC1 ?? null, // Mapeo: PasadasTramaFondoC1 -> PasadasTrama
+                'FibraTrama' => $datos->FibraTramaFondoC1 ?? null, // Mapeo: FibraTramaFondoC1 -> FibraTrama (fallback a FibraId)
+                'PasadasComb1' => $datos->PasadasComb1 ?? null,
+                'PasadasComb2' => $datos->PasadasComb2 ?? null,
+                'PasadasComb3' => $datos->PasadasComb3 ?? null,
+                'PasadasComb4' => $datos->PasadasComb4 ?? null,
+                'PasadasComb5' => $datos->PasadasComb5 ?? null,
+                'CalibreComb1' => $datos->CalibreComb1 ?? null,
+                'CalibreComb12' => $datos->CalibreComb12 ?? null,
+                'FibraComb1' => $datos->FibraComb1 ?? null,
+                'CodColorComb1' => $datos->CodColorC1 ?? null, // Mapeo de CodColorC1
+                'NombreCC1' => $datos->NomColorC1 ?? null, // Mapeo de NomColorC1
+                'CalibreComb2' => $datos->CalibreComb2 ?? null,
+                'CalibreComb22' => $datos->CalibreComb22 ?? null,
+                'FibraComb2' => $datos->FibraComb2 ?? null,
+                'CodColorComb2' => $datos->CodColorC2 ?? null,
+                'NombreCC2' => $datos->NomColorC2 ?? null,
+                'CalibreComb3' => $datos->CalibreComb3 ?? null,
+                'CalibreComb32' => $datos->CalibreComb32 ?? null,
+                'FibraComb3' => $datos->FibraComb3 ?? null,
+                'CodColorComb3' => $datos->CodColorC3 ?? null,
+                'NombreCC3' => $datos->NomColorC3 ?? null,
+                'CalibreComb4' => $datos->CalibreComb4 ?? null,
+                'CalibreComb42' => $datos->CalibreComb42 ?? null,
+                'FibraComb4' => $datos->FibraComb4 ?? null,
+                'CodColorComb4' => $datos->CodColorC4 ?? null,
+                'NombreCC4' => $datos->NomColorC4 ?? null,
+                'CalibreComb5' => $datos->CalibreComb5 ?? null,
+                'CalibreComb52' => $datos->CalibreComb52 ?? null,
+                'FibraComb5' => $datos->FibraComb5 ?? null,
+                'CodColorComb5' => $datos->CodColorC5 ?? null,
+                'NombreCC5' => $datos->NomColorC5 ?? null,
+            ];
+
+            // LOG: Datos mapeados que se van a devolver al frontend
+            LogFacade::info('getDatosRelacionados: Datos mapeados enviados al frontend', [
                 'tamano_clave' => $tam,
-                'found' => (bool) $datos,
-                'item' => $datos->ItemId ?? null,
-                'nombre' => $datos->NombreProducto ?? null
+                'salon' => $salon,
+                'datos_mapeados' => $datosMapeados,
+                'campos_principales' => [
+                    'CuentaRizo' => $datosMapeados['CuentaRizo'] ?? null,
+                    'CalibreRizo' => $datosMapeados['CalibreRizo'] ?? null,
+                    'FibraRizo' => $datosMapeados['FibraRizo'] ?? null,
+                    'NoTiras' => $datosMapeados['NoTiras'] ?? null,
+                    'Peine' => $datosMapeados['Peine'] ?? null,
+                    'Luchaje' => $datosMapeados['Luchaje'] ?? null,
+                    'PesoCrudo' => $datosMapeados['PesoCrudo'] ?? null,
+                    'TipoPedido' => $datosMapeados['TipoPedido'] ?? null
+                ]
             ]);
 
-            return response()->json(['datos' => $datos]);
+            return response()->json(['datos' => (object)$datosMapeados]);
         } catch (\Throwable $e) {
-            LogFacade::error('getDatosRelacionados error', [
-                'salon' => $request->input('salon_tejido_id'),
-                'tamano_clave' => $request->input('tamano_clave'),
-                'msg' => $e->getMessage(),
+            LogFacade::error('Error en getDatosRelacionados', [
+                'salon' => $salon,
+                'tamano_clave' => $tam,
+                'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json(['error' => 'Error al obtener datos: ' . $e->getMessage()], 500);
+
+            return response()->json([
+                'error' => 'Error al obtener datos: ' . $e->getMessage(),
+                'salon' => $salon,
+                'tamano_clave' => $tam
+            ], 500);
         }
     }
 
@@ -810,6 +919,36 @@ class ProgramaTejidoController extends Controller
     public function getVelocidadStd(Request $request)
     {
         return QueryHelpers::getStdValue('ReqVelocidadStd', 'Velocidad', 'velocidad', $request);
+    }
+
+    /**
+     * Obtener eficiencia y velocidad juntos basándose en telar, hilo y calibre trama
+     */
+    public function getEficienciaVelocidadStd(Request $request)
+    {
+        $fibraId = $request->input('fibra_id');
+        $noTelar = $request->input('no_telar_id');
+        $calTra = $request->input('calibre_trama');
+
+        if ($fibraId === null || $noTelar === null || $calTra === null) {
+            return response()->json([
+                'eficiencia' => null,
+                'velocidad' => null,
+                'error' => 'Faltan parámetros requeridos'
+            ], 400);
+        }
+
+        try {
+            $result = QueryHelpers::getEficienciaVelocidadStd($fibraId, $noTelar, (float) $calTra);
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            LogFacade::error('getEficienciaVelocidadStd error', ['msg' => $e->getMessage()]);
+            return response()->json([
+                'eficiencia' => null,
+                'velocidad' => null,
+                'error' => 'Error al obtener eficiencia y velocidad estándar'
+            ], 500);
+        }
     }
 
     public function getTelaresBySalon(Request $request)
@@ -1614,11 +1753,6 @@ class ProgramaTejidoController extends Controller
             $existe = ReqProgramaTejido::where('OrdCompartida', $candidato)->exists();
 
             if (!$existe) {
-                // Este OrdCompartida está disponible
-                LogFacade::info('vincularRegistrosExistentes: Nuevo OrdCompartida asignado', [
-                    'ord_compartida' => $candidato,
-                    'max_existente' => $maxOrdCompartida,
-                ]);
                 return $candidato;
             }
 
@@ -1627,12 +1761,7 @@ class ProgramaTejidoController extends Controller
             $intentos++;
         }
 
-        // Si llegamos aquí, algo está mal (muchos gaps en la secuencia)
-        // Usar el máximo + 1 de todas formas y loggear advertencia
-        LogFacade::warning('vincularRegistrosExistentes: No se encontró OrdCompartida disponible después de múltiples intentos', [
-            'max_ord_compartida' => $maxOrdCompartida,
-            'candidato_final' => $candidato,
-        ]);
+
 
         return $candidato;
     }
@@ -1684,33 +1813,30 @@ class ProgramaTejidoController extends Controller
 
     /**
      * Obtener detalles de un registro para el modal de balanceo
+     * También se usa para obtener el registro completo después de duplicar
      */
     public function detallesBalanceo($id)
     {
         try {
-            $registro = ReqProgramaTejido::select([
-                'Id',
-                'SalonTejidoId',
-                'NoTelarId',
-                'ItemId',
-                'NombreProducto',
-                'TamanoClave',
-                'TotalPedido',
-                'PorcentajeSegundos',
-                'SaldoPedido',
-                'Produccion',
-                'FechaInicio',
-                'FechaFinal',
-                'OrdCompartida',
-                'FlogsId',
-                'CustName',
-                'NombreProyecto'
-            ])->find($id);
+            // Obtener el registro completo usando fresh() para asegurar datos actualizados
+            // fresh() hace un nuevo query completo desde la BD, asegurando que tenemos los datos más recientes
+            $registro = ReqProgramaTejido::find($id);
 
             if (!$registro) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Registro no encontrado'
+                ], 404);
+            }
+
+            // Usar fresh() para obtener los datos más recientes desde la BD
+            // Esto es más confiable que refresh() cuando se usan selects específicos
+            $registro = $registro->fresh();
+
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Registro no encontrado después de refrescar'
                 ], 404);
             }
 

@@ -320,6 +320,7 @@
   td[data-column="ProgramarProd"],
   td[data-column="NoProduccion"],
   td[data-column="NombreProyecto"],
+  td[data-column="CustName"],
   td[data-column="AplicacionId"],
   td[data-column="Observaciones"],
   td[data-column="TipoPedido"],
@@ -342,6 +343,7 @@
   td[data-column="ProgramarProd"].pinned-column,
   td[data-column="NoProduccion"].pinned-column,
   td[data-column="NombreProyecto"].pinned-column,
+  td[data-column="CustName"].pinned-column,
   td[data-column="AplicacionId"].pinned-column,
   td[data-column="Observaciones"].pinned-column,
   td[data-column="TipoPedido"].pinned-column,
@@ -349,6 +351,16 @@
   td[data-column="EntregaPT"].pinned-column {
     background-color: #fff4c2 !important;
     color: #000 !important;
+  }
+
+  /* Asegurar ancho suficiente para NombreProyecto y CustName */
+  th[data-column="NombreProyecto"],
+  td[data-column="NombreProyecto"] {
+    min-width: 120px !important;
+  }
+  th[data-column="CustName"],
+  td[data-column="CustName"] {
+    min-width: 100px !important;
   }
 
   /* Los encabezados (th) mantienen el azul por defecto */
@@ -364,6 +376,7 @@
   th[data-column="ProgramarProd"],
   th[data-column="NoProduccion"],
   th[data-column="NombreProyecto"],
+  th[data-column="CustName"],
   th[data-column="AplicacionId"],
   th[data-column="Observaciones"],
   th[data-column="TipoPedido"],

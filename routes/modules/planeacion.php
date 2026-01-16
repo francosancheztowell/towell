@@ -184,6 +184,7 @@ Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoControlle
 Route::get('/programa-tejido/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
 Route::get('/programa-tejido/eficiencia-std', [ProgramaTejidoController::class, 'getEficienciaStd']);
 Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, 'getVelocidadStd']);
+Route::get('/programa-tejido/eficiencia-velocidad-std', [ProgramaTejidoController::class, 'getEficienciaVelocidadStd']);
 Route::post('/programa-tejido/calcular-totales-dividir', [DividirTejido::class, 'calcularTotalesDividir']);
 Route::get('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'index']);
 Route::post('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'store']);

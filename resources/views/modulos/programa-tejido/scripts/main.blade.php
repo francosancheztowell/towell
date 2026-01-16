@@ -562,7 +562,6 @@
         const count = entry ? entry.count : 0;
         const displayValue = entry ? entry.displayValue : value;
 
-        // ⚡ FIX: Escapar valores para HTML sin usar CSS.escape() que convierte espacios en barras invertidas
         // Usar escape HTML estándar para el atributo data-value y el value del checkbox
         const escapedValueAttr = String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         const escapedDisplayValue = String(displayValue).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -570,7 +569,7 @@
         html += '<label class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer filter-checkbox-item" data-value="' + escapedValueAttr + '">' +
           '<div class="flex items-center gap-2">' +
           '<input type="checkbox" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 filter-checkbox" ' +
-          'value="' + escapedValueAttr + '" checked>' +
+          'value="' + escapedValueAttr + '">' +
           '<span class="text-sm text-gray-700">' + escapedDisplayValue + '</span>' +
           '</div>' +
           '<span class="text-xs text-gray-500">(' + count + ')</span>' +
@@ -596,9 +595,7 @@
           if (activeFiltersForColumn.length > 0) {
             activeFiltersForColumn.forEach(filter => {
               const filterValue = String(filter.value || '').trim();
-              // ⚡ FIX: Buscar por data-value en lugar de value para evitar problemas con CSS.escape()
               const escapedValueAttr = filterValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-              // Buscar el label que tiene el data-value correspondiente
               const label = Array.from(document.querySelectorAll('.filter-checkbox-item')).find(l => {
                 return l.dataset.value === filterValue || l.dataset.value === escapedValueAttr;
               });
@@ -1097,16 +1094,115 @@
 
               const isSelected = selectedRowId === id;
 
+              // Verificar si el registro eliminado tenía Ultimo=1 antes de eliminarlo
+              const ultimoCell = rowToDelete.querySelector('[data-column="Ultimo"]');
+              const tieneUltimo = ultimoCell && (
+                ultimoCell.textContent.includes('ULTIMO') ||
+                ultimoCell.querySelector('strong') ||
+                ultimoCell.getAttribute('data-value') === '1' ||
+                ultimoCell.getAttribute('data-value') === 'UL'
+              );
+              const salonId = rowToDelete.querySelector('[data-column="SalonTejidoId"]')?.textContent?.trim();
+              const telarId = rowToDelete.querySelector('[data-column="NoTelarId"]')?.textContent?.trim();
+
+              // Obtener el ID del registro eliminado para comparar
+              const registroIdEliminado = rowToDelete.getAttribute('data-id');
+
               // Eliminar la fila del DOM
               rowToDelete.remove();
 
-              // Actualizar window.allRows removiendo la fila eliminada
-              if (window.allRows && Array.isArray(window.allRows)) {
-                window.allRows = window.allRows.filter(row => {
-                  const rowId = row.getAttribute('data-id');
-                  return rowId !== id && row !== rowToDelete;
+              // Si el registro eliminado tenía Ultimo=1, buscar el último registro del mismo telar y actualizarlo
+              if (tieneUltimo && salonId && telarId) {
+                // Usar requestAnimationFrame para asegurar que el DOM se actualice
+                requestAnimationFrame(() => {
+                  const tb = tbodyEl();
+                  if (!tb) return;
+
+                  // Obtener todas las filas del mismo telar (después de eliminar)
+                  const filasMismoTelar = Array.from(tb.querySelectorAll('.selectable-row')).filter(f => {
+                    const rowId = f.getAttribute('data-id');
+                    const fSalon = f.querySelector('[data-column="SalonTejidoId"]')?.textContent?.trim();
+                    const fTelar = f.querySelector('[data-column="NoTelarId"]')?.textContent?.trim();
+                    return rowId !== registroIdEliminado &&
+                      fSalon === salonId &&
+                      fTelar === telarId;
+                  });
+
+                  if (filasMismoTelar.length > 0) {
+                    // Ordenar por FechaFinal primero, luego por FechaInicio (descendente) para encontrar el último
+                    filasMismoTelar.sort((a, b) => {
+                      // Intentar primero con FechaFinal, luego con FechaInicio
+                      const fechaFinalA = a.querySelector('[data-column="FechaFinal"]')?.textContent?.trim() || '';
+                      const fechaFinalB = b.querySelector('[data-column="FechaFinal"]')?.textContent?.trim() || '';
+                      const fechaInicioA = a.querySelector('[data-column="FechaInicio"]')?.textContent?.trim() || '';
+                      const fechaInicioB = b.querySelector('[data-column="FechaInicio"]')?.textContent?.trim() || '';
+
+                      const fechaA = fechaFinalA || fechaInicioA;
+                      const fechaB = fechaFinalB || fechaInicioB;
+
+                      if (!fechaA && !fechaB) return 0;
+                      if (!fechaA) return 1;
+                      if (!fechaB) return -1;
+
+                      try {
+                        // Intentar parsear fecha con formato d/m/Y o d/m/Y H:i
+                        let partesA = fechaA.split(' ');
+                        let partesB = fechaB.split(' ');
+                        let fechaSoloA = partesA[0];
+                        let fechaSoloB = partesB[0];
+
+                        const datePartsA = fechaSoloA.split('/');
+                        const datePartsB = fechaSoloB.split('/');
+
+                        if (datePartsA.length === 3 && datePartsB.length === 3) {
+                          const dateA = new Date(datePartsA[2], datePartsA[1] - 1, datePartsA[0]);
+                          const dateB = new Date(datePartsB[2], datePartsB[1] - 1, datePartsB[0]);
+
+                          // Comparar por fecha completa si hay hora
+                          if (partesA.length > 1 && partesB.length > 1) {
+                            const horaA = partesA[1].split(':');
+                            const horaB = partesB[1].split(':');
+                            if (horaA.length >= 2 && horaB.length >= 2) {
+                              dateA.setHours(parseInt(horaA[0]) || 0, parseInt(horaA[1]) || 0);
+                              dateB.setHours(parseInt(horaB[0]) || 0, parseInt(horaB[1]) || 0);
+                            }
+                          }
+
+                          return dateB.getTime() - dateA.getTime(); // Orden descendente (el más reciente primero)
+                        }
+                      } catch (e) {
+                        // Si hay error, mantener orden original
+                        console.warn('Error al parsear fecha para ordenar:', e);
+                      }
+                      return 0;
+                    });
+
+                    // La primera fila después de ordenar es la última (más reciente)
+                    const nuevoUltimo = filasMismoTelar[0];
+                    if (nuevoUltimo) {
+                      const nuevoUltimoCell = nuevoUltimo.querySelector('[data-column="Ultimo"]');
+                      if (nuevoUltimoCell) {
+                        // Actualizar visualmente el campo Ultimo
+                        nuevoUltimoCell.innerHTML = '<strong>ULTIMO</strong>';
+                        nuevoUltimoCell.setAttribute('data-value', '1');
+
+                        // Forzar repintado del navegador
+                        nuevoUltimoCell.style.visibility = 'hidden';
+                        nuevoUltimoCell.offsetHeight; // Trigger reflow
+                        nuevoUltimoCell.style.visibility = 'visible';
+                      }
+                    }
+                  }
                 });
               }
+
+              // Actualizar window.allRows removiendo la fila eliminada y actualizar índices
+              window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
+
+              // Actualizar data-row-index de todas las filas restantes
+              window.allRows.forEach((fila, index) => {
+                fila.setAttribute('data-row-index', index);
+              });
 
               // Limpiar la selección si la fila eliminada estaba seleccionada
               if (isSelected) {

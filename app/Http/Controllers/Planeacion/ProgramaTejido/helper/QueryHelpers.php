@@ -107,6 +107,28 @@ class QueryHelpers
             $velocidad ?? $registro->VelocidadSTD,
         ];
     }
+
+    public static function getEficienciaVelocidadStd(string $fibraId, string $noTelar, float $calibreTrama): array
+    {
+        $densidad = ($calibreTrama > 40) ? 'Alta' : 'Normal';
+
+        $eficiencia = ReqEficienciaStd::where('FibraId', $fibraId)
+            ->where('NoTelarId', $noTelar)
+            ->where('Densidad', $densidad)
+            ->value('Eficiencia');
+
+        $velocidad = ReqVelocidadStd::where('FibraId', $fibraId)
+            ->where('NoTelarId', $noTelar)
+            ->where('Densidad', $densidad)
+            ->value('Velocidad');
+
+        return [
+            'eficiencia' => $eficiencia,
+            'velocidad' => $velocidad,
+            'densidad' => $densidad,
+            'calibre_trama' => $calibreTrama
+        ];
+    }
 }
 
 

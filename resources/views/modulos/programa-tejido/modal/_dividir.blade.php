@@ -582,16 +582,16 @@ function agregarFilaDividir() {
 
 	newRow.innerHTML = `
 		<td class="p-2 border-r border-gray-200 clave-modelo-cell">
-			<input type="text" value="${claveModelo || ''}" readonly
-				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+			<input type="text" value="${claveModelo || ''}"
+				class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 		</td>
 		<td class="p-2 border-r border-gray-200 producto-cell">
 			<textarea rows="2" readonly
 				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${producto || ''}</textarea>
 		</td>
 		<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 200px;">
-			<textarea rows="2" readonly
-				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${flog || ''}</textarea>
+			<textarea rows="2"
+				class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none">${flog || ''}</textarea>
 		</td>
 		<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 250px;">
 			<textarea rows="2"
@@ -643,6 +643,12 @@ function agregarFilaDividir() {
 	hiddenSalon.value = '';
 	newRow.appendChild(hiddenSalon);
 
+	// ⚡ FIX: Configurar autocompletadores independientes para esta fila
+	// Cada fila debe funcionar de forma independiente
+	if (typeof window.setupRowAutocompletadores === 'function') {
+		window.setupRowAutocompletadores(newRow);
+	}
+
 	// Eventos
 	const btnRemove = newRow.querySelector('.btn-remove-row');
 	if (btnRemove) {
@@ -653,14 +659,14 @@ function agregarFilaDividir() {
 			}
 
 			newRow.remove();
-			
+
 			// ⚡ FIX: Actualizar visibilidad de la columna de acciones si no quedan filas agregadas
 			const filasAgregadas = document.querySelectorAll('tr.telar-row:not(#fila-principal)');
 			const thAcciones = document.getElementById('th-acciones');
 			if (filasAgregadas.length === 0 && thAcciones) {
 				thAcciones.classList.add('hidden');
 			}
-			
+
 			if (typeof actualizarResumenCantidades === 'function') {
 				actualizarResumenCantidades();
 			}
@@ -670,19 +676,9 @@ function agregarFilaDividir() {
 		});
 	}
 
-	// ⚡ FIX: Sincronizar descripción en filas agregadas con el input oculto
-	const descripcionTextarea = newRow.querySelector('.descripcion-cell textarea');
-	const inputDescripcion = document.getElementById('swal-descripcion');
-	if (descripcionTextarea && inputDescripcion) {
-		descripcionTextarea.addEventListener('input', (e) => {
-			inputDescripcion.value = e.target.value;
-			inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
-			// Actualizar todas las filas con la nueva descripción
-			if (typeof actualizarColumnasInformacion === 'function') {
-				actualizarColumnasInformacion();
-			}
-		});
-	}
+	// NOTA: Ya no sincronizamos descripción entre filas
+	// Cada fila es independiente y maneja sus propios valores
+	// Los autocompletadores se configuran en setupRowAutocompletadores
 
 	const salonHiddenInput = newRow.querySelector('input[name="salon-destino[]"]');
 	const telarSelect = newRow.querySelector('select[name="telar-destino[]"]');
@@ -706,6 +702,17 @@ function agregarFilaDividir() {
 		// Listener para cuando cambia el telar
 		if (typeof recomputeState === 'function') {
 			telarSelect.addEventListener('change', recomputeState);
+			telarSelect.addEventListener('change', () => {
+				// Recalcular eficiencia, velocidad y maquina cuando cambie el telar
+				const claveModeloInput = newRow.querySelector('.clave-modelo-cell input');
+				if (claveModeloInput && claveModeloInput.value && typeof window.cargarDatosRelacionadosRow === 'function') {
+					// Si hay una clave modelo, recargar los datos para obtener eficiencia y velocidad con el nuevo telar
+					window.cargarDatosRelacionadosRow(newRow, claveModeloInput.value);
+				} else if (typeof window.construirMaquinaRow === 'function') {
+					// Si no hay clave modelo, solo construir la máquina
+					window.construirMaquinaRow(newRow);
+				}
+			});
 		}
 	}
 
