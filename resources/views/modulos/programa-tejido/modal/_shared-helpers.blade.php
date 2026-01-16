@@ -77,8 +77,12 @@ function buildCalendarWarningHtml(message, advertencias) {
 }
 
 async function redirectToRegistro(data) {
-	// Si hay múltiples registros duplicados, agregarlos todos sin recargar
-	if (data?.registros_duplicados && data.registros_duplicados > 1) {
+	// Si hay múltiples registros duplicados o vinculados, agregarlos todos sin recargar
+	const tieneMultiplesRegistros = (data?.registros_duplicados && data.registros_duplicados > 1) ||
+	                                (data?.registros_vinculados && data.registros_vinculados > 1) ||
+	                                (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 1);
+
+	if (tieneMultiplesRegistros) {
 		// Preferir usar registros_ids si está disponible (más confiable)
 		// Si no está disponible, usar el método anterior con IDs secuenciales
 		if (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
@@ -127,13 +131,20 @@ async function redirectToRegistro(data) {
 						if (response.ok) {
 							const result = await response.json();
 							if (result.success && result.registro) {
-								// Verificar que pertenece al telar destino correcto
-								if (result.registro.SalonTejidoId === data.salon_destino &&
-									result.registro.NoTelarId === data.telar_destino) {
+								// Para vincular puede haber múltiples telares destino, así que la validación es más flexible
+								// Solo validar telar destino si es duplicar (un solo telar destino)
+								const esVincular = data?.registros_vinculados > 0 || data?.ord_compartida;
+								const telarValido = esVincular ||
+									(result.registro.SalonTejidoId === data.salon_destino &&
+									 result.registro.NoTelarId === data.telar_destino);
+
+								if (telarValido) {
 									console.log(`[DEBUG] ➕ Agregando registro ID: ${registroId}`, {
 										TamanoClave: result.registro.TamanoClave,
 										ItemId: result.registro.ItemId,
-										InventSizeId: result.registro.InventSizeId
+										InventSizeId: result.registro.InventSizeId,
+										SalonTejidoId: result.registro.SalonTejidoId,
+										NoTelarId: result.registro.NoTelarId
 									});
 									await agregarRegistroSinRecargar({ registro_id: registroId, message: '' });
 									registrosAgregados.push(parseInt(idStr));
@@ -217,10 +228,15 @@ async function redirectToRegistro(data) {
 				});
 
 				if (typeof showToast === 'function') {
-					if (registrosAgregados.length === data.registros_ids.length) {
-						showToast(data.message || `Se duplicaron ${data.registros_duplicados} registro(s) correctamente`, 'success');
+					const totalEsperado = data.registros_ids.length;
+					const mensajeExito = data?.registros_vinculados
+						? `Se vincularon ${data.registros_vinculados} registro(s) correctamente`
+						: `Se duplicaron ${data.registros_duplicados || totalEsperado} registro(s) correctamente`;
+
+					if (registrosAgregados.length === totalEsperado) {
+						showToast(data.message || mensajeExito, 'success');
 					} else {
-						showToast(`Se agregaron ${registrosAgregados.length} de ${data.registros_ids.length} registro(s). Algunos pueden no estar visibles.`, 'warning');
+						showToast(`Se agregaron ${registrosAgregados.length} de ${totalEsperado} registro(s). Algunos pueden no estar visibles.`, 'warning');
 					}
 				}
 
@@ -232,7 +248,8 @@ async function redirectToRegistro(data) {
 		}
 
 		// Fallback: Si registros_ids no está disponible, usar método anterior con IDs secuenciales
-		if (data?.registro_id && data?.salon_destino && data?.telar_destino) {
+		const totalRegistrosFallback = data?.registros_duplicados || data?.registros_vinculados || 1;
+		if (data?.registro_id && (data?.salon_destino || data?.registros_vinculados)) {
 			try {
 				console.log('[DEBUG] 🔄 Fallback: Usando método de IDs secuenciales');
 				await new Promise(resolve => setTimeout(resolve, 800));
@@ -245,8 +262,9 @@ async function redirectToRegistro(data) {
 					const filasExistentes = Array.from(tb.querySelectorAll('.selectable-row')).map(f => f.getAttribute('data-id'));
 					const primerId = parseInt(data.registro_id);
 					const registrosAgregados = [primerId];
+					const esVincular = data?.registros_vinculados > 0 || data?.ord_compartida;
 
-					for (let i = 1; i < data.registros_duplicados; i++) {
+					for (let i = 1; i < totalRegistrosFallback; i++) {
 						const siguienteId = primerId + i;
 						const tbActualizado = document.querySelector('#mainTable tbody');
 						if (tbActualizado) {
@@ -267,8 +285,12 @@ async function redirectToRegistro(data) {
 								if (response.ok) {
 									const result = await response.json();
 									if (result.success && result.registro) {
-										if (result.registro.SalonTejidoId === data.salon_destino &&
-											result.registro.NoTelarId === data.telar_destino) {
+										// Para vincular puede haber múltiples telares destino, así que la validación es más flexible
+										const telarValido = esVincular ||
+											(result.registro.SalonTejidoId === data.salon_destino &&
+											 result.registro.NoTelarId === data.telar_destino);
+
+										if (telarValido) {
 											await agregarRegistroSinRecargar({ registro_id: siguienteId, message: '' });
 											registrosAgregados.push(siguienteId);
 											await new Promise(resolve => setTimeout(resolve, 200));
@@ -282,10 +304,15 @@ async function redirectToRegistro(data) {
 					}
 
 					if (typeof showToast === 'function') {
-						if (registrosAgregados.length === data.registros_duplicados) {
-							showToast(data.message || `Se duplicaron ${data.registros_duplicados} registro(s) correctamente`, 'success');
+						const totalEsperadoFallback = data?.registros_duplicados || data?.registros_vinculados || registrosAgregados.length;
+						const mensajeExitoFallback = data?.registros_vinculados
+							? `Se vincularon ${data.registros_vinculados} registro(s) correctamente`
+							: `Se duplicaron ${data.registros_duplicados || totalEsperadoFallback} registro(s) correctamente`;
+
+						if (registrosAgregados.length === totalEsperadoFallback) {
+							showToast(data.message || mensajeExitoFallback, 'success');
 						} else {
-							showToast(`Se agregaron ${registrosAgregados.length} de ${data.registros_duplicados} registro(s).`, 'warning');
+							showToast(`Se agregaron ${registrosAgregados.length} de ${totalEsperadoFallback} registro(s).`, 'warning');
 						}
 					}
 				}

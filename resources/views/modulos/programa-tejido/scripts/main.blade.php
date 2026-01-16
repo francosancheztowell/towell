@@ -2042,7 +2042,7 @@
     // Vincular registros existentes
     window.vincularRegistrosExistentes = function() {
       if (!window.multiSelectMode) {
-        // Activar modo selecciÃ³n mÃºltiple
+        // Activar modo selección múltiple
         toggleMultiSelectMode();
         return;
       }
@@ -2069,24 +2069,24 @@
       const primerOrdCompartida = primerRow?.getAttribute('data-ord-compartida');
       const primerTieneOrdCompartida = primerOrdCompartida && primerOrdCompartida.trim() !== '';
 
-      // Confirmar acciÃ³n
+      // Confirmar acción
       if (typeof Swal === 'undefined') {
         const mensaje = primerTieneOrdCompartida
-          ? `Â¿Vincular ${selectedIds.length} registro(s) usando el OrdCompartida existente (${primerOrdCompartida.trim()})?`
-          : `Â¿Vincular ${selectedIds.length} registro(s) con un nuevo OrdCompartida?`;
+          ? `¿Vincular ${selectedIds.length} registro(s) usando el OrdCompartida existente (${primerOrdCompartida.trim()})?`
+          : `¿Vincular ${selectedIds.length} registro(s) con un nuevo OrdCompartida?`;
         if (!confirm(mensaje)) return;
         doVincular(selectedIds);
       } else {
         const mensajeHtml = primerTieneOrdCompartida
-          ? `Se vincularÃ¡n <strong>${selectedIds.length} registro(s)</strong> usando el OrdCompartida existente: <strong>${primerOrdCompartida.trim()}</strong>.<br><br>Esto no afectarÃ¡ los datos de los registros, solo los agruparÃ¡.`
-          : `Se vincularÃ¡n <strong>${selectedIds.length} registro(s)</strong> con un nuevo OrdCompartida.<br><br>Esto no afectarÃ¡ los datos de los registros, solo los agruparÃ¡.`;
+          ? `Se vincularán <strong>${selectedIds.length} registro(s)</strong> usando el OrdCompartida existente: <strong>${primerOrdCompartida.trim()}</strong>.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`
+          : `Se vincularán <strong>${selectedIds.length} registro(s)</strong> con un nuevo OrdCompartida.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`;
 
         Swal.fire({
-          title: 'Â¿Vincular registros?',
+          title: 'Vincular registros?',
           html: mensajeHtml,
           icon: 'question',
           showCancelButton: true,
-          confirmButtonText: 'SÃ­, vincular',
+          confirmButtonText: 'Si, vincular',
           cancelButtonText: 'Cancelar',
           confirmButtonColor: '#6366f1',
           cancelButtonColor: '#6b7280',
@@ -2131,7 +2131,7 @@
             btn.classList.remove('bg-blue-500','text-white','hover:bg-blue-600','ring-2', 'ring-blue-300', 'bg-blue-300', 'cursor-not-allowed');
             btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
             btn.disabled = false;
-            btn.title = 'Vincular registros existentes - Click para activar modo selecciÃ³n mÃºltiple';
+            btn.title = 'Vincular registros existentes - Click para activar modo selección múltiple';
           }
 
           // Recargar pÃ¡gina despuÃ©s de un breve delay para ver los cambios

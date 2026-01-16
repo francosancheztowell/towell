@@ -13,7 +13,6 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DragAndDropTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EditTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\UpdateTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
@@ -1562,10 +1561,13 @@ class ProgramaTejidoController extends Controller
 
     /**
      * Vincular tejidos nuevos desde cero con un OrdCompartida
+     * Ahora usa DuplicarTejido con el parámetro vincular=true
      */
     public function vincularTelar(Request $request)
     {
-        return VincularTejido::vincular($request);
+        // Agregar el parámetro vincular=true para que DuplicarTejido maneje la lógica de vincular
+        $request->merge(['vincular' => true]);
+        return DuplicarTejido::duplicar($request);
     }
 
     /**
@@ -1681,12 +1683,34 @@ class ProgramaTejidoController extends Controller
                     'UpdatedAt' => now()
                 ]);
 
-            // PASO 4: Asignar OrdCompartidaLider = 1 solo al primer registro seleccionado
-            ReqProgramaTejido::where('Id', $primerId)
-                ->update([
-                    'OrdCompartidaLider' => 1,
-                    'UpdatedAt' => now()
-                ]);
+            // PASO 4: Asignar OrdCompartidaLider = 1 al registro con fecha inicio más antigua
+            // Obtener todos los registros con este OrdCompartida (incluyendo los que ya lo tenían)
+            $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $ordCompartidaAVincular)
+                ->get();
+
+            if ($registrosConOrdCompartida->count() > 0) {
+                // Ordenar por FechaInicio (más antigua primero)
+                $registrosOrdenados = $registrosConOrdCompartida->sortBy(function ($registro) {
+                    return $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->timestamp : PHP_INT_MAX;
+                });
+
+                // El primero es el líder (fecha más antigua)
+                $idLider = $registrosOrdenados->first()->Id;
+
+                // Quitar OrdCompartidaLider de todos
+                ReqProgramaTejido::where('OrdCompartida', $ordCompartidaAVincular)
+                    ->update([
+                        'OrdCompartidaLider' => null,
+                        'UpdatedAt' => now()
+                    ]);
+
+                // Asignar OrdCompartidaLider = 1 solo al registro con fecha más antigua
+                ReqProgramaTejido::where('Id', $idLider)
+                    ->update([
+                        'OrdCompartidaLider' => 1,
+                        'UpdatedAt' => now()
+                    ]);
+            }
 
             DBFacade::commit();
 

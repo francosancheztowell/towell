@@ -53,6 +53,8 @@ class DuplicarTejido
             'aplicacion'    => 'nullable|string',
             'descripcion'   => 'nullable|string',
             'registro_id_original' => 'nullable|integer',
+            'vincular' => 'nullable|boolean', // Checkbox de vincular
+            'ord_compartida_existente' => 'nullable|integer|min:1', // OrdCompartida existente para vincular (solo si es > 0)
         ]);
 
         $salonOrigen  = $data['salon_tejido_id'];
@@ -71,6 +73,8 @@ class DuplicarTejido
         $aplicacion     = $data['aplicacion'] ?? null;
         $descripcion    = $data['descripcion'] ?? null;
         $registroIdOriginal = $data['registro_id_original'] ?? null;
+        $vincular = $data['vincular'] ?? false;
+        $ordCompartidaExistente = $data['ord_compartida_existente'] ?? null;
 
         // Guardar y restaurar dispatcher para no romper otros flujos
         $dispatcher = ReqProgramaTejido::getEventDispatcher();
@@ -79,6 +83,32 @@ class DuplicarTejido
         DBFacade::beginTransaction();
 
         try {
+            // Determinar el OrdCompartida a usar (solo si vincular está activo)
+            $ordCompartidaAVincular = null;
+            if ($vincular) {
+                // Normalizar el valor: convertir strings vacíos a null
+                $ordCompartidaExistente = ($ordCompartidaExistente === '' || $ordCompartidaExistente === null)
+                    ? null
+                    : $ordCompartidaExistente;
+
+                if ($ordCompartidaExistente !== null && $ordCompartidaExistente > 0) {
+                    // Verificar que el OrdCompartida existente realmente exista en la BD
+                    $existe = ReqProgramaTejido::where('OrdCompartida', (int)$ordCompartidaExistente)->exists();
+                    if (!$existe) {
+                        DBFacade::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => "El OrdCompartida {$ordCompartidaExistente} no existe en la base de datos.",
+                        ], 404);
+                    }
+                    // Usar OrdCompartida existente
+                    $ordCompartidaAVincular = (int) $ordCompartidaExistente;
+                } else {
+                    // Crear un nuevo OrdCompartida verificando que no esté en uso
+                    $ordCompartidaAVincular = self::obtenerNuevoOrdCompartidaDisponible();
+                }
+            }
+
             // Obtener registro específico o fallback al último del telar
             $original = null;
             if (!empty($registroIdOriginal)) {
@@ -101,6 +131,7 @@ class DuplicarTejido
 
             $idsParaObserver = [];
             $totalDuplicados = 0;
+            $registrosCreados = []; // Para almacenar registros y sus fechas inicio para determinar el líder (solo si vincular)
 
             foreach ($destinos as $destino) {
                 $telarDestino = $destino['telar'];
@@ -146,7 +177,16 @@ class DuplicarTejido
                 $nuevo->Produccion    = null;
                 $nuevo->Programado    = null;
                 $nuevo->NoProduccion  = null;
-                $nuevo->OrdCompartida = null;
+
+                // ===== ORDCOMPARTIDA: Solo si vincular está activo =====
+                if ($vincular) {
+                    $nuevo->OrdCompartida = $ordCompartidaAVincular;
+                    // OrdCompartidaLider se asignará después de crear todos los registros
+                    $nuevo->OrdCompartidaLider = null;
+                } else {
+                    $nuevo->OrdCompartida = null;
+                    $nuevo->OrdCompartidaLider = null;
+                }
                 // Limpiar campos de combinaciones
 
 
@@ -297,47 +337,39 @@ class DuplicarTejido
                     $nuevo->NombreProducto = StringTruncator::truncate('NombreProducto', $producto);
                 }
 
-                // FlogsId: Si se aplicaron datos del modelo, ya está aplicado
-                // Si no se aplicaron, usar valor del destino o global
-                if (!$aplicarDatosModelo) {
-                    if ($flogDestino) {
-                        // Usar valor específico del destino (fila)
-                        $nuevo->FlogsId = StringTruncator::truncate('FlogsId', $flogDestino);
-                    } elseif ($flog) {
-                        // Fallback a valor global
+                // FlogsId: Priorizar valor del destino sobre el del modelo
+                // Si hay flogDestino, usarlo (tiene prioridad sobre el del modelo)
+                if ($flogDestino && $flogDestino !== '') {
+                    // Usar valor específico del destino (fila) - tiene máxima prioridad
+                    $nuevo->FlogsId = StringTruncator::truncate('FlogsId', $flogDestino);
+                } elseif (!$aplicarDatosModelo) {
+                    // Si NO se aplicaron datos del modelo, usar valor global
+                    if ($flog) {
                         $nuevo->FlogsId = StringTruncator::truncate('FlogsId', $flog);
                     }
                 }
-                // Si hubo cambio de Clave Modelo, FlogsId ya está aplicado desde aplicarDatosModeloCodificado
+                // Si hubo cambio de Clave Modelo y NO hay flogDestino, FlogsId ya está aplicado desde aplicarDatosModeloCodificado
 
                 // Aplicar TipoPedido basado en las primeras 2 letras del Flog (CE, RS, etc.)
                 UpdateHelpers::applyFlogYTipoPedido($nuevo, $nuevo->FlogsId);
 
-                // NombreProyecto: Si se aplicaron datos del modelo, ya está aplicado
-                // Si no se aplicaron, usar valor del destino o global
-                if (!$aplicarDatosModelo) {
-                    if ($descripcionDestino) {
-                        // Usar valor específico del destino (fila)
-                        $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', $descripcionDestino);
-                    } elseif ($descripcion) {
-                        // Fallback a valor global
+                // NombreProyecto: Priorizar valor del destino sobre el del modelo
+                if ($descripcionDestino && $descripcionDestino !== '') {
+                    // Usar valor específico del destino (fila) - tiene máxima prioridad
+                    $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', $descripcionDestino);
+                } elseif (!$aplicarDatosModelo) {
+                    // Si NO se aplicaron datos del modelo, usar valor global
+                    if ($descripcion) {
                         $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', $descripcion);
                     }
                 }
-                // Si hubo cambio de Clave Modelo, NombreProyecto ya está aplicado desde aplicarDatosModeloCodificado
+                // Si hubo cambio de Clave Modelo y NO hay descripcionDestino, NombreProyecto ya está aplicado desde aplicarDatosModeloCodificado
 
-                // CustName: Si se aplicaron datos del modelo, obtener desde el nuevo Flog
-                // Si no se aplicaron, usar valor del destino o global
-                if ($aplicarDatosModelo && !empty($nuevo->FlogsId)) {
-                    // Obtener CustName desde TwFlogsTable usando el nuevo FlogsId
+                // CustName: Obtener desde el Flog que se esté usando (del destino si existe, sino del modelo)
+                if (!empty($nuevo->FlogsId)) {
+                    // Obtener CustName desde TwFlogsTable usando el FlogsId que se esté usando
                     try {
                         $flogsIdParaCustName = trim((string)$nuevo->FlogsId);
-
-                        LogFacade::info('DuplicarTejido: Obteniendo CustName desde Flog', [
-                            'flogs_id' => $flogsIdParaCustName,
-                            'tamano_clave' => $tamanoClaveDestino ?? $tamanoClave,
-                            'hay_cambio_clave_modelo' => $hayCambioClaveModelo
-                        ]);
 
                         $row = DBFacade::connection('sqlsrv_ti')
                             ->table('dbo.TwFlogsTable as ft')
@@ -348,29 +380,18 @@ class DuplicarTejido
                         if ($row && !empty($row->CustName)) {
                             $custNameObtenido = trim((string)$row->CustName);
                             $nuevo->CustName = StringTruncator::truncate('CustName', $custNameObtenido);
-
-                            LogFacade::info('DuplicarTejido: CustName obtenido desde Flog', [
-                                'flogs_id' => $flogsIdParaCustName,
-                                'cust_name' => $custNameObtenido
-                            ]);
-                        } else {
-                            LogFacade::warning('DuplicarTejido: No se encontró CustName para el Flog', [
-                                'flogs_id' => $flogsIdParaCustName
-                            ]);
                         }
                     } catch (\Throwable $e) {
                         // Si falla, continuar sin CustName
-                        LogFacade::warning('DuplicarTejido: Error al obtener CustName desde Flog', [
-                            'flogs_id' => $nuevo->FlogsId ?? 'NULL',
-                            'error' => $e->getMessage()
-                        ]);
                     }
-                } else {
-                    // Si NO hubo cambio de Clave Modelo, usar valor del destino o global
-                    if ($custNameDestino) {
+                }
+
+                // Si no se pudo obtener CustName desde el Flog, usar valor del destino o global como fallback
+                if (empty($nuevo->CustName)) {
+                    if ($custNameDestino && $custNameDestino !== '') {
                         // Usar valor específico del destino (fila)
                         $nuevo->CustName = StringTruncator::truncate('CustName', $custNameDestino);
-                    } elseif ($custname) {
+                    } elseif ($custname && $custname !== '') {
                         $nuevo->CustName = StringTruncator::truncate('CustName', $custname);
                     }
                 }
@@ -486,37 +507,40 @@ class DuplicarTejido
                     }
                 }
 
-                // Log ANTES de guardar para verificar valores finales
-                LogFacade::info('DuplicarTejido: Valores ANTES de guardar', [
-                    'id' => $nuevo->Id ?? 'nuevo',
-                    'tamano_clave' => $nuevo->TamanoClave,
-                    'ItemId' => $nuevo->ItemId,
-                    'InventSizeId' => $nuevo->InventSizeId,
-                    'CustName' => $nuevo->CustName,
-                    'FlogsId' => $nuevo->FlogsId,
-                    'hay_cambio_clave_modelo' => $hayCambioClaveModelo,
-                    'aplicar_datos_modelo' => $aplicarDatosModelo,
-                    'tamano_clave_destino' => $tamanoClaveDestino,
-                    'tamano_clave_original' => $original->TamanoClave
-                ]);
-
                 $nuevo->CreatedAt = now();
                 $nuevo->UpdatedAt = now();
                 $nuevo->save();
 
-                // Log DESPUÉS de guardar para verificar que se guardó correctamente
-                $nuevo->refresh();
-                LogFacade::info('DuplicarTejido: Valores DESPUÉS de guardar (desde BD)', [
-                    'id' => $nuevo->Id,
-                    'tamano_clave' => $nuevo->TamanoClave,
-                    'ItemId' => $nuevo->ItemId,
-                    'InventSizeId' => $nuevo->InventSizeId,
-                    'CustName' => $nuevo->CustName,
-                    'FlogsId' => $nuevo->FlogsId
-                ]);
-
                 $idsParaObserver[] = $nuevo->Id;
                 $totalDuplicados++;
+
+                // Guardar referencia para determinar el líder después (solo si vincular)
+                if ($vincular) {
+                    $registrosCreados[] = [
+                        'id' => $nuevo->Id,
+                        'fecha_inicio' => Carbon::parse($nuevo->FechaInicio),
+                    ];
+                }
+            }
+
+            // ===== ORDCOMPARTIDALIDER: Asignar al registro con fecha inicio más antigua (solo si vincular) =====
+            if ($vincular && !empty($registrosCreados)) {
+                // Ordenar por fecha inicio (más antigua primero)
+                usort($registrosCreados, function($a, $b) {
+                    return $a['fecha_inicio']->lt($b['fecha_inicio']) ? -1 : 1;
+                });
+
+                // El primero es el líder
+                $idLider = $registrosCreados[0]['id'];
+                ReqProgramaTejido::where('Id', $idLider)->update(['OrdCompartidaLider' => 1]);
+
+                // Asegurar que los demás no sean líderes
+                $idsNoLider = array_filter($idsParaObserver, function($id) use ($idLider) {
+                    return $id !== $idLider;
+                });
+                if (!empty($idsNoLider)) {
+                    ReqProgramaTejido::whereIn('Id', $idsNoLider)->update(['OrdCompartidaLider' => null]);
+                }
             }
 
             DBFacade::commit();
@@ -539,15 +563,30 @@ class DuplicarTejido
 
             $primer = !empty($idsParaObserver) ? ReqProgramaTejido::find($idsParaObserver[0]) : null;
 
-            return response()->json([
-                'success' => true,
-                'message' => "Telar duplicado correctamente. Se crearon {$totalDuplicados} registro(s).",
-                'registros_duplicados' => $totalDuplicados,
-                'registro_id' => $primer?->Id,
-                'registros_ids' => $idsParaObserver, // Devolver TODOS los IDs de los registros creados
-                'salon_destino' => $primer?->SalonTejidoId,
-                'telar_destino' => $primer?->NoTelarId,
-            ]);
+            // Mensaje y respuesta según si es vincular o duplicar
+            if ($vincular) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Telar vinculado correctamente. Se crearon {$totalDuplicados} registro(s) con OrdCompartida: {$ordCompartidaAVincular}.",
+                    'registros_vinculados' => $totalDuplicados,
+                    'registros_duplicados' => $totalDuplicados, // Mantener compatibilidad
+                    'ord_compartida' => $ordCompartidaAVincular,
+                    'registro_id' => $primer?->Id,
+                    'registros_ids' => $idsParaObserver, // Devolver TODOS los IDs de los registros creados
+                    'salon_destino' => $primer?->SalonTejidoId,
+                    'telar_destino' => $primer?->NoTelarId,
+                ]);
+            } else {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Telar duplicado correctamente. Se crearon {$totalDuplicados} registro(s).",
+                    'registros_duplicados' => $totalDuplicados,
+                    'registro_id' => $primer?->Id,
+                    'registros_ids' => $idsParaObserver, // Devolver TODOS los IDs de los registros creados
+                    'salon_destino' => $primer?->SalonTejidoId,
+                    'telar_destino' => $primer?->NoTelarId,
+                ]);
+            }
 
         } catch (\Throwable $e) {
             DBFacade::rollBack();
@@ -775,17 +814,6 @@ class DuplicarTejido
             return;
         }
 
-        // Log para verificar ItemId e InventSizeId antes de aplicar
-        LogFacade::info('DuplicarTejido: Datos del modelo antes de aplicar', [
-            'tamano_clave' => $tamanoClave,
-            'salon' => $salon,
-            'ItemId_en_modelo' => $datosModelo['ItemId'] ?? 'NO EXISTE',
-            'InventSizeId_en_modelo' => $datosModelo['InventSizeId'] ?? 'NO EXISTE',
-            'ItemId_tipo' => isset($datosModelo['ItemId']) ? gettype($datosModelo['ItemId']) : 'N/A',
-            'InventSizeId_tipo' => isset($datosModelo['InventSizeId']) ? gettype($datosModelo['InventSizeId']) : 'N/A',
-            'ItemId_antes' => $nuevo->ItemId ?? 'NULL',
-            'InventSizeId_antes' => $nuevo->InventSizeId ?? 'NULL'
-        ]);
 
 
 
@@ -886,24 +914,45 @@ class DuplicarTejido
 
                 $nuevo->{$campoRegistro} = $valor;
 
-                // Log para debugging ItemId e InventSizeId
-                if ($esCampoEspecial) {
-                    LogFacade::info('DuplicarTejido: Aplicando campo del modelo', [
-                        'campo_modelo' => $campoModelo,
-                        'campo_registro' => $campoRegistro,
-                        'valor_original' => $valorRaw,
-                        'valor_aplicado' => $valor,
-                        'tamano_clave' => $tamanoClave
-                    ]);
-                }
             }
         }
 
-        // Log para verificar ItemId e InventSizeId después de aplicar
-        LogFacade::info('DuplicarTejido: Datos del modelo después de aplicar', [
-            'tamano_clave' => $tamanoClave,
-            'ItemId_despues' => $nuevo->ItemId ?? 'NULL',
-            'InventSizeId_despues' => $nuevo->InventSizeId ?? 'NULL'
-        ]);
+    }
+
+    /**
+     * Obtiene un nuevo OrdCompartida disponible verificando que no esté en uso
+     *
+     * @return int
+     */
+    private static function obtenerNuevoOrdCompartidaDisponible(): int
+    {
+        // Obtener el máximo OrdCompartida existente
+        $maxOrdCompartida = ReqProgramaTejido::max('OrdCompartida') ?? 0;
+
+        // Empezar desde el siguiente número
+        $candidato = $maxOrdCompartida + 1;
+
+        // Verificar que no esté en uso (buscar hasta encontrar uno disponible)
+        // Límite de seguridad para evitar loops infinitos
+        $intentos = 0;
+        $maxIntentos = 1000;
+
+        while ($intentos < $maxIntentos) {
+            // Verificar si el OrdCompartida candidato ya existe
+            $existe = ReqProgramaTejido::where('OrdCompartida', $candidato)->exists();
+
+            if (!$existe) {
+                // Este OrdCompartida está disponible
+                return $candidato;
+            }
+
+            // Si existe, probar el siguiente
+            $candidato++;
+            $intentos++;
+        }
+
+        // Si llegamos aquí, algo está mal (muchos gaps en la secuencia)
+        // Usar el máximo + 1 de todas formas y loggear advertencia
+        return $candidato;
     }
 }

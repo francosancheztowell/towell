@@ -136,13 +136,14 @@ async function duplicarTelar(row) {
 
 	const datos = resultado.value;
 
-	// Determinar endpoint según el modo y si el checkbox de vincular está activo
-	const usarVincular = datos.vincular === true && datos.modo === 'duplicar';
+	// Determinar endpoint según el modo
+	// NOTA: Vincular ahora usa el mismo endpoint de duplicar, solo cambia el parámetro 'vincular'
 	const endpoint = datos.modo === 'dividir'
 		? '/planeacion/programa-tejido/dividir-saldo'
-		: usarVincular
-			? '/planeacion/programa-tejido/vincular-telar'
-			: '/planeacion/programa-tejido/duplicar-telar';
+		: '/planeacion/programa-tejido/duplicar-telar';
+
+	// Determinar si es vincular para el mensaje de éxito
+	const usarVincular = datos.vincular === true && datos.modo === 'duplicar';
 
 	const mensajeExito = datos.modo === 'dividir'
 		? 'Registro dividido correctamente'
@@ -177,6 +178,7 @@ async function duplicarTelar(row) {
 				descripcion: datos.descripcion,
 				custname: datos.custname,
 				invent_size_id: datos.inventSizeId,
+				vincular: datos.vincular || false, // Checkbox de vincular
 				ord_compartida_existente: datos.ord_compartida_existente,
 				registro_id_original: datos.registro_id_original
 			})
