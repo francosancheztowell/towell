@@ -40,7 +40,7 @@ class ReqProgramaTejido extends Model
         'ProdKgDia2','StdToaHra','DiasJornada','HorasProd','StdHrsEfect','Calc4','Calc5','Calc6',
         'EntregaProduc','EntregaPT','EntregaCte','PTvsCte','CreatedAt','UpdatedAt','FibraPie','FechaInicio','FechaFinal',
         'CalibreRizo2','CalibrePie2','CalibreTrama2','CalibreComb1','CalibreComb2','CalibreComb3','CalibreComb4','CalibreComb5',
-        'Prioridad','LargoCrudo','OrdCompartida','CategoriaCalidad','PorcentajeSegundos','PedidoTempo','OrdCompartidaLider','Reprogramar',
+        'Prioridad','LargoCrudo','OrdCompartida','CategoriaCalidad','PorcentajeSegundos','PedidoTempo','OrdCompartidaLider','Reprogramar','Posicion',
         'MtsRollo','PzasRollo','TotalRollos','TotalPzas','Repeticiones','CombinaTram','BomId','BomName','CreaProd',
         'Densidad','HiloAX','ActualizaLmat',
         'FechaCreacion','HoraCreacion','UsuarioCrea','FechaModificacion','HoraModificacion','UsuarioModifica'
@@ -98,7 +98,7 @@ class ReqProgramaTejido extends Model
         'CalibreComb52' => 'float',
 
         'MedidaPlano' => 'float',
-        'PesoGRM2' => 'float',   // ⭐ Ahora la columna es float en BD
+        'PesoGRM2' => 'float',   //  Ahora la columna es float en BD
         'CuentaPie' => 'string', // NVARCHAR en SQL Server
         'DiasEficiencia' => 'float',
         'ProdKgDia' => 'float',
@@ -168,7 +168,13 @@ class ReqProgramaTejido extends Model
 
     public function scopeOrdenado(Builder $q): Builder
     {
-        return $q->orderBy('SalonTejidoId')->orderBy('NoTelarId')->orderBy('FechaInicio','asc');
+        // Ordenar por salón y telar primero, luego por Posicion dentro de cada telar
+        // Cada telar tiene su propia secuencia de Posicion (1, 2, 3...)
+        // FechaInicio como fallback para registros sin Posicion
+        return $q->orderBy('SalonTejidoId')
+            ->orderBy('NoTelarId')
+            ->orderBy('Posicion', 'asc') // Posicion es específica por telar (1, 2, 3... en cada telar)
+            ->orderBy('FechaInicio', 'asc'); // Fallback para registros sin Posicion
     }
 
     public function scopeProgramadas(Builder $q): Builder
@@ -191,14 +197,23 @@ class ReqProgramaTejido extends Model
 
     public static function getSiguienteOrden($numeroTelar, $tipoSalon = 'JACQUARD', $fechaActual = null)
     {
+        // Optimizado: usar Posicion primero, luego FechaInicio como fallback
         $q = static::query()->salon($tipoSalon)->telar($numeroTelar)->enProceso(false);
         if ($fechaActual) $q->where('FechaInicio','>',$fechaActual);
-        return $q->orderBy('FechaInicio')->first();
+        return $q->orderBy('Posicion', 'asc') // Aprovecha índice IX_ReqProgramaTejido_Telar_Posicion
+            ->orderBy('FechaInicio', 'asc') // Fallback
+            ->first();
     }
 
     public static function getOrdenesProgramadas($numeroTelar, $tipoSalon = 'JACQUARD')
     {
-        return static::query()->salon($tipoSalon)->telar($numeroTelar)->orderBy('FechaInicio')->get();
+        // Optimizado: usar Posicion primero, luego FechaInicio como fallback
+        return static::query()
+            ->salon($tipoSalon)
+            ->telar($numeroTelar)
+            ->orderBy('Posicion', 'asc') // Aprovecha índice IX_ReqProgramaTejido_Telar_Posicion
+            ->orderBy('FechaInicio', 'asc') // Fallback
+            ->get();
     }
 
     /* ===========================
