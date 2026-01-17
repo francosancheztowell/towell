@@ -2713,7 +2713,13 @@
     // =========================
     document.addEventListener('DOMContentLoaded', () => {
       setNavbarHeightVar();
-      if (typeof window.initializeColumnVisibility === 'function') window.initializeColumnVisibility();
+
+      // ⚡ OPTIMIZACIÓN: Cargar estados guardados primero
+      // initializeColumnVisibility se llamará automáticamente desde loadPersistedHiddenColumns
+      // si no hay estados guardados, evitando conflictos
+      if (typeof window.loadPersistedHiddenColumns === 'function') {
+        window.loadPersistedHiddenColumns();
+      }
 
       // Asegurar que los fijados automáticos se apliquen
       setTimeout(() => {

@@ -188,4 +188,5 @@ Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoController::class, '
 Route::get('/programa-tejido/eficiencia-velocidad-std', [ProgramaTejidoController::class, 'getEficienciaVelocidadStd']);
 Route::post('/programa-tejido/calcular-totales-dividir', [DividirTejido::class, 'calcularTotalesDividir']);
 Route::get('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'index']);
+Route::get('/programa-tejido/columnas/visibles', [ColumnasProgramaTejidoController::class, 'getColumnasVisibles']);
 Route::post('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'store']);

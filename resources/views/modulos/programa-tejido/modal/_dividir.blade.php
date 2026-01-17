@@ -334,6 +334,26 @@ function calcularSaldoTotalDisponibleOriginal() {
 		saldoTotalDisponible += valores.saldoTotal;
 	});
 
+	// Si no hay valores originales (primera vez que se divide), usar el saldo de la fila principal o el pedido total
+	if (saldoTotalDisponible === 0) {
+		// Intentar obtener el saldo de la fila principal
+		const filaPrincipal = document.getElementById('fila-principal');
+		if (filaPrincipal) {
+			const saldoTotalInput = filaPrincipal.querySelector('.saldo-total-cell input');
+			if (saldoTotalInput) {
+				saldoTotalDisponible = parseFloat(saldoTotalInput.value) || 0;
+			}
+		}
+
+		// Si aún no hay saldo, usar el campo "Pedido Total" como fallback
+		if (saldoTotalDisponible === 0) {
+			const inputPedidoTotal = document.getElementById('swal-pedido');
+			if (inputPedidoTotal) {
+				saldoTotalDisponible = parseFloat(inputPedidoTotal.value) || 0;
+			}
+		}
+	}
+
 	return Math.round(saldoTotalDisponible);
 }
 
@@ -516,13 +536,14 @@ function validarYRedistribuirNuevoRegistro(nuevaFila) {
 
 		// Calcular saldo total disponible usando valores ORIGINALES
 		const saldoTotalDisponible = calcularSaldoTotalDisponibleOriginal();
-		// Validar que el TotalPedido no exceda el saldo disponible
-		if (totalPedido > saldoTotalDisponible) {
+
+		// Solo validar si hay saldo disponible (evitar validación en primera división hasta tener valores)
+		// Si el saldo disponible es mayor a 0, validar que no exceda
+		if (saldoTotalDisponible > 0 && totalPedido > saldoTotalDisponible) {
 			if (typeof showToast === 'function') {
 				showToast(`El pedido total (${totalPedido}) no puede ser mayor al saldo total disponible (${Math.round(saldoTotalDisponible)})`, 'error');
 			}
 			// Poner el pedido en 0 para restaurar automáticamente los valores originales
-			// Esto activará la lógica de restauración que ya existe en la línea 582-586
 			pedidoTempoInput.value = '0';
 			// Disparar evento input para que se ejecute la lógica de restauración
 			pedidoTempoInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -531,6 +552,16 @@ function validarYRedistribuirNuevoRegistro(nuevaFila) {
 				pedidoTempoInput.value = '';
 				pedidoTempoInput.focus();
 			}, 200);
+			return;
+		}
+
+		// Si no hay saldo disponible (primera división), no redistribuir aún
+		// Solo actualizar el saldo total de la nueva fila
+		if (saldoTotalDisponible === 0) {
+			// En la primera división, simplemente calcular el saldo de la nueva fila sin redistribuir
+			if (typeof calcularSaldoTotal === 'function') {
+				calcularSaldoTotal(nuevaFila);
+			}
 			return;
 		}
 

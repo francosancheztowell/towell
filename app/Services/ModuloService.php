@@ -15,6 +15,7 @@ class ModuloService
 
     /**
      * Método genérico para obtener módulos por nivel y usuario
+     * Optimizado para aprovechar índices: IX_SYSRoles_Nivel_Dependencia_orden e IX_SYSUsuariosRoles_idrol_idusuario_acceso
      */
     private function getModulosPorNivelYUsuario(
         int $idusuario,
@@ -25,31 +26,46 @@ class ModuloService
         $cacheKey = $cacheKey ?? "{$this->getCachePrefix()}_nivel{$nivel}_user_{$idusuario}" . ($dependencia ? "_dep{$dependencia}" : "");
 
         $data = Cache::remember($cacheKey, self::CACHE_TTL, function() use ($idusuario, $nivel, $dependencia) {
+            // Optimización: Filtrar primero por índices de SYSRoles (Nivel, Dependencia) antes del JOIN
+            // Esto permite que SQL Server use el índice IX_SYSRoles_Nivel_Dependencia_orden eficientemente
             $query = SYSRoles::query()
-                ->join('SYSUsuariosRoles', 'SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
-                ->where('SYSUsuariosRoles.idusuario', $idusuario)
-                ->where('SYSUsuariosRoles.acceso', true)
-                ->where('SYSRoles.Nivel', $nivel);
+                ->where('Nivel', $nivel);
 
-            // Filtros específicos por nivel
+            // Filtros específicos por nivel (optimizados para usar índice compuesto)
             if ($nivel == 1) {
                 // Módulos principales: sin dependencia
-                $query->whereNull('SYSRoles.Dependencia');
+                $query->whereNull('Dependencia');
             } elseif ($dependencia) {
                 // Submódulos: buscar por dependencia (la DB ya tiene la estructura correcta)
-                $query->where('SYSRoles.Dependencia', $dependencia);
+                $query->where('Dependencia', $dependencia);
             }
 
+            // JOIN optimizado: SQL Server puede usar IX_SYSUsuariosRoles_idrol_idusuario_acceso
+            // El índice tiene idrol primero, perfecto para el JOIN
+            $query->join('SYSUsuariosRoles', function($join) use ($idusuario) {
+                $join->on('SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
+                     ->where('SYSUsuariosRoles.idusuario', '=', $idusuario)
+                     ->where('SYSUsuariosRoles.acceso', '=', true);
+            });
+
+            // Select específico: solo columnas necesarias para reducir transferencia de datos
+            // Las columnas en INCLUDE del índice están disponibles sin lookup adicional
             return $query
                 ->select(
-                    'SYSRoles.*',
+                    'SYSRoles.idrol',
+                    'SYSRoles.orden',
+                    'SYSRoles.modulo',
+                    'SYSRoles.imagen',
+                    'SYSRoles.Ruta',
+                    'SYSRoles.Nivel',
+                    'SYSRoles.Dependencia',
                     'SYSUsuariosRoles.acceso as usuario_acceso',
                     'SYSUsuariosRoles.crear as usuario_crear',
                     'SYSUsuariosRoles.modificar as usuario_modificar',
                     'SYSUsuariosRoles.eliminar as usuario_eliminar',
                     'SYSUsuariosRoles.registrar as usuario_registrar'
                 )
-                ->orderBy('SYSRoles.orden')
+                ->orderBy('SYSRoles.orden') // Aprovecha índice compuesto con orden incluido
                 ->get()
                 ->map(function($modulo) {
                     return [
@@ -115,15 +131,19 @@ class ModuloService
 
     /**
      * Obtener todos los módulos ordenados
+     * Optimizado para usar índice IX_SYSRoles_orden
      */
     public function getAllModulos(): Collection
     {
-        return SYSRoles::orderBy('orden')->get();
+        return SYSRoles::select('idrol', 'orden', 'modulo', 'imagen', 'Ruta', 'Nivel', 'Dependencia', 'acceso', 'crear', 'modificar', 'eliminar', 'reigstrar')
+            ->orderBy('orden') // Usa índice IX_SYSRoles_orden
+            ->get();
     }
 
     /**
      * Buscar módulo principal por nombre, slug, ruta u orden
      * Busca directamente en la base de datos sin mapeos hardcodeados
+     * Optimizado para aprovechar índices: IX_SYSRoles_Nivel_Dependencia (con Ruta en INCLUDE)
      */
     public function buscarModuloPrincipal(string $moduloPrincipal): ?SYSRoles
     {
@@ -132,33 +152,45 @@ class ModuloService
         $cacheKey = "{$this->getCachePrefix()}_modulo_principal_{$moduloNormalizado}";
 
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($moduloPrincipal) {
-            // Buscar m?dulo principal (Nivel 1, sin Dependencia)
-            // NO filtramos por acceso aqu? porque puede que el m?dulo exista pero el usuario
-            // no tenga acceso (se eliminaron m?dulos). Eso se valida despu?s en showSubModulos.
+            // Buscar módulo principal (Nivel 1, sin Dependencia)
+            // NO filtramos por acceso aquí porque puede que el módulo exista pero el usuario
+            // no tenga acceso (se eliminaron módulos). Eso se valida después en showSubModulos.
+            // Optimización: Usa índice IX_SYSRoles_Nivel_Dependencia eficientemente
             $baseQuery = SYSRoles::where('Nivel', 1)
                 ->whereNull('Dependencia');
 
-            // 1. Buscar por nombre exacto
-            $modulo = (clone $baseQuery)->where('modulo', $moduloPrincipal)->first();
+            // 1. Buscar por nombre exacto (puede usar índice si existe en modulo)
+            // Priorizar búsquedas exactas que pueden usar índices
+            $modulo = (clone $baseQuery)
+                ->where('modulo', $moduloPrincipal)
+                ->select('idrol', 'orden', 'modulo', 'imagen', 'Ruta', 'Nivel', 'Dependencia')
+                ->first();
 
-            // 2. Buscar por ruta exacta (si el par?metro ya es una ruta como /planeacion)
+            // 2. Buscar por ruta exacta (si el parámetro ya es una ruta como /planeacion)
+            // Ruta está en INCLUDE del índice, acceso rápido sin lookup adicional
             if (!$modulo && str_starts_with($moduloPrincipal, '/')) {
-                $modulo = (clone $baseQuery)->where('Ruta', $moduloPrincipal)->first();
-            }
-
-
-            // 7. Si no encuentra, buscar por nombre que contenga el slug (insensible a mayusculas)
-            if (!$modulo) {
                 $modulo = (clone $baseQuery)
-                    ->whereRaw('LOWER(modulo) LIKE ?', ['%' . strtolower($moduloPrincipal) . '%'])
+                    ->where('Ruta', $moduloPrincipal)
+                    ->select('idrol', 'orden', 'modulo', 'imagen', 'Ruta', 'Nivel', 'Dependencia')
                     ->first();
             }
 
-            // 8. Ultimo intento: buscar por ruta que contenga el slug (sin acentos)
+            // 3. Si no encuentra, buscar por nombre que contenga el slug (insensible a mayusculas)
+            // NOTA: LIKE '%texto%' no puede usar índices eficientemente, pero es necesario como fallback
+            if (!$modulo) {
+                $modulo = (clone $baseQuery)
+                    ->whereRaw('LOWER(modulo) LIKE ?', ['%' . strtolower($moduloPrincipal) . '%'])
+                    ->select('idrol', 'orden', 'modulo', 'imagen', 'Ruta', 'Nivel', 'Dependencia')
+                    ->first();
+            }
+
+            // 4. Último intento: buscar por ruta que contenga el slug (sin acentos)
+            // NOTA: LIKE '%texto%' no puede usar índices eficientemente, pero es necesario como fallback
             if (!$modulo) {
                 $slug = strtolower(str_replace(['_', ' '], '-', $moduloPrincipal));
                 $modulo = (clone $baseQuery)
                     ->whereRaw('LOWER(Ruta) LIKE ?', ["%{$slug}%"])
+                    ->select('idrol', 'orden', 'modulo', 'imagen', 'Ruta', 'Nivel', 'Dependencia')
                     ->first();
             }
 
@@ -195,8 +227,11 @@ class ModuloService
         }
 
         // Para nivel 2 y 3, intentar construir desde el padre
+        // Optimización: Usa índice IX_SYSRoles_orden para búsqueda rápida
         if ($modulo->Dependencia) {
-            $padre = SYSRoles::where('orden', $modulo->Dependencia)->first();
+            $padre = SYSRoles::where('orden', $modulo->Dependencia)
+                ->select('orden', 'Ruta', 'Nivel')
+                ->first();
             if ($padre) {
                 // Si el padre tiene ruta, construir desde ahí
                 if ($padre->Ruta) {

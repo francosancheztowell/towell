@@ -507,6 +507,9 @@ class DuplicarTejido
                     }
                 }
 
+                // Asignar posición consecutiva para este telar
+                $nuevo->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonDestino, $telarDestino);
+
                 $nuevo->CreatedAt = now();
                 $nuevo->UpdatedAt = now();
                 $nuevo->save();

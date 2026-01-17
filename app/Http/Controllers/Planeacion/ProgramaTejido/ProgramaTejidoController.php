@@ -22,6 +22,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
@@ -312,6 +313,9 @@ class ProgramaTejidoController extends Controller
                         $nuevo->{$campoStr} = StringTruncator::truncate($campoStr, $nuevo->{$campoStr});
                     }
                 }
+
+                // Asignar posición consecutiva para este telar
+                $nuevo->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salon, $noTelarId);
 
                 $nuevo->CreatedAt = now();
                 $nuevo->UpdatedAt = now();
@@ -985,12 +989,15 @@ class ProgramaTejidoController extends Controller
                 return response()->json(['error' => 'SalonTejidoId y NoTelarId son requeridos'], 400);
             }
 
+            // Optimizado: aprovecha índice IX_ReqProgramaTejido_Telar_FechaFinal
+            // Orden: SalonTejidoId, NoTelarId, FechaFinal DESC (INCLUDE: Id)
+            // Nota: FibraRizo, Maquina, Ancho no están en INCLUDE, pero Id sí está
             $ultimo = ReqProgramaTejido::query()
                 ->salon($salon)
                 ->telar($telar)
                 ->whereNotNull('FechaFinal')
-                ->orderByDesc('FechaFinal')
-                ->select('FechaFinal', 'FibraRizo', 'Maquina', 'Ancho')
+                ->orderByDesc('FechaFinal') // Aprovecha índice IX_ReqProgramaTejido_Telar_FechaFinal
+                ->select('Id', 'FechaFinal', 'FibraRizo', 'Maquina', 'Ancho')
                 ->first();
 
             return response()->json([
@@ -1290,6 +1297,8 @@ class ProgramaTejidoController extends Controller
             // Actualizar campos básicos del registro
             $registro->SalonTejidoId = $nuevoSalon;
             $registro->NoTelarId = $nuevoTelar;
+            // Recalcular posición para el nuevo telar
+            $registro->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($nuevoSalon, $nuevoTelar);
 
             // Actualizar Eficiencia y Velocidad según el nuevo telar
             [$nuevaEficiencia, $nuevaVelocidad] = QueryHelpers::resolverStdSegunTelar($registro, $modeloDestino, $nuevoTelar, $nuevoSalon);
@@ -1492,6 +1501,8 @@ class ProgramaTejidoController extends Controller
             foreach ($registrosNuevos as $registro) {
                 $registro->SalonTejidoId = $nuevoSalon;
                 $registro->NoTelarId = $nuevoTelar;
+                // Recalcular posición para el nuevo telar
+                $registro->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($nuevoSalon, $nuevoTelar);
                 $registro->CambioHilo = 0;
                 $registro->Ultimo = 0;
                 $registro->EnProceso = 0;

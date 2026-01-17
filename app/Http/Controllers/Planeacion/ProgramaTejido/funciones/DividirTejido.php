@@ -362,6 +362,9 @@ class DividirTejido
                 // Eliminar Repeticiones si existe (no es una columna de la tabla)
                 unset($nuevo->Repeticiones);
 
+                // Asignar posición consecutiva para este telar
+                $nuevo->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonDestinoItem, $telarDestino);
+
                 $nuevo->CreatedAt = now();
                 $nuevo->UpdatedAt = now();
                 $nuevo->save();
@@ -855,6 +858,9 @@ class DividirTejido
 
                 // Eliminar Repeticiones si existe (no es una columna de la tabla)
                 unset($nuevo->Repeticiones);
+
+                // Asignar posición consecutiva para este telar
+                $nuevo->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonDestinoItem, $telarDestino);
 
                 $nuevo->CreatedAt = now();
                 $nuevo->UpdatedAt = now();

@@ -12,6 +12,45 @@ use Illuminate\Support\Facades\Log;
 
 class TejidoHelpers
 {
+    /**
+     * Calcular la siguiente posición disponible para un telar específico
+     * La posición es consecutiva por telar: 1, 2, 3, 4, etc.
+     * 
+     * @param string $salonTejidoId
+     * @param string $noTelarId
+     * @return int
+     */
+    public static function obtenerSiguientePosicionDisponible(string $salonTejidoId, string $noTelarId): int
+    {
+        // Obtener todas las posiciones existentes para este telar, ordenadas
+        $posicionesExistentes = ReqProgramaTejido::query()
+            ->where('SalonTejidoId', $salonTejidoId)
+            ->where('NoTelarId', $noTelarId)
+            ->whereNotNull('Posicion')
+            ->orderBy('Posicion', 'asc')
+            ->pluck('Posicion')
+            ->toArray();
+
+        // Si no hay posiciones existentes, empezar en 1
+        if (empty($posicionesExistentes)) {
+            return 1;
+        }
+
+        // Buscar el primer hueco en la secuencia
+        $posicionEsperada = 1;
+        foreach ($posicionesExistentes as $posicionExistente) {
+            if ($posicionExistente == $posicionEsperada) {
+                $posicionEsperada++;
+            } else {
+                // Encontramos un hueco, usar esa posición
+                return $posicionEsperada;
+            }
+        }
+
+        // Si no hay huecos, la siguiente posición es la última + 1
+        return $posicionEsperada;
+    }
+
     public static function sanitizeNumber($value): float
     {
         if ($value === null) return 0.0;

@@ -220,33 +220,42 @@ async function loadPersistedHiddenColumns() {
 
 	// ⚡ OPTIMIZACIÓN: Cargar desde servidor en segundo plano sin bloquear
 	// No esperar a que termine para aplicar el estado
-	(async () => {
-		try {
-			isInitializingColumns = true;
-			const res = await fetch(COLUMN_STATE_ENDPOINT, {
-				method: 'GET',
-				headers: { 'Accept': 'application/json' },
-				credentials: 'same-origin'
-			});
-			if (!res.ok) return;
+	try {
+		isInitializingColumns = true;
+		const res = await fetch(COLUMN_STATE_ENDPOINT, {
+			method: 'GET',
+			headers: { 'Accept': 'application/json' },
+			credentials: 'same-origin'
+		});
+		if (res.ok) {
 			const data = await res.json();
-			if (!data.success || !data.data) return;
-			// Guardar pendientes y aplicar cuando columnsData este listo
-			const hiddenFields = Object.entries(data.data || {})
-				.filter(([, hidden]) => hidden)
-				.map(([field]) => field);
-			setCachedHiddenFields(hiddenFields);
-			// Solo actualizar si hay diferencias con el caché
-			if (!hasCached || JSON.stringify(cachedFields.sort()) !== JSON.stringify(hiddenFields.sort())) {
-				pendingHiddenFields = hiddenFields;
-				tryApplyHiddenFields();
+			if (data.success && data.data) {
+				// Guardar pendientes y aplicar cuando columnsData este listo
+				const hiddenFields = Object.entries(data.data || {})
+					.filter(([, hidden]) => hidden)
+					.map(([field]) => field);
+				setCachedHiddenFields(hiddenFields);
+				// Solo actualizar si hay diferencias con el caché
+				if (!hasCached || JSON.stringify(cachedFields.sort()) !== JSON.stringify(hiddenFields.sort())) {
+					pendingHiddenFields = hiddenFields;
+					tryApplyHiddenFields();
+				}
 			}
-		} catch (e) {
-			console.warn('No se pudo cargar estado de columnas desde servidor', e);
-		} finally {
-			isInitializingColumns = false;
 		}
-	})();
+	} catch (e) {
+		console.warn('No se pudo cargar estado de columnas desde servidor', e);
+	} finally {
+		isInitializingColumns = false;
+
+		// ⚡ OPTIMIZACIÓN: Si no había estados guardados, inicializar con defaults
+		// Esto asegura que siempre haya una inicialización, pero solo si no hay estados guardados
+		if (!hasCached && typeof window.initializeColumnVisibility === 'function') {
+			// Esperar un momento para que columnsData esté listo
+			setTimeout(() => {
+				window.initializeColumnVisibility();
+			}, 50);
+		}
+	}
 
 	// Si no había caché, intentar aplicar de todas formas
 	if (!hasCached) {
@@ -729,6 +738,22 @@ function resetColumnVisibility() {
 function initializeColumnVisibility() {
 	try {
 		isInitializingColumns = true;
+
+		// ⚡ OPTIMIZACIÓN: Verificar si hay estados guardados antes de aplicar defaults
+		// Solo aplicar defaults si no hay estados guardados (evita conflictos)
+		const cachedFields = getCachedHiddenFields();
+		const hasCached = Array.isArray(cachedFields) && cachedFields.length > 0;
+
+		// Si hay estados guardados, no aplicar defaults (ya se aplicaron en loadPersistedHiddenColumns)
+		if (hasCached) {
+			// Solo asegurar que los estados se apliquen si columnsData está listo
+			if (Array.isArray(columnsData) && columnsData.length > 0) {
+				tryApplyHiddenFields();
+			}
+			return;
+		}
+
+		// Solo aplicar defaults si no hay estados guardados
 		Object.keys(columnGroups).forEach(groupId => {
 			const group = columnGroups[groupId];
 			const groupIdNum = parseInt(groupId);
@@ -888,6 +913,7 @@ window.toggleGroupPin = toggleGroupPin;
 window.getColumnGroup = getColumnGroup;
 window.getGroupColumns = getGroupColumns;
 window.pinDefaultColumns = pinDefaultColumns;
+window.loadPersistedHiddenColumns = loadPersistedHiddenColumns;
 window.applyDefaultPinsOnce = applyDefaultPinsOnce;
 // FunciÃ³n para fijar columnas por defecto
 function applyDefaultPinsOnce() {
@@ -925,8 +951,9 @@ function pinDefaultColumns() {
 		requestAnimationFrame(updatePinnedColumnsPositions);
 	}
 }
-// Cargar estados persistidos al inicio
-loadPersistedHiddenColumns();
+// ⚡ OPTIMIZACIÓN: loadPersistedHiddenColumns() ahora se llama desde main.blade.php
+// después de DOMContentLoaded para evitar conflictos con initializeColumnVisibility()
+// No se ejecuta aquí para evitar duplicados
 
 
 
