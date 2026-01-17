@@ -11,15 +11,23 @@
         }
         body {
             font-family: Arial, sans-serif;
-            font-size: 9px;
+            font-size: 9.5px;
             padding: 12px;
             color: #111827;
+            background: #ffffff;
         }
         h2 {
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 6px;
             font-size: 16px;
             color: #1f2937;
+            letter-spacing: .2px;
+        }
+        .subtitle {
+            text-align: center;
+            font-size: 10px;
+            color: #6b7280;
+            margin-bottom: 10px;
         }
         table {
             width: 100%;
@@ -58,6 +66,8 @@
         .turno-1 { background-color: #dbeafe; }
         .turno-2 { background-color: #dcfce7; }
         .turno-3 { background-color: #fef3c7; }
+        .efi-low { background-color: #fde047 !important; }
+        .efi-low-t3 { background-color: #f59e0b !important; color: #111827; }
         .footer {
             font-size: 8px;
             color: #6b7280;
@@ -68,6 +78,7 @@
 </head>
 <body>
     <h2>Cortes de Eficiencia - {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</h2>
+    <div class="subtitle">Celdas de % EF por debajo de 70% se resaltan</div>
 
     <table>
         <thead>
@@ -111,6 +122,16 @@
                     if($e === null) return '';
                     return $fmt($e);
                 };
+                $efiClass = function($line, $campo, $turno = null){
+                    if(!$line) return '';
+                    $e = $line->$campo;
+                    if($e === null || $e === '') return '';
+                    if(!is_numeric($e)) return '';
+                    if(((float)$e) < 70) {
+                        return $turno === 3 ? 'efi-low-t3' : 'efi-low';
+                    }
+                    return '';
+                };
             @endphp
             @forelse ($datos as $row)
                 @php
@@ -121,28 +142,28 @@
                 <tr>
                     <td class="telar-col">{{ $row['telar'] }}</td>
                     <td class="narrow">{{ $fmt($val($t1,'RpmStd')) }}</td>
-                    <td class="narrow">{{ $efi($t1,'EficienciaSTD') }}</td>
+                    <td class="narrow {{ $efiClass($t1,'EficienciaSTD') }}">{{ $efi($t1,'EficienciaSTD') }}</td>
 
                     <td class="turno-1 narrow">{{ $fmt($val($t1,'RpmR1')) }}</td>
-                    <td class="turno-1 narrow">{{ $efi($t1,'EficienciaR1') }}</td>
+                    <td class="turno-1 narrow {{ $efiClass($t1,'EficienciaR1', 1) }}">{{ $efi($t1,'EficienciaR1') }}</td>
                     <td class="turno-1 narrow">{{ $fmt($val($t1,'RpmR2')) }}</td>
-                    <td class="turno-1 narrow">{{ $efi($t1,'EficienciaR2') }}</td>
+                    <td class="turno-1 narrow {{ $efiClass($t1,'EficienciaR2', 1) }}">{{ $efi($t1,'EficienciaR2') }}</td>
                     <td class="turno-1 narrow">{{ $fmt($val($t1,'RpmR3')) }}</td>
-                    <td class="turno-1 narrow">{{ $efi($t1,'EficienciaR3') }}</td>
+                    <td class="turno-1 narrow {{ $efiClass($t1,'EficienciaR3', 1) }}">{{ $efi($t1,'EficienciaR3') }}</td>
 
                     <td class="turno-2 narrow">{{ $fmt($val($t2,'RpmR1')) }}</td>
-                    <td class="turno-2 narrow">{{ $efi($t2,'EficienciaR1') }}</td>
+                    <td class="turno-2 narrow {{ $efiClass($t2,'EficienciaR1', 2) }}">{{ $efi($t2,'EficienciaR1') }}</td>
                     <td class="turno-2 narrow">{{ $fmt($val($t2,'RpmR2')) }}</td>
-                    <td class="turno-2 narrow">{{ $efi($t2,'EficienciaR2') }}</td>
+                    <td class="turno-2 narrow {{ $efiClass($t2,'EficienciaR2', 2) }}">{{ $efi($t2,'EficienciaR2') }}</td>
                     <td class="turno-2 narrow">{{ $fmt($val($t2,'RpmR3')) }}</td>
-                    <td class="turno-2 narrow">{{ $efi($t2,'EficienciaR3') }}</td>
+                    <td class="turno-2 narrow {{ $efiClass($t2,'EficienciaR3', 2) }}">{{ $efi($t2,'EficienciaR3') }}</td>
 
                     <td class="turno-3 narrow">{{ $fmt($val($t3,'RpmR1')) }}</td>
-                    <td class="turno-3 narrow">{{ $efi($t3,'EficienciaR1') }}</td>
+                    <td class="turno-3 narrow {{ $efiClass($t3,'EficienciaR1', 3) }}">{{ $efi($t3,'EficienciaR1') }}</td>
                     <td class="turno-3 narrow">{{ $fmt($val($t3,'RpmR2')) }}</td>
-                    <td class="turno-3 narrow">{{ $efi($t3,'EficienciaR2') }}</td>
+                    <td class="turno-3 narrow {{ $efiClass($t3,'EficienciaR2', 3) }}">{{ $efi($t3,'EficienciaR2') }}</td>
                     <td class="turno-3 narrow">{{ $fmt($val($t3,'RpmR3')) }}</td>
-                    <td class="turno-3 narrow">{{ $efi($t3,'EficienciaR3') }}</td>
+                    <td class="turno-3 narrow {{ $efiClass($t3,'EficienciaR3', 3) }}">{{ $efi($t3,'EficienciaR3') }}</td>
                 </tr>
             @empty
                 <tr>
