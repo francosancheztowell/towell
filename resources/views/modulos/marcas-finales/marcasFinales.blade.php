@@ -1,4 +1,4 @@
-@extends('layouts.app', ['ocultarBotones' => true])
+@extends('layouts.app')
 
 @section('page-title', 'Marcas Finales')
 
@@ -95,7 +95,7 @@
                             <tr class="hover:bg-blue-500 hover:text-white cursor-pointer transition-colors marca-row {{ isset($ultimoFolio) && $ultimoFolio->Folio == $marca->Folio ? 'bg-blue-100 border-l-4 border-blue-600' : '' }}"
                   id="row-{{ $marca->Folio }}"
                   data-folio="{{ $marca->Folio }}"
-                  onclick="MarcasManager.seleccionar('{{ $marca->Folio }}', this)">
+                  onclick="window.MarcasManager?.seleccionar('{{ $marca->Folio }}', this)">
                 <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate hover:text-white">{{ $marca->Folio }}</td>
                                 <td class="px-4 py-3 text-gray-900 text-base truncate hover:text-white">
                                     @if($marca->Date)
@@ -129,6 +129,7 @@
                   id="btn-nuevo-empty"
           title="Nuevo"
           module="Marcas Finales"
+                    :checkPermission="false"
           :disabled="false"
           icon="fa-plus"
           iconColor="text-green-600"
@@ -181,9 +182,9 @@
 
     const CONFIG = {
         urls: {
-            detalle: '/tejido/modulo-prueba/',
-            editar: '{{ url("/tejido/modulo-prueba") }}?folio=',
-            finalizar: '/tejido/modulo-prueba/{folio}/finalizar'
+            detalle: '/modulo-marcas/',
+            editar: '{{ url("/modulo-marcas") }}?folio=',
+            finalizar: '/modulo-marcas/{folio}/finalizar'
         },
         timeout: 30000, // 30 segundos (suficiente para cualquier petición)
         ultimoFolio: @json(isset($ultimoFolio) ? $ultimoFolio->Folio : null)
@@ -399,7 +400,7 @@
         async accionNuevo() {
             // Verificar si ya existe un folio en proceso
             try {
-                const response = await fetch('/tejido/modulo-prueba/generar-folio', {
+                const response = await fetch('/modulo-marcas/generar-folio', {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -465,7 +466,7 @@
                 });
                 return;
             }
-            window.location.href = `/tejido/modulo-prueba/visualizar/${this.state.folio}`;
+            window.location.href = `/modulo-marcas/visualizar/${this.state.folio}`;
         }
 
         accionFinalizar() {
@@ -597,15 +598,18 @@
             }
         }
 
-        // Mostrar error si hay campos vacíos
+        // Mostrar confirmación si hay campos vacíos
         if (lineasInvalidas.length > 0) {
-            await Swal.fire({
+            const totalCamposVacios = lineasInvalidas.reduce((acc, item) => acc + (item.campos?.length || 0), 0);
+            const result = await Swal.fire({
                 icon: 'warning',
-                title: 'Hay marcas sin valor',
-                text: `Hay ${lineasInvalidas.length} telar(es) con campos vacíos o en cero. Debes llenar todos los campos antes de finalizar la marca.`,
-                confirmButtonText: 'Entendido'
+                title: 'Hay campos sin valor',
+                text: `Hay ${totalCamposVacios} campo(s) vacío(s) o en cero en ${lineasInvalidas.length} telar(es). ¿Deseas continuar?`,
+                showCancelButton: true,
+                confirmButtonText: 'Sí, continuar',
+                cancelButtonText: 'No, revisar'
             });
-            return false;
+            return !!result.isConfirmed;
         }
 
         return true;
@@ -634,7 +638,7 @@
             // Redirige a ruta de reporte por fecha (controlador debe existir)
             const fecha = sel.value; // formato YYYY-MM-DD
             this.cerrarModalFechas();
-            window.location.href = `/tejido/modulo-prueba/reporte?fecha=${encodeURIComponent(fecha)}`;
+            window.location.href = `/modulo-marcas/reporte?fecha=${encodeURIComponent(fecha)}`;
         }
     }
 
