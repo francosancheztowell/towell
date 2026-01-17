@@ -106,7 +106,12 @@ class DividirTejido
             // El primer destino es el registro original (ya viene bloqueado en el modal)
             // Los dem├ís destinos son los telares donde se dividir├í
             $destinosNuevos = [];
-            $cantidadOriginalTotal = (float) ($registroOriginal->SaldoPedido ?? $registroOriginal->TotalPedido ?? 0);
+            // ⚡ MEJORA: Calcular cantidad original total desde SaldoPedido o TotalPedido
+            // Usar TotalPedido como base (es el pedido completo sin restar producción)
+            $totalPedidoOriginal = (float) ($registroOriginal->TotalPedido ?? 0);
+            $saldoPedidoOriginal = (float) ($registroOriginal->SaldoPedido ?? 0);
+            // Si no hay TotalPedido, usar SaldoPedido como fallback
+            $cantidadOriginalTotal = $totalPedidoOriginal > 0 ? $totalPedidoOriginal : $saldoPedidoOriginal;
             $cantidadParaOriginal = 0;
             $cantidadesNuevos = [];
 
@@ -132,25 +137,105 @@ class DividirTejido
                 } else {
                     $salonDestinoItem = $destino['salon_destino'] ?? $salonDestino;
                     // Nuevos registros a crear
+                    // ⚡ MEJORA: Incluir tamano_clave y otros campos específicos de cada destino
                     $destinosNuevos[] = [
                         'salon_destino' => $salonDestinoItem,
                         'telar' => $destino['telar'],
                         'pedido' => $pedidoDestino,
+                        'pedido_tempo' => $pedidoTempoDestino,
                         'observaciones' => $observacionesDestino,
-                        'porcentaje_segundos' => $porcentajeSegundosDestino
+                        'porcentaje_segundos' => $porcentajeSegundosDestino,
+                        'tamano_clave' => $destino['tamano_clave'] ?? null,
+                        'producto' => $destino['producto'] ?? null,
+                        'flog' => $destino['flog'] ?? null,
+                        'descripcion' => $destino['descripcion'] ?? null,
+                        'custName' => $destino['custName'] ?? null,
+                        'itemId' => $destino['itemId'] ?? null,
+                        'inventSizeId' => $destino['inventSizeId'] ?? null,
+                        // Incluir todos los campos técnicos del modelo
+                        'cuentaRizo' => $destino['cuentaRizo'] ?? null,
+                        'calibreRizo' => $destino['calibreRizo'] ?? null,
+                        'calibreRizo2' => $destino['calibreRizo2'] ?? null,
+                        'ancho' => $destino['ancho'] ?? null,
+                        'calibrePie' => $destino['calibrePie'] ?? null,
+                        'calibrePie2' => $destino['calibrePie2'] ?? null,
+                        'rasurado' => $destino['rasurado'] ?? null,
+                        'noTiras' => $destino['noTiras'] ?? null,
+                        'peine' => $destino['peine'] ?? null,
+                        'luchaje' => $destino['luchaje'] ?? null,
+                        'pesoCrudo' => $destino['pesoCrudo'] ?? null,
+                        'calibreTrama' => $destino['calibreTrama'] ?? null,
+                        'calibreTrama2' => $destino['calibreTrama2'] ?? null,
+                        'fibraTrama' => $destino['fibraTrama'] ?? null,
+                        'dobladilloId' => $destino['dobladilloId'] ?? null,
+                        'pasadasTrama' => $destino['pasadasTrama'] ?? null,
+                        'pasadasComb1' => $destino['pasadasComb1'] ?? null,
+                        'pasadasComb2' => $destino['pasadasComb2'] ?? null,
+                        'pasadasComb3' => $destino['pasadasComb3'] ?? null,
+                        'pasadasComb4' => $destino['pasadasComb4'] ?? null,
+                        'pasadasComb5' => $destino['pasadasComb5'] ?? null,
+                        'anchoToalla' => $destino['anchoToalla'] ?? null,
+                        'codColorTrama' => $destino['codColorTrama'] ?? null,
+                        'colorTrama' => $destino['colorTrama'] ?? null,
+                        'calibreComb1' => $destino['calibreComb1'] ?? null,
+                        'calibreComb12' => $destino['calibreComb12'] ?? null,
+                        'fibraComb1' => $destino['fibraComb1'] ?? null,
+                        'codColorComb1' => $destino['codColorComb1'] ?? null,
+                        'nombreCC1' => $destino['nombreCC1'] ?? null,
+                        'calibreComb2' => $destino['calibreComb2'] ?? null,
+                        'calibreComb22' => $destino['calibreComb22'] ?? null,
+                        'fibraComb2' => $destino['fibraComb2'] ?? null,
+                        'codColorComb2' => $destino['codColorComb2'] ?? null,
+                        'nombreCC2' => $destino['nombreCC2'] ?? null,
+                        'calibreComb3' => $destino['calibreComb3'] ?? null,
+                        'calibreComb32' => $destino['calibreComb32'] ?? null,
+                        'fibraComb3' => $destino['fibraComb3'] ?? null,
+                        'codColorComb3' => $destino['codColorComb3'] ?? null,
+                        'nombreCC3' => $destino['nombreCC3'] ?? null,
+                        'calibreComb4' => $destino['calibreComb4'] ?? null,
+                        'calibreComb42' => $destino['calibreComb42'] ?? null,
+                        'fibraComb4' => $destino['fibraComb4'] ?? null,
+                        'codColorComb4' => $destino['codColorComb4'] ?? null,
+                        'nombreCC4' => $destino['nombreCC4'] ?? null,
+                        'calibreComb5' => $destino['calibreComb5'] ?? null,
+                        'calibreComb52' => $destino['calibreComb52'] ?? null,
+                        'fibraComb5' => $destino['fibraComb5'] ?? null,
+                        'codColorComb5' => $destino['codColorComb5'] ?? null,
+                        'nombreCC5' => $destino['nombreCC5'] ?? null,
+                        'medidaPlano' => $destino['medidaPlano'] ?? null,
+                        'cuentaPie' => $destino['cuentaPie'] ?? null,
+                        'largoToalla' => $destino['largoToalla'] ?? null, // ⚡ MEJORA: LargoCrudo se obtiene de LargoToalla
+                        'aplicacion' => $destino['aplicacion'] ?? null,
                     ];
                     $cantidadesNuevos[] = $pedidoDestino;
                 }
             }
 
-            // Ajustar cantidades: si no se dio cantidad al original, usar la diferencia
+            // ⚡ MEJORA: Ajustar cantidades - calcular correctamente el TotalPedido del registro original
+            // El TotalPedido del original debe ser: TotalPedido original - suma de pedidos nuevos
             $sumaNuevos = array_sum($cantidadesNuevos);
+            
+            // Si no se especificó cantidad para el original, calcularla restando los nuevos
             if ($cantidadParaOriginal <= 0) {
                 $cantidadParaOriginal = max(0, $cantidadOriginalTotal - $sumaNuevos);
             }
+            
             // Si tampoco hubo nuevos, mantener el total original en el registro base
             if ($cantidadParaOriginal <= 0 && $sumaNuevos <= 0) {
                 $cantidadParaOriginal = $cantidadOriginalTotal;
+            }
+            
+            // ⚡ MEJORA: Validar que la suma de original + nuevos no exceda el total original
+            $sumaTotal = $cantidadParaOriginal + $sumaNuevos;
+            if ($sumaTotal > $cantidadOriginalTotal) {
+                // Ajustar proporcionalmente si excede
+                $factor = $cantidadOriginalTotal / $sumaTotal;
+                $cantidadParaOriginal = max(0, round($cantidadParaOriginal * $factor));
+                foreach ($cantidadesNuevos as $idx => $cantidad) {
+                    $cantidadesNuevos[$idx] = max(0, round($cantidad * $factor));
+                    $destinosNuevos[$idx]['pedido'] = $cantidadesNuevos[$idx];
+                }
+                $sumaNuevos = array_sum($cantidadesNuevos);
             }
 
             $idsParaObserver = [];
@@ -158,10 +243,15 @@ class DividirTejido
 
             // === PASO 1: Actualizar el registro original ===
             $registroOriginal->OrdCompartida = $nuevoOrdCompartida;
+            
+            // ⚡ MEJORA: Actualizar TotalPedido y SaldoPedido restando los pedidos de los nuevos registros
+            // TotalPedido = cantidad original - suma de pedidos nuevos
             $registroOriginal->TotalPedido = $cantidadParaOriginal;
+            
             // SaldoPedido = TotalPedido - Produccion (si hay producci├│n)
             $produccionOriginal = (float) ($registroOriginal->Produccion ?? 0);
             $registroOriginal->SaldoPedido = max(0, $cantidadParaOriginal - $produccionOriginal);
+            
 
             // Actualizar PedidoTempo, Observaciones y PorcentajeSegundos del registro original
             if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
@@ -204,14 +294,6 @@ class DividirTejido
                     }
                 }
 
-                LogFacade::info('DividirTejido: recalculo exacto registro original', [
-                    'id' => $registroOriginal->Id,
-                    'cantidad' => $cantidadParaOriginal,
-                    'horas' => $horasNecesarias,
-                    'inicio' => $registroOriginal->FechaInicio,
-                    'fin' => $registroOriginal->FechaFinal,
-                    'calendario_id' => $registroOriginal->CalendarioId ?? null,
-                ]);
             }
 
             // Recalcular f├│rmulas del registro original
@@ -281,17 +363,136 @@ class DividirTejido
                     $telarDestino
                 );
 
-                // Actualizar otros campos si se proporcionan
-                if ($inventSizeId) $nuevo->InventSizeId = $inventSizeId;
-                if ($codArticulo) $nuevo->ItemId = $codArticulo;
-                if ($producto) $nuevo->NombreProducto = $producto;
+                // ⚡ MEJORA: Leer tamano_clave específico de cada destino (permite diferentes claves modelo por fila)
+                $tamanoClaveDestino = isset($destino['tamano_clave']) && $destino['tamano_clave'] !== null && $destino['tamano_clave'] !== '' 
+                    ? trim((string) $destino['tamano_clave']) 
+                    : null;
+                $productoDestino = isset($destino['producto']) && $destino['producto'] !== null && $destino['producto'] !== '' 
+                    ? trim((string) $destino['producto']) 
+                    : null;
+                $flogDestino = isset($destino['flog']) && $destino['flog'] !== null && $destino['flog'] !== '' 
+                    ? trim((string) $destino['flog']) 
+                    : null;
+                $descripcionDestino = isset($destino['descripcion']) && $destino['descripcion'] !== null && $destino['descripcion'] !== '' 
+                    ? trim((string) $destino['descripcion']) 
+                    : null;
+                $custnameDestino = isset($destino['custName']) && $destino['custName'] !== null && $destino['custName'] !== '' 
+                    ? trim((string) $destino['custName']) 
+                    : null;
+                $itemIdDestino = isset($destino['itemId']) && $destino['itemId'] !== null && $destino['itemId'] !== '' 
+                    ? trim((string) $destino['itemId']) 
+                    : null;
+                $inventSizeIdDestino = isset($destino['inventSizeId']) && $destino['inventSizeId'] !== null && $destino['inventSizeId'] !== '' 
+                    ? trim((string) $destino['inventSizeId']) 
+                    : null;
+                
+                // ⚡ MEJORA: Usar valores específicos del destino si existen, sino usar valores globales
+                // IMPORTANTE: Si hay tamano_clave específico, usarlo (incluso si es diferente al original)
+                if ($tamanoClaveDestino) {
+                    $nuevo->TamanoClave = $tamanoClaveDestino;
+                }
+                if ($productoDestino) {
+                    $nuevo->NombreProducto = $productoDestino;
+                }
+                if ($flogDestino) {
+                    $nuevo->FlogsId = $flogDestino;
+                }
+                if ($descripcionDestino) {
+                    $nuevo->NombreProyecto = $descripcionDestino;
+                }
+                if ($custnameDestino) {
+                    $nuevo->CustName = $custnameDestino;
+                }
+                if ($itemIdDestino) {
+                    $nuevo->ItemId = $itemIdDestino;
+                }
+                if ($inventSizeIdDestino) {
+                    $nuevo->InventSizeId = $inventSizeIdDestino;
+                }
+                
+                // Actualizar otros campos si se proporcionan (fallback a valores globales)
+                if (!$itemIdDestino && $codArticulo) $nuevo->ItemId = $codArticulo;
+                if (!$productoDestino && $producto) $nuevo->NombreProducto = $producto;
+                if (!$flogDestino && $flog) $nuevo->FlogsId = $flog;
+                if (!$descripcionDestino && $descripcion) $nuevo->NombreProyecto = $descripcion;
+                if (!$custnameDestino && $custname) $nuevo->CustName = $custname;
+                if (!$inventSizeIdDestino && $inventSizeId) $nuevo->InventSizeId = $inventSizeId;
                 if ($hilo) $nuevo->FibraRizo = $hilo;
-                if ($flog) $nuevo->FlogsId = $flog;
-                if ($descripcion) $nuevo->NombreProyecto = $descripcion;
-                if ($custname) $nuevo->CustName = $custname;
                 if ($aplicacion) $nuevo->AplicacionId = $aplicacion;
 
-                if ($salonDestinoItem !== $salonOrigen) {
+                // ⚡ MEJORA: Aplicar campos técnicos del modelo cuando hay tamano_clave específico diferente
+                // Si hay tamano_clave específico diferente, aplicar todos los campos técnicos del modelo
+                if ($tamanoClaveDestino && $tamanoClaveDestino !== $registroOriginal->TamanoClave) {
+                    // Aplicar modelo codificado con la clave modelo específica
+                    self::aplicarModeloCodificadoPorSalon($nuevo, $salonDestinoItem, $tamanoClaveDestino);
+                    
+                    // Aplicar campos técnicos desde los datos del destino (ya vienen del frontend)
+                    if (isset($destino['cuentaRizo']) && $destino['cuentaRizo'] !== null) $nuevo->CuentaRizo = $destino['cuentaRizo'];
+                    if (isset($destino['calibreRizo']) && $destino['calibreRizo'] !== null) $nuevo->CalibreRizo = $destino['calibreRizo'];
+                    if (isset($destino['calibreRizo2']) && $destino['calibreRizo2'] !== null) $nuevo->CalibreRizo2 = $destino['calibreRizo2'];
+                    if (isset($destino['ancho']) && $destino['ancho'] !== null) $nuevo->Ancho = $destino['ancho'];
+                    if (isset($destino['calibrePie']) && $destino['calibrePie'] !== null) $nuevo->CalibrePie = $destino['calibrePie'];
+                    if (isset($destino['calibrePie2']) && $destino['calibrePie2'] !== null) $nuevo->CalibrePie2 = $destino['calibrePie2'];
+                    if (isset($destino['rasurado']) && $destino['rasurado'] !== null) $nuevo->Rasurado = $destino['rasurado'];
+                    if (isset($destino['noTiras']) && $destino['noTiras'] !== null) $nuevo->NoTiras = $destino['noTiras'];
+                    if (isset($destino['peine']) && $destino['peine'] !== null) $nuevo->Peine = $destino['peine'];
+                    if (isset($destino['luchaje']) && $destino['luchaje'] !== null) $nuevo->Luchaje = $destino['luchaje'];
+                    if (isset($destino['pesoCrudo']) && $destino['pesoCrudo'] !== null) $nuevo->PesoCrudo = $destino['pesoCrudo'];
+                    // ⚡ CORRECCIÓN: CalibreTrama se invierte al aplicar desde el modelo
+                    // CalibreTrama del modelo -> CalibreTrama2 del registro
+                    // CalibreTrama2 del modelo -> CalibreTrama del registro
+                    // Pero si viene del destino directamente, usarlo tal cual
+                    if (isset($destino['calibreTrama']) && $destino['calibreTrama'] !== null) $nuevo->CalibreTrama = $destino['calibreTrama'];
+                    if (isset($destino['calibreTrama2']) && $destino['calibreTrama2'] !== null) $nuevo->CalibreTrama2 = $destino['calibreTrama2'];
+                    
+                    // ⚡ MEJORA: LargoCrudo se obtiene de LargoToalla del modelo o del destino
+                    if (isset($destino['largoToalla']) && $destino['largoToalla'] !== null) {
+                        $nuevo->LargoCrudo = (float) $destino['largoToalla'];
+                    }
+                    if (isset($destino['fibraTrama']) && $destino['fibraTrama'] !== null) $nuevo->FibraTrama = $destino['fibraTrama'];
+                    if (isset($destino['dobladilloId']) && $destino['dobladilloId'] !== null) $nuevo->DobladilloId = $destino['dobladilloId'];
+                    if (isset($destino['pasadasTrama']) && $destino['pasadasTrama'] !== null) $nuevo->PasadasTrama = $destino['pasadasTrama'];
+                    if (isset($destino['pasadasComb1']) && $destino['pasadasComb1'] !== null) $nuevo->PasadasComb1 = $destino['pasadasComb1'];
+                    if (isset($destino['pasadasComb2']) && $destino['pasadasComb2'] !== null) $nuevo->PasadasComb2 = $destino['pasadasComb2'];
+                    if (isset($destino['pasadasComb3']) && $destino['pasadasComb3'] !== null) $nuevo->PasadasComb3 = $destino['pasadasComb3'];
+                    if (isset($destino['pasadasComb4']) && $destino['pasadasComb4'] !== null) $nuevo->PasadasComb4 = $destino['pasadasComb4'];
+                    if (isset($destino['pasadasComb5']) && $destino['pasadasComb5'] !== null) $nuevo->PasadasComb5 = $destino['pasadasComb5'];
+                    if (isset($destino['anchoToalla']) && $destino['anchoToalla'] !== null) $nuevo->AnchoToalla = $destino['anchoToalla'];
+                    if (isset($destino['codColorTrama']) && $destino['codColorTrama'] !== null) $nuevo->CodColorTrama = $destino['codColorTrama'];
+                    if (isset($destino['colorTrama']) && $destino['colorTrama'] !== null) $nuevo->ColorTrama = $destino['colorTrama'];
+                    if (isset($destino['calibreComb1']) && $destino['calibreComb1'] !== null) $nuevo->CalibreComb1 = $destino['calibreComb1'];
+                    if (isset($destino['calibreComb12']) && $destino['calibreComb12'] !== null) $nuevo->CalibreComb12 = $destino['calibreComb12'];
+                    if (isset($destino['fibraComb1']) && $destino['fibraComb1'] !== null) $nuevo->FibraComb1 = $destino['fibraComb1'];
+                    if (isset($destino['codColorComb1']) && $destino['codColorComb1'] !== null) $nuevo->CodColorComb1 = $destino['codColorComb1'];
+                    if (isset($destino['nombreCC1']) && $destino['nombreCC1'] !== null) $nuevo->NombreCC1 = $destino['nombreCC1'];
+                    if (isset($destino['calibreComb2']) && $destino['calibreComb2'] !== null) $nuevo->CalibreComb2 = $destino['calibreComb2'];
+                    if (isset($destino['calibreComb22']) && $destino['calibreComb22'] !== null) $nuevo->CalibreComb22 = $destino['calibreComb22'];
+                    if (isset($destino['fibraComb2']) && $destino['fibraComb2'] !== null) $nuevo->FibraComb2 = $destino['fibraComb2'];
+                    if (isset($destino['codColorComb2']) && $destino['codColorComb2'] !== null) $nuevo->CodColorComb2 = $destino['codColorComb2'];
+                    if (isset($destino['nombreCC2']) && $destino['nombreCC2'] !== null) $nuevo->NombreCC2 = $destino['nombreCC2'];
+                    if (isset($destino['calibreComb3']) && $destino['calibreComb3'] !== null) $nuevo->CalibreComb3 = $destino['calibreComb3'];
+                    if (isset($destino['calibreComb32']) && $destino['calibreComb32'] !== null) $nuevo->CalibreComb32 = $destino['calibreComb32'];
+                    if (isset($destino['fibraComb3']) && $destino['fibraComb3'] !== null) $nuevo->FibraComb3 = $destino['fibraComb3'];
+                    if (isset($destino['codColorComb3']) && $destino['codColorComb3'] !== null) $nuevo->CodColorComb3 = $destino['codColorComb3'];
+                    if (isset($destino['nombreCC3']) && $destino['nombreCC3'] !== null) $nuevo->NombreCC3 = $destino['nombreCC3'];
+                    if (isset($destino['calibreComb4']) && $destino['calibreComb4'] !== null) $nuevo->CalibreComb4 = $destino['calibreComb4'];
+                    if (isset($destino['calibreComb42']) && $destino['calibreComb42'] !== null) $nuevo->CalibreComb42 = $destino['calibreComb42'];
+                    if (isset($destino['fibraComb4']) && $destino['fibraComb4'] !== null) $nuevo->FibraComb4 = $destino['fibraComb4'];
+                    if (isset($destino['codColorComb4']) && $destino['codColorComb4'] !== null) $nuevo->CodColorComb4 = $destino['codColorComb4'];
+                    if (isset($destino['nombreCC4']) && $destino['nombreCC4'] !== null) $nuevo->NombreCC4 = $destino['nombreCC4'];
+                    if (isset($destino['calibreComb5']) && $destino['calibreComb5'] !== null) $nuevo->CalibreComb5 = $destino['calibreComb5'];
+                    if (isset($destino['calibreComb52']) && $destino['calibreComb52'] !== null) $nuevo->CalibreComb52 = $destino['calibreComb52'];
+                    if (isset($destino['fibraComb5']) && $destino['fibraComb5'] !== null) $nuevo->FibraComb5 = $destino['fibraComb5'];
+                    if (isset($destino['codColorComb5']) && $destino['codColorComb5'] !== null) $nuevo->CodColorComb5 = $destino['codColorComb5'];
+                    if (isset($destino['nombreCC5']) && $destino['nombreCC5'] !== null) $nuevo->NombreCC5 = $destino['nombreCC5'];
+                    if (isset($destino['medidaPlano']) && $destino['medidaPlano'] !== null) $nuevo->MedidaPlano = $destino['medidaPlano'];
+                    if (isset($destino['cuentaPie']) && $destino['cuentaPie'] !== null) $nuevo->CuentaPie = $destino['cuentaPie'];
+                    // ⚡ MEJORA: LargoCrudo se obtiene de LargoToalla del destino o del modelo
+                    if (isset($destino['largoToalla']) && $destino['largoToalla'] !== null) {
+                        $nuevo->LargoCrudo = (float) $destino['largoToalla'];
+                    }
+                } elseif ($salonDestinoItem !== $salonOrigen) {
+                    // Si solo cambió de salón (sin cambiar clave modelo), aplicar modelo del nuevo salón
                     self::aplicarModeloCodificadoPorSalon($nuevo, $salonDestinoItem);
                 }
 
@@ -335,14 +536,6 @@ class DividirTejido
                     }
                 }
 
-                LogFacade::info('DividirTejido: recalculo exacto nuevo registro', [
-                    'id' => $nuevo->Id ?? 'nuevo',
-                    'cantidad' => $pedidoDestino,
-                    'horas' => $horasNecesarias,
-                    'inicio' => $nuevo->FechaInicio,
-                    'fin' => $nuevo->FechaFinal,
-                    'calendario_id' => $nuevo->CalendarioId ?? null,
-                ]);
 
                 // CambioHilo
                 if ($ultimoRegistroDestino) {
@@ -431,14 +624,32 @@ class DividirTejido
                 ? ReqProgramaTejido::find($idsParaObserver[1])
                 : ReqProgramaTejido::find($idsParaObserver[0]);
 
+            // ⚡ CORRECCIÓN: Refrescar el registro original para obtener valores actualizados
+            // fresh() sin parámetros recarga el modelo completo desde la BD
+            $registroOriginal->refresh();
+            
+            // ⚡ MEJORA: Refrescar el registro original para obtener valores actualizados (FechaFinal, fórmulas, etc.)
+            $registroOriginal->refresh();
+            
             return response()->json([
                 'success' => true,
                 'message' => "Registro dividido correctamente. OrdCompartida: {$nuevoOrdCompartida}. Se crearon/actualizaron {$totalDivididos} registro(s).",
                 'registros_divididos' => $totalDivididos,
                 'ord_compartida' => $nuevoOrdCompartida,
                 'registro_id' => $primerNuevoCreado?->Id,
+                'registro_id_original' => $registroOriginal->Id,
+                'registro_original' => [ // ⚡ MEJORA: Datos del registro original actualizado (cantidad, fecha, fórmulas)
+                    'TotalPedido' => $registroOriginal->TotalPedido,
+                    'SaldoPedido' => $registroOriginal->SaldoPedido,
+                    'FechaFinal' => $registroOriginal->FechaFinal,
+                    'HorasProd' => $registroOriginal->HorasProd ?? null,
+                    'DiasJornada' => $registroOriginal->DiasJornada ?? null,
+                    'StdDia' => $registroOriginal->StdDia ?? null,
+                    'ProdKgDia' => $registroOriginal->ProdKgDia ?? null,
+                ],
                 'salon_destino' => $primerNuevoCreado?->SalonTejidoId,
-                'telar_destino' => $primerNuevoCreado?->NoTelarId
+                'telar_destino' => $primerNuevoCreado?->NoTelarId,
+                'modo' => 'dividir'
             ]);
 
         } catch (\Throwable $e) {
@@ -508,11 +719,18 @@ class DividirTejido
             ->first();
     }
 
-    private static function aplicarModeloCodificadoPorSalon(ReqProgramaTejido $registro, string $salonDestino): void
+    private static function aplicarModeloCodificadoPorSalon(ReqProgramaTejido $registro, string $salonDestino, ?string $tamanoClave = null): void
     {
-        $modelo = self::obtenerModeloCodificadoPorSalon($registro->TamanoClave, $salonDestino);
+        // ⚡ MEJORA: Usar tamanoClave específico si se proporciona, sino usar el del registro
+        $claveParaBuscar = $tamanoClave ?? $registro->TamanoClave;
+        $modelo = self::obtenerModeloCodificadoPorSalon($claveParaBuscar, $salonDestino);
         if (!$modelo) {
             return;
+        }
+        
+        // Si se proporcionó tamanoClave específico, actualizarlo en el registro
+        if ($tamanoClave) {
+            $registro->TamanoClave = trim((string) $tamanoClave);
         }
 
         if (!empty($modelo->ItemId)) {
@@ -551,6 +769,15 @@ class DividirTejido
         if ($modelo->CalibrePie2 !== null) {
             $registro->CalibrePie2 = (float) $modelo->CalibrePie2;
         }
+        // ⚡ CORRECCIÓN: CalibreTrama se invierte al aplicar desde el modelo
+        // CalibreTrama del modelo -> CalibreTrama2 del registro
+        // CalibreTrama2 del modelo -> CalibreTrama del registro
+        if ($modelo->CalibreTrama !== null) {
+            $registro->CalibreTrama2 = (float) $modelo->CalibreTrama;
+        }
+        if ($modelo->CalibreTrama2 !== null) {
+            $registro->CalibreTrama = (float) $modelo->CalibreTrama2;
+        }
         // Usar CalibreTrama del modelo codificado (no CalibreTrama2)
         if ($modelo->CalibreTrama !== null) {
             $registro->CalibreTrama = (float) $modelo->CalibreTrama2;
@@ -581,6 +808,10 @@ class DividirTejido
         if ($modelo->AnchoToalla !== null) {
             $registro->AnchoToalla = (float) $modelo->AnchoToalla;
             $registro->Ancho = (float) $modelo->AnchoToalla;
+        }
+        // ⚡ MEJORA: LargoCrudo se obtiene de LargoToalla del modelo codificado
+        if ($modelo->LargoToalla !== null) {
+            $registro->LargoCrudo = (float) $modelo->LargoToalla;
         }
 
         if ($modelo->FibraTrama !== null) {
