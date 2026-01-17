@@ -430,20 +430,28 @@
                 });
                 return;
             }
+            // Validar campos vacíos antes de finalizar
+            this.validarParaFinalizar()
+                .then((valido) => {
+                    if (!valido) return;
 
-            Swal.fire({
-                title: '¿Finalizar Corte de Eficiencia?',
-                text: `El folio ${this.state.folio} quedará cerrado y no podrá editarse.`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ea580c',
-                confirmButtonText: 'Sí, finalizar',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    this.procesarFinalizado();
-                }
-            });
+                    Swal.fire({
+                        title: '¿Finalizar Corte de Eficiencia?',
+                        text: `El folio ${this.state.folio} quedará cerrado y no podrá editarse.`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#ea580c',
+                        confirmButtonText: 'Sí, finalizar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            this.procesarFinalizado();
+                        }
+                    });
+                })
+                .catch((err) => {
+                    Swal.fire('Error', err?.message || 'No se pudo validar el folio', 'error');
+                });
         }
 
         async procesarFinalizado() {
@@ -484,6 +492,79 @@
             const statusCell = row.querySelector('td:last-child');
             if (statusCell) {
                 statusCell.innerHTML = '<span class="status-badge-finalizado px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>';
+            }
+        }
+
+        async validarParaFinalizar() {
+            try {
+                Swal.fire({ title: 'Validando...', didOpen: () => Swal.showLoading() });
+
+                const res = await fetch(`${CONFIG.urls.detalle}${this.state.folio}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+                const data = await res.json();
+                Swal.close();
+
+                if (!data.success) throw new Error(data.message || 'No se pudo obtener el detalle');
+
+                const lineas = Array.isArray(data.data?.datos_telares) ? data.data.datos_telares : [];
+                if (lineas.length === 0) {
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'No hay líneas',
+                        text: 'No puedes finalizar un folio sin líneas capturadas.'
+                    });
+                    return false;
+                }
+
+                const esVacioOCero = (v) => {
+                    if (v === null || v === undefined) return true;
+                    if (typeof v === 'string' && v.trim() === '') return true;
+                    const n = Number(v);
+                    if (Number.isNaN(n)) return true;
+                    return n <= 0;
+                };
+
+                let lineasInvalidas = [];
+
+                for (let i = 0; i < lineas.length; i++) {
+                    const l = lineas[i];
+                    const camposVacios = [];
+
+                    if (esVacioOCero(l.RpmR1)) camposVacios.push('RPM H1');
+                    if (esVacioOCero(l.EficienciaR1)) camposVacios.push('% Efi H1');
+                    if (esVacioOCero(l.RpmR2)) camposVacios.push('RPM H2');
+                    if (esVacioOCero(l.EficienciaR2)) camposVacios.push('% Efi H2');
+                    if (esVacioOCero(l.RpmR3)) camposVacios.push('RPM H3');
+                    if (esVacioOCero(l.EficienciaR3)) camposVacios.push('% Efi H3');
+
+                    if (camposVacios.length > 0) {
+                        lineasInvalidas.push({
+                            telar: l.NoTelar || `Línea ${i + 1}`,
+                            campos: camposVacios
+                        });
+                    }
+                }
+
+                if (lineasInvalidas.length > 0) {
+                    const totalCamposVacios = lineasInvalidas.reduce((acc, item) => acc + (item.campos?.length || 0), 0);
+                    const result = await Swal.fire({
+                        icon: 'warning',
+                        title: 'Hay campos sin llenar',
+                        text: `Hay ${totalCamposVacios} campo(s) vacío(s) o en cero en ${lineasInvalidas.length} telar(es). ¿Deseas continuar?`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, continuar',
+                        cancelButtonText: 'No, revisar'
+                    });
+                    return !!result.isConfirmed;
+                }
+
+                return true;
+            } catch (err) {
+                Swal.close();
+                throw err;
             }
         }
 
