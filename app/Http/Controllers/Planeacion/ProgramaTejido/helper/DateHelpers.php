@@ -127,13 +127,14 @@ class DateHelpers
                 'EnProceso'   => $i === 0 ? 1 : 0,
                 'Ultimo'      => $i === ($n - 1) ? '1' : '0',
                 'CambioHilo'  => $cambioHilo,
+                'Posicion'    => $i + 1,
                 'UpdatedAt'   => $now,
             ], $formulas);
 
             $detalles[] = [
                 'Id'               => (int)$r->Id,
                 'NoTelar'          => $r->NoTelarId,
-                'Posicion'         => $i,
+                'Posicion'         => $i + 1,
                 'FechaInicio_nueva'=> $updates[(int)$r->Id]['FechaInicio'],
                 'FechaFinal_nueva' => $updates[(int)$r->Id]['FechaFinal'],
                 'EnProceso_nuevo'  => $updates[(int)$r->Id]['EnProceso'],

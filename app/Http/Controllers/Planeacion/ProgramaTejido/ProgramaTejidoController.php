@@ -49,6 +49,7 @@ class ProgramaTejidoController extends Controller
                 'CalibreRizo2',
                 'SalonTejidoId',
                 'NoTelarId',
+                'Posicion',
                 'Ultimo',
                 'CambioHilo',
                 'Maquina',
@@ -1243,9 +1244,18 @@ class ProgramaTejidoController extends Controller
         try {
             $idsAfectados = [];
             $detallesTotales = [];
+            $updatesOrigen = [];
+            $updatesDestino = [];
 
             $origenSalon = $registro->SalonTejidoId;
             $origenTelar = $registro->NoTelarId;
+
+            // PARKING: quita al registro movido del rango 1..N en ORIGEN para evitar choque al renumerar
+            DBFacade::table('ReqProgramaTejido')
+                ->where('Id', $registro->Id)
+                ->where('SalonTejidoId', $origenSalon)
+                ->where('NoTelarId', $origenTelar)
+                ->update(['Posicion' => -1 * (int)$registro->Id]);
 
             // Optimizado: usar Posicion primero, luego FechaInicio como fallback
             $origenRegistros = ReqProgramaTejido::query()
@@ -1295,10 +1305,9 @@ class ProgramaTejidoController extends Controller
             // Actualizar campos básicos del registro
             $registro->SalonTejidoId = $nuevoSalon;
             $registro->NoTelarId = $nuevoTelar;
-            // Recalcular posición para el nuevo telar
-            $registro->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($nuevoSalon, $nuevoTelar);
+            // La posición se calculará después según el orden en el telar destino
 
-            // Actualizar Eficiencia y Velocidad según el nuevo telar
+            // RECALCULAR velocidad y eficiencia según el nuevo telar
             [$nuevaEficiencia, $nuevaVelocidad] = QueryHelpers::resolverStdSegunTelar($registro, $modeloDestino, $nuevoTelar, $nuevoSalon);
             if (!is_null($nuevaEficiencia)) {
                 $registro->EficienciaSTD = round($nuevaEficiencia, 2);
@@ -1340,30 +1349,74 @@ class ProgramaTejidoController extends Controller
             }
             $registro->CambioHilo = $cambioHilo;
 
+            // IMPORTANTE: Asegurar que el registro movido tenga todos los campos actualizados
+            // antes de insertarlo en la colección destino para que las fórmulas se calculen correctamente
+            // IMPORTANTE: El registro ya tiene velocidad y eficiencia actualizadas según el nuevo telar
+            // Ahora lo insertamos en la colección destino para recalcular fechas y fórmulas
             $destRegistros = $destRegistrosOriginal->values();
             $targetPosition = min(max($targetPosition, 0), $destRegistros->count());
             $destRegistros->splice($targetPosition, 0, [$registro]);
             $destRegistros = $destRegistros->values();
 
+            // Actualizar posiciones del telar origen
             if ($origenSin->count() > 0) {
                 $inicioOrigenCarbon = Carbon::parse($inicioOrigen ?? $registro->FechaInicio ?? now());
                 [$updatesOrigen, $detallesOrigen] = DateHelpers::recalcularFechasSecuencia($origenSin, $inicioOrigenCarbon);
+
+                // IMPORTANTE: Asegurar que todos los registros del telar origen tengan su posición actualizada
+                foreach ($origenSin->values() as $index => $r) {
+                    $idRegistro = (int)$r->Id;
+                    $nuevaPosicion = $index + 1;
+                    if (!isset($updatesOrigen[$idRegistro])) {
+                        $updatesOrigen[$idRegistro] = [];
+                    }
+                    $updatesOrigen[$idRegistro]['Posicion'] = $nuevaPosicion;
+                }
+
+                if (!empty($updatesOrigen)) {
+                    $idsOrigen = array_keys($updatesOrigen);
+                    DBFacade::table('ReqProgramaTejido')
+                        ->whereIn('Id', $idsOrigen)
+                        ->where('SalonTejidoId', $origenSalon)
+                        ->where('NoTelarId', $origenTelar)
+                        ->update(['Posicion' => DBFacade::raw('Posicion + 10000')]);
+                }
                 foreach ($updatesOrigen as $idU => $data) {
-                    DBFacade::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+                    if (isset($data['Posicion'])) {
+                        $data['Posicion'] = (int)$data['Posicion'];
+                    }
+                    DBFacade::table('ReqProgramaTejido')
+                        ->where('Id', $idU)
+                        ->where('SalonTejidoId', $origenSalon)
+                        ->where('NoTelarId', $origenTelar)
+                        ->update($data);
                     $idsAfectados[] = $idU;
                 }
                 $detallesTotales = array_merge($detallesTotales, $detallesOrigen);
             }
 
+            // Actualizar posiciones del telar destino
             $destInicioCarbon = Carbon::parse($destInicio ?? now());
             [$updatesDestino, $detallesDestino] = DateHelpers::recalcularFechasSecuencia($destRegistros, $destInicioCarbon);
 
+            // IMPORTANTE: Asegurar que todos los registros del telar destino tengan su posición actualizada
+            foreach ($destRegistros->values() as $index => $r) {
+                $idRegistro = (int)$r->Id;
+                $nuevaPosicion = $index + 1;
+                if (!isset($updatesDestino[$idRegistro])) {
+                    $updatesDestino[$idRegistro] = [];
+                }
+                $updatesDestino[$idRegistro]['Posicion'] = $nuevaPosicion;
+            }
+
             // Preparar actualización del registro movido con todos los campos necesarios
+            // Las fórmulas ya están incluidas en $updatesDestino[$registro->Id] desde recalcularFechasSecuencia
+            // Solo necesitamos asegurar que velocidad, eficiencia y otros campos estén presentes
             $updateRegistroMovido = [
                 'SalonTejidoId' => $nuevoSalon,
                 'NoTelarId' => $nuevoTelar,
-                'EficienciaSTD' => $registro->EficienciaSTD,
-                'VelocidadSTD' => $registro->VelocidadSTD,
+                'EficienciaSTD' => $registro->EficienciaSTD, // Ya recalculada según nuevo telar
+                'VelocidadSTD' => $registro->VelocidadSTD, // Ya recalculada según nuevo telar
                 'Maquina' => $registro->Maquina,
                 'CambioHilo' => $registro->CambioHilo,
                 'UpdatedAt' => now(),
@@ -1375,13 +1428,79 @@ class ProgramaTejidoController extends Controller
                 $updateRegistroMovido['AnchoToalla'] = $modeloDestino->AnchoToalla;
             }
 
-            $updatesDestino[$registro->Id] = array_merge(
-                $updatesDestino[$registro->Id] ?? [],
-                $updateRegistroMovido
-            );
+            // IMPORTANTE: Agregar los campos del registro movido a $updatesDestino para que se devuelvan al frontend
+            if (!isset($updatesDestino[$registro->Id])) {
+                $updatesDestino[$registro->Id] = [];
+            }
+            // Mergear los campos del registro movido (incluyendo Maquina) para que se actualicen en el frontend
+            $updatesDestino[$registro->Id] = array_merge($updatesDestino[$registro->Id], [
+                'SalonTejidoId' => $nuevoSalon,
+                'NoTelarId' => $nuevoTelar,
+                'EficienciaSTD' => $registro->EficienciaSTD,
+                'VelocidadSTD' => $registro->VelocidadSTD,
+                'Maquina' => $registro->Maquina,
+                'CambioHilo' => $registro->CambioHilo,
+            ]);
+            if ($modeloDestino && $modeloDestino->AnchoToalla) {
+                $updatesDestino[$registro->Id]['Ancho'] = $modeloDestino->AnchoToalla;
+                $updatesDestino[$registro->Id]['AnchoToalla'] = $modeloDestino->AnchoToalla;
+            }
 
+            // =====================================================
+            // DESTINO: RESERVA DE POSICIONES (anti-duplicados)
+            // =====================================================
+
+            // 1) Reserva posiciones únicas en destino para todos los registros actuales
+            // (Id es único, así que Id+1000000 jamás duplica dentro del telar)
+            DBFacade::table('ReqProgramaTejido')
+                ->where('SalonTejidoId', $nuevoSalon)
+                ->where('NoTelarId', $nuevoTelar)
+                ->update(['Posicion' => DBFacade::raw('Id + 1000000')]);
+
+            // 2) Mueve el registro al destino con posición temporal única también
+            DBFacade::table('ReqProgramaTejido')
+                ->where('Id', $registro->Id)
+                ->where('SalonTejidoId', $origenSalon)
+                ->where('NoTelarId', $origenTelar)
+                ->update([
+                    'SalonTejidoId' => $nuevoSalon,
+                    'NoTelarId'     => $nuevoTelar,
+                    'Posicion'      => DBFacade::raw('Id + 1000000'), // temporal única
+                ]);
+
+            // 3) Ordenar updates por posición para aplicar en orden
+            $updatesDestinoOrdenados = [];
             foreach ($updatesDestino as $idU => $data) {
-                DBFacade::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+                $posicion = isset($data['Posicion']) ? (int)$data['Posicion'] : 999999;
+                $updatesDestinoOrdenados[] = [
+                    'id' => (int)$idU,
+                    'posicion' => $posicion,
+                    'data' => $data
+                ];
+            }
+            // Ordenar por posición ascendente
+            usort($updatesDestinoOrdenados, fn($a, $b) => $a['posicion'] <=> $b['posicion']);
+
+            // 4) Aplica updates finales (1..N) sin miedo a colisiones
+            foreach ($updatesDestinoOrdenados as $item) {
+                $idU  = (int)$item['id'];
+                $data = $item['data'];
+
+                if (isset($data['Posicion'])) {
+                    $data['Posicion'] = (int)$data['Posicion'];
+                }
+
+                // Si es el movido, agrega campos extra
+                if ($idU === (int)$registro->Id) {
+                    $data = array_merge($data, $updateRegistroMovido);
+                }
+
+                DBFacade::table('ReqProgramaTejido')
+                    ->where('Id', $idU)
+                    ->where('SalonTejidoId', $nuevoSalon)
+                    ->where('NoTelarId', $nuevoTelar)
+                    ->update($data);
+
                 $idsAfectados[] = $idU;
             }
             $detallesTotales = array_merge($detallesTotales, $detallesDestino);
@@ -1389,6 +1508,13 @@ class ProgramaTejidoController extends Controller
             DBFacade::commit();
 
             $idsAfectados = array_values(array_unique($idsAfectados));
+            $updatesMerged = [];
+            foreach ($updatesOrigen as $idU => $data) {
+                $updatesMerged[(string) $idU] = $data;
+            }
+            foreach ($updatesDestino as $idU => $data) {
+                $updatesMerged[(string) $idU] = array_merge($updatesMerged[(string) $idU] ?? [], $data);
+            }
 
             // Reactivar el Observer y recalcular fórmulas para todos los registros afectados
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
@@ -1406,6 +1532,7 @@ class ProgramaTejidoController extends Controller
                 'message' => 'Telar actualizado correctamente',
                 'registros_afectados' => count($idsAfectados),
                 'detalles' => $detallesTotales,
+                'updates' => $updatesMerged,
                 'registro_id' => $registro->Id
             ]);
         } catch (\Throwable $e) {

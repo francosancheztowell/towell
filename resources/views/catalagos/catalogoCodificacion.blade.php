@@ -239,6 +239,23 @@
         white-space: nowrap;
         z-index: 0;
         position: relative;
+        /* ⚡ OPTIMIZACIÓN: Mejorar rendimiento de renderizado - Solo contain, will-change se aplica dinámicamente */
+        contain: layout style paint;
+    }
+
+    /* ⚡ OPTIMIZACIÓN: Mejorar rendimiento de scroll - Desactivar transiciones durante scroll */
+    .scrolling #codificacion-body tr {
+        transition: none !important;
+    }
+
+    /* ⚡ OPTIMIZACIÓN: Mejorar rendimiento de scroll - Solo contain, sin will-change constante */
+    #mainTable tbody tr {
+        contain: layout style paint;
+    }
+
+    /* ⚡ OPTIMIZACIÓN: Desactivar will-change después de renderizar para mejor rendimiento */
+    #mainTable tbody tr.rendered {
+        will-change: auto;
     }
 
     /* ============================================
@@ -404,21 +421,42 @@ const state = {
 const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
 const utils = {
+        // ⚡ OPTIMIZACIÓN: Cache de fechas formateadas
+        _dateCache: new Map(),
+
         formatDate(value) {
             if (!value) return '';
+
+            // ⚡ OPTIMIZACIÓN: Cachear fechas formateadas
+            const cached = this._dateCache.get(value);
+            if (cached !== undefined) return cached;
+
             const d = new Date(value);
-            if (Number.isNaN(d.getTime())) return value;
+            if (Number.isNaN(d.getTime())) {
+                this._dateCache.set(value, value);
+                return value;
+            }
+
             const day   = String(d.getDate()).padStart(2, '0');
             const month = String(d.getMonth() + 1).padStart(2, '0');
             const year  = d.getFullYear();
-            return `${day}/${month}/${year}`;
+            const formatted = `${day}/${month}/${year}`;
+
+            // Limitar tamaño del cache
+            if (this._dateCache.size > 1000) {
+                const firstKey = this._dateCache.keys().next().value;
+                this._dateCache.delete(firstKey);
+            }
+
+            this._dateCache.set(value, formatted);
+            return formatted;
         },
 
         formatValue(value, type) {
             if (value === null || value === undefined) return '';
             if (type === 'date') return this.formatDate(value);
-            if (type === 'zero') return value == 0 ? '' : value;
-            return value;
+            if (type === 'zero') return value == 0 ? '' : String(value);
+            return String(value);
         },
 
         parseForSort(value, type) {
@@ -551,10 +589,17 @@ function showToast(message, type = 'info') {
         }
 
         try {
+            // ⚡ OPTIMIZACIÓN: Usar AbortController para cancelar si es necesario
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // Timeout de 30 segundos
+
             const response = await fetch(CONFIG.apiUrl, {
                 method: 'GET',
-                headers: { Accept: 'application/json' }
+                headers: { Accept: 'application/json' },
+                signal: controller.signal
             });
+
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
@@ -567,24 +612,50 @@ function showToast(message, type = 'info') {
 
             const columns = result.c;
 
-            // Optimizado: crear objetos directamente sin múltiples iteraciones
-            state.rawData = result.d.map(row => {
+            // ⚡ OPTIMIZACIÓN: Crear objetos directamente sin múltiples iteraciones
+            // Usar Array pre-allocado para mejor rendimiento
+            const dataLength = result.d.length;
+            state.rawData = new Array(dataLength);
+
+            for (let i = 0; i < dataLength; i++) {
+                const row = result.d[i];
                 const obj = {};
                 const len = columns.length;
-                for (let i = 0; i < len; i++) {
-                    obj[columns[i]] = row[i];
+                for (let j = 0; j < len; j++) {
+                    obj[columns[j]] = row[j];
                 }
-                return obj;
-            });
+                state.rawData[i] = obj;
+            }
 
             state.filteredData = [...state.rawData];
 
-            // Renderizar inmediatamente
-            renderPage();
-            if (loadingEl) loadingEl.classList.add('hidden');
-            state.isLoading = false;
+            // ⚡ OPTIMIZACIÓN: Renderizar usando requestAnimationFrame para mejor rendimiento
+            requestAnimationFrame(() => {
+                renderPage();
+                if (loadingEl) loadingEl.classList.add('hidden');
+                state.isLoading = false;
+            });
         } catch (error) {
             if (!loadingEl) return;
+
+            // Si fue cancelado, mostrar mensaje específico
+            if (error.name === 'AbortError') {
+                loadingEl.innerHTML = `
+                    <div class="text-center">
+                        <i class="fas fa-clock text-yellow-500 text-4xl mb-4"></i>
+                        <p class="text-yellow-600 font-medium">Tiempo de espera agotado</p>
+                        <p class="text-sm text-gray-500 mt-2">La carga está tomando más tiempo del esperado</p>
+                        <button
+                            type="button"
+                            class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                            onclick="location.reload()"
+                        >
+                            Reintentar
+                        </button>
+                    </div>
+                `;
+                return;
+            }
 
             loadingEl.innerHTML = `
                 <div class="text-center">
@@ -636,6 +707,135 @@ function showToast(message, type = 'info') {
         if (nextBtn) nextBtn.disabled = state.currentPage >= totalPages;
     }
 
+    // ⚡ OPTIMIZACIÓN: Cache de valores formateados para evitar recalcular
+    const formatCache = new Map();
+    const CACHE_SIZE_LIMIT = 10000; // Limitar tamaño del cache
+
+    function clearFormatCache() {
+        if (formatCache.size > CACHE_SIZE_LIMIT) {
+            formatCache.clear();
+        }
+    }
+
+    // ⚡ OPTIMIZACIÓN: Delegación de eventos en lugar de listeners por fila
+    let eventDelegationSetup = false;
+    let isScrolling = false;
+    let scrollTimeout = null;
+
+    function setupEventDelegation() {
+        if (eventDelegationSetup) return;
+        const tbody = $('#codificacion-body');
+        const container = $('#table-container');
+        if (!tbody) return;
+
+        // ⚡ OPTIMIZACIÓN: Detectar scroll y desactivar transiciones
+        if (container) {
+            container.addEventListener('scroll', () => {
+                if (!isScrolling) {
+                    isScrolling = true;
+                    document.body.classList.add('scrolling');
+                }
+
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    isScrolling = false;
+                    document.body.classList.remove('scrolling');
+                }, 150);
+            }, { passive: true });
+        }
+
+        // Click en fila - Usar passive para mejor rendimiento
+        tbody.addEventListener('click', (e) => {
+            const tr = e.target.closest('tr[data-id]');
+            if (tr) {
+                const id = parseInt(tr.dataset.id);
+                if (!isNaN(id)) selectRow(tr, id);
+            }
+        }, { passive: true });
+
+        // Click derecho en fila
+        tbody.addEventListener('contextmenu', (e) => {
+            const tr = e.target.closest('tr[data-id]');
+            if (tr) {
+                e.preventDefault();
+                const id = parseInt(tr.dataset.id);
+                if (!isNaN(id)) showContextMenu(e, id);
+            }
+        }, { passive: false });
+
+        eventDelegationSetup = true;
+    }
+
+    // ⚡ OPTIMIZACIÓN: Renderizado por chunks para mejor rendimiento (solo para tablas muy grandes)
+    function renderPageChunked(pageData, camposModelo, tiposCampo, camposLen, tbody, startIdx = 0, chunkSize = 30) {
+        const endIdx = Math.min(startIdx + chunkSize, pageData.length);
+        const fragment = document.createDocumentFragment();
+
+        // ⚡ OPTIMIZACIÓN: Pre-calcular clases base una sola vez
+        const baseClass = 'data-row cursor-pointer transition-colors';
+        const selectedClassBase = 'bg-blue-500 text-white selected-row';
+        const hoverClassBase = 'hover:bg-gray-50';
+        const baseCellClass = 'px-3 py-2 text-sm whitespace-nowrap text-gray-700';
+
+        // ⚡ OPTIMIZACIÓN: Pre-crear array de clases por columna
+        const columnClasses = [];
+        for (let idx = 0; idx < camposLen; idx++) {
+            columnClasses[idx] = `column-${idx} ${baseCellClass}`;
+        }
+
+        for (let i = startIdx; i < endIdx; i++) {
+            const row = pageData[i];
+            const tr = document.createElement('tr');
+            const isSelected = row.Id === state.selectedId;
+            const rowId = row.Id;
+
+            tr.dataset.id = rowId;
+
+            // ⚡ OPTIMIZACIÓN: Usar clases pre-calculadas y marcar como renderizado
+            tr.className = isSelected
+                ? `${baseClass} ${selectedClassBase} rendered`
+                : `${baseClass} ${hoverClassBase} rendered`;
+
+            // ⚡ OPTIMIZACIÓN: Renderizar celdas con clases pre-calculadas
+            for (let idx = 0; idx < camposLen; idx++) {
+                const campo = camposModelo[idx];
+                const td = document.createElement('td');
+                td.className = columnClasses[idx];
+
+                // ⚡ OPTIMIZACIÓN: Cachear valores formateados
+                const cacheKey = `${rowId}_${campo}_${row[campo]}`;
+                let formattedValue = formatCache.get(cacheKey);
+
+                if (formattedValue === undefined) {
+                    formattedValue = utils.formatValue(row[campo], tiposCampo[campo]);
+                    formatCache.set(cacheKey, formattedValue);
+                }
+
+                td.textContent = formattedValue;
+                tr.appendChild(td);
+            }
+
+            fragment.appendChild(tr);
+        }
+
+        // Agregar chunk al DOM
+        tbody.appendChild(fragment);
+
+        // Si quedan más filas, continuar en el siguiente frame
+        if (endIdx < pageData.length) {
+            // ⚡ OPTIMIZACIÓN: Usar requestAnimationFrame directamente (más rápido que idleCallback)
+            requestAnimationFrame(() => {
+                renderPageChunked(pageData, camposModelo, tiposCampo, camposLen, tbody, endIdx, chunkSize);
+            });
+        } else {
+            // Terminó el renderizado, aplicar visibilidad y actualizar paginación
+            requestAnimationFrame(() => {
+                updatePagination();
+                applyColumnVisibility();
+            });
+        }
+    }
+
     function renderPage() {
         const tbody     = $('#codificacion-body');
         const totalCols = CONFIG.columnas.length;
@@ -672,64 +872,98 @@ function showToast(message, type = 'info') {
         if (showLoading) showTableLoading(true);
 
         try {
+            // ⚡ OPTIMIZACIÓN: Limpiar cache periódicamente
+            clearFormatCache();
+
+            // ⚡ OPTIMIZACIÓN: Configurar delegación de eventos una sola vez
+            setupEventDelegation();
+
             const fragment = document.createDocumentFragment();
             const camposModelo = CONFIG.camposModelo;
             const tiposCampo = CONFIG.tiposCampo;
             const camposLen = camposModelo.length;
 
-            // Optimizado: pre-crear elementos en batch
-            for (let i = 0; i < pageData.length; i++) {
-                const row = pageData[i];
-                const tr = document.createElement('tr');
-                const isSelected = row.Id === state.selectedId;
+            // ⚡ OPTIMIZACIÓN: Para tablas grandes, renderizar por chunks más pequeños
+            if (pageData.length > 200) {
+                // Limpiar tbody primero
+                tbody.innerHTML = '';
+                previousSelectedRow = null; // Reset selección al renderizar nueva página
+                // ⚡ OPTIMIZACIÓN: Chunks más pequeños (30 filas) para mejor responsividad durante scroll
+                renderPageChunked(pageData, camposModelo, tiposCampo, camposLen, tbody, 0, 30);
+                if (showLoading) {
+                    setTimeout(() => showTableLoading(false), 30);
+                }
+            } else {
+                // ⚡ OPTIMIZACIÓN: Para tablas pequeñas, renderizar todo de una vez con optimizaciones
+                // Pre-calcular clases base para evitar concatenaciones repetidas
+                const baseClass = 'data-row cursor-pointer transition-colors';
+                const baseCellClass = 'px-3 py-2 text-sm whitespace-nowrap text-gray-700';
+                const selectedClassBase = 'bg-blue-500 text-white selected-row';
+                const hoverClassBase = 'hover:bg-gray-50';
 
-                tr.dataset.id = row.Id;
-                tr.className = 'data-row cursor-pointer transition-colors ' +
-                    (isSelected ? 'bg-blue-500 text-white selected-row' : 'hover:bg-gray-50');
-
-                tr.addEventListener('click', () => selectRow(tr, row.Id));
-                tr.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    showContextMenu(e, row.Id);
-                });
-
-                // Optimizado: usar for loop en lugar de forEach
+                // ⚡ OPTIMIZACIÓN: Pre-crear template de clases por columna
+                const columnClasses = [];
                 for (let idx = 0; idx < camposLen; idx++) {
-                    const campo = camposModelo[idx];
-                    const td = document.createElement('td');
-                    td.className = `column-${idx} px-3 py-2 text-sm whitespace-nowrap text-gray-700`;
-                    td.textContent = utils.formatValue(row[campo], tiposCampo[campo]);
-                    tr.appendChild(td);
+                    columnClasses[idx] = `column-${idx} ${baseCellClass}`;
                 }
 
-                fragment.appendChild(tr);
-            }
+                for (let i = 0; i < pageData.length; i++) {
+                    const row = pageData[i];
+                    const tr = document.createElement('tr');
+                    const isSelected = row.Id === state.selectedId;
+                    const rowId = row.Id;
 
-            tbody.innerHTML = '';
-            tbody.appendChild(fragment);
+                    tr.dataset.id = rowId;
+                    // ⚡ OPTIMIZACIÓN: Usar clases pre-calculadas y marcar como renderizado
+                    tr.className = isSelected
+                        ? `${baseClass} ${selectedClassBase} rendered`
+                        : `${baseClass} ${hoverClassBase} rendered`;
 
-            // Cerrar menú contextual si está abierto
-            const contextMenu = $('#context-menu');
-            if (contextMenu) contextMenu.classList.add('hidden');
+                    // ⚡ OPTIMIZACIÓN: Renderizar celdas con clases pre-calculadas
+                    for (let idx = 0; idx < camposLen; idx++) {
+                        const campo = camposModelo[idx];
+                        const td = document.createElement('td');
+                        td.className = columnClasses[idx];
 
-            updatePagination();
+                        // ⚡ OPTIMIZACIÓN: Cachear valores formateados
+                        const cacheKey = `${rowId}_${campo}_${row[campo]}`;
+                        let formattedValue = formatCache.get(cacheKey);
+                        if (formattedValue === undefined) {
+                            formattedValue = utils.formatValue(row[campo], tiposCampo[campo]);
+                            formatCache.set(cacheKey, formattedValue);
+                        }
+                        td.textContent = formattedValue;
+                        tr.appendChild(td);
+                    }
 
-            // Aplicar columnas ocultas después de renderizar
-            for (let i = 0; i < hiddenColumns.length; i++) {
-                hideColumn(hiddenColumns[i], true);
-            }
+                    fragment.appendChild(tr);
+                }
 
-            // Actualizar posiciones de columnas fijadas
-            requestAnimationFrame(() => {
-                updatePinnedColumnsPositions();
-            });
-
-            if (showLoading) {
-                showTableLoading(false);
+                // ⚡ OPTIMIZACIÓN: Renderizar directamente sin requestAnimationFrame para tablas pequeñas (más rápido)
+                previousSelectedRow = null; // Reset selección al renderizar nueva página
+                tbody.innerHTML = '';
+                tbody.appendChild(fragment);
+                updatePagination();
+                applyColumnVisibility();
+                if (showLoading) showTableLoading(false);
             }
         } catch (error) {
             if (showLoading) showTableLoading(false);
+            console.error('Error renderizando página:', error);
         }
+    }
+
+    // ⚡ OPTIMIZACIÓN: Función separada para aplicar visibilidad de columnas
+    function applyColumnVisibility() {
+        // Aplicar columnas ocultas después de renderizar
+        for (let i = 0; i < hiddenColumns.length; i++) {
+            hideColumn(hiddenColumns[i], true);
+        }
+
+        // Actualizar posiciones de columnas fijadas
+        requestAnimationFrame(() => {
+            updatePinnedColumnsPositions();
+        });
     }
 
     function goToPage(page) {
@@ -774,19 +1008,28 @@ function showToast(message, type = 'info') {
             const campo = CONFIG.camposModelo[colIndex];
             const tipo  = CONFIG.tiposCampo[campo];
 
-            const sortType =
-                tipo === 'date'
-                    ? 'date'
-                    : tipo === 'zero'
-                        ? 'number'
-                        : utils.detectType(state.filteredData.map(r => r[campo]));
+            // ⚡ OPTIMIZACIÓN: Detectar tipo solo una vez y cachear
+            let sortType;
+            if (tipo === 'date') {
+                sortType = 'date';
+            } else if (tipo === 'zero') {
+                sortType = 'number';
+            } else {
+                // Solo detectar tipo en una muestra pequeña para mejor rendimiento
+                const sample = state.filteredData.length > 1000
+                    ? state.filteredData.slice(0, 100).map(r => r[campo])
+                    : state.filteredData.map(r => r[campo]);
+                sortType = utils.detectType(sample);
+            }
 
+            // ⚡ OPTIMIZACIÓN: Ordenamiento optimizado con comparación directa
+            const multiplier = dir === 'asc' ? 1 : -1;
             state.filteredData.sort((a, b) => {
                 const va = utils.parseForSort(a[campo], sortType);
                 const vb = utils.parseForSort(b[campo], sortType);
 
-                if (va < vb) return dir === 'asc' ? -1 : 1;
-                if (va > vb) return dir === 'asc' ? 1 : -1;
+                if (va < vb) return -1 * multiplier;
+                if (va > vb) return 1 * multiplier;
                 return 0;
             });
 
@@ -805,24 +1048,39 @@ function showToast(message, type = 'info') {
     // ============================================
     //  SELECCIÓN DE FILA
     // ============================================
-function selectRow(row, id) {
-        $$('#codificacion-body tr.selected-row').forEach(r => {
-            r.classList.remove('bg-blue-500', 'selected-row');
-        r.classList.add('hover:bg-gray-50');
-            r.querySelectorAll('td').forEach(td => {
+    // ⚡ OPTIMIZACIÓN: Cache de fila seleccionada anterior para actualización rápida
+    let previousSelectedRow = null;
+
+    function selectRow(row, id) {
+        // ⚡ OPTIMIZACIÓN: Solo actualizar si cambió la selección
+        if (state.selectedId === id && previousSelectedRow === row) {
+            return; // Ya está seleccionada
+        }
+
+        // ⚡ OPTIMIZACIÓN: Actualizar solo la fila anterior (sin buscar todas con querySelector)
+        if (previousSelectedRow && previousSelectedRow !== row) {
+            previousSelectedRow.classList.remove('bg-blue-500', 'text-white', 'selected-row');
+            previousSelectedRow.classList.add('hover:bg-gray-50');
+            // ⚡ OPTIMIZACIÓN: Actualizar celdas de la fila anterior
+            const prevCells = previousSelectedRow.querySelectorAll('td');
+            prevCells.forEach(td => {
                 td.classList.remove('text-white');
                 td.classList.add('text-gray-700');
-    });
-        });
+            });
+        }
 
-    row.classList.remove('hover:bg-gray-50');
-        row.classList.add('bg-blue-500', 'selected-row');
-        row.querySelectorAll('td').forEach(td => {
+        // ⚡ OPTIMIZACIÓN: Actualizar nueva fila seleccionada
+        row.classList.remove('hover:bg-gray-50');
+        row.classList.add('bg-blue-500', 'text-white', 'selected-row');
+        // ⚡ OPTIMIZACIÓN: Actualizar celdas de la nueva fila
+        const cells = row.querySelectorAll('td');
+        cells.forEach(td => {
             td.classList.remove('text-gray-700');
             td.classList.add('text-white');
         });
 
-    state.selectedId = id;
+        previousSelectedRow = row;
+        state.selectedId = id;
 
         const editBtn   = $('#btn-editar');
     const deleteBtn = $('#btn-eliminar');
@@ -1535,20 +1793,22 @@ function procesarExcel(file) {
     //  INICIALIZACIÓN
     // ============================================
     function init() {
-        // Sort buttons
-        $$('#mainTable thead th .sort-btn-asc').forEach(btn => {
-            btn.addEventListener('click', event => {
-                event.stopPropagation();
-                sortColumn(Number(btn.dataset.column), 'asc');
-            });
-        });
+        // ⚡ OPTIMIZACIÓN: Configurar delegación de eventos antes de cargar datos
+        setupEventDelegation();
 
-        $$('#mainTable thead th .sort-btn-desc').forEach(btn => {
-            btn.addEventListener('click', event => {
-                event.stopPropagation();
-                sortColumn(Number(btn.dataset.column), 'desc');
+        // Sort buttons (delegación de eventos para mejor rendimiento)
+        const thead = $('#mainTable thead');
+        if (thead) {
+            thead.addEventListener('click', (e) => {
+                const btn = e.target.closest('.sort-btn-asc, .sort-btn-desc');
+                if (btn) {
+                    e.stopPropagation();
+                    const colIndex = Number(btn.dataset.column);
+                    const isAsc = btn.classList.contains('sort-btn-asc');
+                    sortColumn(colIndex, isAsc ? 'asc' : 'desc');
+                }
             });
-        });
+        }
 
         // Paginación
         const prev = $('#pagination-prev');

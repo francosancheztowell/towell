@@ -131,6 +131,7 @@
                   class="hover:bg-blue-50 cursor-pointer selectable-row"
                   data-row-index="{{ $index }}"
                   data-id="{{ $rowId }}"
+                  data-posicion="{{ e($registro->Posicion ?? '') }}"
                   @if(!empty($registro->OrdCompartida)) data-ord-compartida="{{ $registro->OrdCompartida }}" @endif
                   @if($esRepaso) data-es-repaso="1" @endif
                 >
@@ -394,10 +395,12 @@
   .cursor-move { cursor: move !important; }
   .cursor-not-allowed { cursor: not-allowed !important; opacity: 0.6; }
 
-  .selectable-row.dragging { opacity: 0.4; background-color: #e0e7ff !important; }
-  .selectable-row.drag-over { border-top: 3px solid #3b82f6; background-color: #dbeafe; }
-  .selectable-row.drag-over-warning { border-top: 3px solid #f59e0b; background-color: #fef3c7; box-shadow: 0 0 0 2px #f59e0b; }
-  .selectable-row.drop-not-allowed { border-top: 3px solid #ef4444; background-color: #fee2e2; cursor: not-allowed !important; }
+  .selectable-row.dragging { opacity: 0.25; background-color: #f8fafc !important; box-shadow: inset 0 0 0 1px #e5e7eb; }
+  .selectable-row.drag-over { --dd-line-color: #2563eb; background-color: #f8fafc; }
+  .selectable-row.drag-over-warning { --dd-line-color: #d97706; background-color: #fff7ed; }
+  .selectable-row.drop-not-allowed { --dd-line-color: #dc2626; background-color: #fef2f2; cursor: not-allowed !important; }
+  .selectable-row.dd-drop-before td { box-shadow: inset 0 2px 0 0 var(--dd-line-color); }
+  .selectable-row.dd-drop-after td { box-shadow: inset 0 -2px 0 0 var(--dd-line-color); }
 
   td { transition: background-color 0.3s ease-in-out; }
   .selectable-row.dragging ~ tr td, .selectable-row.dragging td { transition: none !important; }

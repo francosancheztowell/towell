@@ -41,6 +41,7 @@ class DragAndDropTejido
                 'message'          => 'Prioridad actualizada correctamente',
                 'cascaded_records' => count($resultado['detalles']),
                 'detalles'         => $resultado['detalles'],
+                'updates'          => $resultado['updates'] ?? [],
                 'registro_id'      => $registro->Id,
                 'deseleccionar'    => true,
             ]);
@@ -55,7 +56,7 @@ class DragAndDropTejido
     /**
      * Mover un registro a una posición específica y recalcular fechas
      *
-     * @return array{success: bool, detalles: array}
+     * @return array{success: bool, detalles: array, updates?: array}
      */
     private static function moverAposicion(ReqProgramaTejido $registro, int $nuevaPosicion): array
     {
@@ -89,19 +90,58 @@ class DragAndDropTejido
                 // 5) Recalcular fechas para toda la secuencia
                 [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal);
 
-                // Solo regenerar lo que realmente se actualizó
-                $idsAfectados = array_map('intval', array_keys($updates));
+                // IMPORTANTE: Asegurar que TODOS los registros del telar tengan su posición actualizada
+                // Aunque recalcularFechasSecuencia debería incluir todos, vamos a asegurarnos
+                // agregando explícitamente la posición para cada registro según su orden en la colección reordenada
+                $idsAfectados = [];
+                foreach ($registrosReordenados->values() as $index => $r) {
+                    $idRegistro = (int)$r->Id;
+                    $nuevaPosicion = $index + 1;
 
-                // Updates (120-200 está OK así; si quieres lo convertimos a 1 query con VALUES)
+                    // Asegurar que el update incluya la posición correcta
+                    if (!isset($updates[$idRegistro])) {
+                        $updates[$idRegistro] = [];
+                    }
+                    // Forzar la actualización de la posición según el nuevo orden
+                    $updates[$idRegistro]['Posicion'] = $nuevaPosicion;
+                    $idsAfectados[] = $idRegistro;
+                }
+
+                if (!empty($idsAfectados)) {
+                    // Evitar colisiones temporales con el índice único (telar+posición)
+                    // IMPORTANTE: Solo actualizar registros del mismo telar para evitar afectar otros telares
+                    DB::table('ReqProgramaTejido')
+                        ->whereIn('Id', $idsAfectados)
+                        ->where('SalonTejidoId', $registro->SalonTejidoId)
+                        ->where('NoTelarId', $registro->NoTelarId)
+                        ->update(['Posicion' => DB::raw('Posicion + 10000')]);
+                }
+
+                // Updates: Asegurar que solo se actualicen registros del mismo telar
+                // IMPORTANTE: Actualizar TODOS los registros del telar con sus nuevas posiciones
                 foreach ($updates as $idU => $dataU) {
+                    // Verificar que el registro pertenece al mismo telar antes de actualizar
+                    // IMPORTANTE: Asegurar que Posicion esté presente y sea un entero
+                    if (isset($dataU['Posicion'])) {
+                        $dataU['Posicion'] = (int)$dataU['Posicion'];
+                    }
+
                     DB::table('ReqProgramaTejido')
                         ->where('Id', $idU)
+                        ->where('SalonTejidoId', $registro->SalonTejidoId)
+                        ->where('NoTelarId', $registro->NoTelarId)
                         ->update($dataU);
+                }
+
+                $updatesById = [];
+                foreach ($updates as $idU => $dataU) {
+                    $updatesById[(string) $idU] = $dataU;
                 }
 
                 return [
                     'detalles'     => $detalles,
                     'idsAfectados' => $idsAfectados,
+                    'updates'      => $updatesById,
                 ];
             }, 3);
 
@@ -114,11 +154,16 @@ class DragAndDropTejido
             if (!empty($idsAfectados)) {
                 $observer = new ReqProgramaTejidoObserver();
 
+                // IMPORTANTE: Refrescar los modelos desde la BD para tener los valores actualizados (incluyendo Posicion)
                 $modelos = ReqProgramaTejido::query()
                     ->whereIn('Id', $idsAfectados)
+                    ->where('SalonTejidoId', $registro->SalonTejidoId)
+                    ->where('NoTelarId', $registro->NoTelarId)
                     ->get();
 
                 foreach ($modelos as $m) {
+                    // Refrescar el modelo para asegurar que tiene los valores más recientes de la BD
+                    $m->refresh();
                     $observer->saved($m);
                 }
             }
@@ -126,6 +171,7 @@ class DragAndDropTejido
             return [
                 'success'  => true,
                 'detalles' => $resultado['detalles'] ?? [],
+                'updates'  => $resultado['updates'] ?? [],
             ];
         } catch (\Throwable $e) {
             // Restaurar dispatcher aunque explote
@@ -133,13 +179,8 @@ class DragAndDropTejido
                 ReqProgramaTejido::setEventDispatcher($dispatcher);
             }
 
-            Log::error('moverAposicion error', [
-                'id'             => $registro->Id ?? null,
-                'nueva_posicion' => $nuevaPosicion,
-                'msg'            => $e->getMessage(),
-                // Nota: el trace pesa; si quieres, solo loguearlo en local:
-                // 'trace'       => app()->environment('local') ? $e->getTraceAsString() : null,
-            ]);
+
+
 
             throw $e;
         }
@@ -157,6 +198,7 @@ class DragAndDropTejido
         return ReqProgramaTejido::query()
             ->salon($registro->SalonTejidoId)
             ->telar($registro->NoTelarId)
+            ->orderBy('Posicion', 'asc')
             ->orderBy('FechaInicio', 'asc')
             ->lockForUpdate()
             // Si DateHelpers NO necesita todas las columnas, reduce payload:
