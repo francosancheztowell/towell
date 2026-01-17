@@ -164,7 +164,7 @@
 
                         <div>
                             <label for="DesperdicioTrama" class="block text-sm font-medium text-gray-700 mb-1">Desperdicio Trama</label>
-                            <input type="number" id="DesperdicioTrama" name="DesperdicioTrama" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                            <input type="number" id="DesperdicioTrama" name="DesperdicioTrama" step="0.01" min="0" min="0" value="11" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
                         </div>
 
                         <div>
@@ -207,22 +207,29 @@
 
                     <!-- Tabla de Detalles de la Orden -->
                     <div class="mt-6 pt-6 border-t">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Detalles de la Orden</h3>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">Detalles de la Orden</h3>
+                            <button type="button" id="btnAgregarFilaDetalle" class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                Agregar Fila
+                            </button>
+                        </div>
                         <div class="overflow-x-auto rounded-lg border border-gray-200">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calibre</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hilo</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fibra</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cod Color</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre Color</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pasadas<span class="text-red-500">*</span></th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calibre</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hilo</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fibra</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cod Color</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre Color</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pasadas<span class="text-red-500">*</span></th>
+                                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody id="bodyDetallesOrden" class="bg-white divide-y divide-gray-200">
                                     <tr>
-                                        <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm">
+                                        <td colspan="7" class="px-6 py-4 text-center text-gray-500 text-sm">
                                             Selecciona una producción para ver los detalles
                                         </td>
                                     </tr>
@@ -279,6 +286,8 @@
         const selectNumeroJulioRizo = document.getElementById('NumeroJulioRizo');
         const selectNumeroJulioPie = document.getElementById('NumeroJulioPie');
         const inputDesperdicioTrama = document.getElementById('DesperdicioTrama');
+        const inputTramaAnchoPeine = document.getElementById('TramaAnchoPeine');
+        const inputLongitudLuchaTot = document.getElementById('LongitudLuchaTot');
         const modalPasadas = document.getElementById('modalPasadas');
         const modalPasadasAceptar = document.getElementById('modalPasadasAceptar');
         const modalPasadasCancelar = document.getElementById('modalPasadasCancelar');
@@ -570,47 +579,15 @@
                             const nombreColor = detalle.NombreColor ?? detalle.nombreColor ?? '';
                             const pasadasValue = detalle.Pasadas ?? detalle.pasadas ?? '';
                             const pasadasKey = detalle.pasadasField ?? detalle.pasadas_key ?? index;
-                            const inputName = `pasadas[${pasadasKey}]`;
-                            const valueAttribute = pasadasValue !== '' && pasadasValue !== null
-                                ? `value="${pasadasValue}"`
-                                : '';
 
-                            const row = document.createElement('tr');
-                            row.className = 'hover:bg-gray-50 transition-colors';
-                            row.innerHTML = `
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    ${calibre || '-'}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    ${hilo || '-'}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    ${fibra || '-'}
-                                </td>
-                                <td class="px-6 py-4 text-sm text-gray-600">
-                                    ${codColor || '-'}
-                                </td>
-                                <td class="px-6 py-4 text-sm text-gray-600">
-                                    ${nombreColor || '-'}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <input type="number"
-                                           name="${inputName}"
-                                           min="1"
-                                           step="1"
-                                           required
-                                           class="w-24 px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                           placeholder="0"
-                                           ${valueAttribute}>
-                                </td>
-                            `;
+                            const row = crearFilaDetalle(index, calibre, hilo, fibra, codColor, nombreColor, pasadasValue, pasadasKey);
                             bodyDetallesOrden.appendChild(row);
                         });
                         adjuntarListenersDetallePasadas();
                     } else {
                         bodyDetallesOrden.innerHTML = `
                             <tr>
-                            <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm">
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500 text-sm">
                                 No se encontraron detalles para esta orden
                             </td>
                             </tr>
@@ -622,7 +599,7 @@
                     console.error('Error:', error);
                     bodyDetallesOrden.innerHTML = `
                         <tr>
-                            <td colspan="6" class="px-6 py-4 text-center text-red-500">
+                            <td colspan="7" class="px-6 py-4 text-center text-red-500">
                                 Error al cargar los detalles
                             </td>
                         </tr>
@@ -644,7 +621,7 @@
             // Limpiar tabla de detalles
             document.getElementById('bodyDetallesOrden').innerHTML = `
                 <tr>
-                    <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm">
+                    <td colspan="7" class="px-6 py-4 text-center text-gray-500 text-sm">
                         Selecciona una producción para ver los detalles
                     </td>
                 </tr>
@@ -707,7 +684,7 @@
             setNumberSelectorValueById('EficienciaInicio', data ? data.EfiInicial : '');
             setNumberSelectorValueById('EficienciaFinal', data ? data.EfiFinal : '');
             if (inputDesperdicioTrama) {
-                inputDesperdicioTrama.value = data && data.DesperdicioTrama !== null ? data.DesperdicioTrama : '';
+                inputDesperdicioTrama.value = data && data.DesperdicioTrama !== null ? data.DesperdicioTrama : 11;
             }
         }
 
@@ -767,6 +744,135 @@
                 });
             });
             sincronizarTotalPasadasConDetalle();
+        }
+
+        // Contador para generar índices únicos de filas nuevas
+        let contadorFilasNuevas = 1000;
+
+        // Función para crear una fila de detalle editable
+        function crearFilaDetalle(index, calibre = '', hilo = '', fibra = '', codColor = '', nombreColor = '', pasadas = '', pasadasKey = null) {
+            const key = pasadasKey ?? `nuevo_${contadorFilasNuevas++}`;
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 transition-colors fila-detalle';
+            row.dataset.index = index;
+            
+            row.innerHTML = `
+                <td class="px-4 py-2">
+                    <input type="text" 
+                           name="detalle_calibre[]" 
+                           value="${calibre}" 
+                           class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                           placeholder="Calibre">
+                </td>
+                <td class="px-4 py-2">
+                    <input type="text" 
+                           name="detalle_hilo[]" 
+                           value="${hilo}" 
+                           class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                           placeholder="Hilo">
+                </td>
+                <td class="px-4 py-2">
+                    <input type="text" 
+                           name="detalle_fibra[]" 
+                           value="${fibra}" 
+                           class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                           placeholder="Fibra">
+                </td>
+                <td class="px-4 py-2">
+                    <input type="text" 
+                           name="detalle_codcolor[]" 
+                           value="${codColor}" 
+                           class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                           placeholder="Cod Color">
+                </td>
+                <td class="px-4 py-2">
+                    <input type="text" 
+                           name="detalle_nombrecolor[]" 
+                           value="${nombreColor}" 
+                           class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                           placeholder="Nombre Color">
+                </td>
+                <td class="px-4 py-2">
+                    <input type="number" 
+                           name="pasadas[${key}]" 
+                           value="${pasadas}" 
+                           min="1" 
+                           step="1" 
+                           required
+                           class="w-20 px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                           placeholder="0">
+                </td>
+                <td class="px-4 py-2 text-center">
+                    <button type="button" 
+                            onclick="eliminarFilaDetalle(this)" 
+                            class="p-1.5 text-red-600 hover:bg-red-100 rounded-md transition-colors" 
+                            title="Eliminar fila">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </button>
+                </td>
+            `;
+            
+            return row;
+        }
+
+        // Función para agregar una nueva fila vacía
+        function agregarFilaDetalle() {
+            const filas = bodyDetallesOrden.querySelectorAll('.fila-detalle');
+            const nuevoIndex = filas.length;
+            
+            // Si hay mensaje de "no hay datos", limpiarlo
+            const mensajeVacio = bodyDetallesOrden.querySelector('td[colspan]');
+            if (mensajeVacio) {
+                bodyDetallesOrden.innerHTML = '';
+            }
+            
+            const nuevaFila = crearFilaDetalle(nuevoIndex);
+            bodyDetallesOrden.appendChild(nuevaFila);
+            
+            // Adjuntar listener al nuevo input de pasadas
+            const inputPasadas = nuevaFila.querySelector('input[name^="pasadas"]');
+            if (inputPasadas) {
+                inputPasadas.addEventListener('input', () => {
+                    sincronizarTotalPasadasConDetalle();
+                });
+            }
+            
+            // Enfocar el primer input de la nueva fila
+            const primerInput = nuevaFila.querySelector('input');
+            if (primerInput) {
+                primerInput.focus();
+            }
+            
+            sincronizarTotalPasadasConDetalle();
+        }
+
+        // Función global para eliminar una fila
+        window.eliminarFilaDetalle = function(boton) {
+            const fila = boton.closest('tr');
+            if (fila) {
+                fila.remove();
+                sincronizarTotalPasadasConDetalle();
+                
+                // Si no quedan filas, mostrar mensaje
+                const filasRestantes = bodyDetallesOrden.querySelectorAll('.fila-detalle');
+                if (filasRestantes.length === 0) {
+                    bodyDetallesOrden.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500 text-sm">
+                                No hay detalles. Usa el botón "Agregar Fila" para añadir.
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+        };
+
+        // Event listener para el botón de agregar fila
+        const btnAgregarFilaDetalle = document.getElementById('btnAgregarFilaDetalle');
+        if (btnAgregarFilaDetalle) {
+            btnAgregarFilaDetalle.addEventListener('click', agregarFilaDetalle);
         }
 
         function resetDetallePasadas() {
@@ -847,7 +953,7 @@
                         document.querySelectorAll('.checkbox-produccion').forEach(cb => cb.checked = false);
                         document.getElementById('bodyDetallesOrden').innerHTML = `
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-500">
+                                <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">
                                     Selecciona una producción para ver los detalles
                                 </td>
                             </tr>
@@ -1006,6 +1112,25 @@
         }
 
         initNumberSelectors();
+
+        // Función para calcular Longitud Lucha Total = Trama Ancho Peine + Desperdicio Trama
+        function calcularLongitudLuchaTot() {
+            const tramaAnchoPeine = parseFloat(inputTramaAnchoPeine?.value) || 0;
+            const desperdicioTrama = parseFloat(inputDesperdicioTrama?.value) || 0;
+            const total = tramaAnchoPeine + desperdicioTrama;
+            
+            if (inputLongitudLuchaTot) {
+                inputLongitudLuchaTot.value = total > 0 ? total.toFixed(2) : '';
+            }
+        }
+
+        // Listeners para recalcular cuando cambien los valores
+        if (inputTramaAnchoPeine) {
+            inputTramaAnchoPeine.addEventListener('input', calcularLongitudLuchaTot);
+        }
+        if (inputDesperdicioTrama) {
+            inputDesperdicioTrama.addEventListener('input', calcularLongitudLuchaTot);
+        }
     });
 </script>
 @endpush

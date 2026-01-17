@@ -62,7 +62,7 @@ class TelDesarrolladoresController extends Controller
                 ->where('NoProduccion', '!=', '')
                 ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
                 ->distinct()
-                ->orderBy('FechaInicio', 'desc')
+                ->orderBy('FechaInicio', 'asc')
                 ->get();
 
             return response()->json([
@@ -762,49 +762,65 @@ class TelDesarrolladoresController extends Controller
                     $hasKeyFilter = true;
                 }
 
-                $registro = $hasKeyFilter ? ($query->first() ?? $modelo) : $modelo;
+                $registro = $hasKeyFilter ? $query->first() : null;
 
-                $payload = array_merge([
-                    'TelarId' => $validated['NoTelarId'],
-                    'NoTelarId' => $validated['NoTelarId'],
-                    'OrdenTejido' => $validated['NoProduccion'],
-                    'CodigoDibujo' => $codigoDibujo,
-                    'CodificacionModelo' => $codigoDibujo,
-                    'RespInicio' => $validated['Desarrollador'] ?? null,
-                    'HrInicio' => $validated['HoraInicio'] ?? null,
-                    'HrTermino' => $validated['HoraFinal'] ?? null,
-                    'MinutosCambio' => $minutosCambio,
-                    'TramaAnchoPeine' => $validated['TramaAnchoPeine'] ?? null,
-                    'AnchoPeineTrama' => $validated['TramaAnchoPeine'] ?? null,
-                    'LogLuchaTotal' => $validated['LongitudLuchaTot'] ?? null,
-                    'LongitudLuchaTot' => $validated['LongitudLuchaTot'] ?? null,
-                    'Total' => $validated['TotalPasadasDibujo'],
-                    'TotalPasadasDibujo' => $validated['TotalPasadasDibujo'],
-                    'NumeroJulioRizo' => $validated['NumeroJulioRizo'],
-                    'NumeroJulioPie' => $validated['NumeroJulioPie'] ?? null,
-                    'JulioRizo' => $validated['NumeroJulioRizo'],
-                    'JulioPie' => $validated['NumeroJulioPie'] ?? null,
-                    'EficienciaInicio' => $validated['EficienciaInicio'] ?? null,
-                    'EficienciaFinal' => $validated['EficienciaFinal'] ?? null,
-                    'EfiInicial' => $validated['EficienciaInicio'] ?? null,
-                    'EfiFinal' => $validated['EficienciaFinal'] ?? null,
-                    'DesperdicioTrama' => $validated['DesperdicioTrama'] ?? null,
-                    'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
-                ], $detallePayload, $pasadasPayload);
+                // Si no existe el registro, solo logueamos y continuamos sin crear uno nuevo
+                if (!$registro) {
+                    Log::warning('TelDesarrolladoresController::store - No se encontró registro en CatCodificados para actualizar', [
+                        'NoTelarId' => $validated['NoTelarId'],
+                        'NoProduccion' => $validated['NoProduccion'],
+                        'mensaje' => 'El registro no existe en CatCodificados, no se creará uno nuevo'
+                    ]);
+                } else {
+                    // Solo actualizar si el registro existe
+                    $payload = array_merge([
+                        'TelarId' => $validated['NoTelarId'],
+                        'NoTelarId' => $validated['NoTelarId'],
+                        'OrdenTejido' => $validated['NoProduccion'],
+                        'CodigoDibujo' => $codigoDibujo,
+                        'CodificacionModelo' => $codigoDibujo,
+                        'RespInicio' => $validated['Desarrollador'] ?? null,
+                        'HrInicio' => $validated['HoraInicio'] ?? null,
+                        'HrTermino' => $validated['HoraFinal'] ?? null,
+                        'MinutosCambio' => $minutosCambio,
+                        'TramaAnchoPeine' => $validated['TramaAnchoPeine'] ?? null,
+                        'AnchoPeineTrama' => $validated['TramaAnchoPeine'] ?? null,
+                        'LogLuchaTotal' => $validated['LongitudLuchaTot'] ?? null,
+                        'LongitudLuchaTot' => $validated['LongitudLuchaTot'] ?? null,
+                        'Total' => $validated['TotalPasadasDibujo'],
+                        'TotalPasadasDibujo' => $validated['TotalPasadasDibujo'],
+                        'NumeroJulioRizo' => $validated['NumeroJulioRizo'],
+                        'NumeroJulioPie' => $validated['NumeroJulioPie'] ?? null,
+                        'JulioRizo' => $validated['NumeroJulioRizo'],
+                        'JulioPie' => $validated['NumeroJulioPie'] ?? null,
+                        'EficienciaInicio' => $validated['EficienciaInicio'] ?? null,
+                        'EficienciaFinal' => $validated['EficienciaFinal'] ?? null,
+                        'EfiInicial' => $validated['EficienciaInicio'] ?? null,
+                        'EfiFinal' => $validated['EficienciaFinal'] ?? null,
+                        'DesperdicioTrama' => $validated['DesperdicioTrama'] ?? null,
+                        'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
+                    ], $detallePayload, $pasadasPayload);
 
-                foreach ($payload as $column => $value) {
-                    if (!in_array($column, $columns, true)) {
-                        continue;
+                    foreach ($payload as $column => $value) {
+                        if (!in_array($column, $columns, true)) {
+                            continue;
+                        }
+                        $registro->setAttribute($column, $value);
                     }
-                    $registro->setAttribute($column, $value);
-                }
 
-                $registro->save();
+                    $registro->save();
+                    Log::info('TelDesarrolladoresController::store - Registro actualizado en CatCodificados', [
+                        'NoTelarId' => $validated['NoTelarId'],
+                        'NoProduccion' => $validated['NoProduccion']
+                    ]);
+                }
 
 
                 // Buscar y actualizar registro en ReqModelosCodificados
-                $claveModelo = $registro->getAttribute('ClaveModelo') ?: data_get($ordenData, 'TamanoClave');
-                $departamento = $registro->getAttribute('Departamento') ?: data_get($ordenData, 'SalonTejidoId');
+                $claveModelo = $registro ? $registro->getAttribute('ClaveModelo') : null;
+                $claveModelo = $claveModelo ?: data_get($ordenData, 'TamanoClave');
+                $departamento = $registro ? $registro->getAttribute('Departamento') : null;
+                $departamento = $departamento ?: data_get($ordenData, 'SalonTejidoId');
 
 
                 $registroModelo = null;
