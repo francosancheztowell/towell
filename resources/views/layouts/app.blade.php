@@ -29,12 +29,12 @@
 
 
 
-  <!-- ====== Modal Notificar Montado de Julio ====== -->
+  <!-- ====== Modal Atado de Julio ====== -->
   <div id="modalTelaresNotificar" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
     <div class="relative bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4">
       <!-- Header del Modal -->
       <div class="flex items-center justify-between p-4 border-b border-gray-200">
-        <h2 class="text-xl font-bold text-gray-800">Notificar Montado de Julio</h2>
+        <h2 class="text-xl font-bold text-gray-800">Atado de Julio</h2>
         <button type="button" onclick="cerrarModalTelares()" class="text-gray-400 hover:text-gray-600 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -144,12 +144,12 @@
     </div>
   </div>
 
-  <!-- ====== Modal Notificar Cortado de Rollo ====== -->
+  <!-- ====== Modal Cortado de Rollo ====== -->
   <div id="modalCortadoRollos" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
     <div class="relative bg-white rounded-lg shadow-xl max-w-6xl w-[96vw] mx-2 my-4 h-[85vh] flex flex-col">
       <!-- Header del Modal -->
       <div class="flex items-center justify-between p-6 border-b border-gray-200">
-        <h2 class="text-xl font-bold text-gray-800">Notificar Cortado de Rollo</h2>
+        <h2 class="text-xl font-bold text-gray-800">Cortado de Rollo</h2>
         <button type="button" id="closeModalCortado" class="text-gray-400 hover:text-gray-600 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -290,7 +290,7 @@
 
     async function abrirModalTelares() {
       try {
-        const response = await fetch('{{ route('notificar.montado.julios') }}?listado=1', {
+        const response = await fetch('{{ route('notificar.atado.julio') }}?listado=1', {
           headers: {
             'X-Requested-With': 'XMLHttpRequest'
           }
@@ -335,7 +335,7 @@
       }
 
       try {
-        const response = await fetch(`{{ route('notificar.montado.julios') }}?no_telar=${telar}&tipo=${tipo}`, {
+        const response = await fetch(`{{ route('notificar.atado.julio') }}?no_telar=${telar}&tipo=${tipo}`, {
           headers: {
             'X-Requested-With': 'XMLHttpRequest'
           }
@@ -389,7 +389,7 @@
       }
 
       try {
-        const response = await fetch('{{ route('notificar.montado.julios.notificar') }}', {
+        const response = await fetch('{{ route('notificar.atado.julio.notificar') }}', {
           method: 'POST',
           headers: {
             'X-Requested-With': 'XMLHttpRequest',
@@ -470,7 +470,7 @@
       select.innerHTML = '<option value="">-- Seleccione un telar --</option>';
 
       try {
-        const response = await fetch('{{ route('notificar.mont.rollos') }}?listado=1', {
+        const response = await fetch('{{ route('notificar.cortado.rollo') }}?listado=1', {
           headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
         const data = await response.json();
@@ -590,7 +590,7 @@
         mostrarMensajeCortado('Buscando orden de producción...', 'info');
 
         try {
-          const responseOrden = await fetch(`{{ route('notificar.mont.rollos.orden.produccion') }}?no_telar=${encodeURIComponent(noTelar)}`, {
+          const responseOrden = await fetch(`{{ route('notificar.cortado.rollo.orden.produccion') }}?no_telar=${encodeURIComponent(noTelar)}`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -609,7 +609,7 @@
           ordenCortadoActual = dataOrden.orden;
           mostrarMensajeCortado('Cargando datos de producción desde TOW_PRO...', 'info');
 
-          const responseDatos = await fetch(`{{ route('notificar.mont.rollos.datos.produccion') }}?no_produccion=${encodeURIComponent(ordenCortadoActual.NoProduccion)}&no_telar=${encodeURIComponent(noTelar)}&salon=${encodeURIComponent(ordenCortadoActual.SalonTejidoId || '')}`, {
+          const responseDatos = await fetch(`{{ route('notificar.cortado.rollo.datos.produccion') }}?no_produccion=${encodeURIComponent(ordenCortadoActual.NoProduccion)}&no_telar=${encodeURIComponent(noTelar)}&salon=${encodeURIComponent(ordenCortadoActual.SalonTejidoId || '')}`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -685,7 +685,7 @@
             }
           });
 
-          const response = await fetch('{{ route('notificar.mont.rollos.insertar') }}', {
+          const response = await fetch('{{ route('notificar.cortado.rollo.insertar') }}', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
