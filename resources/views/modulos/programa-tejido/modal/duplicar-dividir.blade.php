@@ -1214,15 +1214,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 									console.log('[cargarDatosRelacionados] ✅ CustName actualizado desde flog:', custNameFromFlog);
 								}
 
-								// LOG: Datos del flog obtenidos
-								console.log('[cargarDatosRelacionadosRow] 📋 DATOS DEL FLOG OBTENIDOS:', {
-									idflog: info?.idflog,
-									nombreProyecto: info?.nombreProyecto,
-									custName: info?.custName || info?.CustName,
-									itemId: itemId,
-									inventSizeId: inventSizeId
-								});
-
 								// Autocompletar flog y descripción desde TI_PRO
 								// Si no se obtiene, dejar en blanco (el usuario puede escribir libremente)
 								if (info?.idflog) {
@@ -2031,14 +2022,12 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 	// Función auxiliar para cargar datos relacionados solo para una fila específica
 	window.cargarDatosRelacionadosRow = function cargarDatosRelacionadosRow(row, tamanoClave) {
 		if (!row || !tamanoClave || !tamanoClave.trim()) {
-			console.warn('[cargarDatosRelacionadosRow] Fila o clave modelo inválidos', { row, tamanoClave });
 			return;
 		}
 
 		const selectSalon = document.getElementById('swal-salon');
 		const salonParaBuscar = selectSalon?.value || '';
 		if (!salonParaBuscar) {
-			console.warn('[cargarDatosRelacionadosRow] No hay salón seleccionado');
 			return;
 		}
 
@@ -2061,32 +2050,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 					// Guardar todos los datos del modelo codificado en atributos data de la fila
 					// Estos datos se usarán cuando se guarde el formulario
 					if (datos.CuentaRizo !== undefined && datos.CuentaRizo !== null) row.dataset.cuentaRizo = String(datos.CuentaRizo);
-					// LOG: Campos guardados en data attributes de la fila
-					console.log('[cargarDatosRelacionadosRow] 💾 CAMPOS GUARDADOS EN ROW.DATASET:', {
-						calibreRizo: datos.CalibreRizo,
-						calibreRizo2: datos.CalibreRizo2,
-						ancho: datos.Ancho,
-						fibraRizo: datos.FibraRizo,
-						calibrePie: datos.CalibrePie,
-						calibrePie2: datos.CalibrePie2,
-						calibreTrama: datos.CalibreTrama,
-						calibreTrama2: datos.CalibreTrama2,
-						noTiras: datos.NoTiras,
-						peine: datos.Peine,
-						luchaje: datos.Luchaje,
-						pesoCrudo: datos.PesoCrudo,
-						dobladilloId: datos.DobladilloId,
-						pasadasTrama: datos.PasadasTrama,
-						anchoToalla: datos.AnchoToalla,
-						codColorTrama: datos.CodColorTrama,
-						colorTrama: datos.ColorTrama,
-						medidaPlano: datos.MedidaPlano,
-						cuentaPie: datos.CuentaPie,
-						rasurado: datos.Rasurado,
-						velocidadSTD: datos.VelocidadSTD,
-						eficienciaSTD: datos.VelocidadSTD ? 'Se obtendrá después' : null
-					});
-
 					// IMPORTANTE: Guardar TODOS los campos que deben actualizarse al cambiar la clave modelo
 					if (datos.CalibreRizo !== undefined && datos.CalibreRizo !== null) row.dataset.calibreRizo = String(datos.CalibreRizo);
 					if (datos.CalibreRizo2 !== undefined && datos.CalibreRizo2 !== null) row.dataset.calibreRizo2 = String(datos.CalibreRizo2);
@@ -2157,7 +2120,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 						const inputCustnameGlobal = document.getElementById('swal-custname');
 						if (inputCustnameGlobal) {
 							inputCustnameGlobal.value = String(datos.CustName);
-							console.log('[cargarDatosRelacionadosRow] CustName actualizado desde datos-relacionados:', datos.CustName);
 						}
 					}
 
@@ -2168,12 +2130,10 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 					if (datos.ItemId !== undefined && datos.ItemId !== null && inputCodArticuloGlobal) {
 						inputCodArticuloGlobal.value = String(datos.ItemId);
-						console.log('[cargarDatosRelacionadosRow] Clave AX (ItemId) actualizado globalmente:', datos.ItemId);
 					}
 
 					if (datos.InventSizeId !== undefined && datos.InventSizeId !== null && inputInventSizeIdGlobal) {
 						inputInventSizeIdGlobal.value = String(datos.InventSizeId);
-						console.log('[cargarDatosRelacionadosRow] Tamaño AX (InventSizeId) actualizado globalmente:', datos.InventSizeId);
 					}
 
 					// Actualizar solo los campos visibles de esta fila
@@ -2182,7 +2142,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 						const nombreProducto = datos.Nombre || datos.NombreProducto || '';
 						if (nombreProducto) {
 							productoInput.value = nombreProducto;
-							console.log('[cargarDatosRelacionadosRow] Producto actualizado:', nombreProducto);
 						}
 					}
 
@@ -2190,63 +2149,12 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 					const itemId = (datos.ItemId || '').toString().trim();
 					const inventSizeId = (datos.InventSizeId || '').toString().trim();
 
-					// LOG DETALLADO: Campos extraídos del modelo codificado
-					console.log('[cargarDatosRelacionadosRow] 📋 CAMPOS EXTRAÍDOS DEL MODELO CODIFICADO:', {
-						tamanoClave,
-						itemId,
-						inventSizeId,
-						// Campos técnicos principales
-						CuentaRizo: data.datos.CuentaRizo,
-						CalibreRizo: data.datos.CalibreRizo,
-						CalibreRizo2: data.datos.CalibreRizo2,
-						FibraRizo: data.datos.FibraRizo,
-						CalibrePie: data.datos.CalibrePie,
-						CalibrePie2: data.datos.CalibrePie2,
-						CalibreTrama: data.datos.CalibreTrama,
-						CalibreTrama2: data.datos.CalibreTrama2,
-						FibraTrama: data.datos.FibraTrama,
-						// Campos técnicos secundarios
-						NoTiras: data.datos.NoTiras,
-						Peine: data.datos.Peine,
-						Luchaje: data.datos.Luchaje,
-						PesoCrudo: data.datos.PesoCrudo,
-						DobladilloId: data.datos.DobladilloId,
-						PasadasTrama: data.datos.PasadasTrama,
-						AnchoToalla: data.datos.AnchoToalla,
-						CodColorTrama: data.datos.CodColorTrama,
-						ColorTrama: data.datos.ColorTrama,
-						MedidaPlano: data.datos.MedidaPlano,
-						CuentaPie: data.datos.CuentaPie,
-						Rasurado: data.datos.Rasurado,
-						// Campos de combinaciones
-						PasadasComb1: data.datos.PasadasComb1,
-						PasadasComb2: data.datos.PasadasComb2,
-						PasadasComb3: data.datos.PasadasComb3,
-						PasadasComb4: data.datos.PasadasComb4,
-						PasadasComb5: data.datos.PasadasComb5,
-						CalibreComb1: data.datos.CalibreComb1,
-						CalibreComb12: data.datos.CalibreComb12,
-						CalibreComb2: data.datos.CalibreComb2,
-						CalibreComb22: data.datos.CalibreComb22,
-						// Y otros campos importantes
-						VelocidadSTD: data.datos.VelocidadSTD,
-						Ancho: data.datos.Ancho,
-						NombreProducto: data.datos.NombreProducto,
-						FlogsId: data.datos.FlogsId,
-						NombreProyecto: data.datos.NombreProyecto
-					});
-
 					if (itemId && inventSizeId) {
 						const paramsFlog = new URLSearchParams();
 						paramsFlog.append('item_id', itemId);
 						paramsFlog.append('invent_size_id', inventSizeId);
 
 						const urlFlog = '/programa-tejido/flog-by-item?' + paramsFlog.toString();
-						console.log('[cargarDatosRelacionadosRow] Haciendo GET a flog-by-item:', urlFlog);
-						console.log('[cargarDatosRelacionadosRow] Parámetros:', {
-							item_id: itemId,
-							invent_size_id: inventSizeId
-						});
 
 						fetch(urlFlog, {
 							headers: { 'Accept': 'application/json' }
@@ -2259,7 +2167,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 								return rFlog.json();
 							})
 							.then(info => {
-								console.log('[cargarDatosRelacionadosRow] Respuesta flog-by-item completa:', JSON.stringify(info));
 
 								// Intentar obtener el idflog de diferentes posibles propiedades
 								let idflog = info?.idflog || info?.idFlog || info?.flog || info?.FlogId || info?.IDFLOG ||
@@ -2274,9 +2181,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 								// Validar que idflog no sea null, undefined, ni cadena vacía
 								const idflogValido = idflog && idflog !== 'null' && idflog !== '';
 
-								console.log('[cargarDatosRelacionadosRow] idflog extraído:', idflog);
-								console.log('[cargarDatosRelacionadosRow] idflog válido:', idflogValido);
-
 								const flogInput = row.querySelector('.flogs-cell textarea') || row.querySelector('.flogs-cell input');
 								const descripcionTextarea = row.querySelector('.descripcion-cell textarea');
 
@@ -2284,9 +2188,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 									// Autocompletar flog y descripción desde TI_PRO
 									if (flogInput) {
 										flogInput.value = idflog;
-										console.log('[cargarDatosRelacionadosRow] Flog actualizado en la fila:', idflog);
-									} else {
-										console.warn('[cargarDatosRelacionadosRow] No se encontró el input de flog en la fila');
 									}
 
 									const nombreProyecto = (info?.nombreProyecto || info?.NombreProyecto || info?.nameProyecto ||
@@ -2302,7 +2203,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 										const inputCustnameGlobal = document.getElementById('swal-custname');
 										if (inputCustnameGlobal) {
 											inputCustnameGlobal.value = custName;
-											console.log('[cargarDatosRelacionadosRow] 👤 CUSTNAME GUARDADO Y ACTUALIZADO:', custName);
 										}
 									}
 
@@ -2312,31 +2212,21 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 										} else {
 											descripcionTextarea.value = `(${idflog})`;
 										}
-										console.log('[cargarDatosRelacionadosRow] Descripción actualizada en la fila');
-									} else {
-										console.warn('[cargarDatosRelacionadosRow] No se encontró el textarea de descripción en la fila');
 									}
 
 									// Obtener eficiencia y velocidad si tenemos telar, hilo y calibre trama
-									console.log('[cargarDatosRelacionadosRow] Llamando a cargarEficienciaVelocidadRow y construirMaquinaRow');
 									if (typeof window.cargarEficienciaVelocidadRow === 'function') {
 										window.cargarEficienciaVelocidadRow(row, datos);
-									} else {
-										console.warn('[cargarDatosRelacionadosRow] cargarEficienciaVelocidadRow no está disponible');
 									}
 									// Construir Maquina basándose en salón y telar
 									if (typeof window.construirMaquinaRow === 'function') {
 										window.construirMaquinaRow(row);
-									} else {
-										console.warn('[cargarDatosRelacionadosRow] construirMaquinaRow no está disponible');
 									}
 								} else {
 									// Si no se obtiene, dejar en blanco (el usuario puede escribir libremente)
-									console.warn('[cargarDatosRelacionadosRow] No se recibió idflog válido en la respuesta. Limpiando campos.');
 									if (flogInput) flogInput.value = '';
 									if (descripcionTextarea) descripcionTextarea.value = '';
 									// Aún intentar cargar eficiencia y velocidad si tenemos los datos necesarios
-									console.log('[cargarDatosRelacionadosRow] Llamando a cargarEficienciaVelocidadRow y construirMaquinaRow (sin flog)');
 									if (typeof window.cargarEficienciaVelocidadRow === 'function') {
 										window.cargarEficienciaVelocidadRow(row, datos);
 									}
@@ -2350,10 +2240,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 								console.error('[cargarDatosRelacionadosRow] Error al cargar flog:', error);
 							});
 					} else {
-						console.warn('[cargarDatosRelacionadosRow] No hay ItemId o InventSizeId para cargar el flog', {
-							itemId,
-							inventSizeId
-						});
 						// Si no hay ItemId o InventSizeId, limpiar flog y descripción
 						const flogInput = row.querySelector('.flogs-cell textarea') || row.querySelector('.flogs-cell input');
 						const descripcionTextarea = row.querySelector('.descripcion-cell textarea');
@@ -2361,7 +2247,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 						if (descripcionTextarea) descripcionTextarea.value = '';
 
 						// Aún intentar cargar eficiencia y velocidad si tenemos los datos necesarios
-						console.log('[cargarDatosRelacionadosRow] Llamando a cargarEficienciaVelocidadRow y construirMaquinaRow (sin ItemId/InventSizeId)');
 						if (typeof window.cargarEficienciaVelocidadRow === 'function') {
 							window.cargarEficienciaVelocidadRow(row, datos);
 						}
@@ -2370,33 +2255,8 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 							window.construirMaquinaRow(row);
 						}
 					}
-				} else {
-					console.warn('[cargarDatosRelacionadosRow] No se recibieron datos válidos:', data);
 				}
 
-				// Resumen final de todos los datos guardados en la fila
-				console.log('[cargarDatosRelacionadosRow] Resumen final de datos guardados en la fila:', {
-					cuentaRizo: row.dataset.cuentaRizo,
-					calibreRizo: row.dataset.calibreRizo,
-					calibreRizo2: row.dataset.calibreRizo2,
-					ancho: row.dataset.ancho,
-					fibraRizo: row.dataset.fibraRizo,
-					calibrePie: row.dataset.calibrePie,
-					calibrePie2: row.dataset.calibrePie2,
-					rasurado: row.dataset.rasurado,
-					noTiras: row.dataset.noTiras,
-					peine: row.dataset.peine,
-					luchaje: row.dataset.luchaje,
-					pesoCrudo: row.dataset.pesoCrudo,
-					calibreTrama: row.dataset.calibreTrama,
-					calibreTrama2: row.dataset.calibreTrama2,
-					eficienciaSTD: row.dataset.eficienciaSTD,
-					velocidadSTD: row.dataset.velocidadSTD,
-					maquina: row.dataset.maquina,
-					itemId: row.dataset.itemId,
-					inventSizeId: row.dataset.inventSizeId,
-					custName: row.dataset.custName
-				});
 			})
 			.catch((error) => {
 				console.error('[cargarDatosRelacionadosRow] Error al cargar datos relacionados:', error);
@@ -2445,23 +2305,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		const calibreTrama = datosModelo.CalibreTrama || datosModelo.CalibreTrama2 || row.dataset.calibreTrama || row.dataset.calibreTrama2 || '';
 
 		if (!telar || !fibraRizo || !calibreTrama) {
-			console.warn('[cargarEficienciaVelocidadRow] Faltan datos para obtener eficiencia y velocidad', {
-				telar,
-				fibraRizo,
-				calibreTrama,
-				datosModelo: {
-					FibraRizo: datosModelo.FibraRizo,
-					FibraId: datosModelo.FibraId,
-					CalibreTrama: datosModelo.CalibreTrama,
-					CalibreTrama2: datosModelo.CalibreTrama2
-				},
-				rowDataset: {
-					fibraRizo: row.dataset.fibraRizo,
-					fibraTrama: row.dataset.fibraTrama,
-					calibreTrama: row.dataset.calibreTrama,
-					calibreTrama2: row.dataset.calibreTrama2
-				}
-			});
 			return;
 		}
 
@@ -2471,12 +2314,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		params.append('calibre_trama', calibreTrama);
 
 		const url = '/programa-tejido/eficiencia-velocidad-std?' + params.toString();
-		console.log('[cargarEficienciaVelocidadRow] Obteniendo eficiencia y velocidad:', {
-			url,
-			telar,
-			fibraRizo,
-			calibreTrama
-		});
 
 		fetch(url, {
 			headers: { 'Accept': 'application/json' }
@@ -2489,36 +2326,13 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 				return r.json();
 			})
 							.then(result => {
-								console.log('[cargarEficienciaVelocidadRow] 📊 EFICIENCIA Y VELOCIDAD OBTENIDAS:', {
-									eficiencia: result.eficiencia,
-									velocidad: result.velocidad,
-									fibraRizo: fibraRizo,
-									calibreTrama: calibreTrama,
-									telar: telar
-								});
-
 								if (result.eficiencia !== null && result.eficiencia !== undefined) {
 									row.dataset.eficienciaSTD = String(result.eficiencia);
-					console.log('[cargarEficienciaVelocidadRow] Eficiencia guardada:', result.eficiencia);
-				} else {
-					console.warn('[cargarEficienciaVelocidadRow] No se obtuvo eficiencia en la respuesta');
-				}
-				if (result.velocidad !== null && result.velocidad !== undefined) {
-					row.dataset.velocidadSTD = String(result.velocidad);
-					console.log('[cargarEficienciaVelocidadRow] Velocidad guardada:', result.velocidad);
-				} else {
-					console.warn('[cargarEficienciaVelocidadRow] No se obtuvo velocidad en la respuesta');
-				}
-				console.log('[cargarEficienciaVelocidadRow] Eficiencia y velocidad cargadas:', {
-					eficiencia: result.eficiencia,
-					velocidad: result.velocidad,
-					telar,
-					fibraRizo,
-					calibreTrama,
-					densidad: result.densidad,
-					error: result.error
-				});
-			})
+								}
+								if (result.velocidad !== null && result.velocidad !== undefined) {
+									row.dataset.velocidadSTD = String(result.velocidad);
+								}
+							})
 			.catch((error) => {
 				console.error('[cargarEficienciaVelocidadRow] Error al cargar eficiencia y velocidad:', error);
 			});
@@ -2564,7 +2378,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 		const maquina = `${prefijo}${telarNumero}`;
 		row.dataset.maquina = maquina;
-		console.log('[construirMaquinaRow] Maquina construida:', maquina, { salon, telar, telarNumero, prefijo });
 		return maquina;
 	}
 

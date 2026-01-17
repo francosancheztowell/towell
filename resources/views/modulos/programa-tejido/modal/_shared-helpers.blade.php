@@ -573,6 +573,32 @@ async function agregarRegistroSinRecargar(data) {
 			window.PT.rowCache = new WeakMap();
 		}
 
+		// Aplicar columnas ocultas a la nueva fila basándonos en el estado del header
+		// Obtener todas las columnas del header y aplicar el mismo estado de visibilidad a la nueva fila
+		const headerCells = document.querySelectorAll('#mainTable thead th[data-column]');
+		headerCells.forEach((th) => {
+			// Extraer el índice de la columna desde las clases column-X
+			const classList = Array.from(th.classList);
+			const columnClass = classList.find(cls => cls.startsWith('column-'));
+			if (columnClass) {
+				const colIndex = parseInt(columnClass.replace('column-', ''));
+				if (!isNaN(colIndex)) {
+					// Verificar si la columna está oculta en el header
+					const isHidden = th.style.display === 'none' ||
+					                th.classList.contains('hidden') ||
+					                window.getComputedStyle(th).display === 'none';
+
+					if (isHidden) {
+						// Aplicar el mismo estado a la celda correspondiente en la nueva fila
+						const cell = row.querySelector(`td.column-${colIndex}`);
+						if (cell) {
+							cell.style.display = 'none';
+						}
+					}
+				}
+			}
+		});
+
 		// Actualizar posiciones de columnas fijadas para que la nueva fila tenga los estilos correctos
 		if (typeof window.updatePinnedColumnsPositions === 'function') {
 			window.updatePinnedColumnsPositions();
