@@ -54,9 +54,9 @@
                     ? asset('images/' . $imageFolder . '/' . $modulo['imagen']) . '?v=' . $timestamp
                     : $imagenFallback;
                 
-                // Verificar si es el módulo de Notificar Montado de Julio
-                $esNotificarMontado = in_array($modulo['nombre'], ['Notificar Montado de Julio', 'Notificar Montado de Julio (Tej.)']);
-                $esNotificarCortado = in_array($modulo['nombre'], ['Notificar Cortado de rollo', 'Notificar Cortado de Rollo', 'Notificar Cortado de Rollo (Tej.)']);
+                // Verificar si es el módulo de Atado de Julio / Cortado de Rollo
+                $esNotificarMontado = in_array($modulo['nombre'], ['Atado de Julio', 'Atado de Julio (Tej.)', 'Notificar Montado de Julio', 'Notificar Montado de Julio (Tej.)']);
+                $esNotificarCortado = in_array($modulo['nombre'], ['Cortado de Rollo', 'Cortado de Rollo (Tej.)', 'Notificar Cortado de rollo', 'Notificar Cortado de Rollo', 'Notificar Cortado de Rollo (Tej.)']);
             @endphp
             
             @if($esNotificarMontado)

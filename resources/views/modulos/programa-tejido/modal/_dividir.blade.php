@@ -286,12 +286,75 @@ function guardarValoresOriginales(fila) {
 	}
 }
 
-// Función para restaurar los valores originales de todas las filas existentes
+// ⚡ MEJORA: Guardar valores originales de la fila principal al inicio
+function guardarValoresOriginalesFilaPrincipal() {
+	const filaPrincipal = document.getElementById('fila-principal');
+	if (filaPrincipal) {
+		const registroId = filaPrincipal.dataset.registroId || filaPrincipal.id || 'fila-principal';
+		const saldoTotalInput = filaPrincipal.querySelector('.saldo-total-cell input');
+		const pedidoTempoInput = filaPrincipal.querySelector('input[name="pedido-tempo-destino[]"]');
+		const porcentajeSegundosInput = filaPrincipal.querySelector('input[name="porcentaje-segundos-destino[]"]');
+		const pedidoDestinoInput = filaPrincipal.querySelector('input[name="pedido-destino[]"]');
+		const produccionInput = getProduccionInputFromRow && typeof getProduccionInputFromRow === 'function'
+			? getProduccionInputFromRow(filaPrincipal)
+			: null;
+
+		if (saldoTotalInput && pedidoTempoInput) {
+			// Guardar valores originales de la fila principal si no existen
+			if (!window.valoresOriginalesFilas.has(registroId)) {
+				window.valoresOriginalesFilas.set(registroId, {
+					saldoTotal: parseFloat(saldoTotalInput.value) || 0,
+					pedidoTempo: parseFloat(pedidoTempoInput.value) || 0,
+					porcentajeSegundos: parseFloat(porcentajeSegundosInput?.value) || 0,
+					totalPedido: parseFloat(pedidoDestinoInput?.value) || 0,
+					produccion: parseFloat(produccionInput?.value) || 0
+				});
+			}
+		}
+	}
+}
+
+// OPTIMIZACIÓN: Función para restaurar los valores originales de todas las filas existentes (más rápida)
 function restaurarValoresOriginales() {
 	window.redistribuyendo = true;
 
+	// MEJORA: Restaurar también la fila principal si tiene valores originales guardados
+	const filaPrincipal = document.getElementById('fila-principal');
+	if (filaPrincipal) {
+		const registroId = filaPrincipal.dataset.registroId || filaPrincipal.id || 'fila-principal';
+		const valoresOriginales = window.valoresOriginalesFilas.get(registroId);
+
+		if (valoresOriginales) {
+			const saldoTotalInput = filaPrincipal.querySelector('.saldo-total-cell input');
+			const pedidoTempoInput = filaPrincipal.querySelector('input[name="pedido-tempo-destino[]"]');
+			const porcentajeSegundosInput = filaPrincipal.querySelector('input[name="porcentaje-segundos-destino[]"]');
+			const pedidoDestinoInput = filaPrincipal.querySelector('input[name="pedido-destino[]"]');
+
+			// Actualizar directamente sin setTimeout para mayor velocidad
+			if (saldoTotalInput) {
+				saldoTotalInput.value = valoresOriginales.saldoTotal.toString();
+				saldoTotalInput.setAttribute('value', valoresOriginales.saldoTotal.toString());
+				saldoTotalInput.dispatchEvent(new Event('input', { bubbles: true }));
+			}
+			if (pedidoTempoInput) {
+				pedidoTempoInput.value = valoresOriginales.pedidoTempo.toString();
+				pedidoTempoInput.setAttribute('value', valoresOriginales.pedidoTempo.toString());
+				pedidoTempoInput.dispatchEvent(new Event('input', { bubbles: true }));
+			}
+			if (porcentajeSegundosInput && valoresOriginales.porcentajeSegundos !== undefined) {
+				porcentajeSegundosInput.value = valoresOriginales.porcentajeSegundos.toString();
+				porcentajeSegundosInput.setAttribute('value', valoresOriginales.porcentajeSegundos.toString());
+			}
+			if (pedidoDestinoInput) {
+				pedidoDestinoInput.value = valoresOriginales.totalPedido.toString();
+				pedidoDestinoInput.setAttribute('value', valoresOriginales.totalPedido.toString());
+			}
+		}
+	}
+
 	const filas = document.querySelectorAll('#telar-pedido-body tr.telar-row[data-es-existente="true"]');
 
+	// Restaurar otras filas existentes
 	filas.forEach(fila => {
 		const registroId = fila.dataset.registroId || fila.id || 'sin-id';
 		const valoresOriginales = window.valoresOriginalesFilas.get(registroId);
@@ -302,28 +365,30 @@ function restaurarValoresOriginales() {
 			const porcentajeSegundosInput = fila.querySelector('input[name="porcentaje-segundos-destino[]"]');
 			const pedidoDestinoInput = fila.querySelector('input[name="pedido-destino[]"]');
 
+			// Actualizar directamente sin setTimeout para mayor velocidad
 			if (saldoTotalInput) {
-				saldoTotalInput.setAttribute('value', valoresOriginales.saldoTotal.toString());
 				saldoTotalInput.value = valoresOriginales.saldoTotal.toString();
+				saldoTotalInput.setAttribute('value', valoresOriginales.saldoTotal.toString());
+				saldoTotalInput.dispatchEvent(new Event('input', { bubbles: true }));
 			}
 			if (pedidoTempoInput) {
-				pedidoTempoInput.setAttribute('value', valoresOriginales.pedidoTempo.toString());
 				pedidoTempoInput.value = valoresOriginales.pedidoTempo.toString();
+				pedidoTempoInput.setAttribute('value', valoresOriginales.pedidoTempo.toString());
+				pedidoTempoInput.dispatchEvent(new Event('input', { bubbles: true }));
 			}
 			if (porcentajeSegundosInput && valoresOriginales.porcentajeSegundos !== undefined) {
-				porcentajeSegundosInput.setAttribute('value', valoresOriginales.porcentajeSegundos.toString());
 				porcentajeSegundosInput.value = valoresOriginales.porcentajeSegundos.toString();
+				porcentajeSegundosInput.setAttribute('value', valoresOriginales.porcentajeSegundos.toString());
 			}
 			if (pedidoDestinoInput) {
-				pedidoDestinoInput.setAttribute('value', valoresOriginales.totalPedido.toString());
 				pedidoDestinoInput.value = valoresOriginales.totalPedido.toString();
+				pedidoDestinoInput.setAttribute('value', valoresOriginales.totalPedido.toString());
 			}
 		}
 	});
 
-	setTimeout(() => {
-		window.redistribuyendo = false;
-	}, 100);
+	// Desactivar bandera inmediatamente (sin setTimeout para mayor velocidad)
+	window.redistribuyendo = false;
 }
 
 // Función para calcular el saldo total disponible de todos los registros existentes usando valores ORIGINALES
@@ -528,15 +593,146 @@ function validarYRedistribuirNuevoRegistro(nuevaFila) {
 		// Calcular el TotalPedido (con %segundas aplicado, redondear a entero)
 		const totalPedido = Math.round(pedidoTempo * (1 + porcentajeSegundos / 100));
 
-		// Si el pedido es 0 o vacío, restaurar valores originales
+		// ⚡ MEJORA: Si el pedido es 0 o vacío, restaurar valores originales INMEDIATAMENTE
 		if (totalPedido <= 0 || pedidoTempo === 0) {
+			// Asegurar que los valores originales de la fila principal estén guardados
+			if (window.valoresOriginalesFilas.size === 0) {
+				guardarValoresOriginalesFilaPrincipal();
+			}
 			restaurarValoresOriginales();
 			return;
 		}
 
+		// ⚡ MEJORA: Guardar valores originales de la fila principal si aún no están guardados
+		if (window.valoresOriginalesFilas.size === 0) {
+			guardarValoresOriginalesFilaPrincipal();
+		}
+
+		// ⚡ CORRECCIÓN: Verificar si es la primera división (no hay valores originales guardados de otras filas)
+		const esPrimeraDivision = window.valoresOriginalesFilas.size === 1; // Solo la fila principal
+
 		// Calcular saldo total disponible usando valores ORIGINALES
 		const saldoTotalDisponible = calcularSaldoTotalDisponibleOriginal();
 
+		// ⚡ CORRECCIÓN: Si es la primera división, siempre restar directamente del registro principal
+		// Si NO es la primera división, validar y usar redistribución proporcional
+		if (esPrimeraDivision) {
+			// Primera división: restar directamente del registro principal
+			// Obtener el Pedido actual de la fila principal (este es el valor que se debe reducir)
+			const filaPrincipal = document.getElementById('fila-principal');
+			if (filaPrincipal) {
+				// ⚡ PRIORIDAD: Obtener primero el Pedido (pedido-tempo-destino[]) que es lo que el usuario ve
+				const pedidoTempoPrincipal = filaPrincipal.querySelector('input[name="pedido-tempo-destino[]"]');
+				let pedidoPrincipal = parseFloat(pedidoTempoPrincipal?.value) || 0;
+
+				// Si no hay pedido tempo, obtenerlo del TotalPedido (pedido-destino[])
+				if (pedidoPrincipal === 0) {
+					const pedidoDestinoHidden = filaPrincipal.querySelector('input[name="pedido-destino[]"]');
+					pedidoPrincipal = parseFloat(pedidoDestinoHidden?.value) || 0;
+				}
+
+				// Si aún no hay pedido, obtenerlo del SaldoPedido (saldo-total-cell)
+				if (pedidoPrincipal === 0) {
+					const saldoTotalPrincipal = filaPrincipal.querySelector('.saldo-total-cell input');
+					pedidoPrincipal = parseFloat(saldoTotalPrincipal?.value) || 0;
+				}
+
+				// También obtener el SaldoPedido para actualizarlo
+				const saldoTotalPrincipal = filaPrincipal.querySelector('.saldo-total-cell input');
+				let saldoPedidoPrincipal = parseFloat(saldoTotalPrincipal?.value) || 0;
+
+				// Si no hay saldo pedido, usar el pedido principal
+				if (saldoPedidoPrincipal === 0) {
+					saldoPedidoPrincipal = pedidoPrincipal;
+				}
+
+				if (pedidoPrincipal > 0) {
+					// ⚡ CORRECCIÓN: Calcular el nuevo Pedido del primer telar: Pedido actual - Total pedido nueva fila
+					const nuevoPedidoPrincipal = pedidoPrincipal - totalPedido;
+					// En modo dividir, SaldoPedido = Pedido (sin producción), así que ambos son iguales
+					const nuevoSaldoPedidoPrincipal = nuevoPedidoPrincipal;
+
+					if (nuevoPedidoPrincipal >= 0) {
+						// ⚡ CORRECCIÓN: Actualizar PRIMERO el campo Pedido (pedido-tempo-destino[]) de la fila principal
+						// Este es el campo visible que el usuario ve en la columna "Pedido"
+						const nuevoPedidoRedondeado = Math.round(nuevoPedidoPrincipal);
+						const nuevoSaldoRedondeado = Math.round(nuevoSaldoPedidoPrincipal);
+
+						if (pedidoTempoPrincipal) {
+							// Actualizar valor y atributo
+							pedidoTempoPrincipal.value = nuevoPedidoRedondeado.toString();
+							pedidoTempoPrincipal.setAttribute('value', nuevoPedidoRedondeado.toString());
+							// Forzar actualización visual inmediata usando múltiples métodos
+							pedidoTempoPrincipal.style.display = 'none';
+							pedidoTempoPrincipal.offsetHeight; // Forzar reflow
+							pedidoTempoPrincipal.style.display = '';
+							// Disparar eventos para actualizar UI
+							pedidoTempoPrincipal.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+							pedidoTempoPrincipal.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+						}
+
+						// Actualizar también el TotalPedido (pedido-destino[]) de la fila principal
+						const pedidoDestinoHidden = filaPrincipal.querySelector('input[name="pedido-destino[]"]');
+						if (pedidoDestinoHidden) {
+							pedidoDestinoHidden.value = nuevoPedidoRedondeado.toString();
+							pedidoDestinoHidden.setAttribute('value', nuevoPedidoRedondeado.toString());
+						}
+
+						// ⚡ CORRECCIÓN: Actualizar el SaldoPedido (saldo total) de la fila principal DIRECTAMENTE
+						// En modo dividir, SaldoPedido = Pedido (sin producción), así que actualizamos directamente
+						if (saldoTotalPrincipal) {
+							// Actualizar valor y atributo
+							saldoTotalPrincipal.value = nuevoSaldoRedondeado.toString();
+							saldoTotalPrincipal.setAttribute('value', nuevoSaldoRedondeado.toString());
+							// Forzar actualización visual inmediata usando múltiples métodos
+							saldoTotalPrincipal.style.display = 'none';
+							saldoTotalPrincipal.offsetHeight; // Forzar reflow
+							saldoTotalPrincipal.style.display = '';
+							// Disparar eventos para actualizar UI
+							saldoTotalPrincipal.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+							saldoTotalPrincipal.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+						}
+
+						// ⚡ OPTIMIZACIÓN: Forzar actualización visual usando requestAnimationFrame (sin setTimeout para mayor velocidad)
+						requestAnimationFrame(() => {
+							// Forzar re-renderizado de ambos campos
+							if (pedidoTempoPrincipal) {
+								pedidoTempoPrincipal.blur();
+								pedidoTempoPrincipal.focus();
+								pedidoTempoPrincipal.blur();
+							}
+							if (saldoTotalPrincipal) {
+								saldoTotalPrincipal.blur();
+								saldoTotalPrincipal.focus();
+								saldoTotalPrincipal.blur();
+							}
+						});
+
+					} else {
+						// Si el total pedido excede al pedido principal, mostrar error
+						if (typeof showToast === 'function') {
+							showToast(`El pedido total (${totalPedido}) no puede ser mayor al pedido disponible (${Math.round(pedidoPrincipal)})`, 'error');
+						}
+						pedidoTempoInput.value = '0';
+						pedidoTempoInput.dispatchEvent(new Event('input', { bubbles: true }));
+						setTimeout(() => {
+							pedidoTempoInput.value = '';
+							pedidoTempoInput.focus();
+						}, 200);
+						return;
+					}
+				}
+			}
+
+			// Calcular el saldo total de la nueva fila (que será igual al totalPedido ya que no tiene producción)
+			// Sin setTimeout para mayor velocidad - ejecutar inmediatamente
+			if (typeof calcularSaldoTotal === 'function') {
+				calcularSaldoTotal(nuevaFila);
+			}
+			return;
+		}
+
+		// ⚡ CORRECCIÓN: Si NO es la primera división, validar y usar redistribución proporcional
 		// Solo validar si hay saldo disponible (evitar validación en primera división hasta tener valores)
 		// Si el saldo disponible es mayor a 0, validar que no exceda
 		if (saldoTotalDisponible > 0 && totalPedido > saldoTotalDisponible) {
@@ -555,30 +751,27 @@ function validarYRedistribuirNuevoRegistro(nuevaFila) {
 			return;
 		}
 
-		// Si no hay saldo disponible (primera división), no redistribuir aún
-		// Solo actualizar el saldo total de la nueva fila
-		if (saldoTotalDisponible === 0) {
-			// En la primera división, simplemente calcular el saldo de la nueva fila sin redistribuir
-			if (typeof calcularSaldoTotal === 'function') {
-				calcularSaldoTotal(nuevaFila);
-			}
-			return;
-		}
-
-		// Redistribuir proporcionalmente usando el TotalPedido
+		// Redistribuir proporcionalmente usando el TotalPedido (cuando ya hay 2+ registros)
 		redistribuirSaldosProporcionalmente(totalPedido);
 
 		// Recalcular el saldo total de la nueva fila después de redistribuir
-		// Esperar un poco para que la redistribución termine
-		setTimeout(() => {
-			if (typeof calcularSaldoTotal === 'function') {
-				calcularSaldoTotal(nuevaFila);
-			}
-		}, 300);
+		// Sin setTimeout para mayor velocidad - ejecutar inmediatamente
+		if (typeof calcularSaldoTotal === 'function') {
+			calcularSaldoTotal(nuevaFila);
+		}
 	};
 
-	// Listener para cuando se ingresa el pedido tempo
-	pedidoTempoInput.addEventListener('input', validarYRedistribuir);
+	// ⚡ MEJORA: Listener para cuando se ingresa el pedido tempo - ejecutar inmediatamente
+	// Usar 'input' para capturar cambios en tiempo real mientras se escribe
+	pedidoTempoInput.addEventListener('input', validarYRedistribuir, { passive: true });
+	// También escuchar 'change' para cuando se pierde el foco
+	pedidoTempoInput.addEventListener('change', validarYRedistribuir, { passive: true });
+	// Escuchar 'keyup' para capturar cuando se presiona Enter o Tab
+	pedidoTempoInput.addEventListener('keyup', (e) => {
+		if (e.key === 'Enter' || e.key === 'Tab') {
+			validarYRedistribuir();
+		}
+	}, { passive: true });
 }
 
 // Función para agregar fila en modo dividir
@@ -745,6 +938,28 @@ function agregarFilaDividir() {
 				}
 			});
 		}
+
+		// ⚡ MEJORA: Listener para cuando cambia la clave modelo en la nueva fila
+		const claveModeloInput = newRow.querySelector('.clave-modelo-cell input');
+		if (claveModeloInput) {
+			// Guardar clave modelo en dataset cuando cambia
+			const actualizarClaveModelo = () => {
+				const nuevaClaveModelo = claveModeloInput.value.trim();
+				// Guardar en dataset para que se envíe al backend
+				newRow.dataset.claveModelo = nuevaClaveModelo;
+				if (nuevaClaveModelo && typeof window.cargarDatosRelacionadosRow === 'function') {
+					// Cargar datos relacionados cuando se cambia la clave modelo
+					window.cargarDatosRelacionadosRow(newRow, nuevaClaveModelo);
+				}
+			};
+
+			claveModeloInput.addEventListener('change', actualizarClaveModelo);
+			claveModeloInput.addEventListener('blur', actualizarClaveModelo);
+			claveModeloInput.addEventListener('input', () => {
+				// Actualizar dataset en tiempo real mientras se escribe
+				newRow.dataset.claveModelo = claveModeloInput.value.trim();
+			});
+		}
 	}
 
 	// Listener para cuando cambia el salón global (actualizar telares de todas las filas nuevas)
@@ -801,12 +1016,10 @@ function agregarFilaDividir() {
 		// Validar y redistribuir cuando se ingresa el pedido
 		validarYRedistribuirNuevoRegistro(newRow);
 
-		// Calcular automáticamente los totales iniciales
-		setTimeout(() => {
-			if (typeof calcularSaldoTotal === 'function') {
-				calcularSaldoTotal(newRow);
-			}
-		}, 50);
+		// ⚡ OPTIMIZACIÓN: Calcular automáticamente los totales iniciales inmediatamente (sin setTimeout)
+		if (typeof calcularSaldoTotal === 'function') {
+			calcularSaldoTotal(newRow);
+		}
 	}
 
 // Función para cargar registros existentes de OrdCompartida

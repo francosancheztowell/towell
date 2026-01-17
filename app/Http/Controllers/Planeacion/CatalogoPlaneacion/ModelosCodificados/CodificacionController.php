@@ -587,31 +587,75 @@ class CodificacionController extends Controller
             ]);
     }
 
-    /** Búsqueda con filtros */
+    /** Búsqueda con filtros - Optimizado para usar índices */
     public function buscar(Request $request): JsonResponse
     {
         $q = ReqModelosCodificados::query();
 
-        $filters = [
-            'tamano_clave' => ['TamanoClave', 'like'],
-            'orden_tejido' => ['OrdenTejido', 'like'],
-            'nombre' => ['Nombre', 'like'],
-            'salon_tejido' => ['SalonTejidoId', '='],
-            'no_telar' => ['NoTelarId', '='],
-            'fecha_desde' => ['FechaTejido', '>='],
-            'fecha_hasta' => ['FechaTejido', '<='],
-        ];
+        // ⚡ OPTIMIZACIÓN: Priorizar filtros que usan índices compuestos
+        // Primero filtrar por TamanoClave + SalonTejidoId (usa IX_RMC_Tamano_Salon)
+        $tamanoClave = $request->get('tamano_clave');
+        $salonTejido = $request->get('salon_tejido');
+        
+        if ($tamanoClave && $salonTejido) {
+            // ⚡ Usar índice compuesto IX_RMC_Tamano_Salon
+            $q->where('TamanoClave', 'like', "%{$tamanoClave}%")
+              ->where('SalonTejidoId', $salonTejido);
+        } elseif ($tamanoClave) {
+            // Si solo hay TamanoClave, usar índice simple
+            $q->where('TamanoClave', 'like', "%{$tamanoClave}%");
+        } elseif ($salonTejido) {
+            // Si solo hay SalonTejidoId, usar índice IX_RMC_Salon_FechaTejido
+            $q->where('SalonTejidoId', $salonTejido);
+        }
 
-        foreach ($filters as $param => [$field, $op]) {
-            if ($v = $request->get($param)) {
-                $q->where($field, $op, $op === 'like' ? "%$v%" : $v);
+        // ⚡ OPTIMIZACIÓN: Si hay filtro por fecha y salón, usar índice IX_RMC_Salon_FechaTejido
+        $fechaDesde = $request->get('fecha_desde');
+        $fechaHasta = $request->get('fecha_hasta');
+        
+        if ($salonTejido && ($fechaDesde || $fechaHasta)) {
+            // Ya tenemos el filtro de salón, agregar fechas (aprovecha índice compuesto)
+            if ($fechaDesde) {
+                $q->where('FechaTejido', '>=', $fechaDesde);
             }
+            if ($fechaHasta) {
+                $q->where('FechaTejido', '<=', $fechaHasta);
+            }
+            // Ordenar por FechaTejido DESC para aprovechar el índice completamente
+            $q->orderByDesc('FechaTejido');
+        } else {
+            // Otros filtros que no usan índices compuestos
+            $otherFilters = [
+                'orden_tejido' => ['OrdenTejido', 'like'],
+                'nombre' => ['Nombre', 'like'],
+                'no_telar' => ['NoTelarId', '='],
+            ];
+
+            foreach ($otherFilters as $param => [$field, $op]) {
+                if ($v = $request->get($param)) {
+                    $q->where($field, $op, $op === 'like' ? "%$v%" : $v);
+                }
+            }
+
+            // Si hay fechas sin salón, agregarlas
+            if ($fechaDesde && !$salonTejido) {
+                $q->where('FechaTejido', '>=', $fechaDesde);
+            }
+            if ($fechaHasta && !$salonTejido) {
+                $q->where('FechaTejido', '<=', $fechaHasta);
+            }
+
+            // Ordenar por Id DESC (usa índice clustered)
+            $q->orderByDesc('Id');
         }
 
         try {
-            $data = $q->orderByDesc('Id')->get();
-                return response()->json([
-                    'success' => true,
+            // ⚡ OPTIMIZACIÓN: Seleccionar solo campos necesarios para reducir transferencia
+            $campos = array_merge(['Id'], array_keys(self::CAMPOS_MODELO));
+            $data = $q->select($campos)->get();
+            
+            return response()->json([
+                'success' => true,
                 'data' => $data,
                 'total' => $data->count(),
                 'mensaje' => $data->isEmpty() ? 'Sin resultados' : null
@@ -738,16 +782,30 @@ class CodificacionController extends Controller
         }
     }
 
-    /** Estadísticas */
+    /** Estadísticas - Optimizado para usar índices */
     public function estadisticas(): JsonResponse
     {
+        // ⚡ OPTIMIZACIÓN: Usar índices para estadísticas
+        // Cachear estadísticas por 5 minutos
         return response()->json([
             'success' => true,
-            'data' => [
-                'total_registros' => ReqModelosCodificados::count(),
-                'por_salon' => ReqModelosCodificados::selectRaw('SalonTejidoId, count(*) as total')->groupBy('SalonTejidoId')->get(),
-                'por_prioridad' => ReqModelosCodificados::selectRaw('Prioridad, count(*) as total')->groupBy('Prioridad')->get(),
-            ]
+            'data' => Cache::remember('codificacion_estadisticas', 300, function () {
+                return [
+                    'total_registros' => ReqModelosCodificados::count(),
+                    // ⚡ Usar índice IX_RMC_Salon_FechaTejido para groupBy por salón
+                    'por_salon' => DB::table('ReqModelosCodificados')
+                        ->select('SalonTejidoId', DB::raw('count(*) as total'))
+                        ->whereNotNull('SalonTejidoId')
+                        ->groupBy('SalonTejidoId')
+                        ->orderBy('SalonTejidoId')
+                        ->get(),
+                    'por_prioridad' => ReqModelosCodificados::selectRaw('Prioridad, count(*) as total')
+                        ->whereNotNull('Prioridad')
+                        ->groupBy('Prioridad')
+                        ->orderBy('Prioridad')
+                        ->get(),
+                ];
+            })
         ]);
     }
 }

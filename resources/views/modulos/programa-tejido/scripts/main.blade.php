@@ -92,10 +92,16 @@
       const telar = row.querySelector('[data-column="NoTelarId"]')?.textContent?.trim() ?? '';
       const salon = row.querySelector('[data-column="SalonTejidoId"]')?.textContent?.trim() ?? '';
       const cambioHilo = row.querySelector('[data-column="CambioHilo"]')?.textContent?.trim() ?? '';
+      const posicionRaw =
+        row.getAttribute('data-posicion') ??
+        row.querySelector('[data-column="Posicion"]')?.textContent?.trim() ??
+        '';
+      const posicionParsed = parseInt(posicionRaw, 10);
+      const posicion = Number.isFinite(posicionParsed) ? posicionParsed : null;
       const enProcesoCell = row.querySelector('[data-column="EnProceso"]');
       const enProceso = !!enProcesoCell?.querySelector('input[type="checkbox"]')?.checked;
 
-      const meta = { telar, salon, cambioHilo, enProceso };
+      const meta = { telar, salon, cambioHilo, posicion, enProceso };
       PT.rowCache.set(row, meta);
       return meta;
     }
@@ -125,6 +131,212 @@
       }
       return window.allRows;
     }
+
+    // =========================
+    // Actualizar tabla despues de Drag & Drop
+    // =========================
+    const DD_NUM2_COLS = new Set([
+      'DiasEficiencia','ProdKgDia','StdDia','ProdKgDia2','StdToaHra','HorasProd','StdHrsEfect','DiasJornada','PesoGRM2',
+      'TotalPedido','LargoCrudo','Luchaje','PesoCrudo'
+    ]);
+    const DD_DATE_TIME_COLS = new Set(['FechaInicio','FechaFinal','EntregaCte']);
+    const DD_DATE_ONLY_COLS = new Set(['EntregaProduc','EntregaPT','ProgramarProd','Programado']);
+
+    function ddFormatDateTime(raw) {
+      if (typeof formatDateTimeDisplay === 'function') return formatDateTimeDisplay(raw);
+      return raw ? String(raw) : '';
+    }
+
+    function ddFormatDateOnly(raw) {
+      if (typeof formatDateOnlyDisplay === 'function') return formatDateOnlyDisplay(raw);
+      if (typeof formatDateDisplay === 'function') return formatDateDisplay(raw);
+      return raw ? String(raw) : '';
+    }
+
+    function ddFormatNumber(raw) {
+      if (typeof formatNumber2 === 'function') return formatNumber2(raw);
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return raw == null ? '' : String(raw);
+      return n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function ddSetCellValue(cell, display, rawValue) {
+      if (!cell) return;
+      cell.innerHTML = display ?? '';
+      if (rawValue === null || rawValue === undefined) {
+        delete cell.dataset.value;
+      } else {
+        cell.dataset.value = String(rawValue);
+      }
+    }
+
+    function ddFormatCell(column, raw) {
+      if (column === 'EnProceso') {
+        const checked = (raw == 1 || raw === true) ? 'checked' : '';
+        return {
+          display: `<input type="checkbox" ${checked} disabled class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">`,
+          rawValue: raw ?? 0
+        };
+      }
+
+      if (column === 'Ultimo') {
+        const sv = String(raw ?? '').trim().toUpperCase();
+        const isUltimo = (sv === 'UL' || sv === '1');
+        return { display: isUltimo ? '<strong>ULTIMO</strong>' : '', rawValue: raw ?? '' };
+      }
+
+      if (column === 'CambioHilo') {
+        const isZero = (raw == 0 || raw === '0' || raw === null || raw === undefined);
+        return { display: isZero ? '' : String(raw), rawValue: raw ?? '' };
+      }
+
+      if (column === 'EficienciaSTD') {
+        const n = Number(raw);
+        if (!Number.isFinite(n)) return { display: raw == null ? '' : String(raw), rawValue: raw ?? '' };
+        return { display: `${Math.round(n * 100)}%`, rawValue: raw };
+      }
+
+      if (DD_DATE_TIME_COLS.has(column)) {
+        return { display: raw ? ddFormatDateTime(raw) : '', rawValue: raw ?? '' };
+      }
+
+      if (DD_DATE_ONLY_COLS.has(column) || column.startsWith('Entrega')) {
+        return { display: raw ? ddFormatDateOnly(raw) : '', rawValue: raw ?? '' };
+      }
+
+      if (DD_NUM2_COLS.has(column)) {
+        return { display: ddFormatNumber(raw), rawValue: raw ?? '' };
+      }
+
+      if (typeof uiInlineEditableFields !== 'undefined' && uiInlineEditableFields[column]?.displayFormatter) {
+        return {
+          display: uiInlineEditableFields[column].displayFormatter(raw),
+          rawValue: raw ?? ''
+        };
+      }
+
+      return { display: raw == null ? '' : String(raw), rawValue: raw ?? '' };
+    }
+
+    function ddApplyUpdatesToRow(row, updates) {
+      if (!row || !updates) return;
+
+      if (updates.Posicion !== undefined && updates.Posicion !== null) {
+        row.setAttribute('data-posicion', String(updates.Posicion));
+      }
+
+      Object.entries(updates).forEach(([column, raw]) => {
+        const td = row.querySelector(`td[data-column="${column}"]`);
+        if (!td) return;
+
+        const fmt = ddFormatCell(column, raw);
+        ddSetCellValue(td, fmt.display, fmt.rawValue);
+      });
+    }
+
+    function ddReorderRows() {
+      const tb = tbodyEl();
+      if (!tb) return;
+
+      const rows = Array.from(tb.querySelectorAll('.selectable-row'));
+      rows.sort((a, b) => {
+        const salonA = (a.querySelector('[data-column="SalonTejidoId"]')?.textContent || '').trim().toUpperCase();
+        const salonB = (b.querySelector('[data-column="SalonTejidoId"]')?.textContent || '').trim().toUpperCase();
+        if (salonA !== salonB) return salonA.localeCompare(salonB);
+
+        const telarA = normalizeTelarValue(a.querySelector('[data-column="NoTelarId"]')?.textContent || '');
+        const telarB = normalizeTelarValue(b.querySelector('[data-column="NoTelarId"]')?.textContent || '');
+        if (telarA !== telarB) return telarA.localeCompare(telarB, undefined, { numeric: true, sensitivity: 'base' });
+
+        const posA = parseInt(a.getAttribute('data-posicion') || '0', 10);
+        const posB = parseInt(b.getAttribute('data-posicion') || '0', 10);
+        return (Number.isFinite(posA) ? posA : 0) - (Number.isFinite(posB) ? posB : 0);
+      });
+
+      const frag = document.createDocumentFragment();
+      rows.forEach(r => frag.appendChild(r));
+      tb.innerHTML = '';
+      tb.appendChild(frag);
+
+      refreshAllRows();
+    }
+
+    function ddSelectRowById(registroId) {
+      if (!registroId || typeof window.selectRow !== 'function') return;
+      const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tbodyEl());
+      const row = rows.find(r => r.getAttribute('data-id') == registroId);
+      if (!row) return;
+      const idx = rows.indexOf(row);
+      if (idx >= 0) window.selectRow(row, idx);
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    window.updateTableAfterDragDrop = function updateTableAfterDragDrop(detalles, registroId, updates = {}) {
+      const tb = tbodyEl();
+      if (!tb) return;
+
+      const updatesById = (updates && typeof updates === 'object' && !Array.isArray(updates)) ? { ...updates } : {};
+      const detallesList = Array.isArray(detalles) ? detalles : [];
+
+      detallesList.forEach((detalle) => {
+        const idKey = String(detalle?.Id ?? detalle?.id ?? '');
+        if (!idKey) return;
+        const fallback = {};
+        if (detalle.NoTelar !== undefined) fallback.NoTelarId = detalle.NoTelar;
+        if (detalle.Posicion !== undefined) fallback.Posicion = detalle.Posicion;
+        if (detalle.FechaInicio_nueva !== undefined) fallback.FechaInicio = detalle.FechaInicio_nueva;
+        if (detalle.FechaFinal_nueva !== undefined) fallback.FechaFinal = detalle.FechaFinal_nueva;
+        if (detalle.EnProceso_nuevo !== undefined) fallback.EnProceso = detalle.EnProceso_nuevo;
+        if (detalle.Ultimo_nuevo !== undefined) fallback.Ultimo = detalle.Ultimo_nuevo;
+        if (detalle.CambioHilo_nuevo !== undefined) fallback.CambioHilo = detalle.CambioHilo_nuevo;
+        if (detalle.HorasProd_calc !== undefined) fallback.HorasProd = detalle.HorasProd_calc;
+
+        updatesById[idKey] = { ...fallback, ...(updatesById[idKey] || {}) };
+      });
+
+      const ids = Object.keys(updatesById);
+      ids.forEach((idKey) => {
+        const row = tb.querySelector(`tr.selectable-row[data-id="${idKey}"]`);
+        if (!row) return;
+
+        // Aplicar todos los updates
+        ddApplyUpdatesToRow(row, updatesById[idKey]);
+
+        // Si se actualizó SalonTejidoId o NoTelarId, reconstruir Maquina
+        // Esto asegura que Maquina se actualice visualmente incluso si el backend ya lo calculó
+        if (updatesById[idKey].SalonTejidoId !== undefined || updatesById[idKey].NoTelarId !== undefined) {
+          // Si Maquina viene en los updates, usarlo directamente
+          if (updatesById[idKey].Maquina !== undefined) {
+            const maquinaTd = row.querySelector(`td[data-column="Maquina"]`);
+            if (maquinaTd) {
+              ddSetCellValue(maquinaTd, updatesById[idKey].Maquina, updatesById[idKey].Maquina);
+            }
+          } else if (typeof window.construirMaquinaRow === 'function') {
+            // Si no viene Maquina en los updates, construirlo basándose en salón y telar
+            window.construirMaquinaRow(row);
+            const maquinaTd = row.querySelector(`td[data-column="Maquina"]`);
+            if (maquinaTd && row.dataset.maquina) {
+              ddSetCellValue(maquinaTd, row.dataset.maquina, row.dataset.maquina);
+            }
+          }
+        }
+      });
+
+      clearRowCache();
+      ddReorderRows();
+      if (window.dragDropMode) {
+        window.allRows.forEach((row) => {
+          const meta = rowMeta(row);
+          row.draggable = !meta.enProceso;
+          row.classList.toggle('cursor-move', !meta.enProceso);
+          row.classList.toggle('cursor-not-allowed', meta.enProceso);
+          row.style.opacity = meta.enProceso ? '0.6' : '';
+        });
+      }
+
+      if (registroId) ddSelectRowById(registroId);
+      if (typeof window.updateTotales === 'function') window.updateTotales();
+    };
 
     // =========================
     // Context menu
@@ -1427,38 +1639,78 @@
       const state = {
         enabled: false,
         draggedRow: null,
-        origin: { telar:'', salon:'', cambioHilo:'' },
-        originalOrderIds: [],
+        origin: { telar:'', salon:'', cambioHilo:'', posicion: null },
         lastOverRow: null,
         lastOverTelar: null,
+        lastOverIsBefore: false,
         lastDragOverTime: 0,
+        blockedReason: null,
+        telarCache: { telar: null, rows: null, indexMap: null, lastEnProceso: -1 },
       };
 
-      function snapshotOrder() {
-        const tb = tbodyEl();
-        if (!tb) return [];
-        return Array.from(tb.querySelectorAll('.selectable-row')).map(r => r.getAttribute('data-id') || '');
+      function resetTelarCache() {
+        state.telarCache = { telar: null, rows: null, indexMap: null, lastEnProceso: -1 };
       }
 
-      function restoreOriginalOrder() {
+      function buildTelarCache(telarId) {
         const tb = tbodyEl();
-        if (!tb) return;
+        if (!tb) return { rows: [], indexMap: new Map(), lastEnProceso: -1 };
 
-        const ids = state.originalOrderIds || [];
-        if (!ids.length) return;
+        const norm = normalizeTelarValue(telarId);
+        if (state.telarCache.telar === norm && state.telarCache.rows && state.telarCache.indexMap) {
+          return state.telarCache;
+        }
 
-        const map = new Map();
-        qsa('.selectable-row', tb).forEach(r => map.set(r.getAttribute('data-id') || '', r));
+        const rows = [];
+        const indexMap = new Map();
+        let lastEnProceso = -1;
 
-        const frag = document.createDocumentFragment();
-        ids.forEach(id => { const r = map.get(id); if (r) frag.appendChild(r); });
-        map.forEach((r, id) => { if (!ids.includes(id)) frag.appendChild(r); });
+        for (const r of tb.querySelectorAll('.selectable-row')) {
+          if (r === state.draggedRow) continue;
+          const meta = rowMeta(r);
+          if (!isSameTelar(meta.telar, telarId)) continue;
+          if (meta.enProceso) lastEnProceso = rows.length;
+          indexMap.set(r, rows.length);
+          rows.push(r);
+        }
 
-        tb.innerHTML = '';
-        tb.appendChild(frag);
+        state.telarCache = { telar: norm, rows, indexMap, lastEnProceso };
+        return state.telarCache;
+      }
 
-        refreshAllRows();
-        state.originalOrderIds = [];
+      function calcTargetPosition(telarId, targetRow, isBefore) {
+        const cache = buildTelarCache(telarId);
+        if (!targetRow) return cache.rows.length;
+
+        const targetPos = rowMeta(targetRow).posicion;
+        if (Number.isFinite(targetPos)) {
+          let newPos = isBefore ? (targetPos - 1) : targetPos;
+          const originPos = state.origin.posicion;
+          if (isSameTelar(telarId, state.origin.telar) && Number.isFinite(originPos) && originPos < targetPos) {
+            newPos -= 1;
+          }
+          return Math.max(0, Math.min(newPos, cache.rows.length));
+        }
+
+        const idx = cache.indexMap?.get(targetRow);
+        if (typeof idx === 'number') {
+          return isBefore ? idx : idx + 1;
+        }
+
+        return cache.rows.length;
+      }
+
+      function findClosestRow(tb, y) {
+        const rows = Array.from(tb.querySelectorAll('.selectable-row'));
+        let closest = null;
+        let best = Infinity;
+        for (const r of rows) {
+          if (r === state.draggedRow) continue;
+          const rect = r.getBoundingClientRect();
+          const dist = Math.abs(y - (rect.top + rect.height / 2));
+          if (dist < best) { best = dist; closest = r; }
+        }
+        return closest;
       }
 
       function setRowDraggable(row, draggable) {
@@ -1562,40 +1814,13 @@
       function isEnabled(){ return !!state.enabled; }
 
       function decideTargetTelarFromDOM() {
-        const tb = tbodyEl();
-        if (!tb || !state.draggedRow) return state.origin.telar;
-
-        const rows = Array.from(tb.querySelectorAll('.selectable-row'));
-        const idx = rows.indexOf(state.draggedRow);
-        const prev = idx > 0 ? rows[idx - 1] : null;
-        const next = idx < rows.length - 1 ? rows[idx + 1] : null;
-
-        const prevTelar = prev ? rowMeta(prev).telar : '';
-        const nextTelar = next ? rowMeta(next).telar : '';
-        const originTelar = state.origin.telar;
-
-        if (prevTelar && isSameTelar(prevTelar, originTelar)) return originTelar;
-        if (nextTelar && isSameTelar(nextTelar, originTelar)) return originTelar;
-
-        if (prevTelar && nextTelar && isSameTelar(prevTelar, nextTelar)) return prevTelar;
-        if (state.lastOverTelar) return state.lastOverTelar;
-        return originTelar;
-      }
-
-      function getAfterElement(container, y) {
-        const elements = (window.allRows || []).filter(r => r && !r.classList.contains('dragging'));
-        let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
-
-        for (const child of elements) {
-          const box = child.getBoundingClientRect();
-          const offset = y - box.top - box.height / 2;
-          if (offset < 0 && offset > closest.offset) closest = { offset, element: child };
-        }
-        return closest.element;
+        return state.lastOverTelar || state.origin.telar;
       }
 
       function clearVisualRows() {
-        (window.allRows || []).forEach(r => r.classList.remove('drag-over', 'drag-over-warning', 'drop-not-allowed'));
+        (window.allRows || []).forEach(r =>
+          r.classList.remove('drag-over', 'drag-over-warning', 'drop-not-allowed', 'dd-drop-before', 'dd-drop-after')
+        );
       }
 
       function onDragStart(e) {
@@ -1612,18 +1837,20 @@
         }
 
         state.draggedRow = row;
-        state.origin = { telar: meta.telar, salon: meta.salon, cambioHilo: meta.cambioHilo };
-        state.originalOrderIds = snapshotOrder();
+        state.origin = { telar: meta.telar, salon: meta.salon, cambioHilo: meta.cambioHilo, posicion: meta.posicion };
         state.lastOverRow = null;
         state.lastOverTelar = null;
+        state.lastOverIsBefore = false;
         state.lastDragOverTime = 0;
+        state.blockedReason = null;
+        resetTelarCache();
 
         if (typeof window.deselectRow === 'function') window.deselectRow();
 
         row.classList.add('dragging');
-        row.style.opacity = '0.4';
 
-        e.dataTransfer.effectAllowed = 'move';
+        // Permitir tanto move como copy para permitir drag and drop entre telares
+        e.dataTransfer.effectAllowed = 'all';
         e.dataTransfer.setData('text/plain', row.getAttribute('data-id') || '');
       }
 
@@ -1641,60 +1868,43 @@
         const tb = tbodyEl();
         if (!tb) return false;
 
-        let targetRow = e.target.closest('.selectable-row');
-        if (!targetRow) {
-          const rows = Array.from(tb.querySelectorAll('.selectable-row'));
-          let closest = null;
-          let best = Infinity;
-          for (const r of rows) {
-            if (r === state.draggedRow) continue;
-            const rect = r.getBoundingClientRect();
-            const dist = Math.abs(e.clientY - (rect.top + rect.height / 2));
-            if (dist < best) { best = dist; closest = r; }
-          }
-          targetRow = closest;
-        }
-
-        if (!targetRow || targetRow === state.draggedRow) return false;
-
-        const targetTelar = rowMeta(targetRow).telar;
-        state.lastOverRow = targetRow;
-        state.lastOverTelar = targetTelar;
-
         clearVisualRows();
 
-        if (!isSameTelar(state.origin.telar, targetTelar)) targetRow.classList.add('drag-over-warning');
-        else targetRow.classList.add('drag-over');
+        let targetRow = e.target.closest('.selectable-row');
+        if (!targetRow) {
+          targetRow = findClosestRow(tb, e.clientY);
+        }
 
-        const afterEl = getAfterElement(tb, e.clientY);
-        if (afterEl == null) tb.appendChild(state.draggedRow);
-        else tb.insertBefore(state.draggedRow, afterEl);
+        if (!targetRow || targetRow === state.draggedRow) {
+          state.blockedReason = null;
+          return false;
+        }
 
-        refreshAllRows();
+        const rect = targetRow.getBoundingClientRect();
+        const isBefore = e.clientY < (rect.top + rect.height / 2);
+        const targetTelar = rowMeta(targetRow).telar;
+
+        state.lastOverRow = targetRow;
+        state.lastOverTelar = targetTelar;
+        state.lastOverIsBefore = isBefore;
+
+        const targetPosition = calcTargetPosition(targetTelar, targetRow, isBefore);
+        const cache = buildTelarCache(targetTelar);
+        const minAllowed = cache.lastEnProceso !== -1 ? (cache.lastEnProceso + 1) : 0;
+
+        if (targetPosition < minAllowed) {
+          state.blockedReason = 'No se puede colocar antes de un registro en proceso.';
+          e.dataTransfer.dropEffect = 'none';
+          targetRow.classList.add('drop-not-allowed');
+        } else {
+          state.blockedReason = null;
+          // Permitir drop tanto en el mismo telar como en telares diferentes
+          e.dataTransfer.dropEffect = isSameTelar(state.origin.telar, targetTelar) ? 'move' : 'move';
+          targetRow.classList.add(isSameTelar(state.origin.telar, targetTelar) ? 'drag-over' : 'drag-over-warning');
+        }
+
+        targetRow.classList.add(isBefore ? 'dd-drop-before' : 'dd-drop-after');
         return false;
-      }
-
-      function calcNewPositionWithinTelar(telarId) {
-        const tb = tbodyEl();
-        if (!tb) return 0;
-
-        const rows = Array.from(tb.querySelectorAll('.selectable-row'));
-        const telarRows = rows.filter(r => r !== state.draggedRow && isSameTelar(rowMeta(r).telar, telarId));
-
-        const draggedIdx = rows.indexOf(state.draggedRow);
-        let pos = 0;
-        for (let i = 0; i < draggedIdx; i++) {
-          const r = rows[i];
-          if (r !== state.draggedRow && isSameTelar(rowMeta(r).telar, telarId)) pos++;
-        }
-
-        let lastEnProceso = -1;
-        for (let i = 0; i < telarRows.length; i++) {
-          if (rowMeta(telarRows[i]).enProceso) lastEnProceso = i;
-        }
-        if (lastEnProceso !== -1) pos = Math.max(pos, lastEnProceso + 1);
-
-        return Math.max(0, Math.min(pos, telarRows.length));
       }
 
       async function onDrop(e) {
@@ -1707,13 +1917,23 @@
         const registroId = e.dataTransfer.getData('text/plain') || state.draggedRow.getAttribute('data-id');
         if (!registroId) {
           toast('Error: No se pudo obtener el ID del registro', 'error');
-          restoreOriginalOrder();
+          clearVisualRows();
           return false;
         }
 
         const targetTelar = decideTargetTelarFromDOM();
+        const targetRow = state.lastOverRow;
+        const isBefore = !!state.lastOverIsBefore;
 
+        if (state.blockedReason) {
+          toast(state.blockedReason, 'error');
+          clearVisualRows();
+          return false;
+        }
+
+        // Permitir drag and drop tanto dentro del mismo telar como entre telares diferentes
         if (isSameTelar(targetTelar, state.origin.telar)) {
+          // Movimiento dentro del mismo telar
           const tb = tbodyEl();
           if (!tb) return false;
 
@@ -1721,11 +1941,18 @@
           const telarRows = window.allRows.filter(r => isSameTelar(rowMeta(r).telar, state.origin.telar));
           if (telarRows.length < 2) {
             toast('Se requieren al menos dos registros para reordenar la prioridad', 'info');
-            restoreOriginalOrder();
+            clearVisualRows();
             return false;
           }
 
-          const newPos = calcNewPositionWithinTelar(state.origin.telar);
+          const newPos = calcTargetPosition(state.origin.telar, targetRow, isBefore);
+          const originPos = Number.isFinite(state.origin.posicion) ? (state.origin.posicion - 1) : null;
+
+          if (originPos !== null && originPos === newPos) {
+            toast('El registro ya está en esa posición', 'info');
+            clearVisualRows();
+            return false;
+          }
 
           PT.loader.show();
           try {
@@ -1742,37 +1969,44 @@
 
             if (!data.success) {
               toast(data.message || 'No se pudo actualizar la prioridad', 'error');
-              restoreOriginalOrder();
+              clearVisualRows();
               return false;
             }
 
-            state.originalOrderIds = [];
             toast(`Prioridad actualizada<br>${data.cascaded_records || 0} registro(s) recalculado(s)`, 'success');
 
             if (typeof window.updateTableAfterDragDrop === 'function') {
-              window.updateTableAfterDragDrop(data.detalles, registroId);
-            } else {
-              sessionStorage.setItem('selectRegistroId', registroId);
-              sessionStorage.setItem('scrollToRegistroId', registroId);
-              window.location.reload();
+              window.updateTableAfterDragDrop(data.detalles, registroId, data.updates || {});
             }
           } catch (err) {
             PT.loader.hide();
-            restoreOriginalOrder();
+            clearVisualRows();
           }
           return false;
         }
 
-        const targetPosition = calcNewPositionWithinTelar(targetTelar);
-        await procesarMovimientoOtroTelar(registroId, targetTelar, targetPosition);
+        // Movimiento entre telares diferentes - permitir sin bloqueo
+        const cache = buildTelarCache(targetTelar);
+        const minAllowed = cache.lastEnProceso !== -1 ? (cache.lastEnProceso + 1) : 0;
+        let targetPosition = calcTargetPosition(targetTelar, targetRow, isBefore);
+        targetPosition = Math.max(minAllowed, Math.min(targetPosition, cache.rows?.length || 0));
+
+        const targetSalon = targetRow ? rowMeta(targetRow).salon : '';
+        await procesarMovimientoOtroTelar(registroId, targetTelar, targetPosition, targetSalon);
         return false;
       }
 
-      async function procesarMovimientoOtroTelar(registroId, nuevoTelar, targetPosition) {
+      async function procesarMovimientoOtroTelar(registroId, nuevoTelar, targetPosition, nuevoSalon = '') {
         refreshAllRows();
 
-        const sample = window.allRows.find(r => isSameTelar(rowMeta(r).telar, nuevoTelar));
-        const nuevoSalon = sample ? rowMeta(sample).salon : '';
+        if (!nuevoSalon) {
+          const sample = window.allRows.find(r => isSameTelar(rowMeta(r).telar, nuevoTelar));
+          nuevoSalon = sample ? rowMeta(sample).salon : '';
+        }
+
+        // Obtener salón origen
+        const salonOrigen = state.origin.salon || '';
+        const mismoSalon = salonOrigen && nuevoSalon && salonOrigen.trim() === nuevoSalon.trim();
 
         PT.loader.show();
         try {
@@ -1794,7 +2028,7 @@
               title: 'No se puede cambiar de telar',
               html: `
                 <div class="text-left">
-                  <p class="mb-3">${verificacion?.mensaje || 'ValidaciÃ³n fallida'}</p>
+                  <p class="mb-3">${verificacion?.mensaje || 'Validación fallida'}</p>
                   <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
                     <p><span class="font-medium">Clave Modelo:</span> ${verificacion?.clave_modelo || 'N/A'}</p>
                     <p><span class="font-medium">Telar Destino:</span> ${verificacion?.telar_destino || nuevoTelar} (${verificacion?.salon_destino || nuevoSalon || 'N/A'})</p>
@@ -1805,35 +2039,41 @@
               confirmButtonColor: '#dc2626',
               width: '520px'
             });
-            restoreOriginalOrder();
+            clearVisualRows();
             return;
           }
 
-          const confirmacion = await Swal.fire({
-            icon: 'warning',
-            title: 'Cambio de Telar/SalÃ³n',
-            html: `
-              <div class="text-left">
-                <p class="mb-2">${verificacion?.mensaje || 'Se aplicarÃ¡ el cambio de telar'}</p>
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
-                  <p><span class="font-medium">Origen:</span> Telar ${verificacion?.telar_origen || state.origin.telar} (SalÃ³n ${verificacion?.salon_origen || state.origin.salon || 'N/A'})</p>
-                  <p><span class="font-medium">Destino:</span> Telar ${verificacion?.telar_destino || nuevoTelar} (SalÃ³n ${verificacion?.salon_destino || nuevoSalon || 'N/A'})</p>
+          // Solo mostrar confirmación si el salón es diferente
+          let confirmacion = { isConfirmed: true }; // Por defecto, confirmado
+
+          if (!mismoSalon) {
+            // Si el salón es diferente, mostrar la alerta de confirmación
+            confirmacion = await Swal.fire({
+              icon: 'warning',
+              title: 'Cambio de Telar/Salón',
+              html: `
+                <div class="text-left">
+                  <p class="mb-2">${verificacion?.mensaje || 'Se aplicará el cambio de telar'}</p>
+                  <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
+                    <p><span class="font-medium">Origen:</span> Telar ${verificacion?.telar_origen || state.origin.telar} (Salón ${verificacion?.salon_origen || state.origin.salon || 'N/A'})</p>
+                    <p><span class="font-medium">Destino:</span> Telar ${verificacion?.telar_destino || nuevoTelar} (Salón ${verificacion?.salon_destino || nuevoSalon || 'N/A'})</p>
+                  </div>
                 </div>
-              </div>
-            `,
-            showCancelButton: true,
-            confirmButtonText: 'SÃ­, cambiar de telar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#3b82f6',
-            cancelButtonColor: '#6b7280',
-            width: '700px',
-            allowOutsideClick: false,
-            allowEscapeKey: true
-          });
+              `,
+              showCancelButton: true,
+              confirmButtonText: 'Sí, cambiar de telar',
+              cancelButtonText: 'Cancelar',
+              confirmButtonColor: '#3b82f6',
+              cancelButtonColor: '#6b7280',
+              width: '700px',
+              allowOutsideClick: false,
+              allowEscapeKey: true
+            });
+          }
 
           if (!confirmacion.isConfirmed) {
             toast('Operación cancelada', 'info');
-            restoreOriginalOrder();
+            clearVisualRows();
             return;
           }
 
@@ -1861,18 +2101,14 @@
               text: cambio?.message || 'No se pudo cambiar de telar',
               confirmButtonColor: '#dc2626'
             });
-            restoreOriginalOrder();
+            clearVisualRows();
             return;
           }
 
-          sessionStorage.setItem('priorityChangeMessage', cambio.message || 'Telar actualizado correctamente');
-          sessionStorage.setItem('priorityChangeType', 'success');
-          if (cambio.registro_id) {
-            sessionStorage.setItem('scrollToRegistroId', cambio.registro_id);
-            sessionStorage.setItem('selectRegistroId', cambio.registro_id);
+          toast(cambio.message || 'Telar actualizado correctamente', 'success');
+          if (typeof window.updateTableAfterDragDrop === 'function') {
+            window.updateTableAfterDragDrop(cambio.detalles, cambio.registro_id || registroId, cambio.updates || {});
           }
-
-          window.location.href = '/planeacion/programa-tejido';
         } catch (err) {
           PT.loader.hide();
           Swal.fire({
@@ -1881,7 +2117,7 @@
             text: 'Ocurrió un error al procesar el cambio de telar: ' + (err.message || 'Error desconocido'),
             confirmButtonColor: '#dc2626'
           });
-          restoreOriginalOrder();
+          clearVisualRows();
         }
       }
 
@@ -1895,10 +2131,13 @@
         state.draggedRow = null;
         state.lastOverRow = null;
         state.lastOverTelar = null;
+        state.lastOverIsBefore = false;
         state.lastDragOverTime = 0;
+        state.blockedReason = null;
+        resetTelarCache();
       }
 
-      return { toggle, enable, disable, restoreOriginalOrder, isEnabled };
+      return { toggle, enable, disable, isEnabled };
     })();
 
     // Exponer toggle para botón navbar
@@ -2002,12 +2241,12 @@
           }
         }
 
-        // ValidaciÃ³n solo si ya hay registros seleccionados:
-        // - Si el primer registro NO tiene OrdCompartida y este registro SÃ tiene, no permitir
-        // - Si el primer registro SÃ tiene OrdCompartida y este NO tiene, permitir (usarÃ¡ el del primero)
+        // Validación solo si ya hay registros seleccionados:
+        // - Si el primer registro NO tiene OrdCompartida y este registro Sí tiene, no permitir
+        // - Si el primer registro Sí tiene OrdCompartida y este NO tiene, permitir (usará el del primero)
         // - Si ambos tienen OrdCompartida pero son diferentes, no permitir
         if (!primerOrdCompartida && tieneOrdCompartida) {
-          toast('No se puede vincular: El primer registro seleccionado no tiene OrdCompartida, pero este registro sÃ­ lo tiene', 'warning');
+          toast('No se puede vincular: El primer registro seleccionado no tiene OrdCompartida, pero este registro sí lo tiene', 'warning');
           return;
         }
 
@@ -2031,7 +2270,7 @@
         });
       } else {
         window.selectedRowsIds.add(id);
-        // Agregar al array de orden (solo si no estÃ¡ ya)
+        // Agregar al array de orden (solo si no está ya)
         if (!window.selectedRowsOrder.includes(id)) {
           window.selectedRowsOrder.push(id);
         }
@@ -2043,7 +2282,7 @@
         });
       }
 
-      // Actualizar visualizaciÃ³n de todos los registros para reflejar el nuevo estado de bloqueo
+      // Actualizar visualización de todos los registros para reflejar el nuevo estado de bloqueo
       updateSelectedRowsVisual();
       updateVincularButtonState();
     }
@@ -2116,7 +2355,7 @@
       const btn = qs('#btnVincularExistentes');
       if (!btn) return;
 
-      // Solo actualizar estado si estamos en modo selecciÃ³n mÃºltiple
+      // Solo actualizar estado si estamos en modo selección múltiple
       if (!window.multiSelectMode) {
         return;
       }
@@ -2129,12 +2368,12 @@
         btn.classList.add('bg-blue-500', 'hover:bg-blue-600', 'ring-2', 'ring-blue-300');
         btn.title = `Vincular ${count} registro(s) seleccionado(s) - Click para vincular`;
       } else {
-        // NO deshabilitar el botÃ³n cuando no hay selecciones - permitir cancelar el modo
+        // NO deshabilitar el botón cuando no hay selecciones - permitir cancelar el modo
         btn.disabled = false;
         btn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
         btn.classList.add('bg-blue-700', 'ring-2', 'ring-blue-300');
         btn.classList.remove('bg-blue-300', 'cursor-not-allowed');
-        btn.title = count === 0 ? 'Click para cancelar modo selecciÃ³n mÃºltiple' : `Selecciona ${2 - count} registro(s) mÃ¡s para vincular o click para cancelar`;
+        btn.title = count === 0 ? 'Click para cancelar modo selección múltiple' : `Selecciona ${2 - count} registro(s) más para vincular o click para cancelar`;
       }
     }
 
@@ -2148,7 +2387,7 @@
 
       const selectedIds = Array.from(window.selectedRowsIds);
 
-      // Si no hay registros seleccionados, cancelar el modo selecciÃ³n mÃºltiple
+        // Si no hay registros seleccionados, cancelar el modo selección múltiple
       if (selectedIds.length === 0) {
         toggleMultiSelectMode();
         return;

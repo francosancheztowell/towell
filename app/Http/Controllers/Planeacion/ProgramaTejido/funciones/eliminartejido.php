@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
@@ -59,6 +60,9 @@ class EliminarTejido
             $inicioOriginal = $primero->FechaInicio ? Carbon::parse($primero->FechaInicio) : null;
             if (!$inicioOriginal) throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
 
+            // Guardar valor de Ultimo antes de eliminar
+            $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
+
             // Eliminar registro (las líneas se eliminan por ON DELETE CASCADE en BD)
             $registro->delete();
 
@@ -72,6 +76,11 @@ class EliminarTejido
             if ($restantes->isEmpty()) {
                 DB::commit();
                 return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente']);
+            }
+
+            // Recalcular posiciones solo si el registro eliminado NO tenía Ultimo = 1
+            if (!$tieneUltimo) {
+                TejidoHelpers::recalcularPosicionesPorTelar($salon, $telar);
             }
 
             // Deshabilitar observers
@@ -234,6 +243,9 @@ class EliminarTejido
                 $inicioOriginal = $primero->FechaInicio ? Carbon::parse($primero->FechaInicio) : null;
                 if (!$inicioOriginal) throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
 
+                // Guardar valor de Ultimo antes de eliminar
+                $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
+
                 // Eliminar registro
                 $registro->delete();
 
@@ -241,6 +253,11 @@ class EliminarTejido
                 if ($restantes->isEmpty()) {
                     DB::commit();
                     return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente']);
+                }
+
+                // Recalcular posiciones solo si el registro eliminado NO tenía Ultimo = 1
+                if (!$tieneUltimo) {
+                    TejidoHelpers::recalcularPosicionesPorTelar($salon, $telar);
                 }
 
                 // Deshabilitar observers
@@ -361,8 +378,16 @@ class EliminarTejido
                 ];
             }
 
+            // Guardar valor de Ultimo antes de eliminar
+            $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
+
             // Eliminar registro
             $registro->delete();
+
+            // Recalcular posiciones del telar eliminado solo si NO tenía Ultimo = 1
+            if (!$tieneUltimo) {
+                TejidoHelpers::recalcularPosicionesPorTelar($salon, $telar);
+            }
 
             // Recalcular fechas y regenerar líneas para cada telar afectado
             ReqProgramaTejido::unsetEventDispatcher();

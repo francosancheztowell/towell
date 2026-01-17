@@ -173,6 +173,124 @@ async function redirectToRegistro(data) {
 					}
 				}
 
+				// ⚡ MEJORA: Actualizar el registro original después de dividir
+				// Si es dividir, actualizar el registro original con los nuevos valores de TotalPedido y SaldoPedido
+				if (data?.modo === 'dividir' && data?.registro_id_original) {
+					try {
+						// Usar datos del registro original de la respuesta si están disponibles (más rápido)
+						if (data?.registro_original) {
+							const filaOriginal = tb.querySelector(`tr.selectable-row[data-id="${data.registro_id_original}"]`);
+							if (filaOriginal) {
+								const regOriginal = data.registro_original;
+								
+								// Actualizar TotalPedido y SaldoPedido en el DOM directamente
+								const totalPedidoCell = filaOriginal.querySelector('[data-column="TotalPedido"]');
+								const saldoPedidoCell = filaOriginal.querySelector('[data-column="SaldoPedido"]');
+								const fechaFinalCell = filaOriginal.querySelector('[data-column="FechaFinal"]');
+								const horasCell = filaOriginal.querySelector('[data-column="HorasProd"]');
+								
+								if (totalPedidoCell && regOriginal.TotalPedido !== undefined) {
+									totalPedidoCell.textContent = regOriginal.TotalPedido || '0';
+									totalPedidoCell.setAttribute('data-value', regOriginal.TotalPedido || '0');
+								}
+								if (saldoPedidoCell && regOriginal.SaldoPedido !== undefined) {
+									saldoPedidoCell.textContent = regOriginal.SaldoPedido || '0';
+									saldoPedidoCell.setAttribute('data-value', regOriginal.SaldoPedido || '0');
+								}
+								// ⚡ MEJORA: Actualizar FechaFinal si está disponible
+								if (fechaFinalCell && regOriginal.FechaFinal) {
+									const fechaFinal = new Date(regOriginal.FechaFinal);
+									const fechaFormateada = fechaFinal.toLocaleDateString('es-ES', {
+										day: '2-digit',
+										month: '2-digit',
+										year: 'numeric'
+									});
+									fechaFinalCell.textContent = fechaFormateada;
+									fechaFinalCell.setAttribute('data-value', regOriginal.FechaFinal);
+								}
+								// ⚡ MEJORA: Actualizar campos de fórmulas si están disponibles
+								if (horasCell && regOriginal.HorasProd !== undefined) {
+									horasCell.textContent = regOriginal.HorasProd ? parseFloat(regOriginal.HorasProd).toFixed(2) : '0';
+									horasCell.setAttribute('data-value', regOriginal.HorasProd || '0');
+								}
+								// Actualizar DiasJornada si está disponible
+								const diasJornadaCell = filaOriginal.querySelector('[data-column="DiasJornada"]');
+								if (diasJornadaCell && regOriginal.DiasJornada !== undefined) {
+									diasJornadaCell.textContent = regOriginal.DiasJornada ? parseFloat(regOriginal.DiasJornada).toFixed(2) : '0';
+									diasJornadaCell.setAttribute('data-value', regOriginal.DiasJornada || '0');
+								}
+								// Actualizar StdDia si está disponible
+								const stdDiaCell = filaOriginal.querySelector('[data-column="StdDia"]');
+								if (stdDiaCell && regOriginal.StdDia !== undefined) {
+									stdDiaCell.textContent = regOriginal.StdDia ? parseFloat(regOriginal.StdDia).toFixed(2) : '0';
+									stdDiaCell.setAttribute('data-value', regOriginal.StdDia || '0');
+								}
+								// Actualizar ProdKgDia si está disponible
+								const prodKgDiaCell = filaOriginal.querySelector('[data-column="ProdKgDia"]');
+								if (prodKgDiaCell && regOriginal.ProdKgDia !== undefined) {
+									prodKgDiaCell.textContent = regOriginal.ProdKgDia ? parseFloat(regOriginal.ProdKgDia).toFixed(2) : '0';
+									prodKgDiaCell.setAttribute('data-value', regOriginal.ProdKgDia || '0');
+								}
+							}
+						} else {
+							// Fallback: obtener datos del endpoint si no están en la respuesta (sin setTimeout para mayor velocidad)
+							const responseOriginal = await fetch(`/planeacion/programa-tejido/${data.registro_id_original}/detalles-balanceo?t=${Date.now()}`, {
+								headers: {
+									'Accept': 'application/json',
+									'X-CSRF-TOKEN': getCsrfToken(),
+									'Cache-Control': 'no-cache'
+								}
+							});
+							
+							if (responseOriginal.ok) {
+								const resultOriginal = await responseOriginal.json();
+								if (resultOriginal.success && resultOriginal.registro) {
+									const filaOriginal = tb.querySelector(`tr.selectable-row[data-id="${data.registro_id_original}"]`);
+									if (filaOriginal) {
+										const regOriginal = resultOriginal.registro;
+										const totalPedidoCell = filaOriginal.querySelector('[data-column="TotalPedido"]');
+										const saldoPedidoCell = filaOriginal.querySelector('[data-column="SaldoPedido"]');
+										const fechaFinalCell = filaOriginal.querySelector('[data-column="FechaFinal"]');
+										const horasCell = filaOriginal.querySelector('[data-column="HorasNecesarias"]');
+										const eficienciaCell = filaOriginal.querySelector('[data-column="Eficiencia"]');
+										
+										if (totalPedidoCell && regOriginal.TotalPedido !== undefined) {
+											totalPedidoCell.textContent = regOriginal.TotalPedido || '0';
+											totalPedidoCell.setAttribute('data-value', regOriginal.TotalPedido || '0');
+										}
+										if (saldoPedidoCell && regOriginal.SaldoPedido !== undefined) {
+											saldoPedidoCell.textContent = regOriginal.SaldoPedido || '0';
+											saldoPedidoCell.setAttribute('data-value', regOriginal.SaldoPedido || '0');
+										}
+										// ⚡ MEJORA: Actualizar FechaFinal si está disponible
+										if (fechaFinalCell && regOriginal.FechaFinal) {
+											const fechaFinal = new Date(regOriginal.FechaFinal);
+											const fechaFormateada = fechaFinal.toLocaleDateString('es-ES', {
+												day: '2-digit',
+												month: '2-digit',
+												year: 'numeric'
+											});
+											fechaFinalCell.textContent = fechaFormateada;
+											fechaFinalCell.setAttribute('data-value', regOriginal.FechaFinal);
+										}
+										// ⚡ MEJORA: Actualizar campos de fórmulas si están disponibles
+										if (horasCell && regOriginal.HorasNecesarias !== undefined) {
+											horasCell.textContent = regOriginal.HorasNecesarias ? parseFloat(regOriginal.HorasNecesarias).toFixed(2) : '0';
+											horasCell.setAttribute('data-value', regOriginal.HorasNecesarias || '0');
+										}
+										if (eficienciaCell && regOriginal.Eficiencia !== undefined) {
+											eficienciaCell.textContent = regOriginal.Eficiencia ? parseFloat(regOriginal.Eficiencia).toFixed(2) + '%' : '0%';
+											eficienciaCell.setAttribute('data-value', regOriginal.Eficiencia || '0');
+										}
+									}
+								}
+							}
+						}
+					} catch (e) {
+						console.warn(`[DEBUG] ⚠️ Error al actualizar registro original:`, e);
+					}
+				}
+
 				// Verificar si se agregaron todos los registros
 				if (registrosAgregados.length < data.registros_ids.length) {
 					console.warn(`[DEBUG] ⚠️ Solo se agregaron ${registrosAgregados.length} de ${data.registros_ids.length} registros esperados`);

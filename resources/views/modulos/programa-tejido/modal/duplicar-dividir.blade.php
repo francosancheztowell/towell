@@ -459,6 +459,14 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const ordCompartidaActualLocal = ordCompartidaParam || document.getElementById('ord-compartida-original')?.value || '';
 	const registroIdActual = registroIdParam || document.getElementById('registro-id-original')?.value || '';
 	const tieneOrdCompartida = ordCompartidaActualLocal && ordCompartidaActualLocal !== '' && ordCompartidaActualLocal !== '0';
+	
+	// ⚡ MEJORA: Guardar valores originales de la fila principal al inicializar (especialmente en modo dividir)
+	setTimeout(() => {
+		const modoActual = getModoActual();
+		if (modoActual === 'dividir' && typeof guardarValoresOriginalesFilaPrincipal === 'function') {
+			guardarValoresOriginalesFilaPrincipal();
+		}
+	}, 100);
 
 	// Variables para almacenar datos cargados
 	let telaresDisponibles = [];
@@ -3123,8 +3131,9 @@ function validarYCapturarDatosDuplicar() {
 		const flogTextarea = fila?.querySelector('.flogs-cell textarea') || fila?.querySelector('.flogs-cell input');
 		const descripcionTextarea = fila?.querySelector('.descripcion-cell textarea');
 
-		// Leer valores actuales de los inputs (sin fallback a global)
-		const claveModeloFila = (claveModeloInput?.value || '').trim();
+		// ⚡ MEJORA: Leer valores actuales de los inputs directamente (sin fallback a global)
+		// Leer del input directamente para asegurar el valor más reciente
+		const claveModeloFila = claveModeloInput ? (claveModeloInput.value || '').trim() : '';
 		const productoFila = (productoTextarea?.value || '').trim();
 		const flogFila = (flogTextarea?.value || '').trim();
 		const descripcionFila = (descripcionTextarea?.value || '').trim();
@@ -3197,6 +3206,7 @@ function validarYCapturarDatosDuplicar() {
 			nombreCC5: fila?.dataset.nombreCC5 && fila.dataset.nombreCC5 !== '' ? fila.dataset.nombreCC5 : undefined,
 			medidaPlano: fila?.dataset.medidaPlano && fila.dataset.medidaPlano !== '' ? fila.dataset.medidaPlano : undefined,
 			cuentaPie: fila?.dataset.cuentaPie && fila.dataset.cuentaPie !== '' ? fila.dataset.cuentaPie : undefined,
+			largoToalla: fila?.dataset.largoToalla && fila.dataset.largoToalla !== '' ? fila.dataset.largoToalla : undefined,
 			codColorCtaPie: fila?.dataset.codColorCtaPie && fila.dataset.codColorCtaPie !== '' ? fila.dataset.codColorCtaPie : undefined,
 			eficienciaSTD: fila?.dataset.eficienciaSTD && fila.dataset.eficienciaSTD !== '' ? fila.dataset.eficienciaSTD : undefined,
 			velocidadSTD: fila?.dataset.velocidadSTD && fila.dataset.velocidadSTD !== '' ? fila.dataset.velocidadSTD : undefined,
@@ -3261,8 +3271,9 @@ function validarYCapturarDatosDuplicar() {
 				observaciones: observacionesVal,
 				porcentaje_segundos: porcentajeSegundosVal ? parseFloat(porcentajeSegundosVal) : null,
 				aplicacion: aplicacionVal,
-				// Usar valores de la fila si existen, sino usar valores globales
-				tamano_clave: claveModeloFila || claveModelo,
+				// ⚡ MEJORA: Usar valores de la fila SIEMPRE si existe (incluso si está vacío)
+				// IMPORTANTE: Leer directamente del input para asegurar el valor más reciente
+				tamano_clave: claveModeloFila !== '' ? claveModeloFila : (claveModelo || null),
 				producto: productoFila || producto,
 				flog: flogFila || flog,
 				descripcion: descripcionFila || descripcion,
