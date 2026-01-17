@@ -29,7 +29,14 @@ class EliminarTejido
             $salon = $registro->SalonTejidoId;
             $telar = $registro->NoTelarId;
 
-            $registros = ReqProgramaTejido::query()->salon($salon)->telar($telar)->orderBy('FechaInicio','asc')->lockForUpdate()->get();
+            // Optimizado: usar Posicion primero para aprovechar índices
+            $registros = ReqProgramaTejido::query()
+                ->salon($salon)
+                ->telar($telar)
+                ->orderBy('Posicion', 'asc') // Aprovecha índice IX_ReqProgramaTejido_Telar_Posicion
+                ->orderBy('FechaInicio', 'asc') // Fallback
+                ->lockForUpdate()
+                ->get();
             $idx = $registros->search(fn($r) => $r->Id === $registro->Id);
             if ($idx === false) throw new \RuntimeException('No se encontró el registro a eliminar dentro del telar.');
 
@@ -55,7 +62,13 @@ class EliminarTejido
             // Eliminar registro (las líneas se eliminan por ON DELETE CASCADE en BD)
             $registro->delete();
 
-            $restantes = ReqProgramaTejido::query()->salon($salon)->telar($telar)->orderBy('FechaInicio','asc')->get();
+            // Optimizado: usar Posicion primero para aprovechar índices
+            $restantes = ReqProgramaTejido::query()
+                ->salon($salon)
+                ->telar($telar)
+                ->orderBy('Posicion', 'asc') // Aprovecha índice IX_ReqProgramaTejido_Telar_Posicion
+                ->orderBy('FechaInicio', 'asc') // Fallback
+                ->get();
             if ($restantes->isEmpty()) {
                 DB::commit();
                 return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente']);

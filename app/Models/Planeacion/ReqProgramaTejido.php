@@ -187,21 +187,41 @@ class ReqProgramaTejido extends Model
      |===========================*/
     public static function getTelaresPorSalon($tipoSalon = 'JACQUARD')
     {
-        return static::query()->salon($tipoSalon)->enProceso()->orderBy('NoTelarId')->get();
+        // Optimizado: aprovecha índice IX_ReqProgramaTejido_Telar_EnProceso_Pos
+        return static::query()
+            ->salon($tipoSalon)
+            ->enProceso()
+            ->orderBy('NoTelarId')
+            ->orderBy('Posicion', 'asc') // Aprovecha índice
+            ->get();
     }
 
     public static function getTelarEnProceso($numeroTelar, $tipoSalon = 'JACQUARD')
     {
-        return static::query()->salon($tipoSalon)->telar($numeroTelar)->enProceso()->first();
+        // Optimizado: aprovecha índice IX_ReqProgramaTejido_Telar_EnProceso_Pos
+        return static::query()
+            ->salon($tipoSalon)
+            ->telar($numeroTelar)
+            ->enProceso()
+            ->orderBy('Posicion', 'asc') // Aprovecha índice
+            ->first();
     }
 
     public static function getSiguienteOrden($numeroTelar, $tipoSalon = 'JACQUARD', $fechaActual = null)
     {
-        // Optimizado: usar Posicion primero, luego FechaInicio como fallback
-        $q = static::query()->salon($tipoSalon)->telar($numeroTelar)->enProceso(false);
-        if ($fechaActual) $q->where('FechaInicio','>',$fechaActual);
-        return $q->orderBy('Posicion', 'asc') // Aprovecha índice IX_ReqProgramaTejido_Telar_Posicion
-            ->orderBy('FechaInicio', 'asc') // Fallback
+        // Optimizado: aprovecha índice IX_ReqProgramaTejido_Telar_EnProceso_Pos
+        // Orden: SalonTejidoId, NoTelarId, EnProceso, Posicion (INCLUDE: Id, FechaInicio, FechaFinal)
+        $q = static::query()
+            ->salon($tipoSalon)
+            ->telar($numeroTelar)
+            ->enProceso(false); // EnProceso = 0 en el índice
+
+        if ($fechaActual) {
+            $q->where('FechaInicio', '>', $fechaActual);
+        }
+
+        return $q->orderBy('Posicion', 'asc') // Aprovecha índice IX_ReqProgramaTejido_Telar_EnProceso_Pos
+            ->orderBy('FechaInicio', 'asc') // FechaInicio está en INCLUDE
             ->first();
     }
 

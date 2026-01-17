@@ -985,12 +985,15 @@ class ProgramaTejidoController extends Controller
                 return response()->json(['error' => 'SalonTejidoId y NoTelarId son requeridos'], 400);
             }
 
+            // Optimizado: aprovecha índice IX_ReqProgramaTejido_Telar_FechaFinal
+            // Orden: SalonTejidoId, NoTelarId, FechaFinal DESC (INCLUDE: Id)
+            // Nota: FibraRizo, Maquina, Ancho no están en INCLUDE, pero Id sí está
             $ultimo = ReqProgramaTejido::query()
                 ->salon($salon)
                 ->telar($telar)
                 ->whereNotNull('FechaFinal')
-                ->orderByDesc('FechaFinal')
-                ->select('FechaFinal', 'FibraRizo', 'Maquina', 'Ancho')
+                ->orderByDesc('FechaFinal') // Aprovecha índice IX_ReqProgramaTejido_Telar_FechaFinal
+                ->select('Id', 'FechaFinal', 'FibraRizo', 'Maquina', 'Ancho')
                 ->first();
 
             return response()->json([
