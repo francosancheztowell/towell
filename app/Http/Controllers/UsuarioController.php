@@ -392,9 +392,11 @@ class UsuarioController extends Controller
      */
     public function showTejedoresConfiguracion()
     {
-        $configurarModulo = SYSRoles::where('modulo', 'Configurar')
+        // Optimización: Usa índice IX_SYSRoles_Nivel_Dependencia para búsqueda rápida
+        $configurarModulo = SYSRoles::where('Nivel', 2)
             ->where('Dependencia', 600)
-            ->where('Nivel', 2)
+            ->where('modulo', 'Configurar')
+            ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
             ->first();
 
         if ($configurarModulo) {
@@ -415,19 +417,23 @@ class UsuarioController extends Controller
         $moduloPadre = $this->moduloService->buscarModuloPrincipal($moduloPrincipal);
 
         // Si no encuentra por nombre/ruta, intentar buscar por orden si es numérico
+        // Optimización: Usa índice IX_SYSRoles_orden para búsqueda rápida
         if (!$moduloPadre && is_numeric($moduloPrincipal)) {
             $moduloPadre = SYSRoles::where('Nivel', 1)
                 ->whereNull('Dependencia')
                 ->where('orden', $moduloPrincipal)
+                ->select('idrol', 'orden', 'modulo', 'imagen', 'Ruta', 'Nivel', 'Dependencia')
                 ->first();
         }
 
         // Si aún no encuentra, intentar buscar por ruta exacta de la URL
+        // Optimización: Ruta está en INCLUDE del índice IX_SYSRoles_Nivel_Dependencia
         if (!$moduloPadre) {
             $rutaBuscada = '/' . ltrim($moduloPrincipal, '/');
             $moduloPadre = SYSRoles::where('Nivel', 1)
                 ->whereNull('Dependencia')
                 ->where('Ruta', $rutaBuscada)
+                ->select('idrol', 'orden', 'modulo', 'imagen', 'Ruta', 'Nivel', 'Dependencia')
                 ->first();
         }
 
@@ -441,8 +447,9 @@ class UsuarioController extends Controller
         }
 
         // Verificar que el usuario tenga acceso a este módulo
-        $tieneAcceso = SYSUsuariosRoles::where('idusuario', $usuarioActual->idusuario)
-            ->where('idrol', $moduloPadre->idrol)
+        // Optimización: Usa índice IX_SYSUsuariosRoles_idrol_idusuario_acceso
+        $tieneAcceso = SYSUsuariosRoles::where('idrol', $moduloPadre->idrol)
+            ->where('idusuario', $usuarioActual->idusuario)
             ->where('acceso', true)
             ->exists();
 
@@ -483,7 +490,10 @@ class UsuarioController extends Controller
                 $usuarioActual->idusuario
             );
 
-            $moduloPadreInfo = SYSRoles::where('orden', $moduloPadre)->first();
+            // Optimización: Usa índice IX_SYSRoles_orden para búsqueda rápida
+            $moduloPadreInfo = SYSRoles::where('orden', $moduloPadre)
+                ->select('orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
+                ->first();
 
             return view('modulos.submodulos', [
                 'moduloPrincipal' => $moduloPadreInfo->modulo ?? "Submódulos de $moduloPadre",
@@ -542,11 +552,16 @@ class UsuarioController extends Controller
             $rutaActual = '/' . ltrim($rutaActual, '/');
 
             // Buscar módulo por ruta exacta primero
-            $modulo = SYSRoles::where('Ruta', $rutaActual)->first();
+            // Optimización: Ruta está en INCLUDE del índice, acceso rápido
+            $modulo = SYSRoles::where('Ruta', $rutaActual)
+                ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
+                ->first();
 
             // Si no encuentra, buscar por coincidencia (la ruta más específica que coincida)
+            // NOTA: LIKE 'texto%' puede usar índices parcialmente, pero LIKE '%texto%' no puede
             if (!$modulo) {
                 $modulo = SYSRoles::where('Ruta', 'LIKE', $rutaActual . '%')
+                    ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
                     ->orderByRaw("CASE WHEN Ruta = ? THEN 0 ELSE 1 END", [$rutaActual])
                     ->orderByRaw('LENGTH(Ruta) DESC')
                     ->orderBy('Nivel', 'desc')
@@ -554,11 +569,13 @@ class UsuarioController extends Controller
             }
 
             // Si aún no encuentra, intentar buscar por partes de la ruta
+            // NOTA: LIKE '%texto%' no puede usar índices eficientemente, pero es necesario como fallback
             if (!$modulo) {
                 $partes = array_filter(explode('/', trim($rutaActual, '/')));
                 if (count($partes) > 0) {
                     $ultimaParte = end($partes);
                     $modulo = SYSRoles::where('Ruta', 'LIKE', '%' . $ultimaParte . '%')
+                        ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
                         ->orderByRaw('LENGTH(Ruta) DESC')
                         ->orderBy('Nivel', 'desc')
                         ->first();
@@ -581,8 +598,11 @@ class UsuarioController extends Controller
             }
 
             // Si tiene dependencia, buscar el módulo padre
+            // Optimización: Usa índice IX_SYSRoles_orden para búsqueda rápida
             if ($modulo->Dependencia) {
-                $moduloPadre = SYSRoles::where('orden', $modulo->Dependencia)->first();
+                $moduloPadre = SYSRoles::where('orden', $modulo->Dependencia)
+                    ->select('orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
+                    ->first();
 
                 if ($moduloPadre && $moduloPadre->Ruta) {
                     return response()->json([
