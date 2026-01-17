@@ -941,9 +941,39 @@
         const registros = await fetchRegistrosOrdCompartida(ordCompartida);
         currentGanttRegistros = registros;
 
-        const totalPedido = registros.reduce((s, r) => s + (Number(r.TotalPedido) || 0), 0);
+        // Obtener valores actuales desde la tabla principal (después de balanceos previos)
+        const tb = document.querySelector('#mainTable tbody');
+        const valoresActuales = {};
+        if (tb) {
+          registros.forEach(reg => {
+            const row = tb.querySelector(`tr.selectable-row[data-id="${reg.Id}"]`);
+            if (row) {
+              const totalPedidoCell = row.querySelector(`td[data-column="TotalPedido"]`);
+              if (totalPedidoCell) {
+                // Intentar obtener el valor del data-value o del texto
+                const dataValue = totalPedidoCell.getAttribute('data-value');
+                const textValue = totalPedidoCell.textContent?.trim();
+                // Limpiar el texto de formato (quitar comas, espacios, etc.)
+                const valorLimpio = dataValue || textValue?.replace(/[^\d.-]/g, '');
+                const valorNumerico = parseNumber(valorLimpio);
+                if (valorNumerico > 0) {
+                  valoresActuales[reg.Id] = valorNumerico;
+                }
+              }
+            }
+          });
+        }
+
+        const totalPedido = registros.reduce((s, r) => {
+          const valorActual = valoresActuales[r.Id] ?? Number(r.TotalPedido || 0);
+          return s + valorActual;
+        }, 0);
         const totalProduccion = registros.reduce((s, r) => s + (Number(r.Produccion) || 0), 0);
-        const totalSaldo = registros.reduce((s, r) => s + (Number(r.SaldoPedido) || 0), 0);
+        const totalSaldo = registros.reduce((s, r) => {
+          const valorActual = valoresActuales[r.Id] ?? Number(r.TotalPedido || 0);
+          const produccion = Number(r.Produccion || 0);
+          return s + Math.max(0, valorActual - produccion);
+        }, 0);
 
         totalDisponibleBalanceo = totalPedido;
 
@@ -952,9 +982,11 @@
           const fechaFinal = reg.FechaFinal ? new Date(String(reg.FechaFinal).replace(' ', 'T')).getTime() : 0;
           const duracionOriginalMs = (fechaInicio && fechaFinal) ? (fechaFinal - fechaInicio) : 0;
 
-          const pedidoOriginal = Number(reg.TotalPedido || 0);
+          // Usar el valor actual de la tabla si existe, sino el del backend
+          const pedidoActual = valoresActuales[reg.Id] ?? Number(reg.TotalPedido || 0);
+          const pedidoOriginal = Number(reg.TotalPedido || 0); // Mantener el original para data-original
           const produccion = Number(reg.Produccion || 0);
-          const saldoOriginal = (reg.SaldoPedido != null) ? Math.max(0, Number(reg.SaldoPedido || 0)) : Math.max(0, pedidoOriginal - produccion);
+          const saldoActual = Math.max(0, pedidoActual - produccion);
           const stdDia = Number(reg.StdDia || 0);
           const minPedido = produccion > 0 ? produccion : 0;
 
@@ -973,17 +1005,17 @@
                   data-duracion-original="${duracionOriginalMs}"
                   data-std-dia="${stdDia}"
                   data-produccion="${produccion}"
-                  value="${pedidoOriginal}"
+                  value="${pedidoActual}"
                   min="${minPedido}"
                   step="1"
                   oninput="calcularTotalesYFechas(this, ${ordCompartida})"
                 >
               </td>
               <td class="px-3 py-2 text-xs sm:text-sm text-right text-gray-600">${produccion.toLocaleString('es-MX')}</td>
-              <td class="px-3 py-2 text-xs sm:text-sm text-right saldo-display ${saldoOriginal > 0 ? 'text-green-600 font-medium' : 'text-gray-500'}"
+              <td class="px-3 py-2 text-xs sm:text-sm text-right saldo-display ${saldoActual > 0 ? 'text-green-600 font-medium' : 'text-gray-500'}"
                   data-produccion="${produccion}"
-                  data-saldo-original="${saldoOriginal}">
-                ${saldoOriginal.toLocaleString('es-MX')}
+                  data-saldo-original="${saldoActual}">
+                ${saldoActual.toLocaleString('es-MX')}
               </td>
               <td class="px-3 py-2 text-xs sm:text-sm text-center text-gray-600 fecha-inicio-display">
                 ${formatearFecha(String(reg.FechaInicio || '').replace(' ', 'T'))}

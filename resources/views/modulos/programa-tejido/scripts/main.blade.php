@@ -298,10 +298,10 @@
       ids.forEach((idKey) => {
         const row = tb.querySelector(`tr.selectable-row[data-id="${idKey}"]`);
         if (!row) return;
-        
+
         // Aplicar todos los updates
         ddApplyUpdatesToRow(row, updatesById[idKey]);
-        
+
         // Si se actualizó SalonTejidoId o NoTelarId, reconstruir Maquina
         // Esto asegura que Maquina se actualice visualmente incluso si el backend ya lo calculó
         if (updatesById[idKey].SalonTejidoId !== undefined || updatesById[idKey].NoTelarId !== undefined) {
