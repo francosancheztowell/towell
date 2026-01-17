@@ -7,8 +7,6 @@ use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
-use App\Models\Planeacion\Catalogos\CatCodificados;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EliminarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DragAndDropTejido;

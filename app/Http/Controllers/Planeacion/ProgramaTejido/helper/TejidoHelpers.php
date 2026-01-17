@@ -15,7 +15,7 @@ class TejidoHelpers
     /**
      * Calcular la siguiente posición disponible para un telar específico
      * La posición es consecutiva por telar: 1, 2, 3, 4, etc.
-     * 
+     *
      * @param string $salonTejidoId
      * @param string $noTelarId
      * @return int
@@ -49,6 +49,54 @@ class TejidoHelpers
 
         // Si no hay huecos, la siguiente posición es la última + 1
         return $posicionEsperada;
+    }
+
+    /**
+     * Recalcular las posiciones de los registros de un telar de forma consecutiva
+     * Reasigna posiciones 1, 2, 3, 4... a todos los registros del telar ordenados por Posicion actual
+     *
+     * @param string $salonTejidoId
+     * @param string $noTelarId
+     * @return void
+     */
+    public static function recalcularPosicionesPorTelar(string $salonTejidoId, string $noTelarId): void
+    {
+        // Obtener todos los registros del telar ordenados por Posicion actual
+        $registros = ReqProgramaTejido::query()
+            ->where('SalonTejidoId', $salonTejidoId)
+            ->where('NoTelarId', $noTelarId)
+            ->whereNotNull('Posicion')
+            ->orderBy('Posicion', 'asc')
+            ->orderBy('FechaInicio', 'asc') // Fallback por si hay registros sin Posicion
+            ->get();
+
+        if ($registros->isEmpty()) {
+            return;
+        }
+
+        // Reasignar posiciones de forma consecutiva (1, 2, 3, 4...)
+        $nuevaPosicion = 1;
+        foreach ($registros as $registro) {
+            if ($registro->Posicion != $nuevaPosicion) {
+                $registro->Posicion = $nuevaPosicion;
+                $registro->saveQuietly(); // Usar saveQuietly para evitar triggers
+            }
+            $nuevaPosicion++;
+        }
+
+        // También actualizar registros que no tienen Posicion
+        $registrosSinPosicion = ReqProgramaTejido::query()
+            ->where('SalonTejidoId', $salonTejidoId)
+            ->where('NoTelarId', $noTelarId)
+            ->whereNull('Posicion')
+            ->orderBy('FechaInicio', 'asc')
+            ->get();
+
+        foreach ($registrosSinPosicion as $registro) {
+            $registro->Posicion = $nuevaPosicion;
+            $registro->saveQuietly();
+            $nuevaPosicion++;
+        }
     }
 
     public static function sanitizeNumber($value): float

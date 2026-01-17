@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Imports;
 
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
@@ -29,6 +30,9 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
     /** Cache en memoria para TwFlogsCustomer (FlogsId) */
     private static array $flogsCache = [];
+
+    /** Cache temporal de posiciones asignadas por telar durante el batch actual (para evitar duplicados) */
+    private static array $posicionesCachePorTelar = [];
     public function model(array $rawRow)
 	{
 		try {
@@ -317,6 +321,32 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
             // Recorta contra el esquema real (INFORMATION_SCHEMA)
             $this->enforceSchemaStringLengths($data);
+
+            // Asignar posición consecutiva para este telar si no viene en el Excel
+            if (!isset($data['Posicion']) || $data['Posicion'] === null || $data['Posicion'] === '') {
+                $salonTejidoId = $data['SalonTejidoId'] ?? null;
+                $noTelarId = $data['NoTelarId'] ?? null;
+                if ($salonTejidoId && $noTelarId) {
+                    $cacheKey = $salonTejidoId . '|' . $noTelarId;
+                    
+                    // Obtener siguiente posición disponible desde BD
+                    $siguientePosicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonTejidoId, $noTelarId);
+                    
+                    // Verificar si ya asignamos posiciones para este telar en este batch
+                    if (!isset(self::$posicionesCachePorTelar[$cacheKey])) {
+                        self::$posicionesCachePorTelar[$cacheKey] = [];
+                    }
+                    
+                    // Ajustar posición si ya fue asignada en este batch
+                    while (in_array($siguientePosicion, self::$posicionesCachePorTelar[$cacheKey], true)) {
+                        $siguientePosicion++;
+                    }
+                    
+                    // Guardar en cache y asignar
+                    self::$posicionesCachePorTelar[$cacheKey][] = $siguientePosicion;
+                    $data['Posicion'] = $siguientePosicion;
+                }
+            }
 
             // Normalizar datos para batch insert: todos los registros deben tener las mismas columnas
             $data = $this->normalizeDataForBatchInsert($data);
