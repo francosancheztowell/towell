@@ -31,12 +31,12 @@
 
   <!-- ====== Modal Atado de Julio ====== -->
   <div id="modalTelaresNotificar" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
-    <div class="relative bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4">
       <!-- Header del Modal -->
-      <div class="flex items-center justify-between p-4 border-b border-gray-200">
-        <h2 class="text-xl font-bold text-gray-800">Atado de Julio</h2>
+      <div class="flex items-center justify-between p-5 border-b border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-800">Atado de Julio</h2>
         <button type="button" onclick="cerrarModalTelares()" class="text-gray-400 hover:text-gray-600 transition-colors">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </button>
@@ -45,29 +45,29 @@
       <!-- Body del Modal -->
       <div class="p-6">
         <!-- Formulario de Selección -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
           <!-- Select de Telar -->
           <div>
-            <label for="selectTelar" class="block text-sm font-medium text-gray-700 mb-2">
+            <label for="selectTelar" class="block text-base font-semibold text-gray-700 mb-2">
               Seleccionar Telar
             </label>
-            <select id="selectTelar" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <select id="selectTelar" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
               <option value="">-- Seleccione un telar --</option>
             </select>
           </div>
 
           <!-- Checkboxes de Tipo -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
-            <div class="flex gap-4 items-center h-10">
+            <label class="block text-base font-semibold text-gray-700 mb-2">Tipo</label>
+            <div class="flex gap-6 items-center h-12">
               <label class="inline-flex items-center cursor-pointer">
-                <input type="radio" name="tipoTelar" id="radioRizo" value="rizo" class="form-radio h-5 w-5 text-blue-600">
-                <span class="ml-2 text-gray-700 font-medium">Rizo</span>
+                <input type="radio" name="tipoTelar" id="radioRizo" value="rizo" class="form-radio h-6 w-6 text-blue-600">
+                <span class="ml-2 text-lg text-gray-700 font-medium">Rizo</span>
               </label>
 
               <label class="inline-flex items-center cursor-pointer">
-                <input type="radio" name="tipoTelar" id="radioPie" value="pie" class="form-radio h-5 w-5 text-blue-600">
-                <span class="ml-2 text-gray-700 font-medium">Pie</span>
+                <input type="radio" name="tipoTelar" id="radioPie" value="pie" class="form-radio h-6 w-6 text-blue-600">
+                <span class="ml-2 text-lg text-gray-700 font-medium">Pie</span>
               </label>
             </div>
           </div>
@@ -75,47 +75,47 @@
 
         <!-- Detalles del Telar -->
         <div id="detallesTelar" class="hidden bg-gradient-to-br from-blue-50 to-gray-50 rounded-lg p-6 border-2 border-blue-200">
-          <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+          <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
             <i class="fas fa-info-circle text-blue-600 mr-2"></i>
             Información del Telar
           </h3>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">No. Telar</label>
-              <input type="text" id="detalle_no_telar" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+              <label class="block text-sm font-semibold text-gray-600 mb-1">No. Telar</label>
+              <input type="text" id="detalle_no_telar" readonly class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-md text-base font-medium text-gray-800">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Cuenta</label>
-              <input type="text" id="detalle_cuenta" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+              <label class="block text-sm font-semibold text-gray-600 mb-1">Cuenta</label>
+              <input type="text" id="detalle_cuenta" readonly class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-md text-base font-medium text-gray-800">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Calibre</label>
-              <input type="text" id="detalle_calibre" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+              <label class="block text-sm font-semibold text-gray-600 mb-1">Calibre</label>
+              <input type="text" id="detalle_calibre" readonly class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-md text-base font-medium text-gray-800">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Tipo</label>
-              <input type="text" id="detalle_tipo" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+              <label class="block text-sm font-semibold text-gray-600 mb-1">Tipo</label>
+              <input type="text" id="detalle_tipo" readonly class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-md text-base font-medium text-gray-800">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Tipo Atado</label>
-              <input type="text" id="detalle_tipo_atado" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+              <label class="block text-sm font-semibold text-gray-600 mb-1">Tipo Atado</label>
+              <input type="text" id="detalle_tipo_atado" readonly class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-md text-base font-medium text-gray-800">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">No. Orden</label>
-              <input type="text" id="detalle_no_orden" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+              <label class="block text-sm font-semibold text-gray-600 mb-1">No. Orden</label>
+              <input type="text" id="detalle_no_orden" readonly class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-md text-base font-medium text-gray-800">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">No. Julio</label>
-              <input type="text" id="detalle_no_julio" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+              <label class="block text-sm font-semibold text-gray-600 mb-1">No. Julio</label>
+              <input type="text" id="detalle_no_julio" readonly class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-md text-base font-medium text-gray-800">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Metros</label>
-              <input type="text" id="detalle_metros" readonly class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-800">
+              <label class="block text-sm font-semibold text-gray-600 mb-1">Metros</label>
+              <input type="text" id="detalle_metros" readonly class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-md text-base font-medium text-gray-800">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Hora Paro</label>
+              <label class="block text-sm font-semibold text-gray-600 mb-1">Hora Paro</label>
             </div>
-              <input type="text" id="detalle_hora_paro" readonly class="w-full px-3 py-2 bg-green-50 border border-green-300 rounded-md text-2xl font-bold text-green-700 text-center">
+              <input type="text" id="detalle_hora_paro" readonly class="w-full px-4 py-3 bg-green-50 border border-green-300 rounded-md text-3xl font-bold text-green-700 text-center">
           </div>
         </div>
 
@@ -123,21 +123,21 @@
         <div id="mensajeNoData" class="hidden bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
           <div class="flex">
             <div class="flex-shrink-0">
-              <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+              <i class="fas fa-exclamation-triangle text-yellow-400 text-lg"></i>
             </div>
             <div class="ml-3">
-              <p class="text-sm text-yellow-700">No se encontraron datos para el telar y tipo seleccionados.</p>
+              <p class="text-base text-yellow-700">No se encontraron datos para el telar y tipo seleccionados.</p>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Footer del Modal -->
-      <div class="flex justify-end gap-3 p-2 border-t border-gray-200">
-        <button type="button" onclick="notificarTelares()" class="px-4 py-2 bg-blue-400 hover:bg-blue-600 text-white rounded-lg transition-colors">
+      <div class="flex justify-end gap-3 p-4 border-t border-gray-200">
+        <button type="button" onclick="notificarTelares()" class="px-5 py-2.5 text-base bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium">
           Notificar
         </button>
-        <button type="button" onclick="cerrarModalTelares()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+        <button type="button" onclick="cerrarModalTelares()" class="px-5 py-2.5 text-base bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium">
           Cerrar
         </button>
       </div>
@@ -146,48 +146,47 @@
 
   <!-- ====== Modal Cortado de Rollo ====== -->
   <div id="modalCortadoRollos" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
-    <div class="relative bg-white rounded-lg shadow-xl max-w-6xl w-[96vw] mx-2 my-4 h-[85vh] flex flex-col">
+    <div class="relative bg-white rounded-lg shadow-xl w-[96vw] sm:w-[90vw] lg:w-[94vw] max-w-none mx-1 my-2 h-[40vh] flex flex-col">
       <!-- Header del Modal -->
-      <div class="flex items-center justify-between p-6 border-b border-gray-200">
-        <h2 class="text-xl font-bold text-gray-800">Cortado de Rollo</h2>
-        <button type="button" id="closeModalCortado" class="text-gray-400 hover:text-gray-600 transition-colors">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="flex items-center justify-between gap-2 p-4 border-b border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-800 whitespace-nowrap">Cortado de Rollo</h2>
+        <div class="flex-1 flex items-center gap-3">
+          <label for="selectTelarCortado" class="text-lg font-semibold text-gray-700 whitespace-nowrap">
+            Telar:
+          </label>
+          <select id="selectTelarCortado" class="flex-1 border-2 border-gray-300 rounded-lg px-4 py-2.5 text-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <option value="">-- Seleccione un telar --</option>
+          </select>
+        </div>
+        <button type="button" id="closeModalCortado" class="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </button>
       </div>
 
       <!-- Body del Modal -->
-      <div class="p-4 flex-1 overflow-hidden flex flex-col">
-        <!-- Select de Telar del Usuario -->
-        <div class="mb-3 flex-shrink-0">
-          <label for="selectTelarCortado" class="block text-sm font-medium text-gray-700 mb-2">
-            Seleccionar Telar
-          </label>
-          <select id="selectTelarCortado" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            <option value="">-- Seleccione un telar --</option>
-          </select>
-        </div>
+      <div class="p-8 flex-1 overflow-hidden flex flex-col">
 
         <!-- Tabla de Datos de Producción -->
         <div id="tablaProduccionCortadoContainer" class="flex-shrink-0" style="display: none;">
-          <h3 class="text-base font-semibold text-gray-800 mb-2">Seleccionar Marbete a Liberar</h3>
-          <div class="border border-gray-300 rounded-lg overflow-hidden">
+          <h3 class="text-xl font-semibold text-gray-800 mb-4">Seleccionar Marbete a Liberar</h3>
+          <div class="border-2 border-gray-300 rounded-lg overflow-hidden">
             <table class="w-full bg-white">
               <thead class="bg-gray-100">
                 <tr>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase whitespace-nowrap">Cuantas</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase whitespace-nowrap">Marbete</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase whitespace-nowrap">Artículo</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase whitespace-nowrap">Tamaño</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase whitespace-nowrap">Orden</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase whitespace-nowrap">Telar</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase whitespace-nowrap">Piezas</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase whitespace-nowrap">Salón</th>
+                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Cuantas</th>
+                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Marbete</th>
+                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Artículo</th>
+                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Tamaño</th>
+                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Orden</th>
+                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Telar</th>
+                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Piezas</th>
+                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Salón</th>
                 </tr>
               </thead>
             </table>
-            <div class="overflow-x-auto overflow-y-auto" style="max-height: 250px;">
+            <div class="overflow-x-auto overflow-y-auto" style="max-height: 200px;">
               <table class="w-full bg-white">
                 <tbody id="tablaProduccionCortadoBody" class="divide-y divide-gray-200">
                   <!-- Los datos se cargarán dinámicamente -->
@@ -198,15 +197,15 @@
         </div>
 
         <!-- Mensaje de carga o error -->
-        <div id="mensajeEstadoCortado" class="text-center text-gray-600 py-4 flex-shrink-0" style="display: none;"></div>
+        <div id="mensajeEstadoCortado" class="text-center text-lg text-gray-600 py-6 flex-shrink-0" style="display: none;"></div>
       </div>
 
       <!-- Footer del Modal -->
-      <div class="flex justify-end gap-2 p-4 border-t border-gray-200 flex-shrink-0">
-        <button type="button" id="closeModalCortadoBtn" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+      <div class="flex justify-end gap-4 p-6 border-t border-gray-200 flex-shrink-0">
+        <button type="button" id="closeModalCortadoBtn" class="px-6 py-3 text-lg bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium">
           Cerrar
         </button>
-        <button type="button" id="btnNotificarCortado" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors" style="display: none;">
+        <button type="button" id="btnNotificarCortado" class="px-6 py-3 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium" style="display: none;">
           Notificar
         </button>
       </div>
@@ -547,14 +546,14 @@
           row.dataset.index = index;
 
           row.innerHTML = `
-            <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">${dato.CUANTAS || 'N/A'}</td>
-            <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">${dato.PurchBarCode || 'N/A'}</td>
-            <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">${dato.ItemId || 'N/A'}</td>
-            <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">${dato.InventSizeId || 'N/A'}</td>
-            <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">${dato.InventBatchId || 'N/A'}</td>
-            <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">${dato.WMSLocationId || 'N/A'}</td>
-            <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap text-right">${formatearPiezas(dato.QtySched)}</td>
-            <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">${dato.Salon || 'N/A'}</td>
+            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.CUANTAS || 'N/A'}</td>
+            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.PurchBarCode || 'N/A'}</td>
+            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.ItemId || 'N/A'}</td>
+            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.InventSizeId || 'N/A'}</td>
+            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.InventBatchId || 'N/A'}</td>
+            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.WMSLocationId || 'N/A'}</td>
+            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap text-right">${formatearPiezas(dato.QtySched)}</td>
+            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.Salon || 'N/A'}</td>
           `;
 
           row.addEventListener('click', function() {
