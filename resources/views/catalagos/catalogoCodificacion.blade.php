@@ -125,11 +125,25 @@
 {{-- Menú contextual (click derecho) --}}
 <div id="context-menu" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg z-[99999] py-1 min-w-[150px]" style="z-index: 99999 !important; opacity: 1 !important; background-color: #ffffff !important;">
     <button
+        id="context-menu-edit"
+        class="w-full text-left px-4 py-2 text-sm text-blue-700 hover:text-blue-800 bg-white hover:bg-gray-100 flex items-center gap-2 border-b border-gray-200"
+    >
+        <i class="fas fa-edit text-sm text-blue-600 hover:text-blue-800"></i>
+        <span>Editar</span>
+    </button>
+    <button
         id="context-menu-duplicate"
-        class="w-full text-left px-4 py-2 text-sm text-blue-700 hover:text-blue-800 bg-white hover:bg-gray-100 flex items-center gap-2"
+        class="w-full text-left px-4 py-2 text-sm text-blue-700 hover:text-blue-800 bg-white hover:bg-gray-100 flex items-center gap-2 border-b border-gray-200"
     >
         <i class="fas fa-copy text-sm text-blue-600 hover:text-blue-800"></i>
         <span>Duplicar</span>
+    </button>
+    <button
+        id="context-menu-delete"
+        class="w-full text-left px-4 py-2 text-sm text-red-700 hover:text-red-800 bg-white hover:bg-gray-100 flex items-center gap-2"
+    >
+        <i class="fas fa-trash text-sm text-red-600 hover:text-red-800"></i>
+        <span>Eliminar</span>
     </button>
 </div>
 
@@ -145,6 +159,9 @@
         -webkit-overflow-scrolling: touch;
         flex: 1;
         min-height: 0;
+        contain: layout paint;
+        will-change: scroll-position;
+        scrollbar-gutter: stable both-edges;
     }
 
     /* Scrollbar personalizada - Siempre visible y más grande */
@@ -189,6 +206,7 @@
         border-spacing: 0;
         min-width: max-content;
         table-layout: auto;
+        transform: translateZ(0);
     }
 
     /* ============================================
@@ -234,6 +252,18 @@
         z-index: 0;
     }
 
+    #mainTable tbody tr.data-row {
+        height: 36px;
+    }
+
+    #mainTable tbody tr.spacer-row,
+    #mainTable tbody tr.spacer-row td {
+        border: 0 !important;
+        padding: 0 !important;
+        height: 0;
+        pointer-events: none;
+    }
+
     #mainTable tbody td {
         border-right: 1px solid rgba(0, 0, 0, 0.05);
         white-space: nowrap;
@@ -246,6 +276,18 @@
     /* ⚡ OPTIMIZACIÓN: Mejorar rendimiento de scroll - Desactivar transiciones durante scroll */
     .scrolling #codificacion-body tr {
         transition: none !important;
+    }
+    .scrolling #mainTable thead,
+    .scrolling #mainTable thead tr,
+    .scrolling #mainTable thead th {
+        box-shadow: none !important;
+    }
+    .scrolling #mainTable tbody td,
+    .scrolling #mainTable tbody tr {
+        transition: none !important;
+    }
+    .scrolling .pinned-column {
+        box-shadow: none !important;
     }
 
     /* ⚡ OPTIMIZACIÓN: Mejorar rendimiento de scroll - Solo contain, sin will-change constante */
@@ -385,8 +427,14 @@
     }
 </style>
 
+{{-- Cargar SweetAlert2 antes del script principal para que esté disponible en el modal --}}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 {{-- JS principal --}}
 <script>
+{{-- Modal Duplicar/Importar Codificación - Debe estar FUERA del IIFE para estar disponible globalmente --}}
+@include('catalagos.modal._duplicar-importar-codificacion')
+
 (() => {
     // ============================================
     //  CONFIGURACIÓN / ESTADO
@@ -409,6 +457,28 @@ const state = {
         filtrosDinamicos: [],
         isLoading: true
     };
+
+    const VIRTUAL = {
+        enabled: true,
+        threshold: 240,
+        overscan: 12,
+        rowHeight: 36
+    };
+
+    const virtualState = {
+        active: false,
+        pageData: [],
+        start: 0,
+        end: 0,
+        rowHeight: VIRTUAL.rowHeight,
+        topSpacer: null,
+        bottomSpacer: null,
+        topSpacerCell: null,
+        bottomSpacerCell: null,
+        columnClasses: null
+    };
+
+    let virtualRaf = null;
 
     // Estado de columnas ocultas y fijadas
     let hiddenColumns = [];
@@ -575,7 +645,21 @@ function showToast(message, type = 'info') {
     // =====================f=======================
     //  CARGA DE DATOS
     // ============================================
-    async function loadData() {
+    function buildApiUrl(baseUrl, force) {
+        if (!force) return baseUrl;
+        try {
+            const url = new URL(baseUrl, window.location.origin);
+            url.searchParams.set('nocache', '1');
+            url.searchParams.set('ts', Date.now().toString());
+            return url.toString();
+        } catch (error) {
+            const joiner = baseUrl.includes('?') ? '&' : '?';
+            return `${baseUrl}${joiner}nocache=1&ts=${Date.now()}`;
+        }
+    }
+
+    async function loadData(options = {}) {
+        const force = options.force === true;
         const loadingEl  = $('#loading-overlay');
 
         if (!CONFIG.apiUrl) {
@@ -592,10 +676,12 @@ function showToast(message, type = 'info') {
             // ⚡ OPTIMIZACIÓN: Usar AbortController para cancelar si es necesario
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000); // Timeout de 30 segundos
+            const apiUrl = buildApiUrl(CONFIG.apiUrl, force);
 
-            const response = await fetch(CONFIG.apiUrl, {
+            const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: { Accept: 'application/json' },
+                cache: force ? 'no-store' : 'default',
                 signal: controller.signal
             });
 
@@ -623,6 +709,12 @@ function showToast(message, type = 'info') {
                 const len = columns.length;
                 for (let j = 0; j < len; j++) {
                     obj[columns[j]] = row[j];
+                }
+                if (obj.Id !== undefined && obj.Id !== null && obj.Id !== '') {
+                    const parsedId = Number(obj.Id);
+                    if (!Number.isNaN(parsedId)) {
+                        obj.Id = parsedId;
+                    }
                 }
                 state.rawData[i] = obj;
             }
@@ -717,10 +809,195 @@ function showToast(message, type = 'info') {
         }
     }
 
+    function resetVirtualState() {
+        virtualState.active = false;
+        virtualState.pageData = [];
+        virtualState.start = 0;
+        virtualState.end = 0;
+        virtualState.topSpacer = null;
+        virtualState.bottomSpacer = null;
+        virtualState.topSpacerCell = null;
+        virtualState.bottomSpacerCell = null;
+        virtualState.columnClasses = null;
+    }
+
+    function buildColumnClasses(camposLen) {
+        const baseCellClass = 'px-3 py-2 text-sm whitespace-nowrap text-gray-700';
+        const columnClasses = new Array(camposLen);
+        for (let idx = 0; idx < camposLen; idx++) {
+            columnClasses[idx] = `column-${idx} ${baseCellClass}`;
+        }
+        return columnClasses;
+    }
+
+    function getPinnedOffsets() {
+        if (!pinnedColumns.length) return null;
+        let left = 0;
+        const offsets = {};
+        pinnedColumns.forEach((idx, order) => {
+            const th = $(`th.column-${idx}`);
+            if (!th || th.style.display === 'none') return;
+            const width = th.offsetWidth || th.getBoundingClientRect().width || 0;
+            offsets[idx] = { left, order };
+            left += width;
+        });
+        return offsets;
+    }
+
+    function scheduleVirtualUpdate(force = false) {
+        if (!virtualState.active) return;
+        if (virtualRaf) return;
+        virtualRaf = requestAnimationFrame(() => {
+            virtualRaf = null;
+            updateVirtualRows(force);
+        });
+    }
+
+    function updateVirtualRows(force = false) {
+        if (!virtualState.active) return;
+
+        const tbody = $('#codificacion-body');
+        const container = $('#table-container');
+        if (!tbody || !container) return;
+
+        const total = virtualState.pageData.length;
+        if (!total) return;
+
+        const rowHeight = virtualState.rowHeight || VIRTUAL.rowHeight;
+        const viewportHeight = Math.max(container.clientHeight, rowHeight);
+        const scrollTop = container.scrollTop || 0;
+
+        const visibleCount = Math.ceil(viewportHeight / rowHeight);
+        let start = Math.floor(scrollTop / rowHeight) - VIRTUAL.overscan;
+        if (start < 0) start = 0;
+        let end = Math.min(total, start + visibleCount + VIRTUAL.overscan * 2);
+
+        if (!force && start === virtualState.start && end === virtualState.end) return;
+
+        virtualState.start = start;
+        virtualState.end = end;
+
+        const topHeight = start * rowHeight;
+        const bottomHeight = Math.max(0, (total - end) * rowHeight);
+
+        if (virtualState.topSpacerCell) {
+            virtualState.topSpacerCell.style.height = `${topHeight}px`;
+        }
+        if (virtualState.bottomSpacerCell) {
+            virtualState.bottomSpacerCell.style.height = `${bottomHeight}px`;
+        }
+
+        let node = virtualState.topSpacer?.nextSibling;
+        while (node && node !== virtualState.bottomSpacer) {
+            const next = node.nextSibling;
+            node.remove();
+            node = next;
+        }
+
+        const fragment = document.createDocumentFragment();
+        const camposModelo = CONFIG.camposModelo;
+        const tiposCampo = CONFIG.tiposCampo;
+        const camposLen = camposModelo.length;
+        const columnClasses = virtualState.columnClasses || (virtualState.columnClasses = buildColumnClasses(camposLen));
+        const pinnedOffsets = getPinnedOffsets();
+
+        previousSelectedRow = null;
+
+        for (let i = start; i < end; i++) {
+            const row = virtualState.pageData[i];
+            const tr = document.createElement('tr');
+            const rowId = row.Id;
+            const isSelected = rowId === state.selectedId;
+
+            tr.dataset.id = rowId;
+            tr.className = isSelected
+                ? 'data-row cursor-pointer transition-colors bg-blue-500 text-white selected-row rendered'
+                : 'data-row cursor-pointer transition-colors hover:bg-gray-50 rendered';
+
+            if (isSelected) {
+                previousSelectedRow = tr;
+            }
+
+            for (let idx = 0; idx < camposLen; idx++) {
+                const campo = camposModelo[idx];
+                const td = document.createElement('td');
+                td.className = columnClasses[idx];
+
+                if (hiddenColumns.includes(idx)) {
+                    td.style.display = 'none';
+                }
+
+                if (pinnedOffsets && pinnedOffsets[idx]) {
+                    const meta = pinnedOffsets[idx];
+                    td.style.position = 'sticky';
+                    td.style.left = `${meta.left}px`;
+                    td.style.zIndex = String(100 + meta.order);
+                    td.classList.add('pinned-column');
+                }
+
+                const cacheKey = `${rowId}_${campo}_${row[campo]}`;
+                let formattedValue = formatCache.get(cacheKey);
+                if (formattedValue === undefined) {
+                    formattedValue = utils.formatValue(row[campo], tiposCampo[campo]);
+                    formatCache.set(cacheKey, formattedValue);
+                }
+                td.textContent = formattedValue;
+                tr.appendChild(td);
+            }
+
+            fragment.appendChild(tr);
+        }
+
+        if (virtualState.bottomSpacer?.parentNode) {
+            virtualState.bottomSpacer.parentNode.insertBefore(fragment, virtualState.bottomSpacer);
+        }
+    }
+
+    function renderPageVirtual(pageData, camposLen, totalCols) {
+        const tbody = $('#codificacion-body');
+        if (!tbody) return;
+
+        virtualState.active = true;
+        virtualState.rowHeight = VIRTUAL.rowHeight;
+        virtualState.pageData = pageData;
+        virtualState.start = 0;
+        virtualState.end = 0;
+        virtualState.columnClasses = buildColumnClasses(camposLen);
+
+        previousSelectedRow = null;
+
+        tbody.innerHTML = '';
+
+        const topRow = document.createElement('tr');
+        const topCell = document.createElement('td');
+        topRow.className = 'spacer-row';
+        topCell.colSpan = totalCols;
+        topCell.style.height = '0px';
+        topRow.appendChild(topCell);
+
+        const bottomRow = document.createElement('tr');
+        const bottomCell = document.createElement('td');
+        bottomRow.className = 'spacer-row';
+        bottomCell.colSpan = totalCols;
+        bottomCell.style.height = '0px';
+        bottomRow.appendChild(bottomCell);
+
+        tbody.appendChild(topRow);
+        tbody.appendChild(bottomRow);
+
+        virtualState.topSpacer = topRow;
+        virtualState.bottomSpacer = bottomRow;
+        virtualState.topSpacerCell = topCell;
+        virtualState.bottomSpacerCell = bottomCell;
+
+        updateVirtualRows(true);
+    }
+
     // ⚡ OPTIMIZACIÓN: Delegación de eventos en lugar de listeners por fila
     let eventDelegationSetup = false;
     let isScrolling = false;
     let scrollTimeout = null;
+    let scrollRaf = null;
 
     function setupEventDelegation() {
         if (eventDelegationSetup) return;
@@ -731,16 +1008,26 @@ function showToast(message, type = 'info') {
         // ⚡ OPTIMIZACIÓN: Detectar scroll y desactivar transiciones
         if (container) {
             container.addEventListener('scroll', () => {
+                if (scrollRaf) return;
+                scrollRaf = requestAnimationFrame(() => {
+                    scrollRaf = null;
                 if (!isScrolling) {
                     isScrolling = true;
                     document.body.classList.add('scrolling');
+                    container.classList.add('scrolling');
+                }
+
+                if (virtualState.active) {
+                    scheduleVirtualUpdate();
                 }
 
                 clearTimeout(scrollTimeout);
                 scrollTimeout = setTimeout(() => {
                     isScrolling = false;
                     document.body.classList.remove('scrolling');
-                }, 150);
+                    container.classList.remove('scrolling');
+                    }, 120);
+                });
             }, { passive: true });
         }
 
@@ -791,18 +1078,18 @@ function showToast(message, type = 'info') {
 
             tr.dataset.id = rowId;
 
-            // ⚡ OPTIMIZACIÓN: Usar clases pre-calculadas y marcar como renderizado
+            //  OPTIMIZACIÓN: Usar clases pre-calculadas y marcar como renderizado
             tr.className = isSelected
                 ? `${baseClass} ${selectedClassBase} rendered`
                 : `${baseClass} ${hoverClassBase} rendered`;
 
-            // ⚡ OPTIMIZACIÓN: Renderizar celdas con clases pre-calculadas
+            //  OPTIMIZACIÓN: Renderizar celdas con clases pre-calculadas
             for (let idx = 0; idx < camposLen; idx++) {
                 const campo = camposModelo[idx];
                 const td = document.createElement('td');
                 td.className = columnClasses[idx];
 
-                // ⚡ OPTIMIZACIÓN: Cachear valores formateados
+                //  OPTIMIZACIÓN: Cachear valores formateados
                 const cacheKey = `${rowId}_${campo}_${row[campo]}`;
                 let formattedValue = formatCache.get(cacheKey);
 
@@ -823,7 +1110,7 @@ function showToast(message, type = 'info') {
 
         // Si quedan más filas, continuar en el siguiente frame
         if (endIdx < pageData.length) {
-            // ⚡ OPTIMIZACIÓN: Usar requestAnimationFrame directamente (más rápido que idleCallback)
+            //  OPTIMIZACIÓN: Usar requestAnimationFrame directamente (más rápido que idleCallback)
             requestAnimationFrame(() => {
                 renderPageChunked(pageData, camposModelo, tiposCampo, camposLen, tbody, endIdx, chunkSize);
             });
@@ -844,6 +1131,7 @@ function showToast(message, type = 'info') {
 
         // Sin datos
         if (!state.filteredData.length) {
+            resetVirtualState();
             tbody.innerHTML = `
                 <tr>
                     <td colspan="${totalCols}" class="text-center py-16">
@@ -867,41 +1155,55 @@ function showToast(message, type = 'info') {
 
         const start = (state.currentPage - 1) * state.itemsPerPage;
         const pageData = state.filteredData.slice(start, start + state.itemsPerPage);
+        const useVirtual = VIRTUAL.enabled && pageData.length >= VIRTUAL.threshold;
 
         const showLoading = pageData.length > 200;
         if (showLoading) showTableLoading(true);
 
         try {
-            // ⚡ OPTIMIZACIÓN: Limpiar cache periódicamente
+            //  OPTIMIZACIÓN: Limpiar cache periódicamente
             clearFormatCache();
 
-            // ⚡ OPTIMIZACIÓN: Configurar delegación de eventos una sola vez
+            //  OPTIMIZACIÓN: Configurar delegación de eventos una sola vez
             setupEventDelegation();
 
-            const fragment = document.createDocumentFragment();
             const camposModelo = CONFIG.camposModelo;
             const tiposCampo = CONFIG.tiposCampo;
             const camposLen = camposModelo.length;
 
-            // ⚡ OPTIMIZACIÓN: Para tablas grandes, renderizar por chunks más pequeños
+            if (useVirtual) {
+                renderPageVirtual(pageData, camposLen, totalCols);
+                updatePagination();
+                applyColumnVisibility();
+                if (showLoading) {
+                    setTimeout(() => showTableLoading(false), 30);
+                }
+                return;
+            }
+
+            resetVirtualState();
+
+            const fragment = document.createDocumentFragment();
+
+            //  OPTIMIZACIÓN: Para tablas grandes, renderizar por chunks más pequeños
             if (pageData.length > 200) {
                 // Limpiar tbody primero
                 tbody.innerHTML = '';
                 previousSelectedRow = null; // Reset selección al renderizar nueva página
-                // ⚡ OPTIMIZACIÓN: Chunks más pequeños (30 filas) para mejor responsividad durante scroll
+                //  OPTIMIZACIÓN: Chunks más pequeños (30 filas) para mejor responsividad durante scroll
                 renderPageChunked(pageData, camposModelo, tiposCampo, camposLen, tbody, 0, 30);
                 if (showLoading) {
                     setTimeout(() => showTableLoading(false), 30);
                 }
             } else {
-                // ⚡ OPTIMIZACIÓN: Para tablas pequeñas, renderizar todo de una vez con optimizaciones
+                //  OPTIMIZACIÓN: Para tablas pequeñas, renderizar todo de una vez con optimizaciones
                 // Pre-calcular clases base para evitar concatenaciones repetidas
                 const baseClass = 'data-row cursor-pointer transition-colors';
                 const baseCellClass = 'px-3 py-2 text-sm whitespace-nowrap text-gray-700';
                 const selectedClassBase = 'bg-blue-500 text-white selected-row';
                 const hoverClassBase = 'hover:bg-gray-50';
 
-                // ⚡ OPTIMIZACIÓN: Pre-crear template de clases por columna
+                //  OPTIMIZACIÓN: Pre-crear template de clases por columna
                 const columnClasses = [];
                 for (let idx = 0; idx < camposLen; idx++) {
                     columnClasses[idx] = `column-${idx} ${baseCellClass}`;
@@ -914,18 +1216,18 @@ function showToast(message, type = 'info') {
                     const rowId = row.Id;
 
                     tr.dataset.id = rowId;
-                    // ⚡ OPTIMIZACIÓN: Usar clases pre-calculadas y marcar como renderizado
+                    //  OPTIMIZACIÓN: Usar clases pre-calculadas y marcar como renderizado
                     tr.className = isSelected
                         ? `${baseClass} ${selectedClassBase} rendered`
                         : `${baseClass} ${hoverClassBase} rendered`;
 
-                    // ⚡ OPTIMIZACIÓN: Renderizar celdas con clases pre-calculadas
+                    //  OPTIMIZACIÓN: Renderizar celdas con clases pre-calculadas
                     for (let idx = 0; idx < camposLen; idx++) {
                         const campo = camposModelo[idx];
                         const td = document.createElement('td');
                         td.className = columnClasses[idx];
 
-                        // ⚡ OPTIMIZACIÓN: Cachear valores formateados
+                        //  OPTIMIZACIÓN: Cachear valores formateados
                         const cacheKey = `${rowId}_${campo}_${row[campo]}`;
                         let formattedValue = formatCache.get(cacheKey);
                         if (formattedValue === undefined) {
@@ -939,7 +1241,7 @@ function showToast(message, type = 'info') {
                     fragment.appendChild(tr);
                 }
 
-                // ⚡ OPTIMIZACIÓN: Renderizar directamente sin requestAnimationFrame para tablas pequeñas (más rápido)
+            //  OPTIMIZACIÓN: Renderizar directamente sin requestAnimationFrame para tablas pequeñas (más rápido)
                 previousSelectedRow = null; // Reset selección al renderizar nueva página
                 tbody.innerHTML = '';
                 tbody.appendChild(fragment);
@@ -953,7 +1255,7 @@ function showToast(message, type = 'info') {
         }
     }
 
-    // ⚡ OPTIMIZACIÓN: Función separada para aplicar visibilidad de columnas
+    //  OPTIMIZACIÓN: Función separada para aplicar visibilidad de columnas
     function applyColumnVisibility() {
         // Aplicar columnas ocultas después de renderizar
         for (let i = 0; i < hiddenColumns.length; i++) {
@@ -1008,7 +1310,7 @@ function showToast(message, type = 'info') {
             const campo = CONFIG.camposModelo[colIndex];
             const tipo  = CONFIG.tiposCampo[campo];
 
-            // ⚡ OPTIMIZACIÓN: Detectar tipo solo una vez y cachear
+            //  OPTIMIZACIÓN: Detectar tipo solo una vez y cachear
             let sortType;
             if (tipo === 'date') {
                 sortType = 'date';
@@ -1022,7 +1324,7 @@ function showToast(message, type = 'info') {
                 sortType = utils.detectType(sample);
             }
 
-            // ⚡ OPTIMIZACIÓN: Ordenamiento optimizado con comparación directa
+            //  OPTIMIZACIÓN: Ordenamiento optimizado con comparación directa
             const multiplier = dir === 'asc' ? 1 : -1;
             state.filteredData.sort((a, b) => {
                 const va = utils.parseForSort(a[campo], sortType);
@@ -1048,20 +1350,20 @@ function showToast(message, type = 'info') {
     // ============================================
     //  SELECCIÓN DE FILA
     // ============================================
-    // ⚡ OPTIMIZACIÓN: Cache de fila seleccionada anterior para actualización rápida
+    //  OPTIMIZACIÓN: Cache de fila seleccionada anterior para actualización rápida
     let previousSelectedRow = null;
 
     function selectRow(row, id) {
-        // ⚡ OPTIMIZACIÓN: Solo actualizar si cambió la selección
+        //  OPTIMIZACIÓN: Solo actualizar si cambió la selección
         if (state.selectedId === id && previousSelectedRow === row) {
             return; // Ya está seleccionada
         }
 
-        // ⚡ OPTIMIZACIÓN: Actualizar solo la fila anterior (sin buscar todas con querySelector)
+        //  OPTIMIZACIÓN: Actualizar solo la fila anterior (sin buscar todas con querySelector)
         if (previousSelectedRow && previousSelectedRow !== row) {
             previousSelectedRow.classList.remove('bg-blue-500', 'text-white', 'selected-row');
             previousSelectedRow.classList.add('hover:bg-gray-50');
-            // ⚡ OPTIMIZACIÓN: Actualizar celdas de la fila anterior
+            //  OPTIMIZACIÓN: Actualizar celdas de la fila anterior
             const prevCells = previousSelectedRow.querySelectorAll('td');
             prevCells.forEach(td => {
                 td.classList.remove('text-white');
@@ -1069,10 +1371,10 @@ function showToast(message, type = 'info') {
             });
         }
 
-        // ⚡ OPTIMIZACIÓN: Actualizar nueva fila seleccionada
+        //  OPTIMIZACIÓN: Actualizar nueva fila seleccionada
         row.classList.remove('hover:bg-gray-50');
         row.classList.add('bg-blue-500', 'text-white', 'selected-row');
-        // ⚡ OPTIMIZACIÓN: Actualizar celdas de la nueva fila
+        //  OPTIMIZACIÓN: Actualizar celdas de la nueva fila
         const cells = row.querySelectorAll('td');
         cells.forEach(td => {
             td.classList.remove('text-gray-700');
@@ -1107,7 +1409,7 @@ function showToast(message, type = 'info') {
 
         // Asegurar que el menú no se salga de la pantalla
         const menuWidth = 150;
-        const menuHeight = 50;
+        const menuHeight = 150; // Aumentado para 3 botones
         const windowWidth = window.innerWidth;
         const windowHeight = window.innerHeight;
 
@@ -1145,8 +1447,20 @@ function showToast(message, type = 'info') {
             return;
         }
 
-        // Redirigir a la página de creación con los datos del registro a duplicar
-        window.location.href = `/planeacion/catalogos/codificacion-modelos/create?duplicate=${state.selectedId}`;
+        // Abrir modal de duplicar/importar codificación
+        // Verificar si SweetAlert2 está disponible
+        if (typeof Swal === 'undefined') {
+            console.error('SweetAlert2 no está disponible');
+            showToast('Error: SweetAlert2 no está cargado', 'error');
+            return;
+        }
+
+        if (typeof window.abrirModalDuplicarImportarCodificacion === 'function') {
+            window.abrirModalDuplicarImportarCodificacion(state.selectedId);
+        } else {
+            console.error('abrirModalDuplicarImportarCodificacion no está disponible. window:', Object.keys(window).filter(k => k.includes('Modal')));
+            showToast('Error: Modal no disponible. Revisa la consola para más detalles.', 'error');
+        }
     }
 
     // ============================================
@@ -1184,28 +1498,35 @@ function eliminarCodificacion() {
 
         fetch(`/planeacion/catalogos/codificacion-modelos/${state.selectedId}`, {
             method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').content
-                }
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                'Accept': 'application/json'
+            }
         })
         .then(r => r.json())
         .then(data => {
-                    if (!data.success) {
-                        showToast('Error: ' + (data.message || 'No se pudo eliminar'), 'error');
-                        return;
-                    }
+            if (!data.success) {
+                showToast('Error: ' + (data.message || 'No se pudo eliminar'), 'error');
+                return;
+            }
 
-                    state.rawData      = state.rawData.filter(r => r.Id !== state.selectedId);
-                    state.filteredData = state.filteredData.filter(r => r.Id !== state.selectedId);
-                    state.selectedId   = null;
+            // Actualizar estado local sin recargar toda la página
+            // Remover el registro del estado local
+            const deleteId = Number(state.selectedId);
+            state.rawData = state.rawData.filter(r => Number(r.Id) !== deleteId);
+            state.filteredData = state.filteredData.filter(r => Number(r.Id) !== deleteId);
+            state.selectedId = null;
 
-                    renderPage();
-                showToast('Registro eliminado', 'success');
-                })
-                .catch(error => {
-                    showToast('Error: ' + error.message, 'error');
-                });
+            // Re-renderizar la tabla con el estado actualizado
+            state.currentPage = 1;
+            renderPage();
+            updatePagination();
+            showToast('Registro eliminado', 'success');
+        })
+        .catch(error => {
+            showToast('Error: ' + error.message, 'error');
         });
+    });
     }
 
     // ============================================
@@ -1817,13 +2138,37 @@ function procesarExcel(file) {
         if (prev) prev.onclick = () => goToPage(state.currentPage - 1);
         if (next) next.onclick = () => goToPage(state.currentPage + 1);
 
+        window.addEventListener('resize', () => {
+            if (virtualState.active) {
+                scheduleVirtualUpdate(true);
+            }
+        });
+
         // Menú contextual
+        const editBtn = $('#context-menu-edit');
+        if (editBtn) {
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                $('#context-menu')?.classList.add('hidden');
+                editarCodificacion();
+            };
+        }
+
         const duplicateBtn = $('#context-menu-duplicate');
         if (duplicateBtn) {
             duplicateBtn.onclick = (e) => {
                 e.stopPropagation();
                 $('#context-menu')?.classList.add('hidden');
                 duplicarCodificacion();
+            };
+        }
+
+        const deleteBtn = $('#context-menu-delete');
+        if (deleteBtn) {
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                $('#context-menu')?.classList.add('hidden');
+                eliminarCodificacion();
             };
         }
 
@@ -1850,8 +2195,37 @@ function procesarExcel(file) {
     window.hideColumn                = hideColumn;
     window.showColumn                = showColumn;
     window.togglePinColumn           = togglePinColumn;
+    window.loadData                  = () => loadData({ force: true }); // Refrescar sin cache después de crear/editar/eliminar
+    window.renderPage                = renderPage; // Exponer renderPage para actualizar vista sin recargar
+    window.addCodificacionRecords = function(newRecords) {
+        // Función helper para agregar registros al estado sin recargar
+        if (!Array.isArray(newRecords)) {
+            newRecords = [newRecords];
+        }
+
+        let agregados = 0;
+        newRecords.forEach(reg => {
+            if (reg && reg.Id !== undefined && reg.Id !== null && reg.Id !== '') {
+                const parsedId = Number(reg.Id);
+                const normalizedId = Number.isNaN(parsedId) ? reg.Id : parsedId;
+                reg.Id = normalizedId;
+                // Verificar que no exista ya en el estado
+                const existe = state.rawData.find(r => Number(r.Id) === Number(normalizedId));
+                if (!existe) {
+                    state.rawData.unshift(reg); // Agregar al inicio
+                    agregados++;
+                }
+            }
+        });
+
+        if (agregados > 0) {
+            // Actualizar filteredData y renderizar
+            state.filteredData = [...state.rawData];
+            state.currentPage = 1; // Volver a la primera página
+            renderPage();
+            updatePagination();
+        }
+    };
 })();
 </script>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 @endsection

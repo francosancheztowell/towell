@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB as DBFacade;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ReqModelosCodificadosImport;
@@ -163,6 +165,58 @@ class CodificacionController extends Controller
 
     /** Campos requeridos para creación */
     private const REQUIRED_FIELDS = ['TamanoClave', 'OrdenTejido'];
+
+    private function clearCodificacionCache(?int $id = null): void
+    {
+        Cache::forget('codificacion_total');
+        Cache::forget('codificacion_fast_all');
+        Cache::forget('codificacion_estimated_count');
+        if ($id) {
+            Cache::forget("codificacion_fast_id_{$id}");
+        }
+    }
+
+    private function getColumnMaxLengths(string $table): array
+    {
+        $cacheKey = "column_lengths_{$table}";
+        return Cache::remember($cacheKey, 3600, function () use ($table) {
+            $rows = DB::select(
+                "SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH AS max_len
+                 FROM INFORMATION_SCHEMA.COLUMNS
+                 WHERE TABLE_NAME = ? AND CHARACTER_MAXIMUM_LENGTH IS NOT NULL",
+                [$table]
+            );
+
+            $lengths = [];
+            foreach ($rows as $row) {
+                $maxLen = isset($row->max_len) ? (int) $row->max_len : null;
+                if ($maxLen && $maxLen > 0) {
+                    $lengths[$row->COLUMN_NAME] = $maxLen;
+                }
+            }
+
+            return $lengths;
+        });
+    }
+
+    private function truncateValueForColumn(string $column, $value, array $lengths)
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+
+        $limit = $lengths[$column] ?? null;
+        if (!$limit) {
+            return $value;
+        }
+
+        $str = (string) $value;
+        if (function_exists('mb_substr')) {
+            return mb_substr($str, 0, $limit);
+        }
+
+        return substr($str, 0, $limit);
+    }
 
     /** Obtener configuración de columnas para JavaScript */
     public static function getColumnasConfig(): array
@@ -414,7 +468,7 @@ class CodificacionController extends Controller
         }
 
         $codificacion = ReqModelosCodificados::create($request->only(array_keys(self::CAMPOS_MODELO)));
-        Cache::forget('codificacion_total');
+        $this->clearCodificacionCache((int) $codificacion->Id);
 
         return response()->json([
             'success' => true,
@@ -441,6 +495,7 @@ class CodificacionController extends Controller
         }
 
         $codificacion->update($request->only(array_keys(self::CAMPOS_MODELO)));
+        $this->clearCodificacionCache((int) $codificacion->Id);
 
         return response()->json([
             'success' => true,
@@ -474,7 +529,7 @@ class CodificacionController extends Controller
         }
 
         $codificacion->delete();
-        Cache::forget('codificacion_total');
+        $this->clearCodificacionCache((int) $codificacion->Id);
 
         return response()->json(['success' => true, 'message' => 'Registro eliminado']);
     }
@@ -501,7 +556,7 @@ class CodificacionController extends Controller
             // Crear un nuevo registro con los mismos datos
             $duplicado = ReqModelosCodificados::create($attributes);
 
-            Cache::forget('codificacion_total');
+            $this->clearCodificacionCache((int) $duplicado->Id);
 
             return response()->json([
                 'success' => true,
@@ -596,7 +651,7 @@ class CodificacionController extends Controller
         // Primero filtrar por TamanoClave + SalonTejidoId (usa IX_RMC_Tamano_Salon)
         $tamanoClave = $request->get('tamano_clave');
         $salonTejido = $request->get('salon_tejido');
-        
+
         if ($tamanoClave && $salonTejido) {
             // ⚡ Usar índice compuesto IX_RMC_Tamano_Salon
             $q->where('TamanoClave', 'like', "%{$tamanoClave}%")
@@ -612,7 +667,7 @@ class CodificacionController extends Controller
         // ⚡ OPTIMIZACIÓN: Si hay filtro por fecha y salón, usar índice IX_RMC_Salon_FechaTejido
         $fechaDesde = $request->get('fecha_desde');
         $fechaHasta = $request->get('fecha_hasta');
-        
+
         if ($salonTejido && ($fechaDesde || $fechaHasta)) {
             // Ya tenemos el filtro de salón, agregar fechas (aprovecha índice compuesto)
             if ($fechaDesde) {
@@ -653,7 +708,7 @@ class CodificacionController extends Controller
             // ⚡ OPTIMIZACIÓN: Seleccionar solo campos necesarios para reducir transferencia
             $campos = array_merge(['Id'], array_keys(self::CAMPOS_MODELO));
             $data = $q->select($campos)->get();
-            
+
             return response()->json([
                 'success' => true,
                 'data' => $data,
@@ -807,5 +862,158 @@ class CodificacionController extends Controller
                 ];
             })
         ]);
+    }
+
+    /**
+     * Obtener datos de TwFlogsTable basado en ItemId e InventSizeId
+     */
+    public function getFlogsData(Request $request): JsonResponse
+    {
+        try {
+            $itemId = trim($request->input('item_id', ''));
+            $inventSizeId = trim($request->input('invent_size_id', ''));
+
+            if (empty($itemId) || empty($inventSizeId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ItemId e InventSizeId son requeridos'
+                ], 400);
+            }
+
+            $flogs = DBFacade::connection('sqlsrv_ti')
+                ->table('dbo.TwFlogsItemLine as fil')
+                ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'fil.IDFLOG')
+                ->select('ft.IDFLOG', 'ft.NAMEPROYECT', 'ft.CUSTNAME')
+                ->whereRaw('LTRIM(RTRIM(fil.ITEMID)) = ?', [$itemId])
+                ->whereRaw('LTRIM(RTRIM(fil.INVENTSIZEID)) = ?', [$inventSizeId])
+                ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
+                ->orderByDesc('ft.IDFLOG')
+                ->first();
+
+            if (!$flogs) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron datos para la combinación de Clave AX y Tamaño'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'idflog' => $flogs->IDFLOG ?? null,
+                    'nombre' => $flogs->NAMEPROYECT ?? '',
+                    'custname' => $flogs->CUSTNAME ?? ''
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('CodificacionController::getFlogsData', [
+                'error' => $e->getMessage(),
+                'item_id' => $request->input('item_id'),
+                'invent_size_id' => $request->input('invent_size_id')
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Duplicar o importar registros de codificación
+     */
+    public function duplicarImportar(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'registro_id_original' => 'required|integer|exists:ReqModelosCodificados,Id',
+                'modo' => 'required|in:duplicar,importar',
+                'datos' => 'required|array',
+                'datos.*.salon' => 'required|string',
+                'datos.*.clave_mod' => 'required|string',
+                'datos.*.clave_ax' => 'required|string',
+                'datos.*.nombre' => 'required|string',
+                'datos.*.tamano' => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $registroOriginalId = $request->input('registro_id_original');
+            $modo = $request->input('modo');
+            $datos = $request->input('datos');
+
+            // Obtener el registro original
+            $registroOriginal = ReqModelosCodificados::find($registroOriginalId);
+            if (!$registroOriginal) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Registro original no encontrado'
+                ], 404);
+            }
+
+            $registrosCreados = [];
+            $lengths = $this->getColumnMaxLengths('ReqModelosCodificados');
+            $hasCustName = Schema::hasColumn('ReqModelosCodificados', 'CustName');
+            DB::beginTransaction();
+
+            try {
+                foreach ($datos as $dato) {
+                    // Crear una copia del registro original
+                    $nuevoRegistro = $registroOriginal->replicate();
+
+                    // Actualizar solo los campos especificados
+                    $nuevoRegistro->SalonTejidoId = $this->truncateValueForColumn('SalonTejidoId', $dato['salon'], $lengths);
+                    $nuevoRegistro->TamanoClave = $this->truncateValueForColumn('TamanoClave', $dato['clave_mod'], $lengths);
+                    $nuevoRegistro->ItemId = $this->truncateValueForColumn('ItemId', $dato['clave_ax'], $lengths);
+                    $nuevoRegistro->Nombre = $this->truncateValueForColumn('Nombre', $dato['nombre'], $lengths);
+                    $nuevoRegistro->InventSizeId = $this->truncateValueForColumn('InventSizeId', $dato['tamano'], $lengths);
+
+                    // Si viene idflog y custname (modo duplicar), actualizarlos
+                    if (isset($dato['idflog'])) {
+                        $nuevoRegistro->FlogsId = $this->truncateValueForColumn('FlogsId', $dato['idflog'], $lengths);
+                    }
+                    if (isset($dato['custname']) && $dato['custname'] !== '') {
+                        $nuevoRegistro->NombreProyecto = $this->truncateValueForColumn('NombreProyecto', $dato['custname'], $lengths);
+                        if ($hasCustName) {
+                            $nuevoRegistro->CustName = $this->truncateValueForColumn('CustName', $dato['custname'], $lengths);
+                        }
+                    }
+
+                    // Si es modo importar, actualizar orden de trabajo
+                    if ($modo === 'importar' && isset($dato['orden_trabajo'])) {
+                        $nuevoRegistro->OrdenTejido = $this->truncateValueForColumn('OrdenTejido', $dato['orden_trabajo'], $lengths);
+                    }
+
+                    $nuevoRegistro->save();
+                    $registrosCreados[] = $nuevoRegistro->Id;
+                }
+
+                DB::commit();
+                $this->clearCodificacionCache();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => count($registrosCreados) . ' registro(s) creado(s) correctamente',
+                    'registros_ids' => $registrosCreados
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+        } catch (\Exception $e) {
+            Log::error('CodificacionController::duplicarImportar', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear los registros: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
