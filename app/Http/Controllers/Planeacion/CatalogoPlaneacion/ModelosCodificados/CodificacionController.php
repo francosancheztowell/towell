@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\ModelosCodificados;
 
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\Catalogos\CatCodificados;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -197,6 +198,173 @@ class CodificacionController extends Controller
 
             return $lengths;
         });
+    }
+
+    private function getTableColumns(string $table): array
+    {
+        $cacheKey = "columns_{$table}";
+        return Cache::remember($cacheKey, 3600, function () use ($table) {
+            $rows = DB::select(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ?",
+                [$table]
+            );
+
+            $columns = [];
+            foreach ($rows as $row) {
+                $columns[$row->COLUMN_NAME] = true;
+            }
+
+            return $columns;
+        });
+    }
+
+    private function normalizeDataForTable(array $data, array $columns, array $lengths): array
+    {
+        $normalized = [];
+        foreach ($data as $column => $value) {
+            if (!isset($columns[$column])) {
+                continue;
+            }
+            $normalized[$column] = $this->truncateValueForColumn($column, $value, $lengths);
+        }
+        return $normalized;
+    }
+
+    private function findCatCodificadoByOrden(string $orden): ?CatCodificados
+    {
+        $orden = trim($orden);
+        if ($orden === '') {
+            return null;
+        }
+
+        $registro = CatCodificados::where('OrdenTejido', $orden)->orderByDesc('Id')->first();
+        if ($registro) {
+            return $registro;
+        }
+
+        return CatCodificados::where('NoOrden', $orden)->orderByDesc('Id')->first();
+    }
+
+    private function mapCatCodificadosToReq(CatCodificados $cat): array
+    {
+        return [
+            'FechaTejido' => $cat->FechaTejido ?? null,
+            'FechaCumplimiento' => $cat->FechaCumplimiento ?? null,
+            'SalonTejidoId' => $cat->Departamento ?? null,
+            'NoTelarId' => $cat->TelarId ?? null,
+            'Prioridad' => $cat->Prioridad ?? null,
+            'Nombre' => $cat->Nombre ?? null,
+            'ClaveModelo' => $cat->ClaveModelo ?? null,
+            'ItemId' => $cat->ItemId ?? null,
+            'InventSizeId' => $cat->InventSizeId ?? null,
+            'Tolerancia' => $cat->Tolerancia ?? null,
+            'CodigoDibujo' => $cat->CodigoDibujo ?? null,
+            'FechaCompromiso' => $cat->FechaCompromiso ?? null,
+            'FlogsId' => $cat->FlogsId ?? null,
+            'NombreProyecto' => $cat->NombreProyecto ?? null,
+            'CustName' => $cat->CustName ?? null,
+            'Clave' => $cat->Clave ?? null,
+            'Pedido' => $cat->Cantidad ?? $cat->Pedido ?? null,
+            'Peine' => $cat->Peine ?? null,
+            'AnchoToalla' => $cat->Ancho ?? null,
+            'LargoToalla' => $cat->Largo ?? null,
+            'PesoCrudo' => $cat->P_crudo ?? null,
+            'Luchaje' => $cat->Luchaje ?? null,
+            'CalibreTrama' => $cat->Tra ?? null,
+            'CalibreTrama2' => $cat->CalibreTrama2 ?? null,
+            'CodColorTrama' => $cat->CodColorTrama ?? null,
+            'ColorTrama' => $cat->ColorTrama ?? null,
+            'FibraId' => $cat->FibraId ?? null,
+            'DobladilloId' => $cat->DobladilloId ?? null,
+            'MedidaPlano' => $cat->MedidaPlano ?? null,
+            'TipoRizo' => $cat->TipoRizo ?? null,
+            'AlturaRizo' => $cat->AlturaRizo ?? null,
+            'Obs' => $cat->Obs ?? null,
+            'VelocidadSTD' => $cat->VelocidadSTD ?? null,
+            'CalibreRizo' => $cat->CalibreRizo ?? null,
+            'CalibreRizo2' => $cat->CalibreRizo2 ?? null,
+            'CuentaRizo' => $cat->CuentaRizo ?? null,
+            'FibraRizo' => $cat->FibraRizo ?? null,
+            'CalibrePie' => $cat->CalibrePie ?? null,
+            'CalibrePie2' => $cat->CalibrePie2 ?? null,
+            'CuentaPie' => $cat->CuentaPie ?? null,
+            'FibraPie' => $cat->FibraPie ?? null,
+            'Comb1' => $cat->Comb1 ?? null,
+            'Obs1' => $cat->Obs1 ?? null,
+            'Comb2' => $cat->Comb2 ?? null,
+            'Obs2' => $cat->Obs2 ?? null,
+            'Comb3' => $cat->Comb3 ?? null,
+            'Obs3' => $cat->Obs3 ?? null,
+            'Comb4' => $cat->Comb4 ?? null,
+            'Obs4' => $cat->Obs4 ?? null,
+            'MedidaCenefa' => $cat->MedidaCenefa ?? null,
+            'MedIniRizoCenefa' => $cat->MedIniRizoCenefa ?? null,
+            'Rasurado' => $cat->Razurada ?? $cat->Rasurada ?? null,
+            'NoTiras' => $cat->NoTiras ?? null,
+            'Repeticiones' => $cat->Repeticiones ?? null,
+            'TotalMarbetes' => $cat->NoMarbete ?? null,
+            'CambioRepaso' => $cat->CambioRepaso ?? null,
+            'Vendedor' => $cat->Vendedor ?? null,
+            'CatCalidad' => $cat->CategoriaCalidad ?? null,
+            'Obs5' => $cat->Obs5 ?? null,
+            'AnchoPeineTrama' => $cat->TramaAnchoPeine ?? null,
+            'LogLuchaTotal' => $cat->LogLuchaTotal ?? null,
+            'CalTramaFondoC1' => $cat->CalTramaFondoC1 ?? null,
+            'CalTramaFondoC12' => $cat->CalTramaFondoC12 ?? null,
+            'FibraTramaFondoC1' => $cat->FibraTramaFondoC1 ?? null,
+            'PasadasTramaFondoC1' => $cat->PasadasTramaFondoC1 ?? null,
+            'CalibreComb1' => $cat->CalibreComb1 ?? null,
+            'CalibreComb12' => $cat->CalibreComb12 ?? null,
+            'FibraComb1' => $cat->FibraComb1 ?? null,
+            'CodColorC1' => $cat->CodColorC1 ?? null,
+            'NomColorC1' => $cat->NomColorC1 ?? null,
+            'PasadasComb1' => $cat->PasadasComb1 ?? null,
+            'CalibreComb2' => $cat->CalibreComb2 ?? null,
+            'CalibreComb22' => $cat->CalibreComb22 ?? null,
+            'FibraComb2' => $cat->FibraComb2 ?? null,
+            'CodColorC2' => $cat->CodColorC2 ?? null,
+            'NomColorC2' => $cat->NomColorC2 ?? null,
+            'PasadasComb2' => $cat->PasadasComb2 ?? null,
+            'CalibreComb3' => $cat->CalibreComb3 ?? null,
+            'CalibreComb32' => $cat->CalibreComb32 ?? null,
+            'FibraComb3' => $cat->FibraComb3 ?? null,
+            'CodColorC3' => $cat->CodColorC3 ?? null,
+            'NomColorC3' => $cat->NomColorC3 ?? null,
+            'PasadasComb3' => $cat->PasadasComb3 ?? null,
+            'CalibreComb4' => $cat->CalibreComb4 ?? null,
+            'CalibreComb42' => $cat->CalibreComb42 ?? null,
+            'FibraComb4' => $cat->FibraComb4 ?? null,
+            'CodColorC4' => $cat->CodColorC4 ?? null,
+            'NomColorC4' => $cat->NomColorC4 ?? null,
+            'PasadasComb4' => $cat->PasadasComb4 ?? null,
+            'CalibreComb5' => $cat->CalibreComb5 ?? null,
+            'CalibreComb52' => $cat->CalibreComb52 ?? null,
+            'FibraComb5' => $cat->FibraComb5 ?? null,
+            'CodColorC5' => $cat->CodColorC5 ?? null,
+            'NomColorC5' => $cat->NomColorC5 ?? null,
+            'PasadasComb5' => $cat->PasadasComb5 ?? null,
+            'Total' => $cat->Total ?? null,
+            'PasadasDibujo' => $cat->PasadasDibujo ?? null,
+            'Contraccion' => $cat->Contraccion ?? null,
+            'TramasCMTejido' => $cat->TramasCMTejido ?? null,
+            'ContracRizo' => $cat->ContracRizo ?? null,
+            'ClasificacionKG' => $cat->ClasificacionKG ?? null,
+            'KGDia' => $cat->KGDia ?? null,
+            'Densidad' => $cat->Densidad ?? null,
+            'PzasDiaPasadas' => $cat->PzasDiaPasadas ?? null,
+            'PzasDiaFormula' => $cat->PzasDiaFormula ?? null,
+            'DIF' => $cat->DIF ?? null,
+            'EFIC' => $cat->EFIC ?? null,
+            'Rev' => $cat->Rev ?? null,
+            'TIRAS' => $cat->TIRAS ?? null,
+            'PASADAS' => $cat->PASADAS ?? null,
+            'ColumCT' => $cat->ColumCT ?? null,
+            'ColumCU' => $cat->ColumCU ?? null,
+            'ColumCV' => $cat->ColumCV ?? null,
+            'ComprobarModDup' => $cat->ComprobarModDup ?? null,
+            'Produccion' => $cat->Produccion ?? null,
+            'Saldos' => $cat->Saldos ?? null,
+        ];
     }
 
     private function truncateValueForColumn(string $column, $value, array $lengths)
@@ -919,6 +1087,45 @@ class CodificacionController extends Controller
     }
 
     /**
+     * Buscar en CatCodificados por Orden de Trabajo para importar datos
+     */
+    public function getCatCodificadosByOrden(Request $request): JsonResponse
+    {
+        $orden = trim((string) $request->query('orden_trabajo', $request->query('orden', '')));
+        if ($orden === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Orden de trabajo requerida'
+            ], 422);
+        }
+
+        $registro = $this->findCatCodificadoByOrden($orden);
+        if (!$registro) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontro registro en CatCodificados'
+            ], 404);
+        }
+
+        $claveMod = trim((string) ($registro->ClaveModelo ?? ''));
+        if ($claveMod === '' || $claveMod === '0') {
+            $claveMod = trim((string) ($registro->Clave ?? ''));
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'orden_trabajo' => trim((string) ($registro->OrdenTejido ?? $orden)),
+                'salon' => trim((string) ($registro->Departamento ?? '')),
+                'clave_mod' => $claveMod,
+                'clave_ax' => trim((string) ($registro->ItemId ?? '')),
+                'tamano' => trim((string) ($registro->InventSizeId ?? '')),
+                'nombre' => trim((string) ($registro->Nombre ?? '')),
+            ]
+        ]);
+    }
+
+    /**
      * Duplicar o importar registros de codificación
      */
     public function duplicarImportar(Request $request): JsonResponse
@@ -928,6 +1135,7 @@ class CodificacionController extends Controller
                 'registro_id_original' => 'required|integer|exists:ReqModelosCodificados,Id',
                 'modo' => 'required|in:duplicar,importar',
                 'datos' => 'required|array',
+                'datos.*.orden_trabajo' => 'required_if:modo,importar|string',
                 'datos.*.salon' => 'required|string',
                 'datos.*.clave_mod' => 'required|string',
                 'datos.*.clave_ax' => 'required|string',
@@ -957,13 +1165,52 @@ class CodificacionController extends Controller
             }
 
             $registrosCreados = [];
+            $columns = $this->getTableColumns('ReqModelosCodificados');
             $lengths = $this->getColumnMaxLengths('ReqModelosCodificados');
             $hasCustName = Schema::hasColumn('ReqModelosCodificados', 'CustName');
             DB::beginTransaction();
 
             try {
                 foreach ($datos as $dato) {
-                    // Crear una copia del registro original
+                    if ($modo === 'importar') {
+                        $ordenTrabajo = trim((string) ($dato['orden_trabajo'] ?? ''));
+                        $catRegistro = $this->findCatCodificadoByOrden($ordenTrabajo);
+                        if (!$catRegistro) {
+                            DB::rollBack();
+                            return response()->json([
+                                'success' => false,
+                                'message' => "No se encontro CatCodificados para orden {$ordenTrabajo}"
+                            ], 404);
+                        }
+
+                        $data = $this->mapCatCodificadosToReq($catRegistro);
+
+                        $data['OrdenTejido'] = $ordenTrabajo;
+                        $data['SalonTejidoId'] = $dato['salon'] ?? $data['SalonTejidoId'];
+                        $data['TamanoClave'] = $dato['clave_mod'] ?? $data['TamanoClave'];
+                        $data['ItemId'] = $dato['clave_ax'] ?? $data['ItemId'];
+                        $data['InventSizeId'] = $dato['tamano'] ?? $data['InventSizeId'];
+                        $data['Nombre'] = $dato['nombre'] ?? $data['Nombre'];
+
+                        if (isset($dato['idflog']) && $dato['idflog'] !== '') {
+                            $data['FlogsId'] = $dato['idflog'];
+                        }
+                        if (isset($dato['custname']) && $dato['custname'] !== '') {
+                            $data['NombreProyecto'] = $dato['custname'];
+                            if ($hasCustName) {
+                                $data['CustName'] = $dato['custname'];
+                            }
+                        }
+
+                        $data = $this->normalizeDataForTable($data, $columns, $lengths);
+                        $nuevoRegistro = new ReqModelosCodificados();
+                        $nuevoRegistro->forceFill($data);
+                        $nuevoRegistro->save();
+                        $registrosCreados[] = $nuevoRegistro->Id;
+                        continue;
+                    }
+
+                    // Modo duplicar: Crear una copia del registro original
                     $nuevoRegistro = $registroOriginal->replicate();
 
                     // Actualizar solo los campos especificados
@@ -982,11 +1229,6 @@ class CodificacionController extends Controller
                         if ($hasCustName) {
                             $nuevoRegistro->CustName = $this->truncateValueForColumn('CustName', $dato['custname'], $lengths);
                         }
-                    }
-
-                    // Si es modo importar, actualizar orden de trabajo
-                    if ($modo === 'importar' && isset($dato['orden_trabajo'])) {
-                        $nuevoRegistro->OrdenTejido = $this->truncateValueForColumn('OrdenTejido', $dato['orden_trabajo'], $lengths);
                     }
 
                     $nuevoRegistro->save();

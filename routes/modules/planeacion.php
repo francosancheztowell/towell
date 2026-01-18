@@ -57,6 +57,7 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
         Route::get('/codificacion-modelos/estadisticas', [CodificacionController::class, 'estadisticas'])->name('codificacion.estadisticas');
         Route::get('/codificacion-modelos/salones-telares', [CodificacionController::class, 'getSalonesYTelares'])->name('codificacion.salones-telares');
         Route::get('/codificacion-modelos/flogs-data', [CodificacionController::class, 'getFlogsData'])->name('codificacion.flogs-data');
+        Route::get('/codificacion-modelos/catcodificados-orden', [CodificacionController::class, 'getCatCodificadosByOrden'])->name('codificacion.catcodificados-orden');
         Route::post('/codificacion-modelos/duplicar-importar', [CodificacionController::class, 'duplicarImportar'])->name('codificacion.duplicar-importar');
         Route::get('/codificacion-modelos/{id}/edit', [CodificacionController::class, 'edit'])->name('codificacion.edit');
         Route::post('/codificacion-modelos/{id}/duplicate', [CodificacionController::class, 'duplicate'])->name('codificacion.duplicate');

@@ -125,6 +125,66 @@ async function autocompletarNombreDesdeFlogs(inputElement) {
     }
 }
 
+async function autocompletarDesdeCatCodificados(inputElement) {
+    if (modoActualCodificacion !== 'importar') {
+        return;
+    }
+
+    const row = inputElement.closest('tr');
+    if (!row) return;
+
+    const ordenTrabajo = inputElement.value?.trim() || '';
+    if (!ordenTrabajo) return;
+
+    const salonSelect = row.querySelector('select[name="salon[]"]');
+    const claveModInput = row.querySelector('input[name="clave_mod[]"]');
+    const claveAxInput = row.querySelector('input[name="clave_ax[]"]');
+    const tamanoInput = row.querySelector('input[name="tamano[]"]');
+    const nombreInput = row.querySelector('input[name="nombre[]"]');
+
+    if (nombreInput) {
+        nombreInput.value = 'Buscando...';
+        nombreInput.style.color = '#6b7280';
+    }
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const response = await fetch('/planeacion/catalogos/codificacion-modelos/catcodificados-orden?' + new URLSearchParams({
+            orden_trabajo: ordenTrabajo
+        }), {
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success && data.data) {
+            if (salonSelect) salonSelect.value = data.data.salon || '';
+            if (claveModInput) claveModInput.value = data.data.clave_mod || '';
+            if (claveAxInput) claveAxInput.value = data.data.clave_ax || '';
+            if (tamanoInput) tamanoInput.value = data.data.tamano || '';
+            if (nombreInput) {
+                nombreInput.value = data.data.nombre || '';
+                nombreInput.style.color = '#1f2937';
+            }
+        } else {
+            if (nombreInput) {
+                nombreInput.value = '';
+                nombreInput.style.color = '#dc2626';
+                nombreInput.placeholder = data.message || 'No se encontro informacion';
+            }
+        }
+    } catch (error) {
+        if (nombreInput) {
+            nombreInput.value = '';
+            nombreInput.style.color = '#dc2626';
+            nombreInput.placeholder = 'Error al buscar';
+        }
+    }
+}
+
 function agregarFilaModalCodificacion() {
     const tbody = document.getElementById('tabla-codificacion-body');
     if (!tbody) return;
@@ -142,8 +202,9 @@ function agregarFilaModalCodificacion() {
         <td class="px-3 py-2 celda-orden-trabajo" style="${displayOrdenTrabajo}">
             <input type="text"
                    name="orden_trabajo[]"
-                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                   placeholder="Orden de trabajo">
+                   class="input-orden-trabajo w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                   placeholder="Orden de trabajo"
+                   onblur="autocompletarDesdeCatCodificados(this)">
         </td>
         <td class="px-3 py-2">
             <select name="salon[]"
@@ -539,8 +600,9 @@ function generarHTMLModalCodificacion(registroOriginal = null) {
                                 <input type="text"
                                        name="orden_trabajo[]"
                                        value="${ordenTrabajoInicial}"
-                                       class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                       placeholder="Orden de trabajo">
+                                       class="input-orden-trabajo w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                       placeholder="Orden de trabajo"
+                                       onblur="autocompletarDesdeCatCodificados(this)">
                             </td>
                             <td class="px-3 py-2">
                                 <select name="salon[]"
@@ -731,3 +793,4 @@ window.getModoActualCodificacion = getModoActualCodificacion;
 window.actualizarColumnasModalCodificacion = actualizarColumnasModalCodificacion;
 window.actualizarVisibilidadBotonesEliminar = actualizarVisibilidadBotonesEliminar;
 window.autocompletarNombreDesdeFlogs = autocompletarNombreDesdeFlogs;
+window.autocompletarDesdeCatCodificados = autocompletarDesdeCatCodificados;
