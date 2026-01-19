@@ -136,9 +136,7 @@
       }
     </style>
 
-    @if(count($telares) > 0)
-        <x-telares.telar-navbar :telares="$telares" />
-    @endif
+
 
     @if(count($telares) > 0)
         <div class="space-y-6">

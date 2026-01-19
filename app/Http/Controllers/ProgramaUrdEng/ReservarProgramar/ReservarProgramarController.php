@@ -44,10 +44,11 @@ class ReservarProgramarController extends Controller
 
     /**
      * Validación rápida: si un telar tiene no_orden, las reservas activas deben tener:
-     * 1. El mismo no_orden en NoOrden
-     * 2. El mismo no_orden en InventBatchId (para órdenes programadas)
+     * El mismo no_orden en InventBatchId (para órdenes programadas)
      * Actualiza las reservas automáticamente si no coinciden
      * Optimizado: usa una sola consulta por batch de telares
+     * 
+     * NOTA: La tabla InvTelasReservadas NO tiene columna NoOrden, solo InventBatchId
      */
     private function validarYActualizarNoOrden($telares)
     {
@@ -92,17 +93,13 @@ class ReservarProgramarController extends Controller
                         $query->where('Tipo', $tipo);
                     }
 
-                    // Actualizar reservas que no tienen el mismo no_orden en NoOrden o InventBatchId
-                    // Solo actualizar si hay diferencias
+                    // Actualizar reservas que no tienen el mismo no_orden en InventBatchId
+                    // Solo actualizar si hay diferencias (InventBatchId es NULL, vacío, o diferente)
                     $query->where(function($q) use ($noOrden) {
-                        $q->whereNull('NoOrden')
-                          ->orWhere('NoOrden', '!=', $noOrden)
-                          ->orWhere('NoOrden', '')
-                          ->orWhereNull('InventBatchId')
+                        $q->whereNull('InventBatchId')
                           ->orWhere('InventBatchId', '!=', $noOrden)
                           ->orWhere('InventBatchId', '');
                     })->update([
-                        'NoOrden' => $noOrden,
                         'InventBatchId' => $noOrden, // InventBatchId debe ser igual a no_orden
                         'updated_at' => now()
                     ]);
@@ -202,11 +199,54 @@ class ReservarProgramarController extends Controller
                 'localidad' => ['nullable','string','max:10'],
                 'tipo_atado' => ['nullable','string','in:Normal,Especial'],
                 'hilo'     => ['nullable','string','max:50'],
+                'id'       => ['nullable','integer'], // ID del registro específico (si se proporciona, solo actualiza ese registro)
             ]);
 
             $noTelar = (string)$request->input('no_telar');
             $tipo    = $this->normalizeTipo($request->input('tipo'));
+            $id      = $request->input('id'); // ID del registro específico
 
+            $update = [];
+            if ($request->filled('metros'))   $update['metros']   = (float)$request->input('metros');
+            if ($request->filled('no_julio')) $update['no_julio'] = (string)$request->input('no_julio');
+            if ($request->filled('no_orden')) $update['no_orden'] = (string)$request->input('no_orden');
+            if ($request->filled('localidad')) $update['localidad'] = (string)$request->input('localidad');
+            if ($request->filled('tipo_atado')) $update['tipo_atado'] = (string)$request->input('tipo_atado');
+            if ($request->filled('hilo')) $update['hilo'] = (string)$request->input('hilo');
+
+            if (empty($update)) {
+                return response()->json(['success'=>false,'message'=>'No hay campos para actualizar'], 400);
+            }
+
+            // Si se proporciona un ID, actualizar SOLO ese registro específico
+            if ($id) {
+                $telar = TejInventarioTelares::where('id', $id)
+                    ->where('no_telar', $noTelar)
+                    ->where('status', self::STATUS_ACTIVO)
+                    ->first();
+
+                if (!$telar) {
+                    return response()->json(['success'=>false,'message'=>'Registro específico no encontrado o no está activo'], 404);
+                }
+
+                $telar->update($update);
+
+                Log::info('actualizarTelar: Registro específico actualizado', [
+                    'id' => $id,
+                    'no_telar' => $noTelar,
+                    'tipo' => $tipo,
+                    'campos_actualizados' => array_keys($update)
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => "Registro específico del telar {$noTelar} actualizado correctamente",
+                    'data'    => $telar->fresh(),
+                ]);
+            }
+
+            // Si NO se proporciona ID, mantener comportamiento anterior (actualizar todos los registros del telar/tipo)
+            // Esto es para compatibilidad con código existente que no envía el ID
             $query = TejInventarioTelares::where('no_telar', $noTelar)
                 ->where('status', self::STATUS_ACTIVO);
 
@@ -217,22 +257,11 @@ class ReservarProgramarController extends Controller
                 return response()->json(['success'=>false,'message'=>'Telar no encontrado o no está activo'], 404);
             }
 
-            $update = [];
-            if ($request->filled('metros'))   $update['metros']   = (float)$request->input('metros');
-            if ($request->filled('no_julio')) $update['no_julio'] = (string)$request->input('no_julio');
-            if ($request->filled('no_orden')) $update['no_orden'] = (string)$request->input('no_orden');
-            if ($request->filled('localidad')) $update['localidad'] = (string)$request->input('localidad');
-            if ($request->filled('tipo_atado')) $update['tipo_atado'] = (string)$request->input('tipo_atado');
-            if ($request->filled('hilo')) $update['hilo'] = (string)$request->input('hilo');
-
             // Actualizar TODOS los registros activos del telar (y tipo si se especifica)
-            if ($update) {
-                $actualizados = 0;
-                foreach ($telares as $telar) {
-                    $telar->update($update);
-                    $actualizados++;
-                }
-
+            $actualizados = 0;
+            foreach ($telares as $telar) {
+                $telar->update($update);
+                $actualizados++;
             }
 
             // Retornar el primer registro actualizado para compatibilidad
@@ -240,7 +269,7 @@ class ReservarProgramarController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Telar {$noTelar} actualizado correctamente",
+                'message' => "Telar {$noTelar} actualizado correctamente ({$actualizados} registro(s))",
                 'data'    => $telar->fresh(),
             ]);
         } catch (\Throwable $e) {
@@ -293,8 +322,22 @@ class ReservarProgramarController extends Controller
             $eliminadas = 0;
             foreach ($reservas as $r) { $r->delete(); $eliminadas++; }
 
-            // 2) Limpiar campos de reserva
-            $telar->update(['hilo'=>null,'metros'=>null,'no_julio'=>null,'no_orden'=>null]);
+            // 2) Verificar si quedan otras reservas activas para este telar (por si hay múltiples tipos)
+            $tieneOtrasReservas = InvTelasReservadas::where('NoTelarId', $noTelar)
+                ->where('Status', 'Reservado')
+                ->exists();
+
+            // 3) Limpiar campos de reserva y programación
+            $updateData = [
+                'hilo'=>null,
+                'metros'=>null,
+                'no_julio'=>null,
+                'no_orden'=>null,
+                'Reservado'=>false, // Siempre poner en 0 al liberar
+                'Programado'=>false
+            ];
+
+            $telar->update($updateData);
 
 
 
@@ -862,13 +905,14 @@ class ReservarProgramarController extends Controller
     {
         return TejInventarioTelares::query()
             ->where('status', '=', self::STATUS_ACTIVO) // Solo mostrar registros con status = 'Activo'
-            ->select(self::COLS_TELARES);
+            ->select(array_merge(['id'], self::COLS_TELARES)); // Incluir id para identificar el registro específico
     }
 
     private function normalizeTelares($rows)
     {
         return collect($rows)->values()->map(function ($r, int $i) {
             return [
+                'id'         => $r->id ?? null, // ID del registro específico en tej_inventario_telares
                 'no_telar'   => $this->normalizeTelar($r->no_telar ?? null),
                 'tipo'       => $this->str($r->tipo ?? null),
                 'cuenta'     => $this->str($r->cuenta ?? null),

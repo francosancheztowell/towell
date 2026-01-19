@@ -132,6 +132,7 @@
                                     @endphp
                                     <tr class="selectable-row hover:bg-blue-50 cursor-pointer {{ $finalBg }} {{ $blueBorder }}"
                                         data-base-bg="{{ $baseBg }}"
+                                        data-id="{{ $t['id'] ?? '' }}"
                                         data-telar="{{ $t['no_telar'] ?? '' }}"
                                         data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
                                         data-cuenta="{{ $t['cuenta'] ?? '' }}"
@@ -141,6 +142,8 @@
                                         data-no-julio="{{ $noJulioTrim }}"
                                         data-no-orden="{{ $noOrdenTrim }}"
                                         data-metros="{{ $t['metros'] ?? '' }}"
+                                        data-fecha="{{ !empty($t['fecha']) ? \Carbon\Carbon::parse($t['fecha'])->format('Y-m-d') : '' }}"
+                                        data-turno="{{ $t['turno'] ?? '' }}"
                                         data-has-both="{{ $hasBoth ? 'true' : 'false' }}"
                                         data-is-reservado="{{ $isReservado ? 'true' : 'false' }}">
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center font-bold">
@@ -532,6 +535,7 @@ const render = {
 
             const tr = document.createElement('tr');
             tr.className = `selectable-row hover:bg-blue-50 cursor-pointer ${baseBg} ${border}`;
+            tr.dataset.id          = r.id || ''; // ID del registro específico en tej_inventario_telares
             tr.dataset.baseBg      = baseBg;
             tr.dataset.telar       = telarNo;
             tr.dataset.tipo        = tipoUpper;
@@ -545,6 +549,18 @@ const render = {
             tr.dataset.hasBoth     = hasBoth ? 'true' : 'false';
             tr.dataset.isReservado = reservado ? 'true' : 'false';
             tr.dataset.tipoAtado   = r.tipo_atado || 'Normal';
+            // Agregar fecha y turno si están disponibles
+            if (r.fecha) {
+                try {
+                    const fechaObj = new Date(r.fecha);
+                    if (!isNaN(fechaObj.getTime())) {
+                        tr.dataset.fecha = fechaObj.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+                    }
+                } catch (e) {}
+            }
+            if (r.turno) {
+                tr.dataset.turno = String(r.turno);
+            }
 
             const tipoAtado = r.tipo_atado || 'Normal';
             const tipoAtadoCell = ES_SUPERVISOR
@@ -932,14 +948,17 @@ const selection = {
         const tipoOk = normalizeTipo(row.dataset.tipo);
 
         state.selectedTelar = {
-            no_telar: row.dataset.telar || null,
-            tipo:     tipoOk,
-            cuenta:   row.dataset.cuenta || '',
-            salon:    row.dataset.salon || '',
-            calibre:  row.dataset.calibre || '',
-            hilo:     row.dataset.hilo || '',
-            no_julio: row.dataset.noJulio || '',
-            no_orden: row.dataset.noOrden || '',
+            id:         row.dataset.id || null, // ID del registro específico en tej_inventario_telares
+            no_telar:   row.dataset.telar || null,
+            tipo:       tipoOk,
+            cuenta:     row.dataset.cuenta || '',
+            salon:      row.dataset.salon || '',
+            calibre:    row.dataset.calibre || '',
+            hilo:       row.dataset.hilo || '',
+            no_julio:   row.dataset.noJulio || '',
+            no_orden:   row.dataset.noOrden || '',
+            fecha:      row.dataset.fecha || '',
+            turno:      row.dataset.turno || '',
             tipo_atado: row.querySelector('.tipo-atado-select')?.value || 'Normal',
             is_reservado: row.dataset.isReservado === 'true'
         };
@@ -1443,6 +1462,13 @@ const actions = {
             return;
         }
 
+        // Validar que el telar tenga ID (requerido para identificar el registro específico)
+        if (!tel?.id) {
+            console.error('Error: El telar seleccionado no tiene ID', tel);
+            Swal.fire('Error', 'No se pudo identificar el registro del telar. Por favor, selecciona el telar nuevamente.', 'error');
+            return;
+        }
+
         if (isReservado(tel)) {
             Swal.fire('Aviso', 'Este telar ya está reservado', 'warning');
             return;
@@ -1485,14 +1511,15 @@ const actions = {
             const localidad = state.selectedInventario.wmsLocationId ||
                               state.selectedInventario.data?.WMSLocationId || '';
 
-            // Actualizar telar
+            // Actualizar telar - SOLO el registro específico que se está reservando
             await http.post(API.actualizarTelar, {
-                no_telar: tel.no_telar,
-                tipo:     tel.tipo,
-                metros:   state.selectedInventario.metros || 0,
-                no_julio: state.selectedInventario.numJulio || '',
-                no_orden: lote,
-                localidad
+                id:        tel.id, // ID del registro específico (REQUERIDO para actualizar solo ese registro)
+                no_telar:  tel.no_telar,
+                tipo:      tel.tipo,
+                metros:    state.selectedInventario.metros || 0,
+                no_julio:  state.selectedInventario.numJulio || '',
+                no_orden:  lote,
+                localidad: localidad
             });
 
             const tTipo = normalizeTipo(tel.tipo).toUpperCase();
@@ -1526,6 +1553,13 @@ const actions = {
             // Reservar inventario
             const it = state.selectedInventario.data;
 
+            // Validar que el ID esté presente antes de construir el payload
+            if (!tel.id) {
+                console.error('Error: tel.id no está presente', tel);
+                Swal.fire('Error', 'No se pudo identificar el registro del telar. Por favor, selecciona el telar nuevamente.', 'error');
+                return;
+            }
+
             const payload = {
                 NoTelarId:       tel.no_telar,
                 SalonTejidoId:   tel.salon || null,
@@ -1540,7 +1574,10 @@ const actions = {
                 Tipo:            normalizeTipo(tel.tipo),
                 Metros:          it.Metros || null,
                 InventQty:       it.InventQty || null,
-                ProdDate:        it.ProdDate || null
+                ProdDate:        it.ProdDate || null,
+                fecha:           tel.fecha || null,
+                turno:           tel.turno || null,
+                tej_inventario_telares_id: parseInt(tel.id, 10) // ID del registro específico (REQUERIDO - convertir a entero)
             };
 
             await http.post(API.reservarInventario, payload);

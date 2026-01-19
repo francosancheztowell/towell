@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inventario\InvTelasReservadas;
+use App\Models\Tejido\TejInventarioTelares;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -254,11 +255,71 @@ class InvTelasReservadasController extends Controller
                 'Metros'    => ['nullable','numeric'],
                 'InventQty' => ['nullable','numeric'],
                 'ProdDate'  => ['nullable','date'],
+                'fecha'     => ['nullable','date'],      // Fecha del registro específico del telar (para referencia)
+                'turno'     => ['nullable','integer','min:1','max:3'], // Turno del registro específico del telar (para referencia)
+                'tej_inventario_telares_id' => ['required','integer'], // ID del registro específico en tej_inventario_telares (identificación única - REQUERIDO)
 
                 // NumeroEmpleado y NombreEmpl se asignan automáticamente desde el usuario autenticado
                 'NumeroEmpleado' => ['nullable','string','max:20'],
                 'NombreEmpl'     => ['nullable','string','max:120'],
             ]);
+
+            // Guardar fecha y turno en las columnas Fecha y Turno para referencia
+            // Estos campos se usan para referencia, pero el ID es la forma principal de identificación
+            if (isset($data['fecha'])) {
+                try {
+                    $fechaParsed = \Carbon\Carbon::parse($data['fecha']);
+                    // Evitar guardar fecha por defecto de SQL Server
+                    if ($fechaParsed->year === 1900 && $fechaParsed->month === 1 && $fechaParsed->day === 1) {
+                        $data['Fecha'] = null;
+                    } else {
+                        $data['Fecha'] = $fechaParsed->format('Y-m-d');
+                    }
+                } catch (\Exception $e) {
+                    // Si no se puede parsear, intentar usar ProdDate como fallback
+                    if (isset($data['ProdDate'])) {
+                        try {
+                            $prodDateParsed = \Carbon\Carbon::parse($data['ProdDate']);
+                            if ($prodDateParsed->year === 1900 && $prodDateParsed->month === 1 && $prodDateParsed->day === 1) {
+                                $data['Fecha'] = null;
+                            } else {
+                                $data['Fecha'] = $prodDateParsed->format('Y-m-d');
+                            }
+                        } catch (\Exception $e2) {
+                            $data['Fecha'] = null;
+                        }
+                    } else {
+                        $data['Fecha'] = null;
+                    }
+                }
+            } elseif (isset($data['ProdDate'])) {
+                // Si no hay fecha pero hay ProdDate, usar ProdDate como fallback
+                try {
+                    $prodDateParsed = \Carbon\Carbon::parse($data['ProdDate']);
+                    if ($prodDateParsed->year === 1900 && $prodDateParsed->month === 1 && $prodDateParsed->day === 1) {
+                        $data['Fecha'] = null;
+                    } else {
+                        $data['Fecha'] = $prodDateParsed->format('Y-m-d');
+                    }
+                } catch (\Exception $e) {
+                    $data['Fecha'] = null;
+                }
+            }
+
+            if (isset($data['turno'])) {
+                $data['Turno'] = is_numeric($data['turno']) ? (int)$data['turno'] : null;
+            }
+
+            // Guardar el ID del registro específico de tej_inventario_telares (REQUERIDO)
+            // Este campo es obligatorio para identificar de manera única el registro a reservar
+            if (!isset($data['tej_inventario_telares_id']) || !is_numeric($data['tej_inventario_telares_id'])) {
+                Log::error('Reservar: tej_inventario_telares_id faltante o inválido', [
+                    'request_data' => $request->all(),
+                    'data_after_validation' => $data
+                ]);
+                throw new \InvalidArgumentException('El ID del registro de tej_inventario_telares es requerido para reservar');
+            }
+            $data['TejInventarioTelaresId'] = (int)$data['tej_inventario_telares_id'];
 
             // Asignar Status
             $data['Status'] = 'Reservado';
@@ -303,6 +364,47 @@ class InvTelasReservadasController extends Controller
                 }
                 $msg = 'La pieza ya estaba reservada (no se duplicó).';
 
+            }
+
+            // Actualizar el telar para poner Reservado = 1
+            // IMPORTANTE: Usar SOLO el ID del registro específico para identificar de manera única
+            // Esto garantiza que solo se actualice el registro exacto que se seleccionó
+            // NO usar fallback para evitar marcar múltiples registros
+            try {
+                // El ID es requerido, así que siempre debe estar presente
+                $tejInventarioTelaresId = $data['TejInventarioTelaresId'] ?? null;
+
+                if (!$tejInventarioTelaresId) {
+                    Log::error('No se puede reservar: falta TejInventarioTelaresId', [
+                        'request_data' => $request->all(),
+                        'data_after_processing' => $data
+                    ]);
+                    throw new \InvalidArgumentException('El ID del registro de tej_inventario_telares es requerido para reservar');
+                }
+
+                // Buscar el registro específico directamente por ID
+                $telar = TejInventarioTelares::where('id', $tejInventarioTelaresId)
+                    ->where('status', 'Activo')
+                    ->first();
+
+                if ($telar) {
+                    // Actualizar SOLO este registro específico
+                    $telar->Reservado = true;
+                    $telar->save();
+                } else {
+                    Log::warning('No se encontró registro específico para reservar por ID', [
+                        'tej_inventario_telares_id' => $tejInventarioTelaresId,
+                        'status' => 'El registro puede no existir o no estar activo'
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                // Log del error pero no fallar la reserva
+                Log::warning('Error al actualizar campo Reservado en telar', [
+                    'tej_inventario_telares_id' => $data['tej_inventario_telares_id'] ?? null,
+                    'noTelarId' => $data['NoTelarId'] ?? null,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
             }
 
             return response()->json([
@@ -418,7 +520,37 @@ class InvTelasReservadasController extends Controller
               ->where('InventSerialId', $request->InventSerialId);
         }
 
+        // Obtener el NoTelarId antes de actualizar para poder actualizar el telar después
+        $reservasACancelar = $q->get();
+        $noTelarId = null;
+        if ($reservasACancelar->isNotEmpty()) {
+            $noTelarId = $reservasACancelar->first()->NoTelarId;
+        }
+
         $updated = $q->update(['Status' => 'Cancelado']);
+
+        // Si se cancelaron reservas, verificar si quedan reservas activas para ese telar
+        // Si no quedan, poner Reservado = 0 en el telar
+        if ($updated > 0 && $noTelarId) {
+            try {
+                $tieneReservasActivas = InvTelasReservadas::where('NoTelarId', $noTelarId)
+                    ->where('Status', 'Reservado')
+                    ->exists();
+
+                if (!$tieneReservasActivas) {
+                    // No quedan reservas activas, poner Reservado = 0
+                    TejInventarioTelares::where('no_telar', $noTelarId)
+                        ->where('status', 'Activo')
+                        ->update(['Reservado' => false]);
+                }
+            } catch (\Throwable $e) {
+                // Log del error pero no fallar la cancelación
+                Log::warning('Error al actualizar campo Reservado al cancelar reserva', [
+                    'noTelarId' => $noTelarId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
 
         return response()->json(['success'=>true,'updated'=>$updated>0]);
     }
