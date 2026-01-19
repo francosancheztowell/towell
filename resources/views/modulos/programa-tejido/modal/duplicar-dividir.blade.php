@@ -214,15 +214,29 @@ async function duplicarTelar(row) {
 					confirmButtonText: 'Entendido',
 					confirmButtonColor: '#f59e0b',
 					width: '600px'
-				}).then(() => {
-					redirectToRegistro(data);
+				}).then(async () => {
+					await redirectToRegistro(data);
+					if (datos.modo === 'dividir') {
+						await actualizarTelaresAfectadosDespuesDividir({
+							salonOrigen: salon,
+							telarOrigen: telar,
+							destinos: datos.destinos
+						});
+					}
 				});
 			} else {
 				// Sin advertencias, mostrar mensaje de éxito normal
 				showToast(data.message || mensajeExito, 'success');
 
 				// Redirigir inmediatamente al registro creado
-				redirectToRegistro(data);
+				await redirectToRegistro(data);
+				if (datos.modo === 'dividir') {
+					await actualizarTelaresAfectadosDespuesDividir({
+						salonOrigen: salon,
+						telarOrigen: telar,
+						destinos: datos.destinos
+					});
+				}
 			}
 		} else {
 			showToast(data.message || 'Error al procesar la solicitud', 'error');

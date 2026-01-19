@@ -253,7 +253,9 @@ class ProgramarUrdEngController extends Controller
                     $telar = $query->first();
                     if ($telar) {
                         // Actualizar no_orden con el Folio generado (debe ser el mismo)
+                        // y marcar como Programado = 1
                         $telar->no_orden = $folio;
+                        $telar->Programado = true;
                         $telar->save();
 
                         $telaresActualizados++;

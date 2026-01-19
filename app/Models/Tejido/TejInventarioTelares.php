@@ -27,6 +27,8 @@ class TejInventarioTelares extends Model
         'LoteProveedor',
         'NoProveedor',
         'horaParo',
+        'Reservado',
+        'Programado',
     ];
 
     protected $casts = [
@@ -34,11 +36,13 @@ class TejInventarioTelares extends Model
         'calibre' => 'decimal:2',
         'metros' => 'decimal:2',
         'turno' => 'integer',
+        'Reservado' => 'boolean',
+        'Programado' => 'boolean',
         'created_at'=> 'datetime',
         'updated_at'=> 'datetime',
     ];
 
-    
+
 
     // Accessors to map non-standard DB column names
     public function getLoteProveedorAttribute()
