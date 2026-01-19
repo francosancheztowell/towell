@@ -324,7 +324,8 @@ class InventarioTelaresController extends Controller
                 return response()->json([
                     'success' => true,
                     'reservado' => $estaReservado,
-                    'programado' => (bool)($registro->Programado ?? false)
+                    'programado' => (bool)($registro->Programado ?? false),
+                    'registro_id' => $registro->id // Incluir el ID del registro para usar en actualización
                 ]);
             }
 
@@ -568,16 +569,93 @@ class InventarioTelaresController extends Controller
     /**
      * Actualizar fecha de un registro de inventario de telares
      */
+    /**
+     * Verificar qué turnos están ocupados para una fecha específica
+     */
+    public function verificarTurnosOcupados(Request $request): JsonResponse
+    {
+        try {
+            $noTelar = $request->input('no_telar');
+            $tipo = $request->input('tipo');
+            $fecha = $request->input('fecha');
+            $registroIdExcluir = $request->input('registro_id_excluir'); // ID del registro que se está actualizando (excluir de la verificación)
+
+            if (!$noTelar || !$tipo || !$fecha) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha'
+                ], 422);
+            }
+
+            // Normalizar tipo
+            $tipoNormalizado = null;
+            if ($tipo) {
+                $tipoUpper = strtoupper(trim($tipo));
+                if ($tipoUpper === 'RIZO') {
+                    $tipoNormalizado = 'Rizo';
+                } elseif ($tipoUpper === 'PIE') {
+                    $tipoNormalizado = 'Pie';
+                } else {
+                    $tipoNormalizado = $tipo;
+                }
+            }
+
+            // Buscar registros activos para esta fecha, telar y tipo
+            $query = TejInventarioTelares::where('no_telar', $noTelar)
+                ->where('tipo', $tipoNormalizado)
+                ->where('fecha', $fecha)
+                ->where('status', 'Activo');
+
+            // Excluir el registro que se está actualizando (si se proporciona)
+            if ($registroIdExcluir) {
+                $query->where('id', '!=', $registroIdExcluir);
+            }
+
+            $registros = $query->get(['id', 'turno', 'Reservado', 'Programado']);
+
+            // Obtener los turnos ocupados (1, 2, 3)
+            // Cualquier registro existente en esa fecha y turno se considera ocupado
+            $turnosOcupados = [];
+            foreach ($registros as $registro) {
+                $turno = $registro->turno;
+                if ($turno) {
+                    $turnosOcupados[] = (int)$turno;
+                }
+            }
+
+            // Eliminar duplicados y ordenar
+            $turnosOcupados = array_unique($turnosOcupados);
+            sort($turnosOcupados);
+
+            return response()->json([
+                'success' => true,
+                'turnos_ocupados' => $turnosOcupados,
+                'turnos_disponibles' => array_values(array_diff([1, 2, 3], $turnosOcupados))
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al verificar turnos ocupados', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al verificar turnos ocupados: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function updateFecha(Request $request): JsonResponse
     {
         try {
             $noTelar = $request->input('no_telar');
             $tipo = $request->input('tipo');
             $fechaOriginal = $request->input('fecha_original');
-            $turno = $request->input('turno');
+            $turnoOriginal = $request->input('turno');
             $fechaNueva = $request->input('fecha_nueva');
+            $turnoNuevo = $request->input('turno_nuevo'); // Nuevo turno seleccionado
 
-            if (!$noTelar || !$tipo || !$fechaOriginal || !$turno || !$fechaNueva) {
+            if (!$noTelar || !$tipo || !$fechaOriginal || !$turnoOriginal || !$fechaNueva) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha_original, turno, fecha_nueva'
@@ -588,7 +666,7 @@ class InventarioTelaresController extends Controller
             $registro = TejInventarioTelares::where('no_telar', $noTelar)
                 ->where('tipo', $tipo)
                 ->where('fecha', $fechaOriginal)
-                ->where('turno', $turno)
+                ->where('turno', $turnoOriginal)
                 ->where('status', 'Activo')
                 ->first();
 
@@ -612,23 +690,66 @@ class InventarioTelaresController extends Controller
                 }
             }
 
-            // 1) Actualizar la fecha en el registro de tej_inventario_telares
+            // Si se proporciona turno_nuevo, validar que no esté ocupado
+            // Excluir el registro actual de la verificación
+            if ($turnoNuevo) {
+                $turnosOcupados = $this->verificarTurnosOcupadosInterno($noTelar, $tipoNormalizado, $fechaNueva, $registro->id);
+                if (in_array((int)$turnoNuevo, $turnosOcupados)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "El turno {$turnoNuevo} ya está ocupado para esta fecha"
+                    ], 400);
+                }
+            }
+
+            // 1) Actualizar la fecha y turno (si se proporciona) en el registro de tej_inventario_telares
             $registro->fecha = $fechaNueva;
+            if ($turnoNuevo) {
+                $registro->turno = (int)$turnoNuevo;
+            }
             $registro->save();
 
-            // 2) Actualizar ProdDate en InvTelasReservadas para este telar y tipo
+            // 2) Actualizar ProdDate, Fecha y Turno en InvTelasReservadas para este registro específico
             // Convertir fecha nueva a formato datetime para ProdDate
             try {
                 $fechaProdDate = \Carbon\Carbon::parse($fechaNueva)->format('Y-m-d H:i:s');
+                $fechaFormato = \Carbon\Carbon::parse($fechaNueva)->format('Y-m-d');
 
-                $reservas = InvTelasReservadas::where('NoTelarId', $noTelar)
+                // Buscar reservas por TejInventarioTelaresId (más preciso)
+                $reservas = InvTelasReservadas::where('TejInventarioTelaresId', $registro->id)
                     ->where('Status', 'Reservado');
 
-                if ($tipoNormalizado) {
-                    $reservas->where('Tipo', $tipoNormalizado);
+                // Si no se encuentran por ID, buscar por fecha original y turno original
+                if ($reservas->count() === 0) {
+                    $reservas = InvTelasReservadas::where('NoTelarId', $noTelar)
+                        ->where('Status', 'Reservado')
+                        ->where('Fecha', $fechaOriginal)
+                        ->where('Turno', $turnoOriginal);
+
+                    if ($tipoNormalizado) {
+                        $reservas->where('Tipo', $tipoNormalizado);
+                    }
                 }
 
-                $reservasActualizadas = $reservas->update(['ProdDate' => $fechaProdDate]);
+                // Actualizar ProdDate, Fecha y Turno en las reservas encontradas
+                $updateData = [
+                    'ProdDate' => $fechaProdDate,
+                    'Fecha' => $fechaFormato
+                ];
+
+                if ($turnoNuevo) {
+                    $updateData['Turno'] = (int)$turnoNuevo;
+                }
+
+                $reservasEncontradas = $reservas->get();
+                foreach ($reservasEncontradas as $reserva) {
+                    $reserva->ProdDate = $fechaProdDate;
+                    $reserva->Fecha = $fechaFormato;
+                    if ($turnoNuevo) {
+                        $reserva->Turno = (int)$turnoNuevo;
+                    }
+                    $reserva->save();
+                }
             } catch (\Exception $e) {
                 Log::warning('Error al actualizar ProdDate en InvTelasReservadas', [
                     'no_telar' => $noTelar,
@@ -641,7 +762,7 @@ class InventarioTelaresController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Fecha actualizada con éxito',
+                'message' => 'Fecha y turno actualizados con éxito',
                 'registro' => $registro
             ]);
         } catch (\Exception $e) {
@@ -656,6 +777,54 @@ class InventarioTelaresController extends Controller
                 'message' => 'Error al actualizar fecha: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Método interno para verificar turnos ocupados (reutilizable)
+     */
+    private function verificarTurnosOcupadosInterno($noTelar, $tipo, $fecha, $registroIdExcluir = null): array
+    {
+        // Normalizar tipo
+        $tipoNormalizado = null;
+        if ($tipo) {
+            $tipoUpper = strtoupper(trim($tipo));
+            if ($tipoUpper === 'RIZO') {
+                $tipoNormalizado = 'Rizo';
+            } elseif ($tipoUpper === 'PIE') {
+                $tipoNormalizado = 'Pie';
+            } else {
+                $tipoNormalizado = $tipo;
+            }
+        }
+
+        // Buscar registros activos para esta fecha, telar y tipo
+        $query = TejInventarioTelares::where('no_telar', $noTelar)
+            ->where('tipo', $tipoNormalizado)
+            ->where('fecha', $fecha)
+            ->where('status', 'Activo');
+
+        // Excluir el registro que se está actualizando (si se proporciona)
+        if ($registroIdExcluir) {
+            $query->where('id', '!=', $registroIdExcluir);
+        }
+
+        $registros = $query->get(['id', 'turno', 'Reservado', 'Programado']);
+
+        // Obtener los turnos ocupados (1, 2, 3)
+        // Cualquier registro existente en esa fecha y turno se considera ocupado
+        $turnosOcupados = [];
+        foreach ($registros as $registro) {
+            $turno = $registro->turno;
+            if ($turno) {
+                $turnosOcupados[] = (int)$turno;
+            }
+        }
+
+        // Eliminar duplicados y ordenar
+        $turnosOcupados = array_unique($turnosOcupados);
+        sort($turnosOcupados);
+
+        return $turnosOcupados;
     }
 }
 

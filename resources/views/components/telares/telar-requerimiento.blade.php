@@ -279,17 +279,19 @@
             </div>
 
             <!-- Calendario Semanal Horizontal -->
-            <div class="mb-6 md:mb-8">
+            <div class="mb-6 md:mb-8" id="seccionCalendario">
                 <div id="calendarioSemanalGrid" class="grid grid-cols-7 gap-0 border border-gray-300 w-full" style="background-color: #f9fafb; display: grid; grid-template-columns: repeat(7, 1fr);">
                     <!-- Los días se generarán dinámicamente con JavaScript -->
                 </div>
             </div>
 
+
             <!-- Botones -->
             <div class="flex justify-center gap-2 mt-6 md:mt-8">
                 <button
                     type="button"
-                    onclick="if(typeof window.cerrarModalCalendarioSemanal === 'function') { window.cerrarModalCalendarioSemanal(); } else { console.error('cerrarModalCalendarioSemanal no está definida'); }"
+                    id="btnCancelarCalendario"
+                    onclick="if(typeof window.manejarCancelarModal2 === 'function') { window.manejarCancelarModal2(); } else if(typeof window.cerrarModalCalendarioSemanal === 'function') { window.cerrarModalCalendarioSemanal(); }"
                     class="px-6 py-2 md:px-8 md:py-2.5 text-sm md:text-base bg-gray-200 text-gray-800 font-semibold border border-gray-400 hover:bg-gray-300 focus:outline-none transition-all"
                 >
                     Cancelar
@@ -1872,6 +1874,8 @@ if (typeof window.checkboxPendienteCalendario === 'undefined') {
     window.tipoPendienteCalendario = null;
     window.turnoPendienteCalendario = null;
     window.fechaOriginalPendienteCalendario = null;
+    window.registroIdPendienteCalendario = null; // ID del registro que se está actualizando
+    window.fechaSeleccionadaCalendario = null; // Fecha seleccionada en el calendario
     window.telarDataPendiente = null;
 }
 
@@ -1960,6 +1964,10 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
             if (result.reservado === true || result.reservado === 1 || result.reservado === '1') {
                 window.datosEliminacionPendiente = datosEliminar;
                 window.checkboxEliminacionPendiente = checkbox;
+                // Guardar el ID del registro si está disponible en la respuesta
+                if (result.registro_id) {
+                    window.registroIdPendienteCalendario = result.registro_id;
+                }
                 // Guardar datos completos del telar para usar en actualización (si están disponibles)
                 if (telarData) {
                     window.telarDataCompleto = telarData;
@@ -1976,6 +1984,10 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
                 // Si solo está programado (sin reservado), también mostrar modal
                 window.datosEliminacionPendiente = datosEliminar;
                 window.checkboxEliminacionPendiente = checkbox;
+                // Guardar el ID del registro si está disponible en la respuesta
+                if (result.registro_id) {
+                    window.registroIdPendienteCalendario = result.registro_id;
+                }
                 // Guardar datos completos del telar para usar en actualización (si están disponibles)
                 if (telarData) {
                     window.telarDataCompleto = telarData;
@@ -2083,10 +2095,24 @@ window.mostrarModalTelaReservada = function() {
 
 // Función para mostrar el modal de calendario semanal (debe ser global)
 window.mostrarModalCalendarioSemanal = function() {
-    const modal = document.getElementById('modalCalendarioSemanal');
+    const modalCalendarioMostrar = document.getElementById('modalCalendarioSemanal');
     const grid = document.getElementById('calendarioSemanalGrid');
+    const seccionCalendario = document.getElementById('seccionCalendario');
 
-    if (!modal || !grid) return;
+    if (!modalCalendarioMostrar || !grid) return;
+
+    // Reiniciar estado del modal: mostrar calendario, ocultar todos los contenedores de turnos
+    if (seccionCalendario) {
+        seccionCalendario.classList.remove('hidden');
+        seccionCalendario.setAttribute('style', 'display: block !important; visibility: visible !important;');
+    }
+
+    // Ocultar todos los contenedores de turnos
+    const todosLosContenedores = modalCalendarioMostrar ? modalCalendarioMostrar.querySelectorAll('.turnos-container') : document.querySelectorAll('.turnos-container');
+    todosLosContenedores.forEach(cont => {
+        cont.style.display = 'none';
+        cont.innerHTML = '';
+    });
 
     // Obtener el lunes de la semana actual
     const hoy = new Date();
@@ -2120,9 +2146,18 @@ window.mostrarModalCalendarioSemanal = function() {
         // Verificar si es la fecha original (la que se está actualizando)
         const esFechaOriginal = fechaOriginalISO && fechaISO === fechaOriginalISO;
 
+        // Crear contenedor para el día y los turnos
+        const diaContainer = document.createElement('div');
+        diaContainer.className = 'flex flex-col border-r border-gray-300 last:border-r-0';
+        diaContainer.style.width = '100%';
+        diaContainer.style.borderTop = '1px solid #d1d5db';
+        diaContainer.style.borderBottom = '1px solid #d1d5db';
+        diaContainer.setAttribute('data-fecha-container', fechaISO);
+
+        // Crear botón del día
         const diaElement = document.createElement('button');
         diaElement.type = 'button';
-        diaElement.className = `p-4 md:p-6 lg:p-8 border-r border-gray-300 last:border-r-0 transition-all hover:bg-gray-100 flex flex-col items-center justify-center min-h-[100px] md:min-h-[120px] ${
+        diaElement.className = `p-4 md:p-6 lg:p-8 transition-all hover:bg-gray-100 flex flex-col items-center justify-center min-h-[100px] md:min-h-[120px] w-full ${
             esFechaOriginal
                 ? 'bg-blue-600 border-blue-700'
                 : esHoy
@@ -2132,15 +2167,34 @@ window.mostrarModalCalendarioSemanal = function() {
         diaElement.style.width = '100%';
         diaElement.style.display = 'flex';
         diaElement.style.flexDirection = 'column';
-        diaElement.style.borderTop = '1px solid #d1d5db';
-        diaElement.style.borderBottom = '1px solid #d1d5db';
         diaElement.innerHTML = `
             <div class="text-2xl md:text-3xl lg:text-4xl font-bold ${esFechaOriginal ? 'text-white' : 'text-gray-900'}">${dia}</div>
         `;
         diaElement.setAttribute('data-fecha', fechaISO);
-        diaElement.onclick = () => seleccionarFechaCalendario(fechaISO);
+        diaElement.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Click en fecha:', fechaISO);
+            if (typeof window.mostrarSeleccionTurnos === 'function') {
+                window.mostrarSeleccionTurnos(fechaISO, diaContainer);
+            } else {
+                console.error('mostrarSeleccionTurnos no está definida');
+                alert('Error: La función mostrarSeleccionTurnos no está disponible');
+            }
+        };
 
-        grid.appendChild(diaElement);
+        // Crear contenedor de turnos (fuera del botón, debajo)
+        const turnosContainer = document.createElement('div');
+        turnosContainer.className = 'turnos-container';
+        turnosContainer.setAttribute('data-fecha-turnos', fechaISO);
+        turnosContainer.style.cssText = 'display: none; width: 100%; padding: 4px 2px; box-sizing: border-box;';
+        turnosContainer.style.display = 'none';
+
+        // Agregar botón y contenedor de turnos al contenedor del día
+        diaContainer.appendChild(diaElement);
+        diaContainer.appendChild(turnosContainer);
+
+        grid.appendChild(diaContainer);
     }
 
     // Forzar que el grid sea horizontal
@@ -2150,8 +2204,8 @@ window.mostrarModalCalendarioSemanal = function() {
     grid.style.width = '100%';
 
     // Mover el modal al body si no está ya ahí
-    if (modal.parentElement !== document.body) {
-        document.body.appendChild(modal);
+    if (modalCalendarioMostrar.parentElement !== document.body) {
+        document.body.appendChild(modalCalendarioMostrar);
     }
 
     // Asegurar que el modal 1 esté completamente oculto
@@ -2162,25 +2216,42 @@ window.mostrarModalCalendarioSemanal = function() {
         m.style.display = 'none';
     });
 
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.right = '0';
-    modal.style.bottom = '0';
-    modal.style.zIndex = '100000'; // Mayor que el modal 1 para estar por encima
-    modal.style.width = '100%';
-    modal.style.height = '100%';
-    modal.style.display = 'flex'; // Forzar display flex
-    modal.style.visibility = 'visible'; // Asegurar que sea visible
-    modal.style.opacity = '1'; // Asegurar opacidad completa
-    modal.style.transform = 'none'; // Resetear transform
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    modalCalendarioMostrar.style.position = 'fixed';
+    modalCalendarioMostrar.style.top = '0';
+    modalCalendarioMostrar.style.left = '0';
+    modalCalendarioMostrar.style.right = '0';
+    modalCalendarioMostrar.style.bottom = '0';
+    modalCalendarioMostrar.style.zIndex = '100000'; // Mayor que el modal 1 para estar por encima
+    modalCalendarioMostrar.style.width = '100%';
+    modalCalendarioMostrar.style.height = '100%';
+    modalCalendarioMostrar.style.display = 'flex'; // Forzar display flex
+    modalCalendarioMostrar.style.visibility = 'visible'; // Asegurar que sea visible
+    modalCalendarioMostrar.style.opacity = '1'; // Asegurar opacidad completa
+    modalCalendarioMostrar.style.transform = 'none'; // Resetear transform
+    modalCalendarioMostrar.classList.remove('hidden');
+    modalCalendarioMostrar.classList.add('flex');
 };
 
 // Función para cerrar el modal de calendario semanal (debe ser global)
 window.cerrarModalCalendarioSemanal = function() {
-    const modal = document.getElementById('modalCalendarioSemanal');
+    const modalCalendarioCerrar = document.getElementById('modalCalendarioSemanal');
+    const seccionCalendario = document.getElementById('seccionCalendario');
+
+    // Reiniciar estado del modal: mostrar calendario, ocultar todos los contenedores de turnos
+    if (seccionCalendario) {
+        seccionCalendario.classList.remove('hidden');
+        seccionCalendario.setAttribute('style', 'display: block !important; visibility: visible !important;');
+    }
+
+    // Ocultar todos los contenedores de turnos
+    const todosLosContenedores = modalCalendarioCerrar ? modalCalendarioCerrar.querySelectorAll('.turnos-container') : document.querySelectorAll('.turnos-container');
+    todosLosContenedores.forEach(cont => {
+        cont.style.display = 'none';
+        cont.innerHTML = '';
+    });
+
+    // Limpiar fecha seleccionada
+    window.fechaSeleccionadaCalendario = null;
 
     // Cerrar completamente TODOS los modales 2 INMEDIATAMENTE - MÉTODO AGRESIVO
     // Buscar TODOS los modales 2 porque puede haber múltiples instancias (una por telar)
@@ -2214,8 +2285,8 @@ window.cerrarModalCalendarioSemanal = function() {
     });
 
     // También cerrar el modal encontrado por ID (por compatibilidad) si no se encontraron otros
-    if (modal && todosLosModales2.length === 0) {
-        modal.setAttribute('style', `
+    if (modalCalendarioCerrar && todosLosModales2.length === 0) {
+        modalCalendarioCerrar.setAttribute('style', `
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
@@ -2229,12 +2300,30 @@ window.cerrarModalCalendarioSemanal = function() {
             overflow: hidden !important;
             transform: translateX(-9999px) translateY(-9999px) scale(0) !important;
         `);
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
+        modalCalendarioCerrar.classList.add('hidden');
+        modalCalendarioCerrar.classList.remove('flex');
 
-        const modalParent = modal.parentElement;
+        // Reiniciar estado del modal: mostrar calendario, ocultar todos los contenedores de turnos
+        const seccionCalendario = document.getElementById('seccionCalendario');
+        if (seccionCalendario) {
+            seccionCalendario.classList.remove('hidden');
+            seccionCalendario.setAttribute('style', 'display: block !important; visibility: visible !important;');
+        }
+
+        // Ocultar todos los contenedores de turnos
+        const modalCalendario2 = document.getElementById('modalCalendarioSemanal');
+        const todosLosContenedores = modalCalendario2 ? modalCalendario2.querySelectorAll('.turnos-container') : document.querySelectorAll('.turnos-container');
+        todosLosContenedores.forEach(cont => {
+            cont.style.display = 'none';
+            cont.innerHTML = '';
+        });
+
+        // Limpiar fecha seleccionada
+        window.fechaSeleccionadaCalendario = null;
+
+        const modalParent = modalCalendarioCerrar.parentElement;
         if (modalParent) {
-            modalParent.removeChild(modal);
+            modalParent.removeChild(modalCalendarioCerrar);
         }
     }
 
@@ -2246,7 +2335,7 @@ window.cerrarModalCalendarioSemanal = function() {
 
     // Limpiar variables del calendario (pero mantener las del modal de confirmación)
     // Solo limpiar si NO se está seleccionando una fecha (es decir, si se cancela)
-    // Si se seleccionó una fecha, las variables ya se limpiaron en seleccionarFechaCalendario
+    // Si se seleccionó una fecha, las variables ya se limpiaron en seleccionarTurno
     if (checkboxCalendario && window.telarIdPendienteCalendario) {
         // Si aún existen las variables del calendario, significa que se canceló
         window.checkboxPendienteCalendario = null;
@@ -2254,6 +2343,8 @@ window.cerrarModalCalendarioSemanal = function() {
         window.tipoPendienteCalendario = null;
         window.turnoPendienteCalendario = null;
         window.fechaOriginalPendienteCalendario = null;
+        window.registroIdPendienteCalendario = null;
+        window.fechaSeleccionadaCalendario = null;
     }
     // NO limpiar telarDataPendiente, datosEliminacionPendiente ni checkboxEliminacionPendiente
     // porque se necesitan para restaurar el modal 1 cuando se cancela
@@ -2322,10 +2413,257 @@ window.cerrarModalCalendarioSemanal = function() {
     }
 };
 
-// Función para seleccionar fecha del calendario
-function seleccionarFechaCalendario(fechaISO) {
+// Función para mostrar selección de turnos después de seleccionar fecha (debe ser global)
+window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
+    console.log('mostrarSeleccionTurnos llamado con fecha:', fechaISO);
+
     if (!window.checkboxPendienteCalendario || !window.telarIdPendienteCalendario) {
-        cerrarModalCalendarioSemanal();
+        console.error('Faltan datos necesarios:', {
+            checkboxPendienteCalendario: !!window.checkboxPendienteCalendario,
+            telarIdPendienteCalendario: !!window.telarIdPendienteCalendario
+        });
+        if (typeof window.cerrarModalCalendarioSemanal === 'function') {
+            window.cerrarModalCalendarioSemanal();
+        }
+        return;
+    }
+
+    const telarId = window.telarIdPendienteCalendario;
+    const tipo = window.tipoPendienteCalendario;
+    const registroId = window.registroIdPendienteCalendario; // ID del registro que se está actualizando
+
+    // Buscar el contenedor del día si no se pasó
+    if (!diaElement) {
+        // Si no se pasó el elemento, buscarlo por la fecha
+        const modalCalendario4 = document.getElementById('modalCalendarioSemanal');
+        if (!modalCalendario4) {
+            console.error('Modal modalCalendarioSemanal no encontrado');
+            return;
+        }
+        // Buscar el contenedor del día (que tiene data-fecha-container)
+        diaElement = modalCalendario4.querySelector(`[data-fecha-container="${fechaISO}"]`);
+        if (!diaElement) {
+            // Si no se encuentra por data-fecha-container, buscar el botón con data-fecha y obtener su padre
+            const btnDia = modalCalendario4.querySelector(`[data-fecha="${fechaISO}"]`);
+            if (btnDia && btnDia.parentElement) {
+                diaElement = btnDia.parentElement;
+            } else {
+                console.error('Elemento del día no encontrado para fecha:', fechaISO);
+                return;
+            }
+        }
+    }
+
+    // Ocultar todos los contenedores de turnos de otros días ANTES de mostrar los nuevos
+    const modalCalendario3 = document.getElementById('modalCalendarioSemanal');
+    if (modalCalendario3) {
+        const todosLosContenedores = modalCalendario3.querySelectorAll('.turnos-container');
+        todosLosContenedores.forEach(cont => {
+            const contFecha = cont.getAttribute('data-fecha-turnos');
+            if (contFecha && contFecha !== fechaISO) {
+                // Ocultar y limpiar los turnos de otros días
+                cont.style.display = 'none';
+                cont.style.visibility = 'hidden';
+                cont.innerHTML = '';
+                console.log(`Ocultando turnos del día ${contFecha}`);
+            }
+        });
+    }
+
+    // Buscar el contenedor de turnos dentro del contenedor del día
+    let turnosContainer = diaElement.querySelector('.turnos-container');
+    if (!turnosContainer) {
+        // Si no existe, crearlo
+        turnosContainer = document.createElement('div');
+        turnosContainer.className = 'turnos-container';
+        turnosContainer.setAttribute('data-fecha-turnos', fechaISO);
+        turnosContainer.style.cssText = 'display: none; width: 100%; padding: 4px 2px; box-sizing: border-box;';
+        diaElement.appendChild(turnosContainer);
+    } else {
+        // Si ya existe, limpiarlo para recargar los turnos (importante: verificar que sea de la misma fecha)
+        const fechaAnterior = turnosContainer.getAttribute('data-fecha-turnos');
+        if (fechaAnterior !== fechaISO) {
+            // Si es de otra fecha, limpiar completamente
+            turnosContainer.innerHTML = '';
+            turnosContainer.setAttribute('data-fecha-turnos', fechaISO);
+        } else {
+            // Si es la misma fecha, limpiar para recargar
+            turnosContainer.innerHTML = '';
+        }
+    }
+
+    // Guardar fecha seleccionada
+    window.fechaSeleccionadaCalendario = fechaISO;
+
+    // Verificar qué turnos están ocupados
+    try {
+        const params = new URLSearchParams({
+            no_telar: String(telarId),
+            tipo: tipo,
+            fecha: fechaISO
+        });
+
+        if (registroId) {
+            params.append('registro_id_excluir', registroId);
+        }
+
+        const response = await fetch(`/inventario-telares/verificar-turnos-ocupados?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            cache: 'no-cache'
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al verificar turnos ocupados');
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            const turnosOcupados = result.turnos_ocupados || [];
+
+            console.log('Turnos ocupados recibidos:', turnosOcupados);
+
+            // Limpiar el contenedor y crear los botones de turno
+            turnosContainer.innerHTML = '';
+
+            // Crear botones de turno en una fila horizontal que ocupe todo el ancho
+            const turnosRow = document.createElement('div');
+            turnosRow.className = 'flex w-full';
+            turnosRow.style.cssText = 'display: flex; width: 100%; gap: 2px;';
+
+            [1, 2, 3].forEach(turno => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.setAttribute('data-turno', turno);
+
+                // Verificar si el turno está ocupado (comparar como número)
+                const turnoOcupado = turnosOcupados.includes(parseInt(turno, 10)) || turnosOcupados.includes(turno);
+
+                console.log(`Turno ${turno}: ocupado = ${turnoOcupado}`);
+
+                if (turnoOcupado) {
+                    // Turno ocupado: fondo rojo tenue, texto rojo, deshabilitado
+                    btn.className = 'flex-1 py-2 text-sm font-bold rounded transition-all focus:outline-none focus:ring-2 focus:ring-red-500 bg-red-100 text-red-700 border border-red-300 cursor-not-allowed opacity-75';
+                    btn.style.cssText = 'flex: 1 1 0%; min-width: 0; width: 100%;';
+                    btn.disabled = true;
+                    btn.title = 'Este turno ya está ocupado';
+                } else {
+                    // Turno disponible: fondo azul, texto blanco, habilitado
+                    btn.className = 'flex-1 py-2 text-sm font-bold rounded transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-500 text-white border border-blue-600 hover:bg-blue-600';
+                    btn.style.cssText = 'flex: 1 1 0%; min-width: 0; width: 100%;';
+                    btn.disabled = false;
+                    btn.title = '';
+                }
+
+                btn.textContent = turno;
+                btn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof window.seleccionarTurno === 'function') {
+                        window.seleccionarTurno(turno, btn);
+                    }
+                };
+
+                turnosRow.appendChild(btn);
+            });
+
+            turnosContainer.appendChild(turnosRow);
+
+            // Mostrar el contenedor de turnos
+            turnosContainer.style.display = 'block';
+            turnosContainer.style.visibility = 'visible';
+            turnosContainer.style.width = '100%';
+            turnosContainer.style.boxSizing = 'border-box';
+
+            console.log('Botones de turno creados y mostrados');
+        }
+    } catch (error) {
+        console.error('Error al verificar turnos ocupados:', error);
+        // Si hay error, crear botones sin restricciones
+        turnosContainer.innerHTML = '';
+
+        // Crear botones de turno en una fila horizontal que ocupe todo el ancho
+        const turnosRow = document.createElement('div');
+        turnosRow.className = 'flex w-full';
+        turnosRow.style.cssText = 'display: flex; width: 100%; gap: 2px;';
+
+        [1, 2, 3].forEach(turno => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.setAttribute('data-turno', turno);
+            btn.className = 'flex-1 py-2 text-sm font-bold rounded transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-500 text-white border border-blue-600 hover:bg-blue-600';
+            btn.style.cssText = 'flex: 1 1 0%; min-width: 0; width: 100%;';
+            btn.textContent = turno;
+            btn.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof window.seleccionarTurno === 'function') {
+                    window.seleccionarTurno(turno);
+                }
+            };
+            turnosRow.appendChild(btn);
+        });
+
+        turnosContainer.appendChild(turnosRow);
+        turnosContainer.style.display = 'block';
+        turnosContainer.style.visibility = 'visible';
+        turnosContainer.style.width = '100%';
+        turnosContainer.style.boxSizing = 'border-box';
+    }
+};
+
+// Función para manejar el botón cancelar del modal 2 (debe ser global)
+// Cierra el modal completamente
+window.manejarCancelarModal2 = function() {
+    // Ocultar todos los contenedores de turnos
+    const modalCalendario5 = document.getElementById('modalCalendarioSemanal');
+    if (modalCalendario5) {
+        const todosLosContenedores = modalCalendario5.querySelectorAll('.turnos-container');
+        todosLosContenedores.forEach(cont => {
+            cont.style.display = 'none';
+            cont.innerHTML = '';
+        });
+    }
+
+    // Cerrar el modal completamente
+    if (typeof window.cerrarModalCalendarioSemanal === 'function') {
+        window.cerrarModalCalendarioSemanal();
+    }
+}
+
+// Función para seleccionar turno y actualizar (debe ser global)
+window.seleccionarTurno = function(turno, btnElement) {
+    // Si se pasa el elemento del botón, usarlo; si no, buscarlo
+    const btn = btnElement || document.querySelector(`[data-turno="${turno}"]`);
+
+    if (!btn) {
+        console.error('Botón de turno no encontrado');
+        return;
+    }
+
+    // Verificar si el turno está ocupado (deshabilitado)
+    if (btn.disabled) {
+        // Si el turno está ocupado, mostrar alerta
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Turno Ocupado',
+                text: `El turno ${turno} ya está ocupado para esta fecha. Por favor, selecciona otro turno.`,
+                showConfirmButton: true,
+                confirmButtonText: 'Entendido'
+            });
+        }
+        return;
+    }
+
+    if (!window.checkboxPendienteCalendario || !window.telarIdPendienteCalendario || !window.fechaSeleccionadaCalendario) {
+        console.error('Faltan datos necesarios para actualizar');
+        if (typeof window.cerrarModalCalendarioSemanal === 'function') {
+            window.cerrarModalCalendarioSemanal();
+        }
         return;
     }
 
@@ -2333,16 +2671,23 @@ function seleccionarFechaCalendario(fechaISO) {
     const checkbox = window.checkboxPendienteCalendario;
     const telarId = window.telarIdPendienteCalendario;
     const tipo = window.tipoPendienteCalendario;
-    const turno = window.turnoPendienteCalendario;
+    const turnoOriginal = window.turnoPendienteCalendario;
     const fechaOriginal = window.fechaOriginalPendienteCalendario;
+    const fechaNueva = window.fechaSeleccionadaCalendario;
 
-    // Actualizar la fecha del registro
+    // Cerrar el modal antes de actualizar
+    if (typeof window.cerrarModalCalendarioSemanal === 'function') {
+        window.cerrarModalCalendarioSemanal();
+    }
+
+    // Actualizar la fecha y turno del registro
     const datosActualizar = {
         no_telar: String(telarId),
         tipo: tipo,
         fecha_original: fechaOriginal,
-        turno: turno,
-        fecha_nueva: fechaISO
+        turno: turnoOriginal,
+        fecha_nueva: fechaNueva,
+        turno_nuevo: turno
     };
 
     // Hacer la petición de actualización y luego recargar la página
@@ -2361,10 +2706,11 @@ function seleccionarFechaCalendario(fechaISO) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error al actualizar',
-                text: error.response?.data?.message || 'No se pudo actualizar la fecha del registro.',
+                text: error.response?.data?.message || 'No se pudo actualizar la fecha y turno del registro.',
                 showConfirmButton: true
             });
         }
+        // Si hay error, no recargar para que el usuario pueda intentar de nuevo
     });
 }
 
@@ -2646,6 +2992,8 @@ function mostrarCalendarioParaActualizar() {
         window.tipoPendienteCalendario = window.datosEliminacionPendiente.tipo;
         window.turnoPendienteCalendario = window.datosEliminacionPendiente.turno;
         window.fechaOriginalPendienteCalendario = window.datosEliminacionPendiente.fecha;
+        // Guardar el ID del registro si está disponible (se guarda cuando se verifica el estado)
+        // El registroId se guarda en verificarEstadoTelarAntesDeEliminar cuando se recibe la respuesta
         // Mantener los datos del telar
         window.telarDataPendiente = window.telarDataPendiente || {
             salon: 'Jacquard',
