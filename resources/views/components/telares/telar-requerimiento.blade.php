@@ -6,6 +6,7 @@
     'turnos' => 3
 ])
 
+
 @php
     //esta es una funcion para verificar si el usuario tiene permiso de crear requerimientos
     // Verificar permisos del usuario actual
@@ -216,6 +217,90 @@
     </div>
 </div>
 
+<!-- Modal de Tela Reservada -->
+<div id="modalTelaReservada" class="fixed inset-0 hidden flex items-center justify-center" style="z-index: 100001 !important; background-color: rgba(0, 0, 0, 0.6) !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100% !important;" onclick="if(event.target === this && typeof window.cerrarModalTelaReservada === 'function') window.cerrarModalTelaReservada()">
+    <div class="relative mx-auto p-0 w-full max-w-xl shadow-2xl rounded-xl bg-white transform transition-all" style="position: relative !important; z-index: 100002 !important;" onclick="event.stopPropagation()">
+        <!-- Contenido del Modal -->
+        <div class="p-8">
+            <!-- Mensaje principal -->
+            <div class="text-center mb-8">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 mb-4">
+                    <i class="fas fa-exclamation-triangle text-3xl text-yellow-600"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900 mb-2">Ya tiene tela reservada</h3>
+                <p class="text-gray-600">Este telar tiene tela reservada. ¿Qué desea hacer?</p>
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <!-- Botón Eliminar -->
+                <button
+                    type="button"
+                    id="btnEliminarReservado"
+                    onclick="confirmarEliminarConReserva()"
+                    class="flex-1 px-4 py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg"
+                >
+                    <div class="flex flex-col items-center">
+                        <span class="text-base mb-1">Eliminar</span>
+                        <span class="text-xs opacity-90">Si elimina el registro elimina la reserva</span>
+                    </div>
+                </button>
+
+                <!-- Botón Actualizar (muestra calendario para seleccionar nueva fecha) -->
+                <button
+                    type="button"
+                    id="btnActualizarReservado"
+                    onclick="mostrarCalendarioParaActualizar()"
+                    class="flex-1 px-4 py-2.5 bg-yellow-600 text-white font-semibold rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg"
+                >
+                    <span class="text-base">Actualizar</span>
+                </button>
+                <button
+                    type="button"
+                    id="btnCancelarReservado"
+                    onclick="if(typeof window.cerrarModalTelaReservada === 'function') window.cerrarModalTelaReservada()"
+                    class="flex-1 px-4 py-2.5 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg"
+                >
+                    <span class="text-base">Cancelar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Calendario Semanal -->
+<div id="modalCalendarioSemanal" class="fixed inset-0 hidden flex items-center justify-center" style="z-index: 99998; background-color: rgba(0, 0, 0, 0.6); position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100% !important; display: none !important;">
+    <div class="relative mx-auto p-0 w-full max-w-4xl px-4 shadow-2xl bg-white transform transition-all border border-gray-300" style="position: relative; z-index: 100000;" onclick="event.stopPropagation()">
+        <!-- Contenido del Modal -->
+        <div class="p-6 md:p-8">
+            <!-- Header -->
+            <div class="flex items-center justify-center mb-6 md:mb-8">
+                <h3 class="text-xl md:text-2xl font-bold text-gray-900 uppercase tracking-wide">Seleccionar Fecha</h3>
+            </div>
+
+            <!-- Calendario Semanal Horizontal -->
+            <div class="mb-6 md:mb-8" id="seccionCalendario">
+                <div id="calendarioSemanalGrid" class="grid grid-cols-7 gap-0 border border-gray-300 w-full" style="background-color: #f9fafb; display: grid; grid-template-columns: repeat(7, 1fr);">
+                    <!-- Los días se generarán dinámicamente con JavaScript -->
+                </div>
+            </div>
+
+
+            <!-- Botones -->
+            <div class="flex justify-center gap-2 mt-6 md:mt-8">
+                <button
+                    type="button"
+                    id="btnCancelarCalendario"
+                    onclick="if(typeof window.manejarCancelarModal2 === 'function') { window.manejarCancelarModal2(); } else if(typeof window.cerrarModalCalendarioSemanal === 'function') { window.cerrarModalCalendarioSemanal(); }"
+                    class="px-6 py-2 md:px-8 md:py-2.5 text-sm md:text-base bg-gray-200 text-gray-800 font-semibold border border-gray-400 hover:bg-gray-300 focus:outline-none transition-all"
+                >
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 (function() {
     // Crear scope aislado para este telar
@@ -405,8 +490,14 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         return;
     }
 
-    // Si el checkbox se deseleccionó, eliminar el registro
+    // Si el checkbox se deseleccionó, verificar estado antes de eliminar
     if (!checkbox.checked) {
+        // Verificar si el checkbox ya fue eliminado (no debe validar de nuevo)
+        if (checkbox.getAttribute('data-eliminado') === 'true') {
+            // Si ya fue eliminado, no hacer nada
+            return;
+        }
+
         // Marcar este checkbox como cambio reciente para preservarlo durante la recarga
         checkbox.setAttribute('data-cambio-reciente', Date.now().toString());
 
@@ -417,62 +508,11 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
             turno: parseInt(numeroTurno)
         };
 
-        // Para DELETE, axios envía los datos en el body pero Laravel los lee desde input()
-        axios({
-            method: 'delete',
-            url: '/inventario-telares/eliminar',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json'
-            },
-            data: datosEliminar
-        })
-        .then(response => {
-            // Invalidar caché para que se actualice en la próxima carga
-            invalidarCacheInventario();
-
-            // El checkbox ya está desmarcado visualmente, mantenerlo así
-            // Remover el atributo de cambio reciente después de un momento
-            setTimeout(() => {
-                checkbox.removeAttribute('data-cambio-reciente');
-            }, 3000);
-
-            // Mostrar notificación de éxito
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Eliminado con éxito',
-                    showConfirmButton: false,
-                    timer: 700,
-                    timerProgressBar: true,
-                    position: 'top-end',
-                    toast: true
-                });
-            }
-        })
-        .catch(error => {
-            // Mostrar notificación de error
-            if (typeof Swal !== 'undefined') {
-                let errorMessage = 'Error desconocido';
-
-                if (error.response?.data?.message) {
-                    errorMessage = error.response.data.message;
-                }
-
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error al eliminar',
-                    text: errorMessage,
-                    showConfirmButton: false,
-                    timer: 2500,
-                    timerProgressBar: true,
-                    position: 'top-end',
-                    toast: true
-                });
-            }
-            // Re-marcar el checkbox si hubo error
-            checkbox.checked = true;
-        });
+        // Verificar estado del telar antes de eliminar
+        // IMPORTANTE: La verificación siempre debe usar el backend para obtener el estado más reciente
+        // No confiar en el caché del frontend después de invalidaciones
+        // El backend siempre tiene la verdad sobre el estado del registro específico
+        verificarEstadoTelarAntesDeEliminar(telarId, tipo === 'rizo' ? 'Rizo' : 'Pie', datosEliminar, checkbox, telarData);
 
         return; // Salir de la función si se deseleccionó
     }
@@ -706,8 +746,6 @@ function invalidarCacheInventario() {
             delete window.inventarioCache[key];
         }
     });
-
-    console.log('Caché invalidado completamente');
 }
 
 function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
@@ -765,31 +803,52 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
             // Guardar el estado actual de los checkboxes con cambios recientes antes de limpiar
             // Esto nos permite preservar los cambios recientes del usuario
             const estadosCheckboxesRecientes = new Map();
+            const checkboxesEliminados = new Set();
+
             todasLasTablasDelTelar.forEach(table => {
                 table.querySelectorAll(`input[data-telar="${telarId}"]`).forEach(checkbox => {
+                    // Si el checkbox fue eliminado, preservarlo como desmarcado permanentemente
+                    if (checkbox.getAttribute('data-eliminado') === 'true') {
+                        checkboxesEliminados.add(checkbox.id);
+                        estadosCheckboxesRecientes.set(checkbox.id, {
+                            checked: false, // Siempre desmarcado si fue eliminado
+                            timestamp: Date.now(),
+                            eliminado: true
+                        });
+                        return; // No procesar más este checkbox
+                    }
+
                     // Guardar el estado actual con un timestamp para saber si es un cambio reciente
                     const cambioReciente = checkbox.getAttribute('data-cambio-reciente');
                     if (cambioReciente) {
                         const timestampCambio = parseInt(cambioReciente);
                         const ahora = Date.now();
-                        // Si el cambio fue hace menos de 3 segundos, preservarlo
-                        if (ahora - timestampCambio < 3000) {
+                        // Si el cambio fue hace menos de 10 segundos, preservarlo (aumentado de 3 a 10)
+                        if (ahora - timestampCambio < 10000) {
                             estadosCheckboxesRecientes.set(checkbox.id, {
                                 checked: checkbox.checked,
                                 timestamp: timestampCambio
                             });
                         } else {
-                            // Si el cambio es muy antiguo, remover el atributo
-                            checkbox.removeAttribute('data-cambio-reciente');
+                            // Si el cambio es muy antiguo, remover el atributo (excepto si fue eliminado)
+                            if (checkbox.getAttribute('data-eliminado') !== 'true') {
+                                checkbox.removeAttribute('data-cambio-reciente');
+                            }
                         }
                     }
                 });
             });
 
             // Limpiar todos los checkboxes de este telar en todas las tablas
-            // EXCEPTO los que tienen cambios recientes del usuario
+            // EXCEPTO los que tienen cambios recientes del usuario o fueron eliminados
             todasLasTablasDelTelar.forEach(table => {
                 table.querySelectorAll(`input[data-telar="${telarId}"]`).forEach(checkbox => {
+                    // Si este checkbox fue eliminado, mantenerlo desmarcado
+                    if (checkboxesEliminados.has(checkbox.id)) {
+                        checkbox.checked = false;
+                        return;
+                    }
+
                     // Si este checkbox tenía un cambio reciente, preservar su estado
                     if (estadosCheckboxesRecientes.has(checkbox.id)) {
                         const estado = estadosCheckboxesRecientes.get(checkbox.id);
@@ -1099,6 +1158,12 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
 
                 checkboxes.forEach(cb => {
                     if (cb.value === valorEsperado) {
+                        // NO marcar si el checkbox fue eliminado
+                        if (cb.getAttribute('data-eliminado') === 'true') {
+                            cb.checked = false;
+                            return;
+                        }
+
                         // Solo marcar si no tiene un cambio reciente del usuario
                         // Si tiene un cambio reciente, preservar el estado del usuario
                         const cambioReciente = cb.getAttribute('data-cambio-reciente');
@@ -1113,10 +1178,12 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                             // Si tiene cambio reciente, verificar si el timestamp aún es válido
                             const timestampCambio = parseInt(cambioReciente);
                             const ahora = Date.now();
-                            if (ahora - timestampCambio > 3000) {
-                                // El cambio ya no es reciente, marcar normalmente
-                                cb.checked = true;
-                                cb.removeAttribute('data-cambio-reciente');
+                            if (ahora - timestampCambio > 10000) {
+                                // El cambio ya no es reciente, marcar normalmente (solo si no fue eliminado)
+                                if (cb.getAttribute('data-eliminado') !== 'true') {
+                                    cb.checked = true;
+                                    cb.removeAttribute('data-cambio-reciente');
+                                }
                             }
                             // Si el cambio es reciente, mantener el estado actual del checkbox
                         }
@@ -1245,9 +1312,15 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
             }
 
             // Limpiar TODOS los checkboxes de este telar y tipo primero
+            // EXCEPTO los que fueron eliminados (mantenerlos desmarcados)
             todasLasTablasDelTelar.forEach(table => {
                 table.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`).forEach(checkbox => {
-                    checkbox.checked = false;
+                    // Si fue eliminado, mantenerlo desmarcado pero no remover el atributo
+                    if (checkbox.getAttribute('data-eliminado') === 'true') {
+                        checkbox.checked = false;
+                    } else {
+                        checkbox.checked = false;
+                    }
                 });
             });
 
@@ -1309,6 +1382,11 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
 
                 checkboxes.forEach(cb => {
                     if (cb.value === valorEsperado) {
+                        // NO marcar si el checkbox fue eliminado
+                        if (cb.getAttribute('data-eliminado') === 'true') {
+                            cb.checked = false;
+                            return;
+                        }
                         cb.checked = true;
                     }
                 });
@@ -1778,6 +1856,1247 @@ async function obtenerDatosSiguienteOrden(telarId, fibra = null) {
 // Función para obtener el inventario completo de telares (usa caché)
 async function obtenerInventarioTelares() {
     return await obtenerInventarioConCache();
+}
+
+// Variable global para almacenar datos de eliminación pendiente
+// Variables globales para el modal de eliminación (declaradas solo una vez)
+if (typeof window.datosEliminacionPendiente === 'undefined') {
+    window.datosEliminacionPendiente = null;
+}
+if (typeof window.checkboxEliminacionPendiente === 'undefined') {
+    window.checkboxEliminacionPendiente = null;
+}
+
+// Variables para el modal de calendario semanal
+if (typeof window.checkboxPendienteCalendario === 'undefined') {
+    window.checkboxPendienteCalendario = null;
+    window.telarIdPendienteCalendario = null;
+    window.tipoPendienteCalendario = null;
+    window.turnoPendienteCalendario = null;
+    window.fechaOriginalPendienteCalendario = null;
+    window.registroIdPendienteCalendario = null; // ID del registro que se está actualizando
+    window.fechaSeleccionadaCalendario = null; // Fecha seleccionada en el calendario
+    window.telarDataPendiente = null;
+}
+
+// Función para verificar estado del telar antes de eliminar
+async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar, checkbox, telarData = null) {
+    try {
+        // Validar que tenemos los datos necesarios para la verificación
+        if (!datosEliminar || !datosEliminar.fecha || datosEliminar.turno === undefined) {
+            console.error('Error: Faltan datos para verificar estado', datosEliminar);
+            // Si faltan datos críticos, mostrar modal por seguridad
+            window.datosEliminacionPendiente = datosEliminar;
+            window.checkboxEliminacionPendiente = checkbox;
+            if (telarData) {
+                window.telarDataCompleto = telarData;
+            }
+            const telarSection = checkbox.closest('.telar-section') || checkbox.closest('[data-telar]');
+            const salon = telarSection?.dataset?.salon || window.salonTelar || 'Jacquard';
+            window.telarDataPendiente = {
+                salon: salon,
+                telarId: telarId
+            };
+            window.mostrarModalTelaReservada();
+            return;
+        }
+
+        // Incluir fecha y turno en la verificación para verificar el registro específico
+        // Asegurar que la fecha esté en formato YYYY-MM-DD
+        let fechaParaVerificar = String(datosEliminar.fecha);
+        // Si la fecha viene en formato diferente, intentar convertirla
+        if (fechaParaVerificar && !fechaParaVerificar.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            try {
+                const fechaParsed = new Date(fechaParaVerificar);
+                if (!isNaN(fechaParsed.getTime())) {
+                    const año = fechaParsed.getFullYear();
+                    const mes = String(fechaParsed.getMonth() + 1).padStart(2, '0');
+                    const dia = String(fechaParsed.getDate()).padStart(2, '0');
+                    fechaParaVerificar = `${año}-${mes}-${dia}`;
+                }
+            } catch (e) {
+                // Si no se puede parsear, usar la fecha tal cual
+            }
+        }
+
+        const params = new URLSearchParams({
+            no_telar: String(telarId),
+            tipo: String(tipo),
+            fecha: fechaParaVerificar,
+            turno: String(datosEliminar.turno)
+        });
+
+        const response = await fetch(`/inventario-telares/verificar-estado?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            cache: 'no-cache' // Forzar que siempre consulte el servidor, no use caché del navegador
+        });
+
+        // Verificar que la respuesta sea válida
+        if (!response.ok) {
+            // Si es 404 (registro no encontrado), puede ser que ya fue eliminado
+            if (response.status === 404) {
+                const errorResult = await response.json().catch(() => ({ success: false, message: 'Registro no encontrado' }));
+                // Si el registro no existe, eliminar directamente (ya fue eliminado)
+                eliminarRegistro(datosEliminar, checkbox);
+                return;
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Guardar datos completos del telar si están disponibles
+        if (telarData) {
+            window.telarDataCompleto = telarData;
+        }
+
+        // Verificar que la respuesta tenga la estructura esperada
+        if (!result || typeof result !== 'object') {
+            throw new Error('Respuesta inválida del servidor');
+        }
+
+        if (result.success === true) {
+            // Si tiene reservado, mostrar modal
+            // IMPORTANTE: Verificar explícitamente que reservado sea true (no solo truthy)
+            if (result.reservado === true || result.reservado === 1 || result.reservado === '1') {
+                window.datosEliminacionPendiente = datosEliminar;
+                window.checkboxEliminacionPendiente = checkbox;
+                // Guardar el ID del registro si está disponible en la respuesta
+                if (result.registro_id) {
+                    window.registroIdPendienteCalendario = result.registro_id;
+                }
+                // Guardar datos completos del telar para usar en actualización (si están disponibles)
+                if (telarData) {
+                    window.telarDataCompleto = telarData;
+                }
+                // Guardar datos del telar para usar en actualización
+                const telarSection = checkbox.closest('.telar-section') || checkbox.closest('[data-telar]');
+                const salon = telarSection?.dataset?.salon || window.salonTelar || 'Jacquard';
+                window.telarDataPendiente = {
+                    salon: salon,
+                    telarId: telarId
+                };
+                window.mostrarModalTelaReservada();
+            } else if (result.programado === true || result.programado === 1 || result.programado === '1') {
+                // Si solo está programado (sin reservado), también mostrar modal
+                window.datosEliminacionPendiente = datosEliminar;
+                window.checkboxEliminacionPendiente = checkbox;
+                // Guardar el ID del registro si está disponible en la respuesta
+                if (result.registro_id) {
+                    window.registroIdPendienteCalendario = result.registro_id;
+                }
+                // Guardar datos completos del telar para usar en actualización (si están disponibles)
+                if (telarData) {
+                    window.telarDataCompleto = telarData;
+                }
+                // Guardar datos del telar para usar en actualización
+                const telarSection = checkbox.closest('.telar-section') || checkbox.closest('[data-telar]');
+                const salon = telarSection?.dataset?.salon || window.salonTelar || 'Jacquard';
+                window.telarDataPendiente = {
+                    salon: salon,
+                    telarId: telarId
+                };
+                window.mostrarModalTelaReservada();
+            } else {
+                // Si no tiene reservado ni programado, eliminar directamente
+                eliminarRegistro(datosEliminar, checkbox);
+            }
+        } else {
+            // Si hay error al verificar, verificar el tipo de error
+            if (result.message && result.message.includes('no encontrado')) {
+                // Si el registro no existe, eliminar directamente (ya fue eliminado)
+                eliminarRegistro(datosEliminar, checkbox);
+            } else {
+                // Para otros errores, SIEMPRE mostrar modal por seguridad
+                // NO confiar en telarData porque puede estar desactualizado después de múltiples operaciones
+                // El backend es la única fuente de verdad confiable
+                window.datosEliminacionPendiente = datosEliminar;
+                window.checkboxEliminacionPendiente = checkbox;
+                if (telarData) {
+                    window.telarDataCompleto = telarData;
+                }
+                const telarSection = checkbox.closest('.telar-section') || checkbox.closest('[data-telar]');
+                const salon = telarSection?.dataset?.salon || window.salonTelar || 'Jacquard';
+                window.telarDataPendiente = {
+                    salon: salon,
+                    telarId: telarId
+                };
+                window.mostrarModalTelaReservada();
+            }
+        }
+    } catch (error) {
+        console.error('Error al verificar estado:', error);
+        // Si hay error de conexión o excepción, SIEMPRE mostrar modal por seguridad
+        // NO confiar en telarData porque puede estar desactualizado después de múltiples operaciones
+        // El backend es la única fuente de verdad confiable
+        window.datosEliminacionPendiente = datosEliminar;
+        window.checkboxEliminacionPendiente = checkbox;
+        if (telarData) {
+            window.telarDataCompleto = telarData;
+        }
+        const telarSection = checkbox.closest('.telar-section') || checkbox.closest('[data-telar]');
+        const salon = telarSection?.dataset?.salon || window.salonTelar || 'Jacquard';
+        window.telarDataPendiente = {
+            salon: salon,
+            telarId: telarId
+        };
+        window.mostrarModalTelaReservada();
+    }
+}
+
+// Función para mostrar el modal de tela reservada (debe ser global)
+window.mostrarModalTelaReservada = function() {
+    // Buscar el modal en el DOM - puede estar en cualquier lugar
+    let modal = document.getElementById('modalTelaReservada');
+
+    // Si no se encuentra, puede que haya sido removido, buscar en el body o crear uno nuevo
+    if (!modal) {
+        // Buscar en todo el documento
+        modal = document.querySelector('#modalTelaReservada');
+
+        // Si aún no se encuentra, puede que haya sido removido del DOM
+        // En este caso, necesitamos recrearlo o buscarlo de otra manera
+        // Por ahora, simplemente retornar con un error silencioso
+        console.warn('Modal modalTelaReservada no encontrado en el DOM');
+        return;
+    }
+
+    // Asegurar que el modal esté en el body para que cubra toda la pantalla
+    if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
+
+    // Asegurar que el modal cubra toda la pantalla con z-index muy alto
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.right = '0';
+    modal.style.bottom = '0';
+    modal.style.zIndex = '100001'; // Mayor que el modal 2 (100000)
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.display = 'flex'; // Forzar display flex
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.6)'; // Asegurar backdrop
+    modal.style.visibility = 'visible';
+    modal.style.opacity = '1';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    // Asegurar que el contenido interno también tenga z-index alto
+    const modalContent = modal.querySelector('div > div');
+    if (modalContent) {
+        modalContent.style.position = 'relative';
+        modalContent.style.zIndex = '100002';
+    }
+};
+
+// Función para mostrar el modal de calendario semanal (debe ser global)
+window.mostrarModalCalendarioSemanal = function() {
+    const modalCalendarioMostrar = document.getElementById('modalCalendarioSemanal');
+    const grid = document.getElementById('calendarioSemanalGrid');
+    const seccionCalendario = document.getElementById('seccionCalendario');
+
+    if (!modalCalendarioMostrar || !grid) return;
+
+    // Reiniciar estado del modal: mostrar calendario, ocultar todos los contenedores de turnos
+    if (seccionCalendario) {
+        seccionCalendario.classList.remove('hidden');
+        seccionCalendario.setAttribute('style', 'display: block !important; visibility: visible !important;');
+    }
+
+    // Ocultar todos los contenedores de turnos
+    const todosLosContenedores = modalCalendarioMostrar ? modalCalendarioMostrar.querySelectorAll('.turnos-container') : document.querySelectorAll('.turnos-container');
+    todosLosContenedores.forEach(cont => {
+        cont.style.display = 'none';
+        cont.innerHTML = '';
+    });
+
+    // Obtener el lunes de la semana actual
+    const hoy = new Date();
+    const diaSemana = hoy.getDay(); // 0 = domingo, 1 = lunes, etc.
+    const diff = diaSemana === 0 ? -6 : 1 - diaSemana; // Ajustar para que el lunes sea el primer día
+    const lunes = new Date(hoy);
+    lunes.setDate(hoy.getDate() + diff);
+    lunes.setHours(0, 0, 0, 0);
+
+    // Nombres de los días
+    const nombresDias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+    // Limpiar grid
+    grid.innerHTML = '';
+
+    // Obtener la fecha original para resaltarla en azul
+    const fechaOriginalISO = window.fechaOriginalPendienteCalendario;
+
+    // Generar los 7 días de la semana
+    for (let i = 0; i < 7; i++) {
+        const fecha = new Date(lunes);
+        fecha.setDate(lunes.getDate() + i);
+
+        const dia = fecha.getDate();
+        const mes = fecha.getMonth() + 1;
+        const año = fecha.getFullYear();
+        const fechaISO = `${año}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+        const fechaFormato = `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}`;
+
+        const esHoy = fecha.toDateString() === hoy.toDateString();
+        // Verificar si es la fecha original (la que se está actualizando)
+        const esFechaOriginal = fechaOriginalISO && fechaISO === fechaOriginalISO;
+
+        // Crear contenedor para el día y los turnos
+        const diaContainer = document.createElement('div');
+        diaContainer.className = 'flex flex-col border-r border-gray-300 last:border-r-0';
+        diaContainer.style.width = '100%';
+        diaContainer.style.borderTop = '1px solid #d1d5db';
+        diaContainer.style.borderBottom = '1px solid #d1d5db';
+        diaContainer.setAttribute('data-fecha-container', fechaISO);
+
+        // Crear botón del día
+        const diaElement = document.createElement('button');
+        diaElement.type = 'button';
+        diaElement.className = `p-4 md:p-6 lg:p-8 transition-all hover:bg-gray-100 flex flex-col items-center justify-center min-h-[100px] md:min-h-[120px] w-full ${
+            esFechaOriginal
+                ? 'bg-blue-600 border-blue-700'
+                : esHoy
+                ? 'bg-blue-100 border-blue-400'
+                : 'bg-white'
+        }`;
+        diaElement.style.width = '100%';
+        diaElement.style.display = 'flex';
+        diaElement.style.flexDirection = 'column';
+        diaElement.innerHTML = `
+            <div class="text-2xl md:text-3xl lg:text-4xl font-bold ${esFechaOriginal ? 'text-white' : 'text-gray-900'}">${dia}</div>
+        `;
+        diaElement.setAttribute('data-fecha', fechaISO);
+        diaElement.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Click en fecha:', fechaISO);
+            if (typeof window.mostrarSeleccionTurnos === 'function') {
+                window.mostrarSeleccionTurnos(fechaISO, diaContainer);
+            } else {
+                console.error('mostrarSeleccionTurnos no está definida');
+                alert('Error: La función mostrarSeleccionTurnos no está disponible');
+            }
+        };
+
+        // Crear contenedor de turnos (fuera del botón, debajo)
+        const turnosContainer = document.createElement('div');
+        turnosContainer.className = 'turnos-container';
+        turnosContainer.setAttribute('data-fecha-turnos', fechaISO);
+        turnosContainer.style.cssText = 'display: none; width: 100%; padding: 4px 2px; box-sizing: border-box;';
+        turnosContainer.style.display = 'none';
+
+        // Agregar botón y contenedor de turnos al contenedor del día
+        diaContainer.appendChild(diaElement);
+        diaContainer.appendChild(turnosContainer);
+
+        grid.appendChild(diaContainer);
+    }
+
+    // Forzar que el grid sea horizontal
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
+    grid.style.gridAutoFlow = 'row';
+    grid.style.width = '100%';
+
+    // Mover el modal al body si no está ya ahí
+    if (modalCalendarioMostrar.parentElement !== document.body) {
+        document.body.appendChild(modalCalendarioMostrar);
+    }
+
+    // Asegurar que el modal 1 esté completamente oculto
+    const modales1 = document.querySelectorAll('#modalTelaReservada');
+    modales1.forEach(m => {
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+        m.style.display = 'none';
+    });
+
+    modalCalendarioMostrar.style.position = 'fixed';
+    modalCalendarioMostrar.style.top = '0';
+    modalCalendarioMostrar.style.left = '0';
+    modalCalendarioMostrar.style.right = '0';
+    modalCalendarioMostrar.style.bottom = '0';
+    modalCalendarioMostrar.style.zIndex = '100000'; // Mayor que el modal 1 para estar por encima
+    modalCalendarioMostrar.style.width = '100%';
+    modalCalendarioMostrar.style.height = '100%';
+    modalCalendarioMostrar.style.display = 'flex'; // Forzar display flex
+    modalCalendarioMostrar.style.visibility = 'visible'; // Asegurar que sea visible
+    modalCalendarioMostrar.style.opacity = '1'; // Asegurar opacidad completa
+    modalCalendarioMostrar.style.transform = 'none'; // Resetear transform
+    modalCalendarioMostrar.classList.remove('hidden');
+    modalCalendarioMostrar.classList.add('flex');
+};
+
+// Función para cerrar el modal de calendario semanal (debe ser global)
+window.cerrarModalCalendarioSemanal = function() {
+    const modalCalendarioCerrar = document.getElementById('modalCalendarioSemanal');
+    const seccionCalendario = document.getElementById('seccionCalendario');
+
+    // Reiniciar estado del modal: mostrar calendario, ocultar todos los contenedores de turnos
+    if (seccionCalendario) {
+        seccionCalendario.classList.remove('hidden');
+        seccionCalendario.setAttribute('style', 'display: block !important; visibility: visible !important;');
+    }
+
+    // Ocultar todos los contenedores de turnos
+    const todosLosContenedores = modalCalendarioCerrar ? modalCalendarioCerrar.querySelectorAll('.turnos-container') : document.querySelectorAll('.turnos-container');
+    todosLosContenedores.forEach(cont => {
+        cont.style.display = 'none';
+        cont.innerHTML = '';
+    });
+
+    // Limpiar fecha seleccionada
+    window.fechaSeleccionadaCalendario = null;
+
+    // Cerrar completamente TODOS los modales 2 INMEDIATAMENTE - MÉTODO AGRESIVO
+    // Buscar TODOS los modales 2 porque puede haber múltiples instancias (una por telar)
+    const todosLosModales2 = document.querySelectorAll('#modalCalendarioSemanal');
+
+    todosLosModales2.forEach((modalItem, index) => {
+
+        // Usar setAttribute con !important para sobrescribir estilos inline
+        modalItem.setAttribute('style', `
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            z-index: -9999 !important;
+            pointer-events: none !important;
+            position: fixed !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            transform: translateX(-9999px) translateY(-9999px) scale(0) !important;
+        `);
+        modalItem.classList.add('hidden');
+        modalItem.classList.remove('flex');
+
+        // Remover del DOM completamente
+        const modalParent = modalItem.parentElement;
+        if (modalParent) {
+            modalParent.removeChild(modalItem);
+        }
+    });
+
+    // También cerrar el modal encontrado por ID (por compatibilidad) si no se encontraron otros
+    if (modalCalendarioCerrar && todosLosModales2.length === 0) {
+        modalCalendarioCerrar.setAttribute('style', `
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            z-index: -9999 !important;
+            pointer-events: none !important;
+            position: fixed !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            transform: translateX(-9999px) translateY(-9999px) scale(0) !important;
+        `);
+        modalCalendarioCerrar.classList.add('hidden');
+        modalCalendarioCerrar.classList.remove('flex');
+
+        // Reiniciar estado del modal: mostrar calendario, ocultar todos los contenedores de turnos
+        const seccionCalendario = document.getElementById('seccionCalendario');
+        if (seccionCalendario) {
+            seccionCalendario.classList.remove('hidden');
+            seccionCalendario.setAttribute('style', 'display: block !important; visibility: visible !important;');
+        }
+
+        // Ocultar todos los contenedores de turnos
+        const modalCalendario2 = document.getElementById('modalCalendarioSemanal');
+        const todosLosContenedores = modalCalendario2 ? modalCalendario2.querySelectorAll('.turnos-container') : document.querySelectorAll('.turnos-container');
+        todosLosContenedores.forEach(cont => {
+            cont.style.display = 'none';
+            cont.innerHTML = '';
+        });
+
+        // Limpiar fecha seleccionada
+        window.fechaSeleccionadaCalendario = null;
+
+        const modalParent = modalCalendarioCerrar.parentElement;
+        if (modalParent) {
+            modalParent.removeChild(modalCalendarioCerrar);
+        }
+    }
+
+    // Guardar las referencias ANTES de limpiar cualquier cosa
+    const datosPendientes = window.datosEliminacionPendiente;
+    const checkboxPendiente = window.checkboxEliminacionPendiente;
+    const telarDataPendiente = window.telarDataPendiente;
+    const checkboxCalendario = window.checkboxPendienteCalendario;
+
+    // Limpiar variables del calendario (pero mantener las del modal de confirmación)
+    // Solo limpiar si NO se está seleccionando una fecha (es decir, si se cancela)
+    // Si se seleccionó una fecha, las variables ya se limpiaron en seleccionarTurno
+    if (checkboxCalendario && window.telarIdPendienteCalendario) {
+        // Si aún existen las variables del calendario, significa que se canceló
+        window.checkboxPendienteCalendario = null;
+        window.telarIdPendienteCalendario = null;
+        window.tipoPendienteCalendario = null;
+        window.turnoPendienteCalendario = null;
+        window.fechaOriginalPendienteCalendario = null;
+        window.registroIdPendienteCalendario = null;
+        window.fechaSeleccionadaCalendario = null;
+    }
+    // NO limpiar telarDataPendiente, datosEliminacionPendiente ni checkboxEliminacionPendiente
+    // porque se necesitan para restaurar el modal 1 cuando se cancela
+
+    // Si se cancela, restaurar el modal de confirmación (modal 1)
+    // Las variables window.datosEliminacionPendiente y window.checkboxEliminacionPendiente
+    // se mantienen porque no se limpiaron al mostrar el calendario
+    if (datosPendientes && checkboxPendiente) {
+        // Restaurar las variables por si se perdieron
+        window.datosEliminacionPendiente = datosPendientes;
+        window.checkboxEliminacionPendiente = checkboxPendiente;
+        if (telarDataPendiente) {
+            window.telarDataPendiente = telarDataPendiente;
+        }
+
+        // Delay más largo para asegurar que el modal 2 se cierre completamente
+        setTimeout(() => {
+            // Verificar y forzar cierre de TODOS los modales 2 - MÉTODO AGRESIVO
+            const todosLosModales2 = document.querySelectorAll('#modalCalendarioSemanal');
+
+            todosLosModales2.forEach((modal2, index) => {
+                // Usar setAttribute con !important para sobrescribir estilos inline
+                modal2.setAttribute('style', `
+                    display: none !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                    z-index: -9999 !important;
+                    pointer-events: none !important;
+                    position: fixed !important;
+                    top: -9999px !important;
+                    left: -9999px !important;
+                    right: auto !important;
+                    bottom: auto !important;
+                    width: 0 !important;
+                    height: 0 !important;
+                    overflow: hidden !important;
+                    transform: translateX(-9999px) translateY(-9999px) scale(0) !important;
+                    max-width: 0 !important;
+                    max-height: 0 !important;
+                `);
+                modal2.classList.add('hidden');
+                modal2.classList.remove('flex');
+
+                // Remover del DOM completamente
+                const modal2Parent = modal2.parentElement;
+                if (modal2Parent) {
+                    modal2Parent.removeChild(modal2);
+                }
+            });
+
+            // Pequeño delay adicional antes de mostrar modal 1
+            setTimeout(() => {
+                // Mostrar el modal de tela reservada nuevamente (modal 1) con z-index alto
+                if (typeof window.mostrarModalTelaReservada === 'function') {
+                    window.mostrarModalTelaReservada();
+                } else {
+                    console.error('mostrarModalTelaReservada no está definida');
+                }
+            }, 50);
+        }, 200);
+    } else {
+        // Si no hay datos pendientes del modal 1, re-marcar el checkbox
+        if (checkboxCalendario) {
+            checkboxCalendario.checked = true;
+        }
+    }
+};
+
+// Función para mostrar selección de turnos después de seleccionar fecha (debe ser global)
+window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
+    console.log('mostrarSeleccionTurnos llamado con fecha:', fechaISO);
+
+    if (!window.checkboxPendienteCalendario || !window.telarIdPendienteCalendario) {
+        console.error('Faltan datos necesarios:', {
+            checkboxPendienteCalendario: !!window.checkboxPendienteCalendario,
+            telarIdPendienteCalendario: !!window.telarIdPendienteCalendario
+        });
+        if (typeof window.cerrarModalCalendarioSemanal === 'function') {
+            window.cerrarModalCalendarioSemanal();
+        }
+        return;
+    }
+
+    const telarId = window.telarIdPendienteCalendario;
+    const tipo = window.tipoPendienteCalendario;
+    const registroId = window.registroIdPendienteCalendario; // ID del registro que se está actualizando
+
+    // Buscar el contenedor del día si no se pasó
+    if (!diaElement) {
+        // Si no se pasó el elemento, buscarlo por la fecha
+        const modalCalendario4 = document.getElementById('modalCalendarioSemanal');
+        if (!modalCalendario4) {
+            console.error('Modal modalCalendarioSemanal no encontrado');
+            return;
+        }
+        // Buscar el contenedor del día (que tiene data-fecha-container)
+        diaElement = modalCalendario4.querySelector(`[data-fecha-container="${fechaISO}"]`);
+        if (!diaElement) {
+            // Si no se encuentra por data-fecha-container, buscar el botón con data-fecha y obtener su padre
+            const btnDia = modalCalendario4.querySelector(`[data-fecha="${fechaISO}"]`);
+            if (btnDia && btnDia.parentElement) {
+                diaElement = btnDia.parentElement;
+            } else {
+                console.error('Elemento del día no encontrado para fecha:', fechaISO);
+                return;
+            }
+        }
+    }
+
+    // Ocultar todos los contenedores de turnos de otros días ANTES de mostrar los nuevos
+    const modalCalendario3 = document.getElementById('modalCalendarioSemanal');
+    if (modalCalendario3) {
+        const todosLosContenedores = modalCalendario3.querySelectorAll('.turnos-container');
+        todosLosContenedores.forEach(cont => {
+            const contFecha = cont.getAttribute('data-fecha-turnos');
+            if (contFecha && contFecha !== fechaISO) {
+                // Ocultar y limpiar los turnos de otros días
+                cont.style.display = 'none';
+                cont.style.visibility = 'hidden';
+                cont.innerHTML = '';
+                console.log(`Ocultando turnos del día ${contFecha}`);
+            }
+        });
+    }
+
+    // Buscar el contenedor de turnos dentro del contenedor del día
+    let turnosContainer = diaElement.querySelector('.turnos-container');
+    if (!turnosContainer) {
+        // Si no existe, crearlo
+        turnosContainer = document.createElement('div');
+        turnosContainer.className = 'turnos-container';
+        turnosContainer.setAttribute('data-fecha-turnos', fechaISO);
+        turnosContainer.style.cssText = 'display: none; width: 100%; padding: 4px 2px; box-sizing: border-box;';
+        diaElement.appendChild(turnosContainer);
+    } else {
+        // Si ya existe, limpiarlo para recargar los turnos (importante: verificar que sea de la misma fecha)
+        const fechaAnterior = turnosContainer.getAttribute('data-fecha-turnos');
+        if (fechaAnterior !== fechaISO) {
+            // Si es de otra fecha, limpiar completamente
+            turnosContainer.innerHTML = '';
+            turnosContainer.setAttribute('data-fecha-turnos', fechaISO);
+        } else {
+            // Si es la misma fecha, limpiar para recargar
+            turnosContainer.innerHTML = '';
+        }
+    }
+
+    // Guardar fecha seleccionada
+    window.fechaSeleccionadaCalendario = fechaISO;
+
+    // Verificar qué turnos están ocupados
+    try {
+        const params = new URLSearchParams({
+            no_telar: String(telarId),
+            tipo: tipo,
+            fecha: fechaISO
+        });
+
+        if (registroId) {
+            params.append('registro_id_excluir', registroId);
+        }
+
+        const response = await fetch(`/inventario-telares/verificar-turnos-ocupados?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            cache: 'no-cache'
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al verificar turnos ocupados');
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            const turnosOcupados = result.turnos_ocupados || [];
+
+            console.log('Turnos ocupados recibidos:', turnosOcupados);
+
+            // Limpiar el contenedor y crear los botones de turno
+            turnosContainer.innerHTML = '';
+
+            // Crear botones de turno en una fila horizontal que ocupe todo el ancho
+            const turnosRow = document.createElement('div');
+            turnosRow.className = 'flex w-full';
+            turnosRow.style.cssText = 'display: flex; width: 100%; gap: 2px;';
+
+            [1, 2, 3].forEach(turno => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.setAttribute('data-turno', turno);
+
+                // Verificar si el turno está ocupado (comparar como número)
+                const turnoOcupado = turnosOcupados.includes(parseInt(turno, 10)) || turnosOcupados.includes(turno);
+
+                console.log(`Turno ${turno}: ocupado = ${turnoOcupado}`);
+
+                if (turnoOcupado) {
+                    // Turno ocupado: fondo rojo tenue, texto rojo, deshabilitado
+                    btn.className = 'flex-1 py-2 text-sm font-bold rounded transition-all focus:outline-none focus:ring-2 focus:ring-red-500 bg-red-100 text-red-700 border border-red-300 cursor-not-allowed opacity-75';
+                    btn.style.cssText = 'flex: 1 1 0%; min-width: 0; width: 100%;';
+                    btn.disabled = true;
+                    btn.title = 'Este turno ya está ocupado';
+                } else {
+                    // Turno disponible: fondo azul, texto blanco, habilitado
+                    btn.className = 'flex-1 py-2 text-sm font-bold rounded transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-500 text-white border border-blue-600 hover:bg-blue-600';
+                    btn.style.cssText = 'flex: 1 1 0%; min-width: 0; width: 100%;';
+                    btn.disabled = false;
+                    btn.title = '';
+                }
+
+                btn.textContent = turno;
+                btn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof window.seleccionarTurno === 'function') {
+                        window.seleccionarTurno(turno, btn);
+                    }
+                };
+
+                turnosRow.appendChild(btn);
+            });
+
+            turnosContainer.appendChild(turnosRow);
+
+            // Mostrar el contenedor de turnos
+            turnosContainer.style.display = 'block';
+            turnosContainer.style.visibility = 'visible';
+            turnosContainer.style.width = '100%';
+            turnosContainer.style.boxSizing = 'border-box';
+
+            console.log('Botones de turno creados y mostrados');
+        }
+    } catch (error) {
+        console.error('Error al verificar turnos ocupados:', error);
+        // Si hay error, crear botones sin restricciones
+        turnosContainer.innerHTML = '';
+
+        // Crear botones de turno en una fila horizontal que ocupe todo el ancho
+        const turnosRow = document.createElement('div');
+        turnosRow.className = 'flex w-full';
+        turnosRow.style.cssText = 'display: flex; width: 100%; gap: 2px;';
+
+        [1, 2, 3].forEach(turno => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.setAttribute('data-turno', turno);
+            btn.className = 'flex-1 py-2 text-sm font-bold rounded transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-500 text-white border border-blue-600 hover:bg-blue-600';
+            btn.style.cssText = 'flex: 1 1 0%; min-width: 0; width: 100%;';
+            btn.textContent = turno;
+            btn.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof window.seleccionarTurno === 'function') {
+                    window.seleccionarTurno(turno);
+                }
+            };
+            turnosRow.appendChild(btn);
+        });
+
+        turnosContainer.appendChild(turnosRow);
+        turnosContainer.style.display = 'block';
+        turnosContainer.style.visibility = 'visible';
+        turnosContainer.style.width = '100%';
+        turnosContainer.style.boxSizing = 'border-box';
+    }
+};
+
+// Función para manejar el botón cancelar del modal 2 (debe ser global)
+// Cierra el modal completamente
+window.manejarCancelarModal2 = function() {
+    // Ocultar todos los contenedores de turnos
+    const modalCalendario5 = document.getElementById('modalCalendarioSemanal');
+    if (modalCalendario5) {
+        const todosLosContenedores = modalCalendario5.querySelectorAll('.turnos-container');
+        todosLosContenedores.forEach(cont => {
+            cont.style.display = 'none';
+            cont.innerHTML = '';
+        });
+    }
+
+    // Cerrar el modal completamente
+    if (typeof window.cerrarModalCalendarioSemanal === 'function') {
+        window.cerrarModalCalendarioSemanal();
+    }
+}
+
+// Función para seleccionar turno y actualizar (debe ser global)
+window.seleccionarTurno = function(turno, btnElement) {
+    // Si se pasa el elemento del botón, usarlo; si no, buscarlo
+    const btn = btnElement || document.querySelector(`[data-turno="${turno}"]`);
+
+    if (!btn) {
+        console.error('Botón de turno no encontrado');
+        return;
+    }
+
+    // Verificar si el turno está ocupado (deshabilitado)
+    if (btn.disabled) {
+        // Si el turno está ocupado, mostrar alerta
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Turno Ocupado',
+                text: `El turno ${turno} ya está ocupado para esta fecha. Por favor, selecciona otro turno.`,
+                showConfirmButton: true,
+                confirmButtonText: 'Entendido'
+            });
+        }
+        return;
+    }
+
+    if (!window.checkboxPendienteCalendario || !window.telarIdPendienteCalendario || !window.fechaSeleccionadaCalendario) {
+        console.error('Faltan datos necesarios para actualizar');
+        if (typeof window.cerrarModalCalendarioSemanal === 'function') {
+            window.cerrarModalCalendarioSemanal();
+        }
+        return;
+    }
+
+    // Guardar referencias antes de actualizar
+    const checkbox = window.checkboxPendienteCalendario;
+    const telarId = window.telarIdPendienteCalendario;
+    const tipo = window.tipoPendienteCalendario;
+    const turnoOriginal = window.turnoPendienteCalendario;
+    const fechaOriginal = window.fechaOriginalPendienteCalendario;
+    const fechaNueva = window.fechaSeleccionadaCalendario;
+
+    // Cerrar el modal antes de actualizar
+    if (typeof window.cerrarModalCalendarioSemanal === 'function') {
+        window.cerrarModalCalendarioSemanal();
+    }
+
+    // Actualizar la fecha y turno del registro
+    const datosActualizar = {
+        no_telar: String(telarId),
+        tipo: tipo,
+        fecha_original: fechaOriginal,
+        turno: turnoOriginal,
+        fecha_nueva: fechaNueva,
+        turno_nuevo: turno
+    };
+
+    // Hacer la petición de actualización y luego recargar la página
+    axios.post('/inventario-telares/actualizar-fecha', datosActualizar, {
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(() => {
+        // Recargar la página después de actualizar
+        window.location.reload();
+    })
+    .catch(error => {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error al actualizar',
+                text: error.response?.data?.message || 'No se pudo actualizar la fecha y turno del registro.',
+                showConfirmButton: true
+            });
+        }
+        // Si hay error, no recargar para que el usuario pueda intentar de nuevo
+    });
+}
+
+// Función para actualizar el registro con la nueva fecha
+async function actualizarRegistroConNuevaFecha(checkbox, telarId, tipo, turno, fechaOriginal, fechaNueva) {
+    // Obtener el salón del contexto guardado o del elemento
+    const salon = window.telarDataPendiente?.salon ||
+                 checkbox.closest('.telar-section')?.dataset?.salon ||
+                 checkbox.closest('[data-telar]')?.dataset?.salon ||
+                 window.salonTelar ||
+                 'Jacquard';
+
+    try {
+        // Primero intentar usar los datos completos del telar guardados desde handleRequerimientoChange
+        let telarData = window.telarDataCompleto;
+
+        // Si no están disponibles, intentar obtener desde el caché
+        if (!telarData) {
+            try {
+                // Obtener inventario completo desde el caché
+                const inventario = await obtenerInventarioConCache();
+
+                if (Array.isArray(inventario) && inventario.length > 0) {
+                    telarData = inventario.find(t => String(t.no_telar) === String(telarId) || String(t.Telar) === String(telarId));
+                }
+            } catch (errorCache) {
+                console.warn('Error al obtener desde caché, intentando obtener directamente:', errorCache);
+            }
+
+            // Si no se encontró en el caché, intentar obtener con filtro específico del telar
+            if (!telarData) {
+                try {
+                    const inventarioFiltrado = await obtenerInventarioConCache({ no_telar: String(telarId) });
+                    if (Array.isArray(inventarioFiltrado) && inventarioFiltrado.length > 0) {
+                        telarData = inventarioFiltrado[0]; // El primero debería ser el telar buscado
+                    }
+                } catch (errorFiltrado) {
+                    console.warn('Error al obtener con filtro:', errorFiltrado);
+                }
+            }
+        }
+
+        if (!telarData) {
+            throw new Error('No se encontraron datos del telar. Por favor, recargue la página.');
+        }
+
+        // Obtener cuenta, calibre, hilo y orden según el tipo
+        // Los datos pueden venir con diferentes nombres de campos según la fuente
+        const cuenta = tipo === 'Rizo'
+            ? (telarData.Cuenta || telarData.cuenta || '')
+            : (telarData.Cuenta_Pie || telarData.CuentaPie || telarData.cuenta_pie || '');
+
+        const calibre = tipo === 'Rizo'
+            ? (telarData.CalibreRizo2 || telarData.CalibreRizo || telarData.calibre_rizo || null)
+            : (telarData.CalibrePie2 || telarData.CalibrePie || telarData.calibre_pie || null);
+
+        const hilo = tipo === 'Rizo'
+            ? (telarData.Fibra_Rizo || telarData.FibraRizo || telarData.fibra_rizo || telarData.hilo || '')
+            : (telarData.Fibra_Pie || telarData.FibraPie || telarData.fibra_pie || telarData.hilo || '');
+
+        const noOrden = telarData.Orden_Prod || telarData.OrdenProd || telarData.orden_prod || telarData.no_orden || '';
+
+        if (!cuenta || cuenta === '') {
+            throw new Error('No se encontró cuenta para este telar. Verifique los datos del telar.');
+        }
+
+        // Preparar datos para crear el nuevo registro
+        const datosCrear = {
+            no_telar: String(telarId),
+            tipo: tipo,
+            fecha: fechaNueva,
+            turno: turno,
+            cuenta: String(cuenta),
+            calibre: calibre ? parseFloat(calibre) : null,
+            salon: salon,
+            hilo: hilo || '',
+            no_orden: String(noOrden || '')
+        };
+
+        // Actualizar la fecha del registro existente en lugar de eliminar y crear
+        try {
+            const datosActualizar = {
+                no_telar: String(telarId),
+                tipo: tipo,
+                fecha_original: fechaOriginal,
+                turno: turno,
+                fecha_nueva: fechaNueva
+            };
+
+            const responseActualizar = await axios.post('/inventario-telares/actualizar-fecha', datosActualizar, {
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!responseActualizar.data || responseActualizar.data.success === false) {
+                throw new Error(responseActualizar.data?.message || 'Error al actualizar la fecha del registro');
+            }
+        } catch (errorActualizar) {
+            console.error('Error al actualizar fecha del registro:', errorActualizar);
+            throw new Error(errorActualizar.response?.data?.message || 'No se pudo actualizar la fecha del registro. El registro original se mantiene.');
+        }
+
+        // Invalidar caché para forzar recarga
+        invalidarCacheInventario();
+
+        // Desmarcar el checkbox viejo (de la fecha original)
+        checkbox.checked = false;
+        checkbox.setAttribute('data-eliminado', 'true');
+        checkbox.setAttribute('data-cambio-reciente', Date.now().toString());
+
+        // Recargar requerimientos para que aparezca en la nueva fecha y se marque el nuevo checkbox
+        setTimeout(() => {
+            // Obtener el tipo normalizado para la recarga
+            const tipoNormalizado = tipo === 'Rizo' ? 'rizo' : 'pie';
+
+            // Intentar obtener la fibra del telar para recargar con filtro si es necesario
+            const fibraNormalizada = hilo ? String(hilo).trim().toLowerCase() : '';
+            const fibraValida = fibraNormalizada && fibraNormalizada !== '' && fibraNormalizada !== '-';
+
+            if (fibraValida && typeof loadRequerimientosConFiltro === 'function') {
+                loadRequerimientosConFiltro(telarId, salon, tipoNormalizado, fibraNormalizada);
+            } else if (typeof loadRequerimientos === 'function') {
+                loadRequerimientos(telarId, salon);
+            }
+        }, 300);
+
+        // Formatear fecha para mostrar
+        const [año, mes, dia] = fechaNueva.split('-');
+        const fechaFormato = `${dia}/${mes}`;
+
+        // Mostrar notificación de éxito
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Actualizado con éxito',
+                text: `Fecha actualizada a ${fechaFormato}. El registro aparecerá en la nueva fecha.`,
+                showConfirmButton: false,
+                timer: 2000,
+                timerProgressBar: true,
+                position: 'top-end',
+                toast: true
+            });
+        }
+    } catch (error) {
+        console.error('Error al actualizar registro:', error);
+
+        // Re-marcar el checkbox en caso de error (el registro original sigue existiendo)
+        checkbox.checked = true;
+        checkbox.removeAttribute('data-eliminado');
+        checkbox.removeAttribute('data-cambio-reciente');
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error al actualizar',
+                text: error.message || error.response?.data?.message || 'No se pudo actualizar el registro. El registro original se mantiene.',
+                showConfirmButton: false,
+                timer: 3000,
+                position: 'top-end',
+                toast: true
+            });
+        }
+    }
+}
+
+// Función para cerrar el modal de tela reservada
+window.cerrarModalTelaReservada = function() {
+
+    // Guardar referencia al checkbox antes de limpiar variables
+    const checkbox = window.checkboxEliminacionPendiente;
+
+    // IMPORTANTE: NO remover el modal del DOM, solo ocultarlo
+    // Esto asegura que siempre esté disponible para futuras aperturas
+
+    // FORZAR cierre completo de TODOS los modales 2 (calendario) - PRIMERO
+    // Buscar TODOS los modales 2 porque puede haber múltiples instancias (una por telar)
+    const todosLosModales2 = document.querySelectorAll('#modalCalendarioSemanal');
+
+    todosLosModales2.forEach((modal2, index) => {
+        // Usar setAttribute con !important para sobrescribir estilos inline
+        modal2.setAttribute('style', `
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            z-index: -9999 !important;
+            pointer-events: none !important;
+            position: fixed !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            transform: translateX(-9999px) translateY(-9999px) scale(0) !important;
+        `);
+        modal2.classList.add('hidden');
+        modal2.classList.remove('flex');
+
+        // Remover del DOM completamente
+                const modal2Parent = modal2.parentElement;
+                if (modal2Parent) {
+                    modal2Parent.removeChild(modal2);
+                }
+    });
+
+    // FORZAR cierre completo de TODOS los modales 1 - SEGUNDO
+    const modales = document.querySelectorAll('#modalTelaReservada');
+    modales.forEach((modal, index) => {
+        // Usar setAttribute con !important para sobrescribir estilos inline
+        modal.setAttribute('style', `
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            z-index: -9999 !important;
+            pointer-events: none !important;
+            position: fixed !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            transform: translateX(-9999px) translateY(-9999px) scale(0) !important;
+        `);
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+
+        // IMPORTANTE: NO remover del DOM, solo ocultar
+        // Esto asegura que el modal siempre esté disponible para futuras aperturas
+        // El modal debe permanecer en el DOM, solo oculto
+    });
+
+    // Limpiar TODAS las variables después de cerrar ambos modales
+    window.datosEliminacionPendiente = null;
+    window.checkboxEliminacionPendiente = null;
+    window.checkboxPendienteCalendario = null;
+    window.telarIdPendienteCalendario = null;
+    window.tipoPendienteCalendario = null;
+    window.turnoPendienteCalendario = null;
+    window.fechaOriginalPendienteCalendario = null;
+    window.telarDataPendiente = null;
+    window.telarDataCompleto = null;
+
+    // Si hay un checkbox pendiente, significa que se canceló la eliminación
+    // Hacer reload de la página para limpiar todo y cargar el estado correcto
+    if (checkbox) {
+        // Recargar la página para limpiar todo y cargar el estado correcto
+        window.location.reload();
+    }
+};
+
+// Función para confirmar eliminación con reserva (elimina el registro y la reserva)
+function confirmarEliminarConReserva() {
+    if (window.datosEliminacionPendiente && window.checkboxEliminacionPendiente) {
+        // Guardar referencias antes de cerrar el modal (que limpia las variables)
+        const datosEliminar = window.datosEliminacionPendiente;
+        const checkbox = window.checkboxEliminacionPendiente;
+
+        // Limpiar la referencia del checkbox antes de eliminar
+        // para que cerrarModalTelaReservada no haga reload
+        window.checkboxEliminacionPendiente = null;
+
+        // Cerrar el modal inmediatamente
+        cerrarModalTelaReservada();
+
+        // Luego ejecutar la eliminación con las referencias guardadas
+        eliminarRegistro(datosEliminar, checkbox);
+    }
+}
+
+// Función para mostrar calendario cuando se presiona "Actualizar"
+function mostrarCalendarioParaActualizar() {
+    // Guardar datos del checkbox pendiente para usar después de seleccionar fecha
+    // IMPORTANTE: NO limpiar window.datosEliminacionPendiente ni window.checkboxEliminacionPendiente
+    // porque se necesitan para restaurar el modal 1 si se cancela
+    if (window.checkboxEliminacionPendiente && window.datosEliminacionPendiente) {
+        window.checkboxPendienteCalendario = window.checkboxEliminacionPendiente;
+        window.telarIdPendienteCalendario = window.datosEliminacionPendiente.no_telar;
+        window.tipoPendienteCalendario = window.datosEliminacionPendiente.tipo;
+        window.turnoPendienteCalendario = window.datosEliminacionPendiente.turno;
+        window.fechaOriginalPendienteCalendario = window.datosEliminacionPendiente.fecha;
+        // Guardar el ID del registro si está disponible (se guarda cuando se verifica el estado)
+        // El registroId se guarda en verificarEstadoTelarAntesDeEliminar cuando se recibe la respuesta
+        // Mantener los datos del telar
+        window.telarDataPendiente = window.telarDataPendiente || {
+            salon: 'Jacquard',
+            telarId: window.datosEliminacionPendiente.no_telar
+        };
+
+        // Cerrar completamente el modal de confirmación (modal 1)
+        const modales = document.querySelectorAll('#modalTelaReservada');
+        modales.forEach(modal => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            modal.style.display = 'none';
+            // Asegurar que el z-index no interfiera
+            modal.style.zIndex = '99999';
+        });
+
+        // Pequeño delay para asegurar que el modal 1 se cierre completamente
+        setTimeout(() => {
+        // Mostrar modal de calendario semanal (modal 2)
+        window.mostrarModalCalendarioSemanal();
+        }, 100);
+    }
+}
+
+// Función para eliminar el registro
+function eliminarRegistro(datosEliminar, checkbox) {
+    // Validar que el checkbox existe
+    if (!checkbox) {
+        console.error('Error: checkbox es null en eliminarRegistro');
+        return;
+    }
+
+    // Marcar el checkbox como eliminado permanentemente para evitar que se vuelva a marcar
+    checkbox.setAttribute('data-eliminado', 'true');
+    checkbox.setAttribute('data-cambio-reciente', Date.now().toString());
+
+    // Asegurar que el checkbox esté desmarcado
+    checkbox.checked = false;
+
+    // Para DELETE, axios envía los datos en el body pero Laravel los lee desde input()
+    axios({
+        method: 'delete',
+        url: '/inventario-telares/eliminar',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Content-Type': 'application/json'
+        },
+        data: datosEliminar
+    })
+    .then(response => {
+        // Invalidar caché para que se actualice en la próxima carga (pero NO recargar automáticamente)
+        invalidarCacheInventario();
+
+        // El checkbox ya está desmarcado visualmente, mantenerlo así
+        // Asegurar que el atributo data-eliminado esté presente para que no se vuelva a marcar nunca
+        checkbox.setAttribute('data-eliminado', 'true');
+        checkbox.setAttribute('data-cambio-reciente', Date.now().toString());
+
+        // Asegurar que el checkbox esté desmarcado
+        checkbox.checked = false;
+
+        // NO recargar automáticamente los requerimientos - el checkbox permanecerá desmarcado
+        // Si el usuario necesita ver los cambios, puede recargar manualmente la página
+
+        // Mostrar notificación de éxito
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Eliminado con éxito',
+                showConfirmButton: false,
+                timer: 700,
+                timerProgressBar: true,
+                position: 'top-end',
+                toast: true
+            });
+        }
+    })
+    .catch(error => {
+        // Si hay error, remover el atributo de eliminado para permitir reintentos
+        checkbox.removeAttribute('data-eliminado');
+
+        // Mostrar notificación de error
+        if (typeof Swal !== 'undefined') {
+            let errorMessage = 'Error desconocido';
+
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            }
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Error al eliminar',
+                text: errorMessage,
+                showConfirmButton: false,
+                timer: 2500,
+                timerProgressBar: true,
+                position: 'top-end',
+                toast: true
+            });
+        }
+        // Re-marcar el checkbox si hubo error
+        checkbox.checked = true;
+    });
 }
 </script>
 

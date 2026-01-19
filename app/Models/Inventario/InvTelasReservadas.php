@@ -16,7 +16,9 @@ class InvTelasReservadas extends Model
         'ItemId','ConfigId','InventSizeId','InventColorId','InventLocationId',
         'InventBatchId','WMSLocationId','InventSerialId',
         'Tipo','Metros','InventQty','ProdDate',
-        'NoTelarId','SalonTejidoId','NoOrden',
+        'NoTelarId','SalonTejidoId',
+        'Fecha','Turno', // Columnas para referencia (fecha y turno del registro reservado)
+        'TejInventarioTelaresId', // ID del registro específico en tej_inventario_telares (identificación única)
         'Status','NumeroEmpleado','NombreEmpl',
     ];
 

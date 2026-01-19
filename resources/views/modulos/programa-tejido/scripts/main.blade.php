@@ -302,6 +302,28 @@
         // Aplicar todos los updates
         ddApplyUpdatesToRow(row, updatesById[idKey]);
 
+        // Asegurar que HorasProd (y otras columnas actualizadas) permanezcan visibles
+        // Verificar el estado del header para cada columna actualizada
+        Object.keys(updatesById[idKey]).forEach((columnField) => {
+          const headerTh = document.querySelector(`#mainTable thead th[data-column="${columnField}"]`);
+          if (headerTh) {
+            const isHeaderHidden = headerTh.style.display === 'none' ||
+                                   headerTh.classList.contains('hidden') ||
+                                   window.getComputedStyle(headerTh).display === 'none';
+
+            const cell = row.querySelector(`td[data-column="${columnField}"]`);
+            if (cell) {
+              if (isHeaderHidden) {
+                cell.style.display = 'none';
+              } else {
+                // Asegurar que la celda esté visible si el header está visible
+                cell.style.display = '';
+                cell.classList.remove('hidden');
+              }
+            }
+          }
+        });
+
         // Si se actualizó SalonTejidoId o NoTelarId, reconstruir Maquina
         // Esto asegura que Maquina se actualice visualmente incluso si el backend ya lo calculó
         if (updatesById[idKey].SalonTejidoId !== undefined || updatesById[idKey].NoTelarId !== undefined) {
@@ -324,6 +346,97 @@
 
       clearRowCache();
       ddReorderRows();
+
+      // Restaurar visibilidad de columnas ocultas después de reordenar
+      // Esto asegura que las columnas ocultas permanezcan ocultas después del drag and drop
+      // Basarse en el estado del header para aplicar el mismo estado a las filas
+      const headerCells = document.querySelectorAll('#mainTable thead th[data-column]');
+      const tbody = tbodyEl();
+
+      headerCells.forEach((th) => {
+        const columnField = th.getAttribute('data-column');
+        if (!columnField) return;
+
+        const classList = Array.from(th.classList);
+        const columnClass = classList.find(cls => cls.startsWith('column-'));
+        if (columnClass) {
+          const colIndex = parseInt(columnClass.replace('column-', ''));
+          if (!isNaN(colIndex)) {
+            // Verificar si la columna está oculta en el header
+            const isHidden = th.style.display === 'none' ||
+                            th.classList.contains('hidden') ||
+                            window.getComputedStyle(th).display === 'none';
+
+            if (isHidden) {
+              // Aplicar el mismo estado a todas las celdas correspondientes en las filas
+              // Buscar tanto por índice como por data-column para asegurar que todas las celdas se actualicen
+              if (tbody) {
+                const cellsByIndex = tbody.querySelectorAll(`td.column-${colIndex}`);
+                const cellsByField = tbody.querySelectorAll(`td[data-column="${columnField}"]`);
+
+                // Combinar ambos selectores para asegurar que todas las celdas se actualicen
+                const allCells = new Set([...cellsByIndex, ...cellsByField]);
+                allCells.forEach((cell) => {
+                  cell.style.display = 'none';
+                });
+              }
+            } else {
+              // Asegurar que las columnas visibles estén visibles
+              // Buscar tanto por índice como por data-column para asegurar que todas las celdas se actualicen
+              if (tbody) {
+                const cellsByIndex = tbody.querySelectorAll(`td.column-${colIndex}`);
+                const cellsByField = tbody.querySelectorAll(`td[data-column="${columnField}"]`);
+
+                // Combinar ambos selectores para asegurar que todas las celdas se actualicen
+                const allCells = new Set([...cellsByIndex, ...cellsByField]);
+                allCells.forEach((cell) => {
+                  // Forzar visibilidad removiendo cualquier estilo que oculte la celda
+                  cell.style.display = '';
+                  cell.style.visibility = '';
+                  cell.classList.remove('hidden');
+
+                  // Si por alguna razón el estilo computado sigue siendo none, forzar table-cell
+                  const computedStyle = window.getComputedStyle(cell);
+                  if (computedStyle.display === 'none') {
+                    cell.style.display = 'table-cell';
+                  }
+                });
+              }
+            }
+          }
+        }
+      });
+
+      // Restaurar posiciones de columnas fijadas después de reordenar
+      if (typeof window.updatePinnedColumnsPositions === 'function') {
+        window.updatePinnedColumnsPositions();
+      }
+
+      // ⚠️ FIX ESPECÍFICO: Asegurar que HorasProd sea visible después del reordenamiento
+      // Esperar un momento para que el DOM se actualice completamente
+      setTimeout(() => {
+        const horasProdHeader = document.querySelector('#mainTable thead th[data-column="HorasProd"]');
+        if (horasProdHeader) {
+          const isHeaderHidden = horasProdHeader.style.display === 'none' ||
+                                  horasProdHeader.classList.contains('hidden') ||
+                                  window.getComputedStyle(horasProdHeader).display === 'none';
+
+          if (!isHeaderHidden) {
+            // Si el header está visible, forzar visibilidad de todas las celdas de HorasProd
+            const horasProdCells = document.querySelectorAll('#mainTable tbody td[data-column="HorasProd"]');
+            horasProdCells.forEach((cell) => {
+              cell.style.display = '';
+              cell.style.visibility = '';
+              cell.classList.remove('hidden');
+              // Forzar el estilo inline para asegurar visibilidad
+              if (window.getComputedStyle(cell).display === 'none') {
+                cell.style.display = 'table-cell';
+              }
+            });
+          }
+        }
+      }, 0);
+
       if (window.dragDropMode) {
         window.allRows.forEach((row) => {
           const meta = rowMeta(row);

@@ -98,7 +98,10 @@ Route::controller(InventarioTelaresController::class)
     ->prefix('inventario-telares')->name('inventario.telares.modulo.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/guardar', 'store')->name('store');
+        Route::get('/verificar-estado', 'verificarEstado')->name('verificar.estado');
         Route::delete('/eliminar', 'destroy')->name('destroy');
+        Route::post('/actualizar-fecha', 'updateFecha')->name('actualizar.fecha');
+        Route::get('/verificar-turnos-ocupados', 'verificarTurnosOcupados')->name('verificar.turnos.ocupados');
     });
 
 Route::get('/desarrolladores', [TelDesarrolladoresController::class, 'index'])->name('desarrolladores');
