@@ -398,6 +398,9 @@ class TelDesarrolladoresController extends Controller
             $idsAfectados = [];
 
             try {
+                $salonTejido = $registro->SalonTejidoId;
+                $noTelarId = $registro->NoTelarId;
+
                 // Validar que hay al menos 2 registros
                 if ($todosLosRegistros->count() < 2) {
                     return $idsAfectados;
@@ -426,8 +429,8 @@ class TelDesarrolladoresController extends Controller
 
                 // Calcular la posición de inserción después de remover el elemento
                 if ($reprogramar == '1') {
-                    // Mover al siguiente registro
-                    $posicionAjustada = $idx + 1;
+                    // No mover aqui: el nuevo EnProceso se pone al inicio y ya empuja una posicion.
+                    $posicionAjustada = $idx;
                     // Si ya era el último o penúltimo, insertar al final
                     if ($posicionAjustada > $todosLosRegistros->count()) {
                         $posicionAjustada = $todosLosRegistros->count();
@@ -443,9 +446,27 @@ class TelDesarrolladoresController extends Controller
                 // Recalcular fechas para toda la secuencia
                 [$updates] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal, true);
 
+                if (!empty($updates)) {
+                    $idsActualizar = array_keys($updates);
+                    // Evitar colisiones de Posicion durante el update
+                    DB::table('ReqProgramaTejido')
+                        ->whereIn('Id', $idsActualizar)
+                        ->where('SalonTejidoId', $salonTejido)
+                        ->where('NoTelarId', $noTelarId)
+                        ->update(['Posicion' => DB::raw('Posicion + 10000')]);
+                }
+
                 // Actualizar solo los registros de este telar
                 foreach ($updates as $idU => $data) {
-                    DB::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+                    if (isset($data['Posicion'])) {
+                        $data['Posicion'] = (int) $data['Posicion'];
+                    }
+
+                    DB::table('ReqProgramaTejido')
+                        ->where('Id', $idU)
+                        ->where('SalonTejidoId', $salonTejido)
+                        ->where('NoTelarId', $noTelarId)
+                        ->update($data);
                     $idsAfectados[] = (int) $idU;
                 }
 
@@ -486,6 +507,7 @@ class TelDesarrolladoresController extends Controller
                     $todosLosRegistros = ReqProgramaTejido::query()
                         ->where('SalonTejidoId', $salonTejido)
                         ->where('NoTelarId', $noTelarId)
+                        ->orderBy('Posicion', 'asc')
                         ->orderBy('FechaInicio', 'asc')
                         ->lockForUpdate()
                         ->get();
@@ -499,6 +521,7 @@ class TelDesarrolladoresController extends Controller
                             $todosLosRegistros = ReqProgramaTejido::query()
                                 ->where('SalonTejidoId', $salonTejido)
                                 ->where('NoTelarId', $noTelarId)
+                                ->orderBy('Posicion', 'asc')
                                 ->orderBy('FechaInicio', 'asc')
                                 ->lockForUpdate()
                                 ->get();
@@ -559,6 +582,7 @@ class TelDesarrolladoresController extends Controller
                     $registros = ReqProgramaTejido::query()
                         ->where('SalonTejidoId', $salonTejido)
                         ->where('NoTelarId', $noTelarId)
+                        ->orderBy('Posicion', 'asc')
                         ->orderBy('FechaInicio', 'asc')
                         ->lockForUpdate()
                         ->get();
@@ -594,8 +618,26 @@ class TelDesarrolladoresController extends Controller
 
                     [$updates] = DateHelpers::recalcularFechasSecuencia($ordenados, $inicioOriginal, true);
 
+                    if (!empty($updates)) {
+                        $idsActualizar = array_keys($updates);
+                        // Evitar colisiones de Posicion durante el update
+                        DB::table('ReqProgramaTejido')
+                            ->whereIn('Id', $idsActualizar)
+                            ->where('SalonTejidoId', $salonTejido)
+                            ->where('NoTelarId', $noTelarId)
+                            ->update(['Posicion' => DB::raw('Posicion + 10000')]);
+                    }
+
                     foreach ($updates as $idU => $dataU) {
-                        DB::table('ReqProgramaTejido')->where('Id', $idU)->update($dataU);
+                        if (isset($dataU['Posicion'])) {
+                            $dataU['Posicion'] = (int) $dataU['Posicion'];
+                        }
+
+                        DB::table('ReqProgramaTejido')
+                            ->where('Id', $idU)
+                            ->where('SalonTejidoId', $salonTejido)
+                            ->where('NoTelarId', $noTelarId)
+                            ->update($dataU);
                         $idsAfectados[] = (int) $idU;
                     }
 
@@ -686,6 +728,10 @@ class TelDesarrolladoresController extends Controller
 
 
                 $codigoDibujo = $this->normalizeCodigoDibujo($validated['CodificacionModelo'] ?? '');
+                $longitudLuchaRaw = $validated['LongitudLuchaTot'] ?? null;
+                $longitudLuchaTot = $longitudLuchaRaw !== null && $longitudLuchaRaw !== ''
+                    ? (int) round((float) $longitudLuchaRaw)
+                    : null;
 
 
                 $ordenData = ReqProgramaTejido::where('NoProduccion', $validated['NoProduccion'])->first();
@@ -785,8 +831,8 @@ class TelDesarrolladoresController extends Controller
                         'MinutosCambio' => $minutosCambio,
                         'TramaAnchoPeine' => $validated['TramaAnchoPeine'] ?? null,
                         'AnchoPeineTrama' => $validated['TramaAnchoPeine'] ?? null,
-                        'LogLuchaTotal' => $validated['LongitudLuchaTot'] ?? null,
-                        'LongitudLuchaTot' => $validated['LongitudLuchaTot'] ?? null,
+                        'LogLuchaTotal' => $longitudLuchaTot,
+                        'LongitudLuchaTot' => $longitudLuchaTot,
                         'Total' => $validated['TotalPasadasDibujo'],
                         'TotalPasadasDibujo' => $validated['TotalPasadasDibujo'],
                         'NumeroJulioRizo' => $validated['NumeroJulioRizo'],
@@ -858,7 +904,7 @@ class TelDesarrolladoresController extends Controller
                             'OrdenTejido' => $validated['NoProduccion'],
                             'CodigoDibujo' => $codigoDibujo,
                             'AnchoPeineTrama' => $validated['TramaAnchoPeine'] ?? null,
-                            'LogLuchaTotal' => $validated['LongitudLuchaTot'] ?? null,
+                            'LogLuchaTotal' => $longitudLuchaTot,
                             'Total' => $validated['TotalPasadasDibujo'],
                             'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
                         ], $detallePayload, $pasadasPayload);
