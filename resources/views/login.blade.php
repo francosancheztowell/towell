@@ -8,7 +8,6 @@
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -93,35 +92,60 @@
   </div>
 
   <!-- Modal de QR -->
-  <div id="qr-modal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-      <div class="text-center">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Escáner QR</h3>
-        <!-- Video container con efecto espejo -->
-        <div class="relative mb-4">
-          <video id="qr-video" autoplay class="w-full h-64 bg-gray-100 rounded-lg" style="transform: scaleX(-1);"></video>
-          <canvas id="qr-canvas" class="hidden"></canvas>
-        </div>
-        <!-- Status message -->
-        <div id="qr-status" class="text-sm text-gray-600 mb-4">Preparando cámara...</div>
-        <!-- Buttons -->
-        <div class="flex gap-3">
-          <button onclick="closeQRScanner()"
-                  class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
-            Cerrar
+  <div id="qr-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
+    <div class="relative w-full max-w-lg mx-4">
+      <div class="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-blue-500/20 via-slate-900/10 to-blue-300/20 blur-2xl"></div>
+      <div class="bg-white/95 rounded-3xl shadow-xl border border-slate-200/70 overflow-hidden">
+        <div class="flex items-center justify-between px-6 pt-6">
+          <div>
+            <h3 class="text-xl font-semibold text-slate-900">Escáner QR</h3>
+            <p class="text-sm text-slate-500">Coloca el código dentro del marco</p>
+          </div>
+          <button type="button" onclick="closeQRScanner()"
+                  class="h-9 w-9 inline-flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:text-slate-700 hover:bg-slate-200 transition-colors"
+                  aria-label="Cerrar">
+            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor" aria-hidden="true">
+              <path d="M6.225 4.811L4.81 6.225 10.586 12l-5.776 5.775 1.415 1.414L12 13.414l5.775 5.775 1.414-1.414L13.414 12l5.775-5.775-1.414-1.414L12 10.586 6.225 4.81z"/>
+            </svg>
           </button>
+        </div>
+        <div class="px-6 pb-6 pt-4">
+          <div class="relative rounded-2xl overflow-hidden bg-slate-900">
+            <video id="qr-video" autoplay playsinline muted class="w-full h-72 object-cover"></video>
+            <canvas id="qr-canvas" class="hidden"></canvas>
+            <div class="pointer-events-none absolute inset-0">
+              <div class="absolute inset-6 rounded-2xl border border-white/40"></div>
+              <div class="absolute inset-6">
+                <span class="absolute left-0 top-0 h-4 w-4 border-l-2 border-t-2 border-blue-400"></span>
+                <span class="absolute right-0 top-0 h-4 w-4 border-r-2 border-t-2 border-blue-400"></span>
+                <span class="absolute left-0 bottom-0 h-4 w-4 border-l-2 border-b-2 border-blue-400"></span>
+                <span class="absolute right-0 bottom-0 h-4 w-4 border-r-2 border-b-2 border-blue-400"></span>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 flex items-center justify-between text-sm text-slate-600">
+            <div id="qr-status">Preparando cámara...</div>
+            <span class="text-xs text-slate-400">Sugerencia: mantén el QR estable</span>
+          </div>
+          <div class="mt-5">
+            <button onclick="closeQRScanner()"
+                    class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 rounded-lg transition-colors">
+              Cerrar
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+  <script src="{{ asset('js/vendor/jsQR.min.js') }}"></script>
 
   <script>
     // Variables globales
     let currentAuthMode = 'user';
     let stream = null;
     let interval = null;
+    let cameraFacingMode = 'environment';
 
     // Inicialización
     document.addEventListener('DOMContentLoaded', function () {
@@ -152,7 +176,7 @@
         userForm.classList.add('hidden');
 
         // Abrir automáticamente el modal QR cuando se cambia a la pestaña de QR
-        setTimeout(() => { openQRScanner(); }, 100);
+        openQRScanner();
       } else {
         userTab.className = 'flex-1 px-4 py-3 text-sm font-medium rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 text-white bg-blue-600 shadow-sm';
         qrTab.className   = 'flex-1 px-4 py-3 text-sm font-medium rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 text-slate-600 bg-transparent';
@@ -170,8 +194,15 @@
       const video = document.getElementById('qr-video');
       const status = document.getElementById('qr-status');
 
-      // Si ya hay un stream activo, no hacer nada (evita duplicados)
-      if (stream) return;
+      // Si ya hay un stream activo, solo mostrar el modal y reactivar escaneo si aplica
+      if (stream) {
+        modal.classList.remove('hidden');
+        status.textContent = 'Apunta la cámara al código QR';
+        if (!interval) {
+          startQRScanning();
+        }
+        return;
+      }
 
       modal.classList.remove('hidden');
       status.textContent = 'Preparando cámara...';
@@ -184,14 +215,29 @@
           return;
         }
 
-        // Solicitar acceso a la cámara frontal
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'user', // Cámara frontal
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          }
-        });
+        video.setAttribute('playsinline', 'true');
+        video.muted = true;
+
+        // Solicitar acceso a la cámara (priorizar trasera para QR)
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 640 },
+              height: { ideal: 480 }
+            }
+          });
+          cameraFacingMode = 'environment';
+        } catch (error) {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: 'user',
+              width: { ideal: 640 },
+              height: { ideal: 480 }
+            }
+          });
+          cameraFacingMode = 'user';
+        }
 
         video.srcObject = stream;
         status.textContent = 'Preparando cámara...';
@@ -237,6 +283,12 @@
       const canvas = document.getElementById('qr-canvas');
       const status = document.getElementById('qr-status');
       let isProcessing = false; // Evitar múltiples procesamientos simultáneos
+      const shouldMirror = cameraFacingMode === 'user';
+
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
 
       interval = setInterval(() => {
         if (video.readyState === video.HAVE_ENOUGH_DATA && !isProcessing) {
@@ -247,13 +299,16 @@
 
           const ctx = canvas.getContext('2d');
 
-          // Voltear horizontalmente para cámara frontal (efecto espejo)
-          ctx.translate(canvas.width, 0);
-          ctx.scale(-1, 1);
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          // Resetear transformación
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          if (shouldMirror) {
+            // Voltear horizontalmente para cámara frontal (efecto espejo)
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // Resetear transformación
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+          } else {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          }
 
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
@@ -357,6 +412,7 @@
 
       // Resetear status
       status.textContent = 'Preparando cámara...';
+      cameraFacingMode = 'environment';
     }
   </script>
 

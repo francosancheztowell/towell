@@ -1,9 +1,9 @@
-﻿// ===== Seleccion de filas - OPTIMIZADO =====
+// ===== Seleccion de filas - OPTIMIZADO =====
 const getSelectableRows = () => (allRows.length > 0 ? allRows : $$('.selectable-row'));
 const isInlineEditActive = () => inlineEditMode || window.inlineEditMode;
 
 function updateRowSelectionStyles(row, isSelected, inlineActive) {
-	row.classList.toggle('bg-blue-500', isSelected);
+	row.classList.toggle('bg-blue-700', isSelected);
 	row.classList.toggle('text-white', isSelected);
 	row.classList.toggle('hover:bg-blue-50', !isSelected);
 
@@ -50,7 +50,7 @@ function selectRow(rowElement, rowIndex) {
 		}
 
 		// Toggle si ya estaba seleccionada
-		if (selectedRowIndex === rowIndex && rowElement.classList.contains('bg-blue-500')) {
+		if (selectedRowIndex === rowIndex && rowElement.classList.contains('bg-blue-700')) {
 			return deselectRow();
 		}
 
@@ -127,3 +127,4 @@ function deselectRow() {
 // Exponer funciones globalmente
 window.selectRow = selectRow;
 window.deselectRow = deselectRow;
+
