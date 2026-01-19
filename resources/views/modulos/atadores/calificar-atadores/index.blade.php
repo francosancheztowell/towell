@@ -174,12 +174,7 @@
                         placeholder="Escriba aquí las observaciones sobre el atado..."
                         oninput="handleObservacionesChange()"
                         @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif>{{ $item->Obs }}</textarea>
-                    <div class="mt-3 flex justify-end">
-                        <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200"
-                            @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif>
-                            <i class="fas fa-save mr-1"></i> Guardar Observaciones
-                        </button>
-                    </div>
+                    
                 </form>
             </div>
         </div>
@@ -773,6 +768,38 @@ function toggleMaquina(maquinaId, checked){
 
 // Toggle estado de actividad y guardar en DB
 function toggleActividad(actividadId, checked){
+    // Regla: solo el usuario que marcó puede desmarcar su propia actividad
+    try {
+        if (!checked) {
+            const fila = document.getElementById('actividad-' + actividadId);
+            const celdaOperador = fila ? fila.querySelector('.operador-cell') : null;
+            const operadorTexto = (celdaOperador ? (celdaOperador.textContent || '').trim() : '');
+
+            // Extraer la clave de empleado del texto (formato esperado: "111 - Nombre" o "111 Nombre")
+            let operadorId = null;
+            if (operadorTexto && operadorTexto !== '-') {
+                const match = operadorTexto.match(/^(\d{1,10})\b/);
+                operadorId = match ? match[1] : null;
+            }
+
+            if (operadorId && currentUser && String(operadorId) !== String(currentUser.numero_empleado)) {
+                // Revertir cambio en UI y alertar
+                const checkbox = document.querySelector(`input[onchange*="toggleActividad('${actividadId}'"]`);
+                if (checkbox) checkbox.checked = true;
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No permitido',
+                    text: 'No puedes desmarcar una actividad realizada por otro usuario. Por favor, consúltalo con tu supervisor.',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+        }
+    } catch (e) {
+        // Si hay algún error en la validación, continuamos con el flujo normal
+        console.warn('Validación de propietario de actividad falló:', e);
+    }
+
     fetch('{{ route('atadores.save') }}', {
         method: 'POST',
         headers: {
@@ -792,10 +819,17 @@ function toggleActividad(actividadId, checked){
         if(res.ok){
             // Actualizar el operador en la tabla dinámicamente
             const fila = document.getElementById('actividad-' + actividadId);
-            if (fila && res.operador) {
-                const celdaOperador = fila.querySelector('.operador-cell');
-                if (celdaOperador) {
-                    celdaOperador.textContent = res.operador;
+            const celdaOperador = fila ? fila.querySelector('.operador-cell') : null;
+            if (fila && celdaOperador) {
+                if (checked) {
+                    // Si el backend provee operador, úsalo; si no, refleja usuario actual
+                    const operadorTexto = res.operador
+                        ? String(res.operador)
+                        : (currentUser ? `${currentUser.numero_empleado} - ${currentUser.nombre || ''}` : '-');
+                    celdaOperador.textContent = operadorTexto.trim();
+                } else {
+                    // Al desmarcar, limpiar operador
+                    celdaOperador.textContent = '-';
                 }
             }
 
